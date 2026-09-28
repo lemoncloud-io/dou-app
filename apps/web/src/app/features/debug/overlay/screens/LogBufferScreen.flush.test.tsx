@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { LogBufferScreen } from './LogBufferScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 import { getLogQueueView } from '../../../../runtime/logging/logQueueView';
 
 const flush = jest.fn();
@@ -30,19 +31,24 @@ jest.mock('../../../../bridge', () => ({
 // surface drifts from the real name (`filterLogs`), as it did this time.
 
 describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
         jest.clearAllMocks();
         current = view;
     });
+
+    afterEach(() => restoreLanguage());
 
     it('예정 밖 전송을 큐 뷰를 통해 부른다', async () => {
         flush.mockResolvedValue(undefined);
         render(<LogBufferScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: '지금 보내기' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Send now' }));
 
         expect(flush).toHaveBeenCalledTimes(1);
-        expect(await screen.findByText(/보냈습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/Sent/)).toBeInTheDocument();
     });
 
     // Silently passing through when there's no uploader would read as "sent" to whoever clicked it.
@@ -50,9 +56,9 @@ describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
         current = undefined;
         render(<LogBufferScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: '지금 보내기' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Send now' }));
 
-        expect(await screen.findByText(/돌고 있지 않습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/isn't running/)).toBeInTheDocument();
         expect(flush).not.toHaveBeenCalled();
     });
 
@@ -60,10 +66,10 @@ describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
         flush.mockRejectedValue(new Error('network'));
         render(<LogBufferScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: '지금 보내기' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Send now' }));
 
         expect(await screen.findByText(/flush failed/)).toBeInTheDocument();
-        expect(screen.queryByText(/보냈습니다/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Sent/)).not.toBeInTheDocument();
     });
 });
 

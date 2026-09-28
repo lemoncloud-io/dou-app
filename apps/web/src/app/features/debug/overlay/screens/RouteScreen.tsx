@@ -4,6 +4,7 @@ import { CopyButton } from '../../components/CopyButton';
 import { HintRow } from '../../components/HintRow';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
+import { useRouteScreenStrings } from '../../i18n/screens/RouteScreen';
 import { getRouteTrail } from '../../../../utils/routeTrail';
 import { canGoBackInApp, routeStackTracker, type RouteStackSnapshot } from '../../../../navigation';
 
@@ -22,6 +23,7 @@ import { canGoBackInApp, routeStackTracker, type RouteStackSnapshot } from '../.
  * what the numbers do not show on their own.
  */
 export const RouteScreen = () => {
+    const t = useRouteScreenStrings();
     const [stack, setStack] = useState<RouteStackSnapshot>(() => routeStackTracker.getSnapshot());
     const [trail, setTrail] = useState<string[]>(() => getRouteTrail());
     const [historyLength, setHistoryLength] = useState(() => window.history.length);
@@ -57,76 +59,68 @@ export const RouteScreen = () => {
     return (
         <div className="space-y-3 p-4">
             <div className="flex justify-end">
-                <CopyButton value={snapshot} label="라우트 복사" />
+                <CopyButton value={snapshot} label={t.copyRoute} />
             </div>
 
-            <Section title="요약">
+            <Section title={t.summary.title}>
                 <HintRow
-                    label="깊이"
-                    value={depth ? `${depth}칸` : null}
-                    hint="이 앱이 쌓은 히스토리 항목 수입니다. 앱에 들어오기 전 항목은 세지 않습니다."
+                    label={t.summary.depth.label}
+                    value={depth ? t.summary.depth.value(depth) : null}
+                    hint={t.summary.depth.hint}
                 />
                 <HintRow
-                    label="현재 위치"
+                    label={t.summary.currentPosition.label}
                     value={currentIndex === null ? null : `#${currentIndex}`}
-                    hint="라우터가 히스토리 항목마다 심어두는 번호(history.state.idx)입니다. #0이 앱의 첫 화면입니다."
+                    hint={t.summary.currentPosition.hint}
                 />
                 <HintRow
-                    label="뒤로 갈 수 있음"
-                    value={canGoBack ? '예' : '아니오'}
-                    hint="뒤로가기가 실제로 묻는 값입니다. 라우터 인덱스가 #0보다 위여야 '예'이고, 인덱스를 읽을 수 없으면 '아니오'입니다. '아니오'면 앱은 뒤로가기를 처리하지 않고, 그다음은 셸이 정합니다."
+                    label={t.summary.canGoBack.label}
+                    value={canGoBack ? t.summary.canGoBack.yes : t.summary.canGoBack.no}
+                    hint={t.summary.canGoBack.hint}
                 />
                 <HintRow
-                    label="앞으로 남은 항목"
-                    value={`${forwardCount}칸`}
-                    hint="뒤로 온 뒤 앞으로가기로 다시 닿을 수 있는 항목 수입니다. 여기서 새 화면으로 이동하면 이 항목들은 버려집니다."
+                    label={t.summary.forwardRemaining.label}
+                    value={t.summary.forwardRemaining.value(forwardCount)}
+                    hint={t.summary.forwardRemaining.hint}
                 />
                 <HintRow
-                    label="history.length"
+                    label={t.summary.historyLength.label}
                     value={String(historyLength)}
-                    hint="브라우저 전역 값이라 앱에 들어오기 전 항목까지 셉니다. 앱 깊이가 아닙니다 — 뒤로가기는 위의 '뒤로 갈 수 있음'으로 판정하므로 이 값과 달라도 정상입니다."
+                    hint={t.summary.historyLength.hint}
                 />
                 {historyLength !== depth && depth > 0 && (
                     <HintRow
-                        label="불일치"
-                        value={`앱 스택 ${depth}칸 ≠ history.length ${historyLength}`}
-                        hint="두 값의 차이가 앱에 들어오기 전 항목 수입니다. 웹뷰를 재사용했거나 브라우저 탭이 다른 사이트를 먼저 방문한 경우입니다."
+                        label={t.summary.mismatch.label}
+                        value={t.summary.mismatch.value(depth, historyLength)}
+                        hint={t.summary.mismatch.hint}
                     />
                 )}
             </Section>
 
-            <Section title="스택 (뒤 → 앞)">
+            <Section title={t.stack.title}>
                 {/* Always visible, not a hint: the reader needs to know what this list IS before
                     reading it, and the stack/trail distinction is the whole reason for two lists. */}
-                <p className="text-muted-foreground pb-1 text-xs leading-snug">
-                    지금 내 뒤에 쌓여 있는 것. 뒤로 간 뒤 새 화면으로 가면 앞쪽 항목은 버려집니다.
-                </p>
+                <p className="text-muted-foreground pb-1 text-xs leading-snug">{t.stack.description}</p>
                 {!stack.isIndexed && (
-                    <HintRow
-                        label="경고"
-                        value="스택을 신뢰할 수 없습니다"
-                        hint="라우터를 거치지 않고 history를 직접 조작한 코드가 있습니다. 그러면 항목 번호를 읽을 수 없어 스택을 복원할 수 없습니다."
-                    />
+                    <HintRow label={t.stack.warningLabel} value={t.stack.warningValue} hint={t.stack.warningHint} />
                 )}
-                {depth === 0 && <p className="text-muted-foreground text-xs">아직 기록된 전환이 없습니다</p>}
+                {depth === 0 && <p className="text-muted-foreground text-xs">{t.stack.empty}</p>}
                 {stack.entries.map(entry => (
                     <Row
                         key={entry.index}
-                        label={`#${entry.index}${entry.isCurrent ? ' ← 현재' : ''}`}
-                        value={entry.pathname ?? '(알 수 없음 — 리로드 이전)'}
+                        label={`#${entry.index}${entry.isCurrent ? t.stack.currentSuffix : ''}`}
+                        value={entry.pathname ?? t.stack.unknownEntry}
                     />
                 ))}
             </Section>
 
-            <Section title="Trail (방문 순서)">
-                <p className="text-muted-foreground pb-1 text-xs leading-snug">
-                    거쳐온 화면을 시간순으로. 뒤로 간 화면도 남습니다. 피드백 리포트에 함께 실립니다.
-                </p>
-                {trail.length === 0 && <p className="text-muted-foreground text-xs">아직 방문 기록이 없습니다</p>}
+            <Section title={t.trail.title}>
+                <p className="text-muted-foreground pb-1 text-xs leading-snug">{t.trail.description}</p>
+                {trail.length === 0 && <p className="text-muted-foreground text-xs">{t.trail.empty}</p>}
                 {trail.map((pathname, order) => (
                     <Row
                         key={`${order}-${pathname}`}
-                        label={order === trail.length - 1 ? '현재' : `${order + 1}`}
+                        label={order === trail.length - 1 ? t.trail.current : `${order + 1}`}
                         value={pathname}
                     />
                 ))}

@@ -6,10 +6,12 @@ import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { Input } from '@chatic/ui-kit/components/ui/input';
+import { useEmailLoginScreenStrings } from '../../i18n/screens/EmailLoginScreen';
 import { ROUTES } from '../../../../routes/paths';
 
 export const EmailLoginScreen = () => {
     const { t } = useTranslation();
+    const strings = useEmailLoginScreenStrings();
     const { toast } = useToast();
     const { mutateAsync: login, isPending } = runtime.session.useLogin();
 
@@ -27,7 +29,7 @@ export const EmailLoginScreen = () => {
             // every metric collected so far.
             await login({ uid, pwd });
             setPwd('');
-            toast({ title: 'Logged in', description: uid });
+            toast({ title: strings.loggedInToast, description: uid });
         } catch {
             toast({
                 title: t('mypageLogin.error'),
@@ -42,7 +44,7 @@ export const EmailLoginScreen = () => {
             <div className="flex-1 px-4">
                 <div className="mt-6 mb-8">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">{t('mypageLogin.title')}</h1>
-                    <p className="mt-1 text-[13px] text-muted-foreground">Debug Mode - Email Login</p>
+                    <p className="mt-1 text-[13px] text-muted-foreground">{strings.subtitle}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -72,7 +74,7 @@ export const EmailLoginScreen = () => {
                                 type="button"
                                 onClick={() => setShowPassword(prev => !prev)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
-                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                aria-label={showPassword ? strings.hidePassword : strings.showPassword}
                             >
                                 {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                             </button>

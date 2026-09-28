@@ -4,6 +4,7 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useDebugOperation } from '../../hooks';
 import { appBridge } from '../../../../bridge';
+import { useCustomZipScreenStrings } from '../../i18n/screens/CustomZipScreen';
 
 /**
  * Point the app's WebView at a custom web build — the app's Settings screen, moved here
@@ -25,6 +26,7 @@ interface Status {
 
 export const CustomZipScreen = () => {
     const { result, run } = useDebugOperation();
+    const strings = useCustomZipScreenStrings();
     const [url, setUrl] = useState('');
     const [status, setStatus] = useState<Status | null>(null);
 
@@ -52,30 +54,24 @@ export const CustomZipScreen = () => {
     return (
         <div className="flex flex-col gap-4 p-4">
             <div>
-                <h1 className="text-[20px] font-semibold leading-[1.35]">커스텀 web zip</h1>
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                    zip을 내려받아 로컬 서버로 띄우고 WebView를 그쪽으로 다시 로드합니다
-                </p>
+                <h1 className="text-[20px] font-semibold leading-[1.35]">{strings.title}</h1>
+                <p className="mt-1 text-[13px] text-muted-foreground">{strings.subtitle}</p>
             </div>
 
-            {status && !status.allowed && (
-                <p className="text-[13px] text-destructive">
-                    이 앱 빌드(PROD)에서는 적용할 수 없습니다 — 끄기만 가능합니다
-                </p>
-            )}
+            {status && !status.allowed && <p className="text-[13px] text-destructive">{strings.prodBlocked}</p>}
 
-            <Section title="지금 상태">
-                <Row label="서버" value={status?.serverUrl ?? '기본 웹'} />
-                <Row label="풀린 위치" value={status?.localRoot ?? '—'} />
+            <Section title={strings.statusSection}>
+                <Row label={strings.serverLabel} value={status?.serverUrl ?? strings.defaultWeb} />
+                <Row label={strings.unpackedAtLabel} value={status?.localRoot ?? '—'} />
             </Section>
 
             <label className="flex flex-col gap-1.5">
-                <span className="text-[14px] font-semibold text-foreground">zip 주소</span>
+                <span className="text-[14px] font-semibold text-foreground">{strings.zipUrlLabel}</span>
                 <input
                     type="text"
                     value={url}
                     onChange={e => setUrl(e.target.value)}
-                    placeholder="https://…/web-build.zip"
+                    placeholder={strings.placeholder}
                     className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[13px] outline-none focus:border-foreground"
                 />
             </label>
@@ -85,28 +81,36 @@ export const CustomZipScreen = () => {
                     type="button"
                     disabled={!url.trim() || status?.allowed === false}
                     onClick={() =>
-                        void run('zip 적용', () => appBridge.applyCustomZip(url.trim()), 'ApplyCustomZip').then(load)
+                        void run(
+                            strings.operations.applyZip,
+                            () => appBridge.applyCustomZip(url.trim()),
+                            'ApplyCustomZip'
+                        ).then(load)
                     }
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
-                    적용
+                    {strings.apply}
                 </button>
                 <button
                     type="button"
                     disabled={!active}
                     onClick={() =>
-                        void run('기본 웹으로', () => appBridge.disableCustomZip(), 'DisableCustomZip').then(load)
+                        void run(
+                            strings.operations.revertToDefault,
+                            () => appBridge.disableCustomZip(),
+                            'DisableCustomZip'
+                        ).then(load)
                     }
                     className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
                 >
-                    끄기
+                    {strings.turnOff}
                 </button>
                 <button
                     type="button"
                     onClick={() => void load()}
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
-                    새로고침
+                    {strings.refresh}
                 </button>
             </div>
 

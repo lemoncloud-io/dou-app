@@ -1,15 +1,15 @@
-import { useSyncExternalStore } from 'react';
+import { defineDebugStrings } from './define';
 
-import i18next from 'i18next';
+import type { DebugScreenKey, DebugSectionKey } from '../overlay/screenManifest';
 
-import type { DebugScreenKey, DebugSectionKey } from './overlay/screenManifest';
+export { defineDebugStrings, setDebugLanguageForTests } from './define';
 
 /**
  * Every word the debug panel shows, one table per language.
  *
  * Two problems this fixes at once. Labels used to be written next to whatever registered the
- * screen, so the same panel said `Email Login` and `App Icon` in one list (ADR-0080 §Context 1 saw the
- * same drift between web and app). And the tables are typed by `DebugScreenKey`, so a new screen
+ * screen, so the same panel said `Email Login` and `App Icon` in one list (the web and the app had
+ * drifted the same way). And the tables are typed by `DebugScreenKey`, so a new screen
  * cannot be added without naming it in BOTH languages — the compiler asks.
  *
  * The tables are bundled rather than fetched from `/locales/{{lng}}/{{ns}}.json` like the product's
@@ -116,28 +116,4 @@ const TABLES: Record<'ko' | 'en', DebugStrings> = { ko, en };
 /** Exported for the manifest test: every screen must be named in every language. */
 export const DEBUG_LOCALE_TABLES = TABLES;
 
-/** Korean is the fallback: the QA docs this panel is used against are Korean (ADR-0080 decision 3). */
-const tableFor = (language: string | undefined): DebugStrings =>
-    language?.toLowerCase().startsWith('en') ? TABLES.en : TABLES.ko;
-
-// i18next is read directly rather than through `useTranslation` so the panel does not depend on the
-// app's i18n having initialised — it is mounted outside AppRuntime precisely to survive a broken
-// boot. Every access is optional for the same reason: a missing or uninitialised instance means the
-// Korean table, never a crashed panel.
-type LanguageSource = {
-    resolvedLanguage?: string;
-    language?: string;
-    on?: (event: 'languageChanged', listener: () => void) => void;
-    off?: (event: 'languageChanged', listener: () => void) => void;
-};
-
-const source = i18next as LanguageSource | undefined;
-
-const subscribe = (listener: () => void) => {
-    source?.on?.('languageChanged', listener);
-    return () => source?.off?.('languageChanged', listener);
-};
-
-const currentTable = () => tableFor(source?.resolvedLanguage ?? source?.language);
-
-export const useDebugStrings = (): DebugStrings => useSyncExternalStore(subscribe, currentTable, () => TABLES.ko);
+export const useDebugStrings = defineDebugStrings(TABLES);

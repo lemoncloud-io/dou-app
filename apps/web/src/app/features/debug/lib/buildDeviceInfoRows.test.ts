@@ -1,12 +1,21 @@
 import type { DeviceInfo } from '@chatic/app-messages';
 
-import { buildDeviceInfoRows } from './buildDeviceInfoRows';
+import { buildDeviceInfoRows, type DeviceInfoRowLabels } from './buildDeviceInfoRows';
 
-const ROW_LABELS = ['Device ID', 'Install ID', 'Platform', 'Model', 'Stage', 'Application'];
+const LABELS: DeviceInfoRowLabels = {
+    deviceId: 'Device ID',
+    installId: 'Install ID',
+    platform: 'Platform',
+    model: 'Model',
+    stage: 'Stage',
+    application: 'Application',
+};
+
+const ROW_LABELS = Object.values(LABELS);
 
 describe('buildDeviceInfoRows', () => {
     it('deviceInfo가 null이면 모든 행이 플레이스홀더로 떨어진다', () => {
-        const rows = buildDeviceInfoRows(null);
+        const rows = buildDeviceInfoRows(null, LABELS);
 
         expect(rows.map(row => row.label)).toEqual(ROW_LABELS);
         expect(rows.every(row => row.value === '-' && row.copyValue === null)).toBe(true);
@@ -24,7 +33,7 @@ describe('buildDeviceInfoRows', () => {
             application: 'chatic',
         } as unknown as DeviceInfo;
 
-        const byLabel = Object.fromEntries(buildDeviceInfoRows(deviceInfo).map(row => [row.label, row]));
+        const byLabel = Object.fromEntries(buildDeviceInfoRows(deviceInfo, LABELS).map(row => [row.label, row]));
 
         expect(byLabel['Device ID']).toMatchObject({ value: 'dev-1', copyValue: 'dev-1' });
         expect(byLabel['Install ID'].value).toBe('inst-1');
@@ -35,7 +44,7 @@ describe('buildDeviceInfoRows', () => {
     it('공백만 있거나 null인 값은 플레이스홀더로 처리한다', () => {
         const deviceInfo = { deviceId: '   ', installId: null } as unknown as DeviceInfo;
 
-        const byLabel = Object.fromEntries(buildDeviceInfoRows(deviceInfo).map(row => [row.label, row]));
+        const byLabel = Object.fromEntries(buildDeviceInfoRows(deviceInfo, LABELS).map(row => [row.label, row]));
 
         expect(byLabel['Device ID']).toMatchObject({ value: '-', copyValue: null });
         expect(byLabel['Install ID']).toMatchObject({ value: '-', copyValue: null });

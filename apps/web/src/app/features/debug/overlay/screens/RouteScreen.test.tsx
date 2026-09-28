@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { RouteScreen } from './RouteScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 import { recordRoute, resetRouteTrail } from '../../../../utils/routeTrail';
 import { routeStackTracker } from '../../../../navigation';
 
@@ -19,7 +20,10 @@ jest.mock('../../lib/copyText', () => ({
  * down. Rendering it with no providers at all is the contract being pinned.
  */
 describe('RouteScreen — 라우트 스택 인스펙터', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
         routeStackTracker.reset();
         resetRouteTrail();
         // jsdom keeps history state across cases in a file. The screen reads the LIVE router index
@@ -27,11 +31,13 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         window.history.pushState({ idx: 0 }, '');
     });
 
+    afterEach(() => restoreLanguage());
+
     it('프로바이더 없이 렌더되고, 기록이 없으면 없다고 말한다', () => {
         expect(() => render(<RouteScreen />)).not.toThrow();
 
-        expect(screen.getByText('아직 기록된 전환이 없습니다')).toBeInTheDocument();
-        expect(screen.getByText('아직 방문 기록이 없습니다')).toBeInTheDocument();
+        expect(screen.getByText('No transitions recorded yet')).toBeInTheDocument();
+        expect(screen.getByText('No visits recorded yet')).toBeInTheDocument();
     });
 
     it('스택과 trail을 함께 보여주고 현재 위치를 표시한다', () => {
@@ -42,8 +48,8 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        expect(screen.getByText('#1 ← 현재')).toBeInTheDocument();
-        expect(screen.getByText('2칸')).toBeInTheDocument();
+        expect(screen.getByText('#1 ← current')).toBeInTheDocument();
+        expect(screen.getByText('2 entries')).toBeInTheDocument();
         expect(screen.getAllByText('/channels/abc')).toHaveLength(2); // stack + trail
     });
 
@@ -59,12 +65,12 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         render(<RouteScreen />);
 
         // /b is not in the stack.
-        const stackSection = screen.getByText('스택 (뒤 → 앞)').parentElement as HTMLElement;
+        const stackSection = screen.getByText('Stack (back → forward)').parentElement as HTMLElement;
         expect(stackSection.textContent).not.toContain('/b');
         expect(stackSection.textContent).toContain('/c');
 
         // It remains in the trail.
-        const trailSection = screen.getByText('Trail (방문 순서)').parentElement as HTMLElement;
+        const trailSection = screen.getByText('Trail (visit order)').parentElement as HTMLElement;
         expect(trailSection.textContent).toContain('/b');
     });
 
@@ -73,7 +79,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        expect(screen.getAllByText('(알 수 없음 — 리로드 이전)')).toHaveLength(2);
+        expect(screen.getAllByText('(unknown — before reload)')).toHaveLength(2);
     });
 
     it('라우터를 우회한 history 조작이 있었으면 경고한다', () => {
@@ -81,7 +87,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        expect(screen.getByText(/스택을 신뢰할 수 없습니다/)).toBeInTheDocument();
+        expect(screen.getByText(/Stack cannot be trusted/)).toBeInTheDocument();
     });
 
     // The row the back button actually consults. It asks `canGoBackInApp()` rather than deriving an
@@ -97,7 +103,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        expect(screen.getByRole('button', { name: '뒤로 갈 수 있음' }).parentElement).toHaveTextContent('아니오');
+        expect(screen.getByRole('button', { name: 'Can go back' }).parentElement).toHaveTextContent('No');
     });
 
     it('앱 첫 화면 위에 있으면 뒤로 갈 수 있음이 예다', () => {
@@ -106,7 +112,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
 
         render(<RouteScreen />);
 
-        expect(screen.getByRole('button', { name: '뒤로 갈 수 있음' }).parentElement).toHaveTextContent('예');
+        expect(screen.getByRole('button', { name: 'Can go back' }).parentElement).toHaveTextContent('Yes');
     });
 
     // The two values routinely disagree, and only this screen says so. Reading history.length as
@@ -119,7 +125,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         render(<RouteScreen />);
 
         expect(
-            screen.getByText(new RegExp(`앱 스택 1칸 ≠ history.length ${window.history.length}`))
+            screen.getByText(new RegExp(`App stack 1 ≠ history.length ${window.history.length}`))
         ).toBeInTheDocument();
     });
 
@@ -130,12 +136,10 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         render(<RouteScreen />);
 
         // Hover path: the native title attribute.
-        expect(screen.getByRole('button', { name: '깊이' }).getAttribute('title')).toContain(
-            '앱에 들어오기 전 항목은 세지 않습니다'
-        );
+        expect(screen.getByRole('button', { name: 'Depth' }).getAttribute('title')).toContain("don't count");
         // That history.length is not the app's depth is this screen's key piece of information.
         expect(screen.getByRole('button', { name: 'history.length' }).getAttribute('title')).toContain(
-            '앱 깊이가 아닙니다'
+            "not the app's depth"
         );
     });
 
@@ -144,13 +148,13 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         routeStackTracker.record({ pathname: '/', action: 'PUSH', index: 0 });
 
         render(<RouteScreen />);
-        const label = screen.getByRole('button', { name: '현재 위치' });
+        const label = screen.getByRole('button', { name: 'Current position' });
         expect(label).toHaveAttribute('aria-expanded', 'false');
 
         await userEvent.click(label);
 
         expect(label).toHaveAttribute('aria-expanded', 'true');
-        expect(screen.getByText(/#0이 앱의 첫 화면입니다/)).toBeInTheDocument();
+        expect(screen.getByText(/#0 is the app's first screen/)).toBeInTheDocument();
     });
 
     // If what's on screen disagrees with what's copied to the clipboard, the pasted report becomes a lie.
@@ -162,7 +166,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
         window.history.pushState({ idx: 1 }, '');
 
         render(<RouteScreen />);
-        await userEvent.click(screen.getByRole('button', { name: /라우트 복사/ }));
+        await userEvent.click(screen.getByRole('button', { name: /Copy route/ }));
 
         const copied = JSON.parse(copyTextWithResult.mock.calls[0][0] as string);
         expect(copied.depth).toBe(2);
@@ -176,7 +180,7 @@ describe('RouteScreen — 라우트 스택 인스펙터', () => {
     it('두 목록의 뜻은 접지 않고 항상 보여준다', () => {
         render(<RouteScreen />);
 
-        expect(screen.getByText(/지금 내 뒤에 쌓여 있는 것/)).toBeInTheDocument();
-        expect(screen.getByText(/거쳐온 화면을 시간순으로/)).toBeInTheDocument();
+        expect(screen.getByText(/What's stacked behind you right now/)).toBeInTheDocument();
+        expect(screen.getByText(/Screens visited, in chronological order/)).toBeInTheDocument();
     });
 });

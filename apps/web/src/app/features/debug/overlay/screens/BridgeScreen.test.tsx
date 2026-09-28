@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { BridgeScreen } from './BridgeScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 
 const request = jest.fn();
 const post = jest.fn();
@@ -16,17 +17,22 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 describe('BridgeScreen — 채널 점검과 임의 명령', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
         jest.clearAllMocks();
         request.mockResolvedValue({ data: { payload: 'pong' } });
+        restoreLanguage = setDebugLanguageForTests('en');
     });
+
+    afterEach(() => restoreLanguage());
 
     // A browser has no shell — that's why this screen's first question is "is there a channel".
     it('셸 채널이 없으면 없다고 말한다', () => {
         render(<BridgeScreen />);
 
         expect(screen.getByText('isNative()')).toBeInTheDocument();
-        expect(screen.getAllByText('없음').length).toBeGreaterThanOrEqual(3);
+        expect(screen.getAllByText('Absent').length).toBeGreaterThanOrEqual(3);
     });
 
     it('request는 응답과 걸린 시간을 기록에 남긴다', async () => {
@@ -36,7 +42,7 @@ describe('BridgeScreen — 채널 점검과 임의 명령', () => {
 
         expect(request).toHaveBeenCalledWith({ type: 'Ping', data: {} });
         expect(await screen.findByText(/pong/)).toBeInTheDocument();
-        expect(screen.getByText('주고받은 기록 (1)')).toBeInTheDocument();
+        expect(screen.getByText('Exchange log (1)')).toBeInTheDocument();
     });
 
     // Failure is a result too: showing the code and message as-is is what distinguishes a version issue from a channel issue.
@@ -56,7 +62,7 @@ describe('BridgeScreen — 채널 점검과 임의 명령', () => {
         await userEvent.click(screen.getByRole('button', { name: /post/ }));
 
         expect(post).toHaveBeenCalledWith({ type: 'Ping', data: {} });
-        expect(screen.getByText('보냄 (확인 없음)')).toBeInTheDocument();
+        expect(screen.getByText('Sent (no confirmation)')).toBeInTheDocument();
     });
 
     it('payload가 JSON이 아니면 보내지 않고 이유를 말한다', async () => {
@@ -68,6 +74,6 @@ describe('BridgeScreen — 채널 점검과 임의 명령', () => {
         await userEvent.click(screen.getByRole('button', { name: /request/ }));
 
         expect(request).not.toHaveBeenCalled();
-        expect(screen.getByText(/payload 파싱 실패/)).toBeInTheDocument();
+        expect(screen.getByText(/payload parse failed/)).toBeInTheDocument();
     });
 });

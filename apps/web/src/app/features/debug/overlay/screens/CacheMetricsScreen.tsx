@@ -4,6 +4,7 @@ import { Database, RotateCcw } from 'lucide-react';
 import { runtime } from '@chatic/app-runtime';
 
 import { CopyButton } from '../../components/CopyButton';
+import { useCacheMetricsStrings } from '../../i18n/screens/CacheMetricsScreen';
 
 const REFRESH_MS = 1000;
 
@@ -24,6 +25,7 @@ interface Row {
  * eating the time.
  */
 export const CacheMetricsScreen = () => {
+    const strings = useCacheMetricsStrings();
     const [rows, setRows] = useState<Row[]>([]);
     const [totalOps, setTotalOps] = useState(0);
 
@@ -60,7 +62,7 @@ export const CacheMetricsScreen = () => {
             <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <Database size={16} className="text-muted-foreground" />
-                    <span className="text-[13px] font-semibold text-foreground">Native Cache Metrics</span>
+                    <span className="text-[13px] font-semibold text-foreground">{strings.title}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <CopyButton value={() => JSON.stringify(metricsSource.read(), null, 2)} />
@@ -69,33 +71,31 @@ export const CacheMetricsScreen = () => {
                         onClick={onReset}
                         className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[12px] text-muted-foreground"
                     >
-                        <RotateCcw size={12} /> Reset
+                        <RotateCcw size={12} /> {strings.reset}
                     </button>
                 </div>
             </div>
 
             {!runtime.boot.isNativeApp() && (
                 <p className="mb-3 rounded-[12px] bg-muted px-3 py-2 text-[12px] text-muted-foreground">
-                    브라우저에서는 네이티브 저장소를 쓰지 않아 계측이 비어 있습니다. 앱(WebView)에서 확인하세요.
+                    {strings.browserNotice}
                 </p>
             )}
 
-            <p className="mb-3 text-[13px] text-muted-foreground">
-                총 {totalOps.toLocaleString()}회 · 누적 {grandTotalMs.toLocaleString()}ms
-            </p>
+            <p className="mb-3 text-[13px] text-muted-foreground">{strings.summary(totalOps, grandTotalMs)}</p>
 
             <div className="overflow-x-auto rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                 {rows.length === 0 ? (
-                    <p className="py-4 text-center text-[12px] text-muted-foreground">아직 기록된 호출이 없습니다.</p>
+                    <p className="py-4 text-center text-[12px] text-muted-foreground">{strings.empty}</p>
                 ) : (
                     <table className="w-full text-[12px]">
                         <thead>
                             <tr className="text-left text-muted-foreground">
-                                <th className="pb-2 font-medium">연산</th>
-                                <th className="pb-2 text-right font-medium">횟수</th>
-                                <th className="pb-2 text-right font-medium">평균</th>
-                                <th className="pb-2 text-right font-medium">최대</th>
-                                <th className="pb-2 text-right font-medium">누적</th>
+                                <th className="pb-2 font-medium">{strings.columns.operation}</th>
+                                <th className="pb-2 text-right font-medium">{strings.columns.count}</th>
+                                <th className="pb-2 text-right font-medium">{strings.columns.avg}</th>
+                                <th className="pb-2 text-right font-medium">{strings.columns.max}</th>
+                                <th className="pb-2 text-right font-medium">{strings.columns.total}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -115,10 +115,7 @@ export const CacheMetricsScreen = () => {
                 )}
             </div>
 
-            <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-                누적이 큰 항목이 평균은 낮은데 횟수가 많다면, 범인은 저장소가 아니라 옵저버가 emit마다 다시 읽는
-                구조입니다. 평균 자체가 크다면 저장소 쪽입니다.
-            </p>
+            <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">{strings.footnote}</p>
         </div>
     );
 };

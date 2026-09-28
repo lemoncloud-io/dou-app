@@ -3,12 +3,7 @@ import type { MouseEvent } from 'react';
 import { Check, Copy, TriangleAlert } from 'lucide-react';
 
 import { useCopyFeedback, type CopyState } from '../hooks/useCopyFeedback';
-
-const STATE_TEXT: Record<CopyState, string> = {
-    idle: '복사',
-    copied: '복사됨',
-    failed: '복사 실패',
-};
+import { useDebugSharedStrings } from '../i18n/screens/shared';
 
 const STATE_ICON = { idle: Copy, copied: Check, failed: TriangleAlert } as const;
 
@@ -24,6 +19,8 @@ const STATE_ICON = { idle: Copy, copied: Check, failed: TriangleAlert } as const
  */
 export const CopyButton = ({ value, label }: { value: () => string | null | undefined; label?: string }) => {
     const { state, copy } = useCopyFeedback();
+    const strings = useDebugSharedStrings();
+    const stateText: Record<CopyState, string> = strings.copy;
 
     // Copy buttons sit inside rows that are themselves clickable (the DB browser's expander). A
     // copy should never also toggle the row it lives in.
@@ -44,7 +41,7 @@ export const CopyButton = ({ value, label }: { value: () => string | null | unde
             }`}
         >
             <Icon size={12} />
-            {state === 'idle' ? (label ?? STATE_TEXT.idle) : STATE_TEXT[state]}
+            {state === 'idle' ? (label ?? stateText.idle) : stateText[state]}
         </button>
     );
 };

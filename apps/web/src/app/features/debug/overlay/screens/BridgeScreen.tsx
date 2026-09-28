@@ -5,6 +5,7 @@ import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
+import { useBridgeScreenStrings } from '../../i18n/screens/BridgeScreen';
 
 /**
  * The bridge itself, which no screen covered: every other native screen exercises ONE command and,
@@ -35,6 +36,7 @@ const MAX_BODY_CHARS = 400;
 const asMessage = (type: string, data: unknown) => ({ type, data }) as unknown as WebMessageData<WebMessageType>;
 
 export const BridgeScreen = () => {
+    const strings = useBridgeScreenStrings();
     const [type, setType] = useState<string>('Ping');
     const [payload, setPayload] = useState('{}');
     const [payloadError, setPayloadError] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export const BridgeScreen = () => {
         if (mode === 'post') {
             // Nothing comes back, so the line says so rather than implying the app acted.
             webClient.post(asMessage(type, data));
-            appendLog({ mode, type, ms: null, ok: true, body: '보냄 (확인 없음)' });
+            appendLog({ mode, type, ms: null, ok: true, body: strings.sentNoConfirmation });
             return;
         }
 
@@ -100,20 +102,18 @@ export const BridgeScreen = () => {
 
     return (
         <div className="flex flex-col gap-4 p-4">
-            <p className="text-[13px] text-muted-foreground">
-                채널이 붙어 있는지 먼저 보고, 아무 명령이나 손으로 보냅니다
-            </p>
+            <p className="text-[13px] text-muted-foreground">{strings.intro}</p>
 
-            <Section title="채널">
+            <Section title={strings.channelsSection}>
                 <Row label="isNative()" value={String(isNative())} />
                 {Object.entries(channels).map(([name, present]) => (
-                    <Row key={name} label={name} value={present ? '있음' : '없음'} />
+                    <Row key={name} label={name} value={present ? strings.channelPresent : strings.channelAbsent} />
                 ))}
                 <Row label="bridge" value={BRIDGE_VERSION_INFO.bridgeVersion} />
                 <Row label="protocol" value={BRIDGE_VERSION_INFO.protocolVersion} />
             </Section>
 
-            <Section title="명령">
+            <Section title={strings.commandSection}>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                     {PRESETS.map(preset => (
                         <button
@@ -132,7 +132,7 @@ export const BridgeScreen = () => {
                 </div>
 
                 <label className="mt-2 flex flex-col gap-1.5">
-                    <span className="text-[13px] font-semibold text-foreground">타입</span>
+                    <span className="text-[13px] font-semibold text-foreground">{strings.typeLabel}</span>
                     <input
                         type="text"
                         value={type}
@@ -152,7 +152,9 @@ export const BridgeScreen = () => {
                         className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 font-mono text-[12px] outline-none focus:border-foreground"
                     />
                 </label>
-                {payloadError && <p className="text-[12px] text-destructive">payload 파싱 실패: {payloadError}</p>}
+                {payloadError && (
+                    <p className="text-[12px] text-destructive">{strings.payloadParseFailed(payloadError)}</p>
+                )}
 
                 <div className="flex flex-wrap gap-2 pt-1">
                     <button
@@ -161,7 +163,7 @@ export const BridgeScreen = () => {
                         onClick={() => void send('request')}
                         className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50"
                     >
-                        request (응답 대기)
+                        {strings.requestButton}
                     </button>
                     <button
                         type="button"
@@ -169,7 +171,7 @@ export const BridgeScreen = () => {
                         onClick={() => void send('post')}
                         className="rounded-md border border-border px-3 py-1.5 text-xs disabled:opacity-50"
                     >
-                        post (일방향)
+                        {strings.postButton}
                     </button>
                     <button
                         type="button"
@@ -177,14 +179,14 @@ export const BridgeScreen = () => {
                         onClick={() => setLogs([])}
                         className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground disabled:opacity-50"
                     >
-                        비우기
+                        {strings.clear}
                     </button>
                 </div>
             </Section>
 
-            <Section title={`주고받은 기록 (${logs.length})`}>
+            <Section title={strings.exchangeLog(logs.length)}>
                 {logs.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">아직 보낸 명령이 없습니다</p>
+                    <p className="text-xs text-muted-foreground">{strings.noCommandsSentYet}</p>
                 ) : (
                     <ul className="flex flex-col gap-1.5">
                         {logs.map(log => (

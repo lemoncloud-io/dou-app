@@ -3,6 +3,8 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { OnFileTransferStatePayload } from '@chatic/app-messages';
 import { webClient } from '@chatic/bridges';
 
+import { useUploadTestScreenStrings } from '../../i18n/screens/UploadTestScreen';
+
 /**
  * Drives the native file-transfer module against the local S3 stand-in
  * (`node scripts/upload-test-server.js`). The scenario is part of the URL, so each run only changes
@@ -110,11 +112,15 @@ const formatBytes = (bytes: number) => {
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
 
-/** Reads the error code a rejected bridge request carries; `NOT_FOUND` means the installed shell predates these messages. */
-const errorOf = (e: unknown) => {
+/**
+ * Reads the error code a rejected bridge request carries; `NOT_FOUND` means the installed shell
+ * predates these messages. Module-level (not a hook), so the localized suffix is passed in rather
+ * than looked up here.
+ */
+const errorOf = (e: unknown, noHandlerYet: string) => {
     const code = (e as { code?: string })?.code ?? 'UNKNOWN';
     const message = (e as { message?: string })?.message ?? String(e);
-    return code === 'NOT_FOUND' ? `${code} — this app build has no file-transfer handler yet` : `${code} — ${message}`;
+    return code === 'NOT_FOUND' ? `${code} — ${noHandlerYet}` : `${code} — ${message}`;
 };
 
 const summarize = (t: OnFileTransferStatePayload) => {
@@ -138,6 +144,7 @@ const newTransferId = () =>
     Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 
 export const UploadTestScreen = () => {
+    const strings = useUploadTestScreenStrings();
     const [baseUrl, setBaseUrl] = useState(defaultTestServer);
     const [scenario, setScenario] = useState<Scenario>('ok');
     const [slowBps, setSlowBps] = useState(64 * 1024);
@@ -178,11 +185,11 @@ export const UploadTestScreen = () => {
             if (TERMINAL.has(state.state)) {
                 const level: LogLevel =
                     state.state === 'failed' ? 'error' : state.state === 'cancelled' ? 'warning' : 'success';
-                addLog(level, 'Event', `${state.transferId.slice(0, 8)} ${summarize(state)}`);
+                addLog(level, strings.logTags.event, `${state.transferId.slice(0, 8)} ${summarize(state)}`);
             }
         });
         return unsubscribe;
-    }, [addLog, upsert]);
+    }, [addLog, upsert, strings]);
 
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -217,11 +224,11 @@ export const UploadTestScreen = () => {
                     size: doc.size ?? 0,
                 })),
             ]);
-            addLog('info', 'Picker', `Staged ${documents.length} file(s)`);
+            addLog('info', strings.logTags.picker, strings.log.stagedCount(documents.length));
         } catch (e) {
-            addLog('error', 'Picker', errorOf(e));
+            addLog('error', strings.logTags.picker, errorOf(e, strings.noHandlerYet));
         }
-    }, [addLog]);
+    }, [addLog, strings]);
 
     const stageDummy = useCallback(
         async (sizeInBytes: number) => {
@@ -234,12 +241,12 @@ export const UploadTestScreen = () => {
                     ...prev,
                     { uri: doc.uri, name: doc.name, type: 'application/octet-stream', size: doc.size },
                 ]);
-                addLog('info', 'Generator', `Staged ${doc.name}`);
+                addLog('info', strings.logTags.generator, strings.log.stagedNamed(doc.name));
             } catch (e) {
-                addLog('error', 'Generator', errorOf(e));
+                addLog('error', strings.logTags.generator, errorOf(e, strings.noHandlerYet));
             }
         },
-        [addLog]
+        [addLog, strings]
     );
 
     // Exercises the path a resized image takes: bytes that exist only in web memory become a file first.
@@ -257,11 +264,11 @@ export const UploadTestScreen = () => {
                 ...prev,
                 { uri, name: 'memory.bin', type: 'application/octet-stream', size: bytes.length },
             ]);
-            addLog('info', 'TempFile', `Wrote ${formatBytes(bytes.length)} from memory`);
+            addLog('info', strings.logTags.tempFile, strings.log.wroteFromMemory(formatBytes(bytes.length)));
         } catch (e) {
-            addLog('error', 'TempFile', errorOf(e));
+            addLog('error', strings.logTags.tempFile, errorOf(e, strings.noHandlerYet));
         }
-    }, [addLog]);
+    }, [addLog, strings]);
 
     const startAll = useCallback(async () => {
         for (const file of staged) {
@@ -285,23 +292,27 @@ export const UploadTestScreen = () => {
                         title: file.name,
                     },
                 });
-                addLog('info', 'Start', `${transferId.slice(0, 8)} ${file.name} → ${scenario}`);
+                addLog('info', strings.logTags.start, `${transferId.slice(0, 8)} ${file.name} → ${scenario}`);
             } catch (e) {
-                addLog('error', 'Start', `${file.name}: ${errorOf(e)}`);
+                addLog('error', strings.logTags.start, `${file.name}: ${errorOf(e, strings.noHandlerYet)}`);
             }
         }
         setStaged([]);
-    }, [staged, targetUrl, scenario, baseUrl, signedExpires, addLog]);
+    }, [staged, targetUrl, scenario, baseUrl, signedExpires, addLog, strings]);
 
     const cancel = useCallback(
         async (transferId: string) => {
             try {
                 await webClient.request({ type: 'CancelFileTransfer', data: { transferId } });
             } catch (e) {
-                addLog('warning', 'Cancel', `${transferId.slice(0, 8)}: ${errorOf(e)}`);
+                addLog(
+                    'warning',
+                    strings.logTags.cancel,
+                    `${transferId.slice(0, 8)}: ${errorOf(e, strings.noHandlerYet)}`
+                );
             }
         },
-        [addLog]
+        [addLog, strings]
     );
 
     const refresh = useCallback(async () => {
@@ -309,11 +320,11 @@ export const UploadTestScreen = () => {
             const response = await webClient.request({ type: 'ListFileTransfers', data: {} });
             const held = response.data?.transfers ?? [];
             held.forEach(upsert);
-            addLog('info', 'List', `Native holds ${held.length} transfer(s)`);
+            addLog('info', strings.logTags.list, strings.log.nativeHoldsCount(held.length));
         } catch (e) {
-            addLog('error', 'List', errorOf(e));
+            addLog('error', strings.logTags.list, errorOf(e, strings.noHandlerYet));
         }
-    }, [addLog, upsert]);
+    }, [addLog, upsert, strings]);
 
     const ackEnded = useCallback(async () => {
         const ended = Object.values(transfers)
@@ -325,13 +336,13 @@ export const UploadTestScreen = () => {
             setTransfers(prev => Object.fromEntries(Object.entries(prev).filter(([id]) => !ended.includes(id))));
             addLog(
                 'info',
-                'Ack',
-                `Acknowledged ${ended.length}; native still holds ${response.data?.remaining ?? '?'}`
+                strings.logTags.ack,
+                strings.log.acknowledged(ended.length, String(response.data?.remaining ?? '?'))
             );
         } catch (e) {
-            addLog('error', 'Ack', errorOf(e));
+            addLog('error', strings.logTags.ack, errorOf(e, strings.noHandlerYet));
         }
-    }, [transfers, addLog]);
+    }, [transfers, addLog, strings]);
 
     const rows = Object.values(transfers);
 
@@ -339,17 +350,17 @@ export const UploadTestScreen = () => {
         <div className="flex min-w-0 flex-col gap-4 p-4">
             {!isOnMobileApp && (
                 <p className="rounded-[12px] bg-amber-500/10 px-4 py-3 text-[13px] text-amber-700 dark:text-amber-400">
-                    File transfer runs in the native shell only. Open this screen inside the mobile app.
+                    {strings.mobileOnlyNotice}
                 </p>
             )}
 
-            <Section title="Target">
+            <Section title={strings.sections.target}>
                 <div className="flex flex-col gap-3">
                     <input
                         className="h-10 rounded-[12px] border border-border bg-background px-3 text-[13px]"
                         value={baseUrl}
                         onChange={event => setBaseUrl(event.target.value)}
-                        aria-label="Test server base URL"
+                        aria-label={strings.aria.testServerBaseUrl}
                     />
                     <div className="flex flex-wrap gap-2">
                         {SCENARIOS.map(value => (
@@ -368,7 +379,7 @@ export const UploadTestScreen = () => {
                             className="h-10 rounded-[12px] border border-border bg-background px-3 text-[13px]"
                             value={slowBps}
                             onChange={event => setSlowBps(Number(event.target.value) || 1)}
-                            aria-label="Bytes per second"
+                            aria-label={strings.aria.bytesPerSecond}
                         />
                     )}
                     {scenario === 'drop' && (
@@ -377,7 +388,7 @@ export const UploadTestScreen = () => {
                             className="h-10 rounded-[12px] border border-border bg-background px-3 text-[13px]"
                             value={dropAfter}
                             onChange={event => setDropAfter(Number(event.target.value) || 0)}
-                            aria-label="Drop after bytes"
+                            aria-label={strings.aria.dropAfterBytes}
                         />
                     )}
                     {scenario === 'signed' && (
@@ -386,18 +397,18 @@ export const UploadTestScreen = () => {
                             className="h-10 rounded-[12px] border border-border bg-background px-3 text-[13px]"
                             value={signedExpires}
                             onChange={event => setSignedExpires(Number(event.target.value) || 1)}
-                            aria-label="Signature expires in seconds"
+                            aria-label={strings.aria.signatureExpiresInSeconds}
                         />
                     )}
                     <p className="break-all text-[12px] text-muted-foreground">{targetUrl}</p>
                 </div>
             </Section>
 
-            <Section title={`Files (${staged.length})`}>
+            <Section title={strings.sections.files(staged.length)}>
                 <div className="flex flex-wrap gap-2">
                     <ActionButton
                         icon={<FileText size={14} />}
-                        label="Pick"
+                        label={strings.actions.pick}
                         onClick={pickFiles}
                         disabled={!isOnMobileApp}
                     />
@@ -415,13 +426,13 @@ export const UploadTestScreen = () => {
                     />
                     <ActionButton
                         icon={<FilePlus2 size={14} />}
-                        label="From memory"
+                        label={strings.actions.fromMemory}
                         onClick={stageFromMemory}
                         disabled={!isOnMobileApp}
                     />
                     <ActionButton
                         icon={<Upload size={14} />}
-                        label="Start"
+                        label={strings.actions.start}
                         tone="primary"
                         onClick={startAll}
                         disabled={!isOnMobileApp || staged.length === 0}
@@ -439,19 +450,19 @@ export const UploadTestScreen = () => {
             </Section>
 
             <Section
-                title={`Transfers (${rows.length})`}
+                title={strings.sections.transfers(rows.length)}
                 action={
                     <div className="flex gap-1">
                         <ActionButton
                             icon={<RefreshCw size={14} />}
-                            label="List"
+                            label={strings.actions.list}
                             tone="ghost"
                             onClick={refresh}
                             disabled={!isOnMobileApp}
                         />
                         <ActionButton
                             icon={<Inbox size={14} />}
-                            label="Ack ended"
+                            label={strings.actions.ackEnded}
                             tone="ghost"
                             onClick={ackEnded}
                             disabled={!isOnMobileApp}
@@ -478,7 +489,7 @@ export const UploadTestScreen = () => {
                                 {t.state === 'running' && (
                                     <ActionButton
                                         icon={<XCircle size={14} />}
-                                        label="Cancel"
+                                        label={strings.actions.cancel}
                                         tone="danger"
                                         onClick={() => cancel(t.transferId)}
                                     />
@@ -490,9 +501,14 @@ export const UploadTestScreen = () => {
             </Section>
 
             <Section
-                title="Log"
+                title={strings.sections.log}
                 action={
-                    <ActionButton icon={<Trash2 size={14} />} label="Clear" tone="ghost" onClick={() => setLogs([])} />
+                    <ActionButton
+                        icon={<Trash2 size={14} />}
+                        label={strings.actions.clear}
+                        tone="ghost"
+                        onClick={() => setLogs([])}
+                    />
                 }
             >
                 <ul className="flex max-h-[320px] flex-col gap-1 overflow-y-auto text-[12px]">

@@ -19,7 +19,15 @@ import { runtime } from '@chatic/app-runtime';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import { appBridge } from '../../../bridge';
-import { usePushRegistration } from './usePushRegistration';
+import { usePushRegistration, type PushRegistrationMessages } from './usePushRegistration';
+
+// The hook takes its user-visible text from the caller (PushScreen's i18n table); these stand in
+// for it here so the assertions below can check for the exact fixed text.
+const MESSAGES: PushRegistrationMessages = {
+    noNative: 'Push token is only available inside the native app shell.',
+    noToken: 'No push token — permission denied or not issued yet.',
+    checkFailed: 'Failed to check registration.',
+};
 
 const mockIsNative = isNative as jest.Mock;
 const mockUseMutation = runtime.push.useRegisterDeviceTokenMutation as jest.Mock;
@@ -44,7 +52,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
     it('네이티브 셸이 아니면 토큰을 가져오지 않고 no-native로 끝난다', async () => {
         mockIsNative.mockReturnValue(false);
 
-        const { result } = renderHook(() => usePushRegistration());
+        const { result } = renderHook(() => usePushRegistration(MESSAGES));
         await act(async () => {
             await result.current.check();
         });
@@ -58,7 +66,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
         mockIsNative.mockReturnValue(true);
         mockFetchFcmToken.mockResolvedValue({ data: { token: '' } });
 
-        const { result } = renderHook(() => usePushRegistration());
+        const { result } = renderHook(() => usePushRegistration(MESSAGES));
         await act(async () => {
             await result.current.check();
         });
@@ -77,7 +85,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
             updatedAt: 1700000000000,
         });
 
-        const { result } = renderHook(() => usePushRegistration());
+        const { result } = renderHook(() => usePushRegistration(MESSAGES));
         await act(async () => {
             await result.current.check();
         });
@@ -108,7 +116,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
             isReady: true,
         });
 
-        const { result } = renderHook(() => usePushRegistration());
+        const { result } = renderHook(() => usePushRegistration(MESSAGES));
         await act(async () => {
             await result.current.check();
         });
@@ -121,7 +129,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
         mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
         mockMutateAsync.mockRejectedValue(new Error('boom'));
 
-        const { result } = renderHook(() => usePushRegistration());
+        const { result } = renderHook(() => usePushRegistration(MESSAGES));
         await act(async () => {
             await result.current.check();
         });

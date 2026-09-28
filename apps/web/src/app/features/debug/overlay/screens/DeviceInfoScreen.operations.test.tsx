@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { DeviceInfoScreen } from './DeviceInfoScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 
 const openCamera = jest.fn();
 const openPhotoLibrary = jest.fn();
@@ -33,15 +34,22 @@ jest.mock('../../lib', () => ({ buildDeviceInfoRows: () => [], copyText: jest.fn
 const click = (name: string) => userEvent.click(screen.getByRole('button', { name }));
 
 describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
-    beforeEach(() => jest.clearAllMocks());
+    let restoreLanguage: () => void;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        restoreLanguage = setDebugLanguageForTests('en');
+    });
+
+    afterEach(() => restoreLanguage());
 
     it('카메라와 앨범은 payload를 실어 부른다', async () => {
         openCamera.mockResolvedValue({ data: { assets: [] } });
         openPhotoLibrary.mockResolvedValue({ data: { assets: [] } });
         render(<DeviceInfoScreen />);
 
-        await click('카메라');
-        await click('앨범');
+        await click('Camera');
+        await click('Photos');
 
         expect(openCamera).toHaveBeenCalledWith({ mediaType: 'photo' });
         expect(openPhotoLibrary).toHaveBeenCalledWith({ selectionLimit: 1, mediaType: 'photo' });
@@ -51,7 +59,7 @@ describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
         getContacts.mockResolvedValue({ data: { contacts: [{ name: '홍길동' }] } });
         render(<DeviceInfoScreen />);
 
-        await click('연락처');
+        await click('Contacts');
 
         expect(await screen.findByText(/홍길동/)).toBeInTheDocument();
     });
@@ -71,18 +79,18 @@ describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
         openDocument.mockRejectedValue(new Error('CANCELLED'));
         render(<DeviceInfoScreen />);
 
-        await click('파일');
+        await click('File');
 
-        expect(await screen.findByText(/실패: CANCELLED/)).toBeInTheDocument();
+        expect(await screen.findByText(/failed: CANCELLED/)).toBeInTheDocument();
     });
 
     // It's post-based, so there's no response — we don't pretend one was received.
     it('확인 응답이 없는 조작은 "확인 없음"이라고 밝힌다', async () => {
         render(<DeviceInfoScreen />);
 
-        await click('OS 설정');
+        await click('OS settings');
 
         expect(openSettings).toHaveBeenCalledTimes(1);
-        expect(await screen.findByText(/확인 없음/)).toBeInTheDocument();
+        expect(await screen.findByText(/no confirmation/)).toBeInTheDocument();
     });
 });
