@@ -2,6 +2,12 @@
 
 ## [2026-09-28] - No version updates
 
+### Refactor
+
+- (app-runtime,data,web,desktop-web) key socket slots by cloud id, not by role (ADR-0115)
+
+## [2026-09-28] - No version updates
+
 ### Features
 
 - (web,config) remember which home sections are folded, not reset them on every mount
