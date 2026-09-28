@@ -6,6 +6,7 @@ export * from './clipboard';
 export * from './common';
 export * from './config';
 export * from './device';
+export * from './file-transfer';
 export * from './iap';
 export * from './notification';
 export * from './perf';

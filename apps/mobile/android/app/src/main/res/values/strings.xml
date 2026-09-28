@@ -2,13 +2,22 @@
     <string name="push_chat_message_title">%1$s</string>
     <string name="push_chat_message_body">%1$s</string>
 
-    <!-- Upload background service notification -->
-    <string name="upload_notification_channel_name">File Upload</string>
-    <string name="upload_notification_channel_desc">Shows background file upload progress.</string>
-    <string name="upload_notification_title">Uploading file</string>
-    <string name="upload_notification_preparing">Preparing…</string>
-    <string name="upload_notification_single">%1$s (%2$d%%)</string>
-    <string name="upload_notification_multiple">%1$d files uploading… (avg %2$d%%)</string>
-    <string name="upload_default_file_name">file</string>
+    <!-- File transfer service notification. Shows a transfer's title or a default, never a URL or path. -->
+    <string name="transfer_notification_channel_name">File transfers</string>
+    <string name="transfer_notification_channel_desc">Shows the progress of file uploads and downloads.</string>
+    <string name="transfer_notification_cancel">Cancel</string>
+    <string name="transfer_upload_default_title">Uploading a file</string>
+    <string name="transfer_download_default_title">Downloading a file</string>
+    <string name="transfer_upload_progress">Uploading… %1$d%%</string>
+    <string name="transfer_download_progress">Downloading… %1$d%%</string>
+    <string name="transfer_upload_pending">Uploading…</string>
+    <string name="transfer_download_pending">Downloading…</string>
+    <string name="transfer_upload_multiple">Uploading %1$d files</string>
+    <string name="transfer_download_multiple">Downloading %1$d files</string>
+    <string name="transfer_mixed_multiple">Transferring %1$d files</string>
+    <string name="transfer_percent">%1$d%%</string>
+    <string name="transfer_upload_failed_summary">%1$d of %2$d uploads failed</string>
+    <string name="transfer_download_failed_summary">%1$d of %2$d downloads failed</string>
+    <string name="transfer_mixed_failed_summary">%1$d of %2$d transfers failed</string>
     <string name="exit_back_toast">Press back again to exit.</string>
 </resources>

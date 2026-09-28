@@ -13,7 +13,7 @@ import io.chatic.dou.bridge.FileManagerPackage
 import io.chatic.dou.bridge.NativeLoggerPackage
 import io.chatic.dou.bridge.PushMarksPackage
 import io.chatic.dou.bridge.SystemBarsPackage
-import io.chatic.dou.bridge.UploadManagerPackage
+import io.chatic.dou.bridge.TransferManagerPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -29,7 +29,7 @@ class MainApplication : Application(), ReactApplication {
             add(NativeLoggerPackage())
             add(PushMarksPackage())
             add(SystemBarsPackage())
-            add(UploadManagerPackage())
+            add(TransferManagerPackage())
         },
       jsMainModulePath = "src/main",
     )

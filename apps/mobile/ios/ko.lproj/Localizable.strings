@@ -1,2 +1,8 @@
 "push_chat_message_title" = "%@";
 "push_chat_message_body" = "%@";
+"transfer_failed_title" = "업로드 실패";
+"transfer_failed_body_default" = "파일을 업로드하지 못했습니다.";
+"transfer_failed_body_summary" = "업로드 %2$d건 중 %1$d건 실패";
+"transfer_progress_title" = "업로드 중";
+"transfer_progress_subtitle_one" = "파일 1개";
+"transfer_progress_subtitle_many" = "파일 %d개";

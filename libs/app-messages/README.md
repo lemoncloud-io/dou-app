@@ -92,9 +92,9 @@ flowchart TD
     classDef map fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Model["model/ × 17<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>90 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>99 message types</i>"]:::map
+    Model["model/ × 18<br/><i>XPayload · OnXPayload</i>"]
+    WM["WebMessagePayloadMap<br/><i>88 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>95 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -162,30 +162,31 @@ libs/app-messages/src/
     └── model/                    17 files — the payloads, grouped by domain
 ```
 
-23 files, 2,844 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+24 files, 2,882 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
 
-| File              | Lines | What it declares                                                                       |
-| ----------------- | ----- | -------------------------------------------------------------------------------------- |
-| `system.ts`       | 561   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong` |
-| `cache.ts`        | 435   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, the 11 cache messages    |
-| `common.ts`       | 220   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`     |
-| `device.ts`       | 174   | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the eight file-upload **requests**        |
-| `iap.ts`          | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                    |
-| `notification.ts` | 129   | FCM token, badge count and base, push marks, OS notification                           |
-| `perf.ts`         | 118   | Boot timeline (`BootRecord`, `BootWebMarks`), `SetDebugMode`                           |
-| `auth.ts`         | 80    | `OAuthLoginProvider` and the Google/Apple token results                                |
-| `test-record.ts`  | 49    | The native DB scenario harness — five messages, used by the debug panel only           |
-| `custom-zip.ts`   | 48    | Apply/disable/status for the custom web-bundle override                                |
-| `preference.ts`   | 44    | `PreferenceKey` — a closed union of six keys                                           |
-| `update.ts`       | 35    | Desktop auto-update: status push, download, restart                                    |
-| `app-update.ts`   | 32    | Mobile store update: version check, open store                                         |
-| `config.ts`       | 24    | The shell's opaque KV bridge (ADR-0079)                                                |
-| `unfurl.ts`       | 23    | URL metadata lookup                                                                    |
-| `clipboard.ts`    | 10    | Copy to the native clipboard                                                           |
-| `index.ts`        | 16    | The barrel for the sixteen above                                                       |
+| File               | Lines | What it declares                                                                       |
+| ------------------ | ----- | -------------------------------------------------------------------------------------- |
+| `system.ts`        | 537   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong` |
+| `cache.ts`         | 435   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, the 11 cache messages    |
+| `common.ts`        | 220   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`     |
+| `file-transfer.ts` | 133   | The native file-transfer contract — start, cancel, list, ack, temp file, state event   |
+| `device.ts`        | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file         |
+| `iap.ts`           | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                    |
+| `notification.ts`  | 129   | FCM token, badge count and base, push marks, OS notification                           |
+| `perf.ts`          | 118   | Boot timeline (`BootRecord`, `BootWebMarks`), `SetDebugMode`                           |
+| `auth.ts`          | 80    | `OAuthLoginProvider` and the Google/Apple token results                                |
+| `test-record.ts`   | 49    | The native DB scenario harness — five messages, used by the debug panel only           |
+| `custom-zip.ts`    | 48    | Apply/disable/status for the custom web-bundle override                                |
+| `preference.ts`    | 44    | `PreferenceKey` — a closed union of six keys                                           |
+| `update.ts`        | 35    | Desktop auto-update: status push, download, restart                                    |
+| `app-update.ts`    | 32    | Mobile store update: version check, open store                                         |
+| `config.ts`        | 24    | The shell's opaque KV bridge (ADR-0079)                                                |
+| `unfurl.ts`        | 23    | URL metadata lookup                                                                    |
+| `clipboard.ts`     | 10    | Copy to the native clipboard                                                           |
+| `index.ts`         | 17    | The barrel for the seventeen above                                                     |
 
 Names you would not find by guessing at a filename:
 
@@ -197,9 +198,8 @@ Names you would not find by guessing at a filename:
   `WebMessageAppHandler`.
 - `AppLogInfo`, `AppLogLevel` and `AppLogOrigin` are in `model/common.ts`; `Platform` is there too,
   not in `model/device.ts`.
-- **The eight file-upload replies are split from their requests.** `RequestFileUploadPayload` and its
-  seven siblings are in `model/device.ts`; every `On…Payload` answering them is in `model/system.ts`,
-  along with `OnUploadProgressPayload` and `OnUploadCompletePayload`.
+- **The file-transfer messages keep request and reply together** in `model/file-transfer.ts`, along
+  with the `OnFileTransferState` event — unlike most domains, where replies sit in `model/system.ts`.
 - `PingPayload` and `PongPayload` are in `model/system.ts`.
 - **There is no `errors.ts`, no `constants.ts` and no enum in the package.** Every union is a string
   literal union: an enum is a runtime value, and principle 2 spends the only one on
@@ -243,9 +243,9 @@ bridge.registerHandler('FetchBadgeCount', async (_message: WebMessageData<'Fetch
 5. Register a handler in every shell that should answer it — `apps/mobile`'s
    `useWebMessageRouter`, `apps/desktop`'s `registerHandlers`, or both.
 
-For an app→web push with no request behind it, do step 1 and step 3 only. Nine messages are in that
+For an app→web push with no request behind it, do step 1 and step 3 only. Eight messages are in that
 shape: `OnUpdateDeviceInfo`, `OnBackPressed`, `OnNavigate`, `OnReceiveNotification`,
-`OnUploadProgress`, `OnUploadComplete`, `OnPurchaseSuccess`, `OnPurchaseError`, `OnUpdateStatus`.
+`OnFileTransferState`, `OnPurchaseSuccess`, `OnPurchaseError`, `OnUpdateStatus`.
 
 The deploy order is part of the procedure, not a caveat: **the web ships before the app.** A web
 build that sends a message the installed shell has no handler for gets `NOT_FOUND` back, so a new
@@ -255,7 +255,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 90 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 88 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

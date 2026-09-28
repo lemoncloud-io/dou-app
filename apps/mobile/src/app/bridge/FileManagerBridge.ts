@@ -18,13 +18,13 @@ export interface IFileManagerBridge {
     readFile(path: string): Promise<string>;
     unlink(path: string): Promise<boolean>;
     downloadFile(url: string, toPath: string): Promise<string>;
-    startBackgroundTask(uploadId: string, fileName: string, progress: number): Promise<void>;
-    endBackgroundTask(uploadId: string): Promise<void>;
     createDummyFile(path: string, sizeInBytes: number): Promise<string>;
+    /** Writes base64 bytes to a file in the shell's temporary directory and resolves its `file://` URI. */
+    writeTempFile(base64: string, fileName?: string): Promise<string>;
 }
 
-/** Origin only — a download URL's query string can hold a signed credential. */
-const safeHost = (url: string): string => {
+/** Origin only — a download or transfer URL's query string can hold a signed credential. */
+export const safeHost = (url: string): string => {
     try {
         return new URL(url).host;
     } catch {
@@ -88,18 +88,19 @@ export const FileManagerBridge: IFileManagerBridge = {
         }
     },
 
-    startBackgroundTask: async (uploadId: string, fileName: string, progress: number): Promise<void> => {
-        if (!FileManager) throw new Error('FileManager native module is not available');
-        return FileManager.startBackgroundTask(uploadId, fileName, progress);
-    },
-
-    endBackgroundTask: async (uploadId: string): Promise<void> => {
-        if (!FileManager) throw new Error('FileManager native module is not available');
-        return FileManager.endBackgroundTask(uploadId);
-    },
-
     createDummyFile: async (path: string, sizeInBytes: number): Promise<string> => {
         if (!FileManager) throw new Error('FileManager native module is not available');
         return FileManager.createDummyFile(path, sizeInBytes);
+    },
+
+    writeTempFile: async (base64: string, fileName?: string): Promise<string> => {
+        if (!FileManager) throw new Error('FileManager native module is not available');
+        try {
+            return await FileManager.writeTempFile(base64, fileName ?? null);
+        } catch (error) {
+            // A failed write means the bytes never reach a transfer, so the upload silently has nothing to send.
+            logger.error('FILE', 'Failed to write temp file', { error, data: { fileName, length: base64.length } });
+            throw error;
+        }
     },
 };

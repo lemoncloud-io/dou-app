@@ -11,7 +11,10 @@
 		17023709F2F7461BA3E1CE4C /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7DBA3ABEBDD04827AF4DC448 /* Colors.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		96A4B745983B8AB3FF9F785C /* TransferTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91EB1B0E6926E0CA606D3EFD /* TransferTypes.swift */; };
 		D9351215330C67867100EA0F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		E5FB1AD81B5AE6E98D9F6464 /* TransferText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC543E0C41AB9FC82850DBA /* TransferText.swift */; };
+		E8526592B556118E622D7751 /* TransferCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04EA8F32D8C92209A3B7693B /* TransferCore.swift */; };
 		ED270CD00B93BC058B841610 /* Pods_Chatic.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7217888ACC081748F8F0C215 /* Pods_Chatic.framework */; };
 		F73CA1372FAEFF8A00005559 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F73CA1352FAEFF8A00005559 /* Localizable.strings */; };
 		F756627C2FD9233500100E59 /* ChaticNotificationServiceExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F75662752FD9233500100E59 /* ChaticNotificationServiceExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -43,16 +46,20 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		04EA8F32D8C92209A3B7693B /* TransferCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TransferCore.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* DoU.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DoU.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Chatic/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Chatic/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Chatic/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-Chatic.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.debug.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-Chatic.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.release.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.release.xcconfig"; sourceTree = "<group>"; };
+		6FC543E0C41AB9FC82850DBA /* TransferText.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TransferText.swift; sourceTree = "<group>"; };
 		7217888ACC081748F8F0C215 /* Pods_Chatic.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Chatic.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		722274CE872EAD2197C7EE0D /* ChaticTransferCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChaticTransferCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Chatic/AppDelegate.swift; sourceTree = "<group>"; };
 		7DBA3ABEBDD04827AF4DC448 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = Chatic/Colors.xcassets; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Chatic/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		91EB1B0E6926E0CA606D3EFD /* TransferTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TransferTypes.swift; sourceTree = "<group>"; };
 		9699EE20702F5EAC325E0822 /* Pods-Chatic.debug dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.debug dev.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.debug dev.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1ADAF0DE5B6C92A2CF01257 /* Pods-Chatic.release dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.release dev.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.release dev.xcconfig"; sourceTree = "<group>"; };
@@ -98,6 +105,13 @@
 			path = Bridges;
 			sourceTree = "<group>";
 		};
+		FB228D84F257893C39A1707F /* ChaticTransferCoreTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = ChaticTransferCoreTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +125,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		F75662722FD9233500100E59 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FBF534748DAC321C9013F602 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -165,6 +186,8 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				FB228D84F257893C39A1707F /* ChaticTransferCoreTests */,
+				876D9EBAC443B2624C4FEAA2 /* TransferCore */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -176,8 +199,20 @@
 			children = (
 				13B07F961A680F5B00A75B9A /* DoU.app */,
 				F75662752FD9233500100E59 /* ChaticNotificationServiceExtension.appex */,
+				722274CE872EAD2197C7EE0D /* ChaticTransferCoreTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		876D9EBAC443B2624C4FEAA2 /* TransferCore */ = {
+			isa = PBXGroup;
+			children = (
+				04EA8F32D8C92209A3B7693B /* TransferCore.swift */,
+				6FC543E0C41AB9FC82850DBA /* TransferText.swift */,
+				91EB1B0E6926E0CA606D3EFD /* TransferTypes.swift */,
+			);
+			name = TransferCore;
+			path = Bridges/Transfer/Core;
 			sourceTree = "<group>";
 		};
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
@@ -244,6 +279,26 @@
 			productReference = F75662752FD9233500100E59 /* ChaticNotificationServiceExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		FFB149B76027D977A669A4B0 /* ChaticTransferCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9094A3230E24A82B59CC9AE2 /* Build configuration list for PBXNativeTarget "ChaticTransferCoreTests" */;
+			buildPhases = (
+				4E41949B70CE9B7E7613256F /* Sources */,
+				FBF534748DAC321C9013F602 /* Frameworks */,
+				72435499AB27A0E71794751E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FB228D84F257893C39A1707F /* ChaticTransferCoreTests */,
+			);
+			name = ChaticTransferCoreTests;
+			productName = ChaticTransferCoreTests;
+			productReference = 722274CE872EAD2197C7EE0D /* ChaticTransferCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -258,6 +313,9 @@
 					};
 					F75662742FD9233500100E59 = {
 						CreatedOnToolsVersion = 26.0.1;
+					};
+					FFB149B76027D977A669A4B0 = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -277,6 +335,7 @@
 			targets = (
 				13B07F861A680F5B00A75B9A /* Chatic */,
 				F75662742FD9233500100E59 /* ChaticNotificationServiceExtension */,
+				FFB149B76027D977A669A4B0 /* ChaticTransferCoreTests */,
 			);
 		};
 /* End PBXProject section */
@@ -291,6 +350,13 @@
 				F73CA1372FAEFF8A00005559 /* Localizable.strings in Resources */,
 				D9351215330C67867100EA0F /* PrivacyInfo.xcprivacy in Resources */,
 				17023709F2F7461BA3E1CE4C /* Colors.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72435499AB27A0E71794751E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -432,6 +498,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4E41949B70CE9B7E7613256F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E8526592B556118E622D7751 /* TransferCore.swift in Sources */,
+				E5FB1AD81B5AE6E98D9F6464 /* TransferText.swift in Sources */,
+				96A4B745983B8AB3FF9F785C /* TransferTypes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F75662712FD9233500100E59 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -539,6 +615,46 @@
 				VITE_GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.884488290426-rpptha74m8hmefv9po0vfs33f0u1efr8";
 			};
 			name = Release;
+		};
+		2D69B7745889A581D1F6F4D2 /* Debug Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.ChaticTransferCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug Dev";
+		};
+		5C83AA7BA304698990FBFABD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.ChaticTransferCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		83CBBA201A601CBA00E9B192 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -721,6 +837,44 @@
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
+		};
+		9DF528AF13CA1265E2AA09EF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.ChaticTransferCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B0BB8E8CB454B62A6302DE46 /* Release Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.ChaticTransferCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release Dev";
 		};
 		F756627E2FD9233500100E59 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1185,6 +1339,17 @@
 				F77CD2462F333B59001FF4C9 /* Debug Dev */,
 				83CBBA211A601CBA00E9B192 /* Release */,
 				F77CD2482F333B6D001FF4C9 /* Release Dev */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9094A3230E24A82B59CC9AE2 /* Build configuration list for PBXNativeTarget "ChaticTransferCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C83AA7BA304698990FBFABD /* Debug */,
+				2D69B7745889A581D1F6F4D2 /* Debug Dev */,
+				9DF528AF13CA1265E2AA09EF /* Release */,
+				B0BB8E8CB454B62A6302DE46 /* Release Dev */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -44,53 +44,7 @@ export type OnUpdateDeviceInfoPayload = DeviceInfo & VersionInfo;
 /** [Response] Safe area info return payload */
 export type OnFetchSafeAreaPayload = SafeAreaInfo;
 
-// --- File Upload Types ---
-
-/** [Request] File upload request payload */
-export type RequestFileUploadPayload = {
-    uploadId: string; // Unique upload identifier (generated as a UUID on the web side, then control is handed to native)
-    fileUri: string; // On-device temporary file URI (obtained from DocumentPicker/ImagePicker)
-    fileName: string; // File name
-    fileSize: number; // Total file size (bytes)
-    mimeType: string; // File MIME type
-    uploadUrl: string; // Target API endpoint URL for the upload
-    chunkSize?: number; // Chunk size for split transfer (default: 1MB = 1,048,576 bytes)
-    headers?: Record<string, string>; // Custom headers such as auth tokens
-};
-
-export default RequestFileUploadPayload;
-
-/** [Request] Pause file upload payload */
-export type PauseFileUploadPayload = {
-    uploadId: string;
-};
-
-/** [Request] Resume file upload payload */
-export type ResumeFileUploadPayload = {
-    uploadId: string;
-};
-
-/** [Request] Cancel file upload payload */
-export type CancelFileUploadPayload = {
-    uploadId: string;
-};
-
-/**
- * [Request] Fetch the list of manually recoverable upload tasks
- */
-export type ListRecoverableUploadsPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Trigger manual recovery (resume) of an upload task */
-export type RecoverUploadPayload = {
-    uploadId: string;
-};
-
-/** [Request] Trigger retry of an upload task */
-export type RetryUploadPayload = {
-    uploadId: string;
-};
+// --- Test File Types ---
 
 /** [Request] Create a dummy sparse file for testing */
 export type CreateDummyFilePayload = {
@@ -103,49 +57,6 @@ export type OnCreateDummyFilePayload = {
     uri: string; // file:// URI of the created file
     name: string; // File name
     size: number; // Requested file size (bytes)
-};
-
-export type RecoverableUploadTaskStatus = 'uploading' | 'paused' | 'failed' | 'cancelled' | 'completed';
-
-/**
- * [Response] Info for a manually recoverable upload task
- */
-export type RecoverableUploadTaskInfo = {
-    uploadId: string;
-    status: RecoverableUploadTaskStatus;
-    payload: RequestFileUploadPayload;
-    uploadedBytes: number;
-    lastChunkIndex: number;
-    retryCount: number;
-    serverSession?: unknown;
-    authRef?: string | null;
-    createdAt: number;
-    updatedAt: number;
-};
-
-/** [Response] Returns the list of manually recoverable upload tasks */
-export type OnListRecoverableUploadsPayload = {
-    tasks: RecoverableUploadTaskInfo[];
-};
-
-/** [Response - Event] File upload progress payload */
-export type OnUploadProgressPayload = {
-    uploadId: string;
-    progress: number; // Fraction between 0 and 1 (progress ratio)
-    uploadedBytes: number; // Cumulative bytes uploaded so far
-    totalBytes: number; // Total file size in bytes
-    status: 'uploading' | 'paused' | 'cancelled' | 'completed' | 'failed';
-};
-
-/** [Response - Event] File upload completion payload */
-export type OnUploadCompletePayload = {
-    uploadId: string;
-    success: boolean;
-    response?: string; // Server response text on successful upload
-    error?: {
-        code: string;
-        message: string;
-    };
 };
 
 /** [Request] Contacts lookup request payload */

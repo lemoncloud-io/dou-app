@@ -22,7 +22,7 @@ export * from './useLogHandler';
 export * from './useLogBufferHandler';
 export * from './useLogStoreHandler';
 export * from './usePendingReportHandler';
-export * from './useUploadHandler';
+export * from './useFileTransferHandler';
 export * from './useTestRecordHandler';
 export * from './useResumeOverlay';
 export * from './usePerfHandler';

@@ -43,7 +43,7 @@ is framed, what the reply payload looks like, or how a native screen renders —
   most other services take it as their first constructor argument — and `bootMetricsService` right
   after, so its boot-timeline baseline sits as close to JS entry as possible.
 - **Lazy**, behind a memoized getter, for everything else: `sqliteDatabase` and the SQLite-backed
-  data sources, `cacheCrudService`, `cacheSearchService`, `uploadService`, `testRecordService`,
+  data sources, `cacheCrudService`, `cacheSearchService`, `testRecordService`,
   `deviceService`, `clipboardService`, `smsService`, `permissionService`, `oauthService`,
   `dynamicAppIconService`, `firebaseInstallationService`, `subscriptionIapService`,
   `preferenceService`, `configKvService`, `versionService`, `unfurlService`. `sqliteDatabase` opens
@@ -94,8 +94,9 @@ in a comment on `configKvService`.
   `cacheCrudService` and the rest are lazy specifically so a second construction cannot happen; a new
   call site should read the existing getter, not `new` the class again.
 - Do not put retry, recovery, or "what counts as done" logic in a `bridge/` wrapper or a webview
-  handler. `uploadService` owns upload lifecycle orchestration for this reason — the native bridge
-  only carries bytes and progress events across the boundary.
+  handler. File transfer is the counter-example that proves the rule rather than breaking it: its
+  lifecycle lives in the native owner behind the bridge, and what counts as a successful upload is
+  decided above the shell, so its handler only relays — see [file-transfer.md](./file-transfer.md).
 
 ## Notes for implementers and tests
 

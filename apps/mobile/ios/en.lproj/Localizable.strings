@@ -1,2 +1,8 @@
 "push_chat_message_title" = "%@";
 "push_chat_message_body" = "%@";
+"transfer_failed_title" = "Upload failed";
+"transfer_failed_body_default" = "A file could not be uploaded.";
+"transfer_failed_body_summary" = "%1$d of %2$d uploads failed";
+"transfer_progress_title" = "Uploading";
+"transfer_progress_subtitle_one" = "1 file";
+"transfer_progress_subtitle_many" = "%d files";

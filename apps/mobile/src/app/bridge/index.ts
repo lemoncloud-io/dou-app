@@ -3,4 +3,4 @@ export * from './BackNavigationBridge';
 export * from './BadgeSyncBridge';
 export * from './FileManagerBridge';
 export * from './PushMarksBridge';
-export * from './UploadManagerBridge';
+export * from './TransferManagerBridge';

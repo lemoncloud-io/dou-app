@@ -53,11 +53,8 @@ export const useOnOpenModal = (handler: (message: AppMessageData<'OnOpenModal'>)
 export const useOnCloseModal = (handler: (message: AppMessageData<'OnCloseModal'>) => void) =>
     useHandleAppMessage('OnCloseModal', handler);
 
-export const useOnUploadProgress = (handler: (message: AppMessageData<'OnUploadProgress'>) => void) =>
-    useHandleAppMessage('OnUploadProgress', handler);
-
-export const useOnUploadComplete = (handler: (message: AppMessageData<'OnUploadComplete'>) => void) =>
-    useHandleAppMessage('OnUploadComplete', handler);
+export const useOnFileTransferState = (handler: (message: AppMessageData<'OnFileTransferState'>) => void) =>
+    useHandleAppMessage('OnFileTransferState', handler);
 
 export const useOnPurchaseSuccess = (handler: (message: AppMessageData<'OnPurchaseSuccess'>) => void) =>
     useHandleAppMessage('OnPurchaseSuccess', handler);
