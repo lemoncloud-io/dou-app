@@ -19,7 +19,7 @@
 
 /**
  * Which slice of the session moved. A string union keyed like the package's other ones
- * (`SocketKind` · `CredentialOwner`).
+ * (`SocketKind` · `AuthStatus`).
  *
  * `relay:token` and `cloud:token` are separate because the two refresh loops are: a relay refresh
  * arriving while a cloud session is active must not re-derive cloud-scoped consumers.

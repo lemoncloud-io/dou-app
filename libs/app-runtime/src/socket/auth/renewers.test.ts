@@ -1,5 +1,10 @@
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { RelayCredentialRenewer, credentialRenewers } from './renewers';
 import { cloudSession } from '../../session/auth/cloudSession';
+import { cloudStore } from '../../session/store/stores';
+import { getCommittedCloudId } from '../../session/store';
+import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -8,6 +13,8 @@ jest.mock('@chatic/bridges', () => ({
 // Module-load stubs only: the relay policy under test takes every collaborator it actually consults
 // through `RelayExpiryDeps`, so these keep the import graph light without steering a case.
 jest.mock('../../session/auth/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
+jest.mock('../../session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
+jest.mock('../../session/store', () => ({ getCommittedCloudId: jest.fn() }));
 jest.mock('../../session/auth/relaySession', () => ({
     relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
@@ -153,9 +160,49 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
     });
 });
 
+describe('credentialRenewers.forSlot', () => {
+    it('answers the relay slot with the relay renewer', () => {
+        expect(credentialRenewers.forSlot(RELAY_SLOT)).toBe(credentialRenewers.relay);
+        expect(credentialRenewers.relay.cid).toBe(RELAY_CLOUD_ID);
+    });
+
+    it('answers a cloud slot with that cloud’s own renewer, one per cloud', () => {
+        const first = credentialRenewers.forSlot(slotKeyOf('cloud-1'));
+
+        expect(first.cid).toBe('cloud-1');
+        // Memoized: the single-flight behind `renew` is per cloud, so the instance has to be too.
+        expect(credentialRenewers.forSlot(slotKeyOf('cloud-1'))).toBe(first);
+        expect(credentialRenewers.forSlot(slotKeyOf('cloud-2'))).not.toBe(first);
+        expect(credentialRenewers.forSlot(slotKeyOf('cloud-2')).cid).toBe('cloud-2');
+    });
+});
+
 describe('CloudCredentialRenewer — terminal expiry', () => {
-    it('costs only the cloud: no confirmation window, no relay teardown', () => {
-        credentialRenewers.cloud.onTerminalExpiry();
+    beforeEach(() => jest.clearAllMocks());
+
+    it('costs only the cloud when it is the committed one: no confirmation window, no relay teardown', () => {
+        (getCommittedCloudId as jest.Mock).mockReturnValue('cloud-1');
+
+        credentialRenewers.forSlot(slotKeyOf('cloud-1')).onTerminalExpiry();
+
+        expect(cloudSession.clearStores).toHaveBeenCalledTimes(1);
+        expect(cloudStore.dropCachedCloudTokens).not.toHaveBeenCalled();
+    });
+
+    it('drops only its own cached tokens when it is NOT the committed cloud — the store is another cloud’s', () => {
+        (getCommittedCloudId as jest.Mock).mockReturnValue('cloud-1');
+
+        credentialRenewers.forSlot(slotKeyOf('cloud-2')).onTerminalExpiry();
+
+        expect(cloudStore.dropCachedCloudTokens).toHaveBeenCalledWith('cloud-2');
+        expect(cloudSession.clearStores).not.toHaveBeenCalled();
+    });
+
+    it('asks which cloud is committed at expiry time, not at construction', () => {
+        const renewer = credentialRenewers.forSlot(slotKeyOf('cloud-3'));
+        (getCommittedCloudId as jest.Mock).mockReturnValue('cloud-3');
+
+        renewer.onTerminalExpiry();
 
         expect(cloudSession.clearStores).toHaveBeenCalledTimes(1);
     });

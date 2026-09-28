@@ -1,6 +1,6 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { issueCloudTokens, reissueCommittedCloudTokens } from './cloudTokens';
+import { issueCloudTokens, reissueCloudTokens } from './cloudTokens';
 
 const mockDelegateCloud = jest.fn();
 const mockExchangeToken = jest.fn();
@@ -14,6 +14,7 @@ const mockSetCachedCloudTokens = jest.fn();
 const mockGetCredential = jest.fn();
 const mockSaveSelectedCloudId = jest.fn();
 const mockClearSelectedSite = jest.fn();
+const mockSetCloudIdentity = jest.fn();
 
 const mockRebuildSessionIdentity = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
@@ -40,6 +41,7 @@ jest.mock('../store/stores', () => ({
         getCredential: (...args: unknown[]) => mockGetCredential(...args),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         clearSelectedSite: (...args: unknown[]) => mockClearSelectedSite(...args),
+        setCloudIdentity: (...args: unknown[]) => mockSetCloudIdentity(...args),
     },
 }));
 
@@ -70,7 +72,8 @@ const delegation = (cloudId = 'cloud-1') => ({
     wss: 'wss://cloud.example.com',
 });
 
-const cloudToken = (identityToken: string): UserTokenView => ({ Token: { identityToken } }) as unknown as UserTokenView;
+const cloudToken = (identityToken: string, uid?: string): UserTokenView =>
+    ({ uid, Token: { identityToken } }) as unknown as UserTokenView;
 
 beforeEach(() => {
     jest.resetAllMocks();
@@ -119,35 +122,66 @@ describe('issueCloudTokens', () => {
             cloudToken: cloudToken('fresh-identity'),
         });
     });
-});
 
-describe('reissueCommittedCloudTokens', () => {
-    it('커밋된 클라우드가 없으면 아무것도 하지 않는다 (relay 전용 세션)', async () => {
-        mockGetDelegationToken.mockReturnValue(null);
+    it('records the uid the fresh token names for that cloud — the identity outlives the token', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('fresh-identity', 'uid-in-cloud-1'));
 
-        await expect(reissueCommittedCloudTokens()).resolves.toBe(false);
-        expect(mockDelegateCloud).not.toHaveBeenCalled();
-        expect(mockSaveCloudToken).not.toHaveBeenCalled();
+        await issueCloudTokens('cloud-1', { allowCache: false });
+
+        expect(mockSetCloudIdentity).toHaveBeenCalledWith('cloud-1', { uid: 'uid-in-cloud-1' });
     });
 
-    it('선택된 cid가 아니라 커밋된(delegation) cid로 재발급한다 — 전환 중이면 부모가 다르다', async () => {
+    it('falls back to `id` for the uid, as the identity context does', async () => {
+        mockExchangeToken.mockResolvedValue({
+            id: 'user-id',
+            Token: { identityToken: 't' },
+        } as unknown as UserTokenView);
+
+        await issueCloudTokens('cloud-1', { allowCache: false });
+
+        expect(mockSetCloudIdentity).toHaveBeenCalledWith('cloud-1', { uid: 'user-id' });
+    });
+
+    it('records no identity for a token with neither uid nor id, rather than an empty one', async () => {
+        await issueCloudTokens('cloud-1', { allowCache: false });
+
+        expect(mockSetCloudIdentity).not.toHaveBeenCalled();
+    });
+
+    it('a cache replay records nothing — the identity was recorded when that entry was issued', async () => {
+        mockGetCachedCloudTokens.mockReturnValue({
+            delegationToken: delegation(),
+            cloudToken: cloudToken('cached-identity', 'uid-cached'),
+        });
+
+        await issueCloudTokens('cloud-1', { allowCache: true });
+
+        expect(mockSetCloudIdentity).not.toHaveBeenCalled();
+    });
+});
+
+describe('reissueCloudTokens', () => {
+    it('bypasses the cache and re-issues the cloud it is given — the cache holds the lapsing copy', async () => {
         mockGetDelegationToken.mockReturnValue(delegation('committed-cloud'));
-        mockDelegateCloud.mockResolvedValue(delegation('committed-cloud'));
+        mockGetCachedCloudTokens.mockReturnValue({ delegationToken: delegation(), cloudToken: cloudToken('cached') });
 
-        await expect(reissueCommittedCloudTokens()).resolves.toBe(true);
+        await reissueCloudTokens('committed-cloud');
 
+        expect(mockGetCachedCloudTokens).not.toHaveBeenCalled();
         expect(mockDelegateCloud).toHaveBeenCalledWith('committed-cloud');
     });
 
-    it('기존 토큰 뷰에 병합한다 — 재발급이 프로필 필드를 떨어뜨리면 안 된다', async () => {
+    it('commits into the session store when the cloud is the committed one, merging the stored view', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
         mockGetCloudToken.mockReturnValue({
             Token: { identityToken: 'old-identity' },
             name: 'kept-name',
         } as unknown as UserTokenView);
 
-        await reissueCommittedCloudTokens();
+        await reissueCloudTokens('cloud-1');
 
+        expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
+        // A re-issue must not drop the profile fields the stored view carries.
         expect(mockSaveCloudToken).toHaveBeenCalledWith({
             Token: { identityToken: 'fresh-identity' },
             name: 'kept-name',
@@ -157,7 +191,7 @@ describe('reissueCommittedCloudTokens', () => {
     it('선택 상태(cid·sid·place order)는 건드리지 않는다 — 사용자는 아무 데도 이동하지 않았다', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
 
-        await reissueCommittedCloudTokens();
+        await reissueCloudTokens('cloud-1');
 
         expect(mockSaveSelectedCloudId).not.toHaveBeenCalled();
         expect(mockClearSelectedSite).not.toHaveBeenCalled();
@@ -166,20 +200,50 @@ describe('reissueCommittedCloudTokens', () => {
     it('커밋 후 identity를 재파생하고, 재발급 전체가 한 번의 관측 가능한 변화다', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
 
-        await reissueCommittedCloudTokens();
+        await reissueCloudTokens('cloud-1');
 
-        expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
         // A re-issue is not a cloud CHANGE, so observers must never see a window where only the
         // delegation token has moved.
         expect(mockBatch).toHaveBeenCalledTimes(1);
     });
 
+    it('a cloud that is NOT committed lands in the cache only — the store belongs to another cloud', async () => {
+        mockGetDelegationToken.mockReturnValue(delegation('committed-cloud'));
+        mockDelegateCloud.mockResolvedValue(delegation('other-cloud'));
+
+        const issued = await reissueCloudTokens('other-cloud');
+
+        expect(issued.cloudToken.Token?.identityToken).toBe('fresh-identity');
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('other-cloud', {
+            delegationToken: delegation('other-cloud'),
+            cloudToken: cloudToken('fresh-identity'),
+        });
+        expect(mockSaveDelegationToken).not.toHaveBeenCalled();
+        expect(mockSaveCloudToken).not.toHaveBeenCalled();
+        expect(mockRebuildSessionIdentity).not.toHaveBeenCalled();
+        expect(mockBatch).not.toHaveBeenCalled();
+    });
+
+    it('decides "committed" at write time — a switch away during the exchange keeps the store untouched', async () => {
+        // Committed when the renewal starts, not any more by the time the exchange answers.
+        mockGetDelegationToken.mockReturnValue(delegation('cloud-1'));
+        mockDelegateCloud.mockImplementation(async () => {
+            mockGetDelegationToken.mockReturnValue(delegation('cloud-2'));
+            return delegation('cloud-1');
+        });
+
+        await reissueCloudTokens('cloud-1');
+
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-1', expect.anything());
+        expect(mockSaveCloudToken).not.toHaveBeenCalled();
+    });
+
     it('교환 실패는 던진다 — 재시도 여부는 호출자가 결정한다', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
         mockDelegateCloud.mockRejectedValue(new Error('403'));
 
-        await expect(reissueCommittedCloudTokens()).rejects.toThrow('403');
+        await expect(reissueCloudTokens('cloud-1')).rejects.toThrow('403');
         expect(mockSaveCloudToken).not.toHaveBeenCalled();
     });
 });

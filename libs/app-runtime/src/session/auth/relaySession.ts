@@ -18,10 +18,6 @@ import { clearRelaySession, sessionSignal, setSessionAuthenticated, setSessionId
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
 
-// `ServerKind` and the Auth SDK bridge moved to `sessionAuthAdapter` (ADR-0076 decision 5). Re-exported
-// here for the barrel's type surface only — the bridge itself is not re-exported.
-export type { ServerKind } from './sessionAuthAdapter';
-
 export interface LogoutOptions {
     preserveUrl?: boolean;
 }
@@ -280,6 +276,9 @@ class RelaySession implements IRelaySession {
         // redirect.
         sessionSignal.batch(() => {
             cloudStore.clearSession();
+            // The per-cloud uids go with the account. `clearSession` keeps them on purpose (leaving
+            // one cloud is not a change of account); this is the one place the account itself ends.
+            cloudStore.clearCloudIdentities();
             relayStore.clearSelectedSite();
             // Replaces `clearRelayTransportOverrides()` — drop the deeplinked `?_backend`/`?_wss`
             // local overrides so a future boot resolves the build's own endpoint again instead of

@@ -80,7 +80,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     SDK["ClientSocketAuth<br/>@lemoncloud/chatic-sockets-lib"]:::ext
-    WIRE["sessionAuthAdapter.signAuth(kind)<br/>@chatic/app-runtime"]:::ext
+    WIRE["sessionAuthAdapter.signAuth(cid)<br/>@chatic/app-runtime"]:::ext
     STORE["relayStore · cloudStore<br/>@chatic/app-runtime"]:::ext
     AS["@chatic/auth-sign<br/><i>LemonHmacSigner</i>"]:::leaf
     CJ["crypto-js<br/>hmac-sha256 · enc-base64"]:::ext
@@ -158,7 +158,7 @@ One file in the repo imports this barrel, and one test mocks the specifier
 has two places to land, not one:
 
 ```text
-sessionAuthAdapter.signAuth(kind)                 libs/app-runtime/src/session/auth/sessionAuthAdapter.ts
+sessionAuthAdapter.signAuth(cid)                 libs/app-runtime/src/session/auth/sessionAuthAdapter.ts
 └── calcSignature(payload, current, userAgent)    libs/app-runtime/src/session/auth/utils/calcSignature.ts
     └── LemonHmacSigner#sign                      @chatic/auth-sign
 ```

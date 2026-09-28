@@ -5,7 +5,7 @@ import type { ReauthDelegate } from './types';
 /**
  * The seed-and-sign half of the socket session delegate: a registration to register with, and the
  * signature that registration is proven by. Both are `sessionAuthAdapter` pass-throughs, keyed by
- * the socket's own kind (§6-6).
+ * the socket's own slot — the adapter takes the cloud id, and the slot key is that id (§6-6).
  *
  * **Why this is a file of its own.** `sessionDelegate.ts` carries two more members, and one of them
  * — `onAuthExpired` — maps a terminal expiry to that kind's renewer (ADR-0076 Decision 3). So importing
@@ -19,6 +19,6 @@ import type { ReauthDelegate } from './types';
  * singleton), so callers build one per call rather than sharing.
  */
 export const createReauthDelegate = (): ReauthDelegate => ({
-    getAuthRegistration: kind => sessionAuthAdapter.getAuthRegistration(kind),
-    signAuth: (kind, _token, target) => sessionAuthAdapter.signAuth(kind, target),
+    getAuthRegistration: slot => sessionAuthAdapter.getAuthRegistration(slot),
+    signAuth: (slot, _token, target) => sessionAuthAdapter.signAuth(slot, target),
 });

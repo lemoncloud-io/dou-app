@@ -238,7 +238,7 @@ itself. It remains as an override for tests and for a host that must inject them
 
 The host is the single init driver: `useRelaySessionInit()` runs session initialization once and the
 host renders `null` until it resolves, so no binder mounts against an unprepared session. It also
-owns the per-kind auth delegate (`useSocketSessionDelegate`), so an app injects nothing, and it calls
+owns the per-slot auth delegate (`useSocketSessionDelegate`), so an app injects nothing, and it calls
 `useRelaySessionKeepAlive` above the gate.
 
 `RuntimeAuthHost` is the same component with background guest login switched off, for a console that
