@@ -39,3 +39,4 @@ const List = () => {
 export const MultiSelect: Story = { render: () => <List /> };
 export const Selected: Story = { args: { name: 'Name', checked: true } };
 export const Unselected: Story = { args: { name: 'Name', checked: false } };
+export const WithSubtitle: Story = { args: { name: 'Name', subtitle: '010-1234-5678 · Company · Title' } };

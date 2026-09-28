@@ -24,10 +24,12 @@ import { AddFriendSheet } from '../components/AddFriendSheet';
 import { PlaceInviteTab } from '../components/PlaceInviteTab';
 import { PermissionDeniedBanner } from '../components/PermissionDeniedBanner';
 import {
+    compareContactLabels,
     contactSearchText,
     resolveContactDisplayPhone,
     resolveContactName,
     resolveContactPhone,
+    resolveContactSubtitle,
 } from '../utils/deviceContact';
 import { getRoomDistance } from '../utils/roomDistance';
 
@@ -100,17 +102,20 @@ export const InvitePage = () => {
             .then(response => {
                 if (cancelled) return;
                 const received = response.data?.contacts ?? [];
+                const permission = response.data?.permission;
                 setIsWaitingForContacts(false);
-                if (received.length > 0) {
-                    setContacts(received);
-                    setPermissionDenied(false);
-                } else {
-                    setPermissionDenied(true);
-                }
+                setContacts(received);
+                // A shell that states the permission is believed, so an empty address book is an
+                // empty list rather than a denial. One built before the field existed says nothing,
+                // and then an empty list is the only sign of a denial left to go on.
+                setPermissionDenied(permission ? permission === 'denied' : received.length === 0);
             })
             .catch(() => {
                 if (cancelled) return;
                 setIsWaitingForContacts(false);
+                // Also a denial, not only a failure: an iOS app built before `permission` existed
+                // answers a refusal with an error, so reading this as anything else would drop those
+                // users onto a blank tab. It also catches a timeout, which lands on the same banner.
                 setPermissionDenied(true);
             });
         return () => {
@@ -131,22 +136,38 @@ export const InvitePage = () => {
      * here. That row is still identified by its number — only the invite is disabled. "It's
      * stored but not shown" and "it can't be invited" are different stories.
      */
-    const listedContacts = useMemo(() => contacts.filter(c => resolveContactDisplayPhone(c) !== ''), [contacts]);
+    const listedContacts = useMemo(
+        () =>
+            contacts
+                .filter(c => resolveContactDisplayPhone(c) !== '')
+                // Sorted here because neither platform sorts: iOS fetches with no sort order and
+                // Android reads rows in storage order, so the same address book arrived in two
+                // different orders. The key is the label the row shows, not a raw field.
+                .map(contact => ({ contact, label: nameOf(contact) }))
+                .sort((a, b) => compareContactLabels(a.label, b.label))
+                .map(({ contact }) => contact),
+        [contacts, nameOf]
+    );
+
+    const query = search.trim().toLowerCase();
+
+    const matchedContacts = useMemo(
+        () => (query ? listedContacts.filter(c => contactSearchText(c).includes(query)) : listedContacts),
+        [listedContacts, query]
+    );
 
     // Selected contacts stay at the top regardless of the filter; the rest get the search filter applied.
-    const filteredContacts = useMemo(() => {
-        const selected: ContactInfo[] = [];
-        const unselected: ContactInfo[] = [];
-        for (const contact of listedContacts) {
-            (selectedIds.has(contact.recordID) ? selected : unselected).push(contact);
-        }
-        let rest = unselected;
-        if (search.trim()) {
-            const q = search.toLowerCase();
-            rest = unselected.filter(c => contactSearchText(c).includes(q));
-        }
-        return [...selected, ...rest];
-    }, [listedContacts, search, selectedIds]);
+    const filteredContacts = useMemo(
+        () => [
+            ...listedContacts.filter(c => selectedIds.has(c.recordID)),
+            ...matchedContacts.filter(c => !selectedIds.has(c.recordID)),
+        ],
+        [listedContacts, matchedContacts, selectedIds]
+    );
+
+    // The count above the list is the matches alone — a selected row stays pinned on top even when it
+    // does not match, and counting it would claim a result the search did not find.
+    const listedCount = matchedContacts.length;
 
     const selectedItems = useMemo(
         () => listedContacts.filter(c => selectedIds.has(c.recordID)).map(c => ({ id: c.recordID, name: nameOf(c) })),
@@ -229,7 +250,9 @@ export const InvitePage = () => {
         }
     };
 
-    const showContactList = isOnMobileApp && contacts.length > 0;
+    // Not gated on the list having entries: a granted but empty address book is the list's own empty
+    // state, not the permission banner.
+    const showContactList = isOnMobileApp && !isWaitingForContacts && !permissionDenied;
     const showGuide = !isOnMobileApp || (permissionDenied && !isWaitingForContacts);
     // The list can now come out empty without a search term — every contact received may lack a
     // number. The screen still belongs to the picker (search + link invite), so say why instead of
@@ -268,7 +291,8 @@ export const InvitePage = () => {
                                     partial contacts access returns a short list with nothing in the
                                     payload saying so, and a name + number typed here reaches someone
                                     the picker never showed. (The OS settings route stays on the
-                                    empty/denied banner, which is where a blank list lands.) */}
+                                    denied banner; a granted but empty list shows the empty-list
+                                    message instead.) */}
                                 <button
                                     type="button"
                                     aria-label={t('inviteFriends.sendLink')}
@@ -314,24 +338,29 @@ export const InvitePage = () => {
 
             {isContactTab && showContactList && (
                 <div className="flex flex-1 flex-col overflow-y-auto overscroll-none px-2 pt-2">
+                    {!isListEmpty && (
+                        <p className="px-4 pb-1 text-[14px] leading-[1.4] text-description">
+                            {t(query ? 'inviteFriends.searchResultCount' : 'inviteFriends.contactCount', {
+                                count: listedCount,
+                            })}
+                        </p>
+                    )}
                     {isListEmpty ? (
                         <div className="flex flex-1 items-center justify-center">
                             <p className="text-center text-[16px] text-description">
-                                {t(
-                                    search.trim()
-                                        ? 'inviteFriends.noSearchResults'
-                                        : 'inviteFriends.noInvitableContacts'
-                                )}
+                                {t(query ? 'inviteFriends.noSearchResults' : 'inviteFriends.noInvitableContacts')}
                             </p>
                         </div>
                     ) : (
                         filteredContacts.map(contact => {
                             const selected = selectedIds.has(contact.recordID);
                             const hasValidPhone = resolveContactPhone(contact) !== null;
+                            const name = nameOf(contact);
                             return (
                                 <SelectableUserItem
                                     key={contact.recordID}
-                                    name={nameOf(contact)}
+                                    name={name}
+                                    subtitle={resolveContactSubtitle(contact, name)}
                                     checked={selected}
                                     onToggle={next => handleToggle(contact, next)}
                                     disabled={(!hasValidPhone && !selected) || isBatchInviting}

@@ -6,6 +6,8 @@ import { Checkbox } from '../../foundations/checkbox/Checkbox';
 export interface SelectableUserItemProps {
     /** Display name. */
     name: string;
+    /** Secondary line under the name; omitted (not an empty line) when blank. */
+    subtitle?: string;
     /** Avatar image URL; falls back to the placeholder glyph. */
     avatarSrc?: string;
     /** Selected state (controlled). */
@@ -23,6 +25,7 @@ export interface SelectableUserItemProps {
  */
 export const SelectableUserItem = ({
     name,
+    subtitle,
     avatarSrc,
     checked = false,
     onToggle,
@@ -42,8 +45,9 @@ export const SelectableUserItem = ({
             )}
         >
             <ProfileAvatar src={avatarSrc} size={42} />
-            <span className="min-w-0 flex-1 truncate text-[16px] font-medium tracking-[-0.5px] text-foreground">
-                {name}
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[16px] font-medium tracking-[-0.5px] text-foreground">{name}</span>
+                {subtitle && <span className="truncate text-[14px] leading-[1.4] text-description">{subtitle}</span>}
             </span>
             <Checkbox checked={checked} interactive={false} />
         </button>

@@ -136,13 +136,13 @@ export const useDeviceHandler = () => {
     const handleGetContacts = useCallback(
         async (_message: WebMessageData<'GetContacts'>) => {
             try {
-                const contacts = await deviceService.getContacts();
+                const { contacts, permission } = await deviceService.getContacts();
                 return {
                     type: 'OnGetContacts' as const,
                     success: true,
                     // Every field is defaulted in `toContactInfo` — iOS omits a key outright where
                     // Android sends an empty value, and `ContactInfo` promises the web a value.
-                    data: { contacts: contacts.map(toContactInfo) },
+                    data: { contacts: contacts.map(toContactInfo), permission },
                 };
             } catch (e: any) {
                 logger.error('DEVICE', 'GetContacts error', e);

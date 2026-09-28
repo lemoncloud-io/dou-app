@@ -77,9 +77,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
             { timeoutMs: 180_000 }
         );
 
-        appBridge.getContacts();
-        expect(requestMock).toHaveBeenLastCalledWith({ type: 'GetContacts', data: {} });
-
         appBridge.fetchCurrentPurchases();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchCurrentPurchases', data: {} });
     });
@@ -91,6 +88,11 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
             type: 'Purchase',
             data: { id: 'sku_1', offerToken: 'offer', newPlanId: 'plan' },
         });
+    });
+
+    it('requests contacts with a timeout long enough to outlast the OS permission prompt', () => {
+        appBridge.getContacts();
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'GetContacts', data: {} }, { timeoutMs: 60_000 });
     });
 
     it('fetchProducts는 10초 timeout으로 request를 호출한다', () => {

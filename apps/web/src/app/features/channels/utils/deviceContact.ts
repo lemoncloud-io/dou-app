@@ -119,11 +119,17 @@ export const resolveContactPhone = (contact: ContactInfo): string | null => {
  * Includes the company and the shown number because both can BE the row's label — searching for
  * what is on screen and getting nothing back would be its own bug. The number goes in twice, as
  * shown and as bare digits, so `010-1234` and `0101234` both find it.
+ *
+ * The composed name goes in too, and it is not the parts repeated: on iOS there is no
+ * `displayName`, so the row reads `김민수` while the parts alone join to `민수 김` — typing exactly
+ * what the row shows found nothing. The job title is here because the subtitle shows it.
  */
 export const contactSearchText = (contact: ContactInfo): string => {
     const phone = resolveContactDisplayPhone(contact);
     return [
         contact.displayName,
+        composeName(contact),
+        contact.jobTitle,
         contact.givenName,
         contact.middleName,
         contact.familyName,
@@ -136,3 +142,57 @@ export const contactSearchText = (contact: ContactInfo): string => {
         .join(' ')
         .toLowerCase();
 };
+
+const LETTER = /\p{L}/u;
+
+const phoneDigits = (value: string): string => normalizeKoreanPhone(value.replace(/\D/g, ''));
+
+/**
+ * The row's second line: the shown number — the invitable mobile whenever the contact has one —
+ * then who they are at work.
+ *
+ * Exists because a name alone cannot tell two `김민수` apart, and the row never said which number
+ * an invite would reach. It shows only fields both platforms deliver — iOS sends no department,
+ * nickname or starred flag, so a line built from those would be an Android-only feature.
+ *
+ * `name` is what the row already shows. The chain in `resolveContactName` falls back to the company
+ * or the number, and repeating the title on the line under it says nothing. The number is compared
+ * by its digits, not its text: Android fills `displayName` of a contact saved with only a number
+ * from that number exactly as stored (`01012345678`, `+82 10-…`), which never equals the formatted
+ * `010-1234-5678` the line would show.
+ */
+export const resolveContactSubtitle = (contact: ContactInfo, name: string): string => {
+    const phone = resolveContactDisplayPhone(contact);
+    const numberIsTitle = phone !== '' && !LETTER.test(name) && phoneDigits(name) === phoneDigits(phone);
+    return [numberIsTitle ? '' : phone, trimmed(contact.company), trimmed(contact.jobTitle)]
+        .filter(part => part && part !== name)
+        .join(' · ');
+};
+
+const HANGUL_LEADING = /^[ㄱ-ㆎ가-힯]/;
+const LATIN_LEADING = /^\p{Script=Latin}/u;
+const LETTER_LEADING = /^\p{L}/u;
+
+/**
+ * Which block a label sorts into, following the phone book people already know: Hangul, then Latin,
+ * then any other script, and labels that start with a digit or a symbol last — the `#` block.
+ *
+ * `localeCompare('ko')` alone is not that order: it puts digits and symbols FIRST, and since a
+ * contact with no name is labelled by its number, every such row would lead the list.
+ *
+ * Classified after NFC normalisation: a name stored decomposed starts with a conjoining jamo, which
+ * the Hangul range does not cover, and would otherwise sort after every Latin name.
+ */
+const sortBlock = (raw: string): number => {
+    const label = raw.normalize('NFC');
+    if (HANGUL_LEADING.test(label)) return 0;
+    if (LATIN_LEADING.test(label)) return 1;
+    if (LETTER_LEADING.test(label)) return 2;
+    return 3;
+};
+
+const koreanCollator = new Intl.Collator('ko', { sensitivity: 'base', numeric: true });
+
+/** Orders two row labels by block, then by Korean collation within the block. */
+export const compareContactLabels = (a: string, b: string): number =>
+    sortBlock(a) - sortBlock(b) || koreanCollator.compare(a, b);
