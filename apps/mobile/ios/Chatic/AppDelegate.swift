@@ -25,6 +25,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
 
         FirebaseApp.configure()
 
+        // Reattach to the background transfer session before anything else, so the delegate is in
+        // place when iOS delivers results of uploads that finished while the app was not running.
+        _ = TransferSessionOwner.shared
+
         // Assign the UNUserNotificationCenter delegate
         UNUserNotificationCenter.current().delegate = self
 
@@ -46,24 +50,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         return true
     }
 
-    // MARK: - Background URLSession (upload)
-    /// Called when iOS wakes the app after a background URLSession completes.
-    /// Passes the completionHandler to UploadManager so iOS can suspend the app again.
+    // MARK: - Background URLSession (file transfer)
+    /// Called when iOS wakes the app for the background transfer session. The handler goes to the
+    /// transfer owner directly, not through React Native: RN may not be running at all, and calling
+    /// the handler before the session has delivered its events would drop the results.
     func application(
         _ application: UIApplication,
         handleEventsForBackgroundURLSession identifier: String,
         completionHandler: @escaping () -> Void
     ) {
-        if let uploadManager = RCTBridge.current()?.module(forName: "UploadManager") as? NSObject,
-           uploadManager.responds(to: Selector(("handleBackgroundSession:completionHandler:"))) {
-            uploadManager.perform(
-                Selector(("handleBackgroundSession:completionHandler:")),
-                with: identifier,
-                with: completionHandler
-            )
-        } else {
-            completionHandler()
-        }
+        TransferSessionOwner.shared.handleBackgroundEvents(
+            identifier: identifier,
+            completionHandler: completionHandler
+        )
     }
 
     // MARK: - Deep Linking (Custom URL Scheme)

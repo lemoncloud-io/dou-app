@@ -9,5 +9,4 @@ export const TABLES = {
     PROFILES: 'profiles',
     METAS: 'metas',
     TEST_RECORDS: 'test_records',
-    UPLOAD_TASKS: 'upload_tasks',
 } as const;

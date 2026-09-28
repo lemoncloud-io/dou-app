@@ -8,14 +8,14 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 ## Layout
 
-| Layer                        | Path                                                            |
-| ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 7 files  |
-| Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
-| Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
-| Android background upload    | `android/app/src/main/java/io/chatic/dou/service`, `.../worker` |
-| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                              |
-| iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                  |
+| Layer                        | Path                                                           |
+| ---------------------------- | -------------------------------------------------------------- |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 7 files |
+| Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module` |
+| Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                 |
+| Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`             |
+| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                             |
+| iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                 |
 
 ## Responsibilities
 
@@ -31,16 +31,16 @@ know which platform implements a given capability.
 Seven TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
-| Feature         | TypeScript                | Android                                                                   | iOS                                                                                            |
-| --------------- | ------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Upload          | `UploadManagerBridge.ts`  | `UploadManagerModule.kt`, `UploadBackgroundService.kt`, `UploadWorker.kt` | `Upload/UploadManager.swift`, `Upload/UploadManager.m`                                         |
-| File            | `FileManagerBridge.ts`    | `FileManagerModule.kt`                                                    | `FileManager.m`                                                                                |
-| App icon        | `AppIconBridge.ts`        | `AppIconManagerModule.kt`                                                 | `AppIconManager.m`                                                                             |
-| System bars     | `SystemBarsBridge.ts`     | `SystemBarsModule.kt`                                                     | no-op — `Platform.OS !== 'android'` short-circuits                                             |
-| Back navigation | `BackNavigationBridge.ts` | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                     | no-op — same guard, iOS uses the OS swipe-back gesture                                         |
-| Push marks      | `PushMarksBridge.ts`      | `PushMarksModule.kt` (+ `PushMarkStore.kt`)                               | `PushMarksModule.m`                                                                            |
-| Badge sync      | `BadgeSyncBridge.ts`      | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                | none — base captured natively in `AppDelegate` from the live icon badge, not reachable from JS |
-| Push delivery   | none                      | `push/ChaticFirebaseMessagingService.kt`                                  | `AppDelegate.swift` forwards APNs callbacks to `RNCPushNotificationIOS`                        |
+| Feature         | TypeScript                 | Android                                                                                        | iOS                                                                                                                                            |
+| --------------- | -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| File transfer   | `TransferManagerBridge.ts` | `transfer/` — `TransferManagerModule.kt`, `TransferService.kt`, `TransferRegistry.kt`, `core/` | `Transfer/` — `TransferManager.swift`, `TransferManager.m`, `TransferSessionOwner.swift`, `Core/` — see [file-transfer.md](./file-transfer.md) |
+| File            | `FileManagerBridge.ts`     | `FileManagerModule.kt`                                                                         | `FileManager.m`                                                                                                                                |
+| App icon        | `AppIconBridge.ts`         | `AppIconManagerModule.kt`                                                                      | `AppIconManager.m`                                                                                                                             |
+| System bars     | `SystemBarsBridge.ts`      | `SystemBarsModule.kt`                                                                          | no-op — `Platform.OS !== 'android'` short-circuits                                                                                             |
+| Back navigation | `BackNavigationBridge.ts`  | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                                          | no-op — same guard, iOS uses the OS swipe-back gesture                                                                                         |
+| Push marks      | `PushMarksBridge.ts`       | `PushMarksModule.kt` (+ `PushMarkStore.kt`)                                                    | `PushMarksModule.m`                                                                                                                            |
+| Badge sync      | `BadgeSyncBridge.ts`       | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                                     | none — base captured natively in `AppDelegate` from the live icon badge, not reachable from JS                                                 |
+| Push delivery   | none                       | `push/ChaticFirebaseMessagingService.kt`                                                       | `AppDelegate.swift` forwards APNs callbacks to `RNCPushNotificationIOS`                                                                        |
 
 `PushMarksBridge.drain()` is a read-once call: it reads every pending mark recorded by a background
 chat push (Android's FCM service, iOS's Notification Service Extension) and clears native storage in

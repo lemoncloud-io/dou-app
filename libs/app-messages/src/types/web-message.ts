@@ -51,17 +51,15 @@ import type {
     SendSmsPayload,
     SetBadgeCountPayload,
     SetCanGoBackPayload,
-    RequestFileUploadPayload,
-    PauseFileUploadPayload,
-    ResumeFileUploadPayload,
-    CancelFileUploadPayload,
-    RecoverUploadPayload,
-    RetryUploadPayload,
     CreateDummyFilePayload,
+    StartFileTransferPayload,
+    CancelFileTransferPayload,
+    ListFileTransfersPayload,
+    AckFileTransfersPayload,
+    WriteTempFilePayload,
     CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
-    ListRecoverableUploadsPayload,
     GetContactsPayload,
     FetchSafeAreaPayload,
     FetchBackgroundStatusPayload,
@@ -99,13 +97,11 @@ export type WebMessagePayloadMap = {
     OpenModal: OpenModalPayload;
     CloseModal: CloseModalPayload;
     OpenSettings: OpenSettingsPayload;
-    RequestFileUpload: RequestFileUploadPayload;
-    PauseFileUpload: PauseFileUploadPayload;
-    ResumeFileUpload: ResumeFileUploadPayload;
-    CancelFileUpload: CancelFileUploadPayload;
-    ListRecoverableUploads: ListRecoverableUploadsPayload;
-    RecoverUpload: RecoverUploadPayload;
-    RetryUpload: RetryUploadPayload;
+    StartFileTransfer: StartFileTransferPayload;
+    CancelFileTransfer: CancelFileTransferPayload;
+    ListFileTransfers: ListFileTransfersPayload;
+    AckFileTransfers: AckFileTransfersPayload;
+    WriteTempFile: WriteTempFilePayload;
     CreateDummyFile: CreateDummyFilePayload;
 
     OpenShareSheet: OpenShareSheetPayload;

@@ -1,21 +1,12 @@
 #import <React/RCTBridgeModule.h>
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 
-@interface FileManager : NSObject <RCTBridgeModule> {
-    NSMutableDictionary<NSString *, NSNumber *> *_backgroundTasks;
-}
+@interface FileManager : NSObject <RCTBridgeModule>
 @end
 
 @implementation FileManager
 
 RCT_EXPORT_MODULE();
-
-- (instancetype)init {
-    if (self = [super init]) {
-        _backgroundTasks = [NSMutableDictionary dictionary];
-    }
-    return self;
-}
 
 - (dispatch_queue_t)methodQueue {
     return dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -143,59 +134,6 @@ RCT_EXPORT_METHOD(unlink:(NSString *)path
     }
 }
 
-RCT_EXPORT_METHOD(startBackgroundTask:(NSString *)uploadId
-                  fileName:(NSString *)fileName
-                  progress:(nonnull NSNumber *)progress
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-    @try {
-        @synchronized(_backgroundTasks) {
-            // If already exists, we do not need to create a new one
-            if (_backgroundTasks[uploadId]) {
-                resolve(nil);
-                return;
-            }
-            
-            __block UIBackgroundTaskIdentifier bgTaskId = UIBackgroundTaskInvalid;
-            NSString *taskName = [NSString stringWithFormat:@"io.chatic.dou.upload.%@", uploadId];
-            
-            bgTaskId = [[UIApplication sharedApplication] beginBackgroundTaskWithName:taskName expirationHandler:^{
-                @synchronized(_backgroundTasks) {
-                    [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
-                    [_backgroundTasks removeObjectForKey:uploadId];
-                }
-            }];
-            
-            if (bgTaskId != UIBackgroundTaskInvalid) {
-                _backgroundTasks[uploadId] = @(bgTaskId);
-            }
-        }
-        resolve(nil);
-    } @catch (NSException *exception) {
-        reject(@"START_BG_TASK_FAILED", exception.reason, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(endBackgroundTask:(NSString *)uploadId
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-    @try {
-        @synchronized(_backgroundTasks) {
-            NSNumber *bgTaskIdNumber = _backgroundTasks[uploadId];
-            if (bgTaskIdNumber) {
-                UIBackgroundTaskIdentifier bgTaskId = [bgTaskIdNumber unsignedIntegerValue];
-                if (bgTaskId != UIBackgroundTaskInvalid) {
-                    [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
-                }
-                [_backgroundTasks removeObjectForKey:uploadId];
-            }
-        }
-        resolve(nil);
-    } @catch (NSException *exception) {
-        reject(@"END_BG_TASK_FAILED", exception.reason, nil);
-    }
-}
-
 RCT_EXPORT_METHOD(createDummyFile:(NSString *)path
                   sizeInBytes:(nonnull NSNumber *)sizeInBytes
                   resolve:(RCTPromiseResolveBlock)resolve
@@ -283,6 +221,63 @@ RCT_EXPORT_METHOD(downloadFile:(NSString *)url
     } @catch (NSException *exception) {
         reject(@"DOWNLOAD_FAILED", exception.reason, nil);
     }
+}
+
+/// Keeps only characters that are safe in a file name, so a caller-supplied name can never climb
+/// out of the temp folder or produce an unwritable path. The UUID prefix keeps names unique.
+- (NSString *)safeTempFileName:(NSString *)fileName {
+    NSString *base = [(fileName ?: @"") lastPathComponent];
+    NSMutableCharacterSet *allowed = [NSMutableCharacterSet alphanumericCharacterSet];
+    [allowed addCharactersInString:@"._-"];
+    NSMutableString *safe = [NSMutableString string];
+    [base enumerateSubstringsInRange:NSMakeRange(0, base.length)
+                             options:NSStringEnumerationByComposedCharacterSequences
+                          usingBlock:^(NSString *character, NSRange range, NSRange enclosing, BOOL *stop) {
+        BOOL keep = [character rangeOfCharacterFromSet:[allowed invertedSet]].location == NSNotFound;
+        [safe appendString:keep ? character : @"_"];
+    }];
+    while ([safe hasPrefix:@"."]) {
+        [safe deleteCharactersInRange:NSMakeRange(0, 1)];
+    }
+    if (safe.length > 100) {
+        NSString *extension = [safe pathExtension];
+        NSString *stem = [[safe stringByDeletingPathExtension] substringToIndex:MIN((NSUInteger)80, [safe stringByDeletingPathExtension].length)];
+        safe = [NSMutableString stringWithString:extension.length > 0 && extension.length <= 10
+                    ? [stem stringByAppendingPathExtension:extension] : stem];
+    }
+    return safe.length > 0 ? safe : @"file";
+}
+
+/// Writes bytes the web prepared in memory (a resized image, for example) to a temp file and
+/// resolves its file:// URL, because the transfer module uploads from files only.
+RCT_EXPORT_METHOD(writeTempFile:(NSString *)base64
+                  fileName:(nullable NSString *)fileName
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSData *data = [[NSData alloc] initWithBase64EncodedString:base64 ?: @""
+                                                       options:NSDataBase64DecodingIgnoreUnknownCharacters];
+    if (!data) {
+        reject(@"WRITE_FAILED", @"The content is not valid base64", nil);
+        return;
+    }
+
+    NSString *directory = [NSTemporaryDirectory() stringByAppendingPathComponent:@"transfer-temp"];
+    NSError *error = nil;
+    if (![[NSFileManager defaultManager] createDirectoryAtPath:directory
+                                   withIntermediateDirectories:YES
+                                                    attributes:nil
+                                                         error:&error]) {
+        reject(@"WRITE_FAILED", error.localizedDescription ?: @"Failed to create the temp folder", error);
+        return;
+    }
+
+    NSString *name = [NSString stringWithFormat:@"%@-%@", [[NSUUID UUID] UUIDString], [self safeTempFileName:fileName]];
+    NSString *path = [directory stringByAppendingPathComponent:name];
+    if (![data writeToFile:path options:NSDataWritingAtomic error:&error]) {
+        reject(@"WRITE_FAILED", error.localizedDescription ?: @"Failed to write the temp file", error);
+        return;
+    }
+    resolve([[NSURL fileURLWithPath:path] absoluteString]);
 }
 
 @end

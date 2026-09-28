@@ -81,12 +81,12 @@ grep -c "public get " apps/mobile/src/app/services/provider.ts
 `export const x = provider.x` would read the lazy getter at module-load time and defeat the
 deferral, since that barrel is itself imported from the boot path. Consumers reach them through
 `provider.x` directly, and the SQLite-backed WebView handler hooks (`useCrudCacheHandler`,
-`useSearchCacheHandler`, `useTestRecordHandler`, `useUploadHandler`) read `provider.x` inside their
+`useSearchCacheHandler`, `useTestRecordHandler`) read `provider.x` inside their
 callback bodies rather than destructuring it at the top of the hook, so rendering the hook does not
 itself trigger construction.
 
-The first SQLite-backed message the web sends — cache, search, upload, or test-record — is what
-actually opens the database. See [../storage/cache.md](../storage/cache.md) and [../storage/upload.md](../storage/upload.md).
+The first SQLite-backed message the web sends — cache, search, or test-record — is what actually
+opens the database. See [../storage/cache.md](../storage/cache.md).
 
 ## Out of scope
 

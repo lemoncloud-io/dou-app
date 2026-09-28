@@ -106,7 +106,7 @@
         </activity-alias>
 
         <service
-            android:name="io.chatic.dou.service.UploadBackgroundService"
+            android:name="io.chatic.dou.service.TransferService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
         <service
@@ -116,6 +116,8 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        <!-- WorkManager's own foreground service, still merged in through notifee. It keeps the
+             service type it has always been declared with. -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
