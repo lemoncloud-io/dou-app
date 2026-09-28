@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-28] - No version updates
+
+### Bug Fixes
+
+- (app-runtime) scope a sync target to the selected cloud, not the active socket
+
 ## [2026-09-23] - No version updates
 
 ### Bug Fixes
