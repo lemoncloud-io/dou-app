@@ -23,6 +23,13 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../../../bridge';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';
+import {
+    clearActivePerfTrace,
+    configurePerfTraces,
+    resetPerfTraces,
+    setActivePerfTrace,
+    startPerfTrace,
+} from '@chatic/perf';
 
 const mockUseAppForeground = useAppForeground as jest.Mock;
 
@@ -125,5 +132,70 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
 
         // Reaching here without an unhandled rejection is the assertion.
         expect(refreshList).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('useForegroundChatRefresh — chat_room_sync phases', () => {
+    const backend = { start: jest.fn(), stop: jest.fn() };
+
+    beforeEach(() => configurePerfTraces(backend));
+
+    afterEach(() => {
+        clearActivePerfTrace('chat_room_sync');
+        resetPerfTraces();
+    });
+
+    const beginSync = () => {
+        const trace = startPerfTrace('chat_room_sync');
+        setActivePerfTrace('chat_room_sync', 'ch-1', trace);
+        return trace;
+    };
+
+    it('marks verified, the request and the written page of a warm room', async () => {
+        setCachedChats([3, 7]);
+        refreshList.mockResolvedValue({ fetchedCount: 30 });
+        const trace = beginSync();
+
+        await act(async () => {
+            renderHook(() => useForegroundChatRefresh('ch-1'));
+        });
+
+        expect(trace.hasMetric('verified')).toBe(true);
+        expect(trace.hasMetric('feed_done')).toBe(true);
+        trace.stop();
+        expect(backend.stop.mock.calls[0][0]).toMatchObject({
+            attributes: { cache: 'hit' },
+            metrics: expect.objectContaining({ fetched: 30 }),
+        });
+    });
+
+    it('leaves a trace another fetch already owns alone', async () => {
+        setCachedChats([3, 7]);
+        refreshList.mockResolvedValue({ fetchedCount: 30, latestNo: 40 });
+        const trace = beginSync();
+        // The cold room's first page was already requested for this trace.
+        trace.putAttribute('cache', 'miss');
+        trace.mark('feed_sent');
+
+        await act(async () => {
+            renderHook(() => useForegroundChatRefresh('ch-1'));
+        });
+
+        trace.stop();
+        const [result] = backend.stop.mock.calls[0];
+        expect(result.attributes).toMatchObject({ cache: 'miss' });
+        expect(result.metrics).not.toHaveProperty('fetched');
+    });
+
+    it('ends the trace as error when the entry refresh fails', async () => {
+        setCachedChats([3]);
+        refreshList.mockRejectedValue(new Error('socket closed'));
+        beginSync();
+
+        await act(async () => {
+            renderHook(() => useForegroundChatRefresh('ch-1'));
+        });
+
+        expect(backend.stop.mock.calls[0][0].attributes).toMatchObject({ outcome: 'error' });
     });
 });

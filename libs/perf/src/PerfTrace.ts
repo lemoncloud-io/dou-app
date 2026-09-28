@@ -45,6 +45,13 @@ export interface PerfTrace {
      * phase boundary that fires twice (a re-render, a retry) was reached the first time.
      */
     mark(key: string): void;
+    /**
+     * Whether a metric (or mark) under `key` has been recorded. For a trace whose end depends on a
+     * phase that another module marks: the module that ends it asks rather than being told.
+     */
+    hasMetric(key: string): boolean;
+    /** The value recorded under `key`, if any — for the same kind of hand-off as `hasMetric`. */
+    getMetric(key: string): number | undefined;
     stop(): void;
 }
 
@@ -93,6 +100,14 @@ class Trace implements PerfTrace {
     public mark(key: string): void {
         if (this.stopped || key in this.metrics) return;
         this.putMetric(key, this.elapsed());
+    }
+
+    public hasMetric(key: string): boolean {
+        return key in this.metrics;
+    }
+
+    public getMetric(key: string): number | undefined {
+        return this.metrics[key];
     }
 
     public stop(): void {

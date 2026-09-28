@@ -30,6 +30,7 @@ holding a trace until it expires.
 | `site_switch`    | `switchSite` (`libs/app-runtime`), below its same-place no-op              | `outcome`: `ok` / `error`                          |
 | `web_vitals`     | `webVitalsReporter.ts`, FCP and LCP only, as samples (value in `value_ms`) | `vital`: `fcp` / `lcp`                             |
 | `chat_room_open` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
+| `chat_room_sync` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -140,10 +141,71 @@ The page's existing push-entry log line (`push-opened room showed its messages`)
 chat half alone. It is left as it is, because changing it would change what an existing diagnostic
 measures. The trace does not depend on it.
 
+## `chat_room_sync`
+
+`chat_room_open` ends when the room first shows messages, and for a room with a cache those are the
+cached ones — possibly stale. `chat_room_sync` runs from the same tap to the room showing its
+**synced, latest** page: the socket authenticated, the latest page fetched and written, and that page
+on screen. Read side by side, the two say whether "slow" means the room drew late or the room drew
+fast but took long to become current.
+
+### How it runs
+
+It begins with `chat_room_open`, in `roomOpenTrace.begin` — or natively, for a tap, and is handed over
+as `OnNavigate.perfTrace.syncId` (an app build that predates it sends none, and the web starts it at
+the hand-over). It is published at once as the **active** `chat_room_sync` for the channel (see
+[`@chatic/perf`](../../../../libs/perf/README.md)), because the sync that marks its phases runs in
+`libs/app-runtime`, which cannot reach the web.
+
+The room page takes it only through the slot's claim of the matching `chat_room_open`, in the same
+mount (`roomOpenTrace.takeClaimedSync`). A sync trace begun for a room that was already on screen, or
+for a navigation that never arrived, is never claimed, so a later, unrelated visit to that room cannot
+adopt it and record a duration that started at an old tap.
+
+The sync for a room entry is one of two fetches:
+
+| Room | Fetch                                                                       | `cache` |
+| ---- | --------------------------------------------------------------------------- | ------- |
+| cold | `usePrimeChat` (`libs/app-runtime`, `useSyncTarget.ts`) — the first page    | `miss`  |
+| warm | `useForegroundChatRefresh` (`features/channels/hooks/`) — the entry refresh | `hit`   |
+
+Each marks the same phases on the active trace. The first fetch for a trace owns it: a second one —
+a re-verification re-running the entry refresh, a foreground return during the same wait — leaves the
+trace's `cache` and `fetched` alone, so they describe the fetch the room actually waited on. The room
+page (`useRoomSyncTrace`) adds `mount` and ends it.
+
+### Phases (metrics, in ms from the tap)
+
+| Metric                   | Marked when                                                                                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `handler`, `switch_done` | as for `chat_room_open` — a push's handler and switch                                                                                        |
+| `mount`                  | the room page mounted                                                                                                                        |
+| `verified`               | the sync saw the room's socket slot verified. Usually before `mount`: the slot is already verified, and the sync hooks run first in the page |
+| `feed_sent`              | the latest page was requested (`chat.feed`)                                                                                                  |
+| `feed_done`              | the page came back and was written to the cache                                                                                              |
+| `fetched`                | rows in that page. A count, not a time                                                                                                       |
+| `latest_no`              | the newest `chatNo` in that page. What the end waits for                                                                                     |
+| `message_count`          | rows in the room's window when it ended. A count                                                                                             |
+
+The trace's own duration is the wait until the latest page is on screen: the first commit after
+`feed_done` whose window holds row `latest_no`, which is the cache write re-emitting the list. The row
+is checked, not just a new list, because the window can change for other reasons in between (a join
+cursor arriving) and ending on that would record the room before it caught up. A page that wrote
+nothing would re-emit nothing, so the sync hook ends the trace itself then.
+
+A `verified` later than `mount` is time spent waiting on the socket; `feed_done − feed_sent` is the
+server round trip plus the cache write; duration − `feed_done` is the re-emission and render.
+
+`outcome` is `synced`, `error` (the fetch failed), `timeout` (30s from mount), `background` or `left`,
+with the same meaning and the same one-second leave grace as `chat_room_open`. A room left inside that
+grace is closed as `left` at once if the app goes to the background, rather than when its timer
+resumes. Its attributes are at the same cap of five.
+
 ## Verifying
 
-- Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useRoomOpenTrace` from
-  `apps/web`.
+- Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useRoomOpenTrace
+src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
+  from `apps/web`, and `npx jest src/socket/sync/hooks/useSyncTarget` from `libs/app-runtime`.
 - On a device build with Firebase debug logging on (see the lib README), open a room from the list,
   then tap a notification with the app closed. Each should log one `chat_room_open` trace, with
   `entry` `list` and `push_tap`/`deeplink` respectively. A deep link on the iOS simulator

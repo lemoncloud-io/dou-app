@@ -120,4 +120,16 @@ describe('createPerfTrace', () => {
 
         expect(backend.stop.mock.calls[0][0].durationMs).toBe(0);
     });
+
+    it('reports whether a metric has been recorded, so another module can wait on a phase', () => {
+        const backend = createBackend();
+        const { trace } = createTrace(backend);
+
+        expect(trace.hasMetric('feed_done')).toBe(false);
+        trace.mark('feed_done');
+        expect(trace.hasMetric('feed_done')).toBe(true);
+        trace.putMetric('latest_no', 41);
+        expect(trace.getMetric('latest_no')).toBe(41);
+        expect(trace.getMetric('missing')).toBeUndefined();
+    });
 });

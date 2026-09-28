@@ -6,7 +6,13 @@
  * open a second row that nobody is watching. Snake case because it is the one spelling both
  * the Firebase console and a log query accept without escaping.
  */
-export type PerfTraceName = 'boot' | 'cloud_switch' | 'site_switch' | 'web_vitals' | 'chat_room_open';
+export type PerfTraceName =
+    | 'boot'
+    | 'cloud_switch'
+    | 'site_switch'
+    | 'web_vitals'
+    | 'chat_room_open'
+    | 'chat_room_sync';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {

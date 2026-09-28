@@ -1,4 +1,4 @@
-import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
+import { configurePerfTraces, getActivePerfTrace, resetPerfTraces } from '@chatic/perf';
 
 import {
     ROOM_OPEN_CLAIM_TTL_MS,
@@ -59,6 +59,7 @@ describe('roomOpenTrace', () => {
     it('adopts a trace the native tap started instead of starting a second one', () => {
         const handedOver = {
             id: 'native-1',
+            syncId: 'native-sync-1',
             startedAt: Date.now() - 2_000,
             entry: 'push_tap' as const,
             coldStart: true,
@@ -77,6 +78,61 @@ describe('roomOpenTrace', () => {
                 metrics: { handler: 2_000 },
             })
         );
+    });
+
+    it('begins the sync trace with it, published as the active chat_room_sync for the room', () => {
+        roomOpenTrace.begin('ch_1', 'list');
+
+        const sync = getActivePerfTrace('chat_room_sync', 'ch_1');
+        expect(sync?.name).toBe('chat_room_sync');
+        expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'chat_room_sync', id: sync?.id }));
+    });
+
+    it('adopts a handed-over sync trace, and starts one itself for an app build that sends none', () => {
+        const base = { id: 'native-1', startedAt: Date.now(), entry: 'push_tap' as const, coldStart: false };
+
+        roomOpenTrace.begin('ch_1', 'push_tap', { ...base, syncId: 'native-sync-1' });
+        expect(getActivePerfTrace('chat_room_sync', 'ch_1')?.id).toBe('native-sync-1');
+        expect(backend.start).not.toHaveBeenCalled();
+
+        roomOpenTrace.begin('ch_2', 'push_tap', base);
+        expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'chat_room_sync' }));
+    });
+
+    it('marks and tags both traces of a pending room', () => {
+        const open = roomOpenTrace.begin('ch_1', 'push_banner');
+        roomOpenTrace.putAttribute('ch_1', 'switch', 'site');
+        roomOpenTrace.mark('ch_1', 'switch_done');
+
+        const sync = getActivePerfTrace('chat_room_sync', 'ch_1');
+        open.stop();
+        sync?.stop();
+
+        for (const [result] of backend.stop.mock.calls) {
+            expect(result.attributes).toMatchObject({ switch: 'site' });
+            expect(result.metrics).toHaveProperty('switch_done');
+        }
+        expect(backend.stop).toHaveBeenCalledTimes(2);
+    });
+
+    it('hands the sync trace to the room that claimed its open trace, once', () => {
+        roomOpenTrace.begin('ch_1', 'list');
+        const sync = getActivePerfTrace('chat_room_sync', 'ch_1');
+
+        expect(roomOpenTrace.takeClaimedSync('ch_1')).toBeUndefined();
+        roomOpenTrace.claim('ch_1');
+        expect(roomOpenTrace.takeClaimedSync('ch_2')).toBeUndefined();
+        expect(roomOpenTrace.takeClaimedSync('ch_1')).toBe(sync);
+        expect(roomOpenTrace.takeClaimedSync('ch_1')).toBeUndefined();
+    });
+
+    it('drops the sync trace of a room that has not mounted when the app is hidden', () => {
+        roomOpenTrace.begin('ch_1', 'list');
+
+        roomOpenTrace.handleHidden();
+
+        expect(getActivePerfTrace('chat_room_sync', 'ch_1')).toBeUndefined();
+        expect(backend.stop).not.toHaveBeenCalled();
     });
 
     it('hands the trace to its own room only, and only once', () => {

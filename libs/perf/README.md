@@ -58,6 +58,7 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `site_switch`    | place selected, past the same-place no-op | `auth.switch` settles                    | 1000ms at p95                  |
 | `web_vitals`     | — a sample (see below)                    | —                                        | FCP 1800ms / LCP 2500ms at p75 |
 | `chat_room_open` | the tap that opens a room                 | the room's first commit showing messages | none yet                       |
+| `chat_room_sync` | the same tap                              | the room showing its synced, latest page | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -117,6 +118,24 @@ A web vital is reported by the browser after the fact, so it cannot be timed by 
 `recordPerfSample('web_vitals', { attributes: { vital: 'lcp' }, metrics: { value_ms } })` records it
 as a zero-length trace carrying the value in a metric. For these traces, read `value_ms` in the
 console. The trace's own duration means nothing.
+
+### Traces several modules contribute to: the active trace
+
+`chat_room_sync` is begun by a tap in the web, has its phases marked by the sync hooks in
+`libs/app-runtime`, and is ended by the room page. None of them can hand the handle to the next, so
+they meet at `setActivePerfTrace(name, subject, trace)` / `getActivePerfTrace(name, subject)`: one
+trace in progress per name, keyed by what it is about (the channel, here).
+
+- **One per name.** The things measured this way happen one at a time — a user opens one room at a
+  time — and a slot that overwrites needs no cleanup to stay small. A replaced trace can no longer be
+  found by name; a module already holding it may still mark and stop it, and otherwise it is never
+  stopped, which records nothing.
+- **`clearActivePerfTrace(name, trace)` clears only that trace**, so a module finishing an old trace
+  cannot clear the newer one that replaced it. `endActivePerfTrace(name, subject, outcome)` records
+  the outcome, stops the trace and clears it, for whichever module learns the measured thing is over.
+- **`trace.hasMetric(key)`** lets the module that ends a trace ask whether a phase another module
+  marks has been reached — the room page ends `chat_room_sync` on the first list emission after the
+  sync marked `feed_done`.
 
 ## Backends
 

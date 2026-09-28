@@ -178,11 +178,15 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 if (chatId) await hopToThread(chatId);
             };
 
-            // A room-open trace begun by whoever called this (a tap, a banner) learns what the switch
-            // cost: which kind ran, and when it was done. Peeked, not claimed — the room ends it.
-            const roomTrace = roomOpenTrace.peek(channelIdOfRoomPath(target));
+            // The room traces begun by whoever called this (a tap, a banner) learn what the switch
+            // cost: which kind ran, and when it was done. Marked in place — the room ends them.
+            const roomChannelId = channelIdOfRoomPath(target);
             if (needsSwitch) {
-                roomTrace?.putAttribute('switch', needsRelayReturn ? 'relay' : needsCloudSwitch ? 'cloud' : 'site');
+                roomOpenTrace.putAttribute(
+                    roomChannelId,
+                    'switch',
+                    needsRelayReturn ? 'relay' : needsCloudSwitch ? 'cloud' : 'site'
+                );
             }
 
             try {
@@ -212,7 +216,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     if (needsRelayReturn) await logoutCloudSession();
                     if (cid && needsCloudSwitch) await switchCloud(cid);
                     if (sid && needsSiteSwitch) await switchSite(sid);
-                    roomTrace?.mark('switch_done');
+                    roomOpenTrace.mark(roomChannelId, 'switch_done');
                 }
                 await land();
             } catch (error) {
