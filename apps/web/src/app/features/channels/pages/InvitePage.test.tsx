@@ -62,8 +62,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {trailing}
         </div>
     ),
-    SelectableUserItem: ({ name, checked, onToggle, disabled }: any) => (
-        <button data-testid={`user-${name}`} disabled={disabled} onClick={() => onToggle?.(!checked)}>
+    SelectableUserItem: ({ name, subtitle, checked, onToggle, disabled }: any) => (
+        <button
+            data-testid={`user-${name}`}
+            data-subtitle={subtitle}
+            disabled={disabled}
+            onClick={() => onToggle?.(!checked)}
+        >
             {name}
         </button>
     ),
@@ -326,6 +331,113 @@ describe('contacts that carry no display name', () => {
 
         expect(screen.getByTestId('user-동네치킨')).toBeInTheDocument();
         expect(screen.queryByTestId('user-김민수')).not.toBeInTheDocument();
+    });
+});
+
+describe('permission reported by the shell', () => {
+    it('treats a granted but empty address book as an empty list, not a denial', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [], permission: 'granted' } });
+        renderOnContactTab();
+
+        expect(await screen.findByText('inviteFriends.noInvitableContacts')).toBeInTheDocument();
+        expect(screen.queryByTestId('permission-banner')).not.toBeInTheDocument();
+    });
+
+    it('shows the banner when the shell reports a denial', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [], permission: 'denied' } });
+        renderOnContactTab();
+
+        expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
+    });
+
+    it('still reads an empty list from an older shell as a denial', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [] } });
+        renderOnContactTab();
+
+        expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
+    });
+});
+
+describe('list order, subtitle and count', () => {
+    const named = (recordID: string, displayName: string, extra: any = {}) => ({
+        recordID,
+        displayName,
+        phoneNumbers: [{ number: '010-1234-5678' }],
+        ...extra,
+    });
+    const rowNames = () => screen.getAllByTestId(/^user-/).map(row => row.textContent);
+
+    it('sorts rows Hangul first, then Latin, then number-labelled rows', async () => {
+        getContacts.mockResolvedValue({
+            data: {
+                contacts: [
+                    named('1', 'bob'),
+                    { recordID: '2', phoneNumbers: [{ number: '010-5555-6666' }] },
+                    named('3', '홍길동'),
+                    named('4', 'Alice'),
+                    named('5', '김철수'),
+                ],
+            },
+        });
+        renderOnContactTab();
+        await screen.findByTestId('user-김철수');
+
+        expect(rowNames()).toEqual(['김철수', '홍길동', 'Alice', 'bob', '010-5555-6666']);
+    });
+
+    it('keeps a selected row on top while the rest stay sorted', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [named('1', '가'), named('2', '나'), named('3', '다')] } });
+        renderOnContactTab();
+        fireEvent.click(await screen.findByTestId('user-다'));
+
+        expect(rowNames()).toEqual(['다', '가', '나']);
+    });
+
+    it('gives each row the number and company under its name', async () => {
+        getContacts.mockResolvedValue({ data: { contacts: [named('1', '김민수', { company: '동네치킨' })] } });
+        renderOnContactTab();
+
+        expect(await screen.findByTestId('user-김민수')).toHaveAttribute('data-subtitle', '010-1234-5678 · 동네치킨');
+    });
+
+    it('counts the listed contacts, leaving out the ones with no number', async () => {
+        getContacts.mockResolvedValue({
+            data: { contacts: [named('1', '가'), named('2', '나'), { recordID: '3', displayName: '번호없음' }] },
+        });
+        renderOnContactTab();
+
+        expect(await screen.findByText('inviteFriends.contactCount:2')).toBeInTheDocument();
+    });
+
+    it('counts search matches only, not a selected row pinned above them', async () => {
+        getContacts.mockResolvedValue({
+            data: { contacts: [named('1', '김민수'), named('2', '김철수'), named('3', '이영희')] },
+        });
+        renderOnContactTab();
+        fireEvent.click(await screen.findByTestId('user-이영희'));
+
+        fireEvent.change(screen.getByLabelText('search'), { target: { value: '김' } });
+
+        expect(screen.getByText('inviteFriends.searchResultCount:2')).toBeInTheDocument();
+        expect(rowNames()).toEqual(['이영희', '김민수', '김철수']);
+    });
+
+    it('finds an iOS contact by the composed name the row shows', async () => {
+        getContacts.mockResolvedValue({
+            data: {
+                contacts: [
+                    { recordID: '1', givenName: '민수', familyName: '김', phoneNumbers: [{ number: '010-1234-5678' }] },
+                    named('2', '이영희'),
+                ],
+            },
+        });
+        renderOnContactTab();
+        await screen.findByTestId('user-김민수');
+
+        fireEvent.change(screen.getByLabelText('search'), { target: { value: '김민수' } });
+
+        expect(screen.getByTestId('user-김민수')).toBeInTheDocument();
+        expect(screen.queryByTestId('user-이영희')).not.toBeInTheDocument();
     });
 });
 

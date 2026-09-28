@@ -1,10 +1,12 @@
 import type { ContactInfo } from '@chatic/app-messages';
 
 import {
+    compareContactLabels,
     contactSearchText,
     resolveContactDisplayPhone,
     resolveContactName,
     resolveContactPhone,
+    resolveContactSubtitle,
 } from './deviceContact';
 
 /**
@@ -169,5 +171,81 @@ describe('contactSearchText', () => {
 
     it('lowercases so the search input can match case-insensitively', () => {
         expect(contactSearchText(contact({ givenName: 'Ada' }))).toContain('ada');
+    });
+
+    it('matches the composed name the row shows when iOS sends only the parts', () => {
+        const ios = contact({ givenName: '민수', familyName: '김' });
+        expect(contactSearchText(ios)).toContain(resolveContactName(ios, FALLBACK));
+    });
+
+    it('matches the job title the subtitle shows', () => {
+        expect(contactSearchText(contact({ jobTitle: 'Designer' }))).toContain('designer');
+    });
+});
+
+describe('resolveContactSubtitle', () => {
+    const mobile = [{ label: 'mobile', number: '01012345678' }];
+
+    it('joins the shown number, company and job title', () => {
+        const c = contact({ displayName: '김민수', company: '동네치킨', jobTitle: '대표', phoneNumbers: mobile });
+        expect(resolveContactSubtitle(c, '김민수')).toBe('010-1234-5678 · 동네치킨 · 대표');
+    });
+
+    it('leaves out the part the row is already labelled by', () => {
+        const byCompany = contact({ company: '동네치킨', phoneNumbers: mobile });
+        expect(resolveContactSubtitle(byCompany, '동네치킨')).toBe('010-1234-5678');
+
+        const byNumber = contact({ phoneNumbers: mobile });
+        expect(resolveContactSubtitle(byNumber, '010-1234-5678')).toBe('');
+    });
+
+    it('leaves out the number when an Android label is that number as stored', () => {
+        const stored = contact({ displayName: '+82 10-1234-5678', phoneNumbers: mobile });
+        expect(resolveContactSubtitle(stored, '+82 10-1234-5678')).toBe('');
+
+        const bare = contact({ displayName: '01012345678', company: '동네치킨', phoneNumbers: mobile });
+        expect(resolveContactSubtitle(bare, '01012345678')).toBe('동네치킨');
+    });
+
+    it('keeps the number under a name that merely contains digits', () => {
+        const c = contact({ displayName: 'Room 01012345678', phoneNumbers: mobile });
+        expect(resolveContactSubtitle(c, 'Room 01012345678')).toBe('010-1234-5678');
+    });
+
+    it('skips empty and whitespace-only fields', () => {
+        const c = contact({ displayName: 'Ada', company: '  ', phoneNumbers: mobile });
+        expect(resolveContactSubtitle(c, 'Ada')).toBe('010-1234-5678');
+    });
+});
+
+describe('compareContactLabels', () => {
+    const sorted = (labels: string[]) => [...labels].sort(compareContactLabels);
+
+    it('orders Hangul, then Latin, then other scripts, then digits and symbols', () => {
+        expect(sorted(['010-9999-0000', 'bob', '#친구', '홍길동', 'Alice', '田中', '김철수'])).toEqual([
+            '김철수',
+            '홍길동',
+            'Alice',
+            'bob',
+            '田中',
+            '#친구',
+            '010-9999-0000',
+        ]);
+    });
+
+    it('ignores case within the Latin block', () => {
+        expect(sorted(['bob', 'Bea', 'alice'])).toEqual(['alice', 'Bea', 'bob']);
+    });
+
+    it('keeps accented Latin names in the Latin block', () => {
+        expect(sorted(['田中', 'Émile', 'Zoe', '김'])).toEqual(['김', 'Émile', 'Zoe', '田中']);
+    });
+
+    it('sorts a decomposed Hangul name with the Hangul block', () => {
+        expect(sorted(['Alice', '김민수'.normalize('NFD')])).toEqual(['김민수'.normalize('NFD'), 'Alice']);
+    });
+
+    it('treats a bare consonant as Hangul', () => {
+        expect(sorted(['Alice', 'ㅋㅋ'])).toEqual(['ㅋㅋ', 'Alice']);
     });
 });
