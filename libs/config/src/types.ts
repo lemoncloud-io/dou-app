@@ -61,7 +61,7 @@ export type AppliesAt = 'live' | 'reconnect' | 'restart';
  * declaration with its resolved value.
  */
 export interface ConfigEntry<T = unknown> {
-    /** Human name the panel shows instead of the dotted key. Korean (ADR-0080 decision 3). */
+    /** Human name the panel shows instead of the dotted key. English — only the debug panel shows it. */
     title: string;
     /** One sentence: what this changes, and why it exists when that is not obvious. */
     description: string;

@@ -9,8 +9,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const featureModule: ConfigRegistryModule = {
     'feature.auth.phoneLogin': {
-        title: '전화번호 로그인',
-        description: '전화번호로 로그인하는 화면을 보여준다.',
+        title: 'Phone login',
+        description: 'Shows the phone number login screen.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -19,8 +19,8 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'feature.auth.phoneDevSwitches': {
-        title: '전화 인증 개발자 스위치',
-        description: '전화 인증 화면에 개발용 바로가기를 보여준다.',
+        title: 'Phone auth dev switches',
+        description: 'Shows developer shortcuts on the phone verification screen.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -29,8 +29,8 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'feature.auth.lenientVerifyCode': {
-        title: '인증코드 느슨한 검증',
-        description: '개발 중 아무 문자나 인증코드로 받아들인다.',
+        title: 'Lenient verification code check',
+        description: 'Accepts any characters as the verification code during development.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -39,8 +39,8 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'feature.auth.socialLogin': {
-        title: '소셜 로그인',
-        description: '구글 등 소셜 로그인 버튼을 보여준다.',
+        title: 'Social login',
+        description: 'Shows social login buttons such as Google.',
         type: 'boolean',
         defaultValue: true,
         byStage: { PROD: false },
@@ -49,8 +49,8 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'feature.subscription.dryRun': {
-        title: '구독 결제 모의 실행',
-        description: '실제 결제 없이 구독 흐름만 시험한다.',
+        title: 'Subscription payment dry run',
+        description: 'Exercises the subscription flow without an actual charge.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -59,8 +59,8 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'feature.limits.enforced': {
-        title: '생성 한도 적용',
-        description: '장소·채널 생성 한도를 실제로 막는다. 꺼지면 개발용으로 무제한 생성된다.',
+        title: 'Creation limits enforced',
+        description: 'Actually blocks place/channel creation limits. When off, creation is unlimited for development.',
         type: 'boolean',
         defaultValue: true,
         byStage: { LOCAL: false, DEV: false },

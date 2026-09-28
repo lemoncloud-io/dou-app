@@ -15,8 +15,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const logModule: ConfigRegistryModule = {
     'log.collection.enabled': {
-        title: '로그 수집',
-        description: '기기에서 로그를 모을지 결정한다. 끄면 쌓인 로그도 버린다.',
+        title: 'Log collection',
+        description: 'Whether to collect logs on the device. Turning it off also discards logs already collected.',
         type: 'boolean',
         defaultValue: true,
         surface: 'dev',
@@ -24,8 +24,8 @@ export const logModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'log.upload.enabled': {
-        title: '로그 전송',
-        description: '모은 로그를 서버로 보낼지 결정한다.',
+        title: 'Log upload',
+        description: 'Whether to send collected logs to the server.',
         type: 'boolean',
         defaultValue: true,
         surface: 'dev',
@@ -33,9 +33,9 @@ export const logModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'log.upload.hold': {
-        title: '로그 전송 보류',
+        title: 'Hold log upload',
         description:
-            '큐를 비우지 않고 쌓아 둔다. 기기가 만든 로그를 되읽기 위한 디버깅 레버이고, 수집 거부와는 다르다.',
+            'Keeps logs queued instead of draining them. A debugging lever for reading back logs the device produced, distinct from opting out of collection.',
         type: 'boolean',
         defaultValue: false,
         surface: 'dev',
@@ -43,8 +43,8 @@ export const logModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'log.keepDebug': {
-        title: '디버그 로그 유지',
-        description: 'debug 레벨 로그도 함께 보관한다.',
+        title: 'Keep debug logs',
+        description: 'Also keeps debug-level logs.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -53,8 +53,8 @@ export const logModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'log.console.mirror': {
-        title: '콘솔 로그 미러링',
-        description: '웹 콘솔 로그를 네이티브 콘솔에도 함께 출력한다.',
+        title: 'Mirror console logs',
+        description: 'Also prints web console logs to the native console.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -63,8 +63,8 @@ export const logModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'log.perf.runId': {
-        title: '성능 측정 실행 ID',
-        description: '이번 실행을 식별하는 성능 로그용 ID. 네이티브가 주입한다.',
+        title: 'Perf run ID',
+        description: 'An ID identifying this run, used for performance logs. Injected by native.',
         type: 'string',
         defaultValue: '',
         surface: 'dev',
@@ -72,8 +72,8 @@ export const logModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'log.upload.batchSize': {
-        title: '로그 배치 크기',
-        description: '한 번에 묶어 보내는 로그 엔트리 수.',
+        title: 'Log batch size',
+        description: 'The number of log entries sent together in one batch.',
         type: 'number',
         defaultValue: 50,
         surface: 'dev',
@@ -82,8 +82,8 @@ export const logModule: ConfigRegistryModule = {
         appliesAt: 'restart',
     },
     'log.upload.intervalMs': {
-        title: '로그 전송 주기',
-        description: '쌓인 로그를 보내는 주기.',
+        title: 'Log upload interval',
+        description: 'How often accumulated logs are sent.',
         type: 'number',
         defaultValue: 60_000,
         surface: 'dev',
@@ -92,8 +92,8 @@ export const logModule: ConfigRegistryModule = {
         appliesAt: 'restart',
     },
     'log.upload.backoffMs': {
-        title: '로그 전송 재시도 간격표',
-        description: '전송이 실패했을 때 순서대로 늘어나는 재시도 대기 시간.',
+        title: 'Log upload retry backoff',
+        description: 'The increasing wait times between retries after a failed upload.',
         type: 'json',
         defaultValue: [5_000, 30_000, 120_000],
         surface: 'dev',
@@ -102,8 +102,8 @@ export const logModule: ConfigRegistryModule = {
         appliesAt: 'restart',
     },
     'log.upload.maxAttempts': {
-        title: '로그 전송 재시도 횟수',
-        description: '한 배치를 포기하기 전까지 시도하는 최대 횟수.',
+        title: 'Log upload retry attempts',
+        description: 'The maximum number of attempts before giving up on a batch.',
         type: 'number',
         defaultValue: 5,
         surface: 'dev',
@@ -112,8 +112,8 @@ export const logModule: ConfigRegistryModule = {
         appliesAt: 'restart',
     },
     'log.perf.samplePercent': {
-        title: '성능 지표 샘플링 비율',
-        description: '부팅 성능 지표를 서버로 보내는 기기의 비율.',
+        title: 'Perf metric sample rate',
+        description: 'The percentage of devices that send boot performance metrics to the server.',
         type: 'number',
         defaultValue: 10,
         surface: 'dev',

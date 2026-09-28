@@ -56,21 +56,21 @@ returns a list of strings; `allModules.spec.ts` asserts it is empty. At runtime 
 
 Every entry is a `ConfigEntry` (`src/types.ts`). Thirteen fields, seven of them required.
 
-| Field           | Required | What it settles                                                                                                              |
-| --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `title`         | yes      | The human name a panel shows instead of the dotted key. Written in Korean, like every other user-visible string in this repo |
-| `description`   | yes      | One sentence: what this changes, and why it exists when that is not obvious                                                  |
-| `type`          | yes      | `boolean` · `string` · `number` · `enum` · `json`. Every lane's value is checked against it                                  |
-| `defaultValue`  | yes      | The floor. This is why `get` can be synchronous and never fail                                                               |
-| `values`        | enum     | The allowed list. An `enum` without one is a policy violation                                                                |
-| `byStage`       | no       | Per-stage default. Row 5                                                                                                     |
-| `byPlatform`    | no       | Per-platform default, also row 5                                                                                             |
-| `envDefaultKey` | no       | The raw build value this key's default comes from. Row 6 — below a declared rule, above the literal                          |
-| `surface`       | yes      | Which screen would draw a control: `user` · `labs` · `dev` · `internal`                                                      |
-| `writableBy`    | yes      | Who may write it in principle: any of `shell` · `local` · `server`. `[]` means nobody — the build is the only source         |
-| `persist`       | yes      | Where an override is kept: `shell` · `local` · `session` · `none`                                                            |
-| `appliesAt`     | no       | `live` · `reconnect` · `restart`. Descriptive metadata for a panel. This lib never forces a reconnect or a restart           |
-| `meta`          | no       | This key is part of the lock machinery. Two consequences, both below                                                         |
+| Field           | Required | What it settles                                                                                                                      |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `title`         | yes      | The human name a panel shows instead of the dotted key. Written in English — the only consumer is the developer-facing debug overlay |
+| `description`   | yes      | One sentence: what this changes, and why it exists when that is not obvious                                                          |
+| `type`          | yes      | `boolean` · `string` · `number` · `enum` · `json`. Every lane's value is checked against it                                          |
+| `defaultValue`  | yes      | The floor. This is why `get` can be synchronous and never fail                                                                       |
+| `values`        | enum     | The allowed list. An `enum` without one is a policy violation                                                                        |
+| `byStage`       | no       | Per-stage default. Row 5                                                                                                             |
+| `byPlatform`    | no       | Per-platform default, also row 5                                                                                                     |
+| `envDefaultKey` | no       | The raw build value this key's default comes from. Row 6 — below a declared rule, above the literal                                  |
+| `surface`       | yes      | Which screen would draw a control: `user` · `labs` · `dev` · `internal`                                                              |
+| `writableBy`    | yes      | Who may write it in principle: any of `shell` · `local` · `server`. `[]` means nobody — the build is the only source                 |
+| `persist`       | yes      | Where an override is kept: `shell` · `local` · `session` · `none`                                                                    |
+| `appliesAt`     | no       | `live` · `reconnect` · `restart`. Descriptive metadata for a panel. This lib never forces a reconnect or a restart                   |
+| `meta`          | no       | This key is part of the lock machinery. Two consequences, both below                                                                 |
 
 `surface`, `writableBy` and `persist` are **orthogonal**. A `user` key can persist to the shell
 (`ui.theme`) or to local storage (`ui.pushMuted`); a `dev` key can be unwritable by anyone
@@ -153,7 +153,7 @@ own.
 ### Adding a key
 
 1. **Pick the domain file.** The dotted prefix and the filename agree — `ui.foo` goes in `ui.ts`. If neither fits, the question is whether the setting belongs in this registry at all; see [What not to do](#what-not-to-do).
-2. **Write `title` and `description` in Korean.** They are what a panel shows. The description says what changes, not what the key is called.
+2. **Write `title` and `description` in English.** They are what a panel shows. The description says what changes, not what the key is called.
 3. **Choose `surface`.** `user` if a person turns it on in Settings, `labs` for an experiment, `dev` for a QA or developer lever, `internal` for state the product writes through its own flow.
 4. **Choose `writableBy`.** Leave `server` out when a wrong remote value would be self-reinforcing — `auth.sdk.*` excludes it because a bad refresh cadence makes every device refresh at once, and fixing it remotely means writing through the load it just caused. Leave it out of endpoints too: a remote config must not be able to move where the app talks. Leave it out of privacy opt-outs such as `log.collection.enabled` — an opt-out the server can undo is not one.
 5. **Choose `persist`.** `shell` when the native app reads the same value, `local` when this browser should keep it across reloads, `session` for a QA override that should die with the tab, `none` when it lives only in memory.

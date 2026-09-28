@@ -9,8 +9,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const netModule: ConfigRegistryModule = {
     'net.relay.backend': {
-        title: '릴레이 백엔드 오버라이드',
-        description: 'QA가 딥링크로 다른 백엔드를 가리킬 때 쓴다. 탭을 닫으면 사라진다.',
+        title: 'Relay backend override',
+        description: 'Lets QA point at a different backend via deep link. Cleared when the tab closes.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_DOU_ENDPOINT',
@@ -19,8 +19,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'net.relay.wss': {
-        title: '릴레이 소켓 오버라이드',
-        description: 'QA가 딥링크로 다른 웹소켓 주소를 가리킬 때 쓴다. 탭을 닫으면 사라진다.',
+        title: 'Relay socket override',
+        description: 'Lets QA point at a different WebSocket address via deep link. Cleared when the tab closes.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_WS_ENDPOINT',
@@ -29,8 +29,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'session',
     },
     'net.oauth.endpoint': {
-        title: 'OAuth 엔드포인트',
-        description: '소셜 로그인 교환 요청을 보내는 주소.',
+        title: 'OAuth endpoint',
+        description: 'The address social login exchange requests are sent to.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_OAUTH_ENDPOINT',
@@ -39,8 +39,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.socialOauth.endpoint': {
-        title: '소셜 OAuth 릴레이 주소',
-        description: '소셜 로그인 인가 요청을 보내는 릴레이 주소.',
+        title: 'Social OAuth relay address',
+        description: 'The relay address social login authorization requests are sent to.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_SOCIAL_OAUTH_ENDPOINT',
@@ -49,8 +49,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.iap.endpoint': {
-        title: '인앱결제 엔드포인트',
-        description: '인앱결제 영수증 검증 요청을 보내는 주소.',
+        title: 'In-app purchase endpoint',
+        description: 'The address in-app purchase receipt verification requests are sent to.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_IAP_ENDPOINT',
@@ -59,8 +59,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.admin.backend': {
-        title: '관리자 백엔드 주소',
-        description: 'admin-v2가 호출하는 백엔드 주소.',
+        title: 'Admin backend address',
+        description: 'The backend address admin-v2 calls.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_BACKEND_ENDPOINT',
@@ -69,8 +69,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.policy.baseUrl': {
-        title: '약관 페이지 기본 주소',
-        description: '이용약관·개인정보처리방침 링크가 가리키는 기본 도메인.',
+        title: 'Policy page base address',
+        description: 'The base domain the terms of service and privacy policy links point to.',
         type: 'string',
         defaultValue: 'https://app.chatic.io',
         byStage: { LOCAL: 'https://app-dev.chatic.io', DEV: 'https://app-dev.chatic.io' },
@@ -79,8 +79,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.deeplink.scheme': {
-        title: '딥링크 스킴',
-        description: '앱을 여는 커스텀 URL 스킴.',
+        title: 'Deep link scheme',
+        description: 'The custom URL scheme that opens the app.',
         type: 'string',
         defaultValue: 'chatic',
         byStage: { DEV: 'chatic-dev' },
@@ -89,8 +89,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.deeplink.desktopProtocol': {
-        title: '데스크톱 프로토콜 스킴',
-        description: '데스크톱 앱을 여는 커스텀 프로토콜.',
+        title: 'Desktop protocol scheme',
+        description: 'The custom protocol that opens the desktop app.',
         type: 'string',
         defaultValue: 'chatic',
         envDefaultKey: 'VITE_DESKTOP_PROTOCOL',
@@ -99,8 +99,8 @@ export const netModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'net.retry.maxRetries': {
-        title: 'HTTP 재시도 횟수',
-        description: '요청이 실패했을 때 다시 시도하는 최대 횟수.',
+        title: 'HTTP retry count',
+        description: 'The maximum number of times a failed request is retried.',
         type: 'number',
         defaultValue: 4,
         surface: 'dev',
@@ -109,8 +109,8 @@ export const netModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'net.retry.baseDelayMs': {
-        title: 'HTTP 재시도 기본 간격',
-        description: '재시도 사이 대기 시간의 기준값. 시도할수록 두 배씩 늘어난다.',
+        title: 'HTTP retry base delay',
+        description: 'The base wait time between retries. Doubles with each attempt.',
         type: 'number',
         defaultValue: 1000,
         surface: 'dev',

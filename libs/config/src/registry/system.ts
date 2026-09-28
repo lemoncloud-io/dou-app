@@ -9,8 +9,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const systemModule: ConfigRegistryModule = {
     'system.overridesUnlocked': {
-        title: '오버라이드 잠금 해제',
-        description: '웹 오버라이드 레인(3행)을 살린다. 10탭 + 입장 코드로 연다.',
+        title: 'Override lock unlocked',
+        description: 'Opens the web override lane (row 3). Unlocked with 10 taps plus an entry code.',
         type: 'boolean',
         defaultValue: true,
         byStage: { PROD: false },
@@ -20,8 +20,8 @@ export const systemModule: ConfigRegistryModule = {
         meta: true,
     },
     'system.remote.enabled': {
-        title: '원격 설정 스위치',
-        description: '서버가 값을 내려줄 수 있게 한다. 꺼져 있으면 원격 레인은 항상 비어 있다.',
+        title: 'Remote config switch',
+        description: 'Lets the server supply values. When off, the remote lane is always empty.',
         type: 'boolean',
         defaultValue: false,
         surface: 'dev',
