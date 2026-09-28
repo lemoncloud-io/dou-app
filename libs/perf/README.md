@@ -152,8 +152,9 @@ minutes without stopping it, and refuses a stop that arrives after that window. 
 unstopped trace as one that never happened, which is the honest record of a wait that had no end.
 Dropping only forgets the JS handle: the SDK keeps a started trace in native memory until the process
 ends, which is why a trace should only be started where something is certain to stop it. The bridge
-handlers accept only names in `PERF_TRACE_NAMES`, so no sender can open a console row nobody set
-up.
+handlers check a name's shape rather than membership in `PerfTraceName`: the web deploys ahead of
+the app, and an app build checking its own copy of the list would drop every trace added after it
+shipped.
 
 ## Wiring in each host
 
