@@ -1,7 +1,6 @@
 /**
- * The reference webhook message, byte-for-byte -- copied via `gh api` from
- * `chatic-socials-api@feat/webhook-message-blocks` `sample/chats/`, not
- * hand-typed.
+ * The reference webhook message, byte-for-byte -- copied from the server's own
+ * sample payloads, not hand-typed.
  *
  * `WEBHOOK_SEND_ERROR_REPORT` is the request body a webhook sender posts
  * (`webhook-send-error-report.json`); `WEBHOOK_BLOCKS_ERROR_REPORT` is the
