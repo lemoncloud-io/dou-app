@@ -41,9 +41,9 @@ interface ReportDetailPanelProps {
 /** Human-readable lag, for the badge tooltip. Sub-minute lags are never shown. */
 const formatLag = (ms: number): string => {
     const minutes = Math.round(ms / 60_000);
-    if (minutes < 60) return `${minutes}분`;
+    if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
-    return `${hours}시간 ${minutes % 60}분`;
+    return `${hours}h ${minutes % 60}m`;
 };
 
 export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pinned }: ReportDetailPanelProps) => {
@@ -72,7 +72,7 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
         return (
             <aside className="hidden w-[26rem] shrink-0 flex-col border-l border-border bg-card xl:flex">
                 <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-                    행을 선택하면 상세가 여기에 열립니다.
+                    Select a row to open its detail here.
                 </p>
             </aside>
         );
@@ -110,9 +110,9 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
                     {hasNoticeableLag(row) && lag !== undefined && (
                         <span
                             className="rounded bg-muted px-1.5 py-0.5 text-[11px]"
-                            title={`기기에서 발생한 뒤 서버 도달까지 ${formatLag(lag)} 지연 · 도달 ${formatAbsolute(row.createdAt)}`}
+                            title={`${formatLag(lag)} between occurring on device and arriving at server · arrived ${formatAbsolute(row.createdAt)}`}
                         >
-                            +{formatLag(lag)} 지연
+                            +{formatLag(lag)} lag
                         </span>
                     )}
                 </div>
@@ -152,9 +152,9 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
                         type="button"
                         onClick={() => onObserve(uid)}
                         className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                        title={`socket-lab에서 유저 ${uid} 관측`}
+                        title={`Observe user ${uid} in socket-lab`}
                     >
-                        관측
+                        Observe
                     </button>
                 )}
                 <button
@@ -162,7 +162,7 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
                     onClick={() => navigator.clipboard?.writeText(rawRecordText(row))}
                     className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                    복사
+                    Copy
                 </button>
                 <button
                     type="button"
@@ -189,7 +189,7 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
             <aside
                 // `dialog` only describes the overlay form; at `xl` this is a column, and
                 // the role is left off there rather than lying about it.
-                aria-label="로그 상세"
+                aria-label="Log detail"
                 className="fixed inset-y-0 right-0 z-50 flex w-[min(92vw,32rem)] shrink-0 flex-col border-l border-border bg-card shadow-xl xl:static xl:z-auto xl:w-[26rem] xl:shadow-none"
             >
                 {header}

@@ -36,7 +36,10 @@ const stringify = (value: unknown): string => {
  * The images themselves are shown properly by `ImagesSection`.
  */
 const redactDataUrls = (text: string): string =>
-    text.replace(/data:image\/[a-z+]+;base64,[A-Za-z0-9+/=\\]+/g, match => `data:image…(${match.length} chars, 생략)`);
+    text.replace(
+        /data:image\/[a-z+]+;base64,[A-Za-z0-9+/=\\]+/g,
+        match => `data:image…(${match.length} chars, omitted)`
+    );
 
 /** Render an object as a key/value grid; skips nullish values. Returns null when empty. */
 const KeyValueSection = ({ title, data }: { title: string; data?: Record<string, unknown> | null }) => {
@@ -205,12 +208,12 @@ const ImagesSection = ({ images }: { images: string[] }) => (
                         href={src}
                         target="_blank"
                         rel="noreferrer"
-                        title={`첨부 ${i + 1} — 새 탭에서 원본 열기`}
+                        title={`Attachment ${i + 1} — open original in new tab`}
                         className="block"
                     >
                         <img
                             src={src}
-                            alt={`첨부 ${i + 1}`}
+                            alt={`Attachment ${i + 1}`}
                             className="size-24 rounded-md border border-border object-cover transition-opacity hover:opacity-80"
                         />
                     </a>
@@ -272,7 +275,7 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
             setNotice(null);
             setCopied(true);
         } catch {
-            setNotice('클립보드에 복사하지 못했습니다 — 스택을 직접 선택해 복사하세요.');
+            setNotice("Couldn't copy to clipboard — select the stack manually and copy it.");
         }
     };
 
@@ -287,12 +290,12 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
             const named = file.name.replace(/\.map$/, '');
             const out = resolveStack(map, stack, bundles.length > 1 && bundles.includes(named) ? named : undefined);
             setResolved(out);
-            if (out === stack) setNotice('이 맵으로는 어떤 프레임도 풀리지 않았습니다 — 다른 빌드의 맵일 수 있습니다.');
+            if (out === stack) setNotice("This map didn't resolve any frames — it may be from a different build.");
             else if (!mapMatchesStack(file.name, stack)) {
-                setNotice(`주의: ${file.name}은 이 스택의 번들(${bundles.join(', ')})과 이름이 다릅니다.`);
+                setNotice(`Warning: ${file.name} doesn't match this stack's bundle (${bundles.join(', ')}).`);
             }
         } catch {
-            setNotice('소스맵을 읽지 못했습니다 (.map 파일이 맞는지 확인하세요).');
+            setNotice("Couldn't read the source map (check that it's a valid .map file).");
         }
     };
 
@@ -306,13 +309,13 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
                 <button
                     type="button"
                     className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted"
-                    title="복사한 뒤 리포 루트에서 `yarn trace`를 실행하면 원본 파일·줄로 풀어 출력합니다."
+                    title="Copies the stack; run `yarn trace` from the repo root to print it resolved to original files and lines."
                     onClick={() => void onCopyForIde()}
                 >
-                    {copied ? '복사됨 — yarn trace' : 'IDE로 추적'}
+                    {copied ? 'Copied — yarn trace' : 'Trace to IDE'}
                 </button>
                 <label className="cursor-pointer rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted">
-                    소스맵 선택
+                    Choose source map
                     <input
                         type="file"
                         accept=".map,application/json"
@@ -326,7 +329,7 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
                         className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted"
                         onClick={() => setResolved(null)}
                     >
-                        원본 보기
+                        Show original
                     </button>
                 )}
             </div>
@@ -353,7 +356,7 @@ export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
         <>
             {row.parseError && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    payload를 파싱하지 못했습니다. 아래 raw 데이터를 확인하세요.
+                    Couldn't parse the payload. Check the raw data below.
                 </p>
             )}
 

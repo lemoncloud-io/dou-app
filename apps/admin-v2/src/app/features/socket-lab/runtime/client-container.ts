@@ -239,7 +239,7 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                 if (message?.type === 'chat.sync' && gapDropCounter > 0) {
                     gapDropCounter -= 1;
                     collector.incGap();
-                    log('warn', 'sim.gap.drop', `dropped chat.sync (남은 ${gapDropCounter})`);
+                    log('warn', 'sim.gap.drop', `dropped chat.sync (${gapDropCounter} remaining)`);
                     return false;
                 }
                 return true;
@@ -674,7 +674,7 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         },
         armGapDrop: (count = 1) => {
             gapDropCounter += count;
-            log('info', 'sim.gap.arm', `다음 chat.sync ${gapDropCounter}건 유실 예약`);
+            log('info', 'sim.gap.arm', `armed: drop the next ${gapDropCounter} chat.sync`);
         },
     };
 };

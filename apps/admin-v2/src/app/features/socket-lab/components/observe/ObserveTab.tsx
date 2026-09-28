@@ -67,7 +67,7 @@ export default function ObserveTab({ wl }: ObserveTabProps) {
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, letterSpacing: '-.01em' }}>User Watchlist</h2>
                 <SyncBadge state={wl.syncState} lastSyncAt={wl.lastSyncAt} />
                 <span style={{ fontSize: 11.5, color: 'var(--sm-text-6)' }}>
-                    특정 유저를 관측 대상으로 추가해 디바이스 상태·presence 추적 (users/0/list)
+                    Add a specific user to observe device status/presence tracking (users/0/list)
                 </span>
                 <div
                     style={{
@@ -84,7 +84,7 @@ export default function ObserveTab({ wl }: ObserveTabProps) {
                             <button
                                 key={s.value}
                                 onClick={() => wl.setStage(s.value)}
-                                title={`skt-${s.value} 엔드포인트로 전환`}
+                                title={`Switch to the skt-${s.value} endpoint`}
                                 style={{
                                     appearance: 'none',
                                     cursor: 'pointer',

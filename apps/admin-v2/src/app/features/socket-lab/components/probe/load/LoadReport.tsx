@@ -127,7 +127,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                             color: ACCENT,
                         }}
                     >
-                        새 테스트
+                        New test
                     </button>
                 </div>
             </div>
@@ -165,7 +165,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                     }}
                 >
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sm-text-2)' }}>
-                        Fan-out latency vs 구독자 수{' '}
+                        Fan-out latency vs subscriber count{' '}
                         <span
                             style={{
                                 color: '#d29922',
@@ -214,7 +214,9 @@ export default function LoadReport({ load }: LoadReportProps) {
                     />
                 </div>
                 <div style={{ padding: '0 16px 13px', fontSize: 11.5, color: 'var(--sm-text-3)' }}>
-                    {rep.kneeN ? `knee 관측: N=${rep.kneeN} 부근에서 p95 급증` : 'knee 미관측 — 측정 범위 내 안정적'}
+                    {rep.kneeN
+                        ? `knee observed: p95 spikes around N=${rep.kneeN}`
+                        : 'no knee observed — stable within the measured range'}
                 </div>
                 {cmp ? (
                     <div
@@ -225,7 +227,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                             color: 'var(--sm-text-4)',
                         }}
                     >
-                        baseline: {cmp.label} (p95 {cmp.p95}ms) → 현재 {rep.fanoutP95}ms · Δ{' '}
+                        baseline: {cmp.label} (p95 {cmp.p95}ms) → now {rep.fanoutP95}ms · Δ{' '}
                         {(rep.fanoutP95 - cmp.p95 >= 0 ? '+' : '') + (rep.fanoutP95 - cmp.p95)}ms
                     </div>
                 ) : null}
@@ -243,7 +245,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                 >
                     {panelHead(
                         <>
-                            Latency 분포{' '}
+                            Latency distribution{' '}
                             <span style={{ color: 'var(--sm-text-6)', fontSize: 10.5, fontWeight: 400 }}>
                                 (p50 / p95 / p99)
                             </span>
@@ -271,7 +273,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                         overflow: 'hidden',
                     }}
                 >
-                    {panelHead('구독자별 tail / 공정성')}
+                    {panelHead('Per-subscriber tail / fairness')}
                     <div style={{ padding: 16 }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
                             {rep.perSubCells.map(c => (
@@ -296,7 +298,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                                 lineHeight: 1.5,
                             }}
                         >
-                            worst/median {rep.fairness}× · 최악 {rep.worst}ms / 중앙값 {rep.median}ms
+                            worst/median {rep.fairness}× · worst {rep.worst}ms / median {rep.median}ms
                         </div>
                         <div
                             style={{
@@ -317,7 +319,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                                 <span style={{ width: 9, height: 9, borderRadius: 2, background: '#f85149' }} />
-                                ≥SLO (느림)
+                                ≥SLO (slow)
                             </span>
                         </div>
                     </div>
@@ -336,7 +338,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                 >
                     {panelHead(
                         <>
-                            Throughput — 목표 vs 실측{' '}
+                            Throughput — target vs measured{' '}
                             <span style={{ color: 'var(--sm-text-6)', fontSize: 10.5, fontWeight: 400 }}>
                                 deliveries/s
                             </span>
@@ -373,7 +375,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                             ))}
                         </div>
                         <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: 'var(--sm-text-3)' }}>
-                            평균 수신율 {rep.avgComp.toFixed(1)}% · 유실 {rep.lossPct.toFixed(2)}%
+                            avg completion {rep.avgComp.toFixed(1)}% · loss {rep.lossPct.toFixed(2)}%
                         </div>
                     </div>
                 </div>
@@ -392,7 +394,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                     <>
                         Connection establishment{' '}
                         <span style={{ color: 'var(--sm-text-6)', fontSize: 10.5, fontWeight: 400 }}>
-                            handshake latency 분포 · 동시 connect
+                            handshake latency distribution · concurrent connect
                         </span>
                     </>
                 )}
@@ -416,7 +418,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                         color: 'var(--sm-text-3)',
                     }}
                 >
-                    connect p50 {rep.connP50}ms · p95 {rep.connP95}ms · 실패 {rep.connFail}
+                    connect p50 {rep.connP50}ms · p95 {rep.connP95}ms · failed {rep.connFail}
                 </div>
             </div>
 
@@ -442,7 +444,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                             textTransform: 'uppercase',
                         }}
                     >
-                        저장된 실행 · 회귀 비교
+                        Saved runs · regression compare
                     </div>
                     <div>
                         {savedRuns.map(r => {
@@ -491,7 +493,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                                                 color: active ? ACCENT : 'var(--sm-text-3)',
                                             }}
                                         >
-                                            {active ? '비교 해제' : 'Compare'}
+                                            {active ? 'Uncompare' : 'Compare'}
                                         </button>
                                     </div>
                                 </div>

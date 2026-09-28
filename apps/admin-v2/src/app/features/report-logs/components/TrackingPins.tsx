@@ -26,7 +26,7 @@ export const TrackingPins = ({ pins, onUnpin, uidCaveat = false }: TrackingPinsP
 
     return (
         <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">추적 중</span>
+            <span className="text-xs text-muted-foreground">Tracking</span>
             {pins.map(pin => (
                 <span
                     key={pin.key}
@@ -37,7 +37,7 @@ export const TrackingPins = ({ pins, onUnpin, uidCaveat = false }: TrackingPinsP
                     <button
                         type="button"
                         onClick={() => onUnpin(pin.key)}
-                        aria-label={`${PIN_LABEL[pin.key]} 추적 해제`}
+                        aria-label={`Untrack ${PIN_LABEL[pin.key]}`}
                         className="rounded-full px-1 leading-none hover:bg-primary/20"
                     >
                         ×
@@ -46,7 +46,7 @@ export const TrackingPins = ({ pins, onUnpin, uidCaveat = false }: TrackingPinsP
             ))}
             {hasUid && uidCaveat && (
                 <span className="text-[11px] text-muted-foreground">
-                    · 제보 레코드는 uid 축이 없어 이 핀에 걸리지 않습니다
+                    · Report records have no uid axis, so they don't match this pin
                 </span>
             )}
         </div>

@@ -34,9 +34,7 @@ export const PinButton = ({
 }: PinButtonProps) => {
     if (!value) return <span className="text-muted-foreground">-</span>;
 
-    const title = active
-        ? `${PIN_LABEL[axis]} 추적 해제 — ${value}`
-        : `${PIN_LABEL[axis]} ${value} 로 추적 (서버 조회)`;
+    const title = active ? `Untrack ${PIN_LABEL[axis]} — ${value}` : `Track ${PIN_LABEL[axis]} ${value} (server query)`;
 
     return (
         <button

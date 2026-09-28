@@ -58,15 +58,15 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
         <aside className="flex w-64 shrink-0 flex-col gap-5 overflow-y-auto border-r border-border bg-card px-4 py-4">
             <section className="flex flex-col gap-3">
                 <header>
-                    <h2 className="text-xs font-semibold text-foreground">필터</h2>
+                    <h2 className="text-xs font-semibold text-foreground">Filters</h2>
                     <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                        불러온 <span className="tabular-nums">{pageSize}</span>건 안에서 걸립니다. 서버는 아직 이 축들을
-                        무시합니다.
+                        Applies within the loaded <span className="tabular-nums">{pageSize}</span> rows. The server
+                        still ignores these axes.
                     </p>
                 </header>
 
                 <label className="flex flex-col gap-1">
-                    <span className={labelClass}>상태</span>
+                    <span className={labelClass}>Status</span>
                     <select
                         className={selectClass}
                         value={values.status ?? ''}
@@ -74,14 +74,14 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
                     >
                         {STATUSES.map(value => (
                             <option key={value || 'all'} value={value}>
-                                {value || '전체'}
+                                {value || 'All'}
                             </option>
                         ))}
                     </select>
                 </label>
 
                 <label className="flex flex-col gap-1">
-                    <span className={labelClass}>플랫폼</span>
+                    <span className={labelClass}>Platform</span>
                     <select
                         className={selectClass}
                         value={values.platform ?? ''}
@@ -89,7 +89,7 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
                     >
                         {PLATFORMS.map(value => (
                             <option key={value || 'all'} value={value}>
-                                {value || '전체'}
+                                {value || 'All'}
                             </option>
                         ))}
                     </select>
@@ -99,14 +99,14 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
                     <span className={labelClass}>userId</span>
                     <input
                         className={inputClass}
-                        placeholder="부분 일치"
+                        placeholder="Partial match"
                         value={userIdDraft}
                         onChange={event => setUserIdDraft(event.target.value)}
                     />
                 </label>
 
                 <label className="flex flex-col gap-1">
-                    <span className={labelClass}>상품</span>
+                    <span className={labelClass}>Product</span>
                     <input
                         className={inputClass}
                         placeholder="pro_tier_01"
@@ -118,9 +118,9 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
 
             <section className="flex flex-col gap-2 border-t border-border pt-4">
                 <header>
-                    <h2 className="text-xs font-semibold text-foreground">이관 확인</h2>
+                    <h2 className="text-xs font-semibold text-foreground">Migration check</h2>
                     <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                        `isSuper` 는 폐기된 축입니다. 남아 있는 레코드를 찾는 용도입니다.
+                        `isSuper` is a retired axis. This is for finding the records still carrying it.
                     </p>
                 </header>
                 <button
@@ -132,7 +132,7 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
                             : 'border-input bg-background text-muted-foreground hover:text-foreground'
                     }`}
                 >
-                    isSuper=1 만 보기
+                    isSuper=1 only
                 </button>
             </section>
         </aside>

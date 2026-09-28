@@ -24,7 +24,7 @@ describe('activeFilters', () => {
 
 describe('toChips', () => {
     it('칩에 무슨 조건인지와 값을 함께 적는다', () => {
-        expect(toChips({ status: 'expired' })).toEqual([{ key: 'status', label: '상태 · expired' }]);
+        expect(toChips({ status: 'expired' })).toEqual([{ key: 'status', label: 'Status · expired' }]);
     });
 
     // It's a flag, so showing its value adds nothing for the reader.

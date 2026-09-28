@@ -24,7 +24,7 @@ interface CloudPanelProps {
 
 export const CloudPanel = ({ clouds, aggr, isLoading }: CloudPanelProps): JSX.Element => {
     if (isLoading) {
-        return <p className="text-muted-foreground text-sm">클라우드를 불러오는 중…</p>;
+        return <p className="text-muted-foreground text-sm">Loading clouds…</p>;
     }
 
     const buckets = readAggrBuckets(aggr);
@@ -42,7 +42,7 @@ export const CloudPanel = ({ clouds, aggr, isLoading }: CloudPanelProps): JSX.El
             )}
 
             {!clouds || clouds.length === 0 ? (
-                <p className="text-muted-foreground text-sm">보유한 클라우드가 없습니다.</p>
+                <p className="text-muted-foreground text-sm">No owned clouds.</p>
             ) : (
                 <ul className="space-y-1.5">
                     {clouds.map(cloud => (
@@ -55,8 +55,8 @@ export const CloudPanel = ({ clouds, aggr, isLoading }: CloudPanelProps): JSX.El
                             </div>
                             <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3">
                                 <span>{cloud.name || cloud.email || '-'}</span>
-                                {cloud.suspendedAt ? <span>보류 {formatDate(cloud.suspendedAt)}</span> : null}
-                                {cloud.releasedAt ? <span>해제 {formatDate(cloud.releasedAt)}</span> : null}
+                                {cloud.suspendedAt ? <span>Suspended {formatDate(cloud.suspendedAt)}</span> : null}
+                                {cloud.releasedAt ? <span>Released {formatDate(cloud.releasedAt)}</span> : null}
                             </div>
                         </li>
                     ))}

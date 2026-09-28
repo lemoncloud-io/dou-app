@@ -43,13 +43,13 @@ export const MembershipStatusStrip = ({ rows, pageSize, total }: MembershipStatu
     return (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
             <span className="text-muted-foreground">
-                서버 <span className="tabular-nums text-foreground">{total.toLocaleString()}</span>건
+                Server <span className="tabular-nums text-foreground">{total.toLocaleString()}</span>
             </span>
             <span className="text-muted-foreground">
-                이 페이지 <span className="tabular-nums text-foreground">{pageSize}</span>건
+                This page <span className="tabular-nums text-foreground">{pageSize}</span>
             </span>
             <span className="text-muted-foreground">
-                표시 <span className="tabular-nums text-foreground">{rows.length}</span>건
+                Shown <span className="tabular-nums text-foreground">{rows.length}</span>
             </span>
 
             <span className="h-3 w-px bg-border" />
@@ -62,12 +62,12 @@ export const MembershipStatusStrip = ({ rows, pageSize, total }: MembershipStatu
                 ) : null
             )}
             {invalid > 0 && (
-                <span className="text-amber-400" title="서버가 조회 시점에 무효로 판정한 행">
+                <span className="text-amber-400" title="Rows the server judged invalid at query time">
                     invalid <span className="tabular-nums">{invalid}</span>
                 </span>
             )}
 
-            <span className="text-muted-foreground/70">· 집계는 화면에 보이는 행 기준</span>
+            <span className="text-muted-foreground/70">· counts reflect the rows on screen</span>
         </div>
     );
 };

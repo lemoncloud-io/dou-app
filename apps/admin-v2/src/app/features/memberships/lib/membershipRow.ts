@@ -19,17 +19,17 @@ export interface OverrideBadge {
 /** What the override column shows. `until` is rendered as a date, absent means indefinite. */
 export const describeOverrideBadge = (membership: MembershipView | undefined, now: number): OverrideBadge => {
     if (!isAdminOverrideActive(membership, now)) {
-        return { kind: 'none', label: '없음' };
+        return { kind: 'none', label: 'None' };
     }
 
     const until = membership?.adminUntil;
-    const suffix = until ? ` · ~${new Date(until).toLocaleDateString()}` : ' · 무기한';
+    const suffix = until ? ` · ~${new Date(until).toLocaleDateString()}` : ' · Indefinite';
 
     if (membership?.adminStatus === 'active') {
-        return { kind: 'grant', label: `부여${suffix}` };
+        return { kind: 'grant', label: `Grant${suffix}` };
     }
 
-    return { kind: 'block', label: `차단(${membership?.adminStatus})${suffix}` };
+    return { kind: 'block', label: `Block(${membership?.adminStatus})${suffix}` };
 };
 
 /**
@@ -57,7 +57,7 @@ export const describeGrade = (membership: MembershipView | undefined, now: numbe
     const override = membership?.adminProductId;
 
     if (override && isAdminOverrideActive(membership, now)) {
-        return `${override} (영수증: ${receipt})`;
+        return `${override} (receipt: ${receipt})`;
     }
 
     return receipt;

@@ -35,7 +35,7 @@ describe('SessionExpiredBanner', () => {
 
         act(() => authFailureNotice.raise());
 
-        expect(screen.getByRole('alert').textContent).toContain('세션이 만료되었습니다');
+        expect(screen.getByRole('alert').textContent).toContain('Your session has expired');
         expect(runtime.session.logoutSession).not.toHaveBeenCalled();
     });
 
@@ -43,7 +43,7 @@ describe('SessionExpiredBanner', () => {
         render(<SessionExpiredBanner />);
         act(() => authFailureNotice.raise());
 
-        await userEvent.click(screen.getByRole('button', { name: '다시 로그인' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Log in again' }));
 
         expect(runtime.session.logoutSession).toHaveBeenCalledTimes(1);
     });
