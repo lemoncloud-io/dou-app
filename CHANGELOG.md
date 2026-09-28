@@ -2,6 +2,12 @@
 
 ## [2026-09-28] - No version updates
 
+### Features
+
+- (app-runtime) key socket auth by the slot's cloud, not the server kind (ADR-0117)
+
+## [2026-09-28] - No version updates
+
 ### Refactor
 
 - (app-runtime) point the active socket slot explicitly, not by what is bound (ADR-0116)
