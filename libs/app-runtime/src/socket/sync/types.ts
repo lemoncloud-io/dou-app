@@ -10,10 +10,13 @@ export interface SyncWatchEntry {
     target: SyncTargetDescriptor;
     refs: number;
     /**
-     * The cloud id (active slot's boundCid) this target was registered under, or null when no socket
-     * was bound yet (cid-agnostic). On an active-client swap, a target is only (re)synced on the
-     * client whose boundCid matches — so a cloud channel is never replayed onto the relay socket after
-     * a cloud logout (multi-socket-design.md §8-a trap #2).
+     * The cloud the session had selected when this target was registered — the partition its plan
+     * writes into — or null (cid-agnostic) when an injected reader returns none. It is deliberately
+     * NOT the active slot's boundCid: mid-switch the two differ, and the target belongs to the data
+     * the screen shows, not to whichever socket happened to be active. A target only (re)syncs on the
+     * client whose boundCid matches — so a cloud channel is never run on the relay socket, whether
+     * after a cloud logout (multi-socket-design.md §8-a trap #2) or while a switch into it is still
+     * bringing its slot up.
      */
     cid: string | null;
     /**
@@ -41,6 +44,8 @@ export interface SyncManagerDeps {
     buildSyncPlans?: () => DomainSyncPlan[];
     /** The session uid targets are scoped to. Injected for tests; defaults to the session store. */
     getUid?: () => string | null;
+    /** The selected cloud targets are scoped to. Injected for tests; defaults to the session store. */
+    getCid?: () => string | null;
     /** Session-change subscription, so an account change can retire the previous account's targets. */
     subscribeSession?: (listener: () => void) => () => void;
     createRuntime?: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;

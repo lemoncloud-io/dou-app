@@ -58,7 +58,7 @@ target.
 Each entry is tagged with the `cid` and `uid` it was registered under, and both are checked before it
 starts:
 
-- **cid** — on a replay, a target only starts when its cid matches the new client's `boundCid`. A socket that outlived its cloud must not resume the previous cloud's polling.
+- **cid** — the cloud the **session has selected**, which is the partition the plan writes into — not the active client's `boundCid`. A target only starts on a client whose `boundCid` matches it, on registration or on a replay. A socket that outlived its cloud must not resume the previous cloud's polling, and a socket that has not caught up with a switch must not start the next one's. A switch pre-applies the selection before the incoming slot is active, so the home screen renders the incoming cloud's cached places and registers their targets while the outgoing socket is still the active one. Tagged with that socket's cid, a cloud place ran `place.get` on the relay — which answers `404 not found @doGet(sites/…)`, since the relay has no such site — and never ran on its own cloud. Tagged with the selection, it waits and starts on the replay that follows the slot change.
 - **uid** — an account change **retires** the previous account's targets rather than merely refusing to restart them. Guest-to-social promotion re-authenticates the _same_ socket, so no client swap happens and nothing else notices; the running targets keep polling ids built from the guest's uid and the server answers each with `403 not allowed to read join`. Waiting for the hook to unmount is not enough either, because the grace below holds for 30 seconds. The retirement is immediate and bypasses the grace on purpose — the grace exists to survive a screen transition re-registering the _same_ target, and after an account change the ids are different ones. The mismatch warning is logged once per instance, because a poll-rate log is a flood.
 
 `UNREGISTER_GRACE_MS` is **30 seconds**. A screen transition unregisters the old screen's target and
@@ -168,11 +168,11 @@ matter whether a message arrived by push or by page.
 
 ## Notes for implementers and tests
 
-- `SyncManagerDeps` is an injection seam for every collaborator: `buildSyncPlans`, `getUid`, `subscribeSession`, `createRuntime`, `buildTargetKey`, `runtimeOptions`. `SyncManager.test.ts` builds one over fakes rather than mocking the SDK.
+- `SyncManagerDeps` is an injection seam for every collaborator: `buildSyncPlans`, `getUid`, `getCid`, `subscribeSession`, `createRuntime`, `buildTargetKey`, `runtimeOptions`. `SyncManager.test.ts` builds one over fakes rather than mocking the SDK.
 - The grace window uses real timers, wrapped in `unrefTimer` so a pending stop cannot keep a Node process (or a jest run) alive.
 - `getSyncManager()` is a lazy singleton over `getSocketManager()`, with no reset seam. Construct `new SyncManager(fakeManager, deps)` in a test.
 - `SyncManager` subscribes to three things in its constructor — slot clients, the active client, and the session signal — and each has a matching unsubscribe held for `destroy()`. A fourth subscription needs the same treatment.
-- The uid is read per call and never captured. The whole job of that reader is to notice a change.
+- The uid and the selected cid are read per call and never captured. The whole job of those readers is to notice a change.
 
 ## Further reading
 

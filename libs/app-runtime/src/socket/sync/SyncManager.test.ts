@@ -43,6 +43,11 @@ const makeClient = (tag: string): ClientSocketV2 => ({ state: 'idle', tag }) as 
  * time and only sync while it still matches, so a test that changes accounts assigns to this.
  */
 let mockUid: string | null = 'user-a';
+/**
+ * The selected cloud targets are tagged with. Null (cid-agnostic) unless a test is about the cloud
+ * axis, so the tests about everything else replay onto whichever client becomes active.
+ */
+let mockCid: string | null = null;
 /** Session-change listeners; `promoteTo` mimics an in-place re-auth (guest→social). */
 let sessionListeners: Array<() => void> = [];
 const subscribeSession = (listener: () => void) => {
@@ -67,6 +72,7 @@ describe('SyncManager', () => {
         // unregister only stops after the grace timer (UNREGISTER_GRACE_MS) — take control of time.
         jest.useFakeTimers();
         mockUid = 'user-a';
+        mockCid = null;
         sessionListeners = [];
         slotListener = null;
         activeListener = null;
@@ -117,6 +123,7 @@ describe('SyncManager', () => {
     it('replays registered targets onto the runtime once its slot binds and becomes active', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -142,6 +149,7 @@ describe('SyncManager', () => {
     it('유예 내 재등록은 stop도 재시작도 만들지 않는다 — 살아 있는 타깃에 합류한다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -163,6 +171,7 @@ describe('SyncManager', () => {
     it('활성 클라이언트 교체는 유예 엔트리를 버린다 — 재등록이 새 클라이언트에서 다시 시작되게', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -189,6 +198,7 @@ describe('SyncManager', () => {
     it('destroy()는 유예 타이머를 정리한다 — 파괴 후 지연 stop이 날아오지 않는다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -205,6 +215,7 @@ describe('SyncManager', () => {
     it('keeps the relay runtime running when a cloud becomes active (device.save/keepAlive per slot)', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -233,6 +244,7 @@ describe('SyncManager', () => {
     it('detaches a slot runtime when that slot is torn down (slot → null)', () => {
         new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -254,6 +266,7 @@ describe('SyncManager', () => {
     it('rebuilding a backgrounded slot replaces only that slot runtime (relay rebuilt under cloud)', () => {
         new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -278,6 +291,7 @@ describe('SyncManager', () => {
         const buildSyncPlans = jest.fn(() => [{ domain: 'channel' } as DomainSyncPlan]);
         new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             subscribeSession,
             buildSyncPlans,
             createRuntime: runtimeFactory,
@@ -292,8 +306,10 @@ describe('SyncManager', () => {
 
     it('does not replay a target onto a client whose boundCid differs (post-swap cleanup, §8-a)', () => {
         (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
+        mockCid = 'cloud-A';
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -316,9 +332,71 @@ describe('SyncManager', () => {
         expect(runtimes[2].startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
     });
 
+    /**
+     * Switching from the relay into a cloud pre-applies the selection before the cloud slot is up,
+     * so the home screen renders the cloud's cached places — and registers their targets — while
+     * the relay is still the active client. Tagging those with the active socket's cid ran a cloud
+     * place's `place.get` on the relay, which answered `404 not found @doGet(sites/…)`.
+     */
+    describe('a target registered mid-switch waits for the slot of the cloud it belongs to', () => {
+        it('does not start a cloud target on the relay that is still active', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                getCid: () => mockCid,
+                buildSyncPlans: () => [{ domain: 'place' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay'));
+
+            mockCid = 'cloud-A';
+            syncManager.register({ type: 'place', id: '10014' });
+
+            expect(runtimes[0].startSync).not.toHaveBeenCalled();
+        });
+
+        it('starts it once the cloud slot becomes active', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                getCid: () => mockCid,
+                buildSyncPlans: () => [{ domain: 'place' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay'));
+            mockCid = 'cloud-A';
+            syncManager.register({ type: 'place', id: '10014' });
+
+            (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
+            bindActiveSlot('cloud', makeClient('cloud-A'));
+
+            expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'place', id: '10014' });
+        });
+
+        it('does not start a relay target on the cloud a switch is leaving', () => {
+            const syncManager = new SyncManager(manager, {
+                getUid: () => mockUid,
+                getCid: () => mockCid,
+                buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+                createRuntime: runtimeFactory,
+            });
+            (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
+            bindActiveSlot('cloud', makeClient('cloud-A'));
+
+            mockCid = 'default';
+            syncManager.register({ type: 'channel', id: 'relay-ch' });
+            expect(runtimes[0].startSync).not.toHaveBeenCalled();
+
+            (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+            bindActiveSlot('relay', makeClient('relay'));
+            expect(runtimes[1].startSync).toHaveBeenCalledWith({ type: 'channel', id: 'relay-ch' });
+        });
+    });
+
     it('registers a chat target and stops it on dispose', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -344,6 +422,7 @@ describe('SyncManager', () => {
         it('uid가 바뀌면 replay에서 제외된다 — cid가 같아도', () => {
             const syncManager = new SyncManager(manager, {
                 getUid: () => mockUid,
+                getCid: () => mockCid,
                 buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
                 createRuntime: runtimeFactory,
             });
@@ -366,6 +445,7 @@ describe('SyncManager', () => {
         it('uid가 그대로면 replay된다 — 가드가 과하게 막지 않는지', () => {
             const syncManager = new SyncManager(manager, {
                 getUid: () => mockUid,
+                getCid: () => mockCid,
                 buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
                 createRuntime: runtimeFactory,
             });
@@ -387,6 +467,7 @@ describe('SyncManager', () => {
         it('같은 키를 새 계정이 재등록하면 이전 태그에 합류하지 않는다', () => {
             const syncManager = new SyncManager(manager, {
                 getUid: () => mockUid,
+                getCid: () => mockCid,
                 buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
                 createRuntime: runtimeFactory,
             });
@@ -412,6 +493,7 @@ describe('SyncManager', () => {
         it('세션 없이 등록된 타깃은 세션이 붙어도 replay되지 않는다', () => {
             const syncManager = new SyncManager(manager, {
                 getUid: () => mockUid,
+                getCid: () => mockCid,
                 buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
                 createRuntime: runtimeFactory,
             });
@@ -439,6 +521,7 @@ describe('SyncManager', () => {
     it('같은 소켓 위 계정 승격은 이전 계정의 타깃을 즉시 멈춘다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             subscribeSession,
             buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
@@ -462,6 +545,7 @@ describe('SyncManager', () => {
     it('계정이 그대로인 세션 변화(토큰 갱신 등)는 타깃을 건드리지 않는다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             subscribeSession,
             buildSyncPlans: () => [{ domain: 'join' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
@@ -481,6 +565,7 @@ describe('SyncManager', () => {
     it('updateLocalSnapshot을 활성 runtime에 그대로 위임한다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -500,6 +585,7 @@ describe('SyncManager', () => {
     it('runtime이 없으면 updateLocalSnapshot은 no-op이다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -516,6 +602,7 @@ describe('SyncManager', () => {
     it('reference-counts duplicate registrations before stopping a target', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'place' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -540,6 +627,7 @@ describe('SyncManager', () => {
     it('destroy()는 모든 슬롯 runtime을 내리고 구독을 해제한다', () => {
         const syncManager = new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
@@ -564,6 +652,7 @@ describe('SyncManager', () => {
         // No createRuntime override → exercises the default createDeviceRuntime path.
         new SyncManager(manager, {
             getUid: () => mockUid,
+            getCid: () => mockCid,
             subscribeSession,
             buildSyncPlans: () => plans,
             runtimeOptions,
