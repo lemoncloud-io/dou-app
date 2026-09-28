@@ -10,7 +10,7 @@ import { logger } from '../../services';
  *
  * **PROD builds refuse** — see `isCustomZipAllowed`, which carries why and reads the baked stage.
  */
-const refusal = { code: 'CUSTOM_ZIP_FORBIDDEN', message: 'PROD 빌드에서는 커스텀 zip을 쓸 수 없습니다' };
+const refusal = { code: 'CUSTOM_ZIP_FORBIDDEN', message: 'Custom zip is not available on a PROD build' };
 
 export const useCustomZipHandler = () => {
     const handleApplyCustomZip = useCallback(async (message: WebMessageData<'ApplyCustomZip'>) => {

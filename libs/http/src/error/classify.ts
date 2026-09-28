@@ -26,7 +26,7 @@ export interface ErrorClassification {
     refreshRoute?: HttpRoute;
 }
 
-const DEFAULT_ERROR_MESSAGE = '알 수 없는 오류가 발생했습니다';
+const DEFAULT_ERROR_MESSAGE = 'An unknown error occurred';
 
 export const classifyError = (error: any): ErrorClassification => {
     const status = error?.status || error?.response?.status || error?.statusCode;
@@ -51,7 +51,7 @@ export const classifyError = (error: any): ErrorClassification => {
             // log a user out for the crime of leaving a tab open for an hour.
             shouldLogout: false,
             refreshRoute: staleRoute,
-            message: '세션 자격증명이 만료되었습니다',
+            message: 'Session credentials have expired',
         };
     }
 
@@ -60,7 +60,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.AUTHENTICATION,
             shouldRetry: false,
             shouldLogout: true,
-            message: '토큰이 유효하지 않습니다',
+            message: 'Token is invalid',
         };
     }
 
@@ -73,7 +73,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.AUTHENTICATION,
             shouldRetry: false,
             shouldLogout: true,
-            message: '인증 서명이 만료되었습니다',
+            message: 'Authentication signature has expired',
         };
     }
 
@@ -82,7 +82,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.AUTHENTICATION,
             shouldRetry: false,
             shouldLogout: true,
-            message: '인증이 만료되었습니다',
+            message: 'Authentication has expired',
         };
     }
 
@@ -97,7 +97,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.AUTHENTICATION,
             shouldRetry: false,
             shouldLogout: false,
-            message: '인증 서명이 유효하지 않습니다',
+            message: 'Authentication signature is invalid',
         };
     }
 
@@ -106,7 +106,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.NETWORK,
             shouldRetry: true,
             shouldLogout: false,
-            message: '네트워크 연결을 확인해주세요',
+            message: 'Please check your network connection',
         };
     }
 
@@ -115,7 +115,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.SERVER,
             shouldRetry: true,
             shouldLogout: false,
-            message: '서버 오류가 발생했습니다',
+            message: 'A server error occurred',
         };
     }
 
@@ -124,7 +124,7 @@ export const classifyError = (error: any): ErrorClassification => {
             type: ErrorType.CLIENT,
             shouldRetry: false,
             shouldLogout: false,
-            message: '요청에 문제가 있습니다',
+            message: 'There is a problem with the request',
         };
     }
 
@@ -132,7 +132,7 @@ export const classifyError = (error: any): ErrorClassification => {
         type: ErrorType.UNKNOWN,
         shouldRetry: true,
         shouldLogout: false,
-        message: '알 수 없는 오류가 발생했습니다',
+        message: 'An unknown error occurred',
     };
 };
 
