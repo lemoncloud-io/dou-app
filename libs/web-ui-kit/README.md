@@ -264,9 +264,11 @@ goes full-bleed like `glyph="place"`. Mixing the two paths makes the character o
 
 ### 5. Changing a colour
 
-Change the custom property, not the class. A new token means three edits: the `:root` and `.dark`
-blocks in `resources/styles/tokens.css`, the `colors` map in `tailwind.config.js`, and the matching
-declarations in `apps/web/src/styles.css`. Missing the third is the failure mode described under
+Change the custom property, not the class. A new token means four edits: the `:root` and `.dark`
+blocks in `resources/styles/tokens.css`, the `colors` map in this lib's `tailwind.config.js`, the
+matching declarations in `apps/web/src/styles.css`, and the same `colors` entry in
+`apps/web/tailwind.config.js` — the app builds its CSS from its own config, so a name only this lib
+knows generates no class there. Missing either of the last two is the failure mode described under
 [Wiring](#wiring).
 
 ### 6. Writing a test
