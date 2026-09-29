@@ -15,7 +15,7 @@ const activeCloud = {
     myJoins: new Map(),
     unreads: { byChannel: {}, byPlace: {}, total: 0 },
 } as DebugSharedObservation['activeCloud'];
-const otherCloud = { byCloud: {}, total: 0, refresh: () => undefined } as DebugSharedObservation['otherCloud'];
+const otherCloud = { byCloud: {}, total: 0 } as DebugSharedObservation['otherCloud'];
 
 describe('sharedObservationStore — 오버레이가 읽는 공유 관측 미러', () => {
     beforeEach(() => {

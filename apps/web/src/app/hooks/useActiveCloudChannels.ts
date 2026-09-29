@@ -5,7 +5,7 @@ import type { DomainChannel } from '@chatic/data';
 
 import { useHasChannelSync } from '../stores/useChannelSyncMarkStore';
 import { useColdListWindowElapsed } from './useColdListWindow';
-import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
+import { useCloudPlaceIds, type CloudPartition } from './useAccessiblePlaceIds';
 import { useActiveCloudData } from './activeCloudDataContext';
 
 /**
@@ -45,11 +45,25 @@ import { useActiveCloudData } from './activeCloudDataContext';
  * cloud-wide observer does not want in its scope key. See PlaceLocalDataSource reemit-routing tests.
  */
 export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isLoaded: boolean } => {
-    const { channel } = runtime.data.useRuntimeRepositories();
-    const accessiblePlaceIds = useAccessiblePlaceIds();
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
-    const cid = selectedCloudId ?? 'default';
+    return useCloudChannelsSource({ cid: selectedCloudId ?? 'default', uid });
+};
+
+/**
+ * The same observation for a named cloud — the active one above, or a cloud off screen, whose list
+ * its background receive loop keeps current (see `OtherCloudUnreadProvider`). `uid` is the one the
+ * account has in THAT cloud: every cloud gives it a different one, and the partition is keyed by it.
+ *
+ * Reading another cloud through the app's repositories is safe because the observer names its scope
+ * outright ({cid, uid}); nothing here reaches that cloud's socket.
+ */
+export const useCloudChannelsSource = ({
+    cid,
+    uid,
+}: CloudPartition): { channels: DomainChannel[]; isLoaded: boolean } => {
+    const { channel } = runtime.data.useRuntimeRepositories();
+    const accessiblePlaceIds = useCloudPlaceIds({ cid, uid });
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
     /**

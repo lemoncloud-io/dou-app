@@ -84,7 +84,7 @@ jest.mock('../../../hooks', () => ({
     // Same for the active site's chat sync (message freshness) — a no-op here.
     useChatSyncRegistration: jest.fn(),
     useMyJoins: () => new Map(),
-    useOtherCloudUnread: () => ({ byCloud: {}, total: 0, refresh: jest.fn() }),
+    useOtherCloudUnread: () => ({ byCloud: {}, total: 0 }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),

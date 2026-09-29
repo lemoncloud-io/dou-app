@@ -212,13 +212,9 @@ export const HomePage = () => {
     // without waiting for the room to be opened. See useChatSyncRegistration for the two mechanisms.
     useChatSyncRegistration(channels);
 
-    // Cross-cloud dot (ADR-0056 decision 2/4) — one subscription shared by the switcher-button dot
-    // (below, on AppHeader) and CloudSessionSheet's row dots, so the two surfaces never disagree.
-    const {
-        byCloud: otherCloudUnread,
-        total: otherCloudUnreadTotal,
-        refresh: refreshCloudUnread,
-    } = useOtherCloudUnread();
+    // Cross-cloud dot — one observation shared by the switcher-button dot (below, on AppHeader) and
+    // CloudSessionSheet's row dots, so the two surfaces never disagree.
+    const { byCloud: otherCloudUnread, total: otherCloudUnreadTotal } = useOtherCloudUnread();
     const badgedClouds = useCloudPushMarkStore(s => s.badged);
     // Catalog filter: only a mark for a cloud actually in THIS account's reach (owned + invited +
     // relay) and not the one being viewed counts toward the dot — a stale/foreign mark otherwise
@@ -561,7 +557,6 @@ export const HomePage = () => {
                 onOpenChange={setIsCloudSessionOpen}
                 onAddCloud={requestAddCloud}
                 cloudUnread={otherCloudUnread}
-                refreshCloudUnread={refreshCloudUnread}
             />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}

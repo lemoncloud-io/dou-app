@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
+import type { CloudPartition } from './useAccessiblePlaceIds';
 import { useSelectedCloudId } from './useCloudScope';
 
 interface UseMyJoinsOptions {
@@ -71,11 +72,27 @@ export const useJoinSyncRegistration = (
  */
 export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions = {}): Map<string, DomainJoin> => {
     const { sync: shouldSync = true } = options;
-    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     // The observation is scoped to the selected cloud, so "my row" is the row with my uid IN that
     // cloud — see useJoinSyncRegistration for why the session uid is the wrong one mid-switch.
     const cid = useSelectedCloudId();
     const uid = runtime.session.useUidInCloud(cid) ?? undefined;
+
+    // Registration is a separate hook so a surface can own it WITHOUT opening its own observers —
+    // home reads the shared cloud-wide join map (ActiveCloudDataProvider) and calls that hook
+    // directly. `enabled: false` here keeps the observe-only contract of `sync: false`.
+    useJoinSyncRegistration(channels, { enabled: shouldSync });
+
+    return useCloudJoins(channels, { cid, uid });
+};
+
+/**
+ * MY join row per channel of a named cloud, observe-only — {@link useMyJoins} without the
+ * registration, for a cloud that may not be the selected one. Registration is left out on purpose:
+ * a sync target runs on its cloud's socket, and a cloud off screen is kept current by its background
+ * receive loop instead, which writes channel rows (with their `$join`), never join rows.
+ */
+export const useCloudJoins = (channels: DomainChannel[], { cid, uid }: CloudPartition): Map<string, DomainJoin> => {
+    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
 
     const [joinByChannel, setJoinByChannel] = useState<Map<string, DomainJoin>>(new Map());
 
@@ -84,11 +101,6 @@ export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions
     const channelIds = channels.map(ch => ch.id);
     const channelKey = channels.map(ch => `${ch.id}:${ch.sid ?? ''}`).join(',');
     const channelById = useMemo(() => new Map(channels.map(channel => [channel.id, channel] as const)), [channelKey]);
-
-    // Registration is a separate hook so a surface can own it WITHOUT opening its own observers —
-    // home reads the shared cloud-wide join map (ActiveCloudDataProvider) and calls that hook
-    // directly. `enabled: false` here keeps the observe-only contract of `sync: false`.
-    useJoinSyncRegistration(channels, { enabled: shouldSync });
 
     // Observe the join cache per channel and collect my join row into the channelId → join map.
     // A shared mutable map is rebuilt into a fresh identity on each emit so consumers re-render.

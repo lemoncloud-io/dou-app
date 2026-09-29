@@ -5,6 +5,7 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useUnreadScreenStrings } from '../../i18n/screens/UnreadScreen';
 import type { ActiveCloudData, OtherCloudUnread } from '../../../../hooks';
+import { readCursorOf, readPositionOf } from '../../../../utils/countUnread';
 import { useDebugObservation } from '../sharedObservationStore';
 
 // Unread inspector: shows the aggregates the home surface / app badge use — cloud total, per-site
@@ -53,21 +54,23 @@ const UnreadReport = ({
     const unreadChannels = Object.entries(byChannel).filter(([, count]) => count > 0);
     const otherClouds = Object.entries(otherByCloud).filter(([, count]) => count > 0);
 
-    // Channels worth inspecting: anything wearing a badge, plus any channel whose join row carries
+    // Channels worth inspecting: anything wearing a badge, plus any channel whose read position carries
     // no `metaNo` snapshot — that is the row whose cursor cannot be converted, so its count is the
     // one that runs low until the room is read again.
     const derivationRows = channels
         .map(channel => {
-            const join = myJoins.get(channel.id);
+            // The position the count actually used — my join row or the channel's `$join`, whichever
+            // is further along — so the row explains the number beside it.
+            const position = readPositionOf(myJoins.get(channel.id), channel.$join);
             return {
                 id: channel.id,
                 name: channel.name ?? channel.id,
                 headChatNo: channel.chatNo ?? 0,
                 headMetaNo: channel.metaNo ?? 0,
-                cursor: join ? Math.max(join.readNo ?? 0, join.chatNo ?? 0) : t.none,
-                cursorMetaNo: join?.metaNo ?? t.none,
+                cursor: readCursorOf(position) ?? t.none,
+                cursorMetaNo: position?.metaNo ?? t.none,
                 unread: byChannel[channel.id] ?? 0,
-                hasSnapshot: join?.metaNo !== undefined,
+                hasSnapshot: position?.metaNo !== undefined,
             };
         })
         .filter(row => row.unread > 0 || !row.hasSnapshot)

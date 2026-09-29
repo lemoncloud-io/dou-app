@@ -1,6 +1,9 @@
 # ADR-0098: Get the app ready to receive cloud-activated notifications
 
 > Status: Accepted · Decided: 2026-09-07
+> Decision 2 implemented by [ADR-0126](./0126-a-cloud-off-screen-is-counted-from-its-own-cache.md)
+> (2026-09-29), which also lets a push with no `type` through — the payload spec is not in this
+> repository, and nothing confirms that every chat push carries one.
 
 ## Context
 

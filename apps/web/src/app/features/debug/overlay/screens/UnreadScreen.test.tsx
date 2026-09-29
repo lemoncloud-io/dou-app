@@ -16,7 +16,7 @@ const ACTIVE_CLOUD = {
     unreads: { byChannel: { 'ch-1': 3 }, byPlace: { 'site-1': 3 }, total: 3 },
 } as unknown as ActiveCloudData;
 
-const OTHER_CLOUD = { byCloud: { 'cloud-b': 2 }, total: 2, refresh: () => undefined } as OtherCloudUnread;
+const OTHER_CLOUD = { byCloud: { 'cloud-b': 2 }, total: 2 } as OtherCloudUnread;
 
 describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
     let restoreLanguage: () => void;

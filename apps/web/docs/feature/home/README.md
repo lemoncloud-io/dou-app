@@ -41,8 +41,11 @@ What it owns of each is the entry point and nothing behind it.
 5. **A limit never removes a button.** `＋` entries stay visible at their cap and the attempt
    explains the refusal. "Why is this gone" is a worse question than "why can't I".
 6. **Marks, not counts, for what you cannot see.** A place you are not in and a cloud you are not
-   connected to are represented by presence marks, never numbers — their data is only as fresh as
-   your last visit.
+   looking at are represented by presence marks, never numbers. Both are counted underneath, from
+   the cache: a cloud off screen is kept current by its background socket within about a minute, and
+   one past the background cap, or with no tokens yet, is as fresh as your last visit. The mark is
+   true for the whole of that lag; a number would be briefly wrong in it — and the design draws a
+   mark.
 7. **Rendering never fetches.** The channel list is a pure cache read. Freshness is a separate
    registration the surface mounts, so scrolling a row into view cannot make a request.
 
@@ -66,13 +69,11 @@ keeps a feature that owns payment dialogs out of the screen that merely offers t
 ### Boot and mount points
 
 Three components live in this feature but are mounted by `AppRuntime`, not by the page, so they keep
-working on every route:
-
-Three components live in this feature but are mounted by `AppRuntime`, not by the page, so they keep
 working on every route: `UnreadBadgeRunner` (the app-icon badge total), `CloudPushMarkRunner`
 (cross-cloud push marks, foreground and native drain) and `CloudActivatedRunner` (the
-`cloud.activated` unicast → toast and catalog invalidation). The single channel and join observation
-they read sits beside them in `ActiveCloudDataProvider`.
+`cloud.activated` unicast → toast and catalog invalidation). The observations they read sit beside
+them: the active cloud's channels and joins in `ActiveCloudDataProvider`, and every other cloud's
+count in `OtherCloudUnreadProvider`.
 
 `CloudActivatedRunner` is pinned to the **relay** socket slot, not the active one. The unicast
 targets a user and is delivered by the relay deployment, so subscribing on the active slot would

@@ -77,4 +77,21 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(result.current.byPlace).toEqual({ s1: 7, s2: 2 });
         expect(result.current.total).toBe(9);
     });
+
+    it("counts from the channel's embedded $join when it is further along than my join row", () => {
+        // Read to 9 on another device: only the channel delta carried it here.
+        const channels = [channel('c1', { chatNo: 12, $join: { channelId: 'c1', chatNo: 9 } })];
+        const joins = joinMap({ c1: join({ chatNo: 4 }) });
+
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(3);
+    });
+
+    it('counts a channel with no join row yet from its embedded $join instead of showing 0', () => {
+        const channels = [channel('c1', { chatNo: 12, sid: 's1', $join: { channelId: 'c1', chatNo: 10 } })];
+
+        const { result } = renderHook(() => useChannelUnreads(channels, joinMap({})));
+
+        expect(result.current.byChannel.c1).toBe(2);
+        expect(result.current.byPlace).toEqual({ s1: 2 });
+    });
 });

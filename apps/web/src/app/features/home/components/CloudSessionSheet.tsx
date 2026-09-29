@@ -39,11 +39,10 @@ interface CloudSessionSheetProps {
      */
     onAddCloud: () => void;
     /**
-     * Lifted to HomePage (ADR-0056) so the switcher-button dot and this sheet's row dots read the
-     * same cross-cloud cache pass instead of each triggering their own.
+     * Lifted to HomePage so the switcher-button dot and this sheet's row dots read the same
+     * cross-cloud observation.
      */
     cloudUnread: Record<string, number>;
-    refreshCloudUnread: () => void;
 }
 
 /**
@@ -54,13 +53,7 @@ interface CloudSessionSheetProps {
  * The "add cloud" button lives in the owned section's FOOTER, outside the collapsible body, so it
  * stays reachable while that section is collapsed.
  */
-export const CloudSessionSheet = ({
-    open,
-    onOpenChange,
-    onAddCloud,
-    cloudUnread,
-    refreshCloudUnread,
-}: CloudSessionSheetProps) => {
+export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
 
@@ -84,12 +77,6 @@ export const CloudSessionSheet = ({
 
     // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
-
-    // Re-read the cache-hint half of the dot when the sheet opens — enough for a "has unread" hint,
-    // and the row for the cloud you are already in needs no dot.
-    useEffect(() => {
-        if (open) refreshCloudUnread();
-    }, [open, refreshCloudUnread]);
 
     // Cross-cloud push marks (ADR-0056 decision 2) — the other half of the dot, for pushes that arrived
     // while away. Filtered to clouds actually in this account's catalog (owned + invited + relay)

@@ -36,7 +36,7 @@ import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../ho
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
 import { roomOpenTrace } from '../../../runtime/perf';
-import { readCursorOf } from '../../../utils/countUnread';
+import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
 import { channelKindOf, resolveChannelAvatar, resolveChannelTitle, showsMemberCount } from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
@@ -345,14 +345,16 @@ export const ChannelList = ({
         for (const channel of channels) {
             const marked = readMarkRegistry.markOf(channel.id);
             if (marked === undefined) continue;
-            const join = joinByChannel?.get(channel.id);
+            // The position the drawn count was computed from — join row or `$join`, whichever is
+            // further along — so the report does not blame a cursor that landed through the other.
+            const position = readPositionOf(joinByChannel?.get(channel.id), channel.$join);
             divergenceReporter.unread({
                 channelId: channel.id,
                 markedChatNo: marked,
-                cursorChatNo: readCursorOf(join),
+                cursorChatNo: readCursorOf(position),
                 headChatNo: channel.chatNo,
                 drawn: unreadByChannel[channel.id] ?? 0,
-                hasReadMetaNo: join?.metaNo !== undefined,
+                hasReadMetaNo: position?.metaNo !== undefined,
             });
         }
     }, [channels, joinByChannel, unreadByChannel]);
