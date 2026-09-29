@@ -17,6 +17,13 @@ let selectedSiteId: string | null = 'site-1';
 // and so the "still fetching" state — where the tier is undecided — can be reproduced.
 let membership: { isValid: boolean } | undefined = { isValid: false };
 let isMembershipLoading = false;
+// The relay cloud catalog. `hasCloudCatalog` is whether it has answered at all — the banner waits for
+// it — and `isPendingClouds` keeps the tier open, since an active cloud alone makes it PRO.
+let catalog: { clouds: { id: string; status?: string }[]; hasCloudCatalog: boolean; isPendingClouds: boolean } = {
+    clouds: [],
+    hasCloudCatalog: true,
+    isPendingClouds: false,
+};
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 const navigateMock = jest.fn();
@@ -35,7 +42,7 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: [] }) }));
+jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => catalog }));
 jest.mock('../../../hooks/useMembership', () => ({
     useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading }),
 }));
@@ -43,14 +50,30 @@ jest.mock('../../../hooks/useMembership', () => ({
 jest.mock('@chatic/web-ui-kit', () => ({
     // The profile dropdown (and its tier pill) hangs off the header's `avatar` slot, so the stub has
     // to render it — otherwise the menu never mounts.
-    AppHeader: ({ kind, avatar }: { kind: string; avatar?: any }) => (
-        <header data-testid="header" data-kind={kind}>
+    AppHeader: ({
+        kind,
+        avatar,
+        planTier,
+        planLoading,
+    }: {
+        kind: string;
+        avatar?: any;
+        planTier?: string;
+        planLoading?: boolean;
+    }) => (
+        <header
+            data-testid="header"
+            data-kind={kind}
+            data-plan-tier={planTier ?? ''}
+            data-plan-loading={String(!!planLoading)}
+        >
             {avatar}
         </header>
     ),
     EmptyState: () => <div data-testid="empty-state" />,
     ProfileAvatar: () => <img alt="" />,
     SubscriptionBadge: ({ tier }: { tier: string }) => <span data-testid="tier-badge">{tier}</span>,
+    SubscriptionBadgeSkeleton: () => <span data-testid="tier-badge-skeleton" />,
 }));
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
@@ -230,6 +253,7 @@ beforeEach(() => {
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
+    catalog = { clouds: [], hasCloudCatalog: true, isPendingClouds: false };
     collapsedSections = {};
     pendingInviteChannelId = null;
 });
@@ -283,6 +307,22 @@ describe('HomePage — relay mode', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('promo-banner')).toBeInTheDocument();
+    });
+
+    it('keeps the banner off until the cloud catalog has answered', () => {
+        // Before the first answer `clouds` is an empty stand-in that reads as "owns no cloud", so an
+        // owner used to see the pitch on every cold start and watch it vanish a beat later.
+        catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('promo-banner')).not.toBeInTheDocument();
+    });
+
+    it('keeps the banner off when the first catalog fetch failed — no answer is not "no cloud"', () => {
+        catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: false };
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('promo-banner')).not.toBeInTheDocument();
     });
 
     it('still runs useHomePlaces and useSwitchPlace', () => {
@@ -518,14 +558,80 @@ describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
         expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
     });
 
-    it('등급이 아직 정해지지 않았으면(멤버십 조회 중) 뱃지를 아예 안 보인다', () => {
-        // Showing nothing is better than flashing FREE and then flipping to PRO — same rule as the header pill.
+    it('holds a placeholder instead of a badge while the tier is undecided (membership in flight)', () => {
+        // Guessing FREE and flipping to PRO tells a subscriber the wrong thing — same rule as the header pill.
         selectedCloudId = 'cloud-1';
         membership = undefined;
         isMembershipLoading = true;
         render(<HomePage />);
 
         expect(screen.queryByTestId('tier-badge')).not.toBeInTheDocument();
+        expect(screen.getByTestId('tier-badge-skeleton')).toBeInTheDocument();
+    });
+});
+
+describe('HomePage — header tier pill', () => {
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+    });
+
+    it('stays undecided while membership is in flight', () => {
+        membership = undefined;
+        isMembershipLoading = true;
+        render(<HomePage />);
+
+        const header = screen.getByTestId('header');
+        expect(header).toHaveAttribute('data-plan-tier', '');
+        expect(header).toHaveAttribute('data-plan-loading', 'true');
+    });
+
+    it('stays undecided while the cloud catalog is pending, even with an invalid membership in hand', () => {
+        // The catalog can still turn up an active cloud, which alone makes the account PRO — so FREE
+        // here would be a guess that flips a beat later.
+        membership = { isValid: false };
+        catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
+        render(<HomePage />);
+
+        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-loading', 'true');
+    });
+
+    it('settles on PRO as soon as membership says so, without waiting for the catalog', () => {
+        membership = { isValid: true };
+        catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
+        render(<HomePage />);
+
+        const header = screen.getByTestId('header');
+        expect(header).toHaveAttribute('data-plan-tier', 'pro');
+        expect(header).toHaveAttribute('data-plan-loading', 'false');
+    });
+
+    it('settles on PRO from an active cloud while membership is still in flight', () => {
+        membership = undefined;
+        isMembershipLoading = true;
+        catalog = { clouds: [{ id: 'cloud-1', status: 'active' }], hasCloudCatalog: true, isPendingClouds: false };
+        render(<HomePage />);
+
+        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-tier', 'pro');
+    });
+
+    it('settles on membership alone when the first catalog fetch failed, instead of pulsing forever', () => {
+        // A failed fetch is no longer pending, so it counts as answered for the tier — unlike the
+        // banner, which waits for actual data.
+        membership = { isValid: false };
+        catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: false };
+        render(<HomePage />);
+
+        const header = screen.getByTestId('header');
+        expect(header).toHaveAttribute('data-plan-tier', 'free');
+        expect(header).toHaveAttribute('data-plan-loading', 'false');
+    });
+
+    it('settles on FREE only once both sources have answered and neither is PRO', () => {
+        render(<HomePage />);
+
+        const header = screen.getByTestId('header');
+        expect(header).toHaveAttribute('data-plan-tier', 'free');
+        expect(header).toHaveAttribute('data-plan-loading', 'false');
     });
 });
 

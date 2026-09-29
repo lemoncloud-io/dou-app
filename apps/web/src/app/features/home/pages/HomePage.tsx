@@ -9,7 +9,7 @@ import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 
-import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge } from '@chatic/web-ui-kit';
+import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge, SubscriptionBadgeSkeleton } from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -100,7 +100,7 @@ export const HomePage = () => {
     // (it lives in invitedClouds), so look there too — matched by id or cid. Invited clouds may lack
     // name/email (and even id), so fall back name → id → cid so both the header label and its
     // initials avatar always have something to show instead of a blank "?".
-    const { clouds, isPendingClouds } = useCloudSessionCatalog();
+    const { clouds, isPendingClouds, hasCloudCatalog } = useCloudSessionCatalog();
     const activeOwnedCloud = clouds.find(cloud => cloud.id === selectedCloudId);
     const activeInvitedCloud = invitedClouds.find(
         cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
@@ -140,17 +140,23 @@ export const HomePage = () => {
     // `membership` starts out `undefined` while the query is in flight. Without a guard, a
     // membership-only PRO user (no owned cloud yet) would flash FREE for a beat before flipping to
     // PRO once the fetch resolves. While that fetch is pending and we have no cloud-based fallback,
-    // leave the tier undecided (`undefined`) instead of guessing FREE: AppHeader already hides its
-    // badge when planTier is falsy, and PRO-gated UI below treats "undecided" as PRO-optimistic
-    // (not FREE) — the server remains the final authority on any gated action either way.
+    // leave the tier undecided (`undefined`) instead of guessing FREE: the header and the profile
+    // menu draw a pill-sized placeholder for that window, and PRO-gated UI below treats "undecided"
+    // as PRO-optimistic (not FREE) — the server remains the final authority on any gated action
+    // either way.
+    // FREE needs BOTH sources to have answered, since either one alone can make it PRO. So the
+    // cloud catalog still being pending keeps the tier open too: otherwise a membership that comes
+    // back invalid first prints FREE until the catalog reveals an active cloud. PRO, by contrast,
+    // is final the moment either source says so.
     const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
     const hasActiveCloud = clouds.some(cloud => cloud.status === 'active');
-    const isTierUndecided = !isGuest && isMembershipLoading && !hasActiveCloud;
+    const isPro = !!membership?.isValid || hasActiveCloud;
+    const isTierUndecided = !isGuest && !isPro && (isMembershipLoading || isPendingClouds);
     const planTier: 'free' | 'pro' | undefined = isGuest
         ? 'free'
         : isTierUndecided
           ? undefined
-          : membership?.isValid || hasActiveCloud
+          : isPro
             ? 'pro'
             : 'free';
 
@@ -256,8 +262,8 @@ export const HomePage = () => {
 
     // Tier readout for the profile menu (Figma 3108:25868). DoU Home is pinned to FREE: what a
     // subscription buys is a cloud of one's OWN, so the relay stays the free home even for a paying
-    // account — only a cloud reads `planTier`. Undecided (membership still in flight) shows nothing,
-    // exactly like the header pill.
+    // account — only a cloud reads `planTier`. Undecided (membership or catalog still in flight) shows a
+    // placeholder of the pill's size, exactly like the header pill.
     const menuTier = isDefaultCloud ? 'free' : planTier;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -418,11 +424,13 @@ export const HomePage = () => {
                 </DropdownMenuItem>
                 {/* A readout, not a control: the header pill is the one place that routes to
                     subscription, so this stays a non-interactive span outside the menu items. */}
-                {menuTier && (
-                    <div className="flex items-center px-4 py-1.5">
+                <div className="flex items-center px-4 py-1.5">
+                    {menuTier ? (
                         <SubscriptionBadge tier={menuTier} size="xs" />
-                    </div>
-                )}
+                    ) : (
+                        <SubscriptionBadgeSkeleton size="xs" />
+                    )}
+                </div>
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -433,6 +441,7 @@ export const HomePage = () => {
                 kind={isDefaultCloud ? 'no-cloud' : 'cloud'}
                 name={cloudName}
                 planTier={planTier}
+                planLoading={isTierUndecided}
                 onPlanClick={() => navigate(ROUTES.subscription.root)}
                 loading={isCloudHeaderLoading}
                 loadingLabel={t('homePage.loadingCloud')}
@@ -457,9 +466,16 @@ export const HomePage = () => {
             >
                 {/* Relay: no Place section — the single relay place is auto-connected, so the list
                     carries no information. Its slot goes to the cloud upsell instead. The banner
-                    owns its own gutter and renders nothing when hidden, so no ghost box remains. */}
+                    owns its own gutter and renders nothing when hidden, so no ghost box remains.
+                    It is off until the catalog has actually answered: before that `clouds` is an
+                    empty stand-in that reads as "owns no cloud", so an owner saw the pitch appear
+                    on every cold start and vanish a beat later. Hiding is the safe default for a
+                    promo — a missed beat costs nothing, a wrong one tells a paying user to go
+                    subscribe. */}
                 {isDefaultCloud ? (
-                    <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="pb-2" />
+                    hasCloudCatalog && (
+                        <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="pb-2" />
+                    )
                 ) : (
                     <PlaceList
                         places={places}

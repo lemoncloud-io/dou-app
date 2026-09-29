@@ -55,6 +55,9 @@ export const useCloudSessionCatalog = () => {
 
     return {
         clouds: data?.list ?? [],
+        // The catalog has answered at least once. Distinct from `!isPendingClouds`: a first fetch
+        // that failed is no longer pending, yet `clouds` is still an empty stand-in, not an answer.
+        hasCloudCatalog: data !== undefined,
         isCloudsError: !isFetching && !isPending && isFetchError,
         isFetchingClouds: isFetching,
         isPendingClouds: isPending,

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 
-import { SubscriptionBadge } from './SubscriptionBadge';
+import { SubscriptionBadge, SubscriptionBadgeSkeleton } from './SubscriptionBadge';
 import { SubscriptionButton } from './SubscriptionButton';
 
 describe('SubscriptionBadge', () => {
@@ -82,5 +82,34 @@ describe('SubscriptionBadge', () => {
                 .sort()
                 .join(' ');
         expect(surfaceOf(badgeClass)).toBe(surfaceOf(buttonClass));
+    });
+});
+
+describe('SubscriptionBadgeSkeleton', () => {
+    // The footprint is borrowed, not declared: every class that sizes the FREE pill must be on the
+    // skeleton too, or the real pill changes size when it replaces it.
+    const sizingTokens = (className: string) =>
+        className.split(/\s+/).filter(token => /^(p[xylr]?|gap|text|leading|tracking|h|w)-/.test(token));
+
+    it.each(['sm', 'xs'] as const)('takes every sizing class of the %s FREE badge', size => {
+        const { container } = render(
+            <>
+                <SubscriptionBadge tier="free" size={size} />
+                <SubscriptionBadgeSkeleton size={size} />
+            </>
+        );
+        const [badge, skeleton] = Array.from(container.children) as HTMLElement[];
+
+        expect(sizingTokens(skeleton.className)).toEqual(expect.arrayContaining(sizingTokens(badge.className)));
+        expect(skeleton.className).toContain('animate-pulse');
+    });
+
+    it('hides its borrowed FREE ink and stays out of the accessibility tree', () => {
+        const { container } = render(<SubscriptionBadgeSkeleton />);
+        const skeleton = container.firstElementChild as HTMLElement;
+
+        expect(skeleton).toHaveAttribute('aria-hidden', 'true');
+        expect((skeleton.firstElementChild as HTMLElement).className).toContain('invisible');
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 });

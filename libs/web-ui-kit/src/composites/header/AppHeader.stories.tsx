@@ -63,6 +63,16 @@ export const Cloud: Story = {
     },
 };
 
+// Tier not decided yet (membership or catalog still in flight) — the pill's slot pulses at the
+// pill's own size instead of staying empty.
+export const PlanLoading: Story = {
+    args: {
+        ...Cloud.args,
+        planTier: undefined,
+        planLoading: true,
+    },
+};
+
 // Cloud connected, but the owner hasn't set a profile photo yet — falls back to
 // a Slack-style initials avatar derived from the cloud name.
 export const CloudWithInitialsAvatar: Story = {

@@ -46,6 +46,27 @@ describe('AppHeader', () => {
         expect(screen.queryByText('PRO')).not.toBeInTheDocument();
     });
 
+    it('holds the badge slot with a placeholder while the tier is loading', () => {
+        const { container } = render(<AppHeader logo={<span>DoU</span>} planLoading onPlanClick={jest.fn()} />);
+
+        // The placeholder borrows a FREE pill's text for its size, hidden — but no tier control exists.
+        expect(screen.queryByRole('button', { name: /FREE|PRO/ })).not.toBeInTheDocument();
+        expect(container.querySelector('[aria-hidden="true"].animate-pulse')).not.toBeNull();
+    });
+
+    it('drops the placeholder once a tier is given, even if planLoading is still set', () => {
+        const { container } = render(<AppHeader logo={<span>DoU</span>} planTier="pro" planLoading />);
+
+        expect(screen.getByText('PRO')).toBeInTheDocument();
+        expect(container.querySelector('.animate-pulse')).toBeNull();
+    });
+
+    it('renders no placeholder when the tier is neither given nor loading', () => {
+        const { container } = render(<AppHeader logo={<span>DoU</span>} />);
+
+        expect(container.querySelector('.animate-pulse')).toBeNull();
+    });
+
     it('renders a default avatar glyph when the place profile avatar is omitted', () => {
         render(<AppHeader logo={<span>DoU</span>} onProfile={jest.fn()} />);
 
