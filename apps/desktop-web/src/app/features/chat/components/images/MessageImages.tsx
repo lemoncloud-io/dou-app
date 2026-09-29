@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -12,9 +13,9 @@ import { ImageTile } from './ImageTile';
 import { ImageSetMeta, ImageViewer, type ImageAuthor } from './ImageViewer';
 
 interface MessageImagesProps {
-    /** Server id of the message the images belong to. */
-    messageId: string;
-    /** "Delete file" is offered on your own messages only. */
+    /** The message the images belong to — its images are read from it. */
+    message: DomainChat;
+    /** "Delete file" is offered on your own messages only (and only on the debug samples — there is no server delete yet). */
     canDelete: boolean;
     author: ImageAuthor;
     /** Open this message's thread (the viewer's "Reply"). Absent inside the thread panel. */
@@ -29,14 +30,14 @@ interface MessageImagesProps {
  * the viewer on that image; the "+n" tile opens it on the first hidden one.
  */
 export const MessageImages = (props: MessageImagesProps) => {
-    const images = useChatImages(props.messageId);
+    const images = useChatImages(props.message);
     // Every feed row mounts this, and almost none carry images: stop at the store lookup
     // so the grid's viewer and delete state exist only where there is something to show.
     return images.length > 0 ? <MessageImageGrid {...props} images={images} /> : null;
 };
 
 const MessageImageGrid = ({
-    messageId,
+    message,
     canDelete,
     author,
     onReply,
@@ -50,21 +51,31 @@ const MessageImageGrid = ({
 
     const { tiles, overflow } = layoutImageGrid(images);
     const isSingle = images.length === 1;
-    const ready = images.filter(image => !image.isUploading);
+    const ready = images.filter(image => !image.isUploading && !image.isFailed);
+    // The viewer, the saves and the copy only ever see images there is something to load for. A tile
+    // points at its place among all the images, so it opens the first loadable one from there.
+    const openViewerAt = (position: number) => {
+        const index = ready.findIndex(image => images.indexOf(image) >= position);
+        if (index !== -1) setViewerIndex(index);
+    };
 
     const copy = (image: ChatImage) =>
         void copyImageToClipboard(image.url).then(
             () => toast({ description: t('chat.image.copied') }),
             () => toast({ variant: 'destructive', description: t('chat.image.copyFailed') })
         );
-    const requestDelete = canDelete ? (image: ChatImage) => setPendingDelete(image) : undefined;
+    const downloadFailed = () => toast({ variant: 'destructive', description: t('chat.image.downloadFailed') });
+    const download = (image: ChatImage) => void downloadImage(image).catch(downloadFailed);
+    // "Delete file" writes to the debug sample store only: a message's own uploads have no delete yet.
+    const canDeleteHere = canDelete && !message.upload$$?.length;
+    const requestDelete = canDeleteHere ? (image: ChatImage) => setPendingDelete(image) : undefined;
 
     return (
         <div className="mt-2 flex flex-col gap-2">
             {isSingle ? (
                 <span className="truncate text-caption font-medium text-muted-foreground">{images[0].name}</span>
             ) : (
-                <ImageSetMeta count={images.length} onDownloadAll={() => downloadImages(ready)} />
+                <ImageSetMeta count={images.length} onDownloadAll={() => downloadImages(ready, downloadFailed)} />
             )}
             <div
                 className={cn(
@@ -80,8 +91,8 @@ const MessageImageGrid = ({
                             key={image.id}
                             image={image}
                             overflow={isLast ? overflow : 0}
-                            onOpen={() => setViewerIndex(isLast && overflow > 0 ? i + 1 : i)}
-                            onDownload={() => downloadImage(image)}
+                            onOpen={() => openViewerAt(isLast && overflow > 0 ? i + 1 : i)}
+                            onDownload={() => download(image)}
                             onCopy={() => copy(image)}
                             onDelete={requestDelete && (() => requestDelete(image))}
                         />
@@ -89,12 +100,12 @@ const MessageImageGrid = ({
                 })}
             </div>
             <ImageViewer
-                images={images}
+                images={ready}
                 openIndex={viewerIndex}
                 onClose={closeViewer}
                 author={author}
-                onDownload={downloadImage}
-                onDownloadAll={() => downloadImages(ready)}
+                onDownload={download}
+                onDownloadAll={() => downloadImages(ready, downloadFailed)}
                 onCopy={copy}
                 onDelete={requestDelete}
                 onReply={onReply}
@@ -108,7 +119,7 @@ const MessageImageGrid = ({
                     confirmLabel={t('chat.image.delete')}
                     variant="danger"
                     onConfirm={() => {
-                        removeImage(messageId, pendingDelete.id);
+                        if (message.id) removeImage(message.id, pendingDelete.id);
                         setPendingDelete(null);
                     }}
                 />

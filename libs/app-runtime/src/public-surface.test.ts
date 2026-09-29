@@ -93,6 +93,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useGlobalCacheSearch',
         'useInvitedCloudNameSync',
         'useRuntimeRepositories',
+        'useSendImages',
     ],
     sync: [
         'getSyncManager',

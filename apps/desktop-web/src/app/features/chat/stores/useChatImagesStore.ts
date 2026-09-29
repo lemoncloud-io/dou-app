@@ -12,12 +12,10 @@ interface ChatImagesState {
 }
 
 /**
- * Client-side home of message images until the server has an upload API.
- *
- * Nothing on the wire carries images yet, so this is the only source `useChatImages`
- * reads — filled today by the debug panel's sample images, so the feed, the grid and
- * the viewer can be exercised on real messages. In memory on purpose: the object URLs
- * it holds die with the page anyway.
+ * The debug panel's sample images, hung on real messages so the feed grid, the hover
+ * actions and the viewer can be exercised on any row. `useChatImages` reads it only for
+ * a message that carries no images of its own. In memory on purpose: the object URLs it
+ * holds die with the page anyway.
  */
 export const useChatImagesStore = create<ChatImagesState>(set => ({
     byMessage: {},

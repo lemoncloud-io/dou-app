@@ -6,7 +6,7 @@ jest.mock('@chatic/bridges', () => ({
     webClient: { request: (...args: unknown[]) => mockRequest(...args), onEvent: jest.fn(() => () => undefined) },
 }));
 
-import { xhrPut } from '../runtime/upload';
+import { xhrPut } from '@chatic/data';
 import { getShellPut, syncShellTransfers } from './shellUpload';
 
 describe('shellUpload', () => {

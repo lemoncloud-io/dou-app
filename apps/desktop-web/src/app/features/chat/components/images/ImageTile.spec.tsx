@@ -41,4 +41,13 @@ describe('ImageTile', () => {
         renderTile();
         expect(screen.queryByRole('button', { name: 'Delete file' })).toBeNull();
     });
+
+    // A failed upload was a disabled button too: nothing said it had failed.
+    it('keeps a failed tile focusable and says it failed', () => {
+        const { onOpen } = renderTile({ image: { id: 'i1', name: 'a.png', url: '', isFailed: true } });
+        const tile = screen.getByRole('button', { name: "This image couldn't be loaded" });
+        expect(tile.hasAttribute('disabled')).toBe(false);
+        fireEvent.click(tile);
+        expect(onOpen).not.toHaveBeenCalled();
+    });
 });

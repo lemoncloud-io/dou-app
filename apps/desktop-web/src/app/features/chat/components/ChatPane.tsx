@@ -7,10 +7,9 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
@@ -24,7 +23,6 @@ import {
     resolveDisplay,
     useAuthorNames,
     useChannelLabels,
-    useChatMutations,
     useChats,
     useMessageJumpStore,
     useOpenAtBottomStore,
@@ -39,7 +37,14 @@ import type { ChannelMember } from '../../channels';
 import { useChannelActions, useChannelSettingsStore } from '../../channels';
 import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
+import {
+    useComposerSend,
+    useFileDrop,
+    useImageAttachments,
+    useMentionables,
+    useMessageViewer,
+    type ReadCountOf,
+} from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
@@ -92,10 +97,6 @@ export const ChatPane = ({
         channelId,
         channel ? lastChatNoOf(channel) : undefined
     );
-    const { sendMessage, retryMessage, discardMessage } = useChatMutations();
-    // Stable identities: MessageRow is memo'd, and an inline closure here would
-    // re-render every visible row on each ChatPane render.
-    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
@@ -175,6 +176,12 @@ export const ChatPane = ({
     // object URLs) the way a thread switch does in ThreadPanel.
     const tray = useImageAttachments(channelId ?? '');
     const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
+    // The channel's own cloud, so a cloud switch while a send is in flight cannot move it to the next
+    // cloud's socket. Empty until the channel row is here (nothing can be sent before that).
+    const composer = useComposerSend({
+        cid: channel ? channel.cid || RELAY_CLOUD_ID : '',
+        channelId: channel ? (channelId ?? '') : '',
+    });
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
@@ -223,13 +230,10 @@ export const ChatPane = ({
         );
     }
 
-    const handleSend = (content: string) => {
+    const handleSend = (content: string, files: File[]) => {
         setSendTick(tick => tick + 1);
-        // The channel's own cloud, read at the press: a cloud switch while the send is in
-        // flight must not move the message to the next cloud's socket.
-        void sendMessage(channel.cid || RELAY_CLOUD_ID, { channelId, content }).catch(() =>
-            toast({ variant: 'destructive', description: t('toast.messageFailed') })
-        );
+        composer.send(content, files);
+        tray.clear();
     };
 
     // memberNo is deprecated server-side (back-filled from memberIds for compat) —
@@ -373,8 +377,9 @@ export const ChatPane = ({
                     names={memberNames}
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
-                    onRetry={retryMessage}
-                    onDiscard={handleDiscard}
+                    onRetry={composer.retry}
+                    canRetry={composer.canRetry}
+                    onDiscard={composer.discard}
                     onLoadOlder={handleLoadOlder}
                     hasMore={hasMore}
                     isLoadingOlder={isLoadingOlder}

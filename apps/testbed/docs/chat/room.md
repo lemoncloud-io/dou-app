@@ -34,8 +34,8 @@ here. Paging stops once the server reports no more older messages, rather than r
 The composer's `사진` button picks images and sends them as one message through the same
 `sendImageMessage` the app runs (`@chatic/data`, [docs/uploads](../../../../libs/data/docs/uploads/README.md)).
 Its ports are bound here: the real `prepareImage(file, CHAT_ATTACHMENT)`, the chat repository's
-`startUploads` / `completeUploads` / `sendPendingImageChat`, and a page XHR PUT
-(`features/image-send/xhrPut.ts`, the browser shape of `apps/web`'s own). A pending row is written
+`startUploads` / `completeUploads` / `sendPendingImageChat`, and the page's own XHR PUT
+(`@chatic/data`'s `xhrPut`, the one the browser and desktop shells use). A pending row is written
 first and failed if the sequence fails. There is no retry button. Send again instead.
 
 The point is measurement, so the header's `업로드 로그` button opens a log of every step: the prepared

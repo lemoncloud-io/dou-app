@@ -10,3 +10,4 @@ export * from './useFileDrop';
 export * from './useHydrateDmPeers';
 export * from './usePendingLanding';
 export * from './useNextUnreadShortcut';
+export * from './useComposerSend';

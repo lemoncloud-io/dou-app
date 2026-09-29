@@ -4,12 +4,11 @@ import {
     IMAGE_MESSAGE_SLOT_MAX,
     isPendingUploadSlot,
     sendImageMessage,
+    xhrPut,
     type DataRepositories,
     type SendImagePorts,
 } from '@chatic/data';
 import { CHAT_ATTACHMENT, prepareImage } from '@chatic/shared';
-
-import { xhrPut } from './xhrPut';
 
 /** An error as one log-safe line: name, code and message. Socket errors never carry a ticket. */
 const describeError = (error: unknown): string => {

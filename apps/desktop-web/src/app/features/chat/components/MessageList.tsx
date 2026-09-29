@@ -38,6 +38,8 @@ interface MessageListProps {
     /** Thread panel only: total replies under the root — renders an "N replies" divider. */
     threadReplyCount?: number;
     onRetry?: (message: DomainChat) => void;
+    /** Whether a failed message offers Retry (a picture message only while its pictures are in memory). */
+    canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
     /** Fetch older history when the reader scrolls near the top. */
@@ -97,6 +99,7 @@ export const MessageList = ({
     baselineReadNo,
     threadReplyCount,
     onRetry,
+    canRetry,
     onDiscard,
     onLoadOlder,
     hasMore,
@@ -624,6 +627,7 @@ export const MessageList = ({
                                     key={row.group.key}
                                     group={row.group}
                                     onRetry={onRetry}
+                                    canRetry={canRetry}
                                     onDiscard={onDiscard}
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}

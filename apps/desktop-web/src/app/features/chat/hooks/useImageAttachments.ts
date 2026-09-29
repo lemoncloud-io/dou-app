@@ -27,8 +27,10 @@ const REASONS = ['limit', 'duplicate', 'unsupported'] as const;
 /**
  * The composer's image tray: add (pick / drop / paste), remove, clear.
  *
- * Each file gets an object URL for its preview. URLs are revoked on remove, on clear,
- * when `scopeKey` changes (another channel or thread) and on unmount.
+ * Each file gets an object URL for its preview. The upload itself starts only at send,
+ * on the message's own row. URLs are revoked on remove, on clear (the send clears the
+ * tray; the sent row keeps its own previews), when `scopeKey` changes (another channel
+ * or thread) and on unmount.
  *
  * Files a batch could not take are reported in a toast that counts them by reason.
  * It was a blocking dialog, one reason per drop: the rest of what was left out went

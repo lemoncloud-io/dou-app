@@ -250,7 +250,7 @@ export const ImageViewer = ({
                                                     )}
                                                 >
                                                     <img
-                                                        src={image.url}
+                                                        src={image.thumbUrl ?? image.url}
                                                         alt=""
                                                         loading="lazy"
                                                         decoding="async"

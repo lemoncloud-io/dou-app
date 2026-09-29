@@ -108,7 +108,8 @@ with it.
 
 `data.runInCloud(cid, work)` names the cloud once, up front, and runs `work` against that cloud's
 graph; `data.sendChatInCloud(cid, payload)` is the text send on top of it, and the image send (a row,
-an upload, then the send) runs inside one `runInCloud` so the hold covers the whole sequence:
+an upload, then the send) runs inside one `runInCloud` so the hold covers the whole sequence
+([image-send.md](./image-send.md) — `data.useSendImages`, the one image send every shell runs):
 
 - It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
 - It **holds** the cloud's socket slot for as long as the work is in flight ([docs/socket/](../socket/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
@@ -254,6 +255,7 @@ belongs to [`libs/data`](../../../data/README.md).
 ## Further reading
 
 - [cache-storage-routing.md](./cache-storage-routing.md) — where a cache type lands, and the version negotiation behind it
+- [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry and leftovers
 - [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
 - [docs/http/](../http/README.md) — the gateways `httpFactory` builds over
 - [docs/sync/](../sync/README.md) — what writes into these repositories without a screen asking

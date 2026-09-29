@@ -1,17 +1,15 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChannel, DomainChat } from '@chatic/data';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import type { DomainChannel } from '@chatic/data';
 
 import {
     Hint,
     lastChatNoOf,
     useAuthorNames,
-    useChatMutations,
     useChats,
     ResizablePanel,
     PANE_HEADER,
@@ -19,7 +17,14 @@ import {
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
-import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
+import {
+    useComposerSend,
+    useFileDrop,
+    useImageAttachments,
+    useMentionables,
+    useMessageViewer,
+    type ReadCountOf,
+} from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -55,10 +60,6 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const closeThread = useThreadStore(s => s.close);
     // Freshness bridge: new replies land via the channel record's chatNo (see useChats).
     const { messages } = useChats(channelId, lastChatNoOf(channel));
-    const { sendMessage, retryMessage, discardMessage } = useChatMutations();
-    // Stable identity — MessageRow is memo'd; an inline closure would re-render
-    // every visible thread row on each panel render.
-    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -91,15 +92,21 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const cachedNames = useAuthorNames(authorIds);
     const names = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
-    const handleReply = (content: string) => {
-        // The server takes the parent's FULL id and 404s on a bare chatNo (it
-        // normalises to chatNo itself on store) — so send root.id, not rootId.
+    // The server takes the parent's FULL id and 404s on a bare chatNo (it normalises to chatNo
+    // itself on store) — so replies go to root.id, not rootId. Addressed to the channel's cloud, like
+    // the chat pane's send. No room until the root is here: bound to the channel alone, this panel
+    // would be taken for the chat pane's own screen and drop that screen's unsent pictures on leaving.
+    const composer = useComposerSend({
+        cid: channel.cid || RELAY_CLOUD_ID,
+        channelId: root?.id ? channelId : '',
+        ...(root?.id ? { parentId: root.id } : {}),
+    });
+
+    const handleReply = (content: string, files: File[]) => {
         // Unreachable when !root (Composer isn't rendered then); type guard only.
         if (!root?.id) return;
-        // Addressed to the channel's cloud, like the chat pane's send.
-        void sendMessage(channel.cid || RELAY_CLOUD_ID, { channelId, content, parentId: root.id }).catch(() =>
-            toast({ variant: 'destructive', description: t('toast.messageFailed') })
-        );
+        composer.send(content, files);
+        tray.clear();
     };
 
     return (
@@ -133,8 +140,9 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         names={names}
                         membersLoading={membersLoading}
                         threadReplyCount={replyCount}
-                        onRetry={retryMessage}
-                        onDiscard={handleDiscard}
+                        onRetry={composer.retry}
+                        canRetry={composer.canRetry}
+                        onDiscard={composer.discard}
                         readCountOf={readCountOf}
                     />
                 ) : (
