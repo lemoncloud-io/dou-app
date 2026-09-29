@@ -56,9 +56,12 @@ export const startBackgroundReceive = (): (() => void) => {
 
 /**
  * Asks every background cloud for its delta now. Apps call it on their foreground signal, beside the
- * socket wake kick: timers froze while the app was suspended and pushes may have been missed. A no-op
- * while no receiver is running.
+ * socket wake kick: timers froze while the app was suspended and pushes may have been missed. Given
+ * `cid`, asks that one cloud only — for a push that named it, since its socket is not sent the
+ * message itself. A no-op while no receiver is running, and for a cloud that is on screen or whose
+ * socket is not verified: the first has the app's own sync, and the second asks on its own the
+ * moment it verifies.
  */
-export const refreshBackgroundClouds = (): void => {
-    backgroundReceiver?.receiveNow();
+export const refreshBackgroundClouds = (cid?: string): void => {
+    backgroundReceiver?.receiveNow(cid);
 };

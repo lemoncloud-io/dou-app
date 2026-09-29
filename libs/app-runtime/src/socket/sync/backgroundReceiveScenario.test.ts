@@ -23,6 +23,8 @@ import { getSocketManager } from '../runtime';
 import type { SocketBindingConfig } from '../types';
 import { slotKeyOf } from '../utils/slotKey';
 import { BackgroundReceiver } from './BackgroundReceiver';
+import { subscribeBackgroundDeltas } from './backgroundDeltas';
+import type { BackgroundDelta } from './types';
 
 // fake-indexeddb clones every value it stores, and jsdom has no structuredClone — the shim libs/db's
 // own IndexedDB suites use.
@@ -224,5 +226,41 @@ describe('background receive — a cloud off screen keeps its own partition curr
         // And B, which the user just left, is a background cloud now.
         const clientB = clientOf('cloud-b');
         await waitFor(() => expect(clientB.syncRequests).toEqual([{ since: 0 }]));
+    });
+
+    it('S11 (runtime half) — a kick after a push is announced once A has written the head and my cursor the count needs', async () => {
+        bind('default');
+        bind('cloud-b');
+        bind('cloud-a');
+        manager.setActiveSlot(B);
+        for (const cid of ['default', 'cloud-a', 'cloud-b']) verify(cid);
+        const clientA = clientOf('cloud-a');
+        clientA.answers.push({ list: [room('ch-1', 'site-a', 'general')], ids: ['ch-1'], syncedAt: 500 });
+        const deltas: BackgroundDelta[] = [];
+        // A's only — the relay is off screen too and announces its own.
+        const off = subscribeBackgroundDeltas(delta => {
+            if (delta.cid === 'cloud-a') deltas.push(delta);
+        });
+        receiver = new BackgroundReceiver(manager, { debounceMs: 20 });
+        await waitFor(() => expect(deltas).toHaveLength(1));
+
+        // A push for A reaches the app — its socket is not sent the message — and the app asks A now.
+        const markedAt = Date.now();
+        clientA.answers.push({
+            list: [{ ...room('ch-1', 'site-a', 'general'), chatNo: 7, $join: { channelId: 'ch-1', chatNo: 5 } }],
+            ids: ['ch-1'],
+            syncedAt: 900,
+        });
+        receiver.receiveNow('cloud-a');
+
+        await waitFor(() => expect(deltas).toHaveLength(2));
+        off();
+        expect(deltas[1].requestedAt).toBeGreaterThanOrEqual(markedAt);
+        // By the time it is announced, A's partition holds what the unread count is computed from.
+        const rows = await data.getScopedRepositories('cloud-a').channel.cacheReadList({});
+        const row = rows?.list[0] as { chatNo?: number; $join?: { chatNo?: number } } | undefined;
+        expect(row?.chatNo).toBe(7);
+        expect(row?.$join?.chatNo).toBe(5);
+        expect(clientOf('cloud-b').syncRequests).toEqual([]);
     });
 });

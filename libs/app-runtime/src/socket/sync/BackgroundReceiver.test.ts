@@ -478,6 +478,220 @@ describe('BackgroundReceiver', () => {
         expect(graphs.has(RELAY)).toBe(false);
     });
 
+    it('receiveNow with a cloud id asks that cloud only', async () => {
+        await startWithBackgroundA();
+        socket.bind(B);
+        socket.verify(B);
+        await flush();
+        const graphA = graphOf(A);
+        const graphB = graphOf(B);
+        graphA.channel.syncChannels.mockClear();
+        graphB.channel.syncChannels.mockClear();
+
+        receiver?.receiveNow(B);
+        jest.advanceTimersByTime(DEBOUNCE);
+        await flush();
+
+        expect(graphB.channel.syncChannels).toHaveBeenCalledTimes(1);
+        expect(graphA.channel.syncChannels).not.toHaveBeenCalled();
+    });
+
+    it('a burst of kicks for one cloud is one request, after the debounce', async () => {
+        await startWithBackgroundA();
+        const graph = graphOf(A);
+        graph.channel.syncChannels.mockClear();
+
+        receiver?.receiveNow(A);
+        receiver?.receiveNow(A);
+        receiver?.receiveNow(A);
+        await flush();
+        expect(graph.channel.syncChannels).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(DEBOUNCE);
+        await flush();
+        expect(graph.channel.syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('a kick re-reads the place list even inside the place interval', async () => {
+        await startWithBackgroundA();
+        const graph = graphOf(A);
+        graph.place.refreshList.mockClear();
+
+        receiver?.receiveNow(A);
+        jest.advanceTimersByTime(DEBOUNCE);
+        await flush();
+
+        expect(graph.place.refreshList).toHaveBeenCalledTimes(1);
+    });
+
+    it('a push landing in the same debounce as a kick does not lose the kick', async () => {
+        await startWithBackgroundA();
+        const graph = graphOf(A);
+        graph.place.refreshList.mockClear();
+
+        receiver?.receiveNow(A);
+        socket.push(A);
+        jest.advanceTimersByTime(DEBOUNCE);
+        await flush();
+
+        expect(graph.place.refreshList).toHaveBeenCalledTimes(1);
+    });
+
+    it('receiveNow with the active cloud id asks nothing', async () => {
+        await startWithBackgroundA();
+
+        receiver?.receiveNow(RELAY);
+        await flush();
+
+        expect(graphs.has(RELAY)).toBe(false);
+    });
+
+    describe('announcing answered deltas', () => {
+        it('announces each answered delta with the moment its request went out', async () => {
+            const onDelta = jest.fn();
+            socket.bind(RELAY);
+            socket.activate(RELAY);
+            start({ onDelta });
+            socket.bind(A);
+            const graph = graphOf(A);
+            // The answer comes back a second after the request, so the two moments are told apart.
+            graph.channel.syncChannels.mockImplementationOnce(async () => {
+                jest.setSystemTime(Date.now() + 1_000);
+                return { syncedAt: 2_000, removedCount: 0 };
+            });
+
+            socket.verify(A);
+            await flush();
+
+            expect(onDelta).toHaveBeenCalledTimes(1);
+            expect(onDelta).toHaveBeenCalledWith({ cid: 'cloud-a', requestedAt: 10_000_000 });
+        });
+
+        it('announces nothing for a delta that failed', async () => {
+            const onDelta = jest.fn();
+            socket.bind(RELAY);
+            socket.activate(RELAY);
+            start({ onDelta });
+            socket.bind(A);
+            graphOf(A).channel.syncChannels.mockRejectedValueOnce(new Error('408 timeout'));
+
+            socket.verify(A);
+            await flush();
+
+            expect(onDelta).not.toHaveBeenCalled();
+        });
+
+        it('announces nothing when the account changed while the delta was on its way', async () => {
+            const onDelta = jest.fn();
+            socket.bind(RELAY);
+            socket.activate(RELAY);
+            start({ onDelta });
+            socket.bind(A);
+            graphOf(A).channel.syncChannels.mockImplementationOnce(async () => {
+                uids.set(A, 'someone-else');
+                return { syncedAt: 5_000, removedCount: 0 };
+            });
+
+            socket.verify(A);
+            await flush();
+
+            expect(onDelta).not.toHaveBeenCalled();
+        });
+
+        it('a request that lands during a run is answered by a later request, announced with its own time', async () => {
+            const onDelta = jest.fn();
+            await startWithBackgroundA();
+            receiver?.destroy();
+            start({ onDelta });
+            await flush();
+            onDelta.mockClear();
+            const graph = graphOf(A);
+            let answer!: () => void;
+            graph.channel.syncChannels.mockImplementationOnce(
+                (since: number) =>
+                    new Promise(resolve => {
+                        answer = () => resolve({ syncedAt: since + 1, removedCount: 0 });
+                    })
+            );
+
+            receiver?.receiveNow(A);
+            jest.advanceTimersByTime(DEBOUNCE);
+            await flush();
+            jest.setSystemTime(Date.now() + 5_000);
+            receiver?.receiveNow(A);
+            jest.advanceTimersByTime(DEBOUNCE);
+            answer();
+            await flush();
+
+            expect(onDelta.mock.calls.map(([delta]) => delta.requestedAt)).toEqual([10_000_300, 10_005_600]);
+        });
+
+        it('a kick folded into a tick already in flight still reads places and is announced after both', async () => {
+            const onDelta = jest.fn();
+            await startWithBackgroundA();
+            receiver?.destroy();
+            start({ onDelta });
+            await flush();
+            onDelta.mockClear();
+            const graph = graphOf(A);
+            graph.place.refreshList.mockClear();
+            graph.channel.syncChannels.mockClear();
+            let answer!: () => void;
+            graph.channel.syncChannels.mockImplementationOnce(
+                (since: number) =>
+                    new Promise(resolve => {
+                        answer = () => resolve({ syncedAt: since + 1, removedCount: 0 });
+                    })
+            );
+
+            // A tick is on its way when the kick's debounce ends.
+            jest.advanceTimersByTime(INTERVAL);
+            await flush();
+            // The tick read places on its own (a new loop's first delta); only the kick's read counts here.
+            graph.place.refreshList.mockClear();
+            receiver?.receiveNow(A);
+            jest.advanceTimersByTime(DEBOUNCE);
+            answer();
+            await flush();
+
+            expect(graph.channel.syncChannels).toHaveBeenCalledTimes(2);
+            expect(graph.place.refreshList).toHaveBeenCalledTimes(1);
+            expect(onDelta).toHaveBeenCalledTimes(2);
+        });
+
+        it('a kick waits for its place list before announcing, and announces nothing if that read fails', async () => {
+            const onDelta = jest.fn();
+            await startWithBackgroundA();
+            receiver?.destroy();
+            start({ onDelta });
+            await flush();
+            onDelta.mockClear();
+            const graph = graphOf(A);
+            let finishPlaces!: (ok: boolean) => void;
+            graph.place.refreshList.mockImplementationOnce(
+                () =>
+                    new Promise<undefined>((resolve, reject) => {
+                        finishPlaces = ok => (ok ? resolve(undefined) : reject(new Error('502')));
+                    })
+            );
+
+            receiver?.receiveNow(A);
+            jest.advanceTimersByTime(DEBOUNCE);
+            await flush();
+            expect(graph.channel.syncChannels).toHaveBeenCalled();
+            expect(onDelta).not.toHaveBeenCalled();
+
+            finishPlaces(false);
+            await flush();
+            expect(onDelta).not.toHaveBeenCalled();
+
+            receiver?.receiveNow(A);
+            jest.advanceTimersByTime(DEBOUNCE);
+            await flush();
+            expect(onDelta).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it('stops a torn-down slot', async () => {
         await startWithBackgroundA();
         const graph = graphOf(A);

@@ -32,6 +32,13 @@ describe('startBackgroundReceive / refreshBackgroundClouds', () => {
         expect(mockInstances[0].receiveNow).toHaveBeenCalledTimes(1);
     });
 
+    it('hands a cloud id through, so one cloud can be asked alone', () => {
+        const stop = startBackgroundReceive();
+        refreshBackgroundClouds('cloud-a');
+        expect(mockInstances[0].receiveNow).toHaveBeenCalledWith('cloud-a');
+        stop();
+    });
+
     it('a second start replaces the first, and the first stop does not take the second down', () => {
         // StrictMode runs an effect, its cleanup and the effect again; a remount can interleave the same way.
         const stopFirst = startBackgroundReceive();
