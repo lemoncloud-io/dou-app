@@ -88,24 +88,24 @@ change every message on mobile, which is a separate decision.
 
 ### Desktop palette (light, from Figma `247-10714`)
 
-| Token                                  | HSL            | Hex / role                                                         |
-| -------------------------------------- | -------------- | ------------------------------------------------------------------ |
-| `--background`                         | `0 0% 100%`    | main pane                                                          |
-| `--foreground`                         | `0 0% 10%`     | `#1A1A1A`                                                          |
-| `--rail`                               | `0 0% 96%`     | `#F5F5F5` cloud rail                                               |
-| `--rail-elevated`                      | `0 0% 100%`    | place rail                                                         |
-| `--sidebar`                            | `0 0% 100%`    | channel list panel                                                 |
-| `--secondary` / `--muted` / `--accent` | `180 5% 96%`   | `#F4F5F5` chips, hover                                             |
-| `--muted-foreground`                   | `218 5% 40%`   | darker than BK_600 (3.6:1); 4.5:1 on hover and composer tints too  |
-| `--border` / `--hairline`              | `240 5% 92%`   | `#EAEAEC`                                                          |
-| `--input`                              | `240 6% 90%`   | `#E5E5E8` composer box                                             |
-| `--well`                               | `0 0% 96%`     | search bar, code block ground                                      |
-| `--destructive`                        | `358 80% 44%`  | deeper than Figma `#FF3B30`, which is 3.58:1 as text and as a fill |
-| `--warning`                            | `38 92% 50%`   | connecting banner                                                  |
-| `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                                          |
-| `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)                             |
-| `--favorite`                           | `35 100% 50%`  | `#FF9500`                                                          |
-| `--toast`                              | `220 7% 14%`   | `#222325` BK_900, always dark; neutral, not a navy of its own      |
+| Token                                  | HSL            | Hex / role                                                           |
+| -------------------------------------- | -------------- | -------------------------------------------------------------------- |
+| `--background`                         | `0 0% 100%`    | main pane                                                            |
+| `--foreground`                         | `0 0% 10%`     | `#1A1A1A`                                                            |
+| `--rail`                               | `0 0% 96%`     | `#F5F5F5` cloud rail                                                 |
+| `--rail-elevated`                      | `0 0% 100%`    | place rail                                                           |
+| `--sidebar`                            | `0 0% 100%`    | channel list panel                                                   |
+| `--secondary` / `--muted` / `--accent` | `180 5% 96%`   | `#F4F5F5` chips, hover                                               |
+| `--muted-foreground`                   | `218 5% 40%`   | darker than BK_600 (3.6:1); 4.5:1 on hover and composer tints too    |
+| `--border` / `--hairline`              | `240 5% 92%`   | `#EAEAEC`                                                            |
+| `--input`                              | `240 6% 90%`   | `#E5E5E8` composer box                                               |
+| `--well`                               | `0 0% 96%`     | search bar, code block ground                                        |
+| `--destructive`                        | `358 80% 44%`  | deeper than Figma `#FF3B30` (3.58:1 as text and as a fill), ADR-0133 |
+| `--warning`                            | `38 92% 50%`   | connecting banner                                                    |
+| `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                                            |
+| `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)                               |
+| `--favorite`                           | `35 100% 50%`  | `#FF9500`                                                            |
+| `--toast`                              | `220 7% 14%`   | `#222325` BK_900, always dark; neutral, not a navy of its own        |
 
 ### Desktop palette (dark, from Figma `254-541` / `259-566`)
 
