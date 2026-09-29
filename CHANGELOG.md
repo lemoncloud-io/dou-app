@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-09-29] - root@0.68.0, @chatic/web@0.54.0
+
+### Features
+
+- (web) count each cloud off screen from its own cache, not under the active uid (ADR-0126)
+- (app-runtime) announce each answered background delta, and let one cloud be asked by name
+
 ## [2026-09-29] - root@0.67.1, @chatic/web@0.53.1
 
 ### Features
