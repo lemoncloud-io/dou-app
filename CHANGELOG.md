@@ -2,6 +2,16 @@
 
 ## [2026-09-29] - No version updates
 
+### Refactor
+
+- (data) take the upload answers' types from lemon-model 1.5
+
+### Chores
+
+- (deps) lift the lemon-model pin to 1.5.0
+
+## [2026-09-29] - No version updates
+
 ### Features
 
 - (perf,web,app-runtime,mobile,data) trace a room open until its latest page is on screen
