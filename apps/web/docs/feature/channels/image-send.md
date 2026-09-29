@@ -141,7 +141,9 @@ rather than an address, so a refresh reaches it while open. Local previews are n
 The viewer opens at the tapped image and steps through the rest of the message's images, with a
 "2 / 3" count. The images sit side by side on a strip: a sideways drag moves it under the finger, and on
 release it slides on to the next image or back, the same slide the arrow buttons and keys use. Only the
-showing image and its neighbours load. The viewer reaches the images behind the "+n" tile too, and skips
+showing image and its neighbours load, and each draws its thumbnail — usually already kept, since the
+tile drew it — until the original has arrived, so a large original opens on a picture rather than on
+black. The viewer reaches the images behind the "+n" tile too, and skips
 broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
@@ -150,17 +152,69 @@ state, and the send lets a retry in only after it has marked the row failed. A r
 — a reload left it behind — answers with a notice to delete it. Deleting
 discards the files as well. The home list previews an image-only last message as a photo count.
 
+### The image cache
+
+What a server head draws is read through a cache keyed by the image, not by its address
+(`lib/imageCache.ts`, `hooks/useCachedImages.ts`). The key is `<cid>/<uploadId>/thumb|org`: an upload's
+bytes never change, while its signed address changes on every read of the message. The signing time is
+rounded to the hour, but the signing credential's token differs from read to read, so a browser cache
+keyed by URL missed every time. A room opened from the cache drew its images, the background re-read
+handed the same images new addresses, and all of them were downloaded again. The cloud is in the key
+because an upload id is only unique inside the server that issued it.
+
+A drawn image is looked up in memory (object URLs), then in the page's own IndexedDB database
+`ChaticImageCacheDB` (`lib/imageCacheStore.ts`, apart from `libs/db`'s chat cache because there is
+nothing to migrate with it), and only then fetched once from its signed address. While it is looked up
+the tile is an empty square. Nothing races a download of the address alongside the lookup, because
+that download is exactly what the cache saves. A key already in memory resolves in the same render, so
+a redraw with a new address does not blink.
+
+- **The signed address is the fallback and the failure signal.** If the fetch cannot be made — a 403
+  from an expired address, a bucket without CORS, offline, a body that is not an image — the tile draws
+  the address directly, and the expiry re-read above runs from its error as it always did. A kept copy
+  that fails to decode is dropped and falls back the same way, without a re-read: its address was never
+  the problem.
+- **Never worse than the address.** A store read that takes more than a second counts as a miss, so a
+  hung IndexedDB open cannot hold every tile blank; the store also lets go of a connection that was
+  closed or upgraded elsewhere and opens a new one. After a fetch that got no answer at all, loads skip
+  fetching for a minute and draw addresses directly.
+- **Only what is drawn is asked for:** a message's four visible tiles, and in the viewer the showing
+  original and its two neighbours, with their thumbnails. No original is fetched before the viewer
+  opens.
+- **Budgets:** 50 MB of thumbnails and 150 MB of originals on disk, evicted least recently used first
+  and counted apart, so a few opened photos (an original is uploaded as picked, often several MB) cannot
+  push every thumbnail out. A hit moves an image's place in that order at most once an hour. In
+  memory, up to 40 MB of object URLs that nothing is drawing stay around, ordered by when they were last
+  drawn. An image being drawn is never revoked, and memory is swept a second after a release: a redraw
+  lets go of its images and takes them again in one commit, and the render reads the cache a frame
+  before its effect takes them.
+- **Kept past its address.** A kept image stays viewable after its address would have expired, or after
+  the account lost access to the room — the same posture as the chat cache, which keeps the rows
+  themselves. Neither is cleared on logout.
+
+The trade-offs, and the server-side fix that would make the address itself cacheable, are recorded in
+[ADR-0128](../../../../../docs/adr/0128-chat-images-are-cached-by-upload-not-by-signed-address.md).
+
 ## Not done here
 
 - **Progress, cancel, a hash.** None are shown or sent.
 - **Zoom, save, share in the viewer.** It shows the original and steps between images only.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
+- **A cacheable address.** Making the signed address stable across reads, and giving the objects a
+  `Cache-Control`, is the server's side and not done; the page cache above works around it.
+- **A display-size original.** The viewer opens the original as uploaded. A smaller copy for the screen
+  would need the server to make one, or the send to resize the original — a product decision.
 
 ## How to verify
 
 ```bash
 npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hooks/useSendImages \
   apps/web/src/app/runtime/upload apps/web/src/app/bridge/shellUpload \
-  apps/web/src/app/features/channels/components/MessageImages
+  apps/web/src/app/features/channels/components/MessageImages \
+  apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages
 ```
+
+To see the cache work, send a photo in a room, reload, and open the room again: the tiles' `src` are
+`blob:` addresses, `ChaticImageCacheDB` holds one `meta` row per image, and a `PerformanceObserver` on
+`resource` entries sees no request to the bucket when the room is left and re-entered.
