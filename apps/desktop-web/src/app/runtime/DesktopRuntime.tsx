@@ -83,13 +83,13 @@ const AuthedNotifications = () => {
  * is unmounted.
  */
 const ShellUnreadSync = () => {
-    const byPlace = usePlaceUnreadCounts();
-    const setByPlace = useUnreadStore(s => s.setByPlace);
+    const unread = usePlaceUnreadCounts();
+    const setUnread = useUnreadStore(s => s.setUnread);
     useEffect(() => {
-        setByPlace(byPlace);
-    }, [byPlace, setByPlace]);
+        setUnread(unread);
+    }, [unread, setUnread]);
 
-    const total = Object.values(byPlace).reduce((sum, n) => sum + n, 0);
+    const { total } = unread;
     // Keep a cloud's rail dot when switching away from it with unread still pending.
     // Operates on the active-cloud total (its own concern), not the cross-cloud sum.
     useRetainLeavingCloudBadge(total);

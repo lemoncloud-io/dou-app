@@ -82,6 +82,15 @@ place, the second stays put, and once the list loads without the room HomePage m
 `openPlaceFor` picks (`pendingRedirectPlace`) — once per room, and never while a switch is in
 flight, so a list that never gains the room cannot bounce between places.
 
+## Unread
+
+The place rail puts a dot on every place that lists an unread 1:1, so a dot always leads to a
+Direct messages row. The window title and the OS badge count that 1:1 once (`placeUnreadCounts`
+keeps a per-channel total beside the per-place map); summing the places would count one conversation
+as many. The counts come from a separate whole-cloud listing (`usePlaceUnreadCounts`), not the
+sidebar's cache, and both place a 1:1 with `cloudDmPlaces`, so for a moment after a change a dot can
+sit on a place whose list has not caught up.
+
 ## Naming and picturing the other person
 
 One rule on every surface — the sidebar row, the room's header and intro, and the New message picker:

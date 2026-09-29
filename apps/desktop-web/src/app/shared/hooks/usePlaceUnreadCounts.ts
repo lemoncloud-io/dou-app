@@ -4,13 +4,15 @@ import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
-import { computeChannelUnread } from '../utils';
+import { cloudDmPlaces, placeUnreadCounts } from '../utils';
 import { useKnownChannelsStore, useReadCursorStore } from '../stores';
+import { usePlaces } from './usePlaces';
 
 const REFETCH_DEBOUNCE_MS = 300;
 
 /**
- * Per-place unread counts for the active cloud, keyed by sid.
+ * Per-place unread counts for the active cloud, keyed by place id, and their total. A 1:1 counts
+ * in every place that lists it and once in the total (`placeUnreadCounts`).
  *
  * Fetches every channel of the active cloud into a flat in-memory list (`channel.fetchList`,
  * `hasSite: false`, with detail) and derives unread client-side — the pre-v2 desktop approach. It
@@ -27,13 +29,15 @@ const REFETCH_DEBOUNCE_MS = 300;
  * socket chat frame. The local read cursor re-derives instantly (no refetch) so a badge clears the
  * moment you read.
  */
-export const usePlaceUnreadCounts = (): Record<string, number> => {
+export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total: number } => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const session = runtime.session.useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
+    const { places } = usePlaces();
+    const placeIds = useMemo(() => places.map(place => place.id ?? '').filter(Boolean), [places]);
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
     // Drops a late response from a superseded fetch (cloud switch / newer trigger).
@@ -101,17 +105,12 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
         };
     }, [schedule]);
 
-    return useMemo(() => {
-        const grouped: Record<string, number> = {};
-        for (const ch of channels) {
-            if (!ch.sid) continue;
-            // Read boundary: the channel's own `$join` (chatNo + the metaNo snapshot that nets
-            // system messages out), with the local cursor clearing the badge on read.
-            grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, readCursors[ch.id ?? '']);
-        }
-        for (const sid of Object.keys(grouped)) {
-            if (!grouped[sid]) delete grouped[sid];
-        }
-        return grouped;
-    }, [channels, myUid, readCursors]);
+    const dmPlaces = useMemo(
+        () => cloudDmPlaces(channels, { myUid: myUid ?? null, placeIds }),
+        [channels, myUid, placeIds]
+    );
+    return useMemo(
+        () => placeUnreadCounts(channels, { myUid: myUid ?? null, dmPlaces, readCursors }),
+        [channels, myUid, dmPlaces, readCursors]
+    );
 };

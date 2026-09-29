@@ -632,8 +632,7 @@ export const HomePage = () => {
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
     const placeName = selectedPlace?.name?.trim() || selectedPlace?.id || '';
-    const totalUnread = Object.values(unreadByPlace).reduce((sum, count) => sum + count, 0);
-    const cloudHasUnread = totalUnread > 0;
+    const cloudHasUnread = useUnreadStore(s => s.total) > 0;
 
     // One member subscription per open channel, shared by the chat pane (author
     // names) and the settings panel (roster/kick) — avoids a duplicate fetch.
