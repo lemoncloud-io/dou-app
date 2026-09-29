@@ -50,6 +50,32 @@ target 'Chatic' do
       :mac_catalyst_enabled => false
     )
 
+    # react-native-config generates `Config` in a script phase of its own Pod target, and that
+    # script reads `ENVFILE` from the Pod target's build settings — the app target's per-configuration
+    # `ENVFILE` never reaches it. Without this the script falls back to `.env` (the LOCAL env), and a
+    # prod archive ships the local/dev `Config` next to the prod GoogleService-Info.plist, which Google
+    # Sign-In rejects as `invalid_audience`. Copy the app target's mapping so project.pbxproj stays the
+    # one place it is defined; an xcodebuild command-line `ENVFILE=...` build setting (the local
+    # override) still wins over both, while a shell variable does not. A leftover `/tmp/envfile` beats
+    # all of this — react-native-config reads it first — so scripts/deploy-mobile.sh refuses to run
+    # with one present.
+    app_target = installer.aggregate_targets
+      .flat_map { |t| t.user_project.native_targets }
+      .find { |t| t.name == 'Chatic' }
+    raise 'Podfile: app target "Chatic" not found — cannot map ENVFILE onto react-native-config' unless app_target
+    envfiles = app_target.build_configurations.to_h { |c| [c.name, c.build_settings['ENVFILE']] }
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'react-native-config'
+      target.build_configurations.each do |config|
+        envfile = envfiles[config.name]
+        raise "Podfile: no ENVFILE build setting on Chatic's \"#{config.name}\" configuration" if envfile.to_s.empty?
+        # The raw pbxproj value is copied, so a `$(...)` reference would resolve in the Pod target's
+        # scope instead of the app's — only a literal file name carries over safely.
+        raise "Podfile: Chatic's \"#{config.name}\" ENVFILE must be a literal file name, got #{envfile}" if envfile.include?('$')
+        config.build_settings['ENVFILE'] = envfile
+      end
+    end
+
     # ReactNativeStaticServer(lighttpd)의 CMake 빌드 스크립트가 ${TARGET_TEMP_DIR}/${PODS_TARGET_SRCROOT}를
     # quote 없이 넘겨서, 스킴/설정 이름에 공백이 있는 "Chatic Dev"/"Release Dev" 빌드에서 셸이 경로를
     # 단어 단위로 쪼개고 `cmake --build`가 "Unknown argument ..."로 실패한다. 두 변수를 quote해서 고친다.
