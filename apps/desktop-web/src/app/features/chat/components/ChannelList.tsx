@@ -18,7 +18,7 @@ import {
     lastChatNoOf,
     resolveDisplay,
     messagePlainText,
-    useAuthorNames,
+    useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
     useComposerDraftStore,
@@ -28,7 +28,7 @@ import {
 } from '../../../shared';
 import { SearchDialog } from '../../search';
 import { ChannelActionDialogs, useChannelActions } from '../../channels';
-import { useLastChat } from '../hooks';
+import { useHydrateDmPeers, useLastChat } from '../hooks';
 import { useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
@@ -51,6 +51,11 @@ interface ChannelListProps {
     isDefaultMode: boolean;
     /** The Channels section's "+" (hidden on the Default Cloud, which cannot create channels). */
     onCreateChannel?: () => void;
+    /**
+     * The Direct messages section's "+", which opens the new-message picker. Passed only where a
+     * 1:1 can be started (not on the Default Cloud); with it, the section shows even while empty.
+     */
+    onCreateDm?: () => void;
 }
 
 const ChannelSkeleton = () => {
@@ -200,6 +205,20 @@ const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
+/** A section header's "+" — the Channels and Direct messages sections share it. */
+const SectionAddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
+    <Hint label={label}>
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
+        >
+            <Plus size={16} aria-hidden />
+        </button>
+    </Hint>
+);
+
 export const ChannelList = ({
     channels,
     isLoading,
@@ -211,6 +230,7 @@ export const ChannelList = ({
     onSelectElsewhere,
     isDefaultMode,
     onCreateChannel,
+    onCreateDm,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
@@ -269,13 +289,24 @@ export const ChannelList = ({
         return split;
     }, [channels]);
 
-    // DM rows label as the other party — resolve their name from the user cache
-    // (Place Profile nick wins, same as message authors).
+    // DM rows show the other party: this place's profile where they set one, else their cloud
+    // profile from the user cache — field by field, so a place nick with no place photo keeps the
+    // cloud photo.
     const counterpartIds = useMemo(
         () => dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
         [dms, myUid]
     );
-    const counterpartNames = useAuthorNames(counterpartIds);
+    const counterpartProfiles = useCloudProfiles(counterpartIds);
+    // Rows this place's profiles don't name read the user cache, which only an opened room fills.
+    const unnamedPeers = useMemo(
+        () =>
+            dms.flatMap(c => {
+                const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
+                return c.id && peerId && !placeProfiles[peerId]?.nick?.trim() ? [{ channelId: c.id, peerId }] : [];
+            }),
+        [dms, myUid, placeProfiles]
+    );
+    useHydrateDmPeers(unnamedPeers);
 
     /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
     const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode } => {
@@ -294,8 +325,8 @@ export const ChannelList = ({
         const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
         const display = resolveDisplay(
             counterpartId ? placeProfiles[counterpartId] : undefined,
-            counterpartNames.get(counterpartId) ?? channel.name ?? counterpartId,
-            undefined
+            counterpartProfiles.get(counterpartId)?.name ?? channel.name ?? counterpartId,
+            counterpartProfiles.get(counterpartId)?.thumbnail
         );
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),
@@ -398,6 +429,9 @@ export const ChannelList = ({
 
     // A filtered view is a subset — dragging it would write a partial order, so rows lock.
     const isFiltering = query.trim().length > 0;
+    // An empty section still has to hold its "+", or the first 1:1 has nowhere to start from. A
+    // filter that matches no 1:1 hides it, like every other section.
+    const showDmSection = visibleDms.length > 0 || (!!onCreateDm && !isFiltering);
 
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
@@ -559,29 +593,21 @@ export const ChannelList = ({
                             // Default Cloud (Self Channel only) does not support channel creation.
                             !isDefaultMode &&
                             onCreateChannel && (
-                                <Hint label={t('rail.addChannel')}>
-                                    <button
-                                        type="button"
-                                        onClick={onCreateChannel}
-                                        aria-label={t('rail.addChannel')}
-                                        className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
-                                    >
-                                        <Plus size={16} aria-hidden />
-                                    </button>
-                                </Hint>
+                                <SectionAddButton label={t('rail.addChannel')} onClick={onCreateChannel} />
                             )
                         }
                     />
-                    {visibleDms.length > 0 && <Divider />}
+                    {showDmSection && <Divider />}
                 </>
             )}
-            {visibleDms.length > 0 && (
+            {showDmSection && (
                 <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
                     items={visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
                     dragDisabled={isFiltering}
                     onReorder={makeSectionReorder('dm')}
+                    action={onCreateDm && <SectionAddButton label={t('dm.new.open')} onClick={onCreateDm} />}
                 />
             )}
             {/* The row menus' dialog stack renders ONCE here, keyed to the last

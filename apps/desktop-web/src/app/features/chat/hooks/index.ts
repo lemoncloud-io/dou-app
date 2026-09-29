@@ -7,3 +7,5 @@ export * from './useReadCounts';
 export * from './useChatImages';
 export * from './useImageAttachments';
 export * from './useFileDrop';
+export * from './useHydrateDmPeers';
+export * from './usePendingLanding';

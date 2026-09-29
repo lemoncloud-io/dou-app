@@ -1,12 +1,14 @@
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, MessageCircle } from 'lucide-react';
+
+import { runtime } from '@chatic/app-runtime';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
-import { useCopyToClipboard, useDisplayProfile, useUser } from '../hooks';
+import { useCopyToClipboard, useDisplayProfile, useStartDm, useUser } from '../hooks';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { avatarStyle, bannerStyle } from '../utils';
 
@@ -29,13 +31,19 @@ interface UserProfilePopoverProps {
 interface ProfileCardContentProps extends Omit<UserProfilePopoverProps, 'children'> {
     /** Renders a "View full profile" row that hands off to the trailing panel (popover only). */
     onExpand?: () => void;
+    /**
+     * Called once "Message" has opened the 1:1, so the surface showing the card gets out of the
+     * way. Both the popover and the panel pass it: opening the 1:1 you are already in selects no
+     * new channel, so nothing else would close them.
+     */
+    onClose?: () => void;
 }
 
 /**
  * Card body. Rendered only while the popover is open (Radix unmounts closed
  * content), so the user subscription lives only for the open card — never one
  * per message row. Other users expose just avatar/name/nick, so the card stays
- * deliberately minimal: hue banner, identity, and a copy-id row. Also reused as
+ * deliberately minimal: hue banner, identity, a Message action, and a copy-id row. Also reused as
  * the body of the trailing ProfilePanel (without onExpand).
  */
 export const ProfileCardContent = ({
@@ -44,11 +52,22 @@ export const ProfileCardContent = ({
     fallbackThumbnail,
     colorSeed,
     isOwner,
+    isMe,
     onExpand,
+    onClose,
 }: ProfileCardContentProps) => {
     const { t } = useTranslation();
     const user = useUser(userId || null);
     const [copied, copy] = useCopyToClipboard();
+    const { startDm, isStarting, isAvailable: canStartDm } = useStartDm();
+    // Not every host passes `isMe` (a mention in a message does not), and either of my ids —
+    // the account one or this cloud's — can be the one on the card.
+    const myUid = runtime.session.useSessionIdentity().userId;
+    const myCloudUid = runtime.session.useUidInCloud(runtime.session.useGlobalSession().cloud.cloudId ?? '');
+    const isMine = !!isMe || userId === myUid || userId === myCloudUid;
+    const handleMessage = async () => {
+        if (await startDm(userId)) onClose?.();
+    };
 
     // The trigger's rendered identity wins over the global record: the Place
     // override may be keyed by a different uid than `userId` (own messages
@@ -86,6 +105,18 @@ export const ProfileCardContent = ({
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                         {t('profile.channelCount', { count: channelCount })}
                     </span>
+                )}
+
+                {userId && canStartDm && !isMine && (
+                    <button
+                        type="button"
+                        onClick={handleMessage}
+                        disabled={isStarting}
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                    >
+                        <MessageCircle size={14} aria-hidden />
+                        {t('dm.start.message')}
+                    </button>
                 )}
 
                 {/* The numeric id is for support, not for a teammate glancing at a
@@ -162,6 +193,7 @@ export const UserProfilePopover = ({
                     isOwner={isOwner}
                     isMe={isMe}
                     onExpand={expand}
+                    onClose={() => setOpen(false)}
                 />
             </PopoverContent>
         </Popover>

@@ -54,8 +54,7 @@ export const useStartDm = (): UseStartDmResult => {
 
             try {
                 const channel = await channelRepository.startDm({ peerId });
-                // The repository stores the row before this resolves, so a room with no id would mean
-                // the cache holds something the list cannot key. Treat it as a failure rather than
+                // A room with no id cannot be addressed, so treat it as a failure rather than
                 // navigating to `/channels/undefined/room`.
                 if (!channel?.id) throw new Error('[useStartDm] the room came back without an id');
                 navigate(ROUTES.channels.room(channel.id));

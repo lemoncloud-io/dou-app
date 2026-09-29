@@ -45,7 +45,7 @@ export const ProfilePanel = () => {
             </header>
             <div className="scrollbar-thin flex-1 overflow-y-auto">
                 {/* Remount per user so copy state / user subscription reset on target switch. */}
-                <ProfileCardContent key={target.userId} {...target} />
+                <ProfileCardContent key={target.userId} {...target} onClose={close} />
             </div>
         </ResizablePanel>
     );

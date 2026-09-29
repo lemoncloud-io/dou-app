@@ -6,7 +6,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 // pool is the union of my other channels' rosters. An unfiltered user-cache read would also
 // return chat authors and profile lookups, so the union must be assembled per channel id.
 let rostersByChannel: Record<string, Array<Record<string, unknown>>> = {};
-let channels: Array<{ id: string; name: string; memberIds?: string[] }> = [];
+let channels: Array<{ id: string; name: string; memberIds?: string[]; stereo?: string }> = [];
 let isVerified = true;
 let refreshRejects: string[] = [];
 
@@ -37,7 +37,8 @@ vi.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
-vi.mock('../../../shared', () => ({
+vi.mock('../../../shared', async () => ({
+    ...(await vi.importActual<object>('../../../shared/utils/dmDisplay')),
     useChannels: () => ({ channels, isLoading: false }),
     useCurrentPlace: () => ({ place: undefined, placeName: '', placeId: 'site-1' }),
 }));
@@ -178,5 +179,66 @@ describe('useInviteCandidates', () => {
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         // u-1 is already in the channel; without the memberIds fallback the empty roster would offer them.
         expect(result.current.candidates.map(c => c.id)).toEqual(['u-2']);
+    });
+
+    it('offers everyone from my channels, minus me, when there is no target channel', async () => {
+        channels = [
+            { id: 'ch-a', name: 'design' },
+            { id: 'ch-b', name: 'random' },
+        ];
+        rostersByChannel = {
+            'ch-a': [{ id: 'me' }, { id: 'u-1', name: 'Aiden' }],
+            'ch-b': [{ id: 'me' }, { id: 'u-2', name: 'SteveJ' }],
+        };
+
+        const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.candidates.map(c => c.id).sort()).toEqual(['u-1', 'u-2']);
+    });
+
+    it('loads nothing while disabled, with no target', () => {
+        channels = [{ id: 'ch-a', name: 'design' }];
+
+        renderHook(() => useInviteCandidates(null));
+
+        expect(refreshList).not.toHaveBeenCalled();
+    });
+
+    it('does not name a 1:1 as the channel a candidate comes from', async () => {
+        // A 1:1 usually has no name, so its label would fall back to a raw channel id.
+        channels = [
+            { id: 'ch-a', name: 'design' },
+            { id: 'dm-1', name: '', stereo: 'dm' },
+        ];
+        rostersByChannel = {
+            'ch-a': [{ id: 'u-1', name: 'Aiden' }],
+            'dm-1': [{ id: 'me' }, { id: 'u-1', name: 'Aiden' }, { id: 'u-2', name: 'SteveJ' }],
+        };
+
+        const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        const byId = new Map(result.current.candidates.map(c => [c.id, c.viaChannels]));
+        expect(byId.get('u-1')).toEqual(['design']);
+        expect(byId.get('u-2')).toEqual([]);
+    });
+
+    it('reads 1:1 and self rosters from the cache without fetching them', async () => {
+        channels = [
+            { id: 'ch-a', name: 'design' },
+            { id: 'dm-1', name: '', stereo: 'dm' },
+            { id: 'self-1', name: '', stereo: 'self' },
+        ];
+        rostersByChannel = {
+            'ch-a': [{ id: 'me' }, { id: 'u-1', name: 'Aiden' }],
+            'dm-1': [{ id: 'me' }, { id: 'u-2', name: 'SteveJ' }],
+        };
+
+        const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(refreshList.mock.calls.map(([query]) => query.channelId)).toEqual(['ch-a']);
+        expect(result.current.candidates.map(c => c.id).sort()).toEqual(['u-1', 'u-2']);
     });
 });

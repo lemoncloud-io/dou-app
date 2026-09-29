@@ -19,6 +19,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `createChannel` · `startDm` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` ·
 `getSelfChannel` · `cache*`
 
+- `startDm({ peerId })` — opens or returns the one room for a pair, and caches it when the answer names a place. The answer for a room it has just created names none (later reads do), so that row arrives with the next `syncChannels` instead of failing the call.
 - `syncChannels(since)` — interprets the result of `channel.sync({ since })`. `since: 0` is a full sync, `since > 0` is a delta. The response's `list` is the snapshot of changed channels, `ids` is every channel id I currently belong to, and `syncedAt` is the value to store as the next `since`. The repository writes `list` to local and **stale-removes** any channel missing from `ids`.
 - `refreshList(query)` — the secondary initial-load path, based on `channel.mine`. In a sync-centred structure the canonical source is `syncChannels`.
 - `fetchList(query)` — the counterpart to `refreshList`, except it **returns the result without writing to local.** Use it when the server list is needed without touching the cache.

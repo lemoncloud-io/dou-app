@@ -73,9 +73,27 @@ vi.mock('@chatic/shared', async () => ({
 }));
 
 let lastChat: DomainChat | undefined;
-vi.mock('../hooks', () => ({ useLastChat: () => lastChat }));
-vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
-vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => ({}) }));
+// The last rows the sidebar asked to have named, and the place profiles it sees.
+const hydrate = vi.hoisted(() => ({
+    peers: [] as unknown[],
+    profiles: {} as Record<string, { nick?: string; thumbnail?: string }>,
+    cloud: new Map<string, { name?: string; thumbnail?: string }>(),
+}));
+vi.mock('../hooks', () => ({
+    useLastChat: () => lastChat,
+    useHydrateDmPeers: (peers: unknown[]) => {
+        hydrate.peers = peers;
+    },
+}));
+vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useCloudProfiles: () => hydrate.cloud }));
+// Radix only mounts an avatar image once it has loaded, which never happens in jsdom; render the
+// requested photo as a marker instead so a row's chosen photo can be read.
+vi.mock('@chatic/ui-kit/components/ui/avatar', () => ({
+    Avatar: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+    AvatarImage: ({ src }: { src?: string }) => <span data-photo={src} />,
+    AvatarFallback: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+}));
+vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => hydrate.profiles }));
 // Both mount global keyboard/dialog machinery; this file is about what a row renders.
 // `dialogStub.portal` turns the switcher into the shape that matters for the arrow-key
 // guard: a portalled input that is a React child of the nav but a DOM child of body.
@@ -657,5 +675,119 @@ describe('ChannelList folded section', () => {
         expect(screen.getByText('launch')).toBeTruthy();
         // Unfold again so the persisted fold does not leak into other tests.
         fireEvent.click(screen.getByRole('button', { name: 'Channels' }));
+    });
+});
+
+describe('ChannelList Direct messages "+"', () => {
+    const general = { id: 'C1', name: 'general' } as DomainChannel;
+    const renderWith = (props: { onCreateDm?: () => void; query?: string; channels?: DomainChannel[] }) =>
+        render(
+            <ChannelList
+                channels={props.channels ?? [general]}
+                isLoading={false}
+                selectedChannelId={null}
+                query={props.query ?? ''}
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+                onCreateDm={props.onCreateDm}
+            />,
+            { wrapper }
+        );
+
+    // The first 1:1 has to start somewhere, so the section keeps its header while empty.
+    it('shows the section with its "+" before there is any 1:1, and opens the picker', () => {
+        const onCreateDm = vi.fn();
+        renderWith({ onCreateDm });
+
+        expect(screen.getByRole('button', { name: 'Direct messages' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'New message' }));
+        expect(onCreateDm).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the empty section where a 1:1 cannot be started', () => {
+        renderWith({});
+
+        expect(screen.queryByRole('button', { name: 'Direct messages' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'New message' })).toBeNull();
+    });
+
+    it('hides the empty section while a filter matches no 1:1', () => {
+        renderWith({ onCreateDm: vi.fn(), query: 'gen' });
+
+        expect(screen.queryByRole('button', { name: 'Direct messages' })).toBeNull();
+    });
+
+    it('offers the "+" next to existing 1:1s too', () => {
+        const dm = { id: 'D1', stereo: 'dm', name: 'u1' } as DomainChannel;
+        renderWith({ onCreateDm: vi.fn(), channels: [general, dm] });
+
+        expect(screen.getByRole('button', { name: 'New message' })).toBeTruthy();
+    });
+});
+
+describe('ChannelList 1:1 names', () => {
+    it('asks to name only the 1:1 rows no place profile names', () => {
+        hydrate.profiles = { 'u-named': { nick: 'Aiden' }, 'u-blank': { nick: '  ' } };
+        const channels = [
+            { id: 'C1', name: 'general', memberIds: ['me', 'u-group'] },
+            { id: 'D1', stereo: 'dm', memberIds: ['me', 'u-named'] },
+            { id: 'D2', stereo: 'dm', memberIds: ['me', 'u-plain'] },
+            { id: 'D3', stereo: 'dm', memberIds: ['me', 'u-blank'] },
+            { id: 'D4', stereo: 'dm', memberIds: ['me'] },
+            { id: 'S1', stereo: 'self', memberIds: ['me'] },
+        ] as DomainChannel[];
+
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        expect(hydrate.peers).toEqual([
+            { channelId: 'D2', peerId: 'u-plain' },
+            { channelId: 'D3', peerId: 'u-blank' },
+        ]);
+        hydrate.profiles = {};
+    });
+
+    it("shows this place's nick and photo where set, else the cloud profile's", () => {
+        hydrate.profiles = { 'u-place': { nick: 'Placey', thumbnail: 'place.png' }, 'u-nick': { nick: 'Nicky' } };
+        hydrate.cloud = new Map([
+            ['u-place', { name: 'cloud-place', thumbnail: 'cloud-place.png' }],
+            ['u-nick', { name: 'cloud-nick', thumbnail: 'cloud-nick.png' }],
+            ['u-cloud', { name: 'Cloudy', thumbnail: 'cloud.png' }],
+        ]);
+        const channels = [
+            { id: 'D1', stereo: 'dm', memberIds: ['me', 'u-place'] },
+            { id: 'D2', stereo: 'dm', memberIds: ['me', 'u-nick'] },
+            { id: 'D3', stereo: 'dm', memberIds: ['me', 'u-cloud'] },
+        ] as DomainChannel[];
+
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        const photoOf = (name: RegExp) =>
+            screen.getByRole('button', { name }).querySelector('[data-photo]')?.getAttribute('data-photo');
+        expect(photoOf(/Placey/)).toBe('place.png');
+        // A place nick with no place photo keeps the cloud photo.
+        expect(photoOf(/Nicky/)).toBe('cloud-nick.png');
+        expect(photoOf(/Cloudy/)).toBe('cloud.png');
+        hydrate.profiles = {};
+        hydrate.cloud = new Map();
     });
 });

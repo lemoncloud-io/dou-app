@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
+
 /** One channel the user has seen, remembered so the switcher can offer it again. */
 interface KnownChannel {
     channelId: string;
@@ -19,7 +21,11 @@ interface KnownChannelsState {
      * across places, so the id alone would let one place's channel overwrite another's.
      */
     byCloud: Record<string, Record<string, KnownChannel>>;
-    record: (cloudId: string, placeId: string, channels: { id?: string; name?: string }[]) => void;
+    record: (
+        cloudId: string,
+        placeId: string,
+        channels: Pick<DomainChannel, 'id' | 'name' | 'stereo' | 'cid'>[]
+    ) => void;
     forget: (cloudId: string) => void;
 }
 
@@ -49,7 +55,10 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                     let changed = false;
                     for (const channel of channels) {
                         const channelId = channel.id;
-                        if (!channelId) continue;
+                        // A cloud 1:1 is listed in every place of its cloud, so filing it under the
+                        // place it was seen in would have the switcher offer it "in another place"
+                        // while it already sits in the open one.
+                        if (!channelId || isCloudWideChannel(channel)) continue;
                         const name = channel.name ?? '';
                         const key = `${placeId}:${channelId}`;
                         const prev = next[key];
@@ -80,7 +89,8 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                     return { byCloud };
                 }),
         }),
-        // v1 keyed by channel id alone; dropping it costs one relearn from the cloud list.
-        { name: 'chatic-known-channels', version: 1, migrate: () => ({ byCloud: {} }) }
+        // v1 keyed by channel id alone; v2 stops filing cloud 1:1s under a place, and a v1 index
+        // can still hold ones filed before that. Dropping either costs one relearn from the cloud list.
+        { name: 'chatic-known-channels', version: 2, migrate: () => ({ byCloud: {} }) }
     )
 );

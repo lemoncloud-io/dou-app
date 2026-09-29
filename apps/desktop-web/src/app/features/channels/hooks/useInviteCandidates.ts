@@ -1,18 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { DomainUser } from '@chatic/data';
+import type { DomainChannel, DomainUser } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
-import { useChannels, useCurrentPlace } from '../../../shared';
+import { isDmChannel, isSelfChannel, useChannels, useCurrentPlace } from '../../../shared';
 
 export interface InviteCandidate extends DomainUser {
     /** Channel names (or ids) this candidate is already a member of — shown as context. */
     viaChannels: string[];
 }
 
+interface InviteCandidatesOptions {
+    /**
+     * Load the pool. Defaults to "a target is set", which is how the add-members picker says it
+     * is open. A picker with no target channel (starting a 1:1) turns it on explicitly.
+     */
+    enabled?: boolean;
+}
+
+// The label a candidate's "via" context shows for a channel, or '' for none. A 1:1 or a
+// notes-to-self room usually has no name, and its fallback would be a raw channel id; the
+// person is still offered, just without that room as context.
+const viaLabelOf = (channel: DomainChannel): string =>
+    isDmChannel(channel) || isSelfChannel(channel) ? '' : (channel.name ?? channel.id ?? '');
+
 /**
  * People I can add to `targetChannelId`: every member of my *other* channels in the
- * active place, minus the target's current members and myself.
+ * active place, minus the target's current members and myself. With no target (a picker that
+ * opens a 1:1 rather than adding to a room) it is every member of my channels, minus myself.
  *
  * There is no cloud-wide user directory on the server — `channel.list-user` is scoped
  * to one channel — so the pool is assembled client-side by loading each of my channels'
@@ -26,7 +41,10 @@ export interface InviteCandidate extends DomainUser {
  * network pass re-runs on the false→true edge.
  * Mount this only while the picker is open; it fans out one request per channel.
  */
-export const useInviteCandidates = (targetChannelId: string | null) => {
+export const useInviteCandidates = (
+    targetChannelId: string | null,
+    { enabled = targetChannelId !== null }: InviteCandidatesOptions = {}
+) => {
     const { user: userRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const { userId: myUid } = runtime.session.useSessionIdentity();
@@ -43,14 +61,16 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
     const channelKey = channels.map(c => c.id ?? '').join(',');
     // Names are keyed separately: renaming a channel leaves the id set untouched, so keying the
     // name map on channelKey alone would keep showing the old name under every candidate.
-    const channelNameKey = channels.map(c => `${c.id ?? ''}\u0000${c.name ?? ''}`).join(',');
+    const channelNameKey = channels.map(c => `${c.id ?? ''}\u0000${viaLabelOf(c)}`).join(',');
     const targetMemberKey = (channels.find(c => c.id === targetChannelId)?.memberIds ?? []).join(',');
 
     const myChannelIds = useMemo(() => channelKey.split(',').filter(Boolean), [channelKey]);
-    const channelNameById = useMemo(
-        () => new Map(channels.map(c => [c.id ?? '', c.name ?? c.id ?? ''])),
-        [channelNameKey]
-    );
+    const personalRoomKey = channels
+        .filter(c => isDmChannel(c) || isSelfChannel(c))
+        .map(c => c.id ?? '')
+        .join(',');
+    const personalRoomIds = useMemo(() => new Set(personalRoomKey.split(',').filter(Boolean)), [personalRoomKey]);
+    const channelNameById = useMemo(() => new Map(channels.map(c => [c.id ?? '', viaLabelOf(c)])), [channelNameKey]);
     // Second exclusion source, independent of the roster read: the channel record's own member
     // list. Without it a failed (or not-yet-run) target roster fetch leaves the exclusion set
     // empty and the picker offers people who are already in the channel.
@@ -61,18 +81,22 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
     // one showing the rosters already cached; the effect re-runs on the false→true edge.
     const load = useCallback(
         async (fetch: boolean): Promise<InviteCandidate[]> => {
-            if (!targetChannelId) return [];
-            const channelIds = myChannelIds.includes(targetChannelId)
-                ? myChannelIds
-                : [...myChannelIds, targetChannelId];
+            if (!enabled) return [];
+            const channelIds =
+                !targetChannelId || myChannelIds.includes(targetChannelId)
+                    ? myChannelIds
+                    : [...myChannelIds, targetChannelId];
 
             // One roster per channel, all at once — order does not matter. A roster read hydrates
             // each member's read-state into the join cache, which is keyed `channelId@userId`, so
             // no channel can overwrite another's. A channel that fails (permissions, transport)
             // simply contributes nobody — a partial pool is more useful than an empty one.
+            // 1:1 and self rooms are read from the cache only: their one other member is someone I
+            // already talk to, and the sidebar loads that roster when it names the row.
+            const fetchIds = channelIds.filter(id => id === targetChannelId || !personalRoomIds.has(id));
             const results = fetch
                 ? await Promise.allSettled(
-                      channelIds.map(channelId => userRepository.refreshList({ channelId, detail: true }))
+                      fetchIds.map(channelId => userRepository.refreshList({ channelId, detail: true }))
                   )
                 : [];
             if (results.length > 0 && results.every(r => r.status === 'rejected')) {
@@ -97,19 +121,20 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
                 if (channelId === targetChannelId) continue;
                 for (const user of users) {
                     if (!user.id || user.id === myUid || excluded.has(user.id)) continue;
-                    const via = channelNameById.get(channelId) ?? channelId;
+                    const label = channelNameById.get(channelId) ?? channelId;
+                    const via = label ? [label] : [];
                     const existing = byId.get(user.id);
-                    if (existing) existing.viaChannels.push(via);
-                    else byId.set(user.id, { ...user, viaChannels: [via] });
+                    if (existing) existing.viaChannels.push(...via);
+                    else byId.set(user.id, { ...user, viaChannels: via });
                 }
             }
             return [...byId.values()];
         },
-        [userRepository, targetChannelId, myChannelIds, channelNameById, targetMemberIds, myUid]
+        [userRepository, enabled, targetChannelId, myChannelIds, personalRoomIds, channelNameById, targetMemberIds, myUid]
     );
 
     useEffect(() => {
-        if (!targetChannelId) return;
+        if (!enabled) return;
         let cancelled = false;
         setIsLoading(true);
         setError(null);
@@ -126,7 +151,7 @@ export const useInviteCandidates = (targetChannelId: string | null) => {
         return () => {
             cancelled = true;
         };
-    }, [load, targetChannelId, isVerified]);
+    }, [load, enabled, isVerified]);
 
     return { candidates, isLoading, error };
 };
