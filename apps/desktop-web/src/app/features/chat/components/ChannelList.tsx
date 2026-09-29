@@ -18,7 +18,7 @@ import {
     lastChatNoOf,
     resolveDisplay,
     messagePlainText,
-    useAuthorNames,
+    useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
     useComposerDraftStore,
@@ -289,13 +289,14 @@ export const ChannelList = ({
         return split;
     }, [channels]);
 
-    // DM rows label as the other party — resolve their name from the user cache
-    // (Place Profile nick wins, same as message authors).
+    // DM rows show the other party: this place's profile where they set one, else their cloud
+    // profile from the user cache — field by field, so a place nick with no place photo keeps the
+    // cloud photo.
     const counterpartIds = useMemo(
         () => dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
         [dms, myUid]
     );
-    const counterpartNames = useAuthorNames(counterpartIds);
+    const counterpartProfiles = useCloudProfiles(counterpartIds);
     // Rows this place's profiles don't name read the user cache, which only an opened room fills.
     const unnamedPeers = useMemo(
         () =>
@@ -324,8 +325,8 @@ export const ChannelList = ({
         const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
         const display = resolveDisplay(
             counterpartId ? placeProfiles[counterpartId] : undefined,
-            counterpartNames.get(counterpartId) ?? channel.name ?? counterpartId,
-            undefined
+            counterpartProfiles.get(counterpartId)?.name ?? channel.name ?? counterpartId,
+            counterpartProfiles.get(counterpartId)?.thumbnail
         );
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),

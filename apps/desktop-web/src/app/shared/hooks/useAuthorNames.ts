@@ -4,67 +4,82 @@ import { runtime } from '@chatic/app-runtime';
 
 import { displayName } from '../utils';
 
-/**
- * Session-scoped, in-memory memo of resolved author names (id → name). It is NOT
- * a parallel data store — it only mirrors names already resolved from the `user`
- * cache so a re-render (e.g. switching channels and back) can paint the name
- * synchronously on the first frame, instead of waiting a tick for the async
- * `observeItem` emission and flashing a skeleton. It is never persisted.
- */
-const nameMemo = new Map<string, string>();
+/** A person as the `user` cache of the active cloud holds them — their cloud profile. */
+export interface CloudProfile {
+    name?: string;
+    thumbnail?: string;
+}
 
-const seedFromMemo = (ids: string[]): Map<string, string> => {
-    const map = new Map<string, string>();
+/**
+ * Session-scoped, in-memory memo of resolved cloud profiles (id → name/photo). It is NOT
+ * a parallel data store — it only mirrors what the `user` cache already resolved so a
+ * re-render (e.g. switching channels and back) can paint on the first frame, instead of
+ * waiting a tick for the async `observeItem` emission and flashing a skeleton. It is never
+ * persisted.
+ */
+const profileMemo = new Map<string, CloudProfile>();
+
+const seedFromMemo = (ids: string[]): Map<string, CloudProfile> => {
+    const map = new Map<string, CloudProfile>();
     for (const id of ids) {
-        const name = nameMemo.get(id);
-        if (name) map.set(id, name);
+        const profile = profileMemo.get(id);
+        if (profile) map.set(id, profile);
     }
     return map;
 };
 
 /**
- * Resolve message author names straight from the `user` cache, keyed by owner id.
+ * Resolve people's cloud profiles (name and photo) straight from the `user` cache, keyed by id.
  *
- * The `user` cache is the single source for author names; this hook is decoupled
- * from the channel-roster fetch so a previously-seen author paints with their
- * real name on the first frame — no "Unknown"/skeleton flicker while the roster
- * reloads. The session memo is read synchronously during render (so switching
- * channels and back is instant), and `observeItem` streams the persisted record
- * plus live updates into the memo, bumping a tick to surface a newly-resolved name.
- * Only an author the cache has never held stays unresolved (the roster fetch fills
- * the cache, which this hook then surfaces). A bare id (no name/nick) counts as
- * unresolved so the raw id never flashes as a name.
+ * The `user` cache is the single source; this hook is decoupled from any roster fetch so a
+ * previously-seen person paints with their real name on the first frame — no "Unknown"/skeleton
+ * flicker while a roster reloads. The session memo is read synchronously during render, and
+ * `observeItem` streams the persisted record plus live updates into the memo, bumping a tick to
+ * surface a newly-resolved profile. Only a person the cache has never held stays unresolved (a
+ * roster fetch fills the cache, which this hook then surfaces). A bare id (no name/nick) leaves the
+ * name unresolved so the raw id never flashes as a name.
  */
-export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): ReadonlyMap<string, string> => {
+export const useCloudProfiles = (ids: readonly (string | undefined)[]): ReadonlyMap<string, CloudProfile> => {
     const { user: userRepository } = runtime.data.useRuntimeRepositories();
 
     // Stable, de-duped key so subscriptions only reset when the id set changes.
-    const idsKey = useMemo(
-        () => [...new Set(ownerIds.filter((id): id is string => !!id))].sort().join(','),
-        [ownerIds]
-    );
-    const ids = useMemo(() => (idsKey ? idsKey.split(',') : []), [idsKey]);
+    const idsKey = useMemo(() => [...new Set(ids.filter((id): id is string => !!id))].sort().join(','), [ids]);
+    const keyedIds = useMemo(() => (idsKey ? idsKey.split(',') : []), [idsKey]);
 
-    // Bumped whenever a subscription writes a new name into the memo, so the
+    // Bumped whenever a subscription writes a new profile into the memo, so the
     // synchronous seed below re-reads it.
     const [tick, setTick] = useState(0);
 
     useEffect(() => {
-        if (ids.length === 0) return;
-        const unsubs = ids.map(id =>
+        if (keyedIds.length === 0) return;
+        const unsubs = keyedIds.map(id =>
             userRepository.observeItem(id, user => {
                 if (!user) return;
-                const name = displayName(user);
+                const resolved = displayName(user);
                 // displayName falls back to the raw id — treat that as unresolved.
-                if (!name || name === id || nameMemo.get(id) === name) return;
-                nameMemo.set(id, name);
+                const name = resolved && resolved !== id ? resolved : undefined;
+                const thumbnail = user.thumbnail || undefined;
+                if (!name && !thumbnail) return;
+                const known = profileMemo.get(id);
+                if (known?.name === name && known?.thumbnail === thumbnail) return;
+                profileMemo.set(id, { name, thumbnail });
                 setTick(t => t + 1);
             })
         );
         return () => unsubs.forEach(unsub => unsub());
-    }, [ids, userRepository]);
+    }, [keyedIds, userRepository]);
 
-    // Synchronous per-render read of the memo: a warm author paints on frame one.
+    // Synchronous per-render read of the memo: a warm person paints on frame one.
     // `tick` is a dep so a live update (written to the memo) re-reads it.
-    return useMemo(() => seedFromMemo(ids), [ids, tick]);
+    return useMemo(() => seedFromMemo(keyedIds), [keyedIds, tick]);
+};
+
+/** Message author names from the `user` cache, keyed by owner id — see {@link useCloudProfiles}. */
+export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): ReadonlyMap<string, string> => {
+    const profiles = useCloudProfiles(ownerIds);
+    return useMemo(() => {
+        const names = new Map<string, string>();
+        for (const [id, { name }] of profiles) if (name) names.set(id, name);
+        return names;
+    }, [profiles]);
 };

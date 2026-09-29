@@ -74,14 +74,25 @@ vi.mock('@chatic/shared', async () => ({
 
 let lastChat: DomainChat | undefined;
 // The last rows the sidebar asked to have named, and the place profiles it sees.
-const hydrate = vi.hoisted(() => ({ peers: [] as unknown[], profiles: {} as Record<string, { nick?: string }> }));
+const hydrate = vi.hoisted(() => ({
+    peers: [] as unknown[],
+    profiles: {} as Record<string, { nick?: string; thumbnail?: string }>,
+    cloud: new Map<string, { name?: string; thumbnail?: string }>(),
+}));
 vi.mock('../hooks', () => ({
     useLastChat: () => lastChat,
     useHydrateDmPeers: (peers: unknown[]) => {
         hydrate.peers = peers;
     },
 }));
-vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
+vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useCloudProfiles: () => hydrate.cloud }));
+// Radix only mounts an avatar image once it has loaded, which never happens in jsdom; render the
+// requested photo as a marker instead so a row's chosen photo can be read.
+vi.mock('@chatic/ui-kit/components/ui/avatar', () => ({
+    Avatar: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+    AvatarImage: ({ src }: { src?: string }) => <span data-photo={src} />,
+    AvatarFallback: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+}));
 vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => hydrate.profiles }));
 // Both mount global keyboard/dialog machinery; this file is about what a row renders.
 // `dialogStub.portal` turns the switcher into the shape that matters for the arrow-key
@@ -743,5 +754,40 @@ describe('ChannelList 1:1 names', () => {
             { channelId: 'D3', peerId: 'u-blank' },
         ]);
         hydrate.profiles = {};
+    });
+
+    it("shows this place's nick and photo where set, else the cloud profile's", () => {
+        hydrate.profiles = { 'u-place': { nick: 'Placey', thumbnail: 'place.png' }, 'u-nick': { nick: 'Nicky' } };
+        hydrate.cloud = new Map([
+            ['u-place', { name: 'cloud-place', thumbnail: 'cloud-place.png' }],
+            ['u-nick', { name: 'cloud-nick', thumbnail: 'cloud-nick.png' }],
+            ['u-cloud', { name: 'Cloudy', thumbnail: 'cloud.png' }],
+        ]);
+        const channels = [
+            { id: 'D1', stereo: 'dm', memberIds: ['me', 'u-place'] },
+            { id: 'D2', stereo: 'dm', memberIds: ['me', 'u-nick'] },
+            { id: 'D3', stereo: 'dm', memberIds: ['me', 'u-cloud'] },
+        ] as DomainChannel[];
+
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        const photoOf = (name: RegExp) =>
+            screen.getByRole('button', { name }).querySelector('[data-photo]')?.getAttribute('data-photo');
+        expect(photoOf(/Placey/)).toBe('place.png');
+        // A place nick with no place photo keeps the cloud photo.
+        expect(photoOf(/Nicky/)).toBe('cloud-nick.png');
+        expect(photoOf(/Cloudy/)).toBe('cloud.png');
+        hydrate.profiles = {};
+        hydrate.cloud = new Map();
     });
 });
