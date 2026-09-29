@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Loader2, X } from 'lucide-react';
@@ -31,9 +31,7 @@ import {
 import { useCloudDmChannels } from '../../channels/hooks';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
-import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import { BottomNavSpacer } from '../../../ui/components';
-import { canGoBackInApp } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { isDevBuild } from '../../../utils/buildEnv';
@@ -280,31 +278,6 @@ export const HomePage = () => {
     // it holds across clouds and places, and survives leaving home and relaunching.
     const homeSections = useHomeSections();
     const { toast } = useToast();
-
-    // Invite flow tail: the accept pipeline lands here and stashes the invited channel, then we open
-    // it straight through. There is NO place-profile gate any more — an invitee who has not set up an
-    // in-place profile used to be held on home behind the mandatory setup dialog; now they go directly
-    // to the room and can fill the profile in later from the place settings hub.
-    // See usePendingInviteChannel / useEnterInvitedChannel.
-    //
-    // Home at the bottom of the stack stays there: the room is pushed on top of it. This is where a
-    // cold start leaves us — the shell loads home first and the invite lands above it — and swapping
-    // that home for the room left the room alone on the stack, where back had nowhere to go. A home
-    // ABOVE the bottom is a transit entry (the relay lane replaces its accept screen with one), so
-    // the room takes its place instead of stacking a second home under it.
-    const pendingInviteChannelId = usePendingInviteChannel(state => state.channelId);
-    const clearPendingInviteChannel = usePendingInviteChannel(state => state.clearPendingChannel);
-    // The store id is the only trigger, so there is nothing async left to wait on. Each id is consumed
-    // exactly once: clearing re-renders us with `null`, and the ref additionally absorbs a repeated
-    // effect run over the same (still captured) id, so we never clear/navigate twice.
-    const consumedInviteChannelRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (!pendingInviteChannelId) return;
-        if (consumedInviteChannelRef.current === pendingInviteChannelId) return;
-        consumedInviteChannelRef.current = pendingInviteChannelId;
-        clearPendingInviteChannel();
-        navigate(ROUTES.channels.room(pendingInviteChannelId), { replace: canGoBackInApp() });
-    }, [pendingInviteChannelId, clearPendingInviteChannel, navigate]);
 
     // The dialog outlives the section that opened it — it is mounted unconditionally — so a place
     // that goes away mid-flow (cloud switch, deleted place, revoked access) would leave a form that

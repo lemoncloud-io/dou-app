@@ -30,6 +30,7 @@ export * from './useMenuNavigate';
 export * from './menuDismissal';
 export * from './useMyUser';
 export * from './useOnboarding';
+export * from './useOpenPendingInviteChannel';
 export * from './useOtherCloudUnread';
 export * from './usePlaceProfileAbsent';
 export * from './useRelayInvites';

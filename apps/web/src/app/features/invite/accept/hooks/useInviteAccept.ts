@@ -45,7 +45,7 @@ const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
 /**
  * Drives invite acceptance: logs in with the invite code via `runtime.session.useInviteFlow`, then enters the
  * invite target in order — cloud → site → channel — using identifiers from `MyInviteView`. Each
- * step no-ops when its identifier is absent; with no channel the channel step lands on home. No
+ * step no-ops when its identifier is absent; with no channel the channel step only leaves the accept screen. No
  * manual cloud/site state writes or sync flags — web-core owns that.
  */
 export const useInviteAccept = ({ params, info }: InviteContext) => {

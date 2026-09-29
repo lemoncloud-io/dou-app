@@ -27,7 +27,8 @@ what both obey.
   channel — [channels](../channels/README.md).
 - **The cloud invitation lane.** `/invite/accept` routes it, but the REST accept pipeline behind
   `CloudInviteAccept` — login with the code, then enter cloud, site and channel — is documented
-  with the rest of session entry in [auth](../auth/README.md).
+  with the rest of session entry in [auth](../auth/README.md). How it leaves the accept screen is
+  shared by both lanes and is below.
 - **Phone verification and country-aware number input.** The issue form and the accept flow both
   mount screens they do not own — [auth](../auth/README.md).
 - **The 1:1 room itself**, including the "they left" footer that starts a re-invite —
@@ -86,12 +87,49 @@ it. No shell means no home data hooks and no bottom nav — but it also means th
 The sender's two screens are ordinary private routes: the issue form (`/invite/contact`, which route
 state also puts into re-invite mode) and the waiting screen (`/invite/:inviteId/waiting`).
 
+## Leaving the accept screen, and opening the room
+
+**Both lanes leave the accept screen the same way**, whatever the outcome: by the stack's deeplink
+rule (`useStackNavigate('deeplink', ROUTES.home)`), which rewinds onto the entry underneath. On a
+cold start that is home, because the shell loads home before the link arrives. On a warm start it
+is the screen the reader was on — My, place settings, a thread — except a room: the link itself
+arrived by the push rule, which replaced the open room, so the rewind lands on whatever was under
+it. Replacing the accept screen with home instead would stack a second home over the one the shell
+loaded, and back from it would look like it did nothing.
+
+An accepted invite that resolved its room also stashes the id in `stores/usePendingInviteChannel`.
+`hooks/useOpenPendingInviteChannel`, mounted in `UnifiedLayout`, opens the room on whatever screen
+the rewind lands on, and enters it by the stack's **push** rule — the one a push tap into a room
+follows:
+
+| Landed on                               | Result                                          |
+| --------------------------------------- | ----------------------------------------------- |
+| home, at the bottom (cold start)        | `[home, room]` — back returns to home           |
+| a screen the reader chose (My, a place) | the room stacks over it, and back returns there |
+| another channel's settings or thread    | that channel's screens are put away first       |
+
+Where the opener lives is what makes this work:
+
+- **In the layout, not on a screen.** The landing can be any private screen. An opener on one of
+  them would miss the others, and the id would wait in the store until that screen next mounted —
+  then open the room out of nowhere. It sits in `app/hooks` rather than this feature because the
+  layout may not import a feature.
+- **Outside the accept screen.** `/invite/accept` is a common route outside `UnifiedLayout`, so the
+  opener first runs on the landing itself. Its check against the accept path is a guard, not what
+  makes it wait. The one gap this leaves is a landing outside the layout, which nothing produces
+  today: push and deeplink handling live in the layout, and `/s` and `/i` redirect with `replace`.
+
+The id is kept in sessionStorage, not only in memory. The shell reloads the WebView when the OS
+kills its web process — easy to cause while the reader is in another app reading an SMS code — and
+after that the entries behind the accept screen belong to a document that is gone. The rewind is
+then a full page load, which would take an in-memory id with it.
+
 ## The two lanes
 
-| Document | What it covers |
-| --- | --- |
+| Document                                           | What it covers                                                                                                         |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [relay-invite-sender.md](./relay-invite-sender.md) | The issue form and its three gates, SMS hand-off, re-invite detection, the retire rules, the waiting screen, list rows |
-| [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt |
+| [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt          |
 
 ## Where the backend still has gaps
 

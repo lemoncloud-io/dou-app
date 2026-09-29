@@ -189,10 +189,11 @@ problem.
 The probe reads only `channelId` and deliberately ignores `state`. It runs after a successful
 accept, so `state` is `accepted` — the very value the _entry_ read treats as "already joined".
 
-However it resolves, the flow ends the same way: `setPendingChannel(id)`, then replace the accept
-screen with home, where an existing effect opens the room. Because that home is not the bottom of the
-stack, the room replaces it rather than stacking over it — see
-[home](../home/README.md#when-an-invite-lands).
+When the room resolves, the flow hands it over with `setPendingChannel(id)`; when it does not, it
+toasts that the room will appear in the list shortly. Either way it then leaves the accept screen by
+the stack's deeplink rule, as every exit of both lanes does, and the layout opens a handed-over room
+on whatever screen that lands on — see
+[README](./README.md#leaving-the-accept-screen-and-opening-the-room).
 
 ## What not to do
 

@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
 import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
+import { useStackNavigate } from '../../../../navigation';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
 import { getSocketErrorCode } from '../../../../utils/errors';
@@ -166,7 +166,7 @@ export interface RelayInviteFlow {
 export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const navigate = useNavigateWithTransition();
+    const enterStack = useStackNavigate();
     const mutations = useRelayInviteMutations();
     const { resolveChannel } = useResolveInviteChannel();
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
@@ -200,7 +200,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         setPendingChannel,
         profileRepository,
         sid,
-        navigate,
+        enterStack,
         toast,
         t,
         verifyMode,
@@ -211,7 +211,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         setPendingChannel,
         profileRepository,
         sid,
-        navigate,
+        enterStack,
         toast,
         t,
         verifyMode,
@@ -247,11 +247,14 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     // setState has not landed yet), hence a ref the retry clears in the same tick.
     const noticeOpenRef = useRef(false);
 
+    // Every exit leaves the accept screen by the stack's deeplink rule, the same as the cloud lane: it
+    // rewinds onto the entry underneath. Replacing the accept screen with home instead stacked a second
+    // home over the one the shell loads first, so back from it looked like it did nothing.
     const goHome = useCallback(() => {
         runIdRef.current += 1;
         noticeOpenRef.current = false;
         setPhase('closed');
-        latest.current.navigate(ROUTES.home, { replace: true });
+        latest.current.enterStack('deeplink', ROUTES.home);
     }, []);
 
     const fail = useCallback((next: RelayInviteNotice) => {
@@ -286,14 +289,15 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             const channelId = await latest.current.resolveChannel(code, { acceptedChannelId });
             if (isStale(run)) return;
 
+            logger.info('INVITE', 'relay invite accepted; entering channel', { channelId, resolved: !!channelId });
+            setPhase('closed');
+
+            // The layout opens a handed-over room on whatever screen leaving lands on.
             if (channelId) latest.current.setPendingChannel(channelId);
             // Unresolved: the accept is already on the server, so the room will show up in the list on the
             // next background sync. Say so rather than leaving the user on a spinner.
             else latest.current.toast({ title: latest.current.t('relayInviteAccept.channelPending') });
-
-            logger.info('INVITE', 'relay invite accepted; entering channel', { channelId, resolved: !!channelId });
-            setPhase('closed');
-            latest.current.navigate(ROUTES.home, { replace: true });
+            latest.current.enterStack('deeplink', ROUTES.home);
         },
         [code]
     );

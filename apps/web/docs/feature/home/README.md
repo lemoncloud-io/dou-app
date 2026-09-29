@@ -160,7 +160,7 @@ until the user tapped another.
 once the selected id has been seen in the list and then dropped out of it while the selection stayed
 put — what the prune looks like from the cache observer. Mere absence is deliberately not enough. A
 flow that switches into a place this device has not cached yet (a push tap, an invite acceptance)
-lands on home with a selection the list will not carry until the refresh brings the row, and reading
+leaves a selection the list will not carry until the refresh brings the row, and reading
 that as stale would switch the user straight back out. Three more guards: the fallback waits out any
 site or cloud switch in flight anywhere (the global `useIsMutating` count, since the hook's own
 `isSwitching` sees only its own mutation), it never runs on the relay (one place, auto-selected), and
@@ -178,20 +178,10 @@ invited clouds, or subscribe.
 
 ## When an invite lands
 
-Home does not draw the accept screen. When an invite deep link has been resolved elsewhere and a
-channel is pending, `HomePage` navigates straight into that room. There is no place-profile gate in
-front of it — an invitee with no profile goes to the room and fills it in later. The screen itself
-belongs to [invite](../invite/README.md).
-
-How the room goes on the stack depends on where home sits in it:
-
-- **Home at the bottom of the stack — push.** This is where a cold start leaves the reader. The shell
-  loads home before the invite arrives, so the accept screen sits above it, and the cloud lane leaves
-  by rewinding onto that home. Home is then the only entry, and replacing it with the room would leave
-  the room alone on the stack with nowhere for back to go.
-- **Home above the bottom — replace.** That home is a transit entry: the relay lane leaves by
-  replacing its accept screen with home, on top of whatever was there before. Pushing onto it would
-  stack a second home under the room, and the second back press would look like it did nothing.
+Home draws neither the accept screen nor the room it leads to. An accepted invite opens its room
+from the layout, on whichever screen leaving the accept screen lands — see
+[invite](../invite/README.md#leaving-the-accept-screen-and-opening-the-room). There is no
+place-profile gate in front of it: an invitee with no profile goes to the room and fills it in later.
 
 ## Documents
 
