@@ -7,6 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { CloudAvatar } from '../../foundations/avatar/CloudAvatar';
 import { DefaultAvatar } from '../../foundations/avatar/DefaultAvatar';
 import { BrandMark } from '../../foundations/brand/BrandMark';
+import { SubscriptionBadgeSkeleton } from '../../foundations/button/SubscriptionBadge';
 import { SubscriptionButton } from '../../foundations/button/SubscriptionButton';
 import { IconChevronDown, IconSearch } from '../../resources/icons';
 
@@ -49,8 +50,14 @@ export interface AppHeaderProps {
      * the open state, so this component stays stateless.
      */
     switcherMenu?: React.ReactNode;
-    /** Subscription tier for the plan badge; omit to hide the badge entirely. */
+    /** Subscription tier for the plan badge; omit to hide the badge (or, with `planLoading`, to hold its slot). */
     planTier?: 'free' | 'pro';
+    /**
+     * The tier is still being worked out — with no `planTier`, the badge slot holds a pulsing
+     * placeholder of the pill's size instead of staying empty, so the pill does not pop in and push
+     * the search button aside. Ignored once `planTier` is set.
+     */
+    planLoading?: boolean;
     /** Plan badge tap handler (e.g. navigate to the subscription screen). */
     onPlanClick?: () => void;
     /** Search action handler; renders the search button when set. */
@@ -101,6 +108,7 @@ export const AppHeader = ({
     switcherDot = false,
     switcherMenu,
     planTier,
+    planLoading = false,
     onPlanClick,
     onSearch,
     avatar,
@@ -183,7 +191,11 @@ export const AppHeader = ({
             {leftCluster}
 
             <div className="flex shrink-0 items-center gap-2">
-                {planTier && <SubscriptionButton tier={planTier} onClick={onPlanClick} />}
+                {planTier ? (
+                    <SubscriptionButton tier={planTier} onClick={onPlanClick} />
+                ) : (
+                    planLoading && <SubscriptionBadgeSkeleton />
+                )}
                 {onSearch && (
                     <button
                         type="button"

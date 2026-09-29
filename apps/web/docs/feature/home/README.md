@@ -109,7 +109,11 @@ grep -rn "features/home'\|'\.\./\.\./home'" --include='*.ts' --include='*.tsx' a
 **Relay** (`selectedCloudId === 'default'`). The header is `kind="no-cloud"`. **No Place section is
 rendered** — the relay has one place and it is auto-selected, so the list would add nothing; the slot
 goes to `CloudPromoBanner`, which appears only while the account owns no cloud and has not dismissed
-it within the last 24 hours. The Chat section still fills normally, because place selection happens
+it within the last 24 hours. The banner is **off by default**: it is not rendered at all until the
+relay cloud catalog has answered once (`hasCloudCatalog`). Before that the catalog's `clouds` is an
+empty stand-in that reads as "owns no cloud", so gating on it alone showed an owner the pitch on every
+cold start and pulled it away a beat later; a failed first fetch keeps it off for the same reason —
+no answer is not "no cloud". The Chat section still fills normally, because place selection happens
 invisibly — and until that resolves, the section holds the loading state described under
 [Switching](#switching), which on relay is the only thing in the body.
 
@@ -122,6 +126,19 @@ initials, since `CloudView` carries no image field, beside the cloud name — re
 first and the relay catalog second, so a rename shows immediately. On a cold start with neither, the
 header shows a loading placeholder rather than a nameless circle. The Place section lists the cloud's
 places, the selected one carrying a badge and the others a dot when they have unread.
+
+**The tier pill** (header, and the profile menu on a cloud) is FREE or PRO: PRO when the membership
+is valid **or** the catalog holds an active cloud. PRO is final the moment either source says so,
+but FREE needs both to have answered, since either could still make it PRO. Until then the tier is
+undecided and both surfaces hold a pulsing placeholder of the pill's size
+(`SubscriptionBadgeSkeleton`; `AppHeader`'s `planLoading`) — not a guessed FREE that flips, and not an
+empty slot the pill later pops into. A failed catalog fetch counts as answered here, so the tier
+falls back to membership alone rather than pulsing forever.
+
+The membership half reads the server's `isValid`, which [subscription](../subscription/README.md)
+warns is not entitlement: it goes false during a scheduled cancellation while the paid period still
+runs. So a subscriber who has scheduled a cancellation and has no active cloud reads FREE here. That
+is a known gap, not an intended rule.
 
 ## Folded sections
 

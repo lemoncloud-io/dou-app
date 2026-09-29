@@ -65,3 +65,42 @@ export const SubscriptionBadge = React.forwardRef<HTMLSpanElement, SubscriptionB
     )
 );
 SubscriptionBadge.displayName = 'SubscriptionBadge';
+
+export interface SubscriptionBadgeSkeletonProps extends React.HTMLAttributes<HTMLSpanElement> {
+    /** Which pill it stands in for — the header control (`sm`) or the in-menu pill (`xs`). */
+    size?: 'sm' | 'xs';
+}
+
+/**
+ * Stand-in for the tier pill while the tier is still undecided. Guessing FREE and flipping to PRO
+ * a beat later tells a paying user the wrong thing; leaving the slot empty makes the pill pop in
+ * and shove its neighbours. A pulse of the pill's own size avoids both.
+ *
+ * The size is not written down here: it is a FREE pill built from the same surface classes, with
+ * its ink hidden. The rendered height comes from the label's line box, not from any single class,
+ * so a hardcoded box would drift from the real pill the first time its type or padding changed.
+ *
+ * `aria-hidden`: the pill carries no information until it has a tier, and a live "loading" here
+ * would only repeat whatever the surrounding screen already announces.
+ */
+export const SubscriptionBadgeSkeleton = React.forwardRef<HTMLSpanElement, SubscriptionBadgeSkeletonProps>(
+    ({ size = 'sm', className, ...props }, ref) => (
+        <span
+            ref={ref}
+            aria-hidden
+            className={cn(
+                buttonSurfaceClass({ variant: 'outline', size }),
+                'shrink-0 animate-pulse border-transparent bg-muted',
+                size === 'xs' && XS_TIER_CLASS.free,
+                className
+            )}
+            {...props}
+        >
+            <span className="invisible contents">
+                {subscriptionTierIcon('free')}
+                {subscriptionTierLabel('free')}
+            </span>
+        </span>
+    )
+);
+SubscriptionBadgeSkeleton.displayName = 'SubscriptionBadgeSkeleton';
