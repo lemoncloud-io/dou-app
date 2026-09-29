@@ -47,6 +47,7 @@ import {
     avatarStyle,
     formatClockTime,
     formatShortDate,
+    useMediaQuery,
     useSavedItemsStore,
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
@@ -175,12 +176,6 @@ const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
 /** Structural equality for one small map entry (a reaction tally, a thread meta). */
 const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
 
-/**
- * Pointer devices hide the toolbar until hover; touch shows it always, so it is
- * only made inert where it can actually be hidden.
- */
-const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches === true;
-
 const formatTime = formatClockTime;
 
 const isSameCalendarDay = (a: Date, b: Date): boolean =>
@@ -220,6 +215,10 @@ export const MessageRow = memo(
         receiptUnread,
     }: MessageRowProps) => {
         const { t } = useTranslation();
+        // Pointer devices hide the toolbar until hover; touch shows it always, so it is
+        // only made inert where it can actually be hidden. Live, not read once at import:
+        // a mouse plugged into a touch laptop left every toolbar inert or exposed for good.
+        const canHover = useMediaQuery('(hover: hover)');
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
         // `isStuck` below compares Date.now() during render, which only moves when
         // something else re-renders the row: a send that hung sat at 50% opacity
@@ -338,11 +337,16 @@ export const MessageRow = memo(
             // The full-width hover band is the toolbar's runway: it has to read in
             // peripheral vision on wide windows, so it is stronger than a typical
             // list hover.
-            <div className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70">
+            <div
+                data-roving-group=""
+                className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70"
+            >
                 <UserProfilePopover {...profileProps}>
                     {/* The focus ring traces the button, so its radius has to follow the
                         avatar's — a square ring around a round disc reads as a bug. */}
-                    <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-full">
+                    {/* Out of the tab order: the name beside it opens the same card, and one
+                        stop per author is enough on the way through the feed. */}
+                    <button type="button" tabIndex={-1} className="focus-ring tactile h-9 w-9 shrink-0 rounded-full">
                         <Avatar className="h-9 w-9">
                             {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
                             <AvatarFallback className="text-caption font-semibold" style={avatarStyle(group.colorSeed)}>
@@ -359,13 +363,13 @@ export const MessageRow = memo(
                             <UserProfilePopover {...profileProps}>
                                 <button
                                     type="button"
-                                    className="focus-ring truncate rounded text-lead font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
+                                    className="focus-ring truncate rounded text-lead font-bold leading-tight text-foreground hover:underline"
                                 >
                                     {group.ownerName}
                                 </button>
                             </UserProfilePopover>
                         )}
-                        <span className="text-caption font-medium tabular-nums tracking-[-0.005em] text-description">
+                        <span className="text-caption font-medium tabular-nums text-description">
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
@@ -432,13 +436,13 @@ export const MessageRow = memo(
                                 if (isEditDirty && message.id) editMessage(message.id, trimmedDraft);
                             };
                             return (
-                                // Reserve the toolbar slot: both actions in the main feed, copy
-                                // only in the (narrower) thread panel — a full 80px reserve there
-                                // wastes scarce width.
                                 <div
                                     key={key}
                                     data-chat-no={message.chatNo}
-                                    tabIndex={0}
+                                    // The feed keeps one message in the tab order and moves it
+                                    // with the arrow keys (MessageList's roving focus).
+                                    tabIndex={-1}
+                                    data-roving-item=""
                                     role="article"
                                     aria-label={msgTime ? `${group.ownerName}, ${msgTime}` : group.ownerName}
                                     onMouseEnter={() => setHoverKey(key)}
@@ -451,14 +455,13 @@ export const MessageRow = memo(
                                     }}
                                     className={cn(
                                         'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
-                                        onOpenThread ? 'pr-20' : 'pr-12',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
                                             'bg-primary/10 ring-1 ring-ring'
                                     )}
                                 >
                                     {i > 0 && msgTime && (
-                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground/70 group-hover/msg:block">
+                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block">
                                             {msgTime}
                                         </span>
                                     )}
@@ -644,9 +647,8 @@ export const MessageRow = memo(
                                     only thing still tying the grid to the message it acts on. */}
                                     {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
                                         <div
-                                            inert={
-                                                CAN_HOVER && !isToolbarPinned && hoverKey !== key && focusKey !== key
-                                            }
+                                            data-row-actions=""
+                                            inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
                                             className={cn(
                                                 'absolute -top-10 right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned

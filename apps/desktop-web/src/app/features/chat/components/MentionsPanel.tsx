@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
 
 import type { DomainChannel, DomainPlace } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
     Hint,
     avatarStyle,
+    hoverReveal,
     unreadMentionCount,
     ResizablePanel,
     useMentionsPanelStore,
@@ -67,14 +69,20 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
         <ChevronRight
             size={16}
             aria-hidden
-            className="pointer-events-none absolute bottom-2 right-2 text-muted-foreground opacity-0 transition-opacity ease-tactile group-hover/mention:opacity-100"
+            className={cn(
+                'pointer-events-none absolute bottom-2 right-2 text-muted-foreground',
+                hoverReveal('mention')
+            )}
         />
         <Hint label={removeLabel}>
             <button
                 type="button"
                 onClick={onRemove}
                 aria-label={removeLabel}
-                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
+                className={cn(
+                    'focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
+                    hoverReveal('mention')
+                )}
             >
                 <X size={13} />
             </button>
@@ -132,7 +140,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     return (
         <ResizablePanel
             storageKey={'chatic.mentionsPanel.width'}
-            defaultWidth={320}
             resizeLabel={t('activity.resize')}
             onClose={close}
             className="bg-background"

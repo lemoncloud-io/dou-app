@@ -7,7 +7,7 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { Hint, Skeleton, resolveDisplay, useReducedMotion, useSiteProfileMap } from '../../../shared';
+import { Hint, Skeleton, resolveDisplay, useReducedMotion, useRovingFocus, useSiteProfileMap } from '../../../shared';
 import {
     buildMessageRows,
     firstVisibleChatNo,
@@ -115,6 +115,7 @@ export const MessageList = ({
     const reducedMotion = useReducedMotion();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const roving = useRovingFocus(scrollRef);
     // Latched at mount (MessageList remounts per channel via its key), so a later
     // store clear can't flip it before the first fill lands.
     const openAtBottomRef = useRef(openAtBottom);
@@ -561,6 +562,8 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
+                onFocus={roving.onFocus}
+                onKeyDown={roving.onKeyDown}
                 role="log"
                 aria-live="polite"
                 aria-relevant="additions"
