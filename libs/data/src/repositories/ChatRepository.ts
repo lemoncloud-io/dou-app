@@ -237,8 +237,10 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     public async sendPendingImageChat(pendingId: string, input: { uploadIds: string[] }): Promise<DomainChat> {
         const requestContext = this.pendingImageScope(pendingId);
         const normalizedContext = this.getNormalizedContext(requestContext);
-        // The send goes out on the active socket. If the active cloud is no longer the row's, the
-        // uploads belong to another cloud: fail rather than post them there.
+        // The send goes out on this graph's socket. On the app graph that follows the selection, so
+        // once the selection has left the row's cloud the uploads belong to another cloud: fail
+        // rather than post them there. A graph bound to one cloud always sends on that cloud's own
+        // socket, so on it the two always agree and the row's cloud is where the send goes.
         if (this.getNormalizedContext().cid !== normalizedContext.cid) {
             throw new Error(`[ChatRepository] pending image chat ${pendingId} belongs to another cloud`);
         }
