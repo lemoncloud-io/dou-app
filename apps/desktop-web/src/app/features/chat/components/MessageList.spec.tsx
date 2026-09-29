@@ -408,3 +408,26 @@ describe('MessageList jumps', () => {
         }
     });
 });
+
+describe('MessageList failed send', () => {
+    afterEach(cleanup);
+
+    // The failure line was plain text a screen reader passed over, and its button said
+    // only "Delete" beside a message that has other delete actions.
+    it('announces the failure and names what Delete removes', () => {
+        const failed = { ...message(1, 'me', 'lost'), id: undefined, isFailed: true } as DomainChat;
+        render(
+            <MessageList
+                messages={[failed]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map()}
+                onRetry={vi.fn()}
+                onDiscard={vi.fn()}
+            />,
+            { wrapper }
+        );
+        expect(screen.getByRole('status').textContent).toContain('Not delivered');
+        expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
+    });
+});
