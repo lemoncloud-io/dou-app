@@ -47,9 +47,7 @@ export const PlaceList = ({
     const places = rawPlaces.filter(p => p.stereo !== 'place');
 
     const placeSubtitle = (): string =>
-        isInvitedCloud
-            ? t('placeList.subtitleInvited', '초대받은 플레이스')
-            : t('placeList.subtitleOwned', '내 플레이스');
+        isInvitedCloud ? t('placeList.subtitleInvited') : t('placeList.subtitleOwned');
 
     // No count while the list is still arriving: "0 places" next to a skeleton asserts an answer
     // we don't have. The pulse is offset per row so the placeholder reads as a wave, not a blink.
@@ -58,7 +56,7 @@ export const PlaceList = ({
             // Both branches forward `open`: the host holds the fold, so the skeleton has to show
             // the same state the loaded list will.
             <CollapsibleSection title={t('homePage.places')} open={open} onOpenChange={onOpenChange}>
-                <div role="status" aria-label={t('placeList.loading', '플레이스를 불러오는 중이에요')}>
+                <div role="status" aria-label={t('placeList.loading')}>
                     {Array.from({ length: 2 }).map((_, i) => (
                         <div
                             key={i}

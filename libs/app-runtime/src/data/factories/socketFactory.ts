@@ -9,6 +9,7 @@ import {
     createJoinGateway,
     createPlaceGateway,
     createProfileGateway,
+    createUploadGateway,
     createUserGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 
@@ -92,6 +93,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
     const placeGateway = createPlaceGateway(socketClient as any);
     const profileGateway = createProfileGateway(socketClient as any);
     const joinGateway = createJoinGateway(socketClient as any);
+    const uploadGateway = createUploadGateway(socketClient as any);
     // Wire module stays `sockets` (action `sockets/find-connection`); the app-side domain is
     // `connection` — same split as `join`/`place`, whose bundle keys are not wire module names.
     const connectionGateway = createDomainGateway('sockets', socketClient as any);
@@ -134,6 +136,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
             update: cloudGateway.update,
         },
         profile: profileGateway,
+        upload: uploadGateway,
     };
 
     // Gateways are not handed back: every caller goes through a repository (ADR-0036), so the bundle

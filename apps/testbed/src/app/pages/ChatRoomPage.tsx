@@ -7,6 +7,8 @@ import { useRenderCount } from '../metrics/useRuntimeMetrics';
 import { InviteCreateDialog } from '../features/invite/InviteCreateDialog';
 import { SystemSendPanel } from '../features/system-message/SystemSendPanel';
 import { countUnreadMembers, formatSystemChatLabel, isSystemChat } from '../features/system-message/systemChat';
+import { UploadSlots } from '../features/image-send/UploadSlots';
+import { useImageSend } from '../features/image-send/useImageSend';
 
 // Messages per page. The observe window grows by this on each older-page load so the
 // cache-scoped observeList (which returns only the newest `limit`) widens to include them.
@@ -17,7 +19,7 @@ const formatChatTime = (ms?: number): string => {
     if (!ms) return '';
     const date = new Date(ms);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('ko', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 };
 
 export const ChatRoomPage = () => {
@@ -44,6 +46,8 @@ export const ChatRoomPage = () => {
     const [pageLimit, setPageLimit] = useState(PAGE_SIZE); // observe window size, grows on loadMore
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [isSystemSendOpen, setIsSystemSendOpen] = useState(false);
+    const [isImageLogOpen, setIsImageLogOpen] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
     const listRef = useRef<HTMLDivElement>(null);
     // Per-room scroll/read guards (reset on channel change):
@@ -57,6 +61,7 @@ export const ChatRoomPage = () => {
     if (!channelId) return null;
 
     useRenderCount('CreateChannel');
+    const imageSend = useImageSend(channelId);
 
     // Register the chat messages (real-time append + initial prime) and channel meta as sync targets.
     // The initial load fetch is owned by the sync-registration layer, so the page never calls
@@ -373,21 +378,47 @@ export const ChatRoomPage = () => {
                     <p className="text-xs text-muted-foreground font-mono truncate">{channelId}</p>
                 </div>
                 <button
+                    onClick={() => setIsImageLogOpen(open => !open)}
+                    className="shrink-0 px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
+                >
+                    Upload log{imageSend.log.length > 0 ? ` (${imageSend.log.length})` : ''}
+                </button>
+                <button
                     onClick={() => setIsSystemSendOpen(true)}
                     className="shrink-0 px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                 >
-                    시스템
+                    System
                 </button>
                 <button
                     onClick={() => setIsInviteOpen(true)}
                     className="shrink-0 px-3 py-1 text-xs rounded border border-primary text-primary hover:bg-primary/10"
                 >
-                    초대
+                    Invite
                 </button>
             </div>
 
             {isInviteOpen && <InviteCreateDialog channelId={channelId} onClose={() => setIsInviteOpen(false)} />}
             {isSystemSendOpen && <SystemSendPanel channelId={channelId} onClose={() => setIsSystemSendOpen(false)} />}
+
+            {isImageLogOpen && (
+                <div className="max-h-64 shrink-0 overflow-y-auto border-b border-border bg-muted/40 px-3 py-2 font-mono text-[10px]">
+                    <div className="mb-1 flex justify-between">
+                        <span className="font-semibold">image send log</span>
+                        <button onClick={imageSend.clearLog} className="underline">
+                            clear
+                        </button>
+                    </div>
+                    {imageSend.log.length === 0 ? (
+                        <p className="text-muted-foreground">no image send yet</p>
+                    ) : (
+                        imageSend.log.map((line, i) => (
+                            <p key={i} className="whitespace-pre-wrap break-all">
+                                {line}
+                            </p>
+                        ))
+                    )}
+                </div>
+            )}
 
             {/* Message list */}
             <div
@@ -395,12 +426,12 @@ export const ChatRoomPage = () => {
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 space-y-2"
             >
-                {isLoadingMore && <p className="text-center text-xs text-muted-foreground py-2">불러오는 중...</p>}
+                {isLoadingMore && <p className="text-center text-xs text-muted-foreground py-2">Loading...</p>}
                 {!hasMore && chats.length > 0 && (
-                    <p className="text-center text-xs text-muted-foreground py-2">처음 메시지입니다</p>
+                    <p className="text-center text-xs text-muted-foreground py-2">This is the first message</p>
                 )}
                 {chats.length === 0 ? (
-                    <p className="text-center text-xs text-muted-foreground py-8">메시지가 없습니다</p>
+                    <p className="text-center text-xs text-muted-foreground py-8">No messages</p>
                 ) : (
                     [...chats].reverse().map(chat =>
                         // System messages (join/leave) render as a centered pill, not a chat bubble.
@@ -427,11 +458,33 @@ export const ChatRoomPage = () => {
 
             {/* Input area */}
             <div className="flex gap-2 px-3 py-3 border-t border-border bg-card shrink-0">
+                <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={e => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = '';
+                        forceBottomRef.current = true;
+                        setIsImageLogOpen(true);
+                        void imageSend.sendImages(files);
+                    }}
+                />
+                <button
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={imageSend.isSending}
+                    className="px-3 py-2 rounded-lg border border-border text-sm disabled:opacity-50"
+                    aria-label="Send photo"
+                >
+                    Photo
+                </button>
                 <textarea
                     value={message}
                     onChange={e => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="메시지를 입력하세요"
+                    placeholder="Type a message"
                     rows={1}
                     className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -440,7 +493,7 @@ export const ChatRoomPage = () => {
                     disabled={!message.trim() || isSending}
                     className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 transition-opacity"
                 >
-                    전송
+                    Send
                 </button>
             </div>
         </div>
@@ -507,7 +560,7 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                 <p className="text-[10px] text-muted-foreground break-all">
                     <span className="font-medium">user:</span> {userName}
                     {' · '}
-                    <span className="font-medium">profile:</span> {nick ?? '없음'}
+                    <span className="font-medium">profile:</span> {nick ?? 'none'}
                 </p>
                 <div
                     className={`min-w-0 max-w-full rounded-2xl px-3 py-2 text-sm ${
@@ -518,15 +571,17 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                               : 'bg-card border border-border'
                     }`}
                 >
-                    <p className="whitespace-pre-wrap break-words">{chat.content}</p>
+                    {chat.upload$$ && chat.upload$$.length > 0 && <UploadSlots slots={chat.upload$$} />}
+                    {chat.content && <p className="whitespace-pre-wrap break-words">{chat.content}</p>}
                 </div>
                 {/* User id · message # · time · unread count */}
                 <div className="flex gap-1.5 text-[10px] text-muted-foreground font-mono">
                     <span className="truncate max-w-[10rem]">{chat.ownerId ?? '—'}</span>
                     <span>#{chat.chatNo}</span>
                     {time && <span>{time}</span>}
-                    {unreadCount > 0 && <span className="text-primary">안읽음 {unreadCount}</span>}
-                    {chat.isPending && <span>전송중</span>}
+                    {unreadCount > 0 && <span className="text-primary">Unread {unreadCount}</span>}
+                    {chat.isPending && <span>Sending</span>}
+                    {chat.isFailed && <span className="text-destructive">Failed</span>}
                 </div>
             </div>
         </div>

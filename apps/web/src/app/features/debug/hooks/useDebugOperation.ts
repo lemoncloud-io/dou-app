@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 
+import { useDebugSharedStrings } from '../i18n/screens/shared';
+
 /**
  * The "press a button, the app does it, show what came back" loop every migrated screen needs
  * (ADR-0080 decision 11). Extracted after the third copy of it.
@@ -53,31 +55,38 @@ const MAX_RESULT_CHARS = 400;
 
 export const useDebugOperation = (): DebugOperation => {
     const [result, setResult] = useState<string | null>(null);
+    const strings = useDebugSharedStrings();
 
-    const run = useCallback(async (label: string, operation: () => Promise<unknown>, command?: string) => {
-        setResult(`${label}…`);
-        try {
-            const response = (await operation()) as { data?: unknown };
-            const body = response?.data ? JSON.stringify(response.data).slice(0, MAX_RESULT_CHARS) : 'ok';
-            setResult(`${label} → ${body}`);
-        } catch (e) {
-            if (isNotFound(e)) {
-                if (command) unsupportedCommands.add(command);
-                // `info`, not `warn`: a version gap is expected during the deploy window, and the
-                // uploader carries this line so the gap is visible in collected logs.
-                logger.info('APP', `debug command unsupported by this app build: ${command ?? label}`);
-                setResult(`${label} → 이 앱 버전이 지원하지 않습니다`);
-                return;
+    const run = useCallback(
+        async (label: string, operation: () => Promise<unknown>, command?: string) => {
+            setResult(`${label}…`);
+            try {
+                const response = (await operation()) as { data?: unknown };
+                const body = response?.data ? JSON.stringify(response.data).slice(0, MAX_RESULT_CHARS) : 'ok';
+                setResult(`${label} → ${body}`);
+            } catch (e) {
+                if (isNotFound(e)) {
+                    if (command) unsupportedCommands.add(command);
+                    // `info`, not `warn`: a version gap is expected during the deploy window, and the
+                    // uploader carries this line so the gap is visible in collected logs.
+                    logger.info('APP', `debug command unsupported by this app build: ${command ?? label}`);
+                    setResult(`${label} → ${strings.operation.notSupported}`);
+                    return;
+                }
+                logger.warn('APP', `debug operation failed: ${label}`, e as Error);
+                setResult(`${label} → ${strings.operation.failedPrefix}: ${(e as Error).message}`);
             }
-            logger.warn('APP', `debug operation failed: ${label}`, e as Error);
-            setResult(`${label} → 실패: ${(e as Error).message}`);
-        }
-    }, []);
+        },
+        [strings]
+    );
 
-    const fire = useCallback((label: string, operation: () => void) => {
-        operation();
-        setResult(`${label} → 보냈습니다 (확인 없음)`);
-    }, []);
+    const fire = useCallback(
+        (label: string, operation: () => void) => {
+            operation();
+            setResult(`${label} → ${strings.operation.sentNoConfirmation}`);
+        },
+        [strings]
+    );
 
     const isUnsupported = useCallback((command: string) => unsupportedCommands.has(command), []);
 

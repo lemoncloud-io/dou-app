@@ -37,7 +37,7 @@ interface ReportLogTableProps {
 
 export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pinned, range }: ReportLogTableProps) => {
     if (rows.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">표시할 로그가 없습니다.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No logs to display.</p>;
     }
 
     return (
@@ -45,12 +45,12 @@ export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pin
             <TableHeader>
                 <TableRow className="text-xs uppercase tracking-wide text-muted-foreground">
                     <TableHead className="w-20">Level</TableHead>
-                    <TableHead className="w-32">태그/제목</TableHead>
-                    <TableHead>메시지</TableHead>
-                    <TableHead className="w-36">유저</TableHead>
-                    <TableHead className="w-32">실행</TableHead>
-                    <TableHead className="w-28">버전/화면</TableHead>
-                    <TableHead className="w-28">시각</TableHead>
+                    <TableHead className="w-32">Tag/Title</TableHead>
+                    <TableHead>Message</TableHead>
+                    <TableHead className="w-36">User</TableHead>
+                    <TableHead className="w-32">Run</TableHead>
+                    <TableHead className="w-28">Version/Screen</TableHead>
+                    <TableHead className="w-28">Time</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,24 +141,24 @@ export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pin
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-muted-foreground">
                                 <span
-                                    title={`발생 ${formatAbsolute(eventAt(row))} · 도달 ${formatAbsolute(row.createdAt)}`}
+                                    title={`Occurred ${formatAbsolute(eventAt(row))} · arrived ${formatAbsolute(row.createdAt)}`}
                                 >
                                     {formatRelative(eventAt(row))}
                                 </span>
                                 {hasNoticeableLag(row) && (
                                     <span
                                         className="ml-1 rounded bg-muted px-1 text-[10px]"
-                                        title="기기에서 발생한 뒤 서버 도달까지 1분 이상 지연됨"
+                                        title="More than a minute between occurring on device and arriving at server"
                                     >
-                                        지연
+                                        lag
                                     </span>
                                 )}
                                 {isOutsideRange(row, range?.fromMs, range?.toMs) && (
                                     <span
                                         className="ml-1 rounded bg-muted px-1 text-[10px]"
-                                        title="조회 기간은 서버 도달 시각 기준입니다. 이 행은 기간 밖에서 발생해 기간 안에 도달했습니다."
+                                        title="The query range is matched on server arrival time. This row occurred outside the range but arrived within it."
                                     >
-                                        기간 밖
+                                        outside range
                                     </span>
                                 )}
                             </TableCell>

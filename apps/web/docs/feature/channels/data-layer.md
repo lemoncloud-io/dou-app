@@ -12,18 +12,18 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel. They fall into four
-groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
+One hook per file under `features/channels/hooks/`, exported from one barrel (`useSendImages`
+excepted, see [Writes](#writes)). They fall into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
 `useChats`), the sync registrars (`useJoinPositions`, `useForegroundChatRefresh`), the screen
-mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), and the four
-`use*Mutations` write hooks.
+mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
+`use*Mutations` write hooks, and `useSendImages`.
 
-23 hooks, 18 of them with a co-located `*.test.ts`. The command that says which five have none:
+29 hooks, 23 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which six have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \
   for f in $(ls *.ts | grep -v '\.test\.' | grep -v index.ts); do \
-    [ -f "${f%.ts}.test.ts" ] || echo "$f"; done
+    [ -f "${f%.ts}.test.ts" ] || [ -f "${f%.ts}.test.tsx" ] || echo "$f"; done
 ```
 
 ## Responsibilities
@@ -158,6 +158,11 @@ independent buttons only reflect their own in-flight state.
 | `useChatMutations`    | `sendMessage` · `readMessage` · `deleteMessage`                                        | chat, join                   |
 | `useJoinMutations`    | `updateJoin` (my nick / notify)                                                        | join                         |
 | `useUserMutations`    | `requestInvite` · `requestInviteBatch`                                                 | user                         |
+
+Image messages have their own write hook, `useSendImages` (`sendImages` · `retry` · `canRetry` ·
+`discard`, on chat). It is not a `use*Mutations` sibling because it holds state beyond one request —
+the picked files a retry needs — and it is not in the hooks barrel yet: nothing imports it until the
+composer's picker is wired. Everything about it → [image-send.md](./image-send.md).
 
 Two of these are worth knowing before you call them:
 

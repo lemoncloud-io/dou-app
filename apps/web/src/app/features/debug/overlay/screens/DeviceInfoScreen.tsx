@@ -8,6 +8,7 @@ import { useDebugOperation } from '../../hooks';
 import { CopyRow } from '../../components/CopyRow';
 import { buildDeviceInfoRows } from '../../lib';
 import { appBridge } from '../../../../bridge';
+import { useDeviceInfoScreenStrings } from '../../i18n/screens/DeviceInfoScreen';
 
 /**
  * OS pickers and permission prompts, moved off the app's Device Test screen (ADR-0080 decision 11).
@@ -24,6 +25,7 @@ export const DeviceInfoScreen = () => {
     const { versionInfo, deviceInfo } = useDeviceInfo();
     // `fire` covers `openSettings`/`openShareSheet`, which are `post` based and answer nothing.
     const { result, run, fire } = useDebugOperation();
+    const strings = useDeviceInfoScreenStrings();
 
     return (
         <div className="p-4">
@@ -32,88 +34,100 @@ export const DeviceInfoScreen = () => {
             <div className="rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                 <div className="mb-2 flex items-center gap-2">
                     <Smartphone size={16} className="text-muted-foreground" />
-                    <span className="text-[13px] font-semibold text-foreground">Device Info</span>
+                    <span className="text-[13px] font-semibold text-foreground">{strings.deviceInfoTitle}</span>
                 </div>
                 <dl className="flex flex-col gap-1.5">
-                    {buildDeviceInfoRows(deviceInfo).map(row => (
+                    {buildDeviceInfoRows(deviceInfo, strings.rows).map(row => (
                         <CopyRow key={row.label} label={row.label} value={row.value} copyValue={row.copyValue} />
                     ))}
                 </dl>
             </div>
 
             <div className="mt-4 rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                <span className="text-[13px] font-semibold text-foreground">조작</span>
-                <p className="mt-1 text-[12px] text-muted-foreground">앱이 OS 창을 띄우고 결과를 돌려줍니다</p>
+                <span className="text-[13px] font-semibold text-foreground">{strings.actions.title}</span>
+                <p className="mt-1 text-[12px] text-muted-foreground">{strings.actions.hint}</p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
                     <button
                         type="button"
                         onClick={() =>
-                            void run('카메라', () => appBridge.openCamera({ mediaType: 'photo' }), 'OpenCamera')
+                            void run(
+                                strings.operations.camera,
+                                () => appBridge.openCamera({ mediaType: 'photo' }),
+                                'OpenCamera'
+                            )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        카메라
+                        {strings.actions.camera}
                     </button>
                     <button
                         type="button"
                         onClick={() =>
                             void run(
-                                '앨범',
+                                strings.operations.photoLibrary,
                                 () => appBridge.openPhotoLibrary({ selectionLimit: 1, mediaType: 'photo' }),
                                 'OpenPhotoLibrary'
                             )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        앨범
+                        {strings.actions.photos}
                     </button>
                     <button
                         type="button"
                         onClick={() =>
                             void run(
-                                '파일',
+                                strings.operations.file,
                                 () => appBridge.openDocument({ allowMultiSelection: true }),
                                 'OpenDocument'
                             )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        파일
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => void run('연락처', () => appBridge.getContacts(), 'GetContacts')}
-                        className="rounded-md border border-border px-2 py-1 text-xs"
-                    >
-                        연락처
+                        {strings.actions.file}
                     </button>
                     <button
                         type="button"
                         onClick={() =>
-                            void run('네이티브 클립보드', () => appBridge.copyToClipboard('debug'), 'CopyToClipboard')
+                            void run(strings.operations.contacts, () => appBridge.getContacts(), 'GetContacts')
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        클립보드 쓰기
+                        {strings.actions.contacts}
                     </button>
                     <button
                         type="button"
-                        onClick={() => fire('OS 설정 열기', () => appBridge.openSettings())}
+                        onClick={() =>
+                            void run(
+                                strings.operations.nativeClipboard,
+                                () => appBridge.copyToClipboard('debug'),
+                                'CopyToClipboard'
+                            )
+                        }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        OS 설정
+                        {strings.actions.writeClipboard}
                     </button>
                     <button
                         type="button"
-                        onClick={() => fire('공유 시트', () => appBridge.openShareSheet('https://chatic.io'))}
+                        onClick={() => fire(strings.operations.openOsSettings, () => appBridge.openSettings())}
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        공유 시트
+                        {strings.actions.osSettings}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            fire(strings.operations.shareSheet, () => appBridge.openShareSheet('https://chatic.io'))
+                        }
+                        className="rounded-md border border-border px-2 py-1 text-xs"
+                    >
+                        {strings.actions.shareSheet}
                     </button>
                 </div>
 
-                <p className="mt-3 text-[12px] text-muted-foreground">권한</p>
+                <p className="mt-3 text-[12px] text-muted-foreground">{strings.permissionsTitle}</p>
                 <div className="mt-1.5 flex flex-wrap gap-2">
                     {PERMISSIONS.map(permission => (
                         <button

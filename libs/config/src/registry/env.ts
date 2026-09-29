@@ -14,8 +14,8 @@ export const envModule: ConfigRegistryModule = {
     // (`ConfigResolver`'s adapter-passthrough special case) — their `defaultValue`/`writableBy`
     // below exist for shape/typing only and are never actually reached.
     'env.stage': {
-        title: '실행 환경',
-        description: '셸이 주입한 값이 우선인 실행 환경. 보안 판정에는 쓰지 않는다.',
+        title: 'Runtime stage',
+        description: 'The runtime stage, with a shell-injected value taking priority. Not used for security decisions.',
         type: 'enum',
         values: ['LOCAL', 'DEV', 'PROD'],
         defaultValue: 'LOCAL',
@@ -24,8 +24,9 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.buildStage': {
-        title: '빌드 환경',
-        description: '번들에 박힌 실행 환경. 위조할 수 없어 보안 규칙의 판정 기준이다.',
+        title: 'Build stage',
+        description:
+            'The runtime stage baked into the bundle. Cannot be spoofed, so security rules are judged against it.',
         type: 'enum',
         values: ['LOCAL', 'DEV', 'PROD'],
         defaultValue: 'LOCAL',
@@ -34,8 +35,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.platform': {
-        title: '플랫폼',
-        description: '이 앱이 도는 운영체제.',
+        title: 'Platform',
+        description: 'The operating system this app is running on.',
         type: 'enum',
         values: ['ios', 'android', 'windows', 'macos', 'web'],
         defaultValue: 'web',
@@ -44,8 +45,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.project': {
-        title: '프로젝트 코드',
-        description: '빌드가 속한 프로젝트 식별자.',
+        title: 'Project code',
+        description: 'The project identifier this build belongs to.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_PROJECT',
@@ -54,8 +55,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.region': {
-        title: '리전',
-        description: '백엔드가 배포된 AWS 리전.',
+        title: 'Region',
+        description: 'The AWS region the backend is deployed to.',
         type: 'string',
         defaultValue: 'ap-northeast-2',
         envDefaultKey: 'VITE_REGION',
@@ -64,8 +65,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.host': {
-        title: '호스트 주소',
-        description: '이 빌드가 자신을 가리킬 때 쓰는 주소.',
+        title: 'Host address',
+        description: 'The address this build uses to refer to itself.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_HOST',
@@ -74,8 +75,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.appId': {
-        title: '앱 번들 ID',
-        description: '스토어에 등록된 앱 식별자. 개발 빌드는 별도 ID를 쓴다.',
+        title: 'App bundle ID',
+        description: 'The app identifier registered with the store. Dev builds use a separate ID.',
         type: 'string',
         defaultValue: 'io.chatic.dou',
         byStage: { LOCAL: 'io.chatic.dou.dev', DEV: 'io.chatic.dou.dev' },
@@ -84,8 +85,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.webVersion': {
-        title: '웹 빌드 버전',
-        description: '이 웹 번들의 버전. 설정 화면 하단에 표시된다.',
+        title: 'Web build version',
+        description: "This web bundle's version. Shown at the bottom of the settings screen.",
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_APP_VERSION',
@@ -94,8 +95,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.appVersion': {
-        title: '앱 버전',
-        description: '셸(네이티브 앱)의 버전.',
+        title: 'App version',
+        description: "The shell's (native app's) version.",
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'CHATIC_APP_CURRENT_VERSION',
@@ -104,8 +105,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.appBuildNumber': {
-        title: '앱 빌드 번호',
-        description: '셸의 빌드 번호.',
+        title: 'App build number',
+        description: "The shell's build number.",
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'CHATIC_APP_BUILD_NUMBER',
@@ -114,8 +115,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.osVersion': {
-        title: 'OS 버전',
-        description: '기기의 운영체제 버전.',
+        title: 'OS version',
+        description: "The device's operating system version.",
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'CHATIC_APP_OS_VERSION',
@@ -124,8 +125,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.deviceModel': {
-        title: '기기 모델명',
-        description: '기기의 모델명. 식별자가 아니라 모델 정보만 담는다.',
+        title: 'Device model',
+        description: "The device's model name. Holds model info only, not an identifier.",
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'CHATIC_APP_DEVICE_MODEL',
@@ -134,8 +135,8 @@ export const envModule: ConfigRegistryModule = {
         persist: 'none',
     },
     'env.webviewBaseUrl': {
-        title: '웹 로드 주소',
-        description: '앱이 지금 웹을 불러온 주소. 런타임에는 바뀌지 않는다.',
+        title: 'Web load address',
+        description: 'The address the app loaded the web bundle from. Does not change at runtime.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_WEBVIEW_BASE_URL',

@@ -51,10 +51,10 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                         borderBottom: '1px solid var(--sm-border)',
                     }}
                 >
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>관측할 유저 검색</span>
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>Search for a user to observe</span>
                     <button
                         onClick={wl.closeSearch}
-                        aria-label="닫기"
+                        aria-label="Close"
                         style={{
                             appearance: 'none',
                             background: 'none',
@@ -103,7 +103,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                         onKeyDown={e => {
                             if (e.key === 'Enter') wl.runSearch();
                         }}
-                        placeholder="검색어 입력…"
+                        placeholder="Enter a search term…"
                         style={{
                             flex: 1,
                             background: 'var(--sm-panel-2)',
@@ -118,7 +118,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                     />
                     <button
                         onClick={wl.runSearch}
-                        aria-label="검색"
+                        aria-label="Search"
                         style={{
                             appearance: 'none',
                             cursor: 'pointer',
@@ -171,7 +171,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                 fontSize: 12.5,
                             }}
                         >
-                            불러오는 중…
+                            Loading…
                         </div>
                     ) : wl.searchError ? (
                         <div style={{ padding: '40px 18px', textAlign: 'center', color: '#f85149', fontSize: 12.5 }}>
@@ -255,7 +255,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                                 flexShrink: 0,
                                             }}
                                         >
-                                            {added ? '추가됨' : '+ 추가'}
+                                            {added ? 'Added' : '+ Add'}
                                         </button>
                                     </div>
                                 );
@@ -276,7 +276,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                         borderTop: '1px solid var(--sm-raised-2)',
                                     }}
                                 >
-                                    더 보기 ({shown.length}/{wl.searchTotal})
+                                    Show more ({shown.length}/{wl.searchTotal})
                                 </button>
                             ) : null}
                         </div>
@@ -289,7 +289,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                 fontSize: 12.5,
                             }}
                         >
-                            검색 결과 없음
+                            No results
                         </div>
                     )}
                 </div>

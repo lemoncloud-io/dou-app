@@ -28,10 +28,10 @@ RCT_EXPORT_METHOD(changeIcon:(NSString *)iconName
                 }
             }];
         } else {
-            reject(@"UNSUPPORTED", @"기기가 대체 아이콘을 지원하지 않습니다.", nil);
+            reject(@"UNSUPPORTED", @"This device does not support alternate icons.", nil);
         }
     } else {
-        reject(@"UNSUPPORTED", @"iOS 10.3 이상에서만 지원됩니다.", nil);
+        reject(@"UNSUPPORTED", @"Only supported on iOS 10.3 and above.", nil);
     }
 }
 

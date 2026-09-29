@@ -20,7 +20,7 @@ export const LoginPage = () => {
             {
                 onSuccess: () => navigate('/chat', { replace: true }),
                 onError: (err: string) => {
-                    setError(err ?? '로그인에 실패했습니다');
+                    setError(err ?? 'Login failed');
                 },
             }
         );
@@ -30,14 +30,14 @@ export const LoginPage = () => {
         <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-background">
             <div className="w-full max-w-sm space-y-6">
                 <div className="text-center space-y-1">
-                    <h1 className="text-xl font-bold">Testbed 로그인</h1>
-                    <p className="text-sm text-muted-foreground">이메일로 로그인합니다</p>
+                    <h1 className="text-xl font-bold">Testbed Login</h1>
+                    <p className="text-sm text-muted-foreground">Log in with your email</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium" htmlFor="loginId">
-                            이메일
+                            Email
                         </label>
                         <input
                             id="loginId"
@@ -52,14 +52,14 @@ export const LoginPage = () => {
 
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium" htmlFor="password">
-                            비밀번호
+                            Password
                         </label>
                         <input
                             id="password"
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
-                            placeholder="비밀번호"
+                            placeholder="Password"
                             autoComplete="current-password"
                             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                         />
@@ -74,7 +74,7 @@ export const LoginPage = () => {
                         disabled={!loginId.trim() || !password.trim() || isPending}
                         className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 transition-opacity"
                     >
-                        {isPending ? '로그인 중...' : '로그인'}
+                        {isPending ? 'Logging in...' : 'Log in'}
                     </button>
                 </form>
 
@@ -82,7 +82,7 @@ export const LoginPage = () => {
                     onClick={() => navigate(-1)}
                     className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                    ← 돌아가기
+                    ← Go back
                 </button>
             </div>
         </div>

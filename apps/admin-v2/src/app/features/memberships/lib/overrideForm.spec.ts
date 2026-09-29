@@ -48,11 +48,11 @@ describe('toEpochEndOfDay', () => {
 
 describe('validateOverrideForm', () => {
     it('사유가 비면 막는다', () => {
-        expect(validateOverrideForm(form({ reason: '' }), NOW)).toContain('사유를 입력해 주세요.');
+        expect(validateOverrideForm(form({ reason: '' }), NOW)).toContain('Enter a reason.');
     });
 
     it('공백만 있는 사유도 막는다', () => {
-        expect(validateOverrideForm(form({ reason: '   ' }), NOW)).toContain('사유를 입력해 주세요.');
+        expect(validateOverrideForm(form({ reason: '   ' }), NOW)).toContain('Enter a reason.');
     });
 
     it('사유가 있고 만료일이 없으면 통과한다 — 무기한이다', () => {
@@ -60,7 +60,9 @@ describe('validateOverrideForm', () => {
     });
 
     it('지난 만료일은 막는다', () => {
-        expect(validateOverrideForm(form({ until: '2026-09-09' }), NOW)).toContain('만료일은 오늘 이후여야 합니다.');
+        expect(validateOverrideForm(form({ until: '2026-09-09' }), NOW)).toContain(
+            'The expiry date must be after today.'
+        );
     });
 
     // Converted to end-of-day, so picking today still counts as the future — it doesn't trip the server's "reject the past" rule.
@@ -128,27 +130,27 @@ describe('describeOverride', () => {
 
     it('차단 문구는 결제가 계속 나간다는 사실을 담는다', () => {
         const { lines } = describeOverride(form({ mode: 'block' }), membership);
-        expect(lines.join(' ')).toContain('스토어 결제는 계속 나갑니다');
+        expect(lines.join(' ')).toContain('Store billing keeps charging');
     });
 
     it('차단 문구는 Cloud가 실제로 멈춘다고 말한다', () => {
         const { lines } = describeOverride(form({ mode: 'block' }), membership);
-        expect(lines.join(' ')).toContain('보류·회수 대상');
+        expect(lines.join(' ')).toContain('subject to suspension/reclaim');
     });
 
     it('auto가 켜지면 Cloud가 만들어진다고 말한다', () => {
         const { lines } = describeOverride(form({ auto: true }), membership);
-        expect(lines.join(' ')).toContain('생성 요청이 바로 큐에 들어갑니다');
+        expect(lines.join(' ')).toContain('Cloud creation requests for the shortfall are queued');
     });
 
     it('auto가 꺼지면 한도만 는다고 말한다', () => {
         const { lines } = describeOverride(form(), membership);
-        expect(lines.join(' ')).toContain('한도만 늘고');
+        expect(lines.join(' ')).toContain('Only the limit increases');
     });
 
     it('무기한 부여는 해제 전까지 유지된다고 말한다', () => {
         const { lines } = describeOverride(form(), membership);
-        expect(lines.join(' ')).toContain('기한 없이');
+        expect(lines.join(' ')).toContain('indefinitely');
     });
 
     it('대상 유저를 문구에 넣는다', () => {

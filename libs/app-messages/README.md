@@ -162,31 +162,37 @@ libs/app-messages/src/
     └── model/                    17 files — the payloads, grouped by domain
 ```
 
-24 files, 2,958 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+24 files, 2,987 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
 
-| File               | Lines | What it declares                                                                       |
-| ------------------ | ----- | -------------------------------------------------------------------------------------- |
-| `system.ts`        | 545   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong` |
-| `cache.ts`         | 435   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, the 11 cache messages    |
-| `common.ts`        | 220   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`     |
-| `file-transfer.ts` | 133   | The native file-transfer contract — start, cancel, list, ack, temp file, state event   |
-| `device.ts`        | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file         |
-| `iap.ts`           | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                    |
-| `notification.ts`  | 129   | FCM token, badge count and base, push marks, OS notification                           |
-| `perf.ts`          | 176   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace` |
-| `auth.ts`          | 80    | `OAuthLoginProvider` and the Google/Apple token results                                |
-| `test-record.ts`   | 49    | The native DB scenario harness — five messages, used by the debug panel only           |
-| `custom-zip.ts`    | 48    | Apply/disable/status for the custom web-bundle override                                |
-| `preference.ts`    | 44    | `PreferenceKey` — a closed union of six keys                                           |
-| `update.ts`        | 35    | Desktop auto-update: status push, download, restart                                    |
-| `app-update.ts`    | 32    | Mobile store update: version check, open store                                         |
-| `config.ts`        | 24    | The shell's opaque KV bridge (ADR-0079)                                                |
-| `unfurl.ts`        | 23    | URL metadata lookup                                                                    |
-| `clipboard.ts`     | 10    | Copy to the native clipboard                                                           |
-| `index.ts`         | 17    | The barrel for the seventeen above                                                     |
+| File               | Lines | What it declares                                                                                         |
+| ------------------ | ----- | -------------------------------------------------------------------------------------------------------- |
+| `system.ts`        | 545   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                   |
+| `cache.ts`         | 465   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages |
+| `common.ts`        | 220   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                       |
+| `file-transfer.ts` | 133   | The native file-transfer contract — start, cancel, list, ack, temp file, state event                     |
+| `device.ts`        | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file                           |
+| `iap.ts`           | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                      |
+| `notification.ts`  | 129   | FCM token, badge count and base, push marks, OS notification                                             |
+| `perf.ts`          | 176   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace`                   |
+| `auth.ts`          | 80    | `OAuthLoginProvider` and the Google/Apple token results                                                  |
+| `test-record.ts`   | 49    | The native DB scenario harness — five messages, used by the debug panel only                             |
+| `custom-zip.ts`    | 48    | Apply/disable/status for the custom web-bundle override                                                  |
+| `preference.ts`    | 44    | `PreferenceKey` — a closed union of six keys                                                             |
+| `update.ts`        | 35    | Desktop auto-update: status push, download, restart                                                      |
+| `app-update.ts`    | 32    | Mobile store update: version check, open store                                                           |
+| `config.ts`        | 24    | The shell's opaque KV bridge (ADR-0079)                                                                  |
+| `unfurl.ts`        | 23    | URL metadata lookup                                                                                      |
+| `clipboard.ts`     | 10    | Copy to the native clipboard                                                                             |
+| `index.ts`         | 17    | The barrel for the seventeen above                                                                       |
+
+`CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
+and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`) while an image message is still on its
+way. A reader tells them apart with `isPendingUploadSlot` from `@chatic/data`, never by probing for
+the server's `status`, which a pending slot does not have. The shell stores chat rows as a JSON blob,
+so the wider type asks nothing of it.
 
 Names you would not find by guessing at a filename:
 

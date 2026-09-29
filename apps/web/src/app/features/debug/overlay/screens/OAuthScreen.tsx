@@ -1,4 +1,5 @@
 import { useDebugOperation } from '../../hooks';
+import { useOAuthScreenStrings } from '../../i18n/screens/OAuthScreen';
 import { appBridge } from '../../../../bridge';
 
 /**
@@ -12,15 +13,14 @@ import { appBridge } from '../../../../bridge';
 const PROVIDERS = ['google', 'apple'] as const;
 
 export const OAuthScreen = () => {
+    const strings = useOAuthScreenStrings();
     const { result, run } = useDebugOperation();
 
     return (
         <div className="flex flex-col gap-3 p-4">
             <div>
-                <h1 className="text-[20px] font-semibold leading-[1.35]">OAuth (네이티브)</h1>
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                    앱의 네이티브 로그인 시트를 띄웁니다 — 웹 릴레이 경로와는 별개입니다
-                </p>
+                <h1 className="text-[20px] font-semibold leading-[1.35]">{strings.title}</h1>
+                <p className="mt-1 text-[13px] text-muted-foreground">{strings.subtitle}</p>
             </div>
 
             {PROVIDERS.map(provider => (
@@ -29,20 +29,28 @@ export const OAuthScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(`${provider} 로그인`, () => appBridge.oAuthLogin(provider), 'OAuthLogin')
+                            void run(
+                                strings.operationLabels.login(provider),
+                                () => appBridge.oAuthLogin(provider),
+                                'OAuthLogin'
+                            )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        로그인
+                        {strings.login}
                     </button>
                     <button
                         type="button"
                         onClick={() =>
-                            void run(`${provider} 로그아웃`, () => appBridge.oAuthLogout(provider), 'OAuthLogout')
+                            void run(
+                                strings.operationLabels.logout(provider),
+                                () => appBridge.oAuthLogout(provider),
+                                'OAuthLogout'
+                            )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
-                        로그아웃
+                        {strings.logout}
                     </button>
                 </div>
             ))}

@@ -51,7 +51,7 @@ describe('ReportDetailPanel — 빈 상태', () => {
     it('reserves the column and says what fills it', () => {
         setup(null);
 
-        expect(screen.getByText('행을 선택하면 상세가 여기에 열립니다.')).toBeTruthy();
+        expect(screen.getByText('Select a row to open its detail here.')).toBeTruthy();
     });
 });
 
@@ -59,15 +59,15 @@ describe('ReportDetailPanel — 추적 핀', () => {
     it('offers all three axes the backend can filter on', () => {
         setup();
 
-        expect(screen.getByTitle('유저 u1 로 추적 (서버 조회)')).toBeTruthy();
-        expect(screen.getByTitle('클라우드 c1 로 추적 (서버 조회)')).toBeTruthy();
-        expect(screen.getByTitle('실행 run-a 로 추적 (서버 조회)')).toBeTruthy();
+        expect(screen.getByTitle('Track user u1 (server query)')).toBeTruthy();
+        expect(screen.getByTitle('Track cloud c1 (server query)')).toBeTruthy();
+        expect(screen.getByTitle('Track run run-a (server query)')).toBeTruthy();
     });
 
     it('pins the axis it was clicked on', () => {
         const { onPin } = setup();
 
-        fireEvent.click(screen.getByTitle('클라우드 c1 로 추적 (서버 조회)'));
+        fireEvent.click(screen.getByTitle('Track cloud c1 (server query)'));
 
         expect(onPin).toHaveBeenCalledWith('cid', 'c1');
     });
@@ -77,7 +77,7 @@ describe('ReportDetailPanel — 추적 핀', () => {
         // that silently inverts.
         const { onUnpin, onPin } = setup({}, { pinned: { uid: 'u1' } });
 
-        fireEvent.click(screen.getByTitle('유저 추적 해제 — u1'));
+        fireEvent.click(screen.getByTitle('Untrack user — u1'));
 
         expect(onUnpin).toHaveBeenCalledWith('uid');
         expect(onPin).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe('ReportDetailPanel — 추적 핀', () => {
     it('does not treat a different pinned value as this row being pinned', () => {
         const { onPin } = setup({}, { pinned: { uid: 'someone-else' } });
 
-        fireEvent.click(screen.getByTitle('유저 u1 로 추적 (서버 조회)'));
+        fireEvent.click(screen.getByTitle('Track user u1 (server query)'));
 
         expect(onPin).toHaveBeenCalledWith('uid', 'u1');
     });
@@ -94,7 +94,7 @@ describe('ReportDetailPanel — 추적 핀', () => {
     it('shows a dash instead of a pin for an axis the row lacks', () => {
         setup({ cid: undefined });
 
-        expect(screen.queryByTitle(/클라우드 .* 로 추적/)).toBeNull();
+        expect(screen.queryByTitle(/Track cloud .* \(server query\)/)).toBeNull();
     });
 });
 
@@ -102,13 +102,13 @@ describe('ReportDetailPanel — 시각', () => {
     it('flags a row whose upload lagged its occurrence', () => {
         setup({ timestamp: 1_700_000_000_000 - 600_000 });
 
-        expect(screen.getByText('+10분 지연')).toBeTruthy();
+        expect(screen.getByText('+10m lag')).toBeTruthy();
     });
 
     it('does not flag the ordinary flush delay', () => {
         setup({ timestamp: 1_700_000_000_000 - 3_000 });
 
-        expect(screen.queryByText(/지연/)).toBeNull();
+        expect(screen.queryByText(/lag/)).toBeNull();
     });
 });
 
@@ -121,19 +121,19 @@ describe('ReportDetailPanel — 헤더 동작', () => {
         const image = `data:image/png;base64,${'A'.repeat(500)}`;
         setup({ raw: { images: [image] } });
 
-        fireEvent.click(screen.getByText('복사'));
+        fireEvent.click(screen.getByText('Copy'));
 
         expect(writeText).toHaveBeenCalledOnce();
         const copied = writeText.mock.calls[0][0] as string;
         expect(copied).not.toContain('AAAAAAAAAA');
-        expect(copied).toContain('생략');
+        expect(copied).toContain('omitted');
     });
 
     it('jumps to observe with the row uid', () => {
         const onObserve = vi.fn();
         setup({}, { onObserve });
 
-        fireEvent.click(screen.getByText('관측'));
+        fireEvent.click(screen.getByText('Observe'));
 
         expect(onObserve).toHaveBeenCalledWith('u1');
     });
@@ -141,7 +141,7 @@ describe('ReportDetailPanel — 헤더 동작', () => {
     it('hides the observe jump when the row has no uid', () => {
         setup({ userId: undefined }, { onObserve: vi.fn() });
 
-        expect(screen.queryByText('관측')).toBeNull();
+        expect(screen.queryByText('Observe')).toBeNull();
     });
 
     it('closes on Escape, which is the only keyboard way out of the overlay form', () => {

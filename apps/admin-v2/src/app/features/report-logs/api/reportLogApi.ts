@@ -151,7 +151,7 @@ export const ROUND_2_AXES = ['tag', 'appVersion', 'webVersion', 'route', 'os', '
 
 /** What the screen must say wherever one of {@link ROUND_2_AXES} can be set. */
 export const SERVER_AXIS_CAVEAT =
-    '태그·버전·화면·기기 필터는 완전일치 단일값이고, 백엔드 배포 이후 저장된 기록에만 걸립니다.';
+    'Tag, version, screen and device filters are exact-match single values, and only apply to records stored after the backend deploy.';
 
 /**
  * Query params for the list call. Filters are included only when non-empty — the

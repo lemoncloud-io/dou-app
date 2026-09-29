@@ -20,7 +20,7 @@ export const LogoutPage = () => {
 
     return (
         <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-            로그아웃 중...
+            Logging out...
         </div>
     );
 };

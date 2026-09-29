@@ -69,7 +69,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         pickMap(mapFile('index-abc.js.map'));
         await waitFor(() => expect(screen.getByText(/getMyProfile \(apps/)).toBeTruthy());
 
-        fireEvent.click(screen.getByText('원본 보기'));
+        fireEvent.click(screen.getByText('Show original'));
 
         expect(screen.getByText(STACK)).toBeTruthy();
     });
@@ -80,7 +80,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
 
         pickMap(mapFile('index-zzz.js.map'));
 
-        await waitFor(() => expect(screen.getByText(/이름이 다릅니다/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/doesn't match this stack's bundle/)).toBeTruthy());
     });
 
     it('한 프레임도 풀리지 않으면 다른 빌드일 수 있다고 알린다', async () => {
@@ -89,7 +89,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
 
         pickMap(mapFile('index-abc.js.map'));
 
-        await waitFor(() => expect(screen.getByText(/어떤 프레임도 풀리지 않았습니다/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/didn't resolve any frames/)).toBeTruthy());
     });
 
     it('.map이 아닌 파일은 읽기 실패를 알린다', async () => {
@@ -97,7 +97,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
 
         pickMap(mapFile('notes.txt', 'not json at all'));
 
-        await waitFor(() => expect(screen.getByText(/소스맵을 읽지 못했습니다/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/Couldn't read the source map/)).toBeTruthy());
     });
 
     // When one stack spans several bundles, resolving all of it with a single map is more dangerous:
@@ -115,7 +115,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
     it('스택이 없는 리포트(opaque script-error)에는 섹션 자체가 없다', () => {
         render(<ReportDetailBody row={row()} />);
 
-        expect(screen.queryByText('소스맵 선택')).toBeNull();
+        expect(screen.queryByText('Choose source map')).toBeNull();
     });
 
     // A wrapping error's stack points at the wrap site — the real cause's frames live in `cause`,
@@ -174,7 +174,7 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         } as ReportLogRow;
         render(<ReportDetailBody row={causeOnly} />);
 
-        expect(screen.getByText('소스맵 선택')).toBeTruthy();
+        expect(screen.getByText('Choose source map')).toBeTruthy();
     });
 });
 
@@ -193,22 +193,22 @@ describe('ReportDetailBody — IDE로 추적', () => {
         } as ReportLogRow;
         render(<ReportDetailBody row={traced} />);
 
-        fireEvent.click(screen.getByText('IDE로 추적'));
+        fireEvent.click(screen.getByText('Trace to IDE'));
 
         await waitFor(() =>
             expect(writeText).toHaveBeenCalledWith(
                 `# chatic-report id=r1 app=mobile webVersion=0.36.0 at=2026-08-11T07:12:33.000Z\n${STACK}\n`
             )
         );
-        expect(screen.getByText(/복사됨/)).toBeTruthy();
+        expect(screen.getByText(/Copied/)).toBeTruthy();
     });
 
     it('클립보드가 막혀 있으면 직접 복사하라고 알린다', async () => {
         stubClipboard(vi.fn().mockRejectedValue(new Error('denied')));
         render(<ReportDetailBody row={row(STACK)} />);
 
-        fireEvent.click(screen.getByText('IDE로 추적'));
+        fireEvent.click(screen.getByText('Trace to IDE'));
 
-        await waitFor(() => expect(screen.getByText(/클립보드에 복사하지 못했습니다/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/Couldn't copy to clipboard/)).toBeTruthy());
     });
 });

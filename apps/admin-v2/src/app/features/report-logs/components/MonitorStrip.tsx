@@ -48,7 +48,7 @@ export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
         let reports = 0;
         for (const row of rows) {
             if (row.type === 'log-entry') {
-                const level = row.level || '(레벨 없음)';
+                const level = row.level || '(no level)';
                 byLevel.set(level, (byLevel.get(level) ?? 0) + 1);
             } else reports += 1;
         }
@@ -90,20 +90,20 @@ export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
             ))}
             {counts.reports > 0 && (
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    제보·리포트 <span className="font-mono text-foreground">{counts.reports.toLocaleString()}</span>
+                    Reports <span className="font-mono text-foreground">{counts.reports.toLocaleString()}</span>
                 </span>
             )}
             {spike && (
                 <span
                     className="rounded bg-destructive/15 px-2 py-0.5 text-destructive"
-                    title={`최근 구간 ${spike.count}건 · 앞 구간 중위값 ${spike.baseline}건`}
+                    title={`Latest bucket ${spike.count} ${spike.count === 1 ? 'row' : 'rows'} · prior median ${spike.baseline}`}
                 >
-                    최근 구간 급증 {spike.count.toLocaleString()}건
+                    Spike in latest bucket {spike.count.toLocaleString()} {spike.count === 1 ? 'row' : 'rows'}
                 </span>
             )}
             {corpusSize > 0 && rows.length !== corpusSize && (
                 <span className="text-muted-foreground">
-                    필터 적용 {rows.length.toLocaleString()} / 수집 {corpusSize.toLocaleString()}건
+                    Filtered {rows.length.toLocaleString()} / collected {corpusSize.toLocaleString()} rows
                 </span>
             )}
         </div>

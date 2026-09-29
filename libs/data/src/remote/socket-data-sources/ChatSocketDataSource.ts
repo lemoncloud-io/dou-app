@@ -1,4 +1,8 @@
-import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
+import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
+// The send input comes from `-lib`, not `-api`: both export a `ChatSendInput`, and only `-lib`'s
+// carries `uploadIds`. Taking the `-api` one compiles just as well and silently drops attachments
+// from every caller's type.
+import type { ChatSendInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChat } from '../../domain';
 import { toDomainChat } from '../../domain';

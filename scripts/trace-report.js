@@ -4,7 +4,7 @@
  * `path:line:col` frames — which an IDE terminal turns into clickable links, so
  * a report goes from the admin list to the editor in one command.
  *
- *   yarn trace                      # reads the clipboard (admin-v2 "Trace via IDE")
+ *   yarn trace                      # reads the clipboard (admin-v2 "Trace to IDE")
  *   pbpaste | yarn trace            # or stdin
  *   yarn trace --map <file.js.map>  # a map already on disk; skips the lookup
  *   yarn trace --project admin-v2   # override the app→project guess
@@ -47,10 +47,10 @@ const PROJECT_BY_APP = { web: 'web', mobile: 'web', desktop: 'desktop-web' };
 
 const USAGE = `usage: yarn trace [--map <file.js.map>] [--project <name>]
 
-  admin-v2 리포트 상세의 "IDE로 추적"으로 복사한 뒤 인자 없이 실행하면 된다.
-  스택을 stdin으로 넘겨도 동작한다: pbpaste | yarn trace
+  Copy from admin-v2's report detail via "Trace to IDE", then run with no
+  arguments. Piping the stack through stdin also works: pbpaste | yarn trace
 
-  메뉴얼: docs/guides/trace-report.md`;
+  Manual: docs/guides/trace-report.md`;
 
 const fail = message => {
     process.stderr.write(`${message}\n`);
@@ -64,7 +64,7 @@ const parseArgs = argv => {
         if (argv[i] === '--map') options.map = argv[(i += 1)];
         else if (argv[i] === '--project') options.project = argv[(i += 1)];
         else if (argv[i] === '--help' || argv[i] === '-h') options.help = true;
-        else return fail(`알 수 없는 옵션: ${argv[i]}\n\n${USAGE}`);
+        else return fail(`Unknown option: ${argv[i]}\n\n${USAGE}`);
     }
 
     return options;
@@ -72,7 +72,8 @@ const parseArgs = argv => {
 
 const readInput = () => {
     if (!process.stdin.isTTY) return fs.readFileSync(0, 'utf8');
-    if (process.platform !== 'darwin') fail(`클립보드를 읽을 수 없는 환경이다. 스택을 파이프로 넘겨라.\n\n${USAGE}`);
+    if (process.platform !== 'darwin')
+        fail(`This environment can't read the clipboard. Pipe the stack instead.\n\n${USAGE}`);
 
     return execFileSync('pbpaste', { encoding: 'utf8' });
 };
@@ -102,7 +103,7 @@ const gh = args => {
             stdio: ['ignore', 'pipe', 'pipe'],
         });
     } catch (error) {
-        return fail(`gh 실행 실패: ${(error.stderr || error.message).toString().trim()}`);
+        return fail(`gh command failed: ${(error.stderr || error.message).toString().trim()}`);
     }
 };
 
@@ -153,18 +154,18 @@ const cacheArtifact = artifact => {
 /** The map for `bundle`, from the cache or the newest artifact that holds it. */
 const findMap = (bundle, project, notAfter) => {
     const cached = path.join(CACHE_DIR, `${bundle}.map`);
-    if (fs.existsSync(cached)) return { path: cached, from: '캐시' };
+    if (fs.existsSync(cached)) return { path: cached, from: 'cache' };
 
     const artifacts = findArtifacts(project, notAfter);
     if (!artifacts.length) {
         process.stderr.write(
-            `  sourcemaps-${project}-* 아티팩트가 없다 (배포가 맵을 보관하지 않았거나 30일이 지났다).\n`
+            `  No sourcemaps-${project}-* artifact (the deploy never archived a map, or it's past the 30-day retention).\n`
         );
         return null;
     }
 
     for (const artifact of artifacts.slice(0, MAX_CANDIDATES)) {
-        process.stderr.write(`  ${artifact.name} 확인 중...\n`);
+        process.stderr.write(`  Checking ${artifact.name}...\n`);
         cacheArtifact(artifact);
         if (fs.existsSync(cached)) return { path: cached, from: artifact.name };
     }
@@ -176,7 +177,7 @@ const readMap = file => {
     try {
         return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (error) {
-        return fail(`소스맵을 읽지 못했다 (${file}): ${error.message}`);
+        return fail(`Couldn't read the sourcemap (${file}): ${error.message}`);
     }
 };
 
@@ -203,21 +204,21 @@ const missingLocally = text => {
 
 /** Prints the trace on stdout and everything about its provenance on stderr. */
 const report = (resolved, original, sources, unresolved) => {
-    for (const source of sources) process.stderr.write(`맵: ${source}\n`);
+    for (const source of sources) process.stderr.write(`map: ${source}\n`);
     for (const bundle of unresolved) {
-        process.stderr.write(`${bundle}: 맵을 찾지 못해 원문 그대로 둔다.\n`);
+        process.stderr.write(`${bundle}: no map found, left as-is.\n`);
     }
 
     // Only meaningful once a map was actually applied — with none found the
     // trace is obviously untouched, and saying "wrong build" would misdirect.
     if (sources.length && resolved === original) {
-        process.stderr.write('어떤 프레임도 풀리지 않았다 — 다른 빌드의 맵일 수 있다.\n');
+        process.stderr.write("No frame resolved — this may be the wrong build's map.\n");
     }
 
     const missing = missingLocally(resolved);
     if (missing.length) {
         process.stderr.write(
-            `\n체크아웃에 없는 파일 ${missing.length}건 (${missing[0]} 등) — 리포트가 나온 빌드의 커밋으로 옮겨야 줄 번호가 맞는다.\n`
+            `\n${missing.length} file(s) missing from this checkout (e.g. ${missing[0]}) — check out the commit the report's build came from to get matching line numbers.\n`
         );
     }
 
@@ -234,10 +235,10 @@ const main = () => {
     if (options.help) return process.stdout.write(`${USAGE}\n`);
 
     const { meta, stack } = parseReport(readInput());
-    if (!stack) fail(`스택이 비어 있다.\n\n${USAGE}`);
+    if (!stack) fail(`The stack is empty.\n\n${USAGE}`);
 
     const bundles = readBundleNames(stack);
-    if (!bundles.length) fail('번들 프레임이 없는 스택이다 — 되짚을 것이 없다.');
+    if (!bundles.length) fail("This stack has no bundle frames — there's nothing to resolve.");
 
     // A supplied map is still only good for its own bundle. Pin it to the one it
     // is named after when that bundle is in the trace; otherwise it has to apply
@@ -248,11 +249,16 @@ const main = () => {
         const pinned = bundles.includes(named) ? named : undefined;
         if (!pinned && bundles.length > 1) {
             process.stderr.write(
-                `주의: 스택이 번들 ${bundles.length}개(${bundles.join(', ')})를 걸치는데 맵은 하나다.\n`
+                `Warning: the stack spans ${bundles.length} bundles (${bundles.join(', ')}) but only one map was given.\n`
             );
         }
 
-        return report(resolveStack(readMap(options.map), stack, pinned), stack, [`${options.map} (직접 지정)`], []);
+        return report(
+            resolveStack(readMap(options.map), stack, pinned),
+            stack,
+            [`${options.map} (given directly)`],
+            []
+        );
     }
 
     fs.mkdirSync(CACHE_DIR, { recursive: true });

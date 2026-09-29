@@ -102,8 +102,8 @@ export default function Sidebar({ endpoint }: SidebarProps) {
                         <button
                             type="button"
                             onClick={() => logout()}
-                            aria-label="로그아웃"
-                            title="로그아웃"
+                            aria-label="Log out"
+                            title="Log out"
                             style={{
                                 appearance: 'none',
                                 background: 'none',

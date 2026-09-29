@@ -17,6 +17,19 @@ export type PushRegistrationState = 'idle' | 'checking' | 'no-native' | 'no-toke
 
 const APPLICATION = 'chatic';
 
+/**
+ * The text this hook needs but does not own — the caller (`PushScreen`) passes it in from its own
+ * i18n table so the hook stays free of user-visible strings.
+ */
+export interface PushRegistrationMessages {
+    /** Shown when `check()` runs outside the native app shell. */
+    noNative: string;
+    /** Shown when the shell returned no token. */
+    noToken: string;
+    /** Fallback when the register-device call rejects without a message. */
+    checkFailed: string;
+}
+
 export interface UsePushRegistration {
     state: PushRegistrationState;
     token: string | null;
@@ -32,7 +45,7 @@ export interface UsePushRegistration {
  * then summarizes the response (SNS endpoint / registeredAt) as the source of
  * truth. Only meaningful inside the native app shell.
  */
-export const usePushRegistration = (): UsePushRegistration => {
+export const usePushRegistration = (messages: PushRegistrationMessages): UsePushRegistration => {
     const { deviceInfo } = useDeviceInfo();
     // Same single source as socket identity and production push registration —
     // this debug check must confirm the exact record production writes.
@@ -50,7 +63,7 @@ export const usePushRegistration = (): UsePushRegistration => {
 
         if (!isNative()) {
             setState('no-native');
-            setError('Push token is only available inside the native app shell.');
+            setError(messages.noNative);
             return;
         }
 
@@ -62,7 +75,7 @@ export const usePushRegistration = (): UsePushRegistration => {
 
             if (!nextToken) {
                 setState('no-token');
-                setError('No push token — permission denied or not issued yet.');
+                setError(messages.noToken);
                 return;
             }
 
@@ -81,9 +94,9 @@ export const usePushRegistration = (): UsePushRegistration => {
             setState('done');
         } catch (e: any) {
             setState('error');
-            setError(e?.message ?? 'Failed to check registration.');
+            setError(e?.message ?? messages.checkFailed);
         }
-    }, [deviceId, firebaseInstallationId, deviceInfo?.platform, mutateAsync]);
+    }, [deviceId, firebaseInstallationId, deviceInfo?.platform, mutateAsync, messages]);
 
     return { state, token, summary, error, check };
 };

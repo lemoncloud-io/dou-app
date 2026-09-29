@@ -6,7 +6,7 @@ import { AlertTriangle, Home, RefreshCw, ServerCrash } from 'lucide-react';
 import { Logo } from '@chatic/assets';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { ERROR_MESSAGES } from '../consts';
+import { useErrorScreenText } from './useErrorScreenText';
 import { NotFoundPage } from './NotFoundPage';
 
 import type { ReactNode } from 'react';
@@ -31,14 +31,14 @@ const inferRouterErrorType = (error: unknown): RouterErrorType => {
     return 'unknown';
 };
 
-const getErrorMessage = (error: unknown): string => {
+const getErrorMessage = (error: unknown, unknownErrorMessage: string): string => {
     if (isRouteErrorResponse(error)) {
         return `${error.status} ${error.statusText}`;
     }
     if (error instanceof Error) {
         return error.message;
     }
-    return '알 수 없는 오류가 발생했습니다';
+    return unknownErrorMessage;
 };
 
 export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.Element => {
@@ -46,7 +46,9 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
     const containerRef = useRef<HTMLDivElement>(null);
 
     const errorType = inferRouterErrorType(error);
-    const errorMessage = getErrorMessage(error);
+    // Called before the notFound early return below, so the hook order never depends on the error.
+    const messages = useErrorScreenText(errorType === 'server' ? 'server' : 'unknown');
+    const errorMessage = getErrorMessage(error, messages.unknownError);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
     useEffect(() => {
@@ -74,7 +76,6 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
         return <NotFoundPage />;
     }
 
-    const messages = errorType === 'server' ? ERROR_MESSAGES.server : ERROR_MESSAGES.unknown;
     const icon = ERROR_ICONS[errorType];
 
     return (
@@ -103,7 +104,7 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
             {/* Error Detail (collapsible) */}
             <details className="mb-8 w-full max-w-[320px]">
                 <summary className="cursor-pointer text-center text-[12px] text-muted-foreground hover:text-foreground">
-                    상세 정보 보기
+                    {messages.details}
                 </summary>
                 <div className="mt-2 rounded-lg border border-border bg-muted/50 p-3">
                     <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-[1.5] text-muted-foreground">

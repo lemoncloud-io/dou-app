@@ -172,7 +172,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                     </span>
                     <button
                         onClick={onRemove}
-                        title="제거"
+                        title="Remove"
                         style={{
                             appearance: 'none',
                             background: 'none',
@@ -210,7 +210,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                             color: 'var(--sm-text-4)',
                         }}
                     >
-                        연결 중…
+                        Connecting…
                     </button>
                 ) : connectedOrMore ? (
                     <button
@@ -251,7 +251,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                             if (e.key === 'Enter' && connectedOrMore && hasToken) void ctrl.authenticate();
                         }}
                         disabled={!connectedOrMore}
-                        placeholder={connectedOrMore ? '유저 JWT/토큰 붙여넣기' : '연결 후 입력'}
+                        placeholder={connectedOrMore ? 'Paste user JWT/token' : 'Enter after connecting'}
                         spellCheck={false}
                         style={{
                             flex: 1,
@@ -284,7 +284,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                             border: connectedOrMore && hasToken ? 'none' : '1px solid var(--sm-border-2)',
                         }}
                     >
-                        {verified ? '재인증' : '적용'}
+                        {verified ? 'Re-auth' : 'Apply'}
                     </button>
                 </div>
                 {c.err ? <span style={{ fontSize: 11, color: '#f85149', lineHeight: 1.4 }}>{c.err}</span> : null}
@@ -295,7 +295,7 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                         >
                             userId{' '}
                             <span style={{ color: c.userId ? 'var(--sm-text-2)' : 'var(--sm-text-6)' }}>
-                                {c.userId ?? '미인증'}
+                                {c.userId ?? 'not authenticated'}
                             </span>
                         </span>
                         <span
@@ -691,9 +691,9 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                                 lineHeight: 1.5,
                             }}
                         >
-                            아직 이벤트 없음
+                            No events yet
                             <br />
-                            Connect 후 게이트웨이를 호출하세요
+                            Call the gateway after connecting
                         </div>
                     )}
                 </div>

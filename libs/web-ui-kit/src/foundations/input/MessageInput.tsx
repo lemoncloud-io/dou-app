@@ -52,7 +52,7 @@ export const MessageInput = ({
     value,
     onChange,
     onSend,
-    placeholder = '메시지를 입력해 주세요',
+    placeholder = 'Enter a message',
     disabled = false,
     maxHeight = 279,
     label,

@@ -6,9 +6,11 @@ import { CopyButton } from '../../components/CopyButton';
 import { useSlotStatuses } from '../../hooks/useSlotStatuses';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
+import { useStateScreenStrings } from '../../i18n/screens/StateScreen';
 
 /** Read-only snapshot of session/server/socket state (singleton stores, router-independent). */
 export const StateScreen = () => {
+    const t = useStateScreenStrings();
     const session = runtime.session.useGlobalSession();
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
     const socketState = runtime.connection.useRuntimeSocketState();
@@ -45,15 +47,15 @@ export const StateScreen = () => {
     return (
         <div className="space-y-3 p-4">
             <div className="flex justify-end">
-                <CopyButton value={snapshot} label="상태 복사" />
+                <CopyButton value={snapshot} label={t.copyState} />
             </div>
 
-            <Section title="Device">
+            <Section title={t.sections.device}>
                 <Row label="deviceId" value={deviceId} />
                 <Row label="firebase iid" value={firebaseInstallationId} />
             </Section>
 
-            <Section title="Session">
+            <Section title={t.sections.session}>
                 <Row label="initialized" value={String(isInitialized)} />
                 <Row label="authenticated" value={String(isAuthenticated)} />
                 <Row label="isGuest" value={String(facts.isGuest)} />
@@ -64,7 +66,7 @@ export const StateScreen = () => {
                 <Row label="error" value={identity.error?.message ?? null} />
             </Section>
 
-            <Section title="Active Server">
+            <Section title={t.sections.activeServer}>
                 <Row label="kind" value={activeServer.kind} />
                 <Row label="siteId" value={activeServer.siteId} />
                 <Row label="backend" value={activeServer.backend} />
@@ -73,7 +75,7 @@ export const StateScreen = () => {
                 {'cloudId' in activeServer && <Row label="cloudId" value={activeServer.cloudId} />}
             </Section>
 
-            <Section title="Relay">
+            <Section title={t.sections.relay}>
                 <Row label="isAuthenticated" value={String(relay.isAuthenticated)} />
                 <Row label="siteId" value={relay.siteId} />
                 <Row label="backend" value={relay.backend} />
@@ -81,7 +83,7 @@ export const StateScreen = () => {
                 <Row label="identityToken" value={relay.identityToken} />
             </Section>
 
-            <Section title="Cloud">
+            <Section title={t.sections.cloud}>
                 <Row label="isActive" value={String(cloud.isActive)} />
                 <Row label="cloudId" value={cloud.cloudId} />
                 <Row label="siteId" value={cloud.siteId} />
@@ -90,7 +92,7 @@ export const StateScreen = () => {
                 <Row label="identityToken" value={cloud.identityToken} />
             </Section>
 
-            <Section title="Socket">
+            <Section title={t.sections.socket}>
                 <Row label="state" value={socketState.state} />
                 <Row label="isConnected" value={String(socketState.isConnected)} />
                 <Row label="isVerified" value={String(socketState.isVerified)} />

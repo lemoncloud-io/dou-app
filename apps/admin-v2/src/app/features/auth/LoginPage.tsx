@@ -18,7 +18,7 @@ export const LoginPage = () => {
             <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-8">
                 <div className="space-y-1 text-center">
                     <h1 className="text-2xl font-semibold">Admin V2</h1>
-                    <p className="text-sm text-muted-foreground">socket-lab 콘솔에 로그인하세요</p>
+                    <p className="text-sm text-muted-foreground">Sign in to the socket-lab console</p>
                 </div>
                 <div className="space-y-3">
                     <button
@@ -26,14 +26,14 @@ export const LoginPage = () => {
                         onClick={() => onClickSocialLogin('google')}
                         className="h-12 w-full rounded-md border border-border text-sm hover:bg-accent"
                     >
-                        Google로 계속하기
+                        Continue with Google
                     </button>
                     <button
                         type="button"
                         onClick={() => onClickSocialLogin('kakao')}
                         className="h-12 w-full rounded-md border border-border text-sm hover:bg-accent"
                     >
-                        Kakao로 계속하기
+                        Continue with Kakao
                     </button>
                 </div>
             </div>

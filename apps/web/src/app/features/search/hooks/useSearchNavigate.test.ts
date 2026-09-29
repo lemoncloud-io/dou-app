@@ -21,7 +21,7 @@ jest.mock('@chatic/app-runtime', () => ({
 
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (_key: string, fallback: string) => fallback }) }));
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 const navigate = jest.fn();
 const switchCloud = jest.fn();

@@ -33,7 +33,9 @@ const HEADERS = ['User ID', 'Status', 'Override', 'Grade', 'Valid Until', 'Platf
 
 export const MembershipTable = ({ rows, selectedUserId, onSelect, now }: MembershipTableProps) => {
     if (rows.length === 0) {
-        return <p className="px-4 py-12 text-center text-sm text-muted-foreground">조건에 맞는 멤버십이 없습니다</p>;
+        return (
+            <p className="px-4 py-12 text-center text-sm text-muted-foreground">No memberships match these filters</p>
+        );
     }
 
     return (
@@ -82,7 +84,7 @@ export const MembershipTable = ({ rows, selectedUserId, onSelect, now }: Members
                                     {hasDerivationMismatch(row) && (
                                         <span
                                             className="cursor-help text-amber-400"
-                                            title="저장된 status와 실시간 isValid가 어긋납니다. 부여가 만료된 상태일 수 있습니다."
+                                            title="The stored status and the live isValid disagree. The grant may have expired."
                                         >
                                             ⚠
                                         </span>

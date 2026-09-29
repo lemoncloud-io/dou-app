@@ -36,9 +36,9 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
     if (phase === 'failed') {
         return (
             <div className="flex items-center gap-2 text-xs text-destructive">
-                <span>조회 실패: {error?.message ?? '알 수 없는 오류'}</span>
+                <span>Query failed: {error?.message ?? 'Unknown error'}</span>
                 <button type="button" onClick={onRetry} className="rounded border border-border px-2 py-0.5">
-                    다시 시도
+                    Retry
                 </button>
             </div>
         );
@@ -54,8 +54,8 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
                     <span className="block h-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
                 </span>
                 <span>
-                    수집 중 {n(loaded)}
-                    {total > 0 && ` / ${n(Math.min(total, cap))}`}건
+                    Collecting {n(loaded)}
+                    {total > 0 && ` / ${n(Math.min(total, cap))}`} rows
                 </span>
             </div>
         );
@@ -64,16 +64,16 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
     // Appended to a settled state rather than replacing it: what was collected is still
     // what is on screen, the only extra fact is when.
     const isHeld = fetchedAt !== undefined && Date.now() - fetchedAt >= HELD_NOTICE_MS;
-    const held = isHeld ? ` · ${formatRelative(fetchedAt)} 수집분` : '';
+    const held = isHeld ? ` · collected ${formatRelative(fetchedAt)}` : '';
 
     if (phase === 'truncated') {
         return (
             <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded bg-yellow-500/15 px-2 py-0.5 text-yellow-700 dark:text-yellow-400">
-                    상한 {n(cap)}건까지만 수집 — 전체 {n(total)}건{held}
+                    Capped at {n(cap)} rows — {n(total)} total{held}
                 </span>
                 <span className="text-muted-foreground">
-                    아래 집계는 수집한 {n(loaded)}건 기준입니다. 기간을 좁히면 전수로 볼 수 있습니다.
+                    The stats below are over the {n(loaded)} collected rows. Narrow the range to see the full set.
                 </span>
             </div>
         );
@@ -82,7 +82,9 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
     if (phase === 'complete') {
         return (
             <span className="text-xs text-muted-foreground">
-                {loaded === 0 ? '이 조건에 해당하는 로그가 없습니다' : `${n(loaded)}건 전수 수집 완료${held}`}
+                {loaded === 0
+                    ? 'No logs match this query'
+                    : `Collected all ${n(loaded)} ${loaded === 1 ? 'row' : 'rows'}${held}`}
             </span>
         );
     }

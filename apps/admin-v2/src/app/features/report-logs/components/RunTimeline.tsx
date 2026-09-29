@@ -44,15 +44,13 @@ export const RunTimeline = ({ rows, onSelect, selectedId, runId }: RunTimelinePr
     if (!runId) {
         return (
             <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                행에서 실행(runId)을 추적하면 그 실행의 시간순 흐름이 여기에 나옵니다.
+                Pin a run (runId) from a row to see that run's timeline here.
             </p>
         );
     }
 
     if (ordered.length === 0) {
-        return (
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">이 실행에 해당하는 로그가 없습니다.</p>
-        );
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No logs for this run.</p>;
     }
 
     const span = (eventAt(ordered[ordered.length - 1]) ?? 0) - (eventAt(ordered[0]) ?? 0);
@@ -61,9 +59,9 @@ export const RunTimeline = ({ rows, onSelect, selectedId, runId }: RunTimelinePr
         <div className="flex flex-col">
             <div className="flex flex-wrap items-baseline gap-2 border-b border-border px-4 py-2 text-xs text-muted-foreground">
                 <span className="font-mono text-foreground">{runId}</span>
-                <span>· {ordered.length.toLocaleString()}건</span>
-                {span > 0 && <span>· 구간 {formatGap(span).replace('+', '')}</span>}
-                <span>· 발생 시각 오름차순</span>
+                <span>· {ordered.length.toLocaleString()} rows</span>
+                {span > 0 && <span>· span {formatGap(span).replace('+', '')}</span>}
+                <span>· sorted by occurrence time, ascending</span>
             </div>
             <ol className="flex flex-col">
                 {ordered.map((row, index) => {

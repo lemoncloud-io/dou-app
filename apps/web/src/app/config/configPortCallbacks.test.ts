@@ -6,6 +6,12 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (o: unknown)
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
+// This callback runs outside React (no `useTranslation` hook available) and the app's own i18n
+// singleton isn't initialized in this unit test, so a real `i18next.t()` call here would just
+// return `undefined`. Stub it the same way component tests stub `react-i18next`'s `t`.
+jest.mock('i18next', () => ({
+    t: (key: string, options?: Record<string, unknown>) => (options ? `${key}:${JSON.stringify(options)}` : key),
+}));
 
 describe('config 포트 콜백 — 실패 표시 (ADR-0080 결정 10)', () => {
     beforeEach(() => jest.clearAllMocks());

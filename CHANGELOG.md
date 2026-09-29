@@ -1,5 +1,49 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Features
+
+- (web,shared,block-kit,desktop-web) read end-user copy from the app's locale, not Korean
+
+### Documentation
+
+- (adr) write tools in English and route user and QA copy through i18n (ADR-0122)
+
+### Refactor
+
+- (http,bridges,mobile) write thrown and logged messages in English, not Korean
+- (testbed,block-kit-builder,desktop-web,scripts) write dev-tool copy in English
+- (config) write registry titles and descriptions in English, not Korean
+- (admin-v2) write the operator console's copy in English, not Korean
+- (web/debug) give every debug panel screen a ko/en table, not hardcoded Korean
+
+## [2026-09-28] - root@0.67.0, @chatic/web@0.53.0
+
+### Features
+
+- (data) read an image message back once it is sent, for its image addresses
+- (testbed) send images from the chat room and log every step of the upload
+- (web) send images through the shell's own PUT, and fail the rows a reload leaves behind
+- (data,app-messages,app-runtime) send picked images as one message over a PUT port
+
+### Documentation
+
+- (adr,block-kit) drop other repositories' paths, branches and commits
+- (adr,logger) drop private document paths from the docs
+- (logger,block-kit,desktop-web) drop private document paths and PR numbers from comments
+- (adr) an image send runs in the data layer, over a PUT port (ADR-0121)
+
+### Chores
+
+- (deps) bump chatic-sockets-lib to 0.5.4 and chatic-socials-api to 0.26.902
+
+## [2026-09-28] - No version updates
+
+### Features
+
+- (perf,mobile,web) record traces in Firebase Performance and time room opens (ADR-0120)
+
 ## [2026-09-28] - No version updates
 
 ### Features

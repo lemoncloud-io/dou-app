@@ -1,10 +1,9 @@
 /**
  * The tags the trigger catalog defines, grouped as it groups them.
  *
- * **Mirrors the catalog, and is not itself the source of truth.** The canonical list lives in the
- * knowledge vault (`projects/@lemoncloud-io/dou-app/log-collection/triggers.md`); this constant
- * exists so a call site can be checked against it without a human remembering the table. When the
- * table changes, this follows — never the other way round.
+ * **Mirrors the catalog, and is not itself the source of truth.** The canonical list is kept outside
+ * this repository; this constant exists so a call site can be checked against it without a human
+ * remembering the table. When the table changes, this follows — never the other way round.
  *
  * Known gaps, deliberately NOT added here: `SESSION` and `WEB_CORE` are used by the shared
  * libraries, and `GLOBAL_LOADER`, `SETUP`, `TOKEN_GENERATOR` are one-offs — none of them appear in

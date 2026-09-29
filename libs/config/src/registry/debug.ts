@@ -24,8 +24,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const debugModule: ConfigRegistryModule = {
     'debug.overlayEnabled': {
-        title: '디버그 오버레이',
-        description: '디버그 화면 진입을 연다. PROD는 10탭 + 입장 코드가 필요하다.',
+        title: 'Debug overlay',
+        description: 'Opens access to the debug screen. PROD requires 10 taps plus an entry code.',
         type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
@@ -35,8 +35,8 @@ export const debugModule: ConfigRegistryModule = {
         meta: true,
     },
     'debug.entryCode': {
-        title: '디버그 입장 코드',
-        description: 'PROD에서 디버그 오버레이를 열 때 입력하는 코드.',
+        title: 'Debug entry code',
+        description: 'The code entered to open the debug overlay in PROD.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_DEBUG_CODE',
@@ -46,8 +46,8 @@ export const debugModule: ConfigRegistryModule = {
         meta: true,
     },
     'debug.mockService.mode': {
-        title: '모의 서비스 모드',
-        description: '실제 서버 대신 로컬·픽스처 응답을 쓴다.',
+        title: 'Mock service mode',
+        description: 'Uses local or fixture responses instead of the real server.',
         type: 'enum',
         values: ['off', 'local', 'fixture'],
         defaultValue: 'off',
@@ -56,8 +56,8 @@ export const debugModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'debug.mockService.baseUrl': {
-        title: '모의 서비스 주소',
-        description: "모의 서비스 모드가 'local'일 때 사용할 서버 주소.",
+        title: 'Mock service address',
+        description: "The server address used when mock service mode is 'local'.",
         type: 'string',
         defaultValue: '',
         surface: 'dev',
@@ -65,8 +65,8 @@ export const debugModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'debug.overlay.backdropOpacity': {
-        title: '오버레이 배경 불투명도',
-        description: '디버그 오버레이 뒤 배경의 불투명도.',
+        title: 'Overlay backdrop opacity',
+        description: 'The opacity of the backdrop behind the debug overlay.',
         type: 'number',
         defaultValue: 0.35,
         surface: 'dev',
@@ -74,8 +74,8 @@ export const debugModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'debug.overlay.contentOpacity': {
-        title: '오버레이 내용 불투명도',
-        description: '디버그 오버레이 자체의 불투명도.',
+        title: 'Overlay content opacity',
+        description: 'The opacity of the debug overlay itself.',
         type: 'number',
         defaultValue: 1,
         surface: 'dev',

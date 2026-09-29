@@ -13,11 +13,12 @@ This document covers the **overview and structure** only. Per-screen detail is u
 ## Scope
 
 **In scope:** wiring `apps/testbed` together as an Nx app; assembling `app-runtime` and `data` for
-real; the guest → cloud transition; cloud/place/channel/chat data flow; runtime state inspection
-through the global overlay.
+real; the guest → cloud transition; cloud/place/channel/chat data flow; image messages sent through
+`@chatic/data`'s upload sequence, with a log of every step ([chat/room.md](docs/chat/room.md#image-send));
+runtime state inspection through the global overlay.
 
-**Out of scope:** production-grade visual polish; advanced profile/member management; extended chat
-features such as file upload, threads or reactions.
+**Out of scope:** production-grade visual polish; advanced profile/member management; other extended
+chat features such as non-image files, threads or reactions.
 
 ## Terminology
 

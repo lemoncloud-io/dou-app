@@ -27,8 +27,8 @@ describe('messagePlainText', () => {
     });
 
     // Pins plan D2 (no `blocks$` parameter added here): a `blocks$` message's
-    // `content` is the server's own plain-text summary, not JSON (SPEC §6-5,
-    // knowledge#319 SPEC.md) — it does not start with `{`, so `parseBlocks` falls
+    // `content` is the server's own plain-text summary, not JSON — it does not
+    // start with `{`, so `parseBlocks` falls
     // through to `stripMarkdown` and this already reads correctly with the
     // one-argument signature. The six call sites (sidebar preview, OS
     // notification, search, mention capture) stay untouched for the same reason.

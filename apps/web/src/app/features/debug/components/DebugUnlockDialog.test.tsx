@@ -3,6 +3,13 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { DebugUnlockDialog } from './DebugUnlockDialog';
+import { setDebugLanguageForTests } from '../i18n';
+
+let restoreLanguage: () => void;
+beforeEach(() => {
+    restoreLanguage = setDebugLanguageForTests('en');
+});
+afterEach(() => restoreLanguage());
 
 const setup = (over: Partial<React.ComponentProps<typeof DebugUnlockDialog>> = {}) => {
     const onSubmit = jest.fn();

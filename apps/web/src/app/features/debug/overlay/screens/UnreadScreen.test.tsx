@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 
 import { UnreadScreen } from './UnreadScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 import { clearDebugObservation, publishDebugObservation } from '../sharedObservationStore';
 import type { ActiveCloudData, OtherCloudUnread } from '../../../../hooks';
 
@@ -18,14 +19,19 @@ const ACTIVE_CLOUD = {
 const OTHER_CLOUD = { byCloud: { 'cloud-b': 2 }, total: 2, refresh: () => undefined } as OtherCloudUnread;
 
 describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
         clearDebugObservation();
     });
+
+    afterEach(() => restoreLanguage());
 
     it('공유 관측이 없으면 던지지 않고 아직 게시되지 않았다고 알린다', () => {
         // The provider-missing throw used to reach the app-wide boundary and blank the whole UI.
         expect(() => render(<UnreadScreen />)).not.toThrow();
-        expect(screen.getByText(/아직 게시되지 않았습니다/)).toBeInTheDocument();
+        expect(screen.getByText(/hasn't been published yet/)).toBeInTheDocument();
     });
 
     it('게시된 관측의 합계·파생 입력을 그대로 보여준다', () => {
@@ -34,7 +40,7 @@ describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
 
         // active 3 + inactive 2 = app badge 5.
         expect(screen.getByText('5')).toBeInTheDocument();
-        expect(screen.getByText('머리 10/10 · 커서 7/7 = 3')).toBeInTheDocument();
+        expect(screen.getByText('head 10/10 · cursor 7/7 = 3')).toBeInTheDocument();
         expect(screen.getByText('cloud-b')).toBeInTheDocument();
     });
 
@@ -43,7 +49,7 @@ describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
         publishDebugObservation({ activeCloud: ACTIVE_CLOUD });
         render(<UnreadScreen />);
 
-        expect(screen.getByText('안읽음이 있는 비활성 클라우드가 없습니다')).toBeInTheDocument();
-        expect(screen.getByText('머리 10/10 · 커서 7/7 = 3')).toBeInTheDocument();
+        expect(screen.getByText('No inactive cloud has unread')).toBeInTheDocument();
+        expect(screen.getByText('head 10/10 · cursor 7/7 = 3')).toBeInTheDocument();
     });
 });

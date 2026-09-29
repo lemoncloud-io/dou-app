@@ -54,12 +54,11 @@ Three rules hold on every crossing:
 2. **A write gets an answer.** `useDebugOperation` (`hooks/useDebugOperation.ts`) splits every
    screen's call into `run`, for a command the app replies to, and `fire`, for the handful that
    were already void before this panel existed (`openURL`, `openSettings`, `openShareSheet`,
-   `setBadgeCount` in `appBridge.ts`). `fire` never claims success — it reports `"보냈습니다 (확인
-없음)"` so a silent void call is never mistaken for a confirmed one.
+   `setBadgeCount` in `appBridge.ts`). `fire` never claims success — it reports `"sent (no confirmation)"` so a silent void call is never mistaken for a confirmed one.
 3. **A version gap is expected, not a bug.** The web ships before the app
    ([`libs/app-messages`](../../../../libs/app-messages/README.md) states the same rule for every
    bridge message). When an installed build has no handler yet, the host answers `NOT_FOUND`, and
-   `run` renders `"이 앱 버전이 지원하지 않습니다"` instead of the raw handler-missing error — then
+   `run` renders `"not supported by this app version"` instead of the raw handler-missing error — then
    remembers the command in a module-level `Set` so `isUnsupported(command)` can lock that control
    for the rest of the session. The set is never un-learned; an app build cannot grow a handler
    without a reload.

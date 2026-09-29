@@ -21,9 +21,9 @@ export interface FilterChip {
 }
 
 const CHIP_LABEL: Record<FilterKey, string> = {
-    status: '상태',
-    productId: '상품',
-    platform: '플랫폼',
+    status: 'Status',
+    productId: 'Product',
+    platform: 'Platform',
     userId: 'userId',
     isSuper: 'isSuper',
 };

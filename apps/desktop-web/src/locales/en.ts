@@ -131,6 +131,8 @@ export const en = {
     'chat.jump.notFound':
         "Couldn't scroll to that message. It may have been deleted, or sit further back than a jump reaches.",
     'chat.jump.dismissReturn': 'Dismiss return',
+    'chat.codeBlock.expand': 'View more ({{count}} lines)',
+    'chat.codeBlock.collapse': 'View less',
     'chat.thread.unavailable': "This message isn't loaded yet. Scroll up in the channel to load it.",
     'chat.system.join': '{{name}} joined the channel',
     'chat.system.leave': '{{name}} left the channel',
@@ -372,6 +374,9 @@ export const en = {
     'errors.conflict': 'Someone changed this channel first. Reopen it and try again.',
     'errors.network': "Couldn't reach the server. Check your connection and try again.",
     'errors.generic': "That didn't work. Try again in a moment.",
+    // Last-resort fallback in extractErrorMessage when nothing else describes the
+    // failure (no message, no status, no wire text). See shared/utils/errors.ts.
+    'errors.unknown': 'An unknown error occurred.',
     'toast.messageFailed': 'Message not sent.',
     'channels.settings.title': 'Channel settings',
     'channels.settings.resize': 'Resize channel settings panel',

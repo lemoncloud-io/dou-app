@@ -40,7 +40,7 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.01em' }}>Gateway Sandbox</span>
                     <span style={{ fontSize: 11.5, color: 'var(--sm-text-6)' }}>
-                        클라이언트별 토큰으로 인증해 게이트웨이를 직접 호출·검증 · 실 WebSocket
+                        Authenticate with a per-client token to call and verify the gateway directly · real WebSocket
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -62,7 +62,7 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
                             color: 'var(--sm-text-3)',
                         }}
                     >
-                        모두 연결 해제
+                        Disconnect all
                     </button>
                     {sandbox.canAdd ? (
                         <button
@@ -80,7 +80,7 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
                                 color: ACCENT,
                             }}
                         >
-                            + 클라이언트 추가
+                            + Add client
                         </button>
                     ) : null}
                 </div>
@@ -99,7 +99,7 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
                         background: 'var(--sm-panel)',
                     }}
                 >
-                    <span style={{ fontSize: 13, color: 'var(--sm-text-5)' }}>클라이언트를 추가해 시작하세요</span>
+                    <span style={{ fontSize: 13, color: 'var(--sm-text-5)' }}>Add a client to get started</span>
                     <button
                         onClick={sandbox.addClient}
                         style={{
@@ -115,7 +115,7 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
                             border: 'none',
                         }}
                     >
-                        + 클라이언트 추가
+                        + Add client
                     </button>
                 </div>
             ) : (
@@ -184,7 +184,7 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
                                         color: 'var(--sm-text-3)',
                                     }}
                                 >
-                                    숨기기
+                                    Hide
                                 </button>
                             </div>
                             <div style={{ padding: 16, overflowX: 'auto' }}>

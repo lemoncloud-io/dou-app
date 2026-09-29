@@ -293,7 +293,7 @@ export const MessageRow = memo(
                     // A structured message, either the server's own `blocks$` field
                     // (webhook sends) or one it sent as Block Kit JSON in `content`;
                     // null for everything else, which is still the overwhelming
-                    // majority. Priority: knowledge#319 SPEC.md §6-1.
+                    // majority.
                     const { blocks, source } = resolveChatBlocks(message);
                     // What the row *says*, as opposed to what it is made of. Copy,
                     // Save and the link unfurl all mean the former — reading `content`
@@ -534,6 +534,10 @@ export const MessageRow = memo(
                                             <BlockKitMessage
                                                 blocks={blocks}
                                                 raw={content}
+                                                labels={{
+                                                    expandCode: count => t('chat.codeBlock.expand', { count }),
+                                                    collapseCode: t('chat.codeBlock.collapse'),
+                                                }}
                                                 renderFallback={raw => (
                                                     <RichText
                                                         content={raw}
@@ -825,9 +829,8 @@ export const MessageRow = memo(
                                                                     `content` is only the server's summary —
                                                                     editing it would leave the card saying one
                                                                     thing and the summary another, and the server
-                                                                    does not rebuild `blocks$` on update
-                                                                    (knowledge#319 SPEC §4.3). Delete still
-                                                                    applies: the message can still be wrong. */}
+                                                                    does not rebuild `blocks$` on update. Delete
+                                                                    still applies: the message can still be wrong. */}
                                                                 {!blocks && (
                                                                     <DropdownMenuItem
                                                                         onSelect={() => {

@@ -23,7 +23,7 @@ export const buildInviteRedirectUrl = (rawInput: string, baseUrl = DEFAULT_INVIT
     try {
         input = new URL(rawInput.trim());
     } catch {
-        throw new Error('유효한 URL이 아닙니다.');
+        throw new Error('Not a valid URL.');
     }
 
     const params = buildInviteEntryParams(input.search);

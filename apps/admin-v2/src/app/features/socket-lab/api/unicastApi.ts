@@ -52,6 +52,6 @@ export const sendUnicast = async (stage: UsersStage, event: UnicastEvent): Promi
         })
         .setBody(event)
         .execute<UnicastResult>();
-    if (!data) throw new Error('unicast 응답 본문 없음');
+    if (!data) throw new Error('unicast response has no body');
     return data;
 };

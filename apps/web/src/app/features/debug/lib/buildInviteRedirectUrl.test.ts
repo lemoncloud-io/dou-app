@@ -101,12 +101,10 @@ describe('buildInviteRedirectUrl', () => {
     });
 
     it('throws a descriptive error for an invalid URL or a partial cloud address', () => {
-        expect(() => buildInviteRedirectUrl('not-a-url')).toThrow('유효한 URL이 아닙니다.');
+        expect(() => buildInviteRedirectUrl('not-a-url')).toThrow('Not a valid URL.');
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?api=x&stage=dev')).toThrow('code');
         // A half-specified address is a broken cloud link, not a relay link — do not silently relay it.
-        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&stage=dev')).toThrow(
-            'api 또는 backend'
-        );
+        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&stage=dev')).toThrow('api or backend');
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&api=x')).toThrow('stage');
     });
 });

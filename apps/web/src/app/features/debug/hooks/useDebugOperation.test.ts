@@ -1,11 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
 
 import { resetUnsupportedCommands, useDebugOperation } from './useDebugOperation';
+import { setDebugLanguageForTests } from '../i18n';
 
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn() } }));
 
 describe('useDebugOperation', () => {
-    beforeEach(() => resetUnsupportedCommands());
+    let restoreLanguage: () => void;
+
+    beforeEach(() => {
+        resetUnsupportedCommands();
+        restoreLanguage = setDebugLanguageForTests('en');
+    });
+    afterEach(() => restoreLanguage());
 
     it('아직 아무것도 안 했으면 표시할 줄이 없다', () => {
         const { result } = renderHook(() => useDebugOperation());
@@ -16,32 +23,32 @@ describe('useDebugOperation', () => {
     it('run은 응답 본문을 줄에 적는다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
-        await act(() => result.current.run('토큰', () => Promise.resolve({ data: { token: 'abc' } })));
+        await act(() => result.current.run('Token', () => Promise.resolve({ data: { token: 'abc' } })));
 
-        expect(result.current.result).toBe('토큰 → {"token":"abc"}');
+        expect(result.current.result).toBe('Token → {"token":"abc"}');
     });
 
     it('data가 없는 응답은 ok로 적는다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
-        await act(() => result.current.run('비우기', () => Promise.resolve({})));
+        await act(() => result.current.run('Clear', () => Promise.resolve({})));
 
-        expect(result.current.result).toBe('비우기 → ok');
+        expect(result.current.result).toBe('Clear → ok');
     });
 
     // An older app version rejects when it doesn't know the command. Not smoothing a failure over as a success is the whole point of this hook.
     it('reject는 실패로 적는다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
-        await act(() => result.current.run('토큰', () => Promise.reject(new Error('NOT_FOUND'))));
+        await act(() => result.current.run('Token', () => Promise.reject(new Error('NOT_FOUND'))));
 
-        expect(result.current.result).toBe('토큰 → 실패: NOT_FOUND');
+        expect(result.current.result).toBe('Token → failed: NOT_FOUND');
     });
 
     it('긴 응답은 잘라서 버튼을 밀어내지 않는다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
-        await act(() => result.current.run('목록', () => Promise.resolve({ data: 'x'.repeat(900) })));
+        await act(() => result.current.run('List', () => Promise.resolve({ data: 'x'.repeat(900) })));
 
         expect(result.current.result?.length).toBeLessThan(430);
     });
@@ -51,10 +58,10 @@ describe('useDebugOperation', () => {
         const operation = jest.fn();
         const { result } = renderHook(() => useDebugOperation());
 
-        act(() => result.current.fire('설정 열기', operation));
+        act(() => result.current.fire('Open settings', operation));
 
         expect(operation).toHaveBeenCalledTimes(1);
-        expect(result.current.result).toBe('설정 열기 → 보냈습니다 (확인 없음)');
+        expect(result.current.result).toBe('Open settings → sent (no confirmation)');
     });
 
     // Since the web ships before the app, there's inevitably a window where an older app has no
@@ -64,10 +71,10 @@ describe('useDebugOperation', () => {
         const { result } = renderHook(() => useDebugOperation());
 
         await act(() =>
-            result.current.run('부팅 기록', () => Promise.reject({ code: 'NOT_FOUND', message: '핸들러 없음' }))
+            result.current.run('Boot records', () => Promise.reject({ code: 'NOT_FOUND', message: 'No handler' }))
         );
 
-        expect(result.current.result).toBe('부팅 기록 → 이 앱 버전이 지원하지 않습니다');
+        expect(result.current.result).toBe('Boot records → not supported by this app version');
     });
 
     it('명령 이름을 주면 기억해 두고, 화면이 버튼을 잠글 수 있게 한다', async () => {
@@ -75,7 +82,7 @@ describe('useDebugOperation', () => {
         expect(result.current.isUnsupported('FetchBootRecords')).toBe(false);
 
         await act(() =>
-            result.current.run('부팅 기록', () => Promise.reject({ code: 'NOT_FOUND' }), 'FetchBootRecords')
+            result.current.run('Boot records', () => Promise.reject({ code: 'NOT_FOUND' }), 'FetchBootRecords')
         );
 
         expect(result.current.isUnsupported('FetchBootRecords')).toBe(true);
@@ -86,19 +93,19 @@ describe('useDebugOperation', () => {
     it('명령 이름이 없으면 기억하지 않는다 — 무엇을 잠글지 알 수 없다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
-        await act(() => result.current.run('무명', () => Promise.reject({ code: 'NOT_FOUND' })));
+        await act(() => result.current.run('Unnamed', () => Promise.reject({ code: 'NOT_FOUND' })));
 
-        expect(result.current.isUnsupported('무명')).toBe(false);
+        expect(result.current.isUnsupported('Unnamed')).toBe(false);
     });
 
     it('일반 실패는 기억하지 않는다 — 다시 시도할 수 있어야 한다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
         await act(() =>
-            result.current.run('부팅 기록', () => Promise.reject(new Error('network')), 'FetchBootRecords')
+            result.current.run('Boot records', () => Promise.reject(new Error('network')), 'FetchBootRecords')
         );
 
-        expect(result.current.result).toBe('부팅 기록 → 실패: network');
+        expect(result.current.result).toBe('Boot records → failed: network');
         expect(result.current.isUnsupported('FetchBootRecords')).toBe(false);
     });
 });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
+import { useBlockKitLabels } from './blockKitLabels';
 import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
 
 /**
@@ -46,6 +47,7 @@ const TOGGLE_CLASS = cn(
  * surfaces that search.
  */
 export const CollapsibleCode = ({ text }: { text: string }) => {
+    const labels = useBlockKitLabels();
     const [open, setOpen] = useState(false);
     const lines = text.split('\n');
 
@@ -57,7 +59,7 @@ export const CollapsibleCode = ({ text }: { text: string }) => {
                 {open ? text : lines.slice(0, COLLAPSED_LINES).join('\n')}
             </span>
             <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={TOGGLE_CLASS}>
-                {open ? '간략히 보기' : `자세히 보기 (${lines.length - COLLAPSED_LINES}줄)`}
+                {open ? labels.collapseCode : labels.expandCode(lines.length - COLLAPSED_LINES)}
             </button>
         </span>
     );

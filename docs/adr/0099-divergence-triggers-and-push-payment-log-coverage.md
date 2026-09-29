@@ -5,8 +5,7 @@
 > Related: [ADR-0097](./0097-unified-logging-core-and-report-traceability.md) (unified logging core) · [ADR-0066](./0066-log-pipeline-collector-listener-split.md) (collector/listener split — canonical pipeline structure) · [ADR-0063](./0063-log-upload-source-port-and-native-charge-queue.md) (upload source port) · [ADR-0071](./0071-performance-budget-and-metric-events-over-the-log-pipeline.md) (performance metrics — **the lane this ADR chose not to use**) · [ADR-0048](./0048-unread-count-derivation-contract.md) (unread derivation contract — the reference value for comparison) · [ADR-0056](./0056-place-cloud-unread-dot-from-cache-and-push.md) (badge and push marks)
 >
 > **This document is not the canonical trigger catalog.** Where and at what level/tag things get
-> logged is owned by the knowledge vault's
-> `projects/@lemoncloud-io/dou-app/log-collection/triggers.md`; this ADR records **the decision to
+> logged is owned by the trigger catalogue, which is kept outside this repo; this ADR records **the decision to
 > add a new section (divergence checks) to that table** and the reasoning for it. The
 > implementation narrative lives in
 > [`libs/logger/docs/architecture.md`](../../libs/logger/README.md) (Live). (Note: this
@@ -121,8 +120,8 @@ so it doesn't widen the redaction boundary. **Push title/body still never get lo
 
 ### 4. Query axes are requested from the server
 
-Request `uid`/`tag` server-side filters from the backend. The channel is the vault lane's
-`client-upload-spec.md` reply — following the existing convention where the server writes the
+Request `uid`/`tag` server-side filters from the backend. The channel is the written reply to the
+client's upload requirements — following the existing convention where the server writes the
 concrete API shape and the client only conveys requirements. Since §1's `warn` judgment already
 narrows things down before this ships, **this track does not wait on the server deploy.**
 
@@ -143,7 +142,7 @@ cause for #1's Android side, but fixing that is out of this track.)
 
 ### 6. Update the canonical catalog and clean up existing debt along the way
 
-Add a divergence-check section to vault's `triggers.md`, and reflect the push/payment
+Add a divergence-check section to the trigger catalogue, and reflect the push/payment
 enhancements. On the way, fix existing mismatches too — `CLOUD` vs `APP` in cloud switch/manage,
 and `PUSH` vs `PUSH_EVENT` in web push receipt. To honor the catalog rule "fix the table before the
 code," the table is fixed first and the implementation follows.
@@ -152,7 +151,7 @@ code," the table is fixed first and the implementation follows.
 
 **In** — the 7 target issues (#1 badge, #2 member sync, #7 notification, #10 push entry, #11
 lingering unread, #13 iOS payment, #14 display name), the push/payment catalog gaps, socket
-reconnect/give-up subscription, channel-leave/member-sync triggers, and the vault catalog update.
+reconnect/give-up subscription, channel-leave/member-sync triggers, and the catalogue update.
 
 **Out**
 

@@ -20,6 +20,16 @@ const toRow = (label: string, value: string | null | undefined): DeviceInfoRow =
     };
 };
 
+/** Row labels, supplied by the caller so this stays a pure function — see `DeviceInfoScreen`'s i18n table. */
+export interface DeviceInfoRowLabels {
+    deviceId: string;
+    installId: string;
+    platform: string;
+    model: string;
+    stage: string;
+    application: string;
+}
+
 /**
  * Builds the rows shown in the debug Device Info block.
  *
@@ -31,11 +41,11 @@ const toRow = (label: string, value: string | null | undefined): DeviceInfoRow =
  * it as a global, so it can only be resolved via the push-registration bridge
  * (see the Push debug page).
  */
-export const buildDeviceInfoRows = (deviceInfo: DeviceInfo | null): DeviceInfoRow[] => [
-    toRow('Device ID', deviceInfo?.uniqueDeviceId),
-    toRow('Install ID', deviceInfo?.firebaseInstallationId),
-    toRow('Platform', deviceInfo?.platform),
-    toRow('Model', deviceInfo?.deviceModel),
-    toRow('Stage', deviceInfo?.stage),
-    toRow('Application', deviceInfo?.application),
+export const buildDeviceInfoRows = (deviceInfo: DeviceInfo | null, labels: DeviceInfoRowLabels): DeviceInfoRow[] => [
+    toRow(labels.deviceId, deviceInfo?.uniqueDeviceId),
+    toRow(labels.installId, deviceInfo?.firebaseInstallationId),
+    toRow(labels.platform, deviceInfo?.platform),
+    toRow(labels.model, deviceInfo?.deviceModel),
+    toRow(labels.stage, deviceInfo?.stage),
+    toRow(labels.application, deviceInfo?.application),
 ];

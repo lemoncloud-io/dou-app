@@ -9,6 +9,7 @@ import type {
     JoinGateway,
     PlaceGateway,
     ProfileGateway,
+    UploadGateway,
     UserGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 
@@ -61,6 +62,11 @@ export type UserSocketDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUse
  * pins this bundle entry to the relay slot rather than the active one. See ADR-0089.
  */
 export type InviteSocketDomainGateway = Pick<InviteGateway, 'create' | 'get' | 'list' | 'accept' | 'cancel' | 'reject'>;
+/**
+ * Image attachments: `start` issues a presigned PUT per slot, `complete` settles them. `read` is left
+ * out — it is owner-only and the send sequence learns every status it needs from `complete`.
+ */
+export type UploadSocketDomainGateway = Pick<UploadGateway, 'start' | 'complete'>;
 
 export interface SocketGatewayBundle {
     auth: AuthSocketDomainGateway;
@@ -76,4 +82,5 @@ export interface SocketGatewayBundle {
     connection: ConnectionSocketDomainGateway;
     cloud: CloudSocketDomainGateway;
     profile: ProfileSocketDomainGateway;
+    upload: UploadSocketDomainGateway;
 }

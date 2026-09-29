@@ -1,6 +1,7 @@
 # ADR-0080: The web controls debug entirely — shared model, build-stage visibility, the app only executes
 
 > Status: **Accepted** · Written: 2026-09-08 · Implementation: **mostly Live** (measured 2026-09-10 — see §Implementation status below)
+> **Decision 3 and Delta ③ amended by [ADR-0122](./0122-english-for-tools-i18n-for-what-users-and-qa-read.md):** screen bodies moved into `ko`/`en` tables too, so the whole panel follows the app language.
 > The foundation is in place: [ADR-0079](./0079-config-registry-and-lane-resolver.md)'s steps 1-7 are implemented and committed
 > (the general-purpose KV shell lane · the 84-key registry · `snapshotAll()`). This document's decisions build on top of that.
 > **Ordering invariant: Decision 11 must land before Decision 12** — Decision 12's own justification is "once Decision 11 puts
@@ -66,6 +67,8 @@ Screens that use the shell only partially (log buffer · cache metrics · bridge
 useful in a browser too, and the bridge screen's **entire reason to exist is reporting that there's no shell.**
 
 ### Delta ③ — no fixed language, two tables instead
+
+> Amended by [ADR-0122](./0122-english-for-tools-i18n-for-what-users-and-qa-read.md): the body copy described below as hardcoded Korean now lives in per-screen `ko`/`en` tables under `features/debug/i18n/`.
 
 Decision 3 said "fix the language to Korean." The implementation keeps one `ko`/`en` table each and follows the app's
 language (`features/debug/i18n.ts`). The tables are typed against `DebugScreenKey`, so **a new screen must fill in
@@ -187,6 +190,8 @@ makes "the two panels feel like one tool," and it turns §Context 2's implicit o
 Categories follow the mobile-side axis ("Feature tests" / "Environment settings" / "Monitoring") and web screens get
 placed into it — web's `Tools`/`Data`/`Info` are a convenience grouping, not a property, and they carry no extension
 rule.
+
+> Amended by [ADR-0122](./0122-english-for-tools-i18n-for-what-users-and-qa-read.md): the panel is bilingual end to end, with Korean as the fallback.
 
 **The language is fixed to Korean.** This panel's users are the team's developers and QA, and the QA docs canon is in
 Korean. The code-comments-in-English convention applies to code, not to on-screen copy. The state where the same

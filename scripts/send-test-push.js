@@ -28,8 +28,8 @@ Options:
   --cid <id>           Cloud id in custom payload (default: "cloud_test_id")
   --sid <id>           Site id in custom payload (default: "site_test_id")
   --uid <id>           User id in custom payload (default: "user_test_id")
-  --title <text>       Sender name / Title argument (default: "홍길동")
-  --body <text>        Message content / Body argument (default: "오늘 회의 참석하시나요?")
+  --title <text>       Sender name / Title argument (default: "John Doe")
+  --body <text>        Message content / Body argument (default: "Are you attending today's meeting?")
   --silent             Send as a silent background push (NO banner — wakes app only; see notes)
   --loc-args-array     (iOS only) Send loc_args/title_loc_args as a native JSON array
                        (reproduces the real backend) instead of a JSON-encoded string
@@ -60,10 +60,10 @@ Sample Commands:
   node scripts/send-test-push.js android fcm_token_here
 
   # 2. Android FCM - Custom Chat Message & Room Deep Link
-  node scripts/send-test-push.js android fcm_token_here --title "이영희" --body "회의 문서 준비되었습니다." --room room_456
+  node scripts/send-test-push.js android fcm_token_here --title "Jane Smith" --body "The meeting materials are ready." --room room_456
 
   # 3. Android FCM - Service Notice Push (dou_notice channel)
-  node scripts/send-test-push.js android fcm_token_here --channel dou_notice --title "공지사항" --body "새로운 서비스 업데이트가 완료되었습니다."
+  node scripts/send-test-push.js android fcm_token_here --channel dou_notice --title "Announcement" --body "A new service update has been completed."
 
   # 4. iOS APNs - Sandbox (Development) Default Chat Push
   node scripts/send-test-push.js ios apns_token_here
@@ -107,8 +107,8 @@ const roomId = getOptionValue('--room', '1000095');
 // Deep-link spec: canonical path `/channels/{channelId}/room`. The leading slash is
 // required so the mobile DeeplinkService can normalize it to the custom scheme.
 const link = getOptionValue('--link', `/channels/${roomId}/room`);
-const titleArg = getOptionValue('--title', '홍길동');
-const bodyArg = getOptionValue('--body', '오늘 회의 참석하시나요?');
+const titleArg = getOptionValue('--title', 'John Doe');
+const bodyArg = getOptionValue('--body', "Are you attending today's meeting?");
 // Server-context ids carried inside the custom payload (cloud / site / user).
 const cid = getOptionValue('--cid', '1000001');
 const sid = getOptionValue('--sid', '10024');
@@ -300,8 +300,8 @@ function sendIosPush() {
             aps['content-available'] = 1;
         } else {
             aps.alert = {
-                title: '새 메시지',
-                body: '메시지가 도착했습니다.',
+                title: 'New message',
+                body: 'A message has arrived.',
             };
             aps.sound = channelId === 'dou_chat_muted' || channelId === 'dou_marketing' ? null : 'default';
         }

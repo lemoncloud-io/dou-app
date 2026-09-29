@@ -142,6 +142,8 @@ export const ko: EnTranslation = {
     'chat.jump.notFound':
         '그 메시지로 이동하지 못했어요. 삭제됐거나, 한 번에 이동할 수 있는 범위보다 오래된 메시지일 수 있어요.',
     'chat.jump.dismissReturn': '돌아가기 닫기',
+    'chat.codeBlock.expand': '자세히 보기 ({{count}}줄)',
+    'chat.codeBlock.collapse': '간략히 보기',
     'chat.thread.unavailable': '이 메시지는 아직 불러오지 않았어요. 채널을 위로 스크롤해 불러오세요.',
     'chat.system.join': '{{name}}님이 채널에 들어왔어요',
     'chat.system.leave': '{{name}}님이 채널을 나갔어요',
@@ -370,6 +372,7 @@ export const ko: EnTranslation = {
     'errors.conflict': '다른 사람이 이 채널을 먼저 바꿨어요. 채널을 다시 열고 시도해 주세요.',
     'errors.network': '서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
     'errors.generic': '처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
+    'errors.unknown': '알 수 없는 오류가 발생했습니다',
     'toast.messageFailed': '메시지를 보내지 못했어요.',
     'channels.settings.title': '채널 설정',
     'channels.settings.resize': '채널 설정 패널 크기 조절',

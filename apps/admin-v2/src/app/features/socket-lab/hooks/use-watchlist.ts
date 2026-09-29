@@ -279,7 +279,7 @@ export const useWatchlist = (): Watchlist => {
             const total = observed.reduce((n, x) => n + x.devices.length, 0) + u.devices.length;
             if (total > MAX_OBSERVED_DEVICES) {
                 setAddError(
-                    `관측 디바이스 상한(${MAX_OBSERVED_DEVICES}개)을 초과합니다 — 기존 유저를 해제한 뒤 추가하세요`
+                    `Exceeds the observed-device limit (${MAX_OBSERVED_DEVICES}) — release an existing user before adding`
                 );
                 return;
             }

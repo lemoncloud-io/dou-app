@@ -79,11 +79,11 @@ export const MembershipsPage = () => {
         <>
             <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-sm font-semibold text-foreground">Memberships</h1>
-                {isFetching && <span className="text-xs text-muted-foreground">불러오는 중…</span>}
+                {isFetching && <span className="text-xs text-muted-foreground">Loading…</span>}
                 <span className="flex-1" />
 
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    스테이지
+                    Stage
                     <select
                         className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
                         value={stage}
@@ -91,7 +91,7 @@ export const MembershipsPage = () => {
                     >
                         {RELAY_STAGES.map(value => (
                             <option key={value} value={value}>
-                                {value === 'v1' ? '운영 (v1)' : '개발 (d1)'}
+                                {value === 'v1' ? 'Production (v1)' : 'Development (d1)'}
                             </option>
                         ))}
                     </select>
@@ -100,21 +100,21 @@ export const MembershipsPage = () => {
                 <button
                     type="button"
                     onClick={() => setAutoRefresh(v => !v)}
-                    title={`${REFRESH_MS / 1000}초마다 다시 불러옵니다`}
+                    title={`Reloads every ${REFRESH_MS / 1000}s`}
                     className={`h-7 rounded-md border px-2 text-xs transition-colors ${
                         autoRefresh
                             ? 'border-ring bg-accent text-foreground'
                             : 'border-input bg-background text-muted-foreground hover:text-foreground'
                     }`}
                 >
-                    자동 새로고침
+                    Auto refresh
                 </button>
                 <button
                     type="button"
                     onClick={() => void refetch()}
                     className="h-7 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:text-foreground"
                 >
-                    새로고침
+                    Refresh
                 </button>
 
                 {/* The console is not deployed — it writes to whatever this stage resolves to. */}
@@ -150,7 +150,7 @@ export const MembershipsPage = () => {
                         onClick={() => setParams(clearAllPatch())}
                         className="text-[11px] text-muted-foreground underline hover:text-foreground"
                     >
-                        전체 해제
+                        Clear all
                     </button>
                 </div>
             )}
@@ -159,13 +159,13 @@ export const MembershipsPage = () => {
 
     const main = error ? (
         <div className="flex flex-col items-center gap-3 px-4 py-16">
-            <p className="text-sm text-red-400">멤버십을 불러오지 못했습니다</p>
+            <p className="text-sm text-red-400">Failed to load memberships</p>
             <button
                 type="button"
                 onClick={() => void refetch()}
                 className="h-7 rounded-md border border-input px-3 text-xs text-foreground hover:bg-muted"
             >
-                다시 시도
+                Try again
             </button>
         </div>
     ) : isLoading || !data ? (
@@ -190,7 +190,7 @@ export const MembershipsPage = () => {
                 disabled={page === 0}
                 className="h-6 rounded border border-input px-2 text-[11px] text-foreground disabled:opacity-40"
             >
-                이전
+                Previous
             </button>
             <button
                 type="button"
@@ -198,7 +198,7 @@ export const MembershipsPage = () => {
                 disabled={(page + 1) * PAGE_SIZE >= total}
                 className="h-6 rounded border border-input px-2 text-[11px] text-foreground disabled:opacity-40"
             >
-                다음
+                Next
             </button>
         </>
     );

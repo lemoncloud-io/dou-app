@@ -71,7 +71,9 @@ function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataReposi
             className="border border-border bg-card rounded-lg p-3 text-left hover:bg-muted transition-colors"
         >
             <p className="text-sm font-medium">{type}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{count === null ? '로딩 중...' : `${count}건`}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+                {count === null ? 'Loading...' : `${count} ${count === 1 ? 'item' : 'items'}`}
+            </p>
         </button>
     );
 }
@@ -100,7 +102,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
                     }}
                     className="ml-auto shrink-0 text-primary hover:opacity-70"
                 >
-                    수정
+                    Edit
                 </button>
                 <button
                     onClick={e => {
@@ -109,7 +111,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
                     }}
                     className="shrink-0 text-destructive hover:opacity-70"
                 >
-                    삭제
+                    Delete
                 </button>
             </div>
             {expanded && (
@@ -216,7 +218,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
         <div className="space-y-3">
             <div className="flex items-center gap-2">
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground text-sm">
-                    ← 목록
+                    ← List
                 </button>
                 <span className="font-semibold text-sm">{type}</span>
             </div>
@@ -245,20 +247,20 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                     onClick={openTemplate}
                     className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:opacity-80"
                 >
-                    + 새 행(템플릿)
+                    + New row (template)
                 </button>
                 <button
                     onClick={() => setShowWritePanel(v => !v)}
                     className="px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                 >
-                    {showWritePanel ? '작성 취소' : '데이터 추가/수정'}
+                    {showWritePanel ? 'Cancel' : 'Add/edit data'}
                 </button>
                 {!areYouSure ? (
                     <button
                         onClick={() => setAreYouSure(true)}
                         className="px-3 py-1 text-xs rounded border border-destructive text-destructive hover:opacity-70"
                     >
-                        전체삭제
+                        Clear all
                     </button>
                 ) : (
                     <>
@@ -266,13 +268,13 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                             onClick={() => void handleClear()}
                             className="px-3 py-1 text-xs rounded bg-destructive text-destructive-foreground"
                         >
-                            확인
+                            Confirm
                         </button>
                         <button
                             onClick={() => setAreYouSure(false)}
                             className="px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                         >
-                            취소
+                            Cancel
                         </button>
                     </>
                 )}
@@ -280,7 +282,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 
             {showWritePanel && (
                 <div className="border border-border bg-card rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-semibold">데이터 추가/수정 (JSON)</p>
+                    <p className="text-xs font-semibold">Add/edit data (JSON)</p>
                     <textarea
                         value={writeJson}
                         onChange={e => setWriteJson(e.target.value)}
@@ -292,16 +294,16 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                         onClick={() => void handleWrite()}
                         className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground"
                     >
-                        저장
+                        Save
                     </button>
                 </div>
             )}
 
             {results !== null && (
                 <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground">{results.length}건</p>
+                    <p className="text-xs text-muted-foreground">{results.length} items</p>
                     {results.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">결과 없음</p>
+                        <p className="text-xs text-muted-foreground">No results</p>
                     ) : (
                         results.map(row => (
                             <RowItem
@@ -315,7 +317,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                 </div>
             )}
 
-            {loading && <p className="text-xs text-muted-foreground font-medium">조회 중...</p>}
+            {loading && <p className="text-xs text-muted-foreground font-medium">Loading...</p>}
         </div>
     );
 }

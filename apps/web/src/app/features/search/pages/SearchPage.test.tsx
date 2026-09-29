@@ -14,16 +14,9 @@ jest.mock('../hooks/useSearchNavigate', () => ({ useSearchNavigate: jest.fn() })
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
-        // Mirrors i18next: a string second arg is the fallback, an object carries defaultValue +
-        // interpolation values.
-        t: (_key: string, second?: string | Record<string, unknown>) => {
-            if (typeof second === 'string') return second;
-            const { defaultValue = '', ...values } = second ?? {};
-            return Object.entries(values).reduce<string>(
-                (text, [name, value]) => text.replace(`{{${name}}}`, String(value)),
-                String(defaultValue)
-            );
-        },
+        // No resource bundle in this unit test, so `t` just echoes what it was called with — a
+        // plain key by itself, or the key plus its interpolation values when there are any.
+        t: (key: string, options?: Record<string, unknown>) => (options ? `${key}|${JSON.stringify(options)}` : key),
         i18n: { language: 'ko' },
     }),
 }));
@@ -99,7 +92,7 @@ describe('SearchPage', () => {
 
         renderAt('/search?q=lemon');
 
-        expect(screen.getByText("'Lemon Cloud'에서만 검색됩니다")).toBeTruthy();
+        expect(screen.getByText('search.scopeNoticeNamed|{"cloud":"Lemon Cloud"}')).toBeTruthy();
     });
 
     it('falls back to a generic scope notice before the cloud name is known', () => {
@@ -107,7 +100,7 @@ describe('SearchPage', () => {
 
         renderAt('/search?q=lemon');
 
-        expect(screen.getByText('현재 클라우드에서만 검색됩니다')).toBeTruthy();
+        expect(screen.getByText('search.scopeNotice')).toBeTruthy();
     });
 
     it('shows recent searches when the URL carries no keyword', () => {
@@ -130,7 +123,7 @@ describe('SearchPage', () => {
         renderAt('/search?q=lemon');
 
         expect(screen.getByRole('status')).toBeTruthy();
-        expect(screen.queryByText('검색 결과가 없습니다.')).toBeNull();
+        expect(screen.queryByText('search.noResults')).toBeNull();
     });
 
     it('says there are no results only once the scan is done', () => {
@@ -138,7 +131,7 @@ describe('SearchPage', () => {
 
         renderAt('/search?q=lemon');
 
-        expect(screen.getByText('검색 결과가 없습니다.')).toBeTruthy();
+        expect(screen.getByText('search.noResults')).toBeTruthy();
         expect(screen.queryByRole('status')).toBeNull();
     });
 });

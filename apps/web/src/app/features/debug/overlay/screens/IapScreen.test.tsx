@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { IapScreen } from './IapScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 
 const fetchProducts = jest.fn();
 const fetchCurrentPurchases = jest.fn();
@@ -32,28 +33,33 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('../../lib', () => ({ copyText: jest.fn() }));
 
 describe('IapScreen', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
         jest.clearAllMocks();
         fetchProducts.mockResolvedValue({ data: { products: [{ id: 'sub.pro.month', basePlanId: 'monthly' }] } });
     });
+
+    afterEach(() => restoreLanguage());
 
     it('스토어가 돌려준 상품을 id로 보여준다', async () => {
         render(<IapScreen />);
 
         expect(await screen.findByText('sub.pro.month')).toBeInTheDocument();
-        expect(screen.getByText('상품 (1)')).toBeInTheDocument();
+        expect(screen.getByText('Products (1)')).toBeInTheDocument();
     });
 
     it('상품 조회가 실패해도 빈 목록으로 버틴다 — 앱 셸이 없으면 정상 상황이다', async () => {
         fetchProducts.mockRejectedValue(new Error('NOT_FOUND'));
         render(<IapScreen />);
 
-        expect(await screen.findByText(/상품이 없습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/No products/)).toBeInTheDocument();
     });
 
     it('구매는 상품 id를 실어 보낸다', async () => {
         render(<IapScreen />);
-        await userEvent.click(await screen.findByRole('button', { name: '구매' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Buy' }));
 
         expect(purchase).toHaveBeenCalledWith({ id: 'sub.pro.month' });
     });
@@ -61,9 +67,9 @@ describe('IapScreen', () => {
     // purchase is post-based and the result arrives as an event — calling it "purchased" from the call alone would be a lie.
     it('구매 호출 자체는 확인 없음으로 적는다', async () => {
         render(<IapScreen />);
-        await userEvent.click(await screen.findByRole('button', { name: '구매' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Buy' }));
 
-        expect(await screen.findByText(/확인 없음/)).toBeInTheDocument();
+        expect(await screen.findByText(/no confirmation/)).toBeInTheDocument();
     });
 
     it('구매 성공·실패 이벤트를 받아 기록에 쌓는다', async () => {
@@ -75,16 +81,16 @@ describe('IapScreen', () => {
             listeners['OnPurchaseError']({ code: 'E_USER_CANCELLED' });
         });
 
-        await waitFor(() => expect(screen.getByText(/실패 .*E_USER_CANCELLED/)).toBeInTheDocument());
-        expect(screen.getByText(/성공/)).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByText(/failure .*E_USER_CANCELLED/)).toBeInTheDocument());
+        expect(screen.getByText(/success/)).toBeInTheDocument();
     });
 
     it('스토어·구독 관리는 확인 없는 조작이다', async () => {
         render(<IapScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: '스토어' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Store' }));
 
         expect(openStore).toHaveBeenCalledTimes(1);
-        expect(await screen.findByText(/스토어 열기 → 보냈습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/Open store → sent/)).toBeInTheDocument();
     });
 });

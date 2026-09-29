@@ -4,7 +4,49 @@ import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { useOnboardingSteps } from './useOnboardingSteps';
 
 let language = 'ko';
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language } }) }));
+
+// Mirrors the `onboarding.steps.*` keys in apps/web/public/locales/{ko,en}/translation.json,
+// just enough for this hook's own interpolation (`{{maxPlaces}}`, `{{maxChannels}}`) to resolve.
+const stepText: Record<string, Record<string, string>> = {
+    ko: {
+        'onboarding.steps.privateCommunity.title': '프라이빗 커뮤니티',
+        'onboarding.steps.privateCommunity.description':
+            '최대 {{maxPlaces}}개의 대화공간과, {{maxChannels}}개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요',
+        'onboarding.steps.safeSpace.title': '안전한 대화 공간',
+        'onboarding.steps.safeSpace.description': '초대 링크를 받은 친구끼리\n안전하게 대화가 가능해요.',
+        'onboarding.steps.groupCommunication.title': '그룹 소통',
+        'onboarding.steps.groupCommunication.description':
+            '최대 100명의 적정 규모로 더 집중된\n대화와 활발한 참여가 가능해요.',
+        'onboarding.steps.memoSpace.title': '나에게 보내는 메모 공간',
+        'onboarding.steps.memoSpace.description': '할 일 정리, 빠른 기록까지\n나만 보는 개인 메모 공간을 활용해요.',
+    },
+    en: {
+        'onboarding.steps.privateCommunity.title': 'Private Community',
+        'onboarding.steps.privateCommunity.description':
+            'Create up to {{maxPlaces}} spaces and {{maxChannels}} chat rooms\nto talk with the people you need',
+        'onboarding.steps.safeSpace.title': 'Safe Chat Space',
+        'onboarding.steps.safeSpace.description': 'Chat safely with friends\nwho received the invite link.',
+        'onboarding.steps.groupCommunication.title': 'Group Communication',
+        'onboarding.steps.groupCommunication.description':
+            'With up to 100 members, enjoy more focused\nconversations and active participation.',
+        'onboarding.steps.memoSpace.title': 'Personal Memo Space',
+        'onboarding.steps.memoSpace.description': 'Organize tasks and quick notes\nin your private memo space.',
+    },
+};
+
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, options?: Record<string, unknown>) => {
+            const template = stepText[language]?.[key] ?? key;
+            if (!options) return template;
+            return Object.entries(options).reduce(
+                (text, [name, value]) => text.replace(new RegExp(`{{${name}}}`, 'g'), String(value)),
+                template
+            );
+        },
+        i18n: { language },
+    }),
+}));
 jest.mock('@chatic/assets', () => ({ Images: new Proxy({}, { get: (_t, key) => `image:${String(key)}` }) }));
 
 const stepsFor = (locale: string) => {

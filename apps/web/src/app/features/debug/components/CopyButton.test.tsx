@@ -4,6 +4,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { CopyButton } from './CopyButton';
+import { setDebugLanguageForTests } from '../i18n';
 
 const copyTextWithResult = jest.fn();
 jest.mock('../lib/copyText', () => ({ copyTextWithResult: (value: string) => copyTextWithResult(value) }));
@@ -14,14 +15,18 @@ jest.mock('../lib/copyText', () => ({ copyTextWithResult: (value: string) => cop
  * a button that always claims success is worse than silent.
  */
 describe('CopyButton — 복사와 피드백', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
         jest.useFakeTimers();
         copyTextWithResult.mockReset();
         copyTextWithResult.mockResolvedValue(true);
+        restoreLanguage = setDebugLanguageForTests('en');
     });
 
     afterEach(() => {
         jest.useRealTimers();
+        restoreLanguage();
     });
 
     const clickIt = async () => {
@@ -31,10 +36,10 @@ describe('CopyButton — 복사와 피드백', () => {
 
     it('기본 라벨은 복사이고, 라벨을 주면 그걸 쓴다', () => {
         const { rerender } = render(<CopyButton value={() => 'x'} />);
-        expect(screen.getByRole('button')).toHaveTextContent('복사');
+        expect(screen.getByRole('button')).toHaveTextContent('Copy');
 
-        rerender(<CopyButton value={() => 'x'} label="상태 복사" />);
-        expect(screen.getByRole('button')).toHaveTextContent('상태 복사');
+        rerender(<CopyButton value={() => 'x'} label="Copy state" />);
+        expect(screen.getByRole('button')).toHaveTextContent('Copy state');
     });
 
     it('누르는 시점의 값을 복사한다', async () => {
@@ -49,13 +54,13 @@ describe('CopyButton — 복사와 피드백', () => {
     });
 
     it('성공하면 복사됨을 보여주고 잠시 뒤 되돌아온다', async () => {
-        render(<CopyButton value={() => 'x'} label="상태 복사" />);
+        render(<CopyButton value={() => 'x'} label="Copy state" />);
 
         await clickIt();
-        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('복사됨'));
+        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Copied'));
 
         act(() => jest.advanceTimersByTime(1500));
-        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('상태 복사'));
+        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Copy state'));
     });
 
     it('실패하면 실패라고 말한다', async () => {
@@ -65,12 +70,12 @@ describe('CopyButton — 복사와 피드백', () => {
 
         await clickIt();
 
-        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('복사 실패'));
+        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Copy failed'));
         // This stays longer than success does — it's the one that needs to be read.
         act(() => jest.advanceTimersByTime(1500));
-        expect(screen.getByRole('button')).toHaveTextContent('복사 실패');
+        expect(screen.getByRole('button')).toHaveTextContent('Copy failed');
         act(() => jest.advanceTimersByTime(1500));
-        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('복사'));
+        await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Copy'));
     });
 
     it('표시가 남아 있는 동안 언마운트되어도 터지지 않는다', async () => {

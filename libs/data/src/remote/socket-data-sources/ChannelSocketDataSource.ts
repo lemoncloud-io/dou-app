@@ -12,7 +12,7 @@ import type {
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ChannelSyncView, ChannelView } from '@lemoncloud/chatic-socials-api';
-import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { DomainChannel, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChannel } from '../../domain';
 import type { DataContext } from '../../repositories/types';

@@ -41,7 +41,7 @@ const StaleNotice = ({ failure }: { failure: PayloadParseFailure }) => (
 );
 
 /** Fixed so the preview is stable to compare against; the builder has no clock. */
-const SENDER = { name: '릴리즈봇', initial: 'R', time: '오후 11:11' };
+const SENDER = { name: 'ReleaseBot', initial: 'R', time: '11:11 PM' };
 
 /**
  * The message as a channel draws it, on a stage.

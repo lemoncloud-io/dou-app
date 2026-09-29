@@ -85,13 +85,15 @@ Files whose contents the name does not give away:
 
 Six native bridge calls are made from this feature and no new capability is asked of the shell:
 `getContacts`, `openShareSheet`, `openSettings`, `openURL`, `copyClipBoard` and
-`fetchUrlMetadata`.
+`fetchUrlMetadata`. Image sends add the shell's existing file-transfer messages, reached through
+`bridge/shellUpload.ts` rather than from the feature itself ([image-send.md](./image-send.md)).
 
 ## Documents
 
 | File                                                   | What it covers                                                                              |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| [data-layer.md](./data-layer.md)                       | the 23 hooks: observing, sync registration, paging, read cursors, the writes                |
+| [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                |
+| [image-send.md](./image-send.md)                       | `useSendImages`: the pending row, which PUT per shell, the file memory and its leftovers    |
 | [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll |
 | [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page        |
 | [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                   |

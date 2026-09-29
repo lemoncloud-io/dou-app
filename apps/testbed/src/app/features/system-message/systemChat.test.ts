@@ -38,12 +38,12 @@ describe('countUnreadMembers', () => {
 
 describe('formatSystemChatLabel', () => {
     it('join/leave subType별 문구를 만든다', () => {
-        expect(formatSystemChatLabel('join', '앨리스')).toBe('앨리스님이 입장했습니다');
-        expect(formatSystemChatLabel('leave', '앨리스')).toBe('앨리스님이 퇴장했습니다');
+        expect(formatSystemChatLabel('join', 'Alice')).toBe('Alice joined');
+        expect(formatSystemChatLabel('leave', 'Alice')).toBe('Alice left');
     });
 
     it('알 수 없는 subType이나 빈 이름도 안전하게 표기한다', () => {
-        expect(formatSystemChatLabel('' as const, '밥')).toBe('밥 시스템 메시지');
-        expect(formatSystemChatLabel('join', '')).toBe('알 수 없음님이 입장했습니다');
+        expect(formatSystemChatLabel('' as const, 'Bob')).toBe('Bob system message');
+        expect(formatSystemChatLabel('join', '')).toBe('Unknown joined');
     });
 });

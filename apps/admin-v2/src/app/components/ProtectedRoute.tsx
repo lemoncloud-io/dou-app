@@ -88,7 +88,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     if (isPending) {
         return (
             <GateScreen>
-                <p className="text-sm text-muted-foreground">권한 확인 중…</p>
+                <p className="text-sm text-muted-foreground">Checking permissions…</p>
             </GateScreen>
         );
     }
@@ -96,11 +96,11 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     if (profile?.$role?.role !== 'admin') {
         return (
             <GateScreen>
-                <h1 className="text-lg font-semibold">접근 권한이 없습니다</h1>
+                <h1 className="text-lg font-semibold">You don't have access</h1>
                 <p className="text-sm text-muted-foreground">
                     {profile
-                        ? 'Admin V2 콘솔은 admin 역할이 부여된 계정만 사용할 수 있습니다. 관리자에게 권한을 요청해 주세요.'
-                        : '권한 정보를 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.'}
+                        ? 'The Admin V2 console is only usable by accounts granted the admin role. Ask an administrator for access.'
+                        : 'Failed to load your permissions. Check your network connection and try again.'}
                 </p>
                 <div className="flex justify-center gap-2">
                     {!profile && (
@@ -110,7 +110,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
                             disabled={isFetching}
                             className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                         >
-                            {isFetching ? '확인 중…' : '다시 확인'}
+                            {isFetching ? 'Checking…' : 'Check again'}
                         </button>
                     )}
                     <button
@@ -118,7 +118,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
                         onClick={() => navigate('/auth/logout')}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
                     >
-                        로그아웃
+                        Log out
                     </button>
                 </div>
             </GateScreen>

@@ -94,7 +94,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
     const pushParsed = useMemo(() => (pushJsonOn ? parseJson(pushText) : {}), [pushJsonOn, pushText]);
     const pushShapeError =
         pushJsonOn && !pushParsed.error && (typeof pushParsed.value !== 'object' || Array.isArray(pushParsed.value))
-            ? 'push$는 JSON 객체여야 합니다'
+            ? 'push$ must be a JSON object'
             : null;
     const wsOnlyBlocked = !pushOn && targetType === 'device' && device.status === 'red';
     const canSend =
@@ -186,7 +186,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                 </span>
                 <button
                     onClick={onClose}
-                    aria-label="패널 닫기"
+                    aria-label="Close panel"
                     style={{
                         appearance: 'none',
                         background: 'none',
@@ -283,7 +283,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                         style={{ ...fieldStyle, resize: 'vertical', lineHeight: 1.5 }}
                     />
                     {dataParsed.error ? (
-                        <span style={{ fontSize: 11, color: '#e5484d' }}>JSON 오류: {dataParsed.error}</span>
+                        <span style={{ fontSize: 11, color: '#e5484d' }}>JSON error: {dataParsed.error}</span>
                     ) : null}
                 </div>
 
@@ -312,7 +312,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                                             color: pushMode === m ? ACCENT : 'var(--sm-text-5)',
                                         }}
                                     >
-                                        {m === 'simple' ? '간편' : 'JSON'}
+                                        {m === 'simple' ? 'Simple' : 'JSON'}
                                     </button>
                                 ))}
                             </div>
@@ -322,20 +322,18 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                                         value={pushSender}
                                         onChange={e => setPushSender(e.target.value)}
                                         onKeyDown={sendOnEnter}
-                                        placeholder="발신자 (푸시 제목)"
+                                        placeholder="Sender (push title)"
                                         style={fieldStyle}
                                     />
                                     <input
                                         value={pushContent}
                                         onChange={e => setPushContent(e.target.value)}
                                         onKeyDown={sendOnEnter}
-                                        placeholder="컨텐츠 (푸시 본문)"
+                                        placeholder="Content (push body)"
                                         style={fieldStyle}
                                     />
                                     {!pushContent.trim() ? (
-                                        <span style={{ fontSize: 11, color: '#d29922' }}>
-                                            컨텐츠를 입력해야 전송할 수 있습니다
-                                        </span>
+                                        <span style={{ fontSize: 11, color: '#d29922' }}>Enter content to send</span>
                                     ) : null}
                                 </>
                             ) : (
@@ -349,7 +347,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                                     />
                                     {pushParsed.error ? (
                                         <span style={{ fontSize: 11, color: '#e5484d' }}>
-                                            JSON 오류: {pushParsed.error}
+                                            JSON error: {pushParsed.error}
                                         </span>
                                     ) : null}
                                     {pushShapeError ? (
@@ -372,13 +370,11 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                                 value={viewingId}
                                 onChange={e => setViewingId(e.target.value)}
                                 onKeyDown={sendOnEnter}
-                                placeholder="채널 ID (보고 있는 디바이스는 push 억제)"
+                                placeholder="Channel ID (suppresses push for a device watching it)"
                                 style={fieldStyle}
                             />
                             {!viewingId.trim() ? (
-                                <span style={{ fontSize: 11, color: '#d29922' }}>
-                                    채널 ID를 입력해야 전송할 수 있습니다
-                                </span>
+                                <span style={{ fontSize: 11, color: '#d29922' }}>Enter a channel ID to send</span>
                             ) : null}
                         </>
                     ) : null}
@@ -403,13 +399,13 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                                 letterSpacing: '.05em',
                                 color: result.value.sent ? '#3fb950' : '#e5484d',
                             }}
-                            title="sent = 어느 leg로든 1회 이상 전달"
+                            title="sent = delivered at least once via either leg"
                         >
                             {result.value.sent ? 'SENT' : 'NOT SENT'}
                         </span>
                         <span
                             style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: 'var(--sm-text-3)' }}
-                            title="ws=WS 전달 성공 수 · push=push leg 전달 수 · missing=어느 leg로도 못 받은 대상 수"
+                            title="ws=WS delivery successes · push=push leg delivery count · missing=targets reached by neither leg"
                         >
                             ws {result.value.ws} · push {result.value.push} · missing {result.value.missing}
                         </span>
@@ -425,7 +421,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                         </span>
                     </div>
                 ) : null}
-                {error ? <span style={{ fontSize: 11.5, color: '#e5484d' }}>전송 실패: {error}</span> : null}
+                {error ? <span style={{ fontSize: 11.5, color: '#e5484d' }}>Send failed: {error}</span> : null}
             </div>
 
             <div
@@ -440,7 +436,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
             >
                 {wsOnlyBlocked ? (
                     <span style={{ fontSize: 11, color: '#d29922' }}>
-                        red(단절) 디바이스는 WS 수신 불가 — PUSH를 켜야 전송할 수 있습니다
+                        A red (disconnected) device cannot receive WS — turn on PUSH to send
                     </span>
                 ) : null}
                 <button
@@ -465,7 +461,7 @@ export default function UnicastPanel({ stage, user, device, onClose }: UnicastPa
                     }}
                 >
                     <Send size={13} />
-                    {sending ? '전송 중…' : '전송'}
+                    {sending ? 'Sending…' : 'Send'}
                 </button>
             </div>
         </div>
