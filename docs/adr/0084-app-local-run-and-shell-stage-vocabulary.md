@@ -1,6 +1,7 @@
 # ADR-0084: introduce app local-run, and unify env-file meaning and shell stage vocabulary across the repo
 
-> Status: Accepted · Decided: 2026-09-14 · Updated: 2026-09-17 (CLI flag spelling; decision unchanged)
+> Status: Accepted · Decided: 2026-09-14 · Updated: 2026-09-17 (CLI flag spelling; decision unchanged) ·
+> 2026-09-29 (`ENVFILE` also copied onto the react-native-config Pod target; decision unchanged)
 > Scope: `apps/mobile` (env · deep links · injection · `project.pbxproj` · `*.xcscheme`) ·
 > `libs/device-utils` · root `package.json` scripts ·
 > `apps/mobile/android/app/src/main/res/xml/network_security_config.xml` ·
@@ -149,6 +150,11 @@ to exactly two values, `chatic-desktop-{dev,prod}` — **`-stage` does not exist
 - **iOS's `/tmp/envfile` overrides `ENVFILE`.** `ReadDotEnv.rb` checks this file **first**, and the build
   pre-action on both committed schemes (`Chatic.xcscheme` · `Chatic Dev.xcscheme`) writes it on every
   build. The same pre-action even **overwrites the developer's `.env`** with `cp .env.dev .env`.
+- **react-native-config's codegen phase sees only its own Pod target's build settings.** The phase is a
+  script on the `react-native-config` Pod target, so an `ENVFILE` set on the app target never reaches it
+  and the script falls back to `.env`. (Found on 2026-09-29, after prod iOS builds had shipped the
+  local/dev env; the Podfile's `post_install` now copies the app target's per-configuration `ENVFILE`
+  onto that Pod target.)
 - **react-native-config's codegen phase is `always_out_of_date: "1"`** (podspec). Changing the env file
   does not let Xcode skip the phase.
 - **A GUI build cannot receive shell environment variables.** Building directly from Android Studio /
@@ -434,8 +440,9 @@ Decisions 1–4 and 7–8 are easy. Delete the new scripts and flip the deep-lin
 
 **Decisions 5–6 need a human hand once more.** Reversing means deleting iOS's `ENVFILE` build setting and
 restoring `.env` back to dev settings — since it's a per-developer local file, this can't be reverted by
-code. But if it's done wrong, the failure isn't quiet (the build comes up pointed at local). It's caught
-fast.
+code. If it's done wrong the failure can be quiet: a mapping that never reaches the codegen phase
+sends a prod build to `.env` with no build error, and it surfaced only as a Google Sign-In
+`invalid_audience` in production. Check the generated `Config` of a prod build, not just that it builds.
 
 **Decision 9 is also easy.** Because desktop is out of scope, nothing sent as push changes at all.
 Mobile's injected value only reaches two display-only consumers, and the reading-side mapping table
@@ -454,4 +461,4 @@ accepts even the legacy injected value, so it's safe even with web deploying fir
   `webview-debugging.md`. As local-run becomes common, it will be hit more often.
 - Real-device local-run — how to handle the ATS exception and LAN IP resolution is decided separately.
 - Implementation and architecture documentation live in
-  [apps/mobile/docs/local-run.md](../../apps/mobile/docs/release/local-run.md).
+  [apps/mobile/docs/release/local-run.md](../../apps/mobile/docs/release/local-run.md).
