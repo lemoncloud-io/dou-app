@@ -65,6 +65,14 @@ Save, copy and delete (`ImageActions`) are three icon buttons over the tile's co
 only where the reader may delete. They used to sit in a "More" menu, which for an image someone else
 sent held only Copy.
 
+"Download all" (in the feed and in the viewer) saves each image of the message in turn
+(`downloadImages`). In the desktop app every image save goes straight into the Downloads folder,
+with no dialog, and a name already there gets a number ("image (1).png"). The shell does this
+(`apps/desktop/src/main/downloads.ts`): Electron's default is a save dialog per file, so saving six
+images opened six dialogs. Only a PNG, JPEG, GIF or WebP whose name has the matching extension skips
+the dialog; any other file still asks, so a script in the page cannot drop an executable unseen. In
+a browser, Chrome may ask once whether the site may download several files.
+
 ## The viewer
 
 `ImageViewer` is a modal dialog over a plain scrim. Previously the app was frosted behind it.

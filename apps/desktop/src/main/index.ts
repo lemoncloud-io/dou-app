@@ -31,6 +31,7 @@ import {
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
 import { hasEntryPoint } from './customUiState';
+import { createDownloadTargets, savesWithoutAsking } from './downloads';
 import { startFcm, type FcmConfig } from './fcm';
 import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
@@ -1068,6 +1069,24 @@ if (!singleInstanceLock) {
         // except what the app actually uses, instead of Electron's allow-all default.
         session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
             callback(permission === 'notifications' || permission === 'clipboard-sanitized-write');
+        });
+
+        // Images from the app's own pages save straight into Downloads, like Chrome and Slack.
+        // Electron's default is a save dialog per file, so "Download all" on six images opened six
+        // dialogs. Any other file, or any page from elsewhere, keeps the dialog. The origin check
+        // reads the top-level page, not the frame that started the download — fine while the app
+        // embeds no other origin; an embed would need the initiating frame checked instead.
+        const downloadTargets = createDownloadTargets(app.getPath('downloads'), existsSync);
+        session.defaultSession.on('will-download', (_event, item, webContents) => {
+            if (!isTrustedUrl(webContents.getURL())) return;
+            if (!savesWithoutAsking(item.getFilename(), item.getMimeType())) return;
+            const savePath = downloadTargets.reserve(item.getFilename());
+            item.setSavePath(savePath);
+            item.once('done', (_doneEvent, state) => {
+                downloadTargets.release(savePath);
+                // The Downloads stack bounces — the only sign a dialog-less save happened.
+                if (state === 'completed' && process.platform === 'darwin') app.dock?.downloadFinished(savePath);
+            });
         });
 
         // Custom UI, resolved before the first window so its initial load already points at
