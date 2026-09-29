@@ -10,6 +10,9 @@ export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
 // (both keep that cloud's socket for as long as they are in flight), and the graph a resend queue
 // reads its cloud through.
 export { getCloudRepositories, runInCloud, sendChatInCloud } from './cloudChat';
+// Image messages: one send sequence for every shell, addressed to the room's cloud like the chat send.
+export { useSendImages } from './hooks/useSendImages';
+export type { UseSendImagesInput } from './hooks/useSendImages';
 export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheSearch';
 
 // Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s

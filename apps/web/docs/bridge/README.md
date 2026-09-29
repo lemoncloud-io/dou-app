@@ -51,8 +51,9 @@ of routing through this component.
 `shellUpload.ts` picks the PUT an image message uses and owns the one per-page native transfer
 registry behind it: `getShellPut()` returns the native sender inside the app and the page's own
 `xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
-the page was away. The senders themselves live in `runtime/upload/` and take the bridge they talk
-through as an argument, so this file stays the only place that hands them `webClient`. The first
+the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
+through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
+from `@chatic/data`. The first
 `NOT_FOUND` from a shell built before the transfer module switches the page to `xhrPut` for good.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 

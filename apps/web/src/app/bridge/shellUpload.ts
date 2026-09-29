@@ -1,7 +1,7 @@
 import { isNative, logger, webClient } from '@chatic/bridges';
-import type { PutPort } from '@chatic/data';
+import { xhrPut, type PutPort } from '@chatic/data';
 
-import { createNativeTransfers, syncFileTransfers, xhrPut, type NativeTransfers } from '../runtime/upload';
+import { createNativeTransfers, syncFileTransfers, type NativeTransfers } from '../runtime/upload';
 
 // One per page, on purpose: the old-shell verdict ("no transfer module, use page uploads") holds for
 // the page's whole life, and every waiting upload has to be reachable from the one event listener.

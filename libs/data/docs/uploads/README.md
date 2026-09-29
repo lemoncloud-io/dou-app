@@ -56,6 +56,12 @@ operations, what to retry, and what a failure means. It does **not** know how by
 Retry and re-issue live here and nowhere else. A PUT port reports what happened and never decides,
 so the web sender, the native sender and the old-app fallback cannot come to different conclusions.
 
+The page's own sender lives here too: `xhrPut` (`uploads/xhrPut.ts`) PUTs from the page with
+`XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It sets no progress
+listener, because one on `upload` turns every cross-origin PUT into a preflighted one; it skips the
+headers the browser owns (`content-length`, `host`); and it bounds the whole PUT at five minutes. The
+native sender stays in `apps/web`, since it talks through that shell's bridge.
+
 ## The answer guard
 
 The answers are typed by the upload contract in `lemon-model/upload`, which
@@ -131,7 +137,7 @@ quote the request it failed on.
 - **The rows survive a reload.** The web cache never evicts unsent rows (`chatNo: 0`), and the native
   cache keeps the whole row. The files do not survive: a `File` cannot be stored. That is why the app
   sweeps the leftovers when it attaches to a channel — see
-  [the image send hook](../../../../apps/web/docs/feature/channels/image-send.md).
+  [the image send hook](../../../app-runtime/docs/data/image-send.md).
 - **Reaching unsent rows takes two flags.** The web store appends them when asked with
   `includeUnsent`. The native store ignores that flag but honours `sort`, and ascending order puts
   `0` first. `listPendingImageChats` asks for both.
