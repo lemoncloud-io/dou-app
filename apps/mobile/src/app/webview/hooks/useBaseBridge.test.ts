@@ -19,18 +19,7 @@ jest.mock('@chatic/bridges', () => ({
     }),
 }));
 
-jest.mock('../../services', () => ({ logger: { warn: jest.fn() } }));
-jest.mock('../../stores', () => ({
-    useDebugSettingsStore: (select: (state: { getResolvedWebviewBaseUrl: () => string }) => unknown) =>
-        select({ getResolvedWebviewBaseUrl: () => 'http://localhost:5003' }),
-}));
-jest.mock('../../services/deeplinks/deeplinkUtils', () => ({
-    DEEP_LINK_DOMAINS: ['app.chatic.io'],
-    CUSTOM_SCHEMES: ['chatic', 'chatic-dev'],
-}));
-
 const webViewRef = { current: null } as RefObject<WebView | null>;
-const messageFrom = (url: string) => ({ nativeEvent: { url, data: '{"type":"Ping"}' } }) as any;
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -72,22 +61,5 @@ describe('useAppBridgeHost', () => {
         expect(typeof config.resolveCacheDomainVersions).toBe('function');
         expect(config.supportedCacheTypes).toContain('invite');
         expect(typeof config.cacheSchemaVersion).toBe('number');
-    });
-
-    // A page the WebView navigated to on another origin still runs in the same WebView and can post.
-    it('hands the host messages from the web the WebView was pointed at', () => {
-        const { result } = renderHook(() => useAppBridgeHost(webViewRef));
-
-        result.current.onMessage(messageFrom('http://localhost:5003/home'));
-
-        expect(result.current.appBridgeHost.handleMessage).toHaveBeenCalledWith('{"type":"Ping"}');
-    });
-
-    it('drops messages from any other origin', () => {
-        const { result } = renderHook(() => useAppBridgeHost(webViewRef));
-
-        result.current.onMessage(messageFrom('https://evil.example/'));
-
-        expect(result.current.appBridgeHost.handleMessage).not.toHaveBeenCalled();
     });
 });

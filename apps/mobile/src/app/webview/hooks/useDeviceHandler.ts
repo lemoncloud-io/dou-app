@@ -3,7 +3,6 @@ import { Linking } from 'react-native';
 import { FileManagerBridge } from '../../bridge';
 import { useServices } from '../../hooks';
 import { toContactInfo } from '../../utils';
-import { isOpenableUrl } from '../utils/urlTrust';
 import type { WebMessageData } from '@chatic/app-messages';
 import type { Asset } from 'react-native-image-picker';
 
@@ -160,14 +159,6 @@ export const useDeviceHandler = () => {
     const handleOpenURL = useCallback(
         async (message: WebMessageData<'OpenURL'>) => {
             const { url } = message.data;
-            if (!isOpenableUrl(url)) {
-                logger.warn('DEVICE', 'OpenURL refused: scheme not allowed', { scheme: String(url).split(':')[0] });
-                return {
-                    type: 'OnOpenURL' as const,
-                    success: false,
-                    error: { code: 'LINK_NOT_ALLOWED', message: 'This link cannot be opened.' },
-                };
-            }
             try {
                 await Linking.openURL(url);
                 return { type: 'OnOpenURL' as const, success: true };

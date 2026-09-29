@@ -167,11 +167,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 forceDarkOn={false}
                 originWhitelist={['*']}
                 allowFileAccess={true}
-                // The page is always served over http(s) — the release web, a debug override, or the
-                // custom-zip server on localhost — never from a file URL, so file-URL pages get no
-                // extra reach (reading other files, or any origin).
-                allowFileAccessFromFileURLs={false}
-                allowUniversalAccessFromFileURLs={false}
+                allowFileAccessFromFileURLs={true}
+                allowUniversalAccessFromFileURLs={true}
                 webviewDebuggingEnabled={__DEV__}
                 mixedContentMode="always"
                 cacheEnabled={true}

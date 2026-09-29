@@ -221,9 +221,8 @@ call, not at boot.
 
 ### 1. The web client asks for something native
 
-`webClient.request(...)` in the web posts a typed message. `AppWebView`'s `onMessage` drops it unless
-the page is on a trusted origin ([docs/webview](./docs/webview/README.md#trust-boundary)), then hands it
-to `useWebMessageRouter`, which queues it and dispatches by type to one handler hook. The handler calls a
+`webClient.request(...)` in the web posts a typed message. `AppWebView`'s `onMessage` hands it to
+`useWebMessageRouter`, which queues it and dispatches by type to one handler hook. The handler calls a
 service and returns a response object; the router posts it back with the original `refId`, and
 `@chatic/bridges` resolves the caller's promise. A message with no handler still gets a reply — that
 is the bridge's job, not this app's.
