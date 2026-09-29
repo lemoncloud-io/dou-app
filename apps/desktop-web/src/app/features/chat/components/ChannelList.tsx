@@ -28,7 +28,7 @@ import {
 } from '../../../shared';
 import { SearchDialog } from '../../search';
 import { ChannelActionDialogs, useChannelActions } from '../../channels';
-import { useLastChat } from '../hooks';
+import { useHydrateDmPeers, useLastChat } from '../hooks';
 import { useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
@@ -296,6 +296,16 @@ export const ChannelList = ({
         [dms, myUid]
     );
     const counterpartNames = useAuthorNames(counterpartIds);
+    // Rows this place's profiles don't name read the user cache, which only an opened room fills.
+    const unnamedPeers = useMemo(
+        () =>
+            dms.flatMap(c => {
+                const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
+                return c.id && peerId && !placeProfiles[peerId]?.nick?.trim() ? [{ channelId: c.id, peerId }] : [];
+            }),
+        [dms, myUid, placeProfiles]
+    );
+    useHydrateDmPeers(unnamedPeers);
 
     /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
     const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode } => {

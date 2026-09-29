@@ -73,7 +73,7 @@ vi.mock('@chatic/shared', async () => ({
 }));
 
 let lastChat: DomainChat | undefined;
-vi.mock('../hooks', () => ({ useLastChat: () => lastChat }));
+vi.mock('../hooks', () => ({ useLastChat: () => lastChat, useHydrateDmPeers: () => undefined }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
 vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => ({}) }));
 // Both mount global keyboard/dialog machinery; this file is about what a row renders.
