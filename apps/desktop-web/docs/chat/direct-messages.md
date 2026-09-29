@@ -3,17 +3,31 @@
 A 1:1 opened inside a subscription cloud belongs to the **cloud**, not to a place. The server stamps
 the room with whichever place its creator happened to be standing in (`sid`), but that value names
 no one's home for the room and is not used to file it. The decision and its reasoning for all
-clients are in ADR-0113. This document is how desktop applies it.
+clients are in ADR-0113. Desktop then files each 1:1 under the places its peer shares with me
+(ADR-0136). This document is how desktop applies both.
 
 On the default (relay) cloud a 1:1 is reached by inviting a phone number, which is a mobile flow.
 Desktop offers no way to start one there, and every entry point below hides.
 
 ## Where a 1:1 is listed
 
-- **Every place of its cloud, exactly once.** `useChannels` reads the cloud's whole channel cache
-  once (`observeList({ sid: '' })`) and keeps a row when it is in the open place's list
-  (`isInPlaceList`) or is cloud-wide (`isCloudWideChannel`, from `@chatic/data`). Filtering on
-  `c.sid === placeId` instead would show a 1:1 only under its creator's place.
+- **In the places where its peer shares a group channel with me, exactly once each.** People are
+  invited per place, so a 1:1 belongs where the other person is. `useChannels` reads the cloud's
+  whole channel cache once (`observeList({ sid: '' })`) and keeps a row when it is in the open
+  place's list (`isInPlaceList`), or when it is a cloud 1:1 (`isCloudWideChannel`, from
+  `@chatic/data`) that `cloudDmPlaces` files under the open place. Filtering on `c.sid === placeId`
+  instead would show a 1:1 only under its creator's place.
+- **Membership is read from the group channels I am in.** A place's members are taken to be the
+  union of `memberIds` over its group channels. The server has no place member list to ask, and the
+  place profile cache is no substitute: members who never set a profile have no row there (a test
+  cloud measured zero rows across six places). The cost is that a place member who shares none of
+  my channels is not seen, and a 1:1 with them is not listed in that place.
+- **A peer found in no place** is still reachable. The 1:1 is listed in its stamped place (`sid`)
+  when that place is mine, and in every place otherwise. The same applies while a room's members are
+  not known yet.
+- **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
+  `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
+  a moment through the fallback.
 - **A cloud with no place at all** still lists its 1:1s (`cloudWideOnly`). HomePage asks for that only
   once places have loaded, are empty and no switch is in flight. "No place selected yet" during a
   cloud switch must list nothing, or the home screen auto-selects a 1:1 in the gap.
@@ -31,9 +45,10 @@ that exists — there is no "already have one?" branch.
 - **A cloud switched away from mid-call opens nothing.** The returned room belongs to the cloud that
   was left, and its id could land on another room here.
 - **Failure** is logged and shown as a toast; the picker stays open for a retry.
-- **The picker's pool** is everyone I share a channel with in this place plus my existing 1:1 peers,
-  minus me. There is no user directory to search. 1:1 and self rooms are read from the cache only,
-  not fetched per room. With no place, the "+" hides, since the pool could only be empty.
+- **The picker's pool** is everyone I share a channel with in this place, plus the peers of the 1:1s
+  this place lists, minus me, so a 1:1 started from it is always listed in this place. There is no
+  user directory to search. 1:1 and self rooms are read from the cache only, not fetched per room.
+  With no place, the "+" hides, since the pool could only be empty.
 
 ## Opening a room that is not listed yet
 

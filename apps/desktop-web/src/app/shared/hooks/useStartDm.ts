@@ -16,7 +16,8 @@ import { usePendingOpenStore } from '../stores';
  * asking again returns the room that exists. The room is opened through the pending-open target,
  * not selected directly: that path waits until the sidebar lists the new room (see
  * pendingOpenRoute) and works from surfaces outside the home screen. Its empty place means "stay in
- * this place", since a cloud 1:1 is listed in every place of its cloud.
+ * this place": the picker's pool is read from this place's list (group members, plus the peers of the
+ * 1:1s it lists), so the room it opens is one this place lists.
  *
  * Only a subscription cloud offers it. On the default (relay) cloud a 1:1 is reached by inviting a
  * phone number, which is a mobile flow, so `isAvailable` is false there and each entry point hides.

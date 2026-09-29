@@ -16,7 +16,8 @@ export interface DmPeerRef {
  *
  * A row reads its name from the current place's profile, then from the user cache. Nothing on the
  * list fills that cache: only an open room loads its members. A 1:1 with someone who has no profile
- * in this place (a cloud 1:1 is listed in every place) therefore showed the room name until it was
+ * in this place (members need not set one, and a 1:1 whose peer shares no place with me
+ * falls back to places the peer is not in) therefore showed the room name until it was
  * opened once. Pass only the rows the place profile does not already name.
  *
  * Each room is asked at most once per mount, and only when its peer is still unnamed after a cache

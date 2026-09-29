@@ -14,6 +14,7 @@ export * from './stripMarkdown';
 export * from './messagePlainText';
 export * from './notifiableChat';
 export * from './dmDisplay';
+export * from './cloudDmPlaces';
 export * from './readCacheRecords';
 export * from './resolvePushCloudId';
 export * from './parsePushDeeplink';
