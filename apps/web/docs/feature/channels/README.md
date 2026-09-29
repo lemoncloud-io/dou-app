@@ -93,7 +93,7 @@ Six native bridge calls are made from this feature and no new capability is aske
 | File                                                   | What it covers                                                                              |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
 | [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                |
-| [image-send.md](./image-send.md)                       | `useSendImages`: the pending row, which PUT per shell, the file memory and its leftovers    |
+| [image-send.md](./image-send.md)                       | Photos: the attach menu and pickers, the send, the tiles and viewer, retry and leftovers    |
 | [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll |
 | [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page        |
 | [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                   |

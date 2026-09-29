@@ -1,8 +1,9 @@
 # image send — `useSendImages`
 
-> Status: built, not wired to a screen yet — the composer's image picker is still to come. Canonical
-> code: [`hooks/useSendImages.ts`](../../../src/app/features/channels/hooks/useSendImages.ts). The
-> sequence it runs is `@chatic/data`'s, documented in
+> Status: wired into the room and the thread through the composer's attach button. Canonical code:
+> [`hooks/useSendImages.ts`](../../../src/app/features/channels/hooks/useSendImages.ts) (the send) and
+> [`components/ChatImageAttach.tsx`](../../../src/app/features/channels/components/ChatImageAttach.tsx)
+> (the picking). The sequence it runs is `@chatic/data`'s, documented in
 > [libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md).
 
 `useSendImages({ channelId, parentId? })` sends picked images as one message and returns
@@ -75,10 +76,40 @@ belonged to lived in the memory of a page that no longer exists. A transfer this
 that the shell no longer holds at all (evicted at its cap for unacknowledged results) is settled as
 a failure, so its message cannot hang in "sending".
 
+## Picking — `useChatImageAttach`
+
+The composer's leading button opens the attach menu — photos, camera, files — and every entry is the
+page's own file input, in the app as much as in a browser. The app's WebView hands a file input to the
+OS chooser, and it returns real bytes; the photo-library bridge of an app built before this feature
+ignores what the page asks for and returns a path the page cannot read. The camera entry has its own
+input with `capture`, so it opens the camera directly; photos and files share one without it.
+
+What is picked is judged before anything is sent (`judgeChatImages` in `@chatic/data`): the four
+formats the server takes, 20MB a file, the same photo tapped twice, and ten a message
+(`IMAGE_MESSAGE_SLOT_MAX`). The first reason met is shown once; whatever passes is sent at once — there
+is no tray and no confirmation, the pick is the send.
+
+The button shares the composer's lock (nobody left in a 1:1, a message being edited). In a thread it
+also stays locked until the root is loaded: a reply needs the root's full id, and a photo sent without
+one would land in the main feed.
+
+## Rendering
+
+`MessageImages` draws a row's `upload$$` with the kit's `MessageImageTiles` and opens a tapped one in
+`ImageViewer`. With no text the images take the bubble's place — an empty bubble beside them would read
+as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
+`localStatus`; a server head from `thumbUrl`, falling back to `orgUrl`. A head the server marks failed,
+carries an error, or has no address stays as a broken tile, so the count still matches what was sent.
+The tiles are fixed-size: the server embeds no dimensions.
+
+Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
+empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
+state, and the send lets a retry in only after it has marked the row failed. A row whose files are gone
+— a reload left it behind — answers with a notice to delete it. Deleting
+discards the files as well. The home list previews an image-only last message as a photo count.
+
 ## Not done here
 
-- **Rendering.** The pending slots are `{ localStatus, localThumbUrl }`, and the tile that draws them,
-  the retry and delete buttons, and the picker belong to the composer work that wires this hook in.
 - **Progress, cancel, a hash.** None are shown or sent.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.

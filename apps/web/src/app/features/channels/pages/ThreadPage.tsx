@@ -11,6 +11,8 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { useChatImageAttach } from '../components/ChatImageAttach';
+import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
 import { MessageText } from '../components/MessageText';
@@ -135,6 +137,14 @@ export const ThreadPage = () => {
     const remember = useRecentEmojiStore(s => s.remember);
 
     const thread = useMemo(() => buildThread(rawChats, rootNo ?? ''), [rawChats, rootNo]);
+    // Photos reply to the root like text does — by its full id. Until the root is loaded there is no
+    // id to reply to, and a send without one would land in the main feed, so the button stays locked.
+    const imageSend = useSendImages({ channelId: stableChannelId, parentId: thread.root?.id });
+    const attach = useChatImageAttach({
+        sendImages: imageSend.sendImages,
+        disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
+        inputRef,
+    });
     // Reactions fold from the UNFILTERED window — the events are hidden rows in it.
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
 
@@ -445,8 +455,10 @@ export const ThreadPage = () => {
                     // is outside my window: a reply needs the root's full id, so `handleSend`
                     // would drop what was typed without saying anything.
                     disabled={editing.isEditing || rootOutsideJoinWindow}
+                    leadingSlot={attach.button}
                 />
             </div>
+            {attach.overlays}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 

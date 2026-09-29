@@ -64,6 +64,14 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
 
+// Stubbed so the image cases assert what the row decides — whether images are drawn, and in place of
+// the bubble or under it — rather than how the tiles lay themselves out (pinned in the kit's tests).
+jest.mock('./MessageImages', () => ({
+    MessageImages: ({ uploads, align }: any) => (
+        <div data-testid="message-images" data-count={uploads?.length ?? 0} data-align={align} />
+    ),
+}));
+
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
     DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
@@ -628,5 +636,43 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
             expect(screen.queryByText('배포 실패')).not.toBeInTheDocument();
         });
+    });
+});
+
+describe('ChannelMessageRow — image messages', () => {
+    const uploads = [
+        { id: 'u1', status: 'stored', orgUrl: 'https://s3/1' },
+        { id: 'u2', status: 'stored', orgUrl: 'https://s3/2' },
+    ];
+    const imageRow = (extra: Record<string, unknown>) =>
+        ({ ...message, content: '', upload$$: uploads, ...extra }) as unknown as ClientChatView;
+
+    beforeEach(() => jest.clearAllMocks());
+
+    // An image message with no text of its own must not leave an empty bubble beside its photos.
+    it('draws the images in place of the bubble when there is no text', () => {
+        render(<ChannelMessageRow {...baseProps} message={imageRow({})} />);
+
+        expect(screen.getByTestId('message-images')).toHaveAttribute('data-count', '2');
+        expect(screen.queryByTestId('bubble')).not.toBeInTheDocument();
+    });
+
+    it('keeps the bubble and draws the images under it when the message has text too', () => {
+        render(<ChannelMessageRow {...baseProps} message={imageRow({ content: '사진 보내요' })} />);
+
+        expect(screen.getByTestId('bubble')).toBeInTheDocument();
+        expect(screen.getByTestId('message-images')).toBeInTheDocument();
+    });
+
+    it('sides my images with my bubbles', () => {
+        render(<ChannelMessageRow {...baseProps} message={imageRow({ isOwner: true })} />);
+
+        expect(screen.getByTestId('message-images')).toHaveAttribute('data-align', 'end');
+    });
+
+    it('draws no images on a deleted message', () => {
+        render(<ChannelMessageRow {...baseProps} message={imageRow({ hidden: true })} />);
+
+        expect(screen.queryByTestId('message-images')).not.toBeInTheDocument();
     });
 });

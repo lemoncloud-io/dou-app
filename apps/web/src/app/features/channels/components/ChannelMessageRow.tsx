@@ -16,6 +16,7 @@ import { MessageAttachment } from './MessageAttachment';
 import { MessageCodeBlock } from './MessageCodeBlock';
 import { MessageText } from './MessageText';
 import { MessageEditor } from './MessageEditor';
+import { MessageImages } from './MessageImages';
 import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
 import { ThreadFooter } from './ThreadFooter';
@@ -138,6 +139,11 @@ export const ChannelMessageRow = ({
     // not the body, not the unfurl, not the chips, and not the action sheet, which would
     // otherwise hand the deleted text back through Copy (ADR-0047 decision 6).
     const isDeleted = !!message.hidden;
+    // An image message: the server's `upload$$`, or the local slots of one still on its way. With no
+    // text of its own the images ARE the body, drawn where the bubble would be — an empty bubble
+    // beside them would read as a blank message.
+    const hasImages = !isDeleted && (message.upload$$?.length ?? 0) > 0;
+    const imageOnly = hasImages && !content.trim();
     // Shared verdict, not a local rule — the same one desktop will move onto when the server grows
     // a real edit flag. It already excludes tombstones, unsent rows and missing timestamps, so
     // there is nothing to re-check here. An optimistic edit shows its new text at once and picks
@@ -363,6 +369,9 @@ export const ChannelMessageRow = ({
                                 {t('chat.room.edited')}
                             </span>
                         )}
+                        {imageOnly ? (
+                            <MessageImages uploads={message.upload$$} align={mine ? 'end' : 'start'} />
+                        ) : (
                         <span
                             // `min-w-0`: as a flex item this span defaults to `min-width: auto`
                             // (= its min-content width), and min-width beats max-width — a long
@@ -429,20 +438,21 @@ export const ChannelMessageRow = ({
                                     into a URL at the cut. `truncated` also stops a URL that runs
                                     to the cut from being linked at all — it may be a fragment, and
                                     makes a fence left open at the cut render as a block anyway. */}
-                                            <MessageText
-                                                text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
-                                                truncated={isLong}
-                                                onUrlClick={handleUrlClick}
-                                                renderCodeBlock={(code, lang) => (
-                                                    <MessageCodeBlock code={code} lang={lang} />
-                                                )}
-                                            />
-                                            {isLong && '...'}
-                                        </>
-                                    )}
-                                </MessageBubble>
-                            )}
-                        </span>
+                                                <MessageText
+                                                    text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
+                                                    truncated={isLong}
+                                                    onUrlClick={handleUrlClick}
+                                                    renderCodeBlock={(code, lang) => (
+                                                        <MessageCodeBlock code={code} lang={lang} />
+                                                    )}
+                                                />
+                                                {isLong && '...'}
+                                            </>
+                                        )}
+                                    </MessageBubble>
+                                )}
+                            </span>
+                        )}
                         {wasEdited && !mine && (
                             <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
                                 {t('chat.room.edited')}
@@ -457,6 +467,8 @@ export const ChannelMessageRow = ({
                 becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
             {/* Before the unfurl card: `attach$` IS the sender's structured body, while the unfurl
                 is something we derived from a URL we found in the text. */}
+            {/* Images that came with text sit under the bubble, as their own row in the column. */}
+            {hasImages && !imageOnly && <MessageImages uploads={message.upload$$} align={mine ? 'end' : 'start'} />}
             <MessageAttachment attach={message.attach$} />
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (
