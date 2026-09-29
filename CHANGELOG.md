@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Features
+
+- (web,shared,block-kit,desktop-web) read end-user copy from the app's locale, not Korean
+
+### Documentation
+
+- (adr) write tools in English and route user and QA copy through i18n (ADR-0122)
+
+### Refactor
+
+- (http,bridges,mobile) write thrown and logged messages in English, not Korean
+- (testbed,block-kit-builder,desktop-web,scripts) write dev-tool copy in English
+- (config) write registry titles and descriptions in English, not Korean
+- (admin-v2) write the operator console's copy in English, not Korean
+- (web/debug) give every debug panel screen a ko/en table, not hardcoded Korean
+
 ## [2026-09-28] - root@0.67.0, @chatic/web@0.53.0
 
 ### Features
