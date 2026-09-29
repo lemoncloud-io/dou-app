@@ -60,6 +60,19 @@ describe('MessageImageTiles', () => {
         expect(container.firstChild?.childNodes).toHaveLength(2);
     });
 
+    // The host is still resolving the address — an empty tile, not the missing-image mark.
+    it('draws a ready tile with no address yet as an empty tile', () => {
+        const items: MessageImageTileItem[] = [
+            { key: 'a', state: 'ready' },
+            { key: 'b', state: 'broken' },
+        ];
+        const { container } = render(<MessageImageTiles items={items} />);
+
+        const [loading, broken] = Array.from(container.firstChild?.childNodes ?? []) as HTMLElement[];
+        expect(loading.querySelector('img, svg')).toBeNull();
+        expect(broken.querySelector('svg')).toBeInTheDocument();
+    });
+
     it('marks sending and failed tiles over their preview', () => {
         const { container, rerender } = render(<MessageImageTiles items={tiles(1, 'sending')} />);
         expect(container.querySelector('.animate-spin')).toBeInTheDocument();

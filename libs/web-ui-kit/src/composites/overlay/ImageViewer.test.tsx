@@ -175,6 +175,74 @@ describe('ImageViewer', () => {
         expect(onClose).toHaveBeenCalledTimes(2);
     });
 
+    describe('placeholders', () => {
+        const thumbs = ['https://example.com/a-t.jpg', 'https://example.com/b-t.jpg', 'https://example.com/c-t.jpg'];
+        // The showing page is the one without aria-hidden.
+        const placeholder = () =>
+            screen.getByRole('dialog').querySelector('div:not([aria-hidden]) > img[data-placeholder]');
+
+        // An original can take seconds; the small copy stands in until it has arrived.
+        it('draws the placeholder under the original until the original loads', () => {
+            render(
+                <ImageViewer
+                    images={images}
+                    placeholders={thumbs}
+                    index={1}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                />
+            );
+            expect(placeholder()).toHaveAttribute('src', thumbs[1]);
+
+            fireEvent.load(shown());
+
+            expect(placeholder()).toBeNull();
+            expect(shown()).toHaveAttribute('src', images[1]);
+        });
+
+        it('shows only the placeholder while the original has no address yet', () => {
+            render(
+                <ImageViewer
+                    images={[undefined]}
+                    placeholders={[thumbs[0]]}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                />
+            );
+
+            expect(screen.getByRole('dialog').querySelector('img[data-current]')).toBeNull();
+            expect(placeholder()).toHaveAttribute('src', thumbs[0]);
+        });
+
+        // A refreshed address is a new download; the placeholder covers it again until it lands.
+        it('brings the placeholder back for a new address', () => {
+            const { rerender } = render(
+                <ImageViewer
+                    images={images}
+                    placeholders={thumbs}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                />
+            );
+            fireEvent.load(shown());
+            expect(placeholder()).toBeNull();
+
+            rerender(
+                <ImageViewer
+                    images={['https://example.com/a-fresh.jpg', ...images.slice(1)]}
+                    placeholders={thumbs}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                />
+            );
+
+            expect(placeholder()).toHaveAttribute('src', thumbs[0]);
+        });
+    });
+
     it('reports which image failed to load', () => {
         const onError = jest.fn();
         render(

@@ -12,13 +12,15 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel (`useSendImages`
-excepted, see [Writes](#writes)). They fall into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
+One hook per file under `features/channels/hooks/`, exported from one barrel. Four stay out of it and
+are imported by path from their callers: `useSendImages` (see [Writes](#writes)), `usePhotoPicker`, and
+the two behind a message's images, `useImageAddressRefresh` and `useCachedImages`
+([image-send.md](./image-send.md)). They fall into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
 `useChats`), the sync registrars (`useJoinPositions`, `useForegroundChatRefresh`), the screen
 mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
 `use*Mutations` write hooks, and `useSendImages`.
 
-29 hooks, 23 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which six have none:
+34 hooks, 29 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which five have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \

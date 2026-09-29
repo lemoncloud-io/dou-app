@@ -13,9 +13,12 @@ export default meta;
 type Story = StoryObj<typeof ImageViewer>;
 
 const photo = (i: number) => `https://picsum.photos/seed/dou-viewer-${i}/1200/1600`;
+// The same picture at tile size, standing in while the full one loads.
+const thumb = (i: number) => `https://picsum.photos/seed/dou-viewer-${i}/60/80`;
 
-const Demo = ({ count }: { count: number }) => {
+const Demo = ({ count, withPlaceholders = false }: { count: number; withPlaceholders?: boolean }) => {
     const images = Array.from({ length: count }, (_, i) => photo(i));
+    const placeholders = withPlaceholders ? Array.from({ length: count }, (_, i) => thumb(i)) : undefined;
     const [index, setIndex] = useState<number | null>(0);
     return (
         <>
@@ -24,6 +27,7 @@ const Demo = ({ count }: { count: number }) => {
             </button>
             <ImageViewer
                 images={images}
+                placeholders={placeholders}
                 index={index}
                 onIndexChange={setIndex}
                 onClose={() => setIndex(null)}
@@ -38,3 +42,5 @@ const Demo = ({ count }: { count: number }) => {
 
 export const Single: Story = { render: () => <Demo count={1} /> };
 export const Several: Story = { render: () => <Demo count={4} /> };
+/** Throttle the network to see the small copy stand in until the original arrives. */
+export const WithPlaceholders: Story = { render: () => <Demo count={3} withPlaceholders /> };

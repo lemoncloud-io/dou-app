@@ -3,7 +3,8 @@ import { cn } from '@chatic/lib/utils';
 import { IconAlert, IconImage, IconSpinner } from '../../resources/icons';
 
 /**
- * - `ready` — drawn from `src`.
+ * - `ready` — drawn from `src`. A `ready` tile with no `src` yet is one the host is still resolving
+ *   (reading it from a local cache, say), drawn as an empty tile rather than as a missing image.
  * - `sending` / `failed` — a message still on its way, drawn from its local preview.
  * - `broken` — the server reports the upload unusable (missing, not the sender's, never finished).
  *   Drawn as a placeholder rather than dropped, so the count still matches what was sent.
@@ -32,8 +33,11 @@ export interface MessageImageTilesProps {
 
 /** A message never draws more than the server attaches to one. */
 export const MESSAGE_IMAGE_RENDER_MAX = 10;
-/** Past this many, the last visible tile carries a "+n" for the rest. */
-const VISIBLE_MAX = 4;
+/**
+ * Past this many, the last visible tile carries a "+n" for the rest. Exported so a host that resolves
+ * addresses itself can skip the images no tile draws.
+ */
+export const MESSAGE_IMAGE_VISIBLE_MAX = 4;
 
 const gridClass = (count: number) => {
     if (count === 1) return 'grid-cols-1';
@@ -58,7 +62,7 @@ export const MessageImageTiles = ({
 }: MessageImageTilesProps) => {
     const all = items.slice(0, MESSAGE_IMAGE_RENDER_MAX);
     if (all.length === 0) return null;
-    const visible = all.slice(0, VISIBLE_MAX);
+    const visible = all.slice(0, MESSAGE_IMAGE_VISIBLE_MAX);
     const hidden = all.length - visible.length;
 
     return (
@@ -77,6 +81,8 @@ export const MessageImageTiles = ({
                                 draggable={false}
                                 onError={() => onImageError?.(index)}
                             />
+                        ) : item.state === 'ready' ? (
+                            <span className="block size-full bg-muted" />
                         ) : (
                             <span className="flex size-full items-center justify-center bg-muted">
                                 <IconImage className="size-6 text-description" />
