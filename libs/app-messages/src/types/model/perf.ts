@@ -159,7 +159,13 @@ export type OnStopPerfTracePayload = {
  * notification tap begins. Rides on the navigation it caused.
  */
 export type HandedOverPerfTrace = {
+    /** The `chat_room_open` trace. */
     id: string;
+    /**
+     * The `chat_room_sync` trace, started at the same moment. Absent from app builds that predate
+     * it; the web then starts that one itself, at the hand-over.
+     */
+    syncId?: string;
     /** Epoch ms of the native start. Wall clock, because the two runtimes share no other clock. */
     startedAt: number;
     /**

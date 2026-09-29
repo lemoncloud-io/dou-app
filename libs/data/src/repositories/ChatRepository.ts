@@ -22,6 +22,11 @@ import { BaseRepository, type DisposableRepository } from './types';
 
 export interface ChatRefreshResult {
     fetchedCount: number;
+    /**
+     * The highest `chatNo` in the page written, or 0 for an empty page. A caller waiting for the
+     * page to reach a list can wait for this row rather than for any emission.
+     */
+    latestNo: number;
     cursorNo?: number;
     readNo?: number;
     total: number;
@@ -151,6 +156,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
         return {
             fetchedCount: domainList.length,
+            latestNo: domainList.reduce((max, chat) => Math.max(max, chat.chatNo ?? 0), 0),
             cursorNo: remote.cursorNo,
             readNo: remote.readNo,
             total: remote.total ?? domainList.length,

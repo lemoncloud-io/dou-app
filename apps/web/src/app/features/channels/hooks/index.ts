@@ -27,3 +27,4 @@ export * from './useUserRecords';
 export * from './useCloudDmChannels';
 export * from './useMessageEditing';
 export * from './useRoomOpenTrace';
+export * from './useRoomSyncTrace';

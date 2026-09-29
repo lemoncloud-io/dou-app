@@ -1,6 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useChatSync, useSyncTarget } from './useSyncTarget';
+import {
+    clearActivePerfTrace,
+    configurePerfTraces,
+    resetPerfTraces,
+    setActivePerfTrace,
+    startPerfTrace,
+} from '@chatic/perf';
 
 const mockDispose = jest.fn();
 const mockRegister = jest.fn().mockReturnValue(mockDispose);
@@ -44,7 +51,7 @@ jest.mock('../../../session/store', () => ({
 }));
 
 const mockCacheReadList = jest.fn().mockResolvedValue({ list: [] });
-const mockRefreshList = jest.fn().mockResolvedValue(undefined);
+const mockRefreshList = jest.fn().mockResolvedValue({ fetchedCount: 0 });
 const mockGetScopedRepositories = jest.fn((_cid: string) => ({
     chat: { cacheReadList: mockCacheReadList, refreshList: mockRefreshList },
 }));
@@ -151,7 +158,7 @@ describe('useChatSync — prime', () => {
         mockUpdateLocalSnapshot.mockClear();
         mockGetScopedRepositories.mockClear();
         mockCacheReadList.mockClear().mockResolvedValue({ list: [] });
-        mockRefreshList.mockClear().mockResolvedValue(undefined);
+        mockRefreshList.mockClear().mockResolvedValue({ fetchedCount: 0 });
     });
 
     it('빈 캐시면 baseline 0으로 정렬하고 첫 페이지를 fetch한다', async () => {
@@ -217,5 +224,77 @@ describe('useChatSync — prime', () => {
             await Promise.resolve();
         });
         expect(mockCacheReadList).not.toHaveBeenCalled();
+    });
+});
+
+describe('useChatSync — chat_room_sync phases', () => {
+    const backend = { start: jest.fn(), stop: jest.fn() };
+
+    beforeEach(() => {
+        verifiedSlots = new Set(['default']);
+        backend.start.mockClear();
+        backend.stop.mockClear();
+        mockCacheReadList.mockClear().mockResolvedValue({ list: [] });
+        configurePerfTraces(backend);
+    });
+
+    afterEach(() => {
+        clearActivePerfTrace('chat_room_sync');
+        resetPerfTraces();
+    });
+
+    const beginSync = () => {
+        const trace = startPerfTrace('chat_room_sync');
+        setActivePerfTrace('chat_room_sync', 'ch-1', trace);
+        return trace;
+    };
+
+    it('marks verified, the request and the written page of a cold room, leaving the end to the room', async () => {
+        mockRefreshList.mockClear().mockResolvedValue({ fetchedCount: 20 });
+        const trace = beginSync();
+
+        renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(trace.hasMetric('feed_done')).toBe(true));
+        expect(trace.hasMetric('verified')).toBe(true);
+        expect(trace.hasMetric('feed_sent')).toBe(true);
+        expect(backend.stop).not.toHaveBeenCalled();
+
+        trace.stop();
+        expect(backend.stop.mock.calls[0][0]).toMatchObject({
+            attributes: { cache: 'miss' },
+            metrics: expect.objectContaining({ fetched: 20 }),
+        });
+    });
+
+    it('ends the trace itself when the page wrote nothing, since no list emission will follow', async () => {
+        mockRefreshList.mockClear().mockResolvedValue({ fetchedCount: 0 });
+        beginSync();
+
+        renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(backend.stop).toHaveBeenCalledTimes(1));
+        expect(backend.stop.mock.calls[0][0].attributes).toMatchObject({ outcome: 'synced' });
+    });
+
+    it('ends the trace as error when the fetch fails', async () => {
+        mockRefreshList.mockClear().mockRejectedValue(new Error('socket closed'));
+        beginSync();
+
+        renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(backend.stop).toHaveBeenCalledTimes(1));
+        expect(backend.stop.mock.calls[0][0].attributes).toMatchObject({ outcome: 'error' });
+    });
+
+    it('leaves a warm room alone — its sync is the foreground refresh', async () => {
+        mockCacheReadList.mockResolvedValue({ list: [{ chatNo: 4 }] });
+        mockRefreshList.mockClear();
+        const trace = beginSync();
+
+        renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(mockUpdateLocalSnapshot).toHaveBeenCalled());
+        expect(trace.hasMetric('feed_sent')).toBe(false);
     });
 });

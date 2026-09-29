@@ -52,6 +52,7 @@ import {
     useReactions,
     useReadMarker,
     useRoomOpenTrace,
+    useRoomSyncTrace,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -358,6 +359,8 @@ export const ChannelRoomPage = () => {
         messageCount: messages.length,
         atThreadStart: hasThreadStart,
     });
+    // Closes the `chat_room_sync` trace begun alongside it: the room showing its synced, latest page.
+    useRoomSyncTrace({ channelId, rawChats });
 
     const { sendMessage, retryMessage, readMessage, deleteMessage } = useChatMutations();
     const editing = useMessageEditing(stableChannelId);

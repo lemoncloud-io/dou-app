@@ -90,6 +90,7 @@ jest.mock('../lib', () => ({
 }));
 jest.mock('../hooks', () => ({
     useRoomOpenTrace: () => undefined,
+    useRoomSyncTrace: () => undefined,
     useChannel: () => ({ channel: mockChannel, isLoading: false, isError: false, isForbidden: false }),
     useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
     useChannelMembers: () => ({ members: [] }),

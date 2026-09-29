@@ -1,4 +1,10 @@
-import { adoptPerfTrace, startPerfTrace } from '@chatic/perf';
+import {
+    adoptPerfTrace,
+    clearActivePerfTrace,
+    getActivePerfTrace,
+    setActivePerfTrace,
+    startPerfTrace,
+} from '@chatic/perf';
 
 import type { HandedOverPerfTrace } from '@chatic/app-messages';
 import type { PerfTrace } from '@chatic/perf';
@@ -60,13 +66,23 @@ class RoomOpenTraceSlot {
     private pending: {
         channelId: string;
         trace: PerfTrace;
+        /** The `chat_room_sync` trace begun with it; absent once the entry is a released one. */
+        sync?: PerfTrace;
         at: number;
         releaseTimer?: ReturnType<typeof setTimeout>;
     } | null = null;
 
+    /** The sync trace of the room claimed last, until its page takes it. */
+    private claimedSync: { channelId: string; trace: PerfTrace } | null = null;
+
     /**
-     * Starts the trace for a room about to be opened — or, when the native shell already started
-     * it at a notification tap, takes that one over so the trace keeps its native start.
+     * Starts the traces for a room about to be opened — or, when the native shell already started
+     * them at a notification tap, takes those over so they keep their native start.
+     *
+     * Two traces, begun together: `chat_room_open` ends when the room first shows messages, which
+     * may be the cache's; `chat_room_sync` ends when it shows the synced, latest ones. The second is
+     * not carried through this slot but published as the active `chat_room_sync`, because the sync
+     * hooks that mark its phases live in `libs/app-runtime` and cannot reach this module.
      */
     public begin(channelId: string, entry: RoomOpenEntry, handedOver?: HandedOverPerfTrace): PerfTrace {
         // A room left moments ago is still in its grace window; that user did leave, so close it as
@@ -75,10 +91,35 @@ class RoomOpenTraceSlot {
         const trace = handedOver
             ? adoptPerfTrace('chat_room_open', handedOver.id, handedOver.startedAt)
             : startPerfTrace('chat_room_open');
-        trace.putAttribute('entry', entry);
-        if (handedOver) trace.putAttribute('start', handedOver.coldStart ? 'cold' : 'warm');
-        this.pending = { channelId, trace, at: Date.now() };
+        // An app build that predates the sync trace hands over only the first; the web then starts
+        // the second here, a little later than the tap.
+        const sync = handedOver?.syncId
+            ? adoptPerfTrace('chat_room_sync', handedOver.syncId, handedOver.startedAt)
+            : startPerfTrace('chat_room_sync');
+        // Both traces sit at Firebase's cap of five attributes once a switched push adds `switch`
+        // and the room writes `cache` and `outcome` (last). A sixth would silently displace
+        // `outcome`, so adding one means removing one.
+        for (const each of [trace, sync]) {
+            each.putAttribute('entry', entry);
+            if (handedOver) each.putAttribute('start', handedOver.coldStart ? 'cold' : 'warm');
+        }
+        setActivePerfTrace('chat_room_sync', channelId, sync);
+        this.pending = { channelId, trace, sync, at: Date.now() };
         return trace;
+    }
+
+    /** Marks a phase on both of a pending room's traces. A no-op for a room nothing began. */
+    public mark(channelId: string | null, key: string): void {
+        if (!channelId) return;
+        this.peek(channelId)?.mark(key);
+        getActivePerfTrace('chat_room_sync', channelId)?.mark(key);
+    }
+
+    /** Sets an attribute on both of a pending room's traces. */
+    public putAttribute(channelId: string | null, key: string, value: string): void {
+        if (!channelId) return;
+        this.peek(channelId)?.putAttribute(key, value);
+        getActivePerfTrace('chat_room_sync', channelId)?.putAttribute(key, value);
     }
 
     /** The pending trace for `channelId`, left in place — for marks made on the way to the room. */
@@ -91,8 +132,26 @@ class RoomOpenTraceSlot {
     public claim(channelId: string): PerfTrace | undefined {
         if (!this.isFreshFor(channelId)) return undefined;
         const trace = this.pending?.trace;
+        const sync = this.pending?.sync;
+        if (sync) this.claimedSync = { channelId, trace: sync };
         this.clearPending();
         return trace;
+    }
+
+    /**
+     * Takes the sync trace begun with the open trace this room just claimed. The room page calls
+     * this after `claim`, in the same mount.
+     *
+     * Tying the two together is what keeps a stale sync trace out: one begun for a room that was
+     * already on screen (a push for the open room), or for a navigation that never arrived, is
+     * never claimed, so a later, unrelated mount of that room cannot pick it up and record a
+     * duration that started at an old tap.
+     */
+    public takeClaimedSync(channelId: string): PerfTrace | undefined {
+        const claimed = this.claimedSync;
+        if (!claimed || claimed.channelId !== channelId) return undefined;
+        this.claimedSync = null;
+        return claimed.trace;
     }
 
     /**
@@ -125,12 +184,21 @@ class RoomOpenTraceSlot {
      * released one is closed as `left`, which it already was.
      */
     public handleHidden(): void {
+        // A room that has not mounted yet has nothing to end its sync trace either; drop that too.
+        // A mounted room's sync trace is its page's to close.
+        const pending = this.pending;
+        if (pending && !pending.releaseTimer) {
+            const sync = getActivePerfTrace('chat_room_sync', pending.channelId);
+            if (sync) clearActivePerfTrace('chat_room_sync', sync);
+        }
         this.closeReleased();
     }
 
     /** Drops the pending trace without recording it. Tests only. */
     public reset(): void {
         this.clearPending();
+        this.claimedSync = null;
+        clearActivePerfTrace('chat_room_sync');
     }
 
     private isFreshFor(channelId: string): boolean {

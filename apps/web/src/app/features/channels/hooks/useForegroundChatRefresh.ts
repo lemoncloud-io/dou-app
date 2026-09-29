@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
+import { endActivePerfTrace, getActivePerfTrace } from '@chatic/perf';
 
 import { useAppForeground } from '../../../bridge';
 import { readSelectedCloudId } from '../../../hooks/useCloudScope';
@@ -47,13 +48,27 @@ export const useForegroundChatRefresh = (channelId: string): void => {
                 { id: channelId, lastNo, minNo: 0, messages: [] },
                 { cid }
             );
-        await chatRepository.refreshList({ channelId });
+        // A warm room's sync is this fetch, so it marks the phases of the `chat_room_sync` trace a
+        // room being opened has in progress (a cold room's are usePrimeChat's). The room page ends
+        // the trace when the fetched page reaches the screen.
+        // The first fetch for a trace owns it (a foreground return during the same wait does not).
+        const active = getActivePerfTrace('chat_room_sync', channelId);
+        const trace = active && !active.hasMetric('feed_sent') ? active : undefined;
+        trace?.putAttribute('cache', 'hit');
+        trace?.mark('feed_sent');
+        const result = await chatRepository.refreshList({ channelId });
+        trace?.putMetric('fetched', result.fetchedCount);
+        trace?.putMetric('latest_no', result.latestNo);
+        trace?.mark('feed_done');
+        if (trace && result.fetchedCount === 0) endActivePerfTrace('chat_room_sync', channelId, 'synced');
     }, [chatRepository, channelId]);
 
     // Entry (and re-verification): a warm room may hide a missed-push gap behind its cache.
     useEffect(() => {
         if (!isVerified) return;
+        getActivePerfTrace('chat_room_sync', channelId)?.mark('verified');
         refreshIfWarm().catch(error => {
+            endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('CHAT', '[useForegroundChatRefresh] entry refresh failed', {
                 error,
                 data: { channelId },
@@ -70,6 +85,7 @@ export const useForegroundChatRefresh = (channelId: string): void => {
     // entry effect refetches on the next verified rising edge.
     useAppForeground(() => {
         refreshIfWarm().catch(error => {
+            endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('CHAT', '[useForegroundChatRefresh] foreground refresh failed', {
                 error,
                 data: { channelId },
