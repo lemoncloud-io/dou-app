@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Features
+
+- (web-ui-kit) pinch, double-tap and pan to zoom the photo in the image viewer
+
 ## [2026-09-29] - root@0.72.1, @chatic/web@0.55.1
 
 ### Bug Fixes
