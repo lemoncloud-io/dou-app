@@ -881,6 +881,8 @@
             "tile": "사진 {{position}}",
             "viewer": "사진",
             "viewerClose": "닫기",
+            "viewerPrevious": "이전 사진",
+            "viewerNext": "다음 사진",
             "sendFailed": "사진을 보내지 못했어요",
             "cannotRetry": "다시 보낼 수 없는 사진이에요. 삭제해 주세요"
         }

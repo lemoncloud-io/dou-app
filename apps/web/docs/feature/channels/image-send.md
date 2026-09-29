@@ -135,8 +135,14 @@ The addresses are signed when the message is read and expire a couple of hours l
 keeps them. An image that fails to load draws as a placeholder and the message is read again from its
 own cloud (`useImageAddressRefresh`), which writes fresh addresses to the cache; the row redraws with
 them. Each dead address is re-read once, so an address that fails again stays a placeholder rather than
-looping, and a later expiry — a different address — gets its own re-read. The viewer holds the tapped
-index rather than the address, so a refresh reaches it while open. Local previews are never re-read.
+looping, and a later expiry — a different address — gets its own re-read. The viewer holds a position
+rather than an address, so a refresh reaches it while open. Local previews are never re-read.
+
+The viewer opens at the tapped image and steps through the rest of the message's images, with a
+"2 / 3" count. The images sit side by side on a strip: a sideways drag moves it under the finger, and on
+release it slides on to the next image or back, the same slide the arrow buttons and keys use. Only the
+showing image and its neighbours load. The viewer reaches the images behind the "+n" tile too, and skips
+broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
@@ -147,6 +153,7 @@ discards the files as well. The home list previews an image-only last message as
 ## Not done here
 
 - **Progress, cancel, a hash.** None are shown or sent.
+- **Zoom, save, share in the viewer.** It shows the original and steps between images only.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 
@@ -154,5 +161,6 @@ discards the files as well. The home list previews an image-only last message as
 
 ```bash
 npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hooks/useSendImages \
-  apps/web/src/app/runtime/upload apps/web/src/app/bridge/shellUpload
+  apps/web/src/app/runtime/upload apps/web/src/app/bridge/shellUpload \
+  apps/web/src/app/features/channels/components/MessageImages
 ```

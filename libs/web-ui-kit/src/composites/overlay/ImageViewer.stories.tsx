@@ -12,19 +12,29 @@ export default meta;
 
 type Story = StoryObj<typeof ImageViewer>;
 
-const Demo = () => {
-    const [src, setSrc] = useState<string | null>(null);
+const photo = (i: number) => `https://picsum.photos/seed/dou-viewer-${i}/1200/1600`;
+
+const Demo = ({ count }: { count: number }) => {
+    const images = Array.from({ length: count }, (_, i) => photo(i));
+    const [index, setIndex] = useState<number | null>(0);
     return (
         <>
-            <button
-                onClick={() => setSrc('https://picsum.photos/seed/dou-viewer/1200/1600')}
-                className="rounded-lg bg-secondary px-4 py-2 text-[14px] font-semibold"
-            >
+            <button onClick={() => setIndex(0)} className="rounded-lg bg-secondary px-4 py-2 text-[14px] font-semibold">
                 Open viewer
             </button>
-            <ImageViewer src={src} onClose={() => setSrc(null)} title="사진" closeLabel="닫기" />
+            <ImageViewer
+                images={images}
+                index={index}
+                onIndexChange={setIndex}
+                onClose={() => setIndex(null)}
+                title="사진"
+                closeLabel="닫기"
+                previousLabel="이전 사진"
+                nextLabel="다음 사진"
+            />
         </>
     );
 };
 
-export const Default: Story = { render: () => <Demo /> };
+export const Single: Story = { render: () => <Demo count={1} /> };
+export const Several: Story = { render: () => <Demo count={4} /> };

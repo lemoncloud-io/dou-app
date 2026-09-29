@@ -23,9 +23,11 @@ interface MessageImagesProps {
  * drawn as a placeholder and the message is read again for fresh addresses; the row then redraws from
  * the cache with them. A local preview of a message still on its way is never re-read.
  *
- * The viewer's state is kept per row rather than lifted to the page: only one row's viewer can be
- * open at a time anyway, and a page-level viewer would need to know which list and index every row
- * belongs to. It holds the index, not the address, so a refresh reaches an open viewer too.
+ * The viewer steps through the message's images — only the ones that can be opened, so a broken
+ * tile is skipped rather than shown as a blank page. Its state is kept per row rather than lifted to
+ * the page: only one row's viewer can be open at a time anyway, and a page-level viewer would need to
+ * know which list every row belongs to. It holds a position, not an address, so a refresh reaches an
+ * open viewer too.
  */
 export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProps) => {
     const { t } = useTranslation();
@@ -33,7 +35,8 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     // Addresses seen to fail. A tile whose address is here draws as a placeholder until the re-read
     // brings a different one.
     const [dead, setDead] = useState<ReadonlySet<string>>(() => new Set());
-    const [openIndex, setOpenIndex] = useState<number | null>(null);
+    // Position in `viewable`, not a tile index.
+    const [openAt, setOpenAt] = useState<number | null>(null);
 
     const tiles = useMemo(
         () =>
@@ -42,6 +45,12 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
             ),
         [uploads, dead]
     );
+
+    // What the viewer can page through: tiles that are not broken and have an original to open, with
+    // the tile each one came from.
+    const viewable = tiles
+        .map((tile, index) => ({ index, src: tile.state === 'broken' ? undefined : imageOriginalAt(uploads, index) }))
+        .filter((item): item is { index: number; src: string } => !!item.src);
 
     if (tiles.length === 0) return null;
 
@@ -58,25 +67,28 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                 items={tiles}
                 onOpen={index => {
                     // A broken tile has nothing to open.
-                    if (tiles[index]?.state === 'broken') return;
-                    setOpenIndex(index);
+                    const at = viewable.findIndex(item => item.index === index);
+                    if (at >= 0) setOpenAt(at);
                 }}
                 onImageError={index => reportDead(tiles[index]?.src, index)}
                 tileLabel={position => t('chat.attach.tile', { position })}
                 className={align === 'end' ? 'self-end' : 'self-start'}
             />
             <ImageViewer
-                src={openIndex === null ? null : (imageOriginalAt(uploads, openIndex) ?? null)}
-                onClose={() => setOpenIndex(null)}
-                onError={() => {
-                    if (openIndex === null) return;
-                    const slot = uploads?.[openIndex];
-                    if (!chatId || !slot || isPendingUploadSlot(slot)) return;
-                    const src = imageOriginalAt(uploads, openIndex);
-                    if (src) void refresh({ cid, chatId, src });
+                images={viewable.map(item => item.src)}
+                index={openAt !== null && openAt < viewable.length ? openAt : null}
+                onIndexChange={setOpenAt}
+                onClose={() => setOpenAt(null)}
+                onError={at => {
+                    const item = viewable[at];
+                    const slot = item ? uploads?.[item.index] : undefined;
+                    if (!item || !chatId || !slot || isPendingUploadSlot(slot)) return;
+                    void refresh({ cid, chatId, src: item.src });
                 }}
                 title={t('chat.attach.viewer')}
                 closeLabel={t('chat.attach.viewerClose')}
+                previousLabel={t('chat.attach.viewerPrevious')}
+                nextLabel={t('chat.attach.viewerNext')}
             />
         </>
     );

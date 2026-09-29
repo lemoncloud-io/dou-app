@@ -881,6 +881,8 @@
             "tile": "Photo {{position}}",
             "viewer": "Photo",
             "viewerClose": "Close",
+            "viewerPrevious": "Previous photo",
+            "viewerNext": "Next photo",
             "sendFailed": "Couldn't send the photos",
             "cannotRetry": "These photos can't be resent. Please delete them"
         }
