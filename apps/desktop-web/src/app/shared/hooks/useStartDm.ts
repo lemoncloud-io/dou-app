@@ -21,7 +21,8 @@ import { usePendingOpenStore } from '../stores';
  * Only a subscription cloud offers it. On the default (relay) cloud a 1:1 is reached by inviting a
  * phone number, which is a mobile flow, so `isAvailable` is false there and each entry point hides.
  *
- * A second call while one is in flight returns null without reaching the server (a double click).
+ * A second call while one is in flight returns null without reaching the server (a double click),
+ * and a call whose cloud was switched away from before it answered opens nothing and returns null.
  * A failure is logged, shown as a toast, and returns null.
  */
 export const useStartDm = () => {
@@ -30,17 +31,23 @@ export const useStartDm = () => {
     const cloudId = runtime.session.useGlobalSession().cloud.cloudId;
     const isAvailable = !!cloudId && cloudId !== RELAY_CLOUD_ID;
 
+    // The cloud as of the latest render, read after the await: a switch while the call is in
+    // flight leaves the returned room in the cloud that was left.
+    const cloudIdRef = useRef(cloudId);
+    cloudIdRef.current = cloudId;
     const inFlightRef = useRef(false);
     const [isStarting, setIsStarting] = useState(false);
 
     const startDm = useCallback(
         async (peerId: string): Promise<DomainChannel | null> => {
             if (!isAvailable || !peerId || inFlightRef.current) return null;
+            const startedIn = cloudIdRef.current;
             inFlightRef.current = true;
             setIsStarting(true);
             try {
                 const room = await channelRepository.startDm({ peerId });
                 if (!room?.id) throw new Error('[useStartDm] the room came back without an id');
+                if (cloudIdRef.current !== startedIn) return null;
                 usePendingOpenStore.getState().request({ placeId: '', channelId: room.id });
                 return room;
             } catch (error) {

@@ -99,6 +99,29 @@ describe('useStartDm', () => {
         expect(startDm).not.toHaveBeenCalled();
     });
 
+    it('opens nothing when the cloud changed while the call was in flight', async () => {
+        let resolve: (room: unknown) => void = () => undefined;
+        startDm.mockReturnValue(new Promise(r => (resolve = r)));
+        const { result, rerender } = renderHook(() => useStartDm());
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.startDm('u-1');
+        });
+        activeCloudId = 'cloud-2';
+        rerender();
+        let room: unknown = 'unset';
+        await act(async () => {
+            resolve({ id: 'dm-1' });
+            room = await pending;
+        });
+
+        // The room belongs to the cloud that was left; opening its id here could land on another room.
+        expect(room).toBeNull();
+        expect(usePendingOpenStore.getState().target).toBeNull();
+        expect(toast).not.toHaveBeenCalled();
+    });
+
     it('is unavailable while no cloud is active yet', () => {
         activeCloudId = '';
         const { result } = renderHook(() => useStartDm());
