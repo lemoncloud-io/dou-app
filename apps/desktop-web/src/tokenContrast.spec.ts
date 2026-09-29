@@ -65,6 +65,10 @@ const PAIRS: [string, string, number][] = [
     ['destructive-foreground', 'destructive', 4.5],
     ['primary-ink', 'background', 4.5],
     ['link', 'background', 4.5],
+    ['toast-foreground', 'toast', 4.5],
+    ['toast-muted', 'toast', 4.5],
+    // Tooltips (Hint) are ink: the page's own text colour as the ground.
+    ['background', 'foreground', 4.5],
     ['focus-ring', 'background', 3],
     ['focus-border', 'background', 3],
 ];

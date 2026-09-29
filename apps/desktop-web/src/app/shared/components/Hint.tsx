@@ -27,7 +27,12 @@ export const Hint = forwardRef<ElementRef<typeof TooltipTrigger>, HintProps>(
             <TooltipTrigger ref={ref} asChild {...triggerProps}>
                 {children}
             </TooltipTrigger>
-            <TooltipContent side={side} className="max-w-xs whitespace-pre-line break-words">
+            {/* Ink, not the kit's lime: a hint on every icon button spent the accent on
+                decoration, and lime says "primary action", which a hint is not. */}
+            <TooltipContent
+                side={side}
+                className="max-w-xs whitespace-pre-line break-words bg-foreground text-caption text-background"
+            >
                 {label}
             </TooltipContent>
         </Tooltip>

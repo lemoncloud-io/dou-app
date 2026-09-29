@@ -61,10 +61,6 @@
         --avatar-l: 40%;
         --avatar-fg: 0 0% 100%;
 
-        /* Profile-card banner: soft hue-tinted gradient the avatar straddles */
-        --banner-from-l: 90%;
-        --banner-to-l: 82%;
-
         /* Figma #FF3B30 is 3.58:1 on white as text and carries white at the same 3.58:1 as a
            fill: every error line and every Delete was under AA. One deeper red serves both. */
         --destructive: 358 80% 44%;
@@ -98,7 +94,7 @@
         --focus-border: var(--focus-ring);
 
         /* Toast (always dark surface) */
-        --toast: 222 75% 12%; /* #081837 */
+        --toast: 220 7% 14%; /* #222325 BK_900: neutral ink, not the navy only toasts used */
         --toast-foreground: 210 6% 96%; /* #F4F5F5 */
         --toast-muted: 220 3% 81%; /* #CFD0D3 */
 
@@ -185,10 +181,6 @@
 
         --avatar-l: 58%;
         --avatar-fg: 0 0% 8%;
-
-        /* Profile-card banner (dark): dim hue tint */
-        --banner-from-l: 26%;
-        --banner-to-l: 17%;
 
         /* Lifted for text on the dark panes (4.7:1 even on the hover fill); a fill of it
            then carries dark ink, not white. */

@@ -105,7 +105,7 @@ change every message on mobile, which is a separate decision.
 | `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                                          |
 | `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)                             |
 | `--favorite`                           | `35 100% 50%`  | `#FF9500`                                                          |
-| `--toast`                              | `222 75% 12%`  | `#081837`, always dark                                             |
+| `--toast`                              | `220 7% 14%`   | `#222325` BK_900, always dark; neutral, not a navy of its own      |
 
 ### Desktop palette (dark, from Figma `254-541` / `259-566`)
 
@@ -238,17 +238,17 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 [ cloud rail ][ place rail ][ channel sidebar | drag ][ main pane ][ trailing panel ]
 ```
 
-| Region          | Code                                                                                                                                     | Figma                                                                    |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                                           | 80px "Icon Rail", 48px tile                                              |
-| Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                                 | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
-| Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                                   | 286px "Channel List Panel", 16px inset                                   |
-| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline                | same                                                                     |
-| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                       | same                                                                     |
-| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)                     | same                                                                     |
-| Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                       | 35px avatar                                                              |
-| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, backdrop blur, 24px gutters | 121px box, 24px gutters                                                  |
-| Trailing panels | resizable, defaults: thread 384, settings / saved / mentions / profile 320, debug 440                                                    | —                                                                        |
+| Region          | Code                                                                                                                      | Figma                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                            | 80px "Icon Rail", 48px tile                                              |
+| Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                  | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
+| Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                    | 286px "Channel List Panel", 16px inset                                   |
+| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline | same                                                                     |
+| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`        | same                                                                     |
+| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)      | same                                                                     |
+| Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                        | 35px avatar                                                              |
+| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, 24px gutters | 121px box, 24px gutters                                                  |
+| Trailing panels | resizable, defaults: thread 384, settings / saved / mentions / profile 320, debug 440                                     | —                                                                        |
 
 The rail width difference (68 versus 80) is a deliberate code choice shared by
 `DesktopLayout` and `AppShellSkeleton` through the `w-rail` token, so the boot skeleton
@@ -313,7 +313,8 @@ classes so what you type is what readers see.
 - `SIDEBAR_ACTION_ROW`: full-width 14px row, `text-label`, hover to foreground.
 - `ResizablePanel` + `PanelResizeHandle`: keyboard-resizable, `aria-valuemin/max`.
 - `Skeleton` / `AppShellSkeleton`: boot placeholder mirroring the real shell.
-- `ConnectionBanner`, `UpdateBanner`, `Hint`, `ProfileCard` popover (256px).
+- `ConnectionBanner`, `UpdateBanner`, `Hint` (ink: `bg-foreground text-background`, never
+  the lime), `ProfileCard` popover (256px, a plain `bg-muted` band over the avatar).
 
 ## Icons
 

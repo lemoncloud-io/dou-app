@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 
 import { useCopyToClipboard, useDisplayProfile, useStartDm, useUser } from '../hooks';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
-import { avatarStyle, bannerStyle } from '../utils';
+import { avatarStyle } from '../utils';
 
 interface UserProfilePopoverProps {
     userId: string;
@@ -43,7 +43,7 @@ interface ProfileCardContentProps extends Omit<UserProfilePopoverProps, 'childre
  * Card body. Rendered only while the popover is open (Radix unmounts closed
  * content), so the user subscription lives only for the open card — never one
  * per message row. Other users expose just avatar/name/nick, so the card stays
- * deliberately minimal: hue banner, identity, a Message action, and a copy-id row. Also reused as
+ * deliberately minimal: plain banner, identity, a Message action, and a copy-id row. Also reused as
  * the body of the trailing ProfilePanel (without onExpand).
  */
 export const ProfileCardContent = ({
@@ -83,7 +83,9 @@ export const ProfileCardContent = ({
 
     return (
         <div>
-            <div className="h-16 w-full" style={bannerStyle(seed)} />
+            {/* A plain band. It was a two-hue gradient per person: the only gradient in
+                the app, and a colour the palette has nowhere else. */}
+            <div className="h-16 w-full bg-muted" />
             <div className="px-4 pb-4">
                 <Avatar className="-mt-8 size-16 ring-4 ring-popover">
                     {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
