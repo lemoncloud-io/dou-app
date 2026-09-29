@@ -4,6 +4,16 @@
 
 ### Features
 
+- (app-runtime,web,desktop-web) send a chat to its own cloud, not the selected one (ADR-0122)
+
+### Documentation
+
+- (data) say a pending image send goes out on its graph's socket, not the active one
+
+## [2026-09-29] - No version updates
+
+### Features
+
 - (web,shared,block-kit,desktop-web) read end-user copy from the app's locale, not Korean
 
 ### Documentation
