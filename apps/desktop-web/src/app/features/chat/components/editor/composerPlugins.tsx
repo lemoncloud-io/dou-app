@@ -6,9 +6,11 @@ import { $convertFromMarkdownString } from '@lexical/markdown';
 import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $setBlocksType } from '@lexical/selection';
+import { $findMatchingParent, mergeRegister } from '@lexical/utils';
 import {
     $createParagraphNode,
     $getRoot,
+    $getNearestNodeFromDOMNode,
     $getSelection,
     $isRangeSelection,
     $isTextNode,
@@ -45,20 +47,48 @@ const NOT_IN_CODE_BLOCK = [$isCodeNode];
  * does not link inside it: code blocks are excluded as parents, and a URL in
  * inline code is kept as an unlinked AutoLinkNode (a plain span). Lexical's
  * matcher only sees text, not its format, so it cannot skip inline code itself.
+ *
+ * Clicking a link opens it in a new window, as in Slack — in the desktop shell
+ * that hands it to the system browser. Lexical's ClickableLinkPlugin would also
+ * open the unlinked inline-code ones (they are still link nodes), hence the
+ * listener here. A click that ends a drag-selection only selects.
  */
 export const ComposerAutoLinkPlugin = () => {
     const [editor] = useLexicalComposerContext();
 
-    useEffect(
-        () =>
+    useEffect(() => {
+        const openLink = (event: MouseEvent) => {
+            if (!(event.target instanceof Node)) return;
+            const target = event.target;
+            // `{ editor }` lets the DOM-to-node lookup run outside an update callback.
+            const url = editor.getEditorState().read(
+                () => {
+                    const selection = $getSelection();
+                    if ($isRangeSelection(selection) && !selection.isCollapsed()) return null;
+                    const node = $getNearestNodeFromDOMNode(target);
+                    const link = node && $findMatchingParent(node, $isAutoLinkNode);
+                    return link && !link.getIsUnlinked() ? link.getURL() : null;
+                },
+                { editor }
+            );
+            if (!url) return;
+            event.preventDefault();
+            window.open(url, '_blank', 'noopener,noreferrer');
+        };
+
+        return mergeRegister(
             editor.registerNodeTransform(TextNode, text => {
                 const link = text.getParent();
                 if (!$isAutoLinkNode(link)) return;
                 const inCode = link.getChildren().some(child => $isTextNode(child) && child.hasFormat('code'));
                 if (link.getIsUnlinked() !== inCode) link.setIsUnlinked(inCode);
             }),
-        [editor]
-    );
+            editor.registerRootListener((root, prevRoot) => {
+                prevRoot?.removeEventListener('click', openLink);
+                root?.addEventListener('click', openLink);
+            })
+        );
+    }, [editor]);
 
     return <AutoLinkPlugin matchers={URL_MATCHERS} excludeParents={NOT_IN_CODE_BLOCK} />;
 };

@@ -340,6 +340,7 @@
         background-color: hsl(var(--link) / 0.1);
         border-radius: 3px;
         padding: 0 2px;
+        cursor: pointer;
     }
     .composer-link::before {
         content: '';

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 
 import { $createCodeNode } from '@lexical/code-core';
 import { $isAutoLinkNode } from '@lexical/link';
@@ -123,5 +123,33 @@ describe('ComposerAutoLinkPlugin', () => {
         typeInto(editor, 'https://example.com', $createParagraphNode, 'code');
 
         expect(editor.getRootElement()?.querySelector('.composer-link')).toBeNull();
+    });
+
+    describe('clicking a link', () => {
+        afterEach(() => vi.restoreAllMocks());
+
+        it('opens the URL in a new window, like Slack', () => {
+            const open = vi.spyOn(window, 'open').mockReturnValue(null);
+            const editor = mountEditor();
+            typeInto(editor, 'see https://example.com/a now');
+
+            const link = editor.getRootElement()?.querySelector('.composer-link');
+            if (!link) throw new Error('link not rendered');
+            fireEvent.click(link);
+
+            expect(open).toHaveBeenCalledWith('https://example.com/a', '_blank', 'noopener,noreferrer');
+        });
+
+        it('does nothing for a URL in inline code, which is not a link', () => {
+            const open = vi.spyOn(window, 'open').mockReturnValue(null);
+            const editor = mountEditor();
+            typeInto(editor, 'https://example.com', $createParagraphNode, 'code');
+
+            const span = editor.getRootElement()?.querySelector('p span');
+            if (!span) throw new Error('text not rendered');
+            fireEvent.click(span);
+
+            expect(open).not.toHaveBeenCalled();
+        });
     });
 });
