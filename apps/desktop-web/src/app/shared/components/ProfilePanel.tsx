@@ -25,7 +25,6 @@ export const ProfilePanel = () => {
     return (
         <ResizablePanel
             storageKey={'chatic.profilePanel.width'}
-            defaultWidth={320}
             resizeLabel={t('profile.panel.resize')}
             onClose={close}
             className="bg-elevated"

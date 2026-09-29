@@ -1,11 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
 import {
     MIN_CHAT_WIDTH,
+    PANEL_DOCK_WIDTH,
     PanelResizeHandle,
+    PanelShellContext,
     useEscapeClose,
     usePanelWidth,
     useSelectedChannelStore,
@@ -106,6 +108,20 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
 
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
 
+    // A trailing panel covers the chat below PANEL_DOCK_WIDTH; while it does, the chat
+    // under it is dimmed and inert, and a click on it closes the panel.
+    const panelOverlays = useViewportNarrow(PANEL_DOCK_WIDTH) && !!panel;
+    const panelCloseRef = useRef<(() => void) | null>(null);
+    const panelShell = useMemo(
+        () => ({
+            overlays: panelOverlays,
+            setClose: (close: (() => void) | null) => {
+                panelCloseRef.current = close;
+            },
+        }),
+        [panelOverlays]
+    );
+
     // The drawer covers the conversation, so keyboard focus has to travel with it
     // and come back to the control that opened it.
     const openerRef = useRef<HTMLElement | null>(null);
@@ -141,88 +157,99 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
 
     return (
         <ShellSidebarContext.Provider value={{ isDrawer, isOpen, open, close }}>
-            <div className="relative flex h-full bg-background">
-                <SkipLinks
-                    onSidebar={() => {
-                        if (isDrawer) open();
-                        else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
-                    }}
-                />
-                <nav
-                    aria-label={t('shell.clouds')}
-                    className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
-                >
-                    {rail}
-                </nav>
-                {rail2 && (
-                    <nav
-                        aria-label={t('shell.places')}
-                        className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
-                    >
-                        {rail2}
-                    </nav>
-                )}
-                {drawerOpen && (
-                    <div
-                        aria-hidden
-                        onClick={close}
-                        className={`absolute inset-y-0 right-0 z-float bg-overlay/40 animate-fade-in ${drawerLeft}`}
+            <PanelShellContext.Provider value={panelShell}>
+                <div className="relative flex h-full bg-background">
+                    <SkipLinks
+                        onSidebar={() => {
+                            if (isDrawer) open();
+                            else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
+                        }}
                     />
-                )}
-                {/* Unmounted while the drawer is shut, rather than hidden: the column's
+                    <nav
+                        aria-label={t('shell.clouds')}
+                        className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
+                    >
+                        {rail}
+                    </nav>
+                    {rail2 && (
+                        <nav
+                            aria-label={t('shell.places')}
+                            className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
+                        >
+                            {rail2}
+                        </nav>
+                    )}
+                    {drawerOpen && (
+                        <div
+                            aria-hidden
+                            onClick={close}
+                            className={`absolute inset-y-0 right-0 z-float bg-overlay/40 animate-fade-in ${drawerLeft}`}
+                        />
+                    )}
+                    {/* Unmounted while the drawer is shut, rather than hidden: the column's
                     own `flex` utility outranks the `hidden` attribute, so a hidden
                     drawer stayed on screen over the conversation and swallowed its
                     clicks. Nothing needs it mounted either — the channel list streams
                     from the cache and repaints instantly when it opens. */}
-                {(!isDrawer || isOpen) && (
-                    <aside
-                        ref={sidebarWidth.panelRef}
-                        // A drawer is a fixed-width overlay: the drag handle belongs to the
-                        // docked column, where there is a neighbour to trade width with.
-                        style={isDrawer ? undefined : { width: sidebarWidth.width }}
-                        tabIndex={drawerOpen ? -1 : undefined}
-                        role={drawerOpen ? 'dialog' : undefined}
-                        aria-label={drawerOpen ? t('sidebar.channels') : undefined}
-                        className={
-                            isDrawer
-                                ? `absolute inset-y-0 ${drawerLeft} z-drawer flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in`
-                                : 'relative z-raised flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
-                        }
-                    >
-                        {drawerOpen && (
-                            <div className="flex shrink-0 justify-end px-2 pt-2">
-                                <button
-                                    type="button"
-                                    aria-label={t('sidebar.hide')}
-                                    onClick={close}
-                                    className="focus-ring tactile hit-target flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                >
-                                    <X size={18} aria-hidden />
-                                </button>
-                            </div>
-                        )}
-                        {sidebar}
-                        {!isDrawer && <PanelResizeHandle label={t('sidebar.resize')} panel={sidebarWidth} />}
-                    </aside>
-                )}
-                {/* A floor on the conversation itself, not only on each panel: the
+                    {(!isDrawer || isOpen) && (
+                        <aside
+                            ref={sidebarWidth.panelRef}
+                            // A drawer is a fixed-width overlay: the drag handle belongs to the
+                            // docked column, where there is a neighbour to trade width with.
+                            style={isDrawer ? undefined : { width: sidebarWidth.width }}
+                            tabIndex={drawerOpen ? -1 : undefined}
+                            role={drawerOpen ? 'dialog' : undefined}
+                            aria-label={drawerOpen ? t('sidebar.channels') : undefined}
+                            className={
+                                isDrawer
+                                    ? `absolute inset-y-0 ${drawerLeft} z-drawer flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in`
+                                    : 'relative z-raised flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
+                            }
+                        >
+                            {drawerOpen && (
+                                <div className="flex shrink-0 justify-end px-2 pt-2">
+                                    <button
+                                        type="button"
+                                        aria-label={t('sidebar.hide')}
+                                        onClick={close}
+                                        className="focus-ring tactile hit-target flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                    >
+                                        <X size={18} aria-hidden />
+                                    </button>
+                                </div>
+                            )}
+                            {sidebar}
+                            {!isDrawer && <PanelResizeHandle label={t('sidebar.resize')} panel={sidebarWidth} />}
+                        </aside>
+                    )}
+                    {/* A floor on the conversation itself, not only on each panel: the
                 sidebar and a docked trailing panel clamp independently, so only a
                 min-width here keeps the message column from being squeezed out
                 between them at a narrow desktop window. The floor is dropped once
                 the sidebar is a drawer, because then it is the only thing left
                 that could force the page to scroll sideways. It is inert under an
                 open drawer, so Tab stays between the rails and the list. */}
-                <main
-                    inert={drawerOpen || undefined}
-                    tabIndex={-1}
-                    style={isDrawer ? undefined : { minWidth: MIN_CHAT_WIDTH }}
-                    className="flex min-w-0 flex-1 flex-col overflow-hidden outline-none"
-                >
-                    {main}
-                </main>
-                {panel}
-                {overlay}
-            </div>
+                    <div className="relative flex min-w-0 flex-1">
+                        <main
+                            inert={drawerOpen || panelOverlays || undefined}
+                            tabIndex={-1}
+                            style={isDrawer ? undefined : { minWidth: MIN_CHAT_WIDTH }}
+                            className="flex min-w-0 flex-1 flex-col overflow-hidden outline-none"
+                        >
+                            {main}
+                        </main>
+                        {panelOverlays && (
+                            <div
+                                aria-hidden
+                                onClick={() => panelCloseRef.current?.()}
+                                className="absolute inset-0 z-float bg-overlay/40 animate-fade-in"
+                            />
+                        )}
+                    </div>
+                    {panel}
+                    {overlay}
+                </div>
+            </PanelShellContext.Provider>
         </ShellSidebarContext.Provider>
     );
 };

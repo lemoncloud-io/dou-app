@@ -104,7 +104,6 @@ export const ChannelSettingsPanel = ({
     return (
         <ResizablePanel
             storageKey={'chatic.channelSettingsPanel.width'}
-            defaultWidth={320}
             resizeLabel={t('channels.settings.resize')}
             onClose={close}
             className="bg-elevated"
