@@ -1,6 +1,6 @@
 {
   "name": "@chatic/source",
-  "version": "0.67.0",
+  "version": "0.68.0",
   "license": "Apache-2.0",
   "scripts": {
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
@@ -320,7 +320,7 @@
     "vitest": "^4.0.0"
   },
   "resolutions": {
-    "lemon-model": "1.2.2"
+    "lemon-model": "1.5.0"
   },
   "workspaces": [
     "apps/*",

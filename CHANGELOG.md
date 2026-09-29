@@ -1,5 +1,66 @@
 # Changelog
 
+## [2026-09-29] - root@0.68.0, @chatic/web@0.54.0
+
+### Features
+
+- (web) count each cloud off screen from its own cache, not under the active uid (ADR-0126)
+- (app-runtime) announce each answered background delta, and let one cloud be asked by name
+
+## [2026-09-29] - root@0.67.1, @chatic/web@0.53.1
+
+### Features
+
+- (web,web-ui-kit) swipe through a message's images in the viewer
+- (web,app-messages) pick photos from an in-app grid where the app can list the library
+- (web,data) attach photos from the chat composer and draw image messages
+- (web-ui-kit) add the chat attach menu, photo grid picker and message image tiles
+
+### Bug Fixes
+
+- (web) declare the attach and photo picker tokens in the app, not only in the kit
+- (web) show a sending image message from its thumbnails, not the full-size originals
+- (web,web-ui-kit) read an image message again when its signed addresses have expired
+- (web-ui-kit) give the attach and photo grid sheets the design's upward shadow
+
+### Documentation
+
+- (adr) picking a photo sends it, and the shell decides how it is picked (ADR-0123)
+
+## [2026-09-29] - No version updates
+
+### Features
+
+- (app-runtime,web) keep every cloud off screen current with one delta a minute (ADR-0125)
+
+### Bug Fixes
+
+- (data) keep a sync cursor in its own graph's partition, not the selected one
+
+## [2026-09-29] - No version updates
+
+### Refactor
+
+- (data) take the upload answers' types from lemon-model 1.5
+
+### Chores
+
+- (deps) lift the lemon-model pin to 1.5.0
+
+## [2026-09-29] - No version updates
+
+### Features
+
+- (perf,web,app-runtime,mobile,data) trace a room open until its latest page is on screen
+
+### Bug Fixes
+
+- (mobile,perf) accept a well-formed trace name the app build does not know yet
+
+### Other
+
+- test: (web/channels) stub the room sync trace hook in the room page's hook mock
+
 ## [2026-09-29] - No version updates
 
 ### Features

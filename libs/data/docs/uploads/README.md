@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (not wired to a screen yet) · Last updated: 2026-09-28 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (not wired to a screen yet) · Last updated: 2026-09-29 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -56,18 +56,36 @@ operations, what to retry, and what a failure means. It does **not** know how by
 Retry and re-issue live here and nowhere else. A PUT port reports what happened and never decides,
 so the web sender, the native sender and the old-app fallback cannot come to different conclusions.
 
-## The response mirror
+## The answer guard
 
-The SDK names the upload responses (`UploadStartResult`, `UploadTicket`, …), but it re-exports them
-from `lemon-model/upload`, and the root `resolutions."lemon-model"` pin (1.2.2) predates that entry
-point. Under `skipLibCheck` every one of those names silently becomes `any`.
+The answers are typed by the upload contract in `lemon-model/upload`, which
+`@lemoncloud/chatic-socials-api` re-exports (`UploadStartResult`, `UploadTicket`,
+`UploadCompleteResult`, `UploadDirectTransfer`, …). They are imported from the SDK, not from
+`lemon-model` directly: the SDK is what this repo declares as a dependency, and it is the server's
+own statement of the wire shape. The root `resolutions."lemon-model"` pin has to stay at 1.5 or
+above. Below that, the SDK's `lemon-model/upload` import does not resolve and every one of those
+names silently becomes `any` under `skipLibCheck`.
 
-So `uploads/types.ts` carries the shape itself, with only the fields read here: each slot's
-`upload.id` · `upload.status` · `transfer` · `thumbnailTransfer`, the `url` and `headers` of a
-transfer, and `id` · `status` · `error` from `complete`. `UploadSocketDataSource` runs every answer
-through `parseUploadStartResult` / `parseUploadCompleteResult`. An answer of the wrong shape rejects
-the whole operation, and the error names the path, never the value. **The mirror goes away when the
-pin reaches `lemon-model` 1.5.**
+The types say what the server promises. The socket gateway's `start` / `complete` return whatever
+arrived, cast unchecked. So `UploadSocketDataSource` still runs every answer through
+`parseUploadStartResult` / `parseUploadCompleteResult`:
+
+- **What it checks.** Each upload's `id` · `status` · `error`, and every field of a transfer:
+  `kind` · `method` · `url` · `headers` · `maxBytes`, and `expiresAt` when present. `status` must be
+  a contract status, and anything but `failed` must carry an `id`. So must every entry of
+  `complete`'s answer.
+- **What it keeps.** Only the fields it checked, copied into fresh objects. What the server adds on
+  top (the echoed declaration, `stereo`, a stored upload's `url`) is dropped, because nothing here
+  reads it. So an upload comes out as `CheckedUpload` (`id` · `status` · `error`), not the full
+  `Upload`: the full type would promise a stored upload's `url`, which the guard never keeps.
+- **Presigned PUT only.** The contract also has an inline transfer, which is sent through a `send`
+  operation. The socket surface has none, so an inline ticket is a broken answer here. The guard's
+  result type (`PresignedUploadStartResult`) says so, and the sequence never meets another kind.
+- **A mismatch fails the operation.** An answer that breaks the contract rejects the whole `start`
+  or `complete`, and the error names the path, never the value.
+
+A PUT sender sees only `UploadPutTarget`, the `url` and `headers` of a transfer, so the shells do
+not depend on the rest of the contract.
 
 ## Tickets are credentials
 

@@ -87,8 +87,11 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
             coldStart: boolean
         ): HandedOverPerfTrace | undefined => {
             if (!isChannelRoomPath(path)) return undefined;
+            // Both room traces start here, together: `chat_room_sync` measures the same wait to the
+            // point the room shows its synced, latest messages rather than whatever was cached.
             const trace = startPerfTrace('chat_room_open');
-            return { id: trace.id, startedAt: Date.now(), entry, coldStart };
+            const sync = startPerfTrace('chat_room_sync');
+            return { id: trace.id, syncId: sync.id, startedAt: Date.now(), entry, coldStart };
         };
 
         // Keep the splash up for a cold-start redirect. If the WebView already loaded, the splash

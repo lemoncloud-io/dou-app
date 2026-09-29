@@ -1,4 +1,5 @@
 import { getSocketManager } from '../runtime';
+import { BackgroundReceiver } from './BackgroundReceiver';
 import { SyncManager } from './SyncManager';
 
 import type { ISyncManager } from './types';
@@ -31,4 +32,36 @@ export const getSyncManager = (): ISyncManager => {
         syncManagerSingleton = new SyncManager(getSocketManager());
     }
     return syncManagerSingleton;
+};
+
+let backgroundReceiver: BackgroundReceiver | null = null;
+
+/**
+ * Starts receiving for every bound slot that is not the active one, and returns the stop. Owned by the
+ * connection host, which starts it once its slots are its own to bind — not lazily on first use like
+ * the managers above, because a receiver runs timers and nothing else would ever stop them.
+ *
+ * Starting again replaces the running receiver, so a remount (StrictMode's double effect among them)
+ * never leaves two polling the same clouds.
+ */
+export const startBackgroundReceive = (): (() => void) => {
+    backgroundReceiver?.destroy();
+    const receiver = new BackgroundReceiver(getSocketManager());
+    backgroundReceiver = receiver;
+    return () => {
+        receiver.destroy();
+        if (backgroundReceiver === receiver) backgroundReceiver = null;
+    };
+};
+
+/**
+ * Asks every background cloud for its delta now. Apps call it on their foreground signal, beside the
+ * socket wake kick: timers froze while the app was suspended and pushes may have been missed. Given
+ * `cid`, asks that one cloud only — for a push that named it, since its socket is not sent the
+ * message itself. A no-op while no receiver is running, and for a cloud that is on screen or whose
+ * socket is not verified: the first has the app's own sync, and the second asks on its own the
+ * moment it verifies.
+ */
+export const refreshBackgroundClouds = (cid?: string): void => {
+    backgroundReceiver?.receiveNow(cid);
 };

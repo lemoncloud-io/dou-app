@@ -6,6 +6,8 @@ import type {
     SyncTargetDescriptor,
 } from '@lemoncloud/chatic-sockets-lib';
 
+import type { DataRepositories } from '@chatic/data';
+
 import type { SlotKey } from '../types';
 
 export interface SyncWatchEntry {
@@ -86,4 +88,38 @@ export interface ISyncManager {
     updateLocalSnapshot(target: SyncTargetDescriptor, snapshot: unknown, options?: SyncRegisterOptions): void;
     listTargets(): SyncTargetListing[];
     destroy(): void;
+}
+
+/** The repositories a background cloud's receive loop reads and writes — one cloud's scoped graph. */
+export type BackgroundReceiveRepositories = Pick<DataRepositories, 'channel' | 'place' | 'syncMeta'>;
+
+/** What made a receive loop ask for its cloud's delta — carried into the log line, nothing more. */
+export type BackgroundReceiveTrigger = 'verified' | 'interval' | 'push' | 'resume' | 'foreground' | 'kick';
+
+/**
+ * A background cloud's delta that came back — announced so an app can tell when that cloud's cache
+ * has caught up with something it heard about another way, a push above all.
+ */
+export interface BackgroundDelta {
+    cid: string;
+    /**
+     * When the answered request was SENT, not when it came back. A consumer comparing this with the
+     * moment it learned of a message asks the only sound question — "did the server answer after the
+     * message existed?" — because an answer to a request sent before then may not carry it.
+     */
+    requestedAt: number;
+}
+
+/** Test seams for `BackgroundReceiver`. Every one defaults to the production collaborator. */
+export interface BackgroundReceiverDeps {
+    /** The scoped repository graph of `cid` (`DataManager.getScopedRepositories`). */
+    getRepositories?: (cid: string) => BackgroundReceiveRepositories;
+    /** The uid the account has in `cid`, read per run (`getUidInCloud`). */
+    getUid?: (cid: string) => string | null;
+    now?: () => number;
+    intervalMs?: number;
+    debounceMs?: number;
+    placeRefreshMs?: number;
+    /** Where an answered delta is announced (`emitBackgroundDelta`). */
+    onDelta?: (delta: BackgroundDelta) => void;
 }

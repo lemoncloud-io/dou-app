@@ -847,7 +847,45 @@
         "unknownUser": "Unknown user",
         "me": "You",
         "notAMember": "You're not in this conversation.",
-        "jumpOutsideJoinWindow": "That message is from before you rejoined, so it isn't shown here."
+        "jumpOutsideJoinWindow": "That message is from before you rejoined, so it isn't shown here.",
+        "attach": {
+            "menuTitle": "Attach",
+            "open": "Open attachments",
+            "close": "Close attachments",
+            "photo": "Photos",
+            "camera": "Camera",
+            "file": "Files",
+            "recentTitle": "Recent photos",
+            "seeAll": "See all",
+            "recentPhoto": "Recent photo {{position}}",
+            "gridPhoto": "Photo {{position}}",
+            "removePicked": "Remove photo {{position}}",
+            "send": "Send {{count}}",
+            "limitedNotice": "Only the photos you chose are shown",
+            "limitedMore": "Choose more",
+            "rejected": {
+                "unsupported": "Only PNG, JPEG, GIF and WEBP photos can be sent",
+                "too-large": "Photos over 20MB can't be sent",
+                "duplicate": "The same photo was picked twice",
+                "limit": "You can send up to {{max}} photos at a time"
+            },
+            "permission": {
+                "cameraTitle": "No access to the camera",
+                "photosTitle": "No access to your photos",
+                "description": "You can change this in Settings",
+                "cancel": "Cancel",
+                "settings": "Open Settings"
+            },
+            "preview": "Photo",
+            "previewCount": "{{count}} photos",
+            "tile": "Photo {{position}}",
+            "viewer": "Photo",
+            "viewerClose": "Close",
+            "viewerPrevious": "Previous photo",
+            "viewerNext": "Next photo",
+            "sendFailed": "Couldn't send the photos",
+            "cannotRetry": "These photos can't be resent. Please delete them"
+        }
     },
     "search": {
         "placeholder": "Search by room name or place",

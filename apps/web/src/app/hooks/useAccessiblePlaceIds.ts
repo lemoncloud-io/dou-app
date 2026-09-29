@@ -18,10 +18,26 @@ import { useColdListWindowElapsed } from './useColdListWindow';
  * not reach into a feature (ADR-0046).
  */
 export const useAccessiblePlaceIds = (): Set<string> | null => {
-    const { place } = runtime.data.useRuntimeRepositories();
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const uid = runtime.session.useGlobalSession().identity.userId ?? undefined;
-    const cid = selectedCloudId ?? 'default';
+    return useCloudPlaceIds({ cid: selectedCloudId ?? 'default', uid });
+};
+
+/**
+ * A cloud, and the uid the account has in it — the partition a cloud-scoped cache observer reads.
+ * Every cloud gives the account a different uid, so the cid alone does not name a partition.
+ */
+export interface CloudPartition {
+    cid: string;
+    uid: string | undefined;
+}
+
+/**
+ * {@link useAccessiblePlaceIds} for a named cloud — the active one, or one off screen whose place
+ * list its background receive loop refreshes.
+ */
+export const useCloudPlaceIds = ({ cid, uid }: CloudPartition): Set<string> | null => {
+    const { place } = runtime.data.useRuntimeRepositories();
 
     const [placeIds, setPlaceIds] = useState<Set<string> | null>(null);
     const hasColdWindowElapsed = useColdListWindowElapsed(`place:${cid}:${uid ?? ''}`);

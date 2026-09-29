@@ -5,6 +5,7 @@
  * - `limits.ts`   — Firebase Performance's per-trace limits, enforced for every backend
  * - `PerfTrace.ts` — the trace handle and the backend port
  * - `runtime.ts`  — the process-wide slot instrumentation points call through
+ * - `activeTraces.ts` — the trace in progress per name, for traces several modules contribute to
  * - `backends/`   — the log-pipeline fallback, and the buffer the WebView uses until it knows
  *                   which backend the installed app supports
  *
@@ -20,5 +21,6 @@ export * from './perfNow';
 export * from './traceId';
 export * from './PerfTrace';
 export * from './runtime';
+export * from './activeTraces';
 export * from './backends/LogPerfTraceBackend';
 export * from './backends/DeferredPerfTraceBackend';

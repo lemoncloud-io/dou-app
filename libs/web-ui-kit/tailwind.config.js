@@ -52,6 +52,15 @@ module.exports = {
                 'brand-ink': 'hsl(var(--brand-ink))',
                 'control-idle': 'hsl(var(--control-idle))',
                 'avatar-ring': 'hsl(var(--avatar-ring))',
+                'control-surface': 'hsl(var(--control-surface))',
+                'glyph-green': 'hsl(var(--glyph-green))',
+                'glyph-indigo': 'hsl(var(--glyph-indigo))',
+                'glyph-cyan': 'hsl(var(--glyph-cyan))',
+                'tile-ring': 'hsl(var(--tile-ring))',
+                'media-tile': {
+                    DEFAULT: 'hsl(var(--media-tile))',
+                    foreground: 'hsl(var(--media-tile-foreground))',
+                },
                 'bubble-mine': {
                     DEFAULT: 'hsl(var(--bubble-mine))',
                     foreground: 'hsl(var(--bubble-mine-foreground))',

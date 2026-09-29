@@ -23,3 +23,25 @@
  * channel.
  */
 export const UNREGISTER_GRACE_MS = 30_000;
+
+/**
+ * How often a cloud the user is not looking at asks its server what changed (`channel.sync`).
+ *
+ * The same minute the apps' own background sync polls the cloud on screen at: a list only
+ * re-discovers added and removed rooms, last messages and unread counts here, and a minute is what
+ * "fresh enough to show a count" was already taken to mean. Each tick is one request per cloud.
+ */
+export const BACKGROUND_RECEIVE_INTERVAL_MS = 60_000;
+
+/**
+ * How long a background cloud waits after a `chat.sync` push before asking for the delta. A burst of
+ * messages arrives as a burst of frames, and one delta answers all of them.
+ */
+export const BACKGROUND_RECEIVE_DEBOUNCE_MS = 300;
+
+/**
+ * How often a background cloud re-reads its place list (`user.mysite`). Places change rarely — they
+ * are created and renamed by hand — but a room is listed under its place, so a list that never
+ * learned a new place would hide that place's rooms. Also read on the first delta a cloud answers.
+ */
+export const BACKGROUND_PLACE_REFRESH_MS = 10 * 60_000;

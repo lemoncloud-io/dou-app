@@ -6,7 +6,7 @@ import { isInJoinWindow } from '@chatic/data';
 import type { DomainChannel, GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
-import { countUnread, readCursorOf } from '../../../utils/countUnread';
+import { unreadOf } from '../../../utils/countUnread';
 import {
     channelKindOf,
     resolveChannelAvatar,
@@ -262,12 +262,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     thumbnail,
                     glyph,
                     memberNo: showsMemberCount(kind) ? channel.memberNo : undefined,
-                    unread: countUnread({
-                        headChatNo: channel.chatNo,
-                        headMetaNo: channel.metaNo,
-                        readNo: readCursorOf(context.joinsByRef[ref]),
-                        readMetaNo: context.joinsByRef[ref]?.metaNo,
-                    }),
+                    unread: unreadOf(channel, context.joinsByRef[ref]),
                     // Undefined, not '': the row and its test read the absence of a preview
                     // as "nothing to show", and `messagePlainText` answers '' for no input.
                     lastMessage: lastChat ? messagePlainText(lastChat.content) : undefined,

@@ -87,6 +87,15 @@
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge, active send) */
         --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
         --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
+        --control-surface: 210 22% 96%; /* #F4F5F5 - circular action tile fill (chat attach menu) */
+
+        /* Attach menu + photo picker (Figma, web-ui-kit parity) */
+        --glyph-green: 135 59% 49%; /* #34C759 - photos glyph */
+        --glyph-indigo: 241 61% 59%; /* #5856D6 - camera glyph */
+        --glyph-cyan: 199 78% 55%; /* #32ADE6 - files glyph */
+        --tile-ring: 220 5% 88%; /* #DFE0E2 - photo select ring, picked-strip remove chip */
+        --media-tile: 220 5% 24%; /* #3A3C40 - camera tile in the photo grid */
+        --media-tile-foreground: 240 4% 92%; /* #EAEAEC - camera tile label */
 
         /* Toast (always dark surface) */
         --toast: 222 75% 12%; /* #081837 */
@@ -164,6 +173,15 @@
         --brand-ink: 217 63% 17%; /* #102346 */
         --control-idle: 220 3% 40%; /* muted control on dark bg */
         --avatar-ring: 0 0% 18%; /* subtle ring on dark bg */
+        --control-surface: 0 0% 15%; /* tile fill on dark bg */
+
+        /* Attach menu + photo picker (web-ui-kit parity) */
+        --glyph-green: 135 59% 49%; /* same */
+        --glyph-indigo: 241 61% 59%; /* same */
+        --glyph-cyan: 199 78% 55%; /* same */
+        --tile-ring: 220 5% 30%; /* ring on dark bg */
+        --media-tile: 220 5% 24%; /* same */
+        --media-tile-foreground: 240 4% 92%; /* same */
 
         /* Toast (light card on dark bg) */
         --toast: 210 6% 96%; /* #F4F5F5 - light card */

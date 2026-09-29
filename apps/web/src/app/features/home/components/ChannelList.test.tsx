@@ -88,6 +88,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
     UnreadBadge: ({ count }: any) => <span data-testid="unread">{count}</span>,
 }));
 
+jest.mock('../../../runtime/logging/divergenceReporter', () => ({ divergenceReporter: { unread: jest.fn() } }));
+
 const makeChannel = (over: any) => ({ id: 'c1', name: '', stereo: 'group', memberNo: 3, ...over });
 
 /**
@@ -776,5 +778,67 @@ describe('ChannelList — room-open trace', () => {
         fireEvent.click(screen.getByText('general'));
 
         expect(roomOpenTrace.claim('g1')?.name).toBe('chat_room_open');
+    });
+});
+
+// An image message has no text, so its preview would be a blank line — it reads as a photo count.
+describe('ChannelList — image message preview', () => {
+    const renderWith = (lastChat: any) => {
+        mockLastChat = lastChat;
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'p1', stereo: 'group', name: '사진방' })]}
+                joinByChannel={new Map()}
+                isLoading={false}
+            />
+        );
+    };
+    afterEach(() => {
+        mockLastChat = null;
+    });
+
+    it('previews a single photo as a photo', () => {
+        renderWith({ content: '', uploadIds: ['u1'], createdAtMs: 1 });
+        expect(screen.getByText('chat.attach.preview')).toBeInTheDocument();
+    });
+
+    it('counts several photos from the list head', () => {
+        renderWith({ content: '', uploadIds: ['u1', 'u2', 'u3'], createdAtMs: 1 });
+        expect(screen.getByText('chat.attach.previewCount')).toBeInTheDocument();
+    });
+
+    it('keeps the text when the message has some', () => {
+        renderWith({ content: '보냈어요', uploadIds: ['u1'], createdAtMs: 1 });
+        expect(screen.getByText('보냈어요')).toBeInTheDocument();
+        expect(screen.queryByText('chat.attach.preview')).not.toBeInTheDocument();
+    });
+
+    it('still says deleted for a deleted image message', () => {
+        renderWith({ content: '', uploadIds: ['u1'], hidden: true, createdAtMs: 1 });
+        expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
+    });
+});
+
+describe('ChannelList unread divergence report', () => {
+    it("reports the cursor the count was drawn from, the channel's $join when it is further along", async () => {
+        const { divergenceReporter } = jest.requireMock('../../../runtime/logging/divergenceReporter');
+        const { readMarkRegistry } = jest.requireActual('../../../runtime/logging/readMarkRegistry');
+        readMarkRegistry.reset();
+        readMarkRegistry.record('g9', 12);
+
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({ id: 'g9', name: 'general', chatNo: 12, metaNo: 0, $join: { chatNo: 12, metaNo: 0 } }),
+                ]}
+                joinByChannel={new Map([['g9', { channelId: 'g9', chatNo: 4 } as never]])}
+                isLoading={false}
+            />
+        );
+
+        expect(divergenceReporter.unread).toHaveBeenCalledWith(
+            expect.objectContaining({ channelId: 'g9', cursorChatNo: 12, drawn: 0, hasReadMetaNo: true })
+        );
+        readMarkRegistry.reset();
     });
 });

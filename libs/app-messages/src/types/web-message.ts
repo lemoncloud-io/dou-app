@@ -57,6 +57,10 @@ import type {
     ListFileTransfersPayload,
     AckFileTransfersPayload,
     WriteTempFilePayload,
+    ListPhotoAlbumsPayload,
+    ListPhotosPayload,
+    ReadPhotoPayload,
+    ManagePhotoSelectionPayload,
     CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
@@ -111,6 +115,12 @@ export type WebMessagePayloadMap = {
     OpenDocument: OpenDocumentPayload;
     OpenCamera: OpenCameraPayload;
     OpenPhotoLibrary: OpenPhotoLibraryPayload;
+    // In-app photo picker. Newer than most shells: an older one answers NOT_FOUND, and the web falls
+    // back to its own file input.
+    ListPhotoAlbums: ListPhotoAlbumsPayload;
+    ListPhotos: ListPhotosPayload;
+    ReadPhoto: ReadPhotoPayload;
+    ManagePhotoSelection: ManagePhotoSelectionPayload;
     FetchSafeArea: FetchSafeAreaPayload;
     FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;

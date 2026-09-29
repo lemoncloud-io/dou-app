@@ -37,7 +37,7 @@ makes no difference.
 
 **In** — domain models and mappers, local data sources and the stream engine, the `CacheStorage` port,
 socket and HTTP gateway types (`Pick<>`) and their data sources, 13 repository facades, the
-`DataContext` contract, and the image send sequence (`uploads/`) with its ports and response mirror.
+`DataContext` contract, and the image send sequence (`uploads/`) with its ports and answer guard.
 
 **Out** — the socket transport runtime (`@lemoncloud/chatic-sockets-lib`), storage engine
 implementations (`@chatic/db`'s `IndexedDBAdapter`, `NativeDBAdapter`, `ChatQueryExecutor`), the HTTP
@@ -105,7 +105,7 @@ sequenceDiagram
 ```text
 libs/data/src/
 ├── index.ts          public barrel (9 lines of export *)
-├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit)
+├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
 │   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports
@@ -115,7 +115,7 @@ libs/data/src/
 │   ├── socket-data-sources/  12 sources + factory
 │   └── http-data-sources/    5 sources + factory
 ├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards
-└── uploads/          sendImageMessage + its ports, the upload response mirror and its guard
+└── uploads/          sendImageMessage + its ports, the upload answers' guard
 ```
 
 Two file names hide what they hold: `BaseRepository` and `DataContext` live in
@@ -249,7 +249,7 @@ consumer side.
 | [docs/remote/http.md](./docs/remote/http.md)                   | The HTTP axis. 5 gateway Picks, why it holds no cache, the admin console surface, the report lane                 |
 | [docs/repositories/](./docs/repositories/README.md)            | The data facade. Three contracts, context and scope, wiring, cache clear rules, leaving and rejoining             |
 | [docs/repositories/domains.md](./docs/repositories/domains.md) | The 13-domain method catalogue (a document you look things up in)                                                 |
-| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the response mirror, pending image rows      |
+| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the answer guard, pending image rows         |
 
 ## How to verify
 
@@ -260,7 +260,7 @@ npx jest --config libs/data/jest.config.js
 
 - Type checking must be `tsc -b`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
-- All 26 data sources have a matching test, and 12 of the 13 repositories do — `SyncMetaRepository` is the one without. The commands above are what answer this, not this sentence.
+- All 26 data sources have a matching test, and so do all 13 repositories. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches eight projects — `apps/web`, `apps/desktop-web`,
   `libs/app-runtime`, `apps/testbed`, `libs/db`, `libs/block-kit`, `apps/admin-v2` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and

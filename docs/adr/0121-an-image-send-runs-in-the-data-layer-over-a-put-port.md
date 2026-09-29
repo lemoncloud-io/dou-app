@@ -1,6 +1,6 @@
 # ADR-0121: an image send runs in the data layer, over a PUT port
 
-> Status: Accepted · Decided: 2026-09-28
+> Status: Accepted (decision 4's local mirror is retired → [ADR-0124](./0124-upload-answers-are-checked-against-the-lemon-model-contract.md)) · Decided: 2026-09-28
 > Scope: `libs/data/src/uploads/**` · `libs/data/src/remote/socket-data-sources/UploadSocketDataSource.ts` ·
 > `libs/data/src/repositories/ChatRepository.ts` · `libs/app-messages/src/types/model/cache.ts` ·
 > `apps/web/src/app/runtime/upload/**` · `apps/web/src/app/bridge/shellUpload.ts` ·
@@ -51,6 +51,11 @@ whoever did:
 4. **The data source checks the answer's shape against a local mirror.** `uploads/types.ts` holds
    only the fields the sequence reads, copied from the `lemon-model` 1.5 upload contract, and a guard
    that rejects the whole operation on a mismatch. The mirror is deleted when the pin reaches 1.5.
+
+    > Amended by [ADR-0124](./0124-upload-answers-are-checked-against-the-lemon-model-contract.md):
+    > the pin reached 1.5 and the mirror is gone. The guard stays, and now narrows each answer to
+    > the contract types the SDK re-exports.
+
 5. **The pending row is written before any byte moves, with local-only slot names.**
    `ChatRepository.createPendingImageChat` writes `{ localStatus: 'sending', localThumbUrl }` slots.
    The server's names (`status`, `error`, `url`, `thumbnail`) are never used, because the server's
@@ -69,6 +74,11 @@ whoever did:
   means lifting the `lemon-model` pin, and the pin moves the version every `chatic-*-api` type package
   sees. What the engine would contribute fits in one file here. When the pin lifts, the response
   mirror goes first, and adopting the engine becomes a smaller question.
+
+    > Amended by [ADR-0124](./0124-upload-answers-are-checked-against-the-lemon-model-contract.md):
+    > the pin lifted and the mirror is gone. Whether to adopt the engine is now a question about the
+    > engine alone.
+
 - **Put the sequence in the app hook.** It would sit next to the shell detection it needs, but the
   retry rules would then be written against React state and tested through a rendered hook. It would
   also leave nothing for `desktop-web` to reuse when it sends images: one XHR port is all that screen
@@ -97,6 +107,11 @@ whoever did:
 - On an app built before the transfer module, uploads run only while the app is in front.
 - The response mirror and `PendingUploadSlot` have to be kept by hand until the `lemon-model` pin
   lifts. The guard makes a server shape change fail loudly instead of silently.
+
+    > Amended by [ADR-0124](./0124-upload-answers-are-checked-against-the-lemon-model-contract.md):
+    > of the two this bullet names, only `PendingUploadSlot` is still kept by hand. It is local state,
+    > not a copy of a server type.
+
 - `CacheChatView.upload$$` now admits local slots. The native shell stores chat rows as a JSON blob,
   so this needs nothing from it, and every reader of `upload$$` must use `isPendingUploadSlot` to
   tell the two kinds apart.

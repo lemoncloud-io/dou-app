@@ -8,3 +8,6 @@ export * from './ReadReceipt';
 export * from './SystemMessage';
 export * from './SystemNotice';
 export * from './ThreadSummary';
+export * from './AttachActionTile';
+export * from './AttachMenuSheet';
+export * from './MessageImageTiles';

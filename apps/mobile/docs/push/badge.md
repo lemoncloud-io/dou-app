@@ -7,10 +7,13 @@ native, and reconciliation on foreground return. The push receive pipeline itsel
 ## Why native has to increment
 
 The web's `UnreadBadgeRunner` (`apps/web/src/app/features/home/UnreadBadgeRunner.tsx`) is the
-badge's original writer: it sums unread across the active cloud and pushes an absolute count over
-`appBridge.setBadgeCount(n)`, which only works while the socket is alive — i.e. in the foreground.
-Once the OS suspends the app, the socket and periodic sync stop, and the badge freezes at its last
-foreground value.
+badge's original writer: it sums unread over **every cloud the account is in** — the active one and
+each cloud off screen, all counted from their own cache — and pushes an absolute count over
+`appBridge.setBadgeCount(n)`. A cloud off screen stays current because its socket asks for a
+channel delta once a minute, so the foreground total already includes a message that arrived in
+another cloud without a switch. That only holds while the sockets are alive — i.e. in the
+foreground. Once the OS suspends the app, the sockets and every periodic sync stop, and the badge
+freezes at its last foreground value.
 
 The only place code runs while the app is backgrounded is the OS push handler — iOS's
 Notification Service Extension (NSE) and Android's `ChaticFirebaseMessagingService`. So a

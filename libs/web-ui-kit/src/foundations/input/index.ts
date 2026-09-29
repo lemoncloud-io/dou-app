@@ -4,3 +4,4 @@ export * from './PhotoAttachField';
 export * from './SearchInput';
 export * from './MessageInput';
 export * from './VerificationCodeInput';
+export * from './ComposerAttachButton';

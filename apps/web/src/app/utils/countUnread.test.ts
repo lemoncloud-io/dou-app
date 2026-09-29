@@ -1,4 +1,4 @@
-import { countUnread, readCursorOf } from './countUnread';
+import { countUnread, readCursorOf, readPositionOf, unreadOf } from './countUnread';
 
 describe('countUnread', () => {
     it('converts both the head and the cursor to the user-message scale before comparing', () => {
@@ -61,5 +61,51 @@ describe('readCursorOf', () => {
 
     it('is undefined without a join row, which is what suppresses the badge', () => {
         expect(readCursorOf(undefined)).toBeUndefined();
+    });
+});
+
+describe('readPositionOf', () => {
+    it('takes the embedded $join when it is further along — a read made on another device', () => {
+        const join = { chatNo: 4, metaNo: 1 };
+        const embedded = { chatNo: 9, metaNo: 2 };
+        expect(readPositionOf(join, embedded)).toBe(embedded);
+    });
+
+    it('keeps the join row when it is further along — a read made here, before the next delta', () => {
+        const join = { readNo: 9, metaNo: 2 };
+        const embedded = { chatNo: 4, metaNo: 1 };
+        expect(readPositionOf(join, embedded)).toBe(join);
+    });
+
+    it('answers with whichever one exists, and nothing when neither does', () => {
+        const only = { chatNo: 3 };
+        expect(readPositionOf(undefined, only)).toBe(only);
+        expect(readPositionOf(only, undefined)).toBe(only);
+        expect(readPositionOf(undefined, undefined)).toBeUndefined();
+    });
+
+    it('on a tie prefers the one carrying its own metaNo snapshot', () => {
+        const join = { chatNo: 5 };
+        const embedded = { chatNo: 5, metaNo: 2 };
+        expect(readPositionOf(join, embedded)).toBe(embedded);
+        const joinWithSnapshot = { chatNo: 5, metaNo: 1 };
+        expect(readPositionOf(joinWithSnapshot, embedded)).toBe(joinWithSnapshot);
+    });
+});
+
+describe('unreadOf', () => {
+    it('counts against the position it picked, converted with that position own metaNo', () => {
+        // Head 30 / metaNo 5 = 25 user messages. The embedded cursor 20 with its snapshot 3 is further
+        // along than the join row's 10, so 25 - 17 = 8.
+        const channel = { chatNo: 30, metaNo: 5, $join: { chatNo: 20, metaNo: 3 } };
+        expect(unreadOf(channel, { chatNo: 10, metaNo: 1 })).toBe(8);
+    });
+
+    it('counts from the embedded $join alone when no join row is cached — a cloud off screen', () => {
+        expect(unreadOf({ chatNo: 12, metaNo: 0, $join: { chatNo: 9 } })).toBe(3);
+    });
+
+    it('counts nothing when neither cursor is known', () => {
+        expect(unreadOf({ chatNo: 12, metaNo: 0 })).toBe(0);
     });
 });

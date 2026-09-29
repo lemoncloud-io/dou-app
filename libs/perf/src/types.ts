@@ -6,16 +6,13 @@
  * open a second row that nobody is watching. Snake case because it is the one spelling both
  * the Firebase console and a log query accept without escaping.
  */
-export const PERF_TRACE_NAMES = ['boot', 'cloud_switch', 'site_switch', 'web_vitals', 'chat_room_open'] as const;
-
-export type PerfTraceName = (typeof PERF_TRACE_NAMES)[number];
-
-/**
- * Whether a string is one of the trace names. For a name that crossed the bridge as a plain
- * string: the receiving side checks it rather than letting any sender open a new console row.
- */
-export const isPerfTraceName = (name: string): name is PerfTraceName =>
-    (PERF_TRACE_NAMES as readonly string[]).includes(name);
+export type PerfTraceName =
+    | 'boot'
+    | 'cloud_switch'
+    | 'site_switch'
+    | 'web_vitals'
+    | 'chat_room_open'
+    | 'chat_room_sync';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {

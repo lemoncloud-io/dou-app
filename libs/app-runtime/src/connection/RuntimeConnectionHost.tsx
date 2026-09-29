@@ -8,6 +8,7 @@ import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKe
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { useBackgroundCloudTokens } from './hooks/useBackgroundCloudTokens';
+import { useBackgroundReceive } from './hooks/useBackgroundReceive';
 import { useSocketSessionDelegate } from './hooks/useSocketSessionDelegate';
 import { useRuntimeSocketSlots } from './hooks/useRuntimeSocketSlots';
 import type { RuntimeSocketSlots } from './types';
@@ -59,6 +60,9 @@ const ConnectionHost = ({
     // Background clouds' tokens are prepared from the derived relay slot, not an injected one: an
     // override is for tests and hosts that bind their own slots, which have nothing to prepare.
     useBackgroundCloudTokens(!!derivedSlots.relay && !slots);
+    // Keyed on the injected override only, not on the relay slot: a loop exists per bound slot, so
+    // before login there is simply nothing to receive for.
+    useBackgroundReceive(!slots);
 
     if (!isSessionReady) {
         return null;

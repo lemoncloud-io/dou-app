@@ -31,6 +31,13 @@ export interface MessageInputProps {
      * scroll view on focus). Merged with the component's own auto-sizing ref.
      */
     inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+    /**
+     * Optional control drawn before the textarea, inside the pill — the chat room's attach button
+     * (Figma "Text Area" leading slot, `3749:27998`). A slot rather than an `onAttach` prop so this
+     * component never learns what attaching is: the thread and invite-waiting screens use the same
+     * input and have nothing to attach.
+     */
+    leadingSlot?: React.ReactNode;
     className?: string;
 }
 
@@ -58,6 +65,7 @@ export const MessageInput = ({
     label,
     onKeyDown,
     inputRef,
+    leadingSlot,
     className,
 }: MessageInputProps) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -125,6 +133,7 @@ export const MessageInput = ({
                 className
             )}
         >
+            {leadingSlot}
             <textarea
                 ref={setTextareaRef}
                 rows={1}

@@ -4,6 +4,7 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import { logger } from '@chatic/bridges';
+import { endActivePerfTrace, getActivePerfTrace } from '@chatic/perf';
 
 import { getSyncManager } from '../runtime';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
@@ -60,6 +61,11 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null, cid?: string)
  * Everything here is about `cid`, the cloud the target was registered for: its slot's verification
  * gates it (so it re-runs after that slot's auth or reconnect, whichever slot is active), its runtime
  * takes the baseline, and its partition is the cache read and the page written.
+ *
+ * A room being opened has a `chat_room_sync` trace in progress, and a cold room's first page is
+ * the sync it waits for, so the phases are marked here: slot verified, page requested, page
+ * written. The room page ends the trace when that page reaches the screen. A warm room's sync is
+ * `useForegroundChatRefresh`'s in the web, which marks the same phases.
  */
 const usePrimeChat = (channelId: string | undefined, cid: string): void => {
     const isVerified = useSlotVerified(slotKeyOf(cid));
@@ -67,6 +73,7 @@ const usePrimeChat = (channelId: string | undefined, cid: string): void => {
     useEffect(() => {
         if (!isVerified || !channelId) return;
         let cancelled = false;
+        getActivePerfTrace('chat_room_sync', channelId)?.mark('verified');
 
         void (async () => {
             const repos = getDataManager().getScopedRepositories(cid);
@@ -83,9 +90,22 @@ const usePrimeChat = (channelId: string | undefined, cid: string): void => {
 
             // Cold cache: only here do we fetch — a warm room reads from cache and streams via push.
             if (lastNo === 0) {
-                await repos.chat.refreshList({ channelId });
+                // The first fetch for a trace owns it; a later one (a re-verification) would only
+                // overwrite what describes the fetch the room actually waited on.
+                const active = getActivePerfTrace('chat_room_sync', channelId);
+                const trace = active && !active.hasMetric('feed_sent') ? active : undefined;
+                trace?.putAttribute('cache', 'miss');
+                trace?.mark('feed_sent');
+                const result = await repos.chat.refreshList({ channelId });
+                trace?.putMetric('fetched', result.fetchedCount);
+                trace?.putMetric('latest_no', result.latestNo);
+                trace?.mark('feed_done');
+                // Nothing written means no list re-emission for the page to wait on: the room is as
+                // synced as it will get, so the trace ends here.
+                if (trace && result.fetchedCount === 0) endActivePerfTrace('chat_room_sync', channelId, 'synced');
             }
         })().catch(error => {
+            endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', {
                 error,
                 data: { channelId, cid },

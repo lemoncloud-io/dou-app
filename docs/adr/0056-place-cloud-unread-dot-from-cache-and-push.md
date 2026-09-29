@@ -1,6 +1,11 @@
 # ADR-0056: Home unread dot — places from cache, clouds from push marks
 
-> Status: Accepted · Decided: 2026-08-14
+> Status: Accepted (decision 2's dot formula and switch-only clear are Superseded) · Decided: 2026-08-14
+> Partly replaced by: [ADR-0126](./0126-a-cloud-off-screen-is-counted-from-its-own-cache.md) — a cloud
+> other than the active one is counted from its own cache under its own uid, and a push mark lasts
+> only until that cloud's next delta requested after it, not until the user switches there
+> (2026-09-29). Decision 2's `cid` resolution and its switch clear for a cloud with no socket slot
+> stand, as do decisions 1, 3, 4 and 5.
 
 ## Context
 

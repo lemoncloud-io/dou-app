@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -22,6 +22,10 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useSessionSelection: jest.fn(),
+        },
+        sync: {
+            refreshBackgroundClouds: jest.fn(),
+            subscribeBackgroundDeltas: jest.fn(),
         },
     },
 }));
@@ -52,9 +56,26 @@ const setActive = (selectedCloudId: string | null) =>
 const setVerified = (isVerified: boolean) =>
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 
+/** The runtime's delta announcements, delivered by the test. */
+let deltaListeners: Array<(delta: { cid: string; requestedAt: number }) => void> = [];
+/** Delivers an answered delta and lets the runner's clear grace run out. */
+const answerDelta = (cid: string, requestedAt: number) =>
+    act(() => {
+        for (const listener of deltaListeners) listener({ cid, requestedAt });
+        jest.advanceTimersByTime(1_000);
+    });
+
 beforeEach(() => {
     jest.clearAllMocks();
+    jest.useRealTimers();
     useCloudPushMarkStore.setState({ badged: {} });
+    deltaListeners = [];
+    (runtime.sync.subscribeBackgroundDeltas as jest.Mock).mockImplementation(listener => {
+        deltaListeners.push(listener);
+        return () => {
+            deltaListeners = deltaListeners.filter(entry => entry !== listener);
+        };
+    });
 
     (runtime.data.useGlobalCacheSearch as jest.Mock).mockReturnValue({ resolveContext });
     (useCloudSessionCatalog as jest.Mock).mockReturnValue({ clouds: [{ id: 'cloud_1' }, { id: 'cloud_2' }] });
@@ -186,6 +207,142 @@ describe('CloudPushMarkRunner — 크로스 클라우드 푸시 마크', () => {
             capturedBgHandler!({ data: { isForeground: false } });
 
             expect(fetchPushMarksMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('only a chat push marks', () => {
+        it('does not mark the cloud a cloud-activation push names', async () => {
+            resolveMock.mockResolvedValue('cloud_2');
+
+            render(<CloudPushMarkRunner />);
+            receive({ type: 'cloud', cid: 'cloud_2' });
+            await Promise.resolve();
+
+            expect(resolveMock).not.toHaveBeenCalled();
+            expect(useCloudPushMarkStore.getState().badged).toEqual({});
+        });
+
+        it('marks for a push typed chat', async () => {
+            resolveMock.mockResolvedValue('cloud_2');
+
+            render(<CloudPushMarkRunner />);
+            receive({ type: 'chat', cid: 'cloud_2' });
+            await Promise.resolve();
+
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+        });
+    });
+
+    describe("a mark lasts until the cloud's cache has caught up", () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+            jest.setSystemTime(1_000_000);
+        });
+
+        const markCloud2 = async () => {
+            resolveMock.mockResolvedValue('cloud_2');
+            render(<CloudPushMarkRunner />);
+            jest.setSystemTime(2_000_000);
+            receive({ cid: 'cloud_2' });
+            await act(async () => {
+                await Promise.resolve();
+            });
+        };
+
+        it('asks the marked cloud for its delta right away', async () => {
+            await markCloud2();
+
+            expect(runtime.sync.refreshBackgroundClouds).toHaveBeenCalledWith('cloud_2');
+        });
+
+        it('clears the mark once a delta requested after it comes back', async () => {
+            await markCloud2();
+
+            answerDelta('cloud_2', 2_000_500);
+
+            expect(useCloudPushMarkStore.getState().badged).toEqual({});
+        });
+
+        it('keeps the mark through a delta that was already in flight when the push landed', async () => {
+            await markCloud2();
+
+            answerDelta('cloud_2', 1_999_000);
+
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+        });
+
+        it("keeps the mark through another cloud's delta", async () => {
+            await markCloud2();
+
+            answerDelta('default', 2_000_500);
+
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+        });
+
+        it('a second push moves the time the clearing delta has to postdate', async () => {
+            await markCloud2();
+            jest.setSystemTime(3_000_000);
+            receive({ cid: 'cloud_2' });
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            answerDelta('cloud_2', 2_500_000);
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+
+            answerDelta('cloud_2', 3_000_100);
+            expect(useCloudPushMarkStore.getState().badged).toEqual({});
+        });
+
+        it('clears a mark restored from the previous run with the first delta asked for after mount', () => {
+            useCloudPushMarkStore.setState({ badged: { cloud_2: true } });
+            render(<CloudPushMarkRunner />);
+
+            answerDelta('cloud_2', 999_000);
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+
+            answerDelta('cloud_2', 1_000_000);
+            expect(useCloudPushMarkStore.getState().badged).toEqual({});
+        });
+
+        it('keeps the mark until the grace runs out, so the redraw is not a blink', async () => {
+            await markCloud2();
+
+            act(() => {
+                for (const listener of deltaListeners) listener({ cid: 'cloud_2', requestedAt: 2_000_500 });
+                jest.advanceTimersByTime(999);
+            });
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+
+            act(() => {
+                jest.advanceTimersByTime(1);
+            });
+            expect(useCloudPushMarkStore.getState().badged).toEqual({});
+        });
+
+        it('a push landing during the grace keeps the mark for a delta of its own', async () => {
+            await markCloud2();
+            act(() => {
+                for (const listener of deltaListeners) listener({ cid: 'cloud_2', requestedAt: 2_000_500 });
+            });
+            jest.setSystemTime(2_000_600);
+            receive({ cid: 'cloud_2' });
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            act(() => {
+                jest.advanceTimersByTime(1_000);
+            });
+
+            expect(useCloudPushMarkStore.getState().badged).toEqual({ cloud_2: true });
+        });
+
+        it('stops listening when unmounted', () => {
+            const { unmount } = render(<CloudPushMarkRunner />);
+            unmount();
+
+            expect(deltaListeners).toHaveLength(0);
         });
     });
 });

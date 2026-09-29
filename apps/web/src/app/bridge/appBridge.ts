@@ -418,6 +418,29 @@ export const appBridge = {
         return webClient.request({ type: 'OpenDocument', data: payload });
     },
 
+    // In-app photo picker. Raw like their neighbours: the NOT_FOUND learning (an app built before the
+    // picker has no handler) and the base64 decoding live in `photoLibrary`, so these stay a facade.
+
+    /** The albums the in-app picker can switch between. Rejects with NOT_FOUND on an older app. */
+    listPhotoAlbums(): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
+        return webClient.request({ type: 'ListPhotoAlbums', data: {} });
+    },
+
+    /** One page of the library, newest first, with small previews. */
+    listPhotos(payload: Payload<'ListPhotos'>): Promise<WebMessageResponse<'ListPhotos'>> {
+        return webClient.request({ type: 'ListPhotos', data: payload });
+    },
+
+    /** The bytes of one photo the user is sending. */
+    readPhoto(id: string): Promise<WebMessageResponse<'ReadPhoto'>> {
+        return webClient.request({ type: 'ReadPhoto', data: { id } });
+    },
+
+    /** Under iOS limited access, lets the user change which photos are shared. */
+    managePhotoSelection(): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
+        return webClient.request({ type: 'ManagePhotoSelection', data: {} });
+    },
+
     /** Write text to the OS clipboard — the native one, not the browser's. */
     copyToClipboard(text: string): Promise<WebMessageResponse<'CopyToClipboard'>> {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });

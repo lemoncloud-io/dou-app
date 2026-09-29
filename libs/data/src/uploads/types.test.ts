@@ -7,12 +7,30 @@ import {
 
 const SIGNED_URL = 'https://bucket.s3.amazonaws.com/o?X-Amz-Signature=secret';
 
+const presignedPut = (overrides: Record<string, unknown> = {}) => ({
+    kind: 'presigned-put',
+    method: 'PUT',
+    url: SIGNED_URL,
+    headers: { 'content-type': 'image/jpeg' },
+    maxBytes: 99,
+    ...overrides,
+});
+
 describe('parseUploadStartResult', () => {
-    it('keeps only the mirrored fields of a well-formed answer', () => {
+    it('keeps only the checked fields of a well-formed answer', () => {
         const result = parseUploadStartResult({
             list: [
                 {
                     upload: { id: 'up-1', status: 'pending', name: 'a.jpg', contentSize: 10 },
+                    transfer: presignedPut({ expiresAt: 1, signedBy: 'server-extra' }),
+                },
+            ],
+        });
+
+        expect(result).toEqual({
+            list: [
+                {
+                    upload: { id: 'up-1', status: 'pending' },
                     transfer: {
                         kind: 'presigned-put',
                         method: 'PUT',
@@ -24,15 +42,20 @@ describe('parseUploadStartResult', () => {
                 },
             ],
         });
+    });
 
-        expect(result).toEqual({
-            list: [
-                {
-                    upload: { id: 'up-1', status: 'pending' },
-                    transfer: { url: SIGNED_URL, headers: { 'content-type': 'image/jpeg' } },
-                },
-            ],
+    // A signed request fails if any header it covers goes missing, whatever the header is called.
+    it('keeps a header whose name is an object key', () => {
+        const headers = JSON.parse('{"__proto__": "kept", "content-type": "image/jpeg"}');
+
+        const result = parseUploadStartResult({
+            list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ headers }) }],
         });
+
+        expect(Object.entries(result.list[0].transfer?.headers ?? {})).toEqual([
+            ['__proto__', 'kept'],
+            ['content-type', 'image/jpeg'],
+        ]);
     });
 
     it('accepts a slot rejected at start, which has no id and no transfer', () => {
@@ -53,6 +76,11 @@ describe('parseUploadStartResult', () => {
         ['a ticket that is not an object', { list: ['x'] }, 'list[0]'],
         ['a ticket without an upload', { list: [{}] }, 'list[0].upload'],
         ['an unknown status', { list: [{ upload: { id: 'up-1', status: 'uploading' } }] }, 'list[0].upload.status'],
+        [
+            'a status that is only an inherited object key',
+            { list: [{ upload: { id: 'up-1', status: 'toString' } }] },
+            'list[0].upload.status',
+        ],
         ['a pending upload without an id', { list: [{ upload: { status: 'pending' } }] }, 'list[0].upload.id'],
         [
             'an inline transfer, which has no destination',
@@ -60,12 +88,37 @@ describe('parseUploadStartResult', () => {
             'list[0].transfer',
         ],
         [
+            'a transfer without a kind',
+            { list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ kind: undefined }) }] },
+            'list[0].transfer',
+        ],
+        [
+            'a presigned transfer with another method',
+            { list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ method: 'POST' }) }] },
+            'list[0].transfer.method',
+        ],
+        [
+            'a presigned transfer without a url',
+            { list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ url: undefined }) }] },
+            'list[0].transfer.url',
+        ],
+        [
+            'a presigned transfer whose maxBytes is not a number',
+            { list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ maxBytes: '99' }) }] },
+            'list[0].transfer.maxBytes',
+        ],
+        [
+            'an expiry that is not a number',
+            { list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ expiresAt: 'soon' }) }] },
+            'list[0].transfer.expiresAt',
+        ],
+        [
             'a header that is not a string',
             {
                 list: [
                     {
                         upload: { id: 'up-1', status: 'pending' },
-                        thumbnailTransfer: { url: SIGNED_URL, headers: { 'x-amz-meta': 3 } },
+                        thumbnailTransfer: presignedPut({ headers: { 'x-amz-meta': 3 } }),
                     },
                 ],
             },
@@ -77,7 +130,9 @@ describe('parseUploadStartResult', () => {
 
     // The error message travels to logs and crash reports; a malformed ticket still holds a signed URL.
     it('never puts a response value into the error message', () => {
-        const answer = { list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: { url: SIGNED_URL } }] };
+        const answer = {
+            list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ headers: undefined }) }],
+        };
 
         expect(() => parseUploadStartResult(answer)).toThrow(UploadResponseShapeError);
         try {

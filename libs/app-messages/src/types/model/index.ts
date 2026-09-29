@@ -10,6 +10,7 @@ export * from './file-transfer';
 export * from './iap';
 export * from './notification';
 export * from './perf';
+export * from './photo-library';
 export * from './preference';
 export * from './system';
 export * from './test-record';

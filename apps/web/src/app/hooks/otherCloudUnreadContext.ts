@@ -5,11 +5,11 @@ import type { OtherCloudUnread } from './useOtherCloudUnread';
 export type OtherCloudUnreadValue = OtherCloudUnread;
 
 /**
- * The inactive clouds' unread, read once for the whole app.
+ * The inactive clouds' unread, observed once for the whole app.
  *
- * Separate from {@link ActiveCloudData} because the two are different kinds of reading: the active
- * cloud is OBSERVED (live cache subscriptions), while this is a one-shot cross-cloud cache scan that
- * only re-runs when someone asks. Both providers are mounted together in `AppRuntime`.
+ * Separate from {@link ActiveCloudData} because the two answer different surfaces: the active cloud
+ * feeds per-channel and per-place counts, while this is one number per cloud for the cloud sheet, the
+ * switcher dot and the app-icon badge. Both providers are mounted together in `AppRuntime`.
  */
 export const OtherCloudUnreadContext = createContext<OtherCloudUnread | null>(null);
 

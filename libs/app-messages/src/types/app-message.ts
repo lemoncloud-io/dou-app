@@ -88,6 +88,10 @@ import type {
     OnListFileTransfersPayload,
     OnAckFileTransfersPayload,
     OnWriteTempFilePayload,
+    OnListPhotoAlbumsPayload,
+    OnListPhotosPayload,
+    OnReadPhotoPayload,
+    OnManagePhotoSelectionPayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnUpdateStatusPayload,
@@ -126,6 +130,10 @@ export type AppMessageDataMap = {
     OnGetContacts: OnGetContactsPayload;
     OnOpenCamera: OnOpenCameraPayload;
     OnOpenPhotoLibrary: OnOpenPhotoLibraryPayload;
+    OnListPhotoAlbums: OnListPhotoAlbumsPayload;
+    OnListPhotos: OnListPhotosPayload;
+    OnReadPhoto: OnReadPhotoPayload;
+    OnManagePhotoSelection: OnManagePhotoSelectionPayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;
