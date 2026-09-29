@@ -17,7 +17,8 @@ const KICK_THROTTLE_MS = 5_000;
  * of racing a dead one.
  *
  * The helper itself no-ops per slot when the socket is verified or not yet booted, so mounting this
- * before login / before RuntimeConnectionHost finishes booting is inert.
+ * before login / before RuntimeConnectionHost finishes booting is inert. The same signal asks every
+ * background cloud for what it missed while suspended.
  */
 export const useSocketWakeRecovery = (): void => {
     const lastKickRef = useRef(0);
@@ -27,5 +28,11 @@ export const useSocketWakeRecovery = (): void => {
         if (now - lastKickRef.current < KICK_THROTTLE_MS) return;
         lastKickRef.current = now;
         void runtime.connection.recoverUnverifiedSockets();
+        // The clouds the user is not looking at poll on a timer that froze with the app, and their
+        // pushes went nowhere meanwhile, so each one whose socket reads verified asks for its delta
+        // now. A socket that died without knowing it still reads verified and holds that request
+        // until it times out — the same exposure this app's own foreground refresh has — and one the
+        // kick above recycles asks again once it verifies.
+        runtime.sync.refreshBackgroundClouds();
     });
 };

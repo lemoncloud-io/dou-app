@@ -64,8 +64,9 @@ splices `socketCid` in for.
 
 `getScopedRepositories(cid)` is a second repository graph pinned to one cloud, built on first use and
 kept for the session. It exists for work that belongs to a cloud other than — or independently of —
-the selected one: the sync plans, each writing its slot's frames; chat prime's cache read and first
-page; and every chat send (below). Apps reach it as `data.getCloudRepositories(cid)`.
+the selected one: the sync plans, each writing its slot's frames; the background receive loops, each
+asking its cloud's delta ([docs/sync/](../sync/README.md#background-receive)); chat prime's cache read
+and first page; and every chat send (below). Apps reach it as `data.getCloudRepositories(cid)`.
 
 | Part          | App graph (`getRepositories`)               | Scoped graph (`getScopedRepositories(cid)`)                       |
 | ------------- | ------------------------------------------- | ----------------------------------------------------------------- |
@@ -78,7 +79,10 @@ page; and every chat send (below). Apps reach it as `data.getCloudRepositories(c
 instance: a write through a scoped graph has to reach the instance a screen subscribed through, or
 the screen never wakes. The partition is not the instance's to decide either way — every operation
 picks its storage from the context it runs under, so one shared instance serves every cloud's
-partition.
+partition. That holds only where the repository hands its context down: a shared local source left
+to itself falls back to the **selected** cloud. `SyncMetaRepository` did not, and a cursor written
+through cloud A's graph while B was selected landed in B's partition; it now names its graph's
+`cid`/`uid` on every call, and a new repository over a shared local source has to do the same.
 
 **`socketCid` is the cloud itself**, because every socket call the graph makes goes through that
 cloud's slot; `acceptsAnswer` therefore never refuses an answer on a scoped graph. The uid is the one
@@ -88,7 +92,7 @@ uid names no partition, so the graph's cache operations are no-ops until it does
 Two things it deliberately is not:
 
 - **Not the app graph when `cid` is the active cloud.** Handing the app graph back would make the active slot's frames follow the selection again during a switch, which is what the scoped graph exists to stop.
-- **Not evicted when the cloud's slot goes.** It is one small object per cloud visited, like the storage-per-partition memo underneath, and nothing in it is tied to one socket: its socket client resolves the slot on each call. Repository-instance state is its own — the only such state is the channel leave guard, which nothing that writes through a scoped graph reads.
+- **Not evicted when the cloud's slot goes.** It is one small object per cloud visited, like the storage-per-partition memo underneath, and nothing in it is tied to one socket: its socket client resolves the slot on each call. Repository-instance state is its own — the only such state is the channel leave guard, and a background receive loop's `syncChannels` does read it. A leave made through the app graph is therefore not seen by that cloud's scoped graph: a loop delta already in flight when the user leaves a room can write the room back until the next delta prunes it. The window is one request long, and it opens only for a cloud that just stopped being a background one — the user has to be in it to leave a room — so the guard is not shared.
 
 HTTP still follows the committed session on both graphs; nothing that writes through a scoped graph
 calls it.

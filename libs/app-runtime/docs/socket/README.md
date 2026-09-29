@@ -27,7 +27,7 @@ socket/                              36 source files, 26 tests
 ├── auth/          18 files        → docs/auth/
 └── sync/           8 files        → docs/sync/
 
-connection/                          17 source files
+connection/                          18 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
 ├── SocketBinder.tsx               reconciles the slots and the active pointer
 ├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
@@ -38,7 +38,7 @@ connection/                          17 source files
 └── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
                                    useRuntimeSocketState · useSlotVerified · useCloudVerified ·
                                    useVerifiedClouds · useConnectivity · useBackgroundClouds ·
-                                   useBackgroundCloudTokens
+                                   useBackgroundCloudTokens · useBackgroundReceive
 ```
 
 `socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
@@ -275,9 +275,10 @@ Four rules produce the result:
 
 Every cloud the account belongs to keeps a socket session while the user is somewhere else — another
 cloud, or home. A write addressed to a cloud then has a live socket to go to whichever cloud is on
-screen (and a cloud past the cap is held for the length of the write — below), and switching back to a kept cloud costs no reconnect and no token exchange. What these slots
-do NOT do yet is receive: they have no sync targets, so a background cloud's cache stays as it was
-until it is entered.
+screen (and a cloud past the cap is held for the length of the write — below), and switching back to a kept cloud costs no reconnect and no token exchange. These slots have no sync
+targets — no screen of theirs is mounted — but they do receive: a receive loop keeps each background
+cloud's room list, last messages and `$join` current with one `channel.sync` a minute, so entering a
+kept cloud finds its list already cached ([docs/sync/](../sync/README.md#background-receive)).
 
 The pieces, and who owns each:
 

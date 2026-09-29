@@ -6,6 +6,8 @@ import type {
     SyncTargetDescriptor,
 } from '@lemoncloud/chatic-sockets-lib';
 
+import type { DataRepositories } from '@chatic/data';
+
 import type { SlotKey } from '../types';
 
 export interface SyncWatchEntry {
@@ -86,4 +88,22 @@ export interface ISyncManager {
     updateLocalSnapshot(target: SyncTargetDescriptor, snapshot: unknown, options?: SyncRegisterOptions): void;
     listTargets(): SyncTargetListing[];
     destroy(): void;
+}
+
+/** The repositories a background cloud's receive loop reads and writes — one cloud's scoped graph. */
+export type BackgroundReceiveRepositories = Pick<DataRepositories, 'channel' | 'place' | 'syncMeta'>;
+
+/** What made a receive loop ask for its cloud's delta — carried into the log line, nothing more. */
+export type BackgroundReceiveTrigger = 'verified' | 'interval' | 'push' | 'resume' | 'foreground';
+
+/** Test seams for `BackgroundReceiver`. Every one defaults to the production collaborator. */
+export interface BackgroundReceiverDeps {
+    /** The scoped repository graph of `cid` (`DataManager.getScopedRepositories`). */
+    getRepositories?: (cid: string) => BackgroundReceiveRepositories;
+    /** The uid the account has in `cid`, read per run (`getUidInCloud`). */
+    getUid?: (cid: string) => string | null;
+    now?: () => number;
+    intervalMs?: number;
+    debounceMs?: number;
+    placeRefreshMs?: number;
 }

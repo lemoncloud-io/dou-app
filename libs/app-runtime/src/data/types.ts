@@ -20,8 +20,8 @@ export interface IDataManager {
      *
      * It shares the app graph's local data sources, so a write made through it wakes the observers a
      * screen registered through `getRepositories()`. Repository-instance state is its own: the only
-     * such state today is the channel leave guard, which nothing that writes through a scoped graph
-     * reads.
+     * such state today is the channel leave guard, so a leave made through the app graph is not seen
+     * by a background receive loop's delta already in flight for that cloud (see docs/data).
      */
     getScopedRepositories(cid: string): DataRepositories;
     /** The context `getScopedRepositories(cid)` runs under, read at call time. */

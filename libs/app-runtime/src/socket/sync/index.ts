@@ -5,6 +5,9 @@
 // exactly this category — a public symbol with zero app callers).
 export { useChatSync, useChannelSync, usePlaceSync } from './hooks/useSyncTarget';
 export { getSyncManager } from './runtime';
+// The foreground kick for the clouds the user is not looking at — the receive loops themselves are
+// started by the connection host, not by an app.
+export { refreshBackgroundClouds } from './runtime';
 // Refusal is a READ for screens — `isChannelRefused` plus its subscription, so a room can say "you
 // are not in this conversation" instead of waiting out a timeout it cannot interpret. The writers
 // (`recordRefusedChannel` / `clearRefusedChannel`) stay internal: only the sync plans decide what

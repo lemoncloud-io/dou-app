@@ -260,7 +260,7 @@ npx jest --config libs/data/jest.config.js
 
 - Type checking must be `tsc -b`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
-- All 26 data sources have a matching test, and 12 of the 13 repositories do — `SyncMetaRepository` is the one without. The commands above are what answer this, not this sentence.
+- All 26 data sources have a matching test, and so do all 13 repositories. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches eight projects — `apps/web`, `apps/desktop-web`,
   `libs/app-runtime`, `apps/testbed`, `libs/db`, `libs/block-kit`, `apps/admin-v2` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and

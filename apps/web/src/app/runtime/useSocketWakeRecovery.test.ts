@@ -5,6 +5,9 @@ jest.mock('@chatic/app-runtime', () => ({
         connection: {
             recoverUnverifiedSockets: jest.fn().mockResolvedValue(undefined),
         },
+        sync: {
+            refreshBackgroundClouds: jest.fn(),
+        },
     },
 }));
 
@@ -22,6 +25,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
 const mockRecover = runtime.connection.recoverUnverifiedSockets as jest.Mock;
+const mockRefreshBackground = runtime.sync.refreshBackgroundClouds as jest.Mock;
 
 const emitForeground = () => foregroundHandlers.forEach(handler => handler());
 
@@ -68,5 +72,15 @@ describe('useSocketWakeRecovery — 포그라운드 웨이크 킥', () => {
         emitForeground();
 
         expect(mockRecover).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks the background clouds for their delta on the same kick, throttled with it', () => {
+        renderHook(() => useSocketWakeRecovery());
+
+        emitForeground();
+        now += 1_000;
+        emitForeground();
+
+        expect(mockRefreshBackground).toHaveBeenCalledTimes(1);
     });
 });

@@ -97,6 +97,7 @@ const GROUPS: Record<string, readonly string[]> = {
     sync: [
         'getSyncManager',
         'isChannelRefused',
+        'refreshBackgroundClouds',
         'subscribeRefusedChannels',
         'useChannelSync',
         'useChatSync',

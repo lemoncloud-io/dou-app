@@ -144,6 +144,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `getSyncedAt(kind)` · `setSyncedAt(kind, syncedAt)`
 
 - **A local-only repository with no remote data source.** It stores and reads sync cursors (for instance `channel.sync`'s `since`) under the `cid`/`uid` scope.
+- **The scope is its graph's, named on every call.** The local data sources are shared by the app graph and every scoped graph, and on their own they fall back to the selected cloud. A cursor written through cloud A's scoped graph while cloud B is on screen therefore has to carry A's `cid`/`uid` down, or it lands in B's partition — and the next time A is entered, the app graph reads A's partition, finds no cursor, and pulls the whole list again.
 - In other words, this repository is the answer to "where does the next `since` get stored".
 - A cursor points at another domain's data, so when that data moves storage the cursor starts lying that it has "already synced". `routingFingerprint` catches that mismatch (ADR-0053).
 

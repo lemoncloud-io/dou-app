@@ -8,22 +8,30 @@ window), and **what a plan does with a frame** (write it into its own cloud's pa
 
 A screen never touches any of that. It mounts a hook.
 
+Beside it, `BackgroundReceiver` keeps the clouds the user is **not** looking at current — their room
+lists, last messages and read positions — with one delta a minute each. That is a different job from
+a target's, and it is described under [Background receive](#background-receive).
+
 ## Layout
 
 ```text
-socket/sync/                      8 source files, 5 tests
-├── SyncManager.ts   421 lines  the class — 10 public methods, 12 private
-├── plans.ts         257 lines  createSyncPlans — the five app-domain plans
-├── types.ts                    SyncWatchEntry · SyncTargetListing · SyncRegisterOptions · SyncRuntimeOptions · SyncManagerDeps · ISyncManager
-├── constants.ts                UNREGISTER_GRACE_MS
-├── refusedChannels.ts          what the server refused, for a room to read
-├── runtime.ts                  getSyncManager — the one creation point
-├── index.ts                    the `sync` facade group
-└── hooks/useSyncTarget.ts      useSyncTarget + the three named wrappers
+socket/sync/                          9 source files, 8 tests
+├── SyncManager.ts          436 lines  the class — 10 public methods
+├── plans.ts                257 lines  createSyncPlans — the five app-domain plans
+├── BackgroundReceiver.ts   270 lines  the receive loop of every bound slot that is not the active one
+├── types.ts                           SyncWatchEntry · SyncTargetListing · SyncRegisterOptions · SyncRuntimeOptions · SyncManagerDeps · ISyncManager · BackgroundReceiverDeps · BackgroundReceiveRepositories · BackgroundReceiveTrigger
+├── constants.ts                       UNREGISTER_GRACE_MS · BACKGROUND_RECEIVE_INTERVAL_MS · BACKGROUND_RECEIVE_DEBOUNCE_MS · BACKGROUND_PLACE_REFRESH_MS
+├── refusedChannels.ts                 what the server refused, for a room to read
+├── runtime.ts                         getSyncManager — the one creation point · startBackgroundReceive · refreshBackgroundClouds
+├── index.ts                           the `sync` facade group
+└── hooks/useSyncTarget.ts             useSyncTarget + the three named wrappers
 ```
 
 `perSlotSync.test.ts` drives the real manager and the real plans over faked slots and a faked data
 runtime; it is the one test that shows a target staying with its cloud end to end.
+`backgroundReceiveScenario.test.ts` does the same for background receive, with the real socket
+manager and the real data manager on IndexedDB: a burst of pushes on a cloud off screen becomes one
+delta written into that cloud's partition, and entering it continues from the cursor the loop left.
 
 `runtime.ts` is a separate file from `socket/runtime.ts` for one reason: `socket → socket/sync` was
 an import edge, and it closed a cycle that ran back through the data layer.
@@ -36,7 +44,8 @@ slot's runtime; the ref-counted target registry and its grace window; retiring t
 account changes; and a domain-agnostic `updateLocalSnapshot` pass-through.
 
 It does **not** own: token refresh, socket bootstrap, repository merge policy, or chat prime. It does
-not watch the active slot either — nothing here depends on which slot is active.
+not watch the active slot either — nothing here depends on which slot is active. (The receive loops
+below do watch it: whether a cloud is on screen is exactly what decides whether its loop runs.)
 
 ### Runtimes follow the slot, and so do targets
 
@@ -140,6 +149,107 @@ snapshot's shape.
 
 Per domain the baseline is `{ tick }` for device, an `updatedAt`-shaped value for
 channel / place / profile / join, and `{ id, lastNo, minNo, messages }` for chat.
+
+## Background receive
+
+A cloud the user is not looking at still has a socket (every joined cloud keeps one), but nothing on
+it would otherwise ask the server anything: its screens are not mounted, so no target is
+registered, and the app's own background sync only polls the cloud on screen. Its cache would stop
+at the moment the user left it — the room list, the last message of each room, the read positions
+an unread count is computed from.
+
+`BackgroundReceiver` gives **every bound slot that is not the active one** a loop: the background
+clouds, and the relay while a cloud is on screen. The active slot's loop exists but does nothing; the
+app keeps that cloud current.
+
+### What a loop asks
+
+One thing: `channel.sync` since its cursor, through **that cloud's scoped graph**
+(`getScopedRepositories(cid)`). `channel.sync` spans the whole cloud, and each room in its answer
+carries the room's last message, its latest `chatNo` and this account's `$join` — which is
+everything a room list and an unread count need. The rows land in that cloud's partition, under the
+uid the account has there, and so does the cursor.
+
+Beside it, at most once every ten minutes and on its first delta, the loop re-reads the cloud's
+place list (`user.mysite`): a room is listed under its place, so a list that never learned a new
+place would hide that place's rooms. A failed place read is retried on the next delta.
+
+Nothing else. Not `user.profile`, not the profile delta, not per-room targets, and not chat bodies —
+a room is read when it is opened, and opening it makes its cloud the active one. The `chat.sync`
+payload is the message itself, but applying it would mean running the chat plan for rooms no screen
+has asked for.
+
+### When
+
+| Trigger                                           | Why                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The slot turns verified (a rising edge)           | a new connection, a reconnect, or a re-authentication — whatever arrived while it was down is still owed                                                                                                                                                                                          |
+| Every 60 seconds while verified                   | the same minute the apps' own background sync polls the cloud on screen at                                                                                                                                                                                                                        |
+| A `chat.sync` push on that slot, debounced 300 ms | the server announcing a message; a burst of them is one delta                                                                                                                                                                                                                                     |
+| The slot stops being the active one               | after the 300 ms debounce, if it was never on screen since its slot bound and has not received for a full interval — the relay a cloud boots over, say; otherwise on the next tick. Debounced because the binder moves the pointer off a cloud and tears down a slot it does not keep in one pass |
+| `refreshBackgroundClouds()`                       | the app's foreground signal: timers froze while the app was suspended, and pushes went nowhere                                                                                                                                                                                                    |
+
+One delta runs at a time per cloud. A trigger that lands while one is in flight asks for exactly one
+more once it finishes, so a push that arrives mid-request is not lost and a storm of them is not a
+storm of requests.
+
+**The cost** is one `channel.sync` per background cloud per minute, plus at most one per burst of
+pushes, plus a `user.mysite` every ten minutes — against the ping the socket already sends. With the
+cap of five background clouds and the relay, the timer sends at most six a minute per device, plus
+one for each cloud held outside the cap for a write in flight. At boot every one of them verifies at
+once and asks for its delta and its place list together: up to a dozen requests in the first second.
+A loop whose slot is rebuilt mid-request drops that request's result instead of racing the new
+loop's.
+
+`refreshBackgroundClouds` is the one app-facing piece. apps/web calls it from its foreground wake
+kick, beside `recoverUnverifiedSockets`, inside the same throttle. desktop-web does not: its own
+background sync has no foreground trigger either, and a desktop window is not suspended the way a
+WebView is.
+
+### Handing a cloud over
+
+The loop and the app read **the same cursor** — `channel-sync:<cid>` in that cloud's own partition.
+So a switch onto a cloud whose loop has been running finds its rooms already cached and its cursor
+already advanced; the app's first delta there asks for what changed since the loop's last answer, not
+for the whole list. The loop stops the moment the pointer arrives. Leaving a cloud starts its loop,
+and the clock for its first tick starts at the moment it left: the app kept it current until then.
+
+At the moment of a switch the loop's last delta and the app's first one can overlap. Both write the
+same rows idempotently; the worst case is that the older answer writes the cursor last and the next
+delta repeats a few seconds of changes.
+
+The cursor has to reach the right partition for any of this to hold. The local data sources are
+shared by every graph and, left to themselves, fall back to the selected cloud — which is why
+`SyncMetaRepository` hands its own graph's `cid`/`uid` down on every call. Before it did, a cursor
+written through cloud A's graph while cloud B was on screen landed in B's partition, and entering A
+found none.
+
+**Guards.** A loop with no uid in its cloud asks nothing: there is no partition to write into. If the
+account changes while a delta is on its way, the rows are written (under the context the request
+captured) but the cursor is left alone, and the next delta asks again. A failed delta leaves the
+cursor where it was and is logged once per failing streak — at one request a minute, a cloud that is
+down would otherwise log forever.
+
+### What the server has not confirmed
+
+Two backend questions decide how current this can be, and neither is answered by the protocol types:
+
+- whether `chat.sync` is sent to a member who is not looking at that room — without it, a
+  background cloud learns of a message on the next tick, within a minute;
+- whether `channel.sync` carries a `$join` that another device's read has moved — without it, an
+  unread count shrinks only when that cloud is entered.
+
+The loop is correct either way; what changes is how soon.
+
+**Measured on the dev servers (2026-09-29), one account on two devices.** With the receiving device
+on another cloud, messages sent into a room of the background cloud from the account's other
+device produced **no** `chat.sync` on the background socket: the receive log shows only `verified`,
+`interval` and `foreground` triggers, never `push`, and each message reached the cache on the next
+60-second tick (about 40–45 seconds after it was sent). The same deltas carried the room's `$join`
+moved by the sending device. So for the account's own other devices the answer to the first
+question is no and to the second is yes. Whether another **member's** message is pushed to a
+background socket was not measured — that needs a second account in the same cloud — and until it
+is, a minute is the latency to plan for.
 
 ## Usage
 
