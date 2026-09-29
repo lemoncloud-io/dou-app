@@ -59,13 +59,18 @@ export const useSavedItemsStore = create<SavedItemsState>()(
 
 interface SavedPanelState {
     isOpen: boolean;
+    /** The row last opened from this pane; marked when the pane opens again. */
+    openedId: string | null;
     open: () => void;
     close: () => void;
+    markOpened: (id: string) => void;
 }
 
 /** Whether the trailing Saved-items pane is open (HomePage enforces pane exclusivity). */
 export const useSavedPanelStore = create<SavedPanelState>(set => ({
     isOpen: false,
+    openedId: null,
     open: () => set({ isOpen: true }),
     close: () => set({ isOpen: false }),
+    markOpened: id => set({ openedId: id }),
 }));

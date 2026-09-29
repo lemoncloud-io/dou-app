@@ -6,7 +6,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useDebugLogin } from '../../auth/hooks';
 
 const inputClass = cn(
-    'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none',
+    'h-10 w-full rounded-lg border border-input bg-background px-3 text-callout text-foreground outline-none',
     'transition-colors focus:border-focus-border disabled:opacity-50'
 );
 
@@ -34,12 +34,12 @@ export const DebugAuthPage = () => {
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-            <div className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground">
+            <div className="rounded-xl border border-border bg-card p-3 text-micro text-muted-foreground">
                 signed in: <span className="text-foreground">{currentName || currentUid}</span>
                 <span className="ml-1 opacity-60">({currentUid})</span>
             </div>
 
-            <label className="flex flex-col gap-1 text-xs font-medium text-label">
+            <label className="flex flex-col gap-1 text-micro font-medium text-label">
                 email
                 <input
                     type="email"
@@ -51,7 +51,7 @@ export const DebugAuthPage = () => {
                 />
             </label>
 
-            <label className="flex flex-col gap-1 text-xs font-medium text-label">
+            <label className="flex flex-col gap-1 text-micro font-medium text-label">
                 password
                 <input
                     type="password"
@@ -62,13 +62,13 @@ export const DebugAuthPage = () => {
                 />
             </label>
 
-            {isError && <p className="-mt-1 text-xs text-destructive">login failed — check credentials</p>}
+            {isError && <p className="-mt-1 text-micro text-destructive">login failed — check credentials</p>}
 
             <button
                 type="submit"
                 disabled={isSubmitting || !uid.trim() || !pwd}
                 className={cn(
-                    'h-10 rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition-colors',
+                    'h-10 rounded-lg bg-primary text-callout font-semibold text-primary-foreground transition-colors',
                     'hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100'
                 )}
             >

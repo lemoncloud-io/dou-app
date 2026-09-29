@@ -203,7 +203,7 @@ export const ImageViewer = ({
                         {isMulti && (
                             <aside className="flex w-[346px] shrink-0 flex-col border-l border-hairline bg-background">
                                 <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-hairline px-6">
-                                    <span className="text-title font-semibold tracking-[-0.01em] text-foreground">
+                                    <span className="text-title font-semibold text-foreground">
                                         {t('chat.image.setTitle', { count: images.length })}
                                     </span>
                                     <button

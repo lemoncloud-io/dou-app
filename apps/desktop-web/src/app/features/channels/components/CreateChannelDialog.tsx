@@ -103,14 +103,14 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                                     aria-checked={visibility === option}
                                     onClick={() => setVisibility(option)}
                                     className={cn(
-                                        'focus-ring flex flex-1 flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                                        'focus-ring flex flex-1 flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-callout transition-colors',
                                         visibility === option
                                             ? 'border-primary bg-primary/10 font-semibold text-foreground'
                                             : 'border-input text-muted-foreground hover:bg-accent/50'
                                     )}
                                 >
                                     {t(`channels.create.${option}`)}
-                                    <span className="text-xs font-normal text-muted-foreground">
+                                    <span className="text-micro font-normal text-muted-foreground">
                                         {t(`channels.create.${option}.hint`)}
                                     </span>
                                 </button>
@@ -119,7 +119,7 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                     </div>
 
                     {isError && (
-                        <p role="alert" className="text-sm text-destructive">
+                        <p role="alert" className="text-callout text-destructive">
                             {t('channels.create.failed')}
                         </p>
                     )}

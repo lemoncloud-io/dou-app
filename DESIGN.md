@@ -176,7 +176,9 @@ Hierarchy comes from weight and tracking, not only size.
 
 A dash in the weight column means the step sets none, and the component picks it. No
 component uses an arbitrary `text-[Npx]`; a new size is a new step here, registered in
-`libs/ui-kit/src/utils/index.ts` so `cn()` keeps it apart from text colors.
+`libs/ui-kit/src/utils/index.ts` so `cn()` keeps it apart from text colors. Desktop
+components use these steps only, not Tailwind's `text-xs`…`text-2xl`, and take tracking
+from the step rather than an arbitrary `tracking-[…]`.
 
 Component-level details, measured against Figma:
 
@@ -238,17 +240,17 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 [ cloud rail ][ place rail ][ channel sidebar | drag ][ main pane ][ trailing panel ]
 ```
 
-| Region          | Code                                                                                                                      | Figma                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                            | 80px "Icon Rail", 48px tile                                              |
-| Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                  | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
-| Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                    | 286px "Channel List Panel", 16px inset                                   |
-| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline | same                                                                     |
-| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`        | same                                                                     |
-| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)      | same                                                                     |
-| Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                        | 35px avatar                                                              |
-| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, 24px gutters | 121px box, 24px gutters                                                  |
-| Trailing panels | resizable, defaults: thread 384, settings / saved / mentions / profile 320, debug 440                                     | —                                                                        |
+| Region          | Code                                                                                                                              | Figma                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                                    | 80px "Icon Rail", 48px tile                                              |
+| Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                          | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
+| Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                            | 286px "Channel List Panel", 16px inset                                   |
+| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline         | same                                                                     |
+| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                | same                                                                     |
+| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)              | same                                                                     |
+| Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                | 35px avatar                                                              |
+| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, 24px gutters         | 121px box, 24px gutters                                                  |
+| Trailing panels | resizable, every panel opens at `PANEL_WIDTH` 360 and remembers its own drag; below 1280px it covers the chat (scrim, chat inert) | —                                                                        |
 
 The rail width difference (68 versus 80) is a deliberate code choice shared by
 `DesktopLayout` and `AppShellSkeleton` through the `w-rail` token, so the boot skeleton
@@ -341,8 +343,9 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 - Targets: 36px minimum, 40px for primary controls. An isolated control that must look smaller takes `hit-target`, which grows only its hit area.
 - **Hover-revealed controls** (desktop): a control that waits for hover takes
   `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent. It
-  hides only on devices that can hover, shows while the pointer or focus is anywhere in
-  its group, and can be pinned while something it opened is on screen.
+  hides only on devices that can hover, and shows while the pointer or focus is anywhere
+  in its group. The message toolbar is the one exception: it also slides in, and stays
+  up while something it opened (the emoji grid, a dialog) is on screen.
 
 ## State vocabulary
 

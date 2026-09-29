@@ -130,7 +130,7 @@ export const CloudRail = ({
                                                     // Figma Icon Rail: the active cloud is a black tile with a
                                                     // lime ring and lime initial; the others sit quiet on the rail.
                                                     isActive
-                                                        ? 'border-2 border-primary bg-black text-primary'
+                                                        ? 'border-2 border-primary bg-tile-active text-primary'
                                                         : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
                                                     isInactive && 'opacity-50',
                                                     // Block a second switch mid-handshake; dim non-active icons for feedback.

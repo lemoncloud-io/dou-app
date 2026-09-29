@@ -672,7 +672,7 @@ export const MessageRow = memo(
                                                         label={t('chat.reaction.quick', { emoji })}
                                                         pressed={hasMyReaction(tallies, emoji)}
                                                         className={cn(
-                                                            'text-base leading-none hover:bg-accent',
+                                                            'text-lead leading-none hover:bg-accent',
                                                             hasMyReaction(tallies, emoji) && 'bg-accent'
                                                         )}
                                                         onClick={() => {

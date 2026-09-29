@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Search, X } from 'lucide-react';
@@ -40,7 +40,7 @@ interface ChannelSettingsPanelProps {
 }
 
 /**
- * Slack-style right-side settings panel (320px default, drag-resizable). Visibility is driven by
+ * Slack-style right-side settings panel (drag-resizable). Visibility is driven by
  * useChannelSettingsStore.openChannelId; the host renders this only when set.
  * Sections: channel name (+ Rename, owner only), members (+ Invite), footer
  * actions (Leave for everyone, Delete for owner). After delete/leave the panel
@@ -55,6 +55,8 @@ export const ChannelSettingsPanel = ({
 }: ChannelSettingsPanelProps) => {
     const { t } = useTranslation();
     const close = useChannelSettingsStore(s => s.close);
+    const focus = useChannelSettingsStore(s => s.focus);
+    const membersHeadingRef = useRef<HTMLHeadingElement>(null);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
     const { setChannelNotify } = useDesktopChannelMutations();
@@ -63,6 +65,13 @@ export const ChannelSettingsPanel = ({
     const isOwner = isChannelOwner(channel, myUid);
 
     const memberCount = members.length || channel?.memberNo || 0;
+
+    // Opened from the header's member chip: land on the member list.
+    useEffect(() => {
+        if (focus !== 'members') return;
+        membersHeadingRef.current?.scrollIntoView?.({ block: 'start' });
+        membersHeadingRef.current?.focus({ preventScroll: true });
+    }, [focus, channelId]);
 
     // Filter only kicks in on larger rosters — a handful of members needs no search box.
     const [memberQuery, setMemberQuery] = useState('');
@@ -125,7 +134,7 @@ export const ChannelSettingsPanel = ({
                     <h3 className="text-overline text-muted-foreground">{t('channels.settings.nameSection')}</h3>
                     <div className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2 text-heading text-foreground">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary-ink">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-micro font-bold text-primary-ink">
                                 #
                             </span>
                             <span className="truncate">{channel.name ?? channelId}</span>
@@ -144,7 +153,11 @@ export const ChannelSettingsPanel = ({
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">
-                    <h3 className="text-overline text-muted-foreground">
+                    <h3
+                        ref={membersHeadingRef}
+                        tabIndex={-1}
+                        className="text-overline text-muted-foreground outline-none"
+                    >
                         {/* The count alone: "Members · 3 members" said the noun twice. */}
                         {t('channels.settings.membersSection')} · <span className="tabular-nums">{memberCount}</span>
                     </h3>
@@ -158,6 +171,8 @@ export const ChannelSettingsPanel = ({
                                 value={memberQuery}
                                 onChange={e => setMemberQuery(e.target.value)}
                                 placeholder={t('channels.members.search')}
+                                // The placeholder was its only name, and it is gone once you type.
+                                aria-label={t('channels.members.search')}
                                 className="focus-ring h-9 border-hairline bg-well pl-8 text-callout shadow-well"
                             />
                         </div>

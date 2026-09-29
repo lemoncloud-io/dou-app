@@ -85,7 +85,7 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
                     />
 
                     {errorMsg && (
-                        <p className="text-sm text-destructive break-words" role="alert">
+                        <p className="text-callout text-destructive break-words" role="alert">
                             {errorMsg}
                         </p>
                     )}

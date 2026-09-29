@@ -28,14 +28,22 @@ interface MentionRowProps {
     /** Resolved channel name (current place only); chip is hidden when absent. */
     channelName?: string;
     removeLabel: string;
+    /** The row last opened from this pane: the message the reader went to. */
+    isCurrent?: boolean;
     onOpen: () => void;
     onRemove: () => void;
 }
 
-const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: MentionRowProps) => (
-    <div className="group/mention relative flex rounded-md border border-hairline bg-elevated shadow-raised transition-colors ease-tactile hover:bg-accent/60">
+const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemove }: MentionRowProps) => (
+    <div
+        className={cn(
+            'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
+            isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
+        )}
+    >
         <button
             type="button"
+            aria-current={isCurrent || undefined}
             onClick={onOpen}
             className="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-md p-2.5 text-left"
         >
@@ -45,7 +53,10 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
             </span>
             <Avatar className="mt-0.5 h-9 w-9 shrink-0">
                 {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
-                <AvatarFallback className="text-sm font-semibold" style={avatarStyle(item.colorSeed ?? item.ownerName)}>
+                <AvatarFallback
+                    className="text-callout font-semibold"
+                    style={avatarStyle(item.colorSeed ?? item.ownerName)}
+                >
                     {item.ownerName.charAt(0).toUpperCase() || '?'}
                 </AvatarFallback>
             </Avatar>
@@ -110,6 +121,8 @@ interface MentionsPanelProps {
 export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: MentionsPanelProps) => {
     const { t } = useTranslation();
     const close = useMentionsPanelStore(s => s.close);
+    const openedId = useMentionsPanelStore(s => s.openedId);
+    const markOpened = useMentionsPanelStore(s => s.markOpened);
     const items = useMentionsStore(s => s.items);
     const markRead = useMentionsStore(s => s.markRead);
     const markAllRead = useMentionsStore(s => s.markAllRead);
@@ -191,7 +204,9 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                                     item={item}
                                     channelName={channelName(item.channelId)}
                                     removeLabel={t('saved.remove')}
+                                    isCurrent={item.id === openedId}
                                     onOpen={() => {
+                                        markOpened(item.id);
                                         markRead(item.id);
                                         onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
                                         close();

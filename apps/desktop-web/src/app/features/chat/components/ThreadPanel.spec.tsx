@@ -160,7 +160,7 @@ describe('ThreadPanel', () => {
             { wrapper }
         );
 
-        expect(screen.getAllByText('Read 2').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Seen by 2').length).toBeGreaterThan(0);
     });
 
     // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the

@@ -119,6 +119,8 @@
         /* Marks drawn on the overlay scrim (a "+n" count, an upload spinner). The
            scrim is black in both themes, so this is white in both. */
         --on-overlay: 0 0% 100%;
+        /* The active cloud tile (Figma Icon Rail): a black tile in both themes. */
+        --tile-active: 0 0% 0%;
 
         /* Presence + the self avatar's disc. Figma "1명 Profile" (blue_bk #102346)
            and Colors/Green #34C759 — fixed in both themes by design, so they are
@@ -225,6 +227,8 @@
         --tab-inactive: 60 0% 55%;
         --overlay: 0 0% 0%;
         --on-overlay: 0 0% 100%;
+        /* The active cloud tile (Figma Icon Rail): a black tile in both themes. */
+        --tile-active: 0 0% 0%;
 
         /* Layering + elevation primitives (dark). */
         --elevated: 90 2% 18%; /* #2E2F2D */

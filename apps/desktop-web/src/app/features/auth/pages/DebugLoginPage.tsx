@@ -24,7 +24,7 @@ export const DebugLoginPage = () => {
     };
 
     const inputClass = cn(
-        'h-11 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none transition-colors',
+        'h-11 w-full rounded-lg border bg-background px-3 text-callout text-foreground outline-none transition-colors',
         'border-input focus:border-focus-border disabled:opacity-50'
     );
 
@@ -43,12 +43,12 @@ export const DebugLoginPage = () => {
                 className="relative flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5"
             >
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-xl font-bold tracking-tight text-foreground">{t('auth.debug.title')}</h1>
-                    <p className="text-sm text-muted-foreground">{t('auth.debug.subtitle')}</p>
+                    <h1 className="text-headline font-bold tracking-tight text-foreground">{t('auth.debug.title')}</h1>
+                    <p className="text-callout text-muted-foreground">{t('auth.debug.subtitle')}</p>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="debug-email" className="text-sm font-medium text-label">
+                    <label htmlFor="debug-email" className="text-callout font-medium text-label">
                         {t('auth.debug.email')}
                     </label>
                     <input
@@ -64,7 +64,7 @@ export const DebugLoginPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label htmlFor="debug-password" className="text-sm font-medium text-label">
+                    <label htmlFor="debug-password" className="text-callout font-medium text-label">
                         {t('auth.debug.password')}
                     </label>
                     <div className="relative">
@@ -88,13 +88,13 @@ export const DebugLoginPage = () => {
                     </div>
                 </div>
 
-                {isError && <p className="-mt-2 text-sm text-destructive">{t('auth.debug.failed')}</p>}
+                {isError && <p className="-mt-2 text-callout text-destructive">{t('auth.debug.failed')}</p>}
 
                 <button
                     type="submit"
                     disabled={isSubmitting || !uid.trim() || !pwd}
                     className={cn(
-                        'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors',
+                        'h-11 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
                         'hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100'
                     )}
                 >
@@ -106,7 +106,7 @@ export const DebugLoginPage = () => {
                     // Back to wherever this page was opened from (welcome or invite);
                     // a fresh load with no history lands on the welcome screen.
                     onClick={() => (location.key === 'default' ? navigate('/auth/welcome') : navigate(-1))}
-                    className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                    className="text-micro font-medium text-muted-foreground hover:text-foreground"
                 >
                     {t('auth.debug.back')}
                 </button>

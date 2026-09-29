@@ -84,7 +84,7 @@ export const SidebarHeader = ({
                         onChange={e => onQueryChange(e.target.value)}
                         placeholder={t('sidebar.search')}
                         aria-label={t('sidebar.search')}
-                        className="min-w-0 flex-1 bg-transparent text-callout tracking-[-0.01em] text-foreground outline-none placeholder:text-placeholder"
+                        className="min-w-0 flex-1 bg-transparent text-callout text-foreground outline-none placeholder:text-placeholder"
                     />
                 </label>
             </div>

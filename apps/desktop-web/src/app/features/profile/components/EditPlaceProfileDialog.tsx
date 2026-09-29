@@ -129,7 +129,7 @@ export const EditPlaceProfileDialog = () => {
                         <Avatar className="h-14 w-14 rounded-xl">
                             {thumbnail && <AvatarImage src={thumbnail} alt={nick} />}
                             <AvatarFallback
-                                className="rounded-xl text-lg font-semibold"
+                                className="rounded-xl text-title font-semibold"
                                 style={avatarStyle(myUid || nick)}
                             >
                                 {initial}
@@ -167,7 +167,7 @@ export const EditPlaceProfileDialog = () => {
                     </div>
 
                     {isError && (
-                        <p role="alert" className="text-sm text-destructive">
+                        <p role="alert" className="text-callout text-destructive">
                             {t('profile.place.failed')}
                         </p>
                     )}
@@ -178,7 +178,7 @@ export const EditPlaceProfileDialog = () => {
                         with the consequence stated. */}
                     {hasActiveProfile && (
                         <div className="flex items-center justify-between gap-3 border-t border-hairline pt-3">
-                            <p className="text-xs text-muted-foreground">{t('profile.place.useAccountHint')}</p>
+                            <p className="text-micro text-muted-foreground">{t('profile.place.useAccountHint')}</p>
                             <Button
                                 type="button"
                                 variant="outline"

@@ -267,13 +267,13 @@ describe('MessageList', () => {
             { wrapper }
         );
 
-        expect(screen.getAllByText(/^Read /)).toHaveLength(1);
-        expect(screen.getByText('Read 2')).toBeDefined();
-        expect(screen.getByText('Unread 1')).toBeDefined();
+        expect(screen.getAllByText(/^Seen by /)).toHaveLength(1);
+        expect(screen.getByText('Seen by 2')).toBeDefined();
+        expect(screen.getByText('Unseen by 1')).toBeDefined();
     });
 
     // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
-    // one active member, or nothing synced yet. Rendering "Read 0" there states something
+    // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
     // false rather than staying quiet.
     it('shows no receipt when the counts are unavailable', () => {
         render(
@@ -287,7 +287,7 @@ describe('MessageList', () => {
             { wrapper }
         );
 
-        expect(screen.queryByText(/^Read /)).toBeNull();
+        expect(screen.queryByText(/^Seen by /)).toBeNull();
     });
 
     it('renders a reaction chip without throwing', () => {

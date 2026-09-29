@@ -1,11 +1,28 @@
-import { useCallback } from 'react';
+import { createElement, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
+import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
 import { useSelectedChannelStore } from '../stores';
+import { classifyWireError, extractErrorMessage } from '../utils';
+
+/** Why a switch failed, in words: a 400 from a dev cloud used to read the same as a dropped network. */
+export const switchCauseKey = (error: unknown): string => {
+    switch (classifyWireError(extractErrorMessage(error))) {
+        case 'network':
+            return 'cloud.switchCause.network';
+        case 'denied':
+        case 'expired':
+            return 'cloud.switchCause.denied';
+        case 'notFound':
+            return 'cloud.switchCause.notFound';
+        default:
+            return 'cloud.switchCause.other';
+    }
+};
 
 /**
  * Cloud switch (mirrors apps/web `CloudSessionSheet.handleSelectCloud`). `switchCloud` owns the
@@ -25,8 +42,11 @@ export const useCloudSwitchFlow = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
 
+    // Try again runs the switch as it is when clicked, not as it was when it failed: by
+    // then the reader may be on that cloud already, or another switch may be running.
+    const latestRef = useRef<(cloudId: string) => Promise<void>>(async () => undefined);
     const switchCloud = useCallback(
-        async (cloudId: string) => {
+        async (cloudId: string): Promise<void> => {
             if (isSwitching || cloudId === selectedCloudId) return;
 
             // Channel ids are cloud-scoped: drop the stale selection up front so no hook still
@@ -42,11 +62,24 @@ export const useCloudSwitchFlow = () => {
             } catch (e) {
                 // switchCloud / logoutCloudSession already rolled their own session back on failure.
                 logger.error('SESSION', '[CloudSwitchFlow] switchFailed', { error: e });
-                toast({ title: t('cloud.switchFailed'), variant: 'destructive' });
+                toast({
+                    title: t('cloud.switchFailed'),
+                    description: t(switchCauseKey(e)),
+                    variant: 'destructive',
+                    // The kit types its action as `ReactElement<typeof ToastAction>` (the
+                    // component, not its props), which no created element satisfies.
+                    action: createElement(
+                        ToastAction,
+                        { altText: t('cloud.switchRetry'), onClick: () => void latestRef.current(cloudId) },
+                        t('cloud.switchRetry')
+                    ) as unknown as ToastActionElement,
+                });
             }
         },
         [switchCloudSession, logoutCloudSession, selectedCloudId, isSwitching, t, toast]
     );
+
+    latestRef.current = switchCloud;
 
     return { switchCloud, isSwitching };
 };

@@ -242,8 +242,14 @@ export const PlaceRail = ({
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
+                    {/* A tool, not an account action: its own group, away from Log out. */}
                     {(import.meta.env.DEV || debugEnabled) && (
-                        <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openDebugPanel(true)}>
+                                {t('rail.menu.debug')}
+                            </DropdownMenuItem>
+                        </>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => (isGuest ? setConfirmingLogout(true) : runLogout())}>

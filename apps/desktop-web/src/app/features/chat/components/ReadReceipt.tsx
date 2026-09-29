@@ -8,12 +8,12 @@ interface ReadReceiptProps {
 }
 
 /**
- * The read receipt under a message: `Read 9 · Unread 1`.
+ * The read receipt under a message: `Seen by 9 · Unseen by 1`.
  *
  * The read half always shows, weighted but not in the accent: a receipt sits under
  * every message you send, and in lime it became the accent's most frequent use, on
- * a passive metric. The unread half only exists while somebody is behind, so a fully-read message settles to `Read 10`
- * rather than `Read 10 · Unread 0`. Both are one line of metadata, not a control — nothing
+ * a passive metric. The unread half only exists while somebody is behind, so a fully-read message settles to `Seen by 10`
+ * rather than `Seen by 10 · Unseen by 0`. Both are one line of metadata, not a control — nothing
  * here is clickable, and the counts are the message's, so the line sits with it.
  *
  * Which messages get one, and what the numbers mean, is `useReadCounts`. This only draws.

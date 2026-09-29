@@ -101,7 +101,7 @@ export const ShortcutsDialog = () => {
                 <ul className="flex flex-col gap-2 pt-2">
                     {rows.map(row => (
                         <li key={row.label} className="flex items-center justify-between gap-4">
-                            <span className="text-sm text-foreground">{row.label}</span>
+                            <span className="text-callout text-foreground">{row.label}</span>
                             <span className="flex shrink-0 items-center gap-1 text-muted-foreground">{row.keys}</span>
                         </li>
                     ))}

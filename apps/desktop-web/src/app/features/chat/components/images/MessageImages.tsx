@@ -62,16 +62,15 @@ const MessageImageGrid = ({
     return (
         <div className="mt-2 flex flex-col gap-2">
             {isSingle ? (
-                <span className="truncate text-caption font-medium tracking-[-0.005em] text-muted-foreground">
-                    {images[0].name}
-                </span>
+                <span className="truncate text-caption font-medium text-muted-foreground">{images[0].name}</span>
             ) : (
                 <ImageSetMeta count={images.length} onDownloadAll={() => downloadImages(ready)} />
             )}
             <div
                 className={cn(
                     'grid gap-2',
-                    isSingle ? 'w-full max-w-[224px] grid-cols-1' : 'max-w-[456px] grid-cols-2'
+                    // 180px tiles: at 222px four images took most of a laptop-height feed.
+                    isSingle ? 'w-full max-w-[180px] grid-cols-1' : 'max-w-[368px] grid-cols-2'
                 )}
             >
                 {tiles.map((image, i) => {

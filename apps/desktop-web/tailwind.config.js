@@ -129,6 +129,7 @@ module.exports = {
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
                 'on-overlay': 'hsl(var(--on-overlay))',
+                'tile-active': 'hsl(var(--tile-active))',
                 // Engineering pass — layering surfaces (depth without hardcoded grays)
                 elevated: 'hsl(var(--elevated))',
                 hairline: 'hsl(var(--hairline))',

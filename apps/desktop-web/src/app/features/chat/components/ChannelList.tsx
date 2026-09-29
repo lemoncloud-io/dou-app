@@ -159,7 +159,7 @@ const ChannelRow = memo(function ChannelRow({
                 <span className="flex shrink-0 items-center text-foreground">{icon}</span>
                 <span
                     className={cn(
-                        'min-w-0 flex-1 truncate text-callout tracking-[-0.01em]',
+                        'min-w-0 flex-1 truncate text-callout',
                         isMuted ? 'text-muted-foreground' : 'text-sidebar-foreground',
                         indicator !== 'none' && 'font-semibold'
                     )}
@@ -384,7 +384,7 @@ export const ChannelList = ({
         return (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
                 {dialogs}
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-lg text-muted-foreground shadow-well">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-title font-normal text-muted-foreground shadow-well">
                     #
                 </span>
                 <span className="text-callout text-foreground">{t('chat.noChannels')}</span>

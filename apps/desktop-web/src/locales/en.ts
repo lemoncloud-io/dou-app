@@ -147,10 +147,11 @@ export const en = {
     'chat.system.leave': '{{name}} left the channel',
     'chat.newMessages': 'New messages',
     // Per-message read receipt. `n`, not `count`: these never pluralise the noun
-    // ("Read 1", not "1 read"), and a `count` variable would send i18next hunting
-    // for _one/_other forms that do not exist.
-    'chat.readReceipt.read': 'Read {{n}}',
-    'chat.readReceipt.unread': 'Unread {{n}}',
+    // ("Seen by 1"), and a `count` variable would send i18next hunting for
+    // _one/_other forms that do not exist. Not "Unread": the sidebar uses that word
+    // for your own unread messages, and the two sat side by side meaning opposite things.
+    'chat.readReceipt.read': 'Seen by {{n}}',
+    'chat.readReceipt.unread': 'Unseen by {{n}}',
     'sidebar.dms': 'Direct messages',
     'dm.you': 'You',
     'chat.save': 'Save for later',
@@ -217,7 +218,12 @@ export const en = {
     'cloud.setupFailedLabel': '{{name}} (setup failed)',
     'cloud.empty': 'No clouds',
     'cloud.switching': 'Switching cloud...',
-    'cloud.switchFailed': "Couldn't switch cloud. Try again.",
+    'cloud.switchFailed': "Couldn't switch cloud",
+    'cloud.switchCause.network': "The server couldn't be reached. Check your connection.",
+    'cloud.switchCause.denied': 'You no longer have access to this cloud.',
+    'cloud.switchCause.notFound': 'This cloud no longer exists.',
+    'cloud.switchCause.other': "The cloud didn't accept the switch.",
+    'cloud.switchRetry': 'Try again',
     'cloud.remove.action': 'Remove workspace',
     'cloud.remove.title': 'Remove from rail?',
     'cloud.remove.description': 'This hides the workspace from your rail. You can rejoin later with an invite link.',
@@ -486,7 +492,6 @@ export const en = {
     'search.hint': 'Type at least 2 characters.',
     'search.searching': 'Searching…',
     'search.noResults': 'Nothing here yet.',
-    'search.unknownSender': 'Someone',
     'search.scopeLimited':
         'Searched {{limit}} of your {{total}} channels, and only messages already loaded on this device.',
     'search.openChannel': 'Open {{name}}',

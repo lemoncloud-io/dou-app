@@ -50,13 +50,13 @@ export const ChannelNameField = ({
                 <p
                     id={hintId}
                     role={showInvalid ? 'alert' : undefined}
-                    className={cn('text-xs', showInvalid ? 'text-destructive' : 'text-muted-foreground')}
+                    className={cn('text-micro', showInvalid ? 'text-destructive' : 'text-muted-foreground')}
                 >
                     {t('channels.rename.lengthHint')}
                 </p>
                 {/* The input truncates silently at the maximum; a counter is
                     what tells someone their last keystrokes went nowhere. */}
-                <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                <p className="shrink-0 text-micro tabular-nums text-muted-foreground">
                     {t('channels.nameCount', { count: value.trim().length, max: CHANNEL_NAME_MAX })}
                 </p>
             </div>

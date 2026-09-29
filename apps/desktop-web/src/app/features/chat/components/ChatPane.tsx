@@ -191,7 +191,7 @@ export const ChatPane = ({
     if (!channelId || !channel) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-semibold text-primary-ink">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-display font-semibold text-primary-ink">
                     #
                 </div>
                 <p className="text-heading text-foreground">{t(`chat.empty.${emptyState.mode}.title`)}</p>
@@ -311,7 +311,9 @@ export const ChatPane = ({
                     {memberCount > 0 && (
                         <button
                             type="button"
-                            onClick={() => openSettings(channelId)}
+                            // It reads as the member list, so it opens on the member list,
+                            // not at the top of the settings panel.
+                            onClick={() => openSettings(channelId, 'members')}
                             aria-label={t('channels.settings.memberCount', { count: memberCount })}
                             className="focus-ring hit-target flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-caption tabular-nums text-label transition-colors hover:bg-accent"
                         >

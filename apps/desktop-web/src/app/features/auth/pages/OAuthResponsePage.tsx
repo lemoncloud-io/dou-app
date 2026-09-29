@@ -62,7 +62,7 @@ export const OAuthResponsePage = () => {
                         type="button"
                         onClick={() => navigate('/auth/welcome', { replace: true })}
                         className={cn(
-                            'h-11 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors',
+                            'h-11 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
                             'hover:opacity-90 active:scale-[0.98]'
                         )}
                     >
@@ -74,13 +74,13 @@ export const OAuthResponsePage = () => {
                             <a
                                 href={deeplink}
                                 className={cn(
-                                    'flex h-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors',
+                                    'flex h-11 items-center justify-center rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
                                     'hover:opacity-90 active:scale-[0.98]'
                                 )}
                             >
                                 {t('auth.social.openApp')}
                             </a>
-                            <p className="text-center text-xs text-muted-foreground">{t('auth.social.closeTab')}</p>
+                            <p className="text-center text-micro text-muted-foreground">{t('auth.social.closeTab')}</p>
                         </>
                     )
                 )}

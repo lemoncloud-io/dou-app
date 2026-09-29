@@ -199,6 +199,7 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                             style={isDrawer ? undefined : { width: sidebarWidth.width }}
                             tabIndex={drawerOpen ? -1 : undefined}
                             role={drawerOpen ? 'dialog' : undefined}
+                            aria-modal={drawerOpen || undefined}
                             aria-label={drawerOpen ? t('sidebar.channels') : undefined}
                             className={
                                 isDrawer

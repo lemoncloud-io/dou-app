@@ -61,11 +61,11 @@ export const DebugPanel = () => {
             onClose={close}
         >
             <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-primary">Debug</span>
+                <span className="text-micro font-bold uppercase tracking-widest text-primary">Debug</span>
                 <button
                     type="button"
                     onClick={close}
-                    className="ml-auto rounded-lg px-2 py-1 text-xs text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                    className="ml-auto rounded-lg px-2 py-1 text-micro text-red-600 hover:bg-red-500/10 dark:text-red-400"
                 >
                     Exit
                 </button>
@@ -77,7 +77,7 @@ export const DebugPanel = () => {
                         type="button"
                         onClick={() => setActive(tab.id)}
                         className={cn(
-                            'whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition-colors',
+                            'whitespace-nowrap rounded-lg px-3 py-1.5 text-micro transition-colors',
                             active === tab.id
                                 ? 'bg-primary/15 font-semibold text-primary'
                                 : 'text-muted-foreground hover:bg-muted'

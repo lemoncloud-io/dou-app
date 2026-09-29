@@ -9,7 +9,7 @@ export const VersionInfo = ({ className = '' }: { className?: string }) => {
 
     if (info.isElectron && info.desktopVersion) {
         return (
-            <div className={`flex flex-col gap-1 text-xs text-muted-foreground ${className}`}>
+            <div className={`flex flex-col gap-1 text-micro text-muted-foreground ${className}`}>
                 <div>
                     <span className="font-medium">Desktop:</span> v{info.desktopVersion}
                     {info.platform && <span className="ml-1">({info.platform})</span>}
@@ -22,7 +22,7 @@ export const VersionInfo = ({ className = '' }: { className?: string }) => {
     }
 
     return (
-        <div className={`text-xs text-muted-foreground ${className}`}>
+        <div className={`text-micro text-muted-foreground ${className}`}>
             <span className="font-medium">Web:</span> v{info.desktopWebVersion}
         </div>
     );
