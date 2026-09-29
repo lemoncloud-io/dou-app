@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Bug Fixes
+
+- (web,web-ui-kit) keep the promo banner off and pulse the tier pill until home's data answers
+
 ## [2026-09-29] - root@0.71.0, @chatic/web@0.55.0
 
 ### Features
