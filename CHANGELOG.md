@@ -1,5 +1,42 @@
 # Changelog
 
+## [2026-09-29] - root@0.72.0, @chatic/desktop-web@0.16.0
+
+### Features
+
+- (desktop-web) jump to the next unread channel with Alt+Shift+Down
+- (desktop-web) retry and delete a failed image message
+- (desktop-web,app-runtime) send composer images from desktop
+
+### Bug Fixes
+
+- (desktop-web) the smaller critique items (P3)
+- (desktop-web) name the sender in search rows; drop press layers
+- (desktop-web) take decoration off the tooltips, banner and toast
+- (desktop-web) a panel that covers the chat now acts like it
+- (desktop-web) one tab stop for the feed; reveal on focus too
+- (desktop-web) fix the image tray, viewer and attach flow
+- (desktop-web) hold text and focus tokens to AA, and test the pairs
+- (desktop-web) banner an image message as a photo, not a blank line
+- (ui-kit,desktop-web) return focus on close; one key, one layer
+- (desktop-web) return a jump to where it left; name rooms as shown
+- (desktop-web) load, save and copy only https image addresses
+
+### Documentation
+
+- (desktop-web,adr) document the chat critique work, and why
+- (adr) record where desktop's image screens depart from Figma
+- (adr) move the desktop image send decision to ADR-0126
+
+### Refactor
+
+- (desktop-web) share the composer's failure toast
+- (data,app-runtime,web,testbed) one image send for every shell
+
+### Other
+
+- style: (app-runtime) brace the thumbnail switch from the web hook
+
 ## [2026-09-29] - No version updates
 
 ### Bug Fixes
