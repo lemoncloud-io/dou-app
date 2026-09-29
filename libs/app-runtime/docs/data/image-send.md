@@ -60,11 +60,11 @@ the feed stops decoding full-size photos for small tiles. A retry keeps the thum
 The picked files live in a map keyed by pending row id, **one per page**, not per screen. A room
 and its thread can be open at once, and each drops only its own entries.
 
-| When                                       | The entry                                                                                                                    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| the message is sent                        | dropped, previews revoked                                                                                                    |
-| `discard(pendingId)`                       | dropped, previews revoked. The row itself goes through the existing failed-message delete (`useChatMutations.deleteMessage`) |
-| the screen leaves the channel, or unmounts | dropped. A send still running keeps its files until it settles, then drops them — unless the screen came back meanwhile      |
+| When                                       | The entry                                                                                                                                                         |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| the message is sent                        | dropped, previews revoked                                                                                                                                         |
+| `discard(pendingId)`                       | dropped, previews revoked. The row itself goes through each app's failed-message delete (web `useChatMutations.deleteMessage`, desktop `useComposerSend.discard`) |
+| the screen leaves the channel, or unmounts | dropped. A send still running keeps its files until it settles, then drops them — unless the screen came back meanwhile                                           |
 
 A `File` cannot be stored, so a reload loses the map. The pending row does not go with it: the web
 cache never evicts unsent rows, and the native cache keeps whole rows. Left alone, such a row would
@@ -77,7 +77,8 @@ out. A row written after the screen attached is skipped, because it may simply n
 map yet. Text optimistic rows are not touched. They have the same fate after a reload, but that
 predates this hook.
 
-A screen with no room yet (an empty `cid` or `channelId`) does not sweep.
+A screen with no room yet (an empty `cid` or `channelId`) still lets the shell catch up, and then
+does not sweep.
 
 The sweep waits for `beforeSweep` first: a shell that finishes transfers while the page is away
 catches up there, so a row it finished is settled rather than failed as a leftover.

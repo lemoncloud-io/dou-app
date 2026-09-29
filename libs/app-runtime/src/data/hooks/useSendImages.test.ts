@@ -416,11 +416,11 @@ describe('useSendImages', () => {
             live.unmount();
         });
 
-        it('does not sweep before the screen has a room to sweep', async () => {
+        it('lets the shell catch up but does not sweep before the screen has a room', async () => {
             const { unmount } = renderHook(() => useBound({ cid: '', channelId: '' }));
             await act(async () => undefined);
 
-            expect(beforeSweep).not.toHaveBeenCalled();
+            expect(beforeSweep).toHaveBeenCalledTimes(1);
             expect(chat.listPendingImageChats).not.toHaveBeenCalled();
             unmount();
         });

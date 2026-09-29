@@ -267,9 +267,10 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
         // written before it reaches the map, and the sweep must not catch it in between.
         const attachedAt = Date.now();
         void (async () => {
-            // A screen still waiting for its room (no channel row yet) has nothing it could sweep.
-            if (!cid || !channelId) return;
+            // The shell catches up on every attach; a screen still waiting for its room (no channel
+            // row yet) then has nothing it could sweep.
             await beforeSweepRef.current?.();
+            if (!cid || !channelId) return;
             let rows;
             try {
                 rows = await chatOf(cid).listPendingImageChats(channelId);

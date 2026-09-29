@@ -1,4 +1,4 @@
-# ADR-0123: desktop sends images through the runtime's image send, the text first
+# ADR-0126: desktop sends images through the runtime's image send, the text first
 
 > Status: Accepted · Decided: 2026-09-29
 > Scope: `libs/app-runtime/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·
@@ -78,6 +78,9 @@ Retry.
   missing entry. The PUT then fails as a network error, and the message shows Failed.
 - A sent image has no file name on the server, so it is named `image-N`, and a saved copy takes its
   extension from the bytes.
+- A message's image addresses come from the server and other members, so only `https:` (and the
+  page's own `blob:` / `data:image/`) is loaded, saved or copied, and the fetch sends no cookies.
+  Anything else shows as an image that failed.
 - Saving a sent image fetches it first. Chromium ignores `download` on a cross-origin link and
   navigates instead.
 - Signed addresses expire. An old row shows broken tiles until the feed is read again.
