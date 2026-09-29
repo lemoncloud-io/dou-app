@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 
 import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
+import { $isAutoLinkNode, createLinkMatcherWithRegExp } from '@lexical/link';
 import { $convertFromMarkdownString } from '@lexical/markdown';
+import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $setBlocksType } from '@lexical/selection';
 import {
@@ -9,14 +11,16 @@ import {
     $getRoot,
     $getSelection,
     $isRangeSelection,
+    $isTextNode,
     COMMAND_PRIORITY_LOW,
     FORMAT_TEXT_COMMAND,
     KEY_DOWN_COMMAND,
     KEY_ENTER_COMMAND,
     type LexicalEditor,
+    TextNode,
 } from 'lexical';
 
-import { useComposerDraftStore } from '../../../../shared';
+import { LINK_URL_SOURCE, useComposerDraftStore } from '../../../../shared';
 import { COMPOSER_TRANSFORMERS } from './editorConfig';
 
 /** Toggle the selection's block between code block and paragraph. */
@@ -28,6 +32,35 @@ export const toggleCodeBlock = (editor: LexicalEditor): void => {
         if ($isCodeNode(top)) $setBlocksType(selection, () => $createParagraphNode());
         else $setBlocksType(selection, () => $createCodeNode());
     });
+};
+
+// Module-level: AutoLinkPlugin re-registers whenever these arrays change identity.
+const URL_MATCHERS = [createLinkMatcherWithRegExp(new RegExp(LINK_URL_SOURCE))];
+const NOT_IN_CODE_BLOCK = [$isCodeNode];
+
+/**
+ * Marks a typed or pasted URL as a link while it is still in the composer,
+ * Slack-style. Uses the same URL pattern RichText links, so the composer does not
+ * show a link that arrives as plain text. Code is left alone because RichText
+ * does not link inside it: code blocks are excluded as parents, and a URL in
+ * inline code is kept as an unlinked AutoLinkNode (a plain span). Lexical's
+ * matcher only sees text, not its format, so it cannot skip inline code itself.
+ */
+export const ComposerAutoLinkPlugin = () => {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(
+        () =>
+            editor.registerNodeTransform(TextNode, text => {
+                const link = text.getParent();
+                if (!$isAutoLinkNode(link)) return;
+                const inCode = link.getChildren().some(child => $isTextNode(child) && child.hasFormat('code'));
+                if (link.getIsUnlinked() !== inCode) link.setIsUnlinked(inCode);
+            }),
+        [editor]
+    );
+
+    return <AutoLinkPlugin matchers={URL_MATCHERS} excludeParents={NOT_IN_CODE_BLOCK} />;
 };
 
 /**

@@ -6,6 +6,7 @@ export * from './chatSort';
 export * from './avatarColor';
 export * from './displayName';
 export * from './displayProfile';
+export * from './linkMatch';
 export * from './mentionMatch';
 export * from './myNames';
 export * from './dnd';
