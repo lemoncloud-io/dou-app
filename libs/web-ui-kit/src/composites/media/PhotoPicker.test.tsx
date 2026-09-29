@@ -154,6 +154,12 @@ describe('PhotoGridSheet', () => {
         expect(screen.getByRole('button', { name: /최근 항목 3/ })).toBeInTheDocument();
     });
 
+    it('draws the sheet with the upward shadow', () => {
+        render(<PhotoGridSheet {...base()} />);
+
+        expect(screen.getByRole('dialog')).toHaveClass('shadow-[0_-2px_6px_rgba(0,0,0,0.12)]');
+    });
+
     it('leads the grid with the camera tile when a camera handler is given', () => {
         const onCamera = jest.fn();
         render(<PhotoGridSheet {...base({ onCamera })} />);

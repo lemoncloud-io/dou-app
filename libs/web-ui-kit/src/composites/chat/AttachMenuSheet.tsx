@@ -49,7 +49,14 @@ export const AttachMenuSheet = ({
 }: AttachMenuSheetProps) => {
     const text = { ...DEFAULT_LABELS, ...labels };
     return (
-        <BottomSheet open={open} onOpenChange={onOpenChange} title={title} hideHeader className="rounded-t-[20px]">
+        // The upward shadow is the design's (Figma 3749:28501): on a white page the sheet has no other edge.
+        <BottomSheet
+            open={open}
+            onOpenChange={onOpenChange}
+            title={title}
+            hideHeader
+            className="rounded-t-[20px] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]"
+        >
             <div className="flex flex-col items-center gap-1 pb-8">
                 {recent}
                 <div

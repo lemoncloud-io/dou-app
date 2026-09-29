@@ -118,7 +118,8 @@ export const PhotoGridSheet = ({
             onOpenChange={onOpenChange}
             title={albumTitle}
             hideHeader
-            className="h-[calc(90vh-var(--keyboard-height,0px))] rounded-t-[20px]"
+            // The upward shadow is the design's (Figma 3767:31025): on a white page the sheet has no other edge.
+            className="h-[calc(90vh-var(--keyboard-height,0px))] rounded-t-[20px] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]"
             footer={
                 picked.length > 0 && !albumsOpen ? <FloatingButton label={sendLabel} onClick={onSend} /> : undefined
             }

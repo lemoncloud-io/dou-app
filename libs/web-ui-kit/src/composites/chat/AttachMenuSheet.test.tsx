@@ -63,4 +63,11 @@ describe('AttachMenuSheet', () => {
 
         expect(screen.getByRole('dialog', { name: '첨부' })).toBeInTheDocument();
     });
+
+    // On a white page the sheet has no other edge; the design draws it with an upward shadow.
+    it('draws the sheet with the upward shadow', () => {
+        render(<AttachMenuSheet open onOpenChange={jest.fn()} onPhoto={jest.fn()} onCamera={jest.fn()} />);
+
+        expect(screen.getByRole('dialog')).toHaveClass('shadow-[0_-2px_6px_rgba(0,0,0,0.12)]');
+    });
 });
