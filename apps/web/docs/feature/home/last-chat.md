@@ -48,7 +48,8 @@ previews sit still until the room is opened. `apps/web/src/app/hooks/useChatSync
 is that writer, and it is mounted by the surface rather than by a row. It has two mechanisms,
 because `ChatSyncPlan.run` is a no-op and registering alone loads nothing:
 
-- **Target registration** — `sync.registerChat(channelId)` per channel, so a `chat.sync` frame
+- **Target registration** — `sync.registerChat(channelId, undefined, { cid })` per channel, under the
+  cloud whose rows the list shows, so a `chat.sync` frame
   arriving for any of the site's channels is appended live. Registration is ref-counted by key, so
   an open room's own registration for the same channel dedups into this one.
 - **Head-triggered catch-up** — a channel whose polled head (`channel.chatNo`) has run ahead of
@@ -58,6 +59,11 @@ because `ChatSyncPlan.run` is a no-op and registering alone loads nothing:
 
 The catch-up lives in the registration hook and not in the list component on purpose — rendering a
 row must never be the thing that makes a network call.
+
+The targets are the selected cloud's, registered with `{ cid }` and gated on that cloud's own slot.
+The plan baseline (`updateLocalSnapshot`) is sent to the cloud the observation was **made** in,
+carried with the reading: the observation and the effect that pushes it are separate renders, and a
+switch between them would otherwise hand one cloud's `lastNo` to the next cloud's plan.
 
 Both hooks derive their key the same way, from the same sorted channel ids, so the two
 `observeLastList` calls resolve to one shared observation rather than two.

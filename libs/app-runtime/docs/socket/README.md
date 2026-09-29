@@ -22,21 +22,23 @@ socket/                              36 source files, 26 tests
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── socketFailureReporter.ts       classifies and reports rejected requests
-├── backgroundClouds.ts            the app's cloud list · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
+├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
 ├── auth/          18 files        → docs/auth/
 └── sync/           8 files        → docs/sync/
 
-connection/                          14 source files
+connection/                          17 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
 ├── SocketBinder.tsx               reconciles the slots and the active pointer
 ├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
 ├── types.ts                       RuntimeSocketSlot · RuntimeSocketSlots
 ├── utils/socketRebootKey.ts       the identity key both binders must agree on
 ├── utils/backgroundSlots.ts       the live reads behind background slots
+├── utils/slotSignals.ts           the session signals the slot derivation re-reads on
 └── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
-                                   useRuntimeSocketState · useSlotVerified · useConnectivity ·
-                                   useBackgroundClouds · useBackgroundCloudTokens
+                                   useRuntimeSocketState · useSlotVerified · useCloudVerified ·
+                                   useVerifiedClouds · useConnectivity · useBackgroundClouds ·
+                                   useBackgroundCloudTokens
 ```
 
 `socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
@@ -273,19 +275,19 @@ Four rules produce the result:
 
 Every cloud the account belongs to keeps a socket session while the user is somewhere else — another
 cloud, or home. A write addressed to a cloud then has a live socket to go to whichever cloud is on
-screen, and switching back to a kept cloud costs no reconnect and no token exchange. What these slots
+screen (and a cloud past the cap is held for the length of the write — below), and switching back to a kept cloud costs no reconnect and no token exchange. What these slots
 do NOT do yet is receive: they have no sync targets, so a background cloud's cache stays as it was
 until it is entered.
 
 The pieces, and who owns each:
 
-| Piece                                                                     | Owner                              | Does                                                                                                                               |
-| ------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `connection.useBackgroundClouds(cids)`                                    | the app (`BackgroundCloudsRunner`) | hands over membership — the owned catalog plus the invited-cloud cache — which only the app can see                                |
-| [`selectBackgroundClouds`](../../src/socket/backgroundClouds.ts)          | runtime                            | drops relay and the committed cloud, orders the rest by recent use (`cloudStore.getRecentClouds`, then the app's order), caps at 5 |
-| [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts) | runtime                            | issues a cloud's tokens before its slot boots ([docs/auth/](../auth/README.md))                                                    |
-| [`readyBackgroundConfigs`](../../src/connection/utils/backgroundSlots.ts) | runtime                            | one `cloud` config per selected cloud whose cached entry is ready, URL from the cached delegation token                            |
-| `SocketBinder`                                                            | runtime                            | binds them beside relay and the committed cloud; never makes one active                                                            |
+| Piece                                                                     | Owner                              | Does                                                                                                                                                      |
+| ------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connection.useBackgroundClouds(cids)`                                    | the app (`BackgroundCloudsRunner`) | hands over membership — the owned catalog plus the invited-cloud cache — which only the app can see                                                       |
+| [`selectBackgroundClouds`](../../src/socket/backgroundClouds.ts)          | runtime                            | drops relay and the committed cloud, orders the rest by recent use (`cloudStore.getRecentClouds`, then the app's order), caps at 5, then adds held clouds |
+| [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts) | runtime                            | issues a cloud's tokens before its slot boots ([docs/auth/](../auth/README.md))                                                                           |
+| [`readyBackgroundConfigs`](../../src/connection/utils/backgroundSlots.ts) | runtime                            | one `cloud` config per selected cloud whose cached entry is ready, URL from the cached delegation token                                                   |
+| `SocketBinder`                                                            | runtime                            | binds them beside relay and the committed cloud; never makes one active                                                                                   |
 
 **The cap is five** — the largest subscription tier's allowance of owned clouds, so an account that
 only owns clouds never reaches it. Invited clouds are not bounded by any plan; past five in total,
@@ -303,6 +305,24 @@ destroying it: the cloud was pushed past the cap, and its server should hear the
 than time it out. A cloud no longer joined, or whose session already expired, has nothing to sign
 off from; a relay logout has already notified every slot. `logoutCloudSession` covers exactly the
 opposite case for the cloud it leaves, so no socket is notified twice.
+
+### Holding a slot for a write
+
+A write addressed to a cloud needs that cloud's socket until its ack comes back, and neither the cap
+nor the joined list knows a write is in flight: a switch can push the cloud out of the selection, and
+a cloud the account has just left is not in the app's list at all. `backgroundClouds.hold(cid)`
+covers that gap. It returns a release, and until the release is called:
+
+- **the cloud is selected whatever the cap and the list say** — appended after the capped selection rather than competing for a place in it, so holding one cloud for the length of a send never tears another's slot down;
+- **only a slot that is bound is kept** — a hold opens none. The write that took it goes out at once, so a slot booted for it would arrive after that write had already failed, and be torn down again as the hold ended;
+- **`logoutCloudSession` does not sign it off** on the way home, because a logout on that socket would unauthenticate it under the ack. The cost is one case: a held cloud that is no longer in the app's list is then never told `auth.logout` — once the hold ends, the binder tears its slot down without signing off, as it does for any cloud not joined — and closing the socket is what ends that session.
+
+Holds are reference-counted — two sends to one cloud overlap, and the first to settle must not free
+the slot the second is waiting on — and the first hold and the last release announce like any other
+change to the store. The relay and the committed cloud have slots of their own and are never
+selected as background ones for a hold. `data.runInCloud` is the only caller (`sendChatInCloud` and
+the image send go through it); it takes the hold before anything awaits, so it is in place before
+any switch it races with commits.
 
 The derivation re-runs when the session signals move and when the background store announces —
 the app's list changed, or a cloud's cached tokens were issued or dropped (the token cache announces
@@ -372,6 +392,8 @@ it moves **and a reboot is not already happening**, since a reboot re-registers 
 | ------------------------- | --------------------------------------------------------------------------- |
 | `useRuntimeSocketState()` | The **active** slot's `{ state, isConnected, isVerified, connectionId }`    |
 | `useSlotVerified(key)`    | Is _this_ slot verified, whatever is active — for gating a slot-pinned call |
+| `useCloudVerified(cid)`   | The same, named by cloud id — a missing id is the relay                     |
+| `useVerifiedClouds()`     | Every cloud whose slot is verified — for work that spans all of them        |
 | `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into

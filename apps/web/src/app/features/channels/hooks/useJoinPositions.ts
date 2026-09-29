@@ -25,7 +25,10 @@ interface ReadCount {
  * join to anyone outside the channel, so a room I am not in — somebody else's self-chat reached
  * through a stale push, a group URL I never joined — must not poll its roster: every id would
  * come back 403 and raise a server-side alarm. Until membership is known nothing is registered;
- * the effect re-runs on the false→true edge like it does for `isVerified`.
+ * the effect re-runs on the false→true edge like it does for verification.
+ *
+ * `cid` is the cloud the channel belongs to. The targets are registered for it by name and wait for
+ * its own slot, so a registration made while the selection is moving cannot land on the other cloud.
  *
  * `cursorByUser` (userId → `max(readNo, chatNo)`) comes from {@link useChannelJoins}, the screen's
  * single join observer — this hook no longer observes the join cache itself. What stays here is the
@@ -37,17 +40,18 @@ interface ReadCount {
  * they never inflate the unread count.
  */
 export const useJoinPositions = (
+    cid: string,
     channelId: string | null,
     activeMemberIds: string[],
     memberIds: string[],
     cursorByUser: Map<string, number>,
     isMember: boolean
 ) => {
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
-    // Targets are scoped to the account that registered them, so an account change must re-register
-    // them — see the same note in `useSyncTarget`. The ids below embed OTHER members' uids, but the
-    // scope that matters is MINE: they were registered by my session and retire with it.
-    const uid = runtime.session.useGlobalSession().identity.userId;
+    const isVerified = runtime.connection.useCloudVerified(cid);
+    // Targets are tagged with the uid the account has in their cloud and only run while it still
+    // matches, so an account change must re-register them — see the same note in `useSyncTarget`.
+    // The ids below embed OTHER members' uids, but the tag that matters is MINE in this cloud.
+    const uid = runtime.session.useUidInCloud(cid);
 
     // Register a join (read-state) sync for every channel member so all read cursors stay live
     // while the room is mounted. Network-bound, so gated on isVerified (auto-retries on the
@@ -58,9 +62,9 @@ export const useJoinPositions = (
     useEffect(() => {
         if (!channelId || !isVerified || !isMember || memberIds.length === 0) return;
         const sync = runtime.sync.getSyncManager();
-        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
+        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`, undefined, { cid }));
         return () => disposers.forEach(dispose => dispose());
-    }, [channelId, isVerified, isMember, memberKey, uid]);
+    }, [cid, channelId, isVerified, isMember, memberKey, uid]);
 
     const memberCount = activeMemberIds.length;
     const isReady = memberCount > 0 && cursorByUser.size > 0;

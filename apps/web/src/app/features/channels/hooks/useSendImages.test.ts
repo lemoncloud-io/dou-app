@@ -8,8 +8,11 @@ import { syncShellTransfers } from '../../../bridge/shellUpload';
 import { useSendImages } from './useSendImages';
 
 jest.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: jest.fn() } },
+    runtime: { data: { getCloudRepositories: jest.fn(), runInCloud: jest.fn() } },
 }));
+
+/** The clouds whose socket is held right now, as `runInCloud` would hold them. */
+const held: string[] = [];
 
 const mockSendImageMessage = jest.fn();
 jest.mock('@chatic/data', () => ({
@@ -46,7 +49,18 @@ let rowSeq = 0;
 beforeEach(() => {
     jest.clearAllMocks();
     revoked.length = 0;
-    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat });
+    held.length = 0;
+    (runtime.data.getCloudRepositories as jest.Mock).mockReturnValue({ chat });
+    (runtime.data.runInCloud as jest.Mock).mockImplementation(
+        async (cid: string, work: (repositories: { chat: typeof chat }) => Promise<unknown>) => {
+            held.push(cid);
+            try {
+                return await work({ chat });
+            } finally {
+                held.splice(held.indexOf(cid), 1);
+            }
+        }
+    );
     chat.createPendingImageChat.mockImplementation(
         async ({ pendingId }: { pendingId?: string }) => pendingId ?? `row-${++rowSeq}`
     );
@@ -61,9 +75,55 @@ const pendingRow = (fields: Partial<DomainChat>): DomainChat =>
     ({ channelId: 'ch-1', chatNo: 0, isPending: true, isFailed: false, createdAtMs: 0, ...fields }) as DomainChat;
 
 describe('useSendImages', () => {
+    it("writes, uploads and sends in the room's own cloud, holding its socket for the whole sequence", async () => {
+        const heldDuringSend: string[][] = [];
+        mockSendImageMessage.mockImplementation(async () => {
+            heldDuringSend.push([...held]);
+            return sent;
+        });
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(runtime.data.getCloudRepositories).toHaveBeenCalledWith('cloud-a');
+        expect(runtime.data.runInCloud).toHaveBeenCalledWith('cloud-a', expect.any(Function));
+        expect(heldDuringSend).toEqual([['cloud-a']]);
+        expect(held).toEqual([]);
+        unmount();
+    });
+
+    it('keeps a send addressed to the cloud it was written in when the screen moves to another cloud', async () => {
+        let finish: (value: SendImageResult) => void = () => undefined;
+        mockSendImageMessage.mockImplementation(() => new Promise(resolve => (finish = resolve)));
+        const { result, rerender, unmount } = renderHook(props => useSendImages(props), {
+            initialProps: { cid: 'cloud-a', channelId: 'ch-1' },
+        });
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(files());
+        });
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalled());
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+
+        rerender({ cid: 'cloud-b', channelId: 'ch-1' });
+        (runtime.data.getCloudRepositories as jest.Mock).mockClear();
+        await act(async () => {
+            finish(failed);
+            await sending;
+        });
+
+        expect(runtime.data.runInCloud).toHaveBeenCalledTimes(1);
+        expect(runtime.data.runInCloud).toHaveBeenCalledWith('cloud-a', expect.any(Function));
+        expect(runtime.data.getCloudRepositories).toHaveBeenCalledWith('cloud-a');
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
+        unmount();
+    });
+
     it('writes the pending row first, then runs the sequence bound to this row and this shell', async () => {
         mockSendImageMessage.mockResolvedValue(sent);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1', parentId: 'root-1' }));
+        const { result, unmount } = renderHook(() =>
+            useSendImages({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' })
+        );
         const picked = files();
 
         await act(() => result.current.sendImages(picked));
@@ -84,7 +144,7 @@ describe('useSendImages', () => {
 
     it('lets the files and previews go once the message is sent', async () => {
         mockSendImageMessage.mockResolvedValue(sent);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
 
         await act(() => result.current.sendImages(files()));
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
@@ -97,7 +157,7 @@ describe('useSendImages', () => {
 
     it('marks the row failed and keeps the files, then retries the same pictures on the same row', async () => {
         mockSendImageMessage.mockResolvedValueOnce(failed).mockResolvedValueOnce(sent);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         const picked = files();
 
         await act(() => result.current.sendImages(picked));
@@ -120,7 +180,7 @@ describe('useSendImages', () => {
 
     it('runs a double-tapped retry once', async () => {
         mockSendImageMessage.mockResolvedValueOnce(failed).mockResolvedValue(sent);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         await act(() => result.current.sendImages(files()));
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
 
@@ -140,7 +200,7 @@ describe('useSendImages', () => {
         chat.failPendingImageChat.mockImplementationOnce(
             () => new Promise<undefined>(resolve => (markFailed = () => resolve(undefined)))
         );
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
 
         let sending: Promise<void> = Promise.resolve();
         act(() => {
@@ -158,7 +218,7 @@ describe('useSendImages', () => {
 
     it('gives up a retry, and the files, when the row was deleted meanwhile', async () => {
         mockSendImageMessage.mockResolvedValue(failed);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         await act(() => result.current.sendImages(files()));
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
         chat.createPendingImageChat.mockRejectedValueOnce(new Error('gone'));
@@ -176,7 +236,7 @@ describe('useSendImages', () => {
 
     it('writes a row for the first ten images only', async () => {
         mockSendImageMessage.mockResolvedValue(sent);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         const many = Array.from({ length: 12 }, (_, i) => new File([String(i)], `${i}.jpg`));
 
         await act(() => result.current.sendImages(many));
@@ -187,7 +247,7 @@ describe('useSendImages', () => {
     });
 
     it('refuses to retry a row whose files are not in memory', async () => {
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
 
         await expect(result.current.retry('from-an-earlier-page')).resolves.toBe(false);
         expect(result.current.canRetry('from-an-earlier-page')).toBe(false);
@@ -198,12 +258,12 @@ describe('useSendImages', () => {
     it('drops a failed row’s files and previews when the channel changes', async () => {
         mockSendImageMessage.mockResolvedValue(failed);
         const { result, rerender, unmount } = renderHook(props => useSendImages(props), {
-            initialProps: { channelId: 'ch-1' },
+            initialProps: { cid: 'cloud-a', channelId: 'ch-1' },
         });
         await act(() => result.current.sendImages(files()));
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
 
-        rerender({ channelId: 'ch-2' });
+        rerender({ cid: 'cloud-a', channelId: 'ch-2' });
 
         expect(revoked).toHaveLength(2);
         expect(result.current.canRetry(pendingId)).toBe(false);
@@ -213,7 +273,7 @@ describe('useSendImages', () => {
     it('lets a send that is still running finish after unmount, then drops its files', async () => {
         let finish: (value: SendImageResult) => void = () => undefined;
         mockSendImageMessage.mockImplementation(() => new Promise(resolve => (finish = resolve)));
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
 
         let sending: Promise<void> = Promise.resolve();
         act(() => {
@@ -233,7 +293,7 @@ describe('useSendImages', () => {
     it('keeps a running send’s files when the screen comes back before it settles', async () => {
         let finish: (value: SendImageResult) => void = () => undefined;
         mockSendImageMessage.mockImplementation(() => new Promise(resolve => (finish = resolve)));
-        const first = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const first = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         let sending: Promise<void> = Promise.resolve();
         act(() => {
             sending = first.result.current.sendImages(files());
@@ -242,7 +302,7 @@ describe('useSendImages', () => {
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
         first.unmount();
 
-        const again = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const again = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         finish(failed);
         await act(() => sending);
 
@@ -255,7 +315,7 @@ describe('useSendImages', () => {
         let created: (id: string) => void = () => undefined;
         chat.createPendingImageChat.mockImplementationOnce(() => new Promise(resolve => (created = resolve)));
         mockSendImageMessage.mockResolvedValue(failed);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
 
         let sending: Promise<void> = Promise.resolve();
         act(() => {
@@ -271,7 +331,7 @@ describe('useSendImages', () => {
 
     it('forgets a row’s files on discard', async () => {
         mockSendImageMessage.mockResolvedValue(failed);
-        const { result, unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
         await act(() => result.current.sendImages(files()));
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
 
@@ -284,8 +344,8 @@ describe('useSendImages', () => {
 
     it('does not touch the other screen’s rows when a thread and its room share a channel', async () => {
         mockSendImageMessage.mockResolvedValue(failed);
-        const room = renderHook(() => useSendImages({ channelId: 'ch-1' }));
-        const thread = renderHook(() => useSendImages({ channelId: 'ch-1', parentId: 'root-1' }));
+        const room = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
+        const thread = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' }));
         await act(() => room.result.current.sendImages(files()));
         const roomRow = await chat.createPendingImageChat.mock.results[0].value;
 
@@ -298,7 +358,7 @@ describe('useSendImages', () => {
     describe('leftover rows', () => {
         it('fails every older sending image row this page has no files for, and nothing else', async () => {
             mockSendImageMessage.mockResolvedValue(failed);
-            const live = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+            const live = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
             await act(() => live.result.current.sendImages(files()));
             const liveRow = await chat.createPendingImageChat.mock.results[0].value;
             chat.failPendingImageChat.mockClear();
@@ -320,7 +380,7 @@ describe('useSendImages', () => {
                 pendingRow({ id: 'written-after-attach', createdAtMs: Number.MAX_SAFE_INTEGER }),
             ]);
 
-            const other = renderHook(() => useSendImages({ channelId: 'ch-1', parentId: 'root-1' }));
+            const other = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' }));
 
             await waitFor(() => expect(chat.failPendingImageChat).toHaveBeenCalledTimes(2));
             expect(chat.listPendingImageChats).toHaveBeenLastCalledWith('ch-1');
@@ -335,7 +395,7 @@ describe('useSendImages', () => {
         });
 
         it('catches up with the shell on attach and whenever the app comes back to the front', async () => {
-            const { unmount } = renderHook(() => useSendImages({ channelId: 'ch-1' }));
+            const { unmount } = renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1' }));
             await waitFor(() => expect(syncShellTransfers).toHaveBeenCalledTimes(1));
 
             const onForeground = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0] as () => void;

@@ -1,6 +1,6 @@
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getCommittedCloudId } from '../../session/store';
-import { hasLiveJoinedSession } from '../backgroundClouds';
+import { backgroundClouds, hasLiveJoinedSession } from '../backgroundClouds';
 import { slotKeyOf } from '../utils/slotKey';
 
 import { notifySocketLogout } from './logoutSession';
@@ -18,6 +18,10 @@ import { notifySocketLogout } from './logoutSession';
  * one whose cached tokens are gone) is signed off here, the way every leave used to be. The two
  * conditions are exact opposites, so a cloud is notified once.
  *
+ * A cloud a send is still in flight to (`backgroundClouds.hold`) is not signed off here either: its
+ * slot stays bound for the send, and a logout on that socket would unauthenticate it under the ack.
+ * When the hold ends the binder tears the slot down, and closing the socket is what ends it then.
+ *
  * Steps:
  *  1. best-effort `auth.logout()` on the committed cloud's slot, in the case above;
  *  2. `cloudSession.clearStores()` clears the committed session and the selection. That drops
@@ -27,6 +31,7 @@ import { notifySocketLogout } from './logoutSession';
 export const logoutCloudSession = async (): Promise<void> => {
     // The slot to notify is the committed cloud's — the one whose token the socket authenticated with.
     const committed = getCommittedCloudId();
-    if (committed && !hasLiveJoinedSession(committed)) notifySocketLogout(slotKeyOf(committed));
+    const held = committed != null && backgroundClouds.getHeld().includes(committed);
+    if (committed && !held && !hasLiveJoinedSession(committed)) notifySocketLogout(slotKeyOf(committed));
     cloudSession.clearStores();
 };

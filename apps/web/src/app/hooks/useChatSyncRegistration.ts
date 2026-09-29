@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
+import { readSelectedCloudId, useSelectedCloudId } from './useCloudScope';
+
 /**
  * Page size of a head-triggered catch-up. Deep enough to reach a real message when the newest rows
  * are not previewable (a reaction burst) — the same reasoning as the preview fallback window.
@@ -40,57 +42,77 @@ const CATCH_UP_LIMIT = 30;
  * Without it the first push after a cold start reads as a gap and re-fetches the newest page per
  * channel. Only `lastNo` is patched — the plan merges the patch over its snapshot, so an open
  * room's message window is left intact.
+ *
+ * Cloud: the targets and the baselines are the selected cloud's, named explicitly, and both wait for
+ * that cloud's own slot. A baseline goes to the cloud the OBSERVATION was made in, carried with the
+ * reading itself — the observation and the effect that pushes it are separate renders, and a switch
+ * landing between them would otherwise push one cloud's `lastNo` into the next cloud's plan, where it
+ * reads as "already have everything up to here" for a channel that does not exist there.
  */
 export const useChatSyncRegistration = (
     channels: DomainChannel[],
     { enabled = true }: { enabled?: boolean } = {}
 ): void => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
+    // The catch-up below goes through the app graph, whose socket is the active slot's.
     const { isVerified } = runtime.connection.useRuntimeSocketState();
-    // An account change retires targets registered by the previous session (SyncManager
-    // scopes them by uid), so re-register on it — see the note in `useSyncTarget`.
-    const uid = runtime.session.useGlobalSession().identity.userId;
+    const cid = useSelectedCloudId();
+    const cloudVerified = runtime.connection.useCloudVerified(cid);
+    // A target only runs while the uid it was tagged with is still the account's uid in its cloud,
+    // so an account change retires it — re-register on it, as `useSyncTarget` does.
+    const uid = runtime.session.useUidInCloud(cid);
 
     // Sorted-and-joined key: a reorder (pin / activity sort) must not re-register or re-subscribe,
     // and the sorted ids match the key `useLastChats` observes under, so the two share one read.
     const channelKey = [...channels.map(channel => channel.id).filter(Boolean)].sort().join(',');
 
     useEffect(() => {
-        if (!enabled || !isVerified || !channelKey) return;
+        if (!enabled || !cloudVerified || !channelKey) return;
         const sync = runtime.sync.getSyncManager();
-        const disposers = channelKey.split(',').map(id => sync.registerChat(id));
+        const disposers = channelKey.split(',').map(id => sync.registerChat(id, undefined, { cid }));
         return () => disposers.forEach(dispose => dispose());
-    }, [channelKey, enabled, isVerified, uid]);
+    }, [channelKey, enabled, cloudVerified, cid, uid]);
 
     // Per-channel max chatNo held by the chat cache — the baseline source AND the catch-up's
-    // comparison point. `null` until the first observation lands, which locks the trigger: with no
-    // comparison point in hand, a head would otherwise read as "behind" on a warm cache too.
-    const [lastNoByChannel, setLastNoByChannel] = useState<Map<string, number> | null>(null);
+    // comparison point — with the cloud it was read in. `null` until the first observation lands,
+    // which locks the trigger: with no comparison point in hand, a head would otherwise read as
+    // "behind" on a warm cache too.
+    const [observation, setObservation] = useState<{ cid: string; lastNoByChannel: Map<string, number> } | null>(null);
+    const lastNoByChannel = observation?.lastNoByChannel ?? null;
     // Heads already fetched for, per channel — one head fires at most one request, even when the
     // response cannot advance lastNo (every new row a reaction or a thread reply).
     const requestedNoRef = useRef(new Map<string, number>());
 
     useEffect(() => {
         requestedNoRef.current.clear();
-        setLastNoByChannel(null);
+        setObservation(null);
         if (!enabled || !channelKey) return;
+        // The app graph resolves the partition when the subscription opens, from the selection as it
+        // is at that moment — read here rather than taken from the render, which can be a step behind.
+        const observedCid = readSelectedCloudId();
         return chatRepository.observeLastList(channelKey.split(','), rows => {
             const nextNos = new Map<string, number>();
             for (const row of rows) nextNos.set(row.channelId, row.lastNo);
-            setLastNoByChannel(nextNos);
+            setObservation({ cid: observedCid, lastNoByChannel: nextNos });
         });
-    }, [chatRepository, channelKey, enabled]);
+    }, [chatRepository, channelKey, enabled, cid]);
 
     useEffect(() => {
-        if (!enabled || !isVerified || !lastNoByChannel) return;
+        if (!enabled || !cloudVerified || !observation) return;
         const sync = runtime.sync.getSyncManager();
-        for (const [channelId, lastNo] of lastNoByChannel) {
-            sync.updateLocalSnapshot({ type: 'chat', id: channelId }, { id: channelId, lastNo });
+        for (const [channelId, lastNo] of observation.lastNoByChannel) {
+            sync.updateLocalSnapshot(
+                { type: 'chat', id: channelId },
+                { id: channelId, lastNo },
+                { cid: observation.cid }
+            );
         }
-    }, [enabled, isVerified, lastNoByChannel]);
+    }, [enabled, cloudVerified, observation]);
 
     useEffect(() => {
-        if (!enabled || !isVerified || !lastNoByChannel) return;
+        // A reading from the cloud the list has just left would make every channel of the new one
+        // look behind (nothing known yet) and pull a page for each; wait for this cloud's own.
+        if (!enabled || !isVerified || !lastNoByChannel || observation?.cid !== cid) return;
         for (const channel of channels) {
             if (!channel.id) continue;
             const head = channel.chatNo ?? 0;
@@ -104,5 +126,5 @@ export const useChatSyncRegistration = (
         }
         // lastNoByChannel is also the unlock signal: the first observation must re-run this effect
         // to process heads that arrived while the trigger was locked.
-    }, [channels, lastNoByChannel, enabled, isVerified, chatRepository]);
+    }, [channels, lastNoByChannel, enabled, isVerified, chatRepository, observation, cid]);
 };

@@ -57,6 +57,29 @@ describe('selectBackgroundClouds', () => {
         ]);
     });
 
+    it('keeps a held cloud outside the cap instead of displacing a joined one', () => {
+        const joined = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+
+        expect(selectBackgroundClouds({ joined, recent: [], committed: null, held: ['c6'] })).toEqual([
+            'c1',
+            'c2',
+            'c3',
+            'c4',
+            'c5',
+            'c6',
+        ]);
+        expect(selectBackgroundClouds({ joined: ['a'], recent: [], committed: null, held: ['gone'] })).toEqual([
+            'a',
+            'gone',
+        ]);
+    });
+
+    it('never makes the relay or the committed cloud a background slot for a hold', () => {
+        expect(
+            selectBackgroundClouds({ joined: ['a'], recent: [], committed: 'b', held: ['default', 'b', 'a'] })
+        ).toEqual(['a']);
+    });
+
     it('selects nothing with a cap of zero', () => {
         expect(selectBackgroundClouds({ joined: ['a'], recent: [], committed: null, max: 0 })).toEqual([]);
     });
@@ -124,6 +147,40 @@ describe('backgroundClouds store', () => {
         backgroundClouds.invalidate();
 
         expect(listener).not.toHaveBeenCalled();
+    });
+});
+
+describe('backgroundClouds.hold', () => {
+    beforeEach(() => resetBackgroundClouds());
+
+    it('holds a cloud until its release, announcing only the first hold and the last release', () => {
+        const listener = jest.fn();
+        backgroundClouds.subscribe(listener);
+
+        const first = backgroundClouds.hold('a');
+        const second = backgroundClouds.hold('a');
+        expect(backgroundClouds.getHeld()).toEqual(['a']);
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        first();
+        expect(backgroundClouds.getHeld()).toEqual(['a']);
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        second();
+        expect(backgroundClouds.getHeld()).toEqual([]);
+        expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('releases once however many times the release is called', () => {
+        const first = backgroundClouds.hold('a');
+        const second = backgroundClouds.hold('a');
+
+        first();
+        first();
+
+        expect(backgroundClouds.getHeld()).toEqual(['a']);
+        second();
+        expect(backgroundClouds.getHeld()).toEqual([]);
     });
 });
 

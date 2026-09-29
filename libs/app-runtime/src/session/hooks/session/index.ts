@@ -13,3 +13,4 @@ export * from './readers/useGlobalSession';
 export * from './readers/useSessionAuth';
 export * from './readers/useSessionIdentity';
 export * from './readers/useSessionSelection';
+export * from './readers/useUidInCloud';

@@ -6,6 +6,7 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -209,7 +210,9 @@ export const ChatPane = ({
 
     const handleSend = (content: string) => {
         setSendTick(tick => tick + 1);
-        void sendMessage({ channelId, content }).catch(() =>
+        // The channel's own cloud, read at the press: a cloud switch while the send is in
+        // flight must not move the message to the next cloud's socket.
+        void sendMessage(channel.cid || RELAY_CLOUD_ID, { channelId, content }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
         );
     };
