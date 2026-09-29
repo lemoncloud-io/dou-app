@@ -323,12 +323,18 @@ export const ThreadPage = () => {
      * right-aligned bubble (when the root is mine) would put the thread's own subject off to
      * one side of the screen it opens. It also has no read receipt and no time of its own —
      * the room row it was opened from carries both, and repeating them here says nothing.
+     *
+     * A root another client soft-deleted is drawn the way the room draws the same row: the
+     * shared deleted phrase and nothing of the original — not the text, which the row often
+     * still carries, not the images and not the chips. The thread stays reachable, since its
+     * replies are still a conversation, but its subject no longer says what was deleted.
      */
     const renderRoot = (message: ClientChatView) => {
         const avatarSrc = message.ownerId
             ? (profileMap.get(message.ownerId)?.thumbnail ?? memberById.get(message.ownerId)?.thumbnail)
             : undefined;
-        const tallies = message.id ? reactions.get(message.id) : undefined;
+        const isDeleted = !!message.hidden;
+        const tallies = !isDeleted && message.id ? reactions.get(message.id) : undefined;
         return (
             <div data-testid="thread-root" className="flex flex-col px-3">
                 <div className="flex items-center gap-2.5 px-1 py-1.5">
@@ -338,14 +344,20 @@ export const ThreadPage = () => {
                     </span>
                 </div>
                 <div className="flex flex-col gap-3 px-1 py-1.5">
-                    {hasMessageText(message) && (
-                        <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
-                            <MessageText text={messagePlainText(message.content)} />
+                    {isDeleted ? (
+                        <p className="text-base italic leading-normal tracking-[-0.08px] text-muted-foreground">
+                            {t('chat.room.deletedMessage')}
                         </p>
+                    ) : (
+                        hasMessageText(message) && (
+                            <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
+                                <MessageText text={messagePlainText(message.content)} />
+                            </p>
+                        )
                     )}
                     {/* A photo can root a thread like a line of text can, and then the photo is the
                         subject — without it the page opens on a name over nothing. */}
-                    {!message.hidden && (message.upload$$?.length ?? 0) > 0 && (
+                    {!isDeleted && (message.upload$$?.length ?? 0) > 0 && (
                         <MessageImages uploads={message.upload$$} chatId={message.id} cid={message.cid} align="start" />
                     )}
                     {tallies && tallies.length > 0 && (

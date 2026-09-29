@@ -490,3 +490,37 @@ describe('ThreadPage — image messages', () => {
         expect(screen.queryByTestId('action-sheet')).not.toBeInTheDocument();
     });
 });
+
+describe('ThreadPage — a deleted root', () => {
+    const upload$$ = [{ id: 'u1', status: 'stored', orgUrl: 'https://s3/1' }] as DomainChat['upload$$'];
+
+    // A soft-deleted row often still carries its text; the subject must not hand it back.
+    it('shows the shared deleted phrase instead of the text the row still carries', () => {
+        mockLocationState = { rootChat: chat({ content: '지워진 루트', hidden: true } as Partial<DomainChat>) };
+
+        render(<ThreadPage />);
+
+        const root = screen.getByTestId('thread-root');
+        expect(root).toHaveTextContent('chat.room.deletedMessage');
+        expect(root).not.toHaveTextContent('지워진 루트');
+    });
+
+    it('draws neither its images nor its chips', () => {
+        mockChats = [
+            chat({ content: '', upload$$, hidden: true } as Partial<DomainChat>),
+            chat({
+                id: 'ch1:9',
+                chatNo: 9,
+                subType: 'reaction',
+                parentId: undefined,
+                reaction$: { chatId: 'ch1:7', emoji: '👍', action: 'on' },
+                ownerId: 'u2',
+            } as Partial<DomainChat>),
+        ];
+
+        render(<ThreadPage />);
+
+        expect(screen.queryByTestId('root-images')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('root-chips')).not.toBeInTheDocument();
+    });
+});

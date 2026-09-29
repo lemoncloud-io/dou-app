@@ -187,6 +187,10 @@ profile map.
   put the subject in the same visual class as the replies, and a right-aligned one would push it to
   the edge of the screen it opens. It carries no time and no receipt — the room row it was opened
   from has both.
+- **A deleted root is a tombstone here too.** A root another client soft-deleted shows the shared
+  `chat.room.deletedMessage` phrase in muted italic, the way the room row does, and none of the
+  original: not its text (which the row often still carries), not its images, not its chips. The
+  thread stays open, because the replies are still a conversation.
 - A full-bleed 4px band separates the subject from the conversation about it.
 - **Sending** posts `parentId: root.id` (the full id) and then advances the read cursor with the
   returned `chatNo`, because a reply consumes a channel chatNo like any other row.
