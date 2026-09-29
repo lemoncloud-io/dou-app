@@ -18,7 +18,7 @@ import {
     isSelfChannel,
     lastChatNoOf,
     resolveDisplay,
-    messagePlainText,
+    messagePreview,
     useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
@@ -137,7 +137,7 @@ const ChannelRow = memo(function ChannelRow({
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
     const preview = useMemo(
-        () => (lastChat?.hidden ? t('sidebar.deletedPreview') : messagePlainText(lastChat?.content?.trim())),
+        () => (lastChat?.hidden ? t('sidebar.deletedPreview') : lastChat ? messagePreview(lastChat) : ''),
         [lastChat, t]
     );
     return (

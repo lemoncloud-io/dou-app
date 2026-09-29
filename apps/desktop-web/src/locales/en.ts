@@ -113,6 +113,8 @@ export const en = {
     'chat.attach.announce.added_one': '{{count}} image added',
     'chat.attach.announce.added_other': '{{count}} images added',
     'chat.attach.announce.removed': '{{name}} removed',
+    'chat.attach.preview': 'Photo',
+    'chat.attach.previewCount': '{{count}} photos',
     'chat.attach.notice.ok': 'OK',
     'chat.attach.notice.limit.title': 'You can attach\nup to 10 files',
     'chat.attach.notice.limit.body': 'Remove one to add another.',

@@ -124,6 +124,8 @@ export const ko: EnTranslation = {
     'chat.attach.announce.added_one': '이미지 {{count}}개 추가됨',
     'chat.attach.announce.added_other': '이미지 {{count}}개 추가됨',
     'chat.attach.announce.removed': '{{name}} 삭제됨',
+    'chat.attach.preview': '사진',
+    'chat.attach.previewCount': '사진 {{count}}장',
     'chat.attach.notice.ok': '확인',
     'chat.attach.notice.limit.title': '파일은 최대 10개까지\n첨부할 수 있어요',
     'chat.attach.notice.limit.body': '하나를 빼면 다른 파일을 추가할 수 있어요.',
