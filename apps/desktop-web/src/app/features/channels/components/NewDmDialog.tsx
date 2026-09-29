@@ -7,7 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
-import { avatarStyle, displayName, useStartDm } from '../../../shared';
+import {
+    avatarStyle,
+    displayName,
+    resolveDisplay,
+    useSiteProfileMap,
+    useStartDm,
+    type ResolvedDisplay,
+} from '../../../shared';
 import { useInviteCandidates, type InviteCandidate } from '../hooks';
 import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 
@@ -31,14 +38,28 @@ export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
     const { startDm, isStarting } = useStartDm();
     const { candidates, isLoading, error } = useInviteCandidates(null, { enabled: true });
     const [query, setQuery] = useState('');
+    const placeProfiles = useSiteProfileMap();
 
+    // Each person as the sidebar's 1:1 rows show them: this place's profile (nick and photo) over
+    // the user record. The search matches that name, the account name and the id.
+    const peers = useMemo(
+        () =>
+            candidates.map(candidate => ({
+                candidate,
+                display: resolveDisplay(placeProfiles[candidate.id ?? ''], displayName(candidate), candidate.thumbnail),
+            })),
+        [candidates, placeProfiles]
+    );
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return candidates;
-        return candidates.filter(
-            c => displayName(c).toLowerCase().includes(q) || (c.id ?? '').toLowerCase().includes(q)
+        if (!q) return peers;
+        return peers.filter(
+            ({ candidate, display }) =>
+                display.name.toLowerCase().includes(q) ||
+                displayName(candidate).toLowerCase().includes(q) ||
+                (candidate.id ?? '').toLowerCase().includes(q)
         );
-    }, [candidates, query]);
+    }, [peers, query]);
 
     const handlePick = async (userId: string) => {
         const room = await startDm(userId);
@@ -69,7 +90,7 @@ export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
 
                     <div className="scrollbar-thin flex max-h-72 min-h-24 flex-col overflow-y-auto">
                         <PeerList
-                            candidates={filtered}
+                            peers={filtered}
                             isLoading={isLoading}
                             error={error}
                             hasNoCandidates={candidates.length === 0}
@@ -83,8 +104,13 @@ export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
     );
 };
 
+interface Peer {
+    candidate: InviteCandidate;
+    display: ResolvedDisplay;
+}
+
 interface PeerListProps {
-    candidates: InviteCandidate[];
+    peers: Peer[];
     isLoading: boolean;
     error: Error | null;
     /** True when the pool itself is empty, as opposed to the search filtering it down to nothing. */
@@ -94,7 +120,7 @@ interface PeerListProps {
 }
 
 /** Body of the picker — early returns per state, matching the add-members picker. */
-const PeerList = ({ candidates, isLoading, error, hasNoCandidates, onPick, disabled }: PeerListProps) => {
+const PeerList = ({ peers, isLoading, error, hasNoCandidates, onPick, disabled }: PeerListProps) => {
     const { t } = useTranslation();
 
     if (isLoading) {
@@ -103,7 +129,7 @@ const PeerList = ({ candidates, isLoading, error, hasNoCandidates, onPick, disab
     if (error) {
         return <p className="px-2 py-2 text-callout text-destructive">{t('dm.new.loadFailed')}</p>;
     }
-    if (candidates.length === 0) {
+    if (peers.length === 0) {
         return (
             <p className="px-2 py-2 text-callout text-muted-foreground">
                 {t(hasNoCandidates ? 'dm.new.empty' : 'dm.new.noMatches')}
@@ -113,10 +139,11 @@ const PeerList = ({ candidates, isLoading, error, hasNoCandidates, onPick, disab
 
     return (
         <>
-            {candidates.map(candidate => (
+            {peers.map(({ candidate, display }) => (
                 <PeerRow
                     key={candidate.id}
                     candidate={candidate}
+                    display={display}
                     onPick={() => onPick(candidate.id ?? '')}
                     disabled={disabled}
                 />
@@ -127,12 +154,13 @@ const PeerList = ({ candidates, isLoading, error, hasNoCandidates, onPick, disab
 
 interface PeerRowProps {
     candidate: InviteCandidate;
+    display: ResolvedDisplay;
     onPick: () => void;
     disabled: boolean;
 }
 
-const PeerRow = ({ candidate, onPick, disabled }: PeerRowProps) => {
-    const name = displayName(candidate);
+const PeerRow = ({ candidate, display, onPick, disabled }: PeerRowProps) => {
+    const { name, thumbnail } = display;
     const initial = name.charAt(0).toUpperCase() || '?';
     const via = candidate.viaChannels.join(', ');
 
@@ -144,7 +172,7 @@ const PeerRow = ({ candidate, onPick, disabled }: PeerRowProps) => {
             className="focus-ring flex min-h-11 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent disabled:opacity-60"
         >
             <Avatar className="size-8 shrink-0">
-                {candidate.thumbnail && <AvatarImage src={candidate.thumbnail} alt={name} />}
+                {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
                 <AvatarFallback className="text-xs font-semibold" style={avatarStyle(candidate.id || name)}>
                     {initial}
                 </AvatarFallback>

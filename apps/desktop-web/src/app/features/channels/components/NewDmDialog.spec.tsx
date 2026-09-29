@@ -7,12 +7,15 @@ let candidates: Candidate[] = [];
 let isLoading = false;
 let error: Error | null = null;
 let isStarting = false;
+let placeProfiles: Record<string, { nick?: string }> = {};
 const startDm = vi.fn();
 
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<object>('../../../shared/utils/displayName')),
     ...(await vi.importActual<object>('../../../shared/utils/avatarColor')),
     ...(await vi.importActual<object>('../../../shared/components/Skeleton')),
+    ...(await vi.importActual<object>('../../../shared/utils/displayProfile')),
+    useSiteProfileMap: () => placeProfiles,
     useStartDm: () => ({ startDm, isStarting, isAvailable: true }),
 }));
 vi.mock('../hooks', () => ({
@@ -36,6 +39,7 @@ describe('NewDmDialog', () => {
         isLoading = false;
         error = null;
         isStarting = false;
+        placeProfiles = {};
         startDm.mockReset();
         onOpenChange.mockReset();
     });
@@ -118,5 +122,23 @@ describe('NewDmDialog', () => {
         mount();
 
         expect((screen.getByRole('button', { name: /Aiden/ }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("names a person by this place's nick, like the sidebar", () => {
+        placeProfiles = { 'u-1': { nick: 'Tester' } };
+        mount();
+
+        expect(screen.getByRole('button', { name: /Tester/ })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /Aiden/ })).toBeNull();
+    });
+
+    it("finds a person by this place's nick", () => {
+        placeProfiles = { 'u-2': { nick: 'Stevie' } };
+        mount();
+
+        fireEvent.change(screen.getByPlaceholderText('Search by name or user ID'), { target: { value: 'stevie' } });
+
+        expect(screen.getByRole('button', { name: /Stevie/ })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /Aiden/ })).toBeNull();
     });
 });

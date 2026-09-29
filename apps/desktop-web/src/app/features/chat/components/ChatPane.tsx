@@ -20,6 +20,7 @@ import {
     isDmChannel,
     isSelfChannel,
     lastChatNoOf,
+    resolveDisplay,
     useAuthorNames,
     useChatMutations,
     useChats,
@@ -28,6 +29,7 @@ import {
     useReadCursorStore,
     useReadReceipts,
     useSelectedChannelStore,
+    useSiteProfileMap,
     PANE_HEADER,
     PANE_TITLE,
 } from '../../../shared';
@@ -82,6 +84,7 @@ export const ChatPane = ({
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
+    const placeProfiles = useSiteProfileMap();
     // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(
         channelId,
@@ -221,21 +224,29 @@ export const ChatPane = ({
     // count the ids directly and keep memberNo as the last resort.
     const memberCount = channel.memberIds?.length ?? channel.memberNo ?? 0;
     const desc = channel.desc?.trim();
-    // DM headers carry the other party's name (roster is already loaded here);
-    // the self channel reads as "You".
+    // DM headers carry the other party, resolved like the sidebar row: this place's profile first
+    // (nick and photo), then the roster record already loaded here. The self channel reads as "You".
     let headerName = channel.name ?? channelId;
+    let dmAvatar: string | undefined;
     const counterpartId = isDmChannel(channel) ? dmCounterpartId(channel, viewer.uid, viewer.cloudUid) : undefined;
     if (isSelfChannel(channel)) {
         headerName = t('dm.you');
     } else if (isDmChannel(channel)) {
         const counterpart = members.find(m => m.id === counterpartId);
-        if (counterpart) headerName = displayName(counterpart);
+        const display = resolveDisplay(
+            counterpartId ? placeProfiles[counterpartId] : undefined,
+            counterpart ? displayName(counterpart) : headerName,
+            counterpart?.thumbnail
+        );
+        headerName = display.name;
+        dmAvatar = display.thumbnail;
     }
     const introKind = isSelfChannel(channel) ? 'self' : isDmChannel(channel) ? 'dm' : 'channel';
     const intro = (
         <ChannelIntro
             kind={introKind}
             name={headerName}
+            avatar={dmAvatar}
             description={introKind === 'channel' ? desc : undefined}
             colorSeed={counterpartId ?? undefined}
             isFavorite={isFavorite}
