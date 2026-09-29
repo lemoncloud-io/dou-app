@@ -481,6 +481,7 @@ export const ko: EnTranslation = {
     'search.hint': '2자 이상 입력하면 이 기기에 저장된 메시지를 검색해요.',
     'search.searching': '검색 중…',
     'search.noResults': '불러온 기록에서 메시지를 찾지 못했어요.',
+    'search.unknownSender': '알 수 없는 사람',
     'search.scopeLimited': '채널 {{total}}개 중 {{limit}}개, 그리고 이 기기에 이미 불러온 메시지만 검색했어요.',
     'search.openChannel': '{{name}} 열기',
     'search.scope': '이 기기에 이미 불러온 메시지만 검색해요.',

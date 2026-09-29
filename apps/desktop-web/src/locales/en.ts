@@ -486,6 +486,7 @@ export const en = {
     'search.hint': 'Type at least 2 characters.',
     'search.searching': 'Searching…',
     'search.noResults': 'Nothing here yet.',
+    'search.unknownSender': 'Someone',
     'search.scopeLimited':
         'Searched {{limit}} of your {{total}} channels, and only messages already loaded on this device.',
     'search.openChannel': 'Open {{name}}',
