@@ -9,7 +9,7 @@ export const isSelfChannel = (channel: DomainChannel): boolean => channel.stereo
 
 /** The other party's id in a DM — either of my ids (account/cloud) is "me". */
 export const dmCounterpartId = (
-    channel: DomainChannel,
+    channel: Pick<DomainChannel, 'memberIds'>,
     myUid: string | null,
     myCloudUid?: string | null
 ): string | undefined => channel.memberIds?.find(id => id !== myUid && id !== myCloudUid);

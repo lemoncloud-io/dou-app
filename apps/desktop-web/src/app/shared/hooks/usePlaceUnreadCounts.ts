@@ -4,7 +4,7 @@ import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
-import { cloudDmPlaces, placeUnreadCounts } from '../utils';
+import { channelsByPlace, cloudDmPlaces, placeUnreadCounts } from '../utils';
 import { useKnownChannelsStore, useReadCursorStore } from '../stores';
 import { usePlaces } from './usePlaces';
 
@@ -37,9 +37,19 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
     const { places } = usePlaces();
-    const placeIds = useMemo(() => places.map(place => place.id ?? '').filter(Boolean), [places]);
+    // Keyed on the ids, not the array: the place cache re-emits a fresh array on every write.
+    const placeIdsKey = places
+        .map(place => place.id ?? '')
+        .filter(Boolean)
+        .join('\u0000');
+    const placeIds = useMemo(() => (placeIdsKey ? placeIdsKey.split('\u0000') : []), [placeIdsKey]);
 
-    const [channels, setChannels] = useState<DomainChannel[]>([]);
+    // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
+    const [fetched, setFetched] = useState<{ cloudId: string | null; list: DomainChannel[] }>({
+        cloudId: null,
+        list: [],
+    });
+    const channels = fetched.list;
     // Drops a late response from a superseded fetch (cloud switch / newer trigger).
     const seqRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,18 +61,7 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
             .fetchList({ hasSite: false, limit: 500 } as DomainChannelListPayload)
             .catch(() => null);
         if (seqRef.current !== seq || !result) return;
-        const list = (result.list ?? []) as DomainChannel[];
-        setChannels(list);
-        // The same list is the whole cloud's channel directory, so it also seeds the
-        // quick switcher's index: without it, Cmd+K only knew places opened by hand.
-        if (cloudId) {
-            const bySite = new Map<string, DomainChannel[]>();
-            for (const channel of list) {
-                if (channel.sid) bySite.set(channel.sid, [...(bySite.get(channel.sid) ?? []), channel]);
-            }
-            const { record } = useKnownChannelsStore.getState();
-            bySite.forEach((channels, sid) => record(cloudId, sid, channels));
-        }
+        setFetched({ cloudId, list: (result.list ?? []) as DomainChannel[] });
     }, [channelRepository, isVerified, cloudId]);
 
     const schedule = useCallback(() => {
@@ -72,7 +71,7 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
 
     // Reset on cloud change so the previous cloud's badges don't linger mid-switch.
     useEffect(() => {
-        setChannels([]);
+        setFetched({ cloudId, list: [] });
         ++seqRef.current;
     }, [cloudId]);
 
@@ -109,6 +108,16 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
         () => cloudDmPlaces(channels, { myUid: myUid ?? null, placeIds }),
         [channels, myUid, placeIds]
     );
+    // The same list is the whole cloud's channel directory, so it also seeds the quick switcher's
+    // index: without it, Cmd+K only knew places opened by hand. A 1:1 is filed under the places that
+    // list it, so this runs again when my places arrive; re-filing an unchanged list writes nothing.
+    useEffect(() => {
+        const listCloudId = fetched.cloudId;
+        if (!listCloudId || listCloudId !== cloudId) return;
+        const { record } = useKnownChannelsStore.getState();
+        channelsByPlace(fetched.list, dmPlaces).forEach((list, placeId) => record(listCloudId, placeId, list, myUid));
+    }, [fetched, dmPlaces, cloudId, myUid]);
+
     return useMemo(
         () => placeUnreadCounts(channels, { myUid: myUid ?? null, dmPlaces, readCursors }),
         [channels, myUid, dmPlaces, readCursors]

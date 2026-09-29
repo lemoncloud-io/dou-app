@@ -17,6 +17,7 @@ export * from './keyboard';
 export * from './pendingOpenRoute';
 export * from './openPlaceFor';
 export * from './pendingRedirectPlace';
+export * from './elsewhereChannels';
 export * from './landingTarget';
 export * from './jumpReturn';
 export * from './firstVisibleChatNo';

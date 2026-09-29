@@ -41,6 +41,7 @@ import {
     useChannelLabels,
     type MessageJumpOrigin,
     useUnreadStore,
+    useCloudProfiles,
 } from '../../../shared';
 import {
     ChannelList,
@@ -54,8 +55,14 @@ import {
     MentionsPanel,
     ThreadPanel,
 } from '../components';
-import { useMessageViewer, useNextUnreadShortcut, usePendingLanding, useReadCounts } from '../hooks';
-import { landingTarget, openPlaceFor, pendingOpenRoute, pendingRedirectPlace } from '../utils';
+import { useHydrateDmPeers, useMessageViewer, useNextUnreadShortcut, usePendingLanding, useReadCounts } from '../hooks';
+import {
+    elsewhereChannels as elsewhereChannelRows,
+    landingTarget,
+    openPlaceFor,
+    pendingOpenRoute,
+    pendingRedirectPlace,
+} from '../utils';
 import { useThreadStore } from '../stores';
 import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
@@ -345,8 +352,8 @@ export const HomePage = () => {
     const recordKnownChannels = useKnownChannelsStore(s => s.record);
     useEffect(() => {
         if (!activeCloudId || !selectedPlaceId || isDefaultMode || channels.length === 0) return;
-        recordKnownChannels(activeCloudId, selectedPlaceId, channels);
-    }, [activeCloudId, selectedPlaceId, isDefaultMode, channels, recordKnownChannels]);
+        recordKnownChannels(activeCloudId, selectedPlaceId, channels, myUid);
+    }, [activeCloudId, selectedPlaceId, isDefaultMode, channels, recordKnownChannels, myUid]);
 
     // Remember the place you have open in this cloud, for the restore above.
     const rememberPlace = useLastChannelStore(s => s.rememberPlace);
@@ -520,20 +527,37 @@ export const HomePage = () => {
     // minus this place, named by the place each channel lives in. A place that is
     // no longer in the rail is dropped rather than shown as an unnamed chip.
     const knownByCloud = useKnownChannelsStore(s => s.byCloud);
+    // A 1:1 elsewhere is named after its person; another place's profiles are not loaded here, so
+    // their cloud profile names them.
+    // Only the 1:1s the switcher would offer: listed elsewhere, in a place still on the rail.
+    const knownPeers = useMemo(() => {
+        const known = activeCloudId ? knownByCloud[activeCloudId] : undefined;
+        const listed = new Set(channels.map(channel => channel.id ?? ''));
+        const railPlaces = new Set(places.map(place => place.id ?? ''));
+        return Object.values(known ?? {}).flatMap(entry =>
+            entry.peerId &&
+            entry.placeId !== selectedPlaceId &&
+            railPlaces.has(entry.placeId) &&
+            !listed.has(entry.channelId)
+                ? [{ channelId: entry.channelId, peerId: entry.peerId }]
+                : []
+        );
+    }, [knownByCloud, activeCloudId, channels, places, selectedPlaceId]);
+    const knownPeerProfiles = useCloudProfiles(useMemo(() => knownPeers.map(peer => peer.peerId), [knownPeers]));
+    // Only an opened room loads its members, so a 1:1 filed from a place not visited yet asks for its
+    // person here; until then the row carries the room name.
+    useHydrateDmPeers(knownPeers.filter(peer => !knownPeerProfiles.get(peer.peerId)?.name));
     const elsewhereChannels = useMemo(() => {
         if (!activeCloudId || isDefaultMode) return [];
         const known = knownByCloud[activeCloudId];
         if (!known) return [];
-        const placeName = new Map(places.map(place => [place.id, place.name ?? place.id ?? '']));
-        return Object.values(known)
-            .filter(entry => entry.placeId !== selectedPlaceId && entry.name && placeName.has(entry.placeId))
-            .map(entry => ({
-                channelId: entry.channelId,
-                name: entry.name,
-                placeId: entry.placeId,
-                placeName: placeName.get(entry.placeId) ?? '',
-            }));
-    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places]);
+        return elsewhereChannelRows(known, {
+            placeId: selectedPlaceId,
+            placeName: new Map(places.map(place => [place.id ?? '', place.name ?? place.id ?? ''])),
+            listedIds: new Set(channels.map(channel => channel.id ?? '')),
+            peerName: peerId => knownPeerProfiles.get(peerId)?.name ?? '',
+        });
+    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places, channels, knownPeerProfiles]);
 
     // Picking one of those is the same move as jumping to a saved message in
     // another place: switch place, then land on the channel once it loads.

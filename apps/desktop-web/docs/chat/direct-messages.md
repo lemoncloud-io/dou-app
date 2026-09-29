@@ -38,8 +38,12 @@ Desktop offers no way to start one there, and every entry point below hides.
 - **A cloud with no place at all** still lists its 1:1s (`cloudWideOnly`). HomePage asks for that only
   once places have loaded, are empty and no switch is in flight. "No place selected yet" during a
   cloud switch must list nothing, or the home screen auto-selects a 1:1 in the gap.
-- **The quick switcher** (`useKnownChannelsStore`) does not file cloud 1:1s under a place, so it never
-  offers one as "in another place" while it already sits in the open one.
+- **The quick switcher** (`useKnownChannelsStore`) files a 1:1 under each place that lists it, with
+  its person (`peerId`), so ⌘K offers a 1:1 listed only in other places as "in another place",
+  named after the person rather than the server-set room name (`elsewhereChannels`) — the room name
+  stands in until HomePage loads the person, and a 1:1 whose members have not arrived is not filed. It is offered
+  once however many places list it, and not at all when the open place lists it already. Picking it
+  goes through the same open as a saved item, so it lands in a place that lists it.
 
 ## Starting one
 

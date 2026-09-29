@@ -103,7 +103,12 @@ export const useChannels = (
         };
     }, [channelRepository, placeId, myUid, cloudWideOnly]);
 
-    const placeIds = useMemo(() => places.map(place => place.id ?? '').filter(Boolean), [places]);
+    // Keyed on the ids, not the array: the place cache re-emits a fresh array on every write.
+    const placeIdsKey = places
+        .map(place => place.id ?? '')
+        .filter(Boolean)
+        .join('\u0000');
+    const placeIds = useMemo(() => (placeIdsKey ? placeIdsKey.split('\u0000') : []), [placeIdsKey]);
     const dmPlaces = useMemo(
         () => cloudDmPlaces(cloudRows, { myUid: myUid ?? null, placeIds }),
         [cloudRows, myUid, placeIds]
