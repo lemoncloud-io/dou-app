@@ -119,6 +119,8 @@ export const ko: EnTranslation = {
     'chat.attach.dropTitle': '여기에 이미지와 파일을 놓으면 올라가요',
     'chat.attach.dropHint': '최대 {{count}}개까지 첨부할 수 있어요.',
     'chat.attach.unavailable': '이미지 업로드는 아직 지원되지 않아요. 메시지는 입력창에 그대로 있어요.',
+    'chat.attach.preview': '사진',
+    'chat.attach.previewCount': '사진 {{count}}장',
     'chat.attach.notice.ok': '확인',
     'chat.attach.notice.limit.title': '파일은 최대 10개까지\n첨부할 수 있어요',
     'chat.attach.notice.limit.body': '하나를 빼면 다른 파일을 추가할 수 있어요.',

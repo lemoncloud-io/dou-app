@@ -108,6 +108,8 @@ export const en = {
     'chat.attach.dropTitle': 'Drop images and files here to upload',
     'chat.attach.dropHint': 'You can attach up to {{count}} files.',
     'chat.attach.unavailable': "Image upload isn't available yet, so your message is kept in the composer.",
+    'chat.attach.preview': 'Photo',
+    'chat.attach.previewCount': '{{count}} photos',
     'chat.attach.notice.ok': 'OK',
     'chat.attach.notice.limit.title': 'You can attach\nup to 10 files',
     'chat.attach.notice.limit.body': 'Remove one to add another.',

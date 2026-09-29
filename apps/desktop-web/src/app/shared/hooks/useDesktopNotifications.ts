@@ -13,6 +13,7 @@ import {
     isNotifiableChat,
     resolveMyMentionNames,
     messagePlainText,
+    messagePreview,
 } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
@@ -89,12 +90,13 @@ export const useDesktopNotifications = (): void => {
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
         const sender = chat.owner$?.name;
+        const body = messagePreview(chat);
         void webClient
             .request({
                 type: 'ShowNotification',
                 data: {
                     title: notificationTitle(channel, chat),
-                    body: channel.name && sender ? `${sender}: ${message}` : message,
+                    body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).
                     // `parentId` on a persisted record is already the root's chatNo string —
