@@ -21,6 +21,7 @@ import { isNativeApp } from '../../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 
 import type { CacheAssemblyOptions } from '../types';
+import { getSyncCursorsValidAfter } from '../syncCursorWatermark';
 
 // ─── Shared IndexedDB instance ─────────────────────────────────────────
 // The ONLY module state in this factory: one physical IndexedDB connection shared by every
@@ -156,6 +157,6 @@ export const createLocalDataSources = ({
             user: storages.user,
             meta: storages.meta,
         },
-        { routingFingerprint }
+        { routingFingerprint, cursorsValidAfter: getSyncCursorsValidAfter }
     );
 };

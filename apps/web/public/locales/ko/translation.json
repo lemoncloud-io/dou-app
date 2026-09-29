@@ -439,6 +439,14 @@
             "description": "언제든지 다시 DoU를 찾아주세요!",
             "cancel": "취소",
             "confirm": "탈퇴"
+        },
+        "clearCache": {
+            "title": "캐시 정리",
+            "hint": "초대받은 클라우드는 유지돼요",
+            "dialogTitle": "캐시를 정리할까요?",
+            "dialogDescription": "저장된 대화와 목록을 지우고 서버에서 다시 불러와요. 보내지 못한 메시지도 함께 지워져요. 초대받은 클라우드와 로그인 상태는 그대로 유지돼요.",
+            "confirm": "정리하기",
+            "failed": "캐시를 모두 정리하지 못했어요. 다시 시도해 주세요."
         }
     },
     "notifications": {

@@ -12,7 +12,7 @@ floating nav, safe areas, keyboard insets — belongs to
 
 ## Layout
 
-Fourteen pages, six components, six hooks, and `flags.ts` — one boolean waiting on a backend packet.
+Fourteen pages, seven components, seven hooks, and `flags.ts` — one boolean waiting on a backend packet.
 The route table declares fifteen routes: the fourteen pages here plus feedback's, whose screen lives
 in another feature.
 
@@ -121,6 +121,20 @@ reads `mypage.language.<choice>`.
 How `system` becomes a language, and why the choice is `persist: 'local'` when the other user
 preferences go to the shell, is in [state/stores.md](../../state/stores.md#the-language-choice--uilanguage).
 
+### Clear cache keeps what the server cannot give back
+
+The **Clear cache** row confirms first, then calls `useClearLocalCaches`, which runs
+`runtime.data.clearLocalCaches()` across every cloud this device holds a partition for. Invited
+clouds and invite dismissals survive — the cache is the only copy of both — and so do the session and
+tokens. Unsent messages do not, which the dialog says. What is swept, and why the sync cursors go
+last, is in [`libs/app-runtime`'s data doc](../../../../../libs/app-runtime/docs/data/README.md#clearing-the-cache).
+
+A clean sweep **reloads the page**. Screens and react-query still hold what they already read, so
+without the reload the old data would stay on screen until each one happened to refetch. A partial
+failure does not reload: the dialog closes, an error toast stays, and a retry repeats the whole sweep.
+While the sweep runs the dialog keeps its spinner (`closeOnConfirm={false}`) rather than closing on
+the press.
+
 ### The unlock moved off the version row
 
 Tapping the app version ten times used to open the debug gate, which meant one row had to be both a
@@ -150,7 +164,8 @@ The feature exports its route table, which the router mounts under `/mypage/*`. 
 through hooks and never touch a core object: `useIsAccountGuest` for the hub's branch, `useMyUser`
 for the account profile, `useMembershipInfo` for the subscription row, `useCloudSessionCatalog` /
 `useClouds` for owned clouds, `runtime.session.useSessionSelection` and `useRuntimeProfile` for the
-session, `useDevicePushMute` for the mute toggle, and `useLanguagePreference` for the language sheet.
+session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for the language sheet and
+`useClearLocalCaches` for the clear-cache row.
 
 ### What not to do
 
@@ -167,9 +182,9 @@ session, `useDevicePushMute` for the mute toggle, and `useLanguagePreference` fo
 
 ## Notes for implementers and tests
 
-- **Eight specs cover this feature**, and they cover the hooks rather than the screens: `useAppIcon`,
-  `useDevicePushMute`, `useLanguagePreference`, `useSocialLinks`, `useUpdateProfile`, plus
-  `AccountLinkSection`, `CloudManagePage` and `LoginPage`. The pages themselves are checked in the browser preview.
+- **Nine specs cover this feature**, and they cover the hooks rather than the screens: `useAppIcon`,
+  `useClearLocalCaches`, `useDevicePushMute`, `useLanguagePreference`, `useSocialLinks`,
+  `useUpdateProfile`, plus `AccountLinkSection`, `CloudManagePage` and `LoginPage`. The pages themselves are checked in the browser preview.
 
     ```bash
     npx jest --config apps/web/jest.config.js features/mypage

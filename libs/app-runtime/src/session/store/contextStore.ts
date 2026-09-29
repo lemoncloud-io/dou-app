@@ -124,6 +124,13 @@ export const getUidInCloud = (cloudId: string): string | null => {
     return uidOfToken(cloudStore.getCloudTokenOf(cloudId)) ?? cloudStore.getCloudIdentity(cloudId)?.uid ?? null;
 };
 
+/**
+ * Every cloud this account has a recorded uid in — so every cloud whose cache partition this device
+ * can name. `recordCloudIdentity` writes one for each cloud a token was ever minted for, and the entry
+ * outlives the token, so this reaches clouds that are neither on screen nor in any catalog.
+ */
+export const getRecordedCloudIds = (): string[] => Object.keys(cloudStore.getCloudIdentities());
+
 const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
     // Pure state store: the uid (for cache observing) + session flags. Profile facts
     // (userRole/isGuest/userType/permissions/name) are tracked from the cached profile via

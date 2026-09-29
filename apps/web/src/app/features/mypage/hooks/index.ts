@@ -4,3 +4,4 @@ export * from './useDevicePushMute';
 export * from './useSocialLinks';
 export * from './useDeleteCloud';
 export * from './useLanguagePreference';
+export * from './useClearLocalCaches';

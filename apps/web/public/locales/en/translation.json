@@ -439,6 +439,14 @@
             "description": "You're always welcome back at DoU!",
             "cancel": "Cancel",
             "confirm": "Delete"
+        },
+        "clearCache": {
+            "title": "Clear cache",
+            "hint": "Invited clouds are kept",
+            "dialogTitle": "Clear the cache?",
+            "dialogDescription": "Stored chats and lists are removed and loaded again from the server. Messages that failed to send are removed too. Invited clouds and your sign-in are kept.",
+            "confirm": "Clear",
+            "failed": "Couldn't clear the whole cache. Please try again."
         }
     },
     "notifications": {

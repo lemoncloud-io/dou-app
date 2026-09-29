@@ -24,6 +24,10 @@ export { getCacheMetricsSource } from './factories/localFactory';
 export { useInvitedCloudNameSync } from './hooks/useInvitedCloudNameSync';
 export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
 
+// The settings screen's "clear cache": every known cloud's partition, minus what only this device holds.
+export { clearLocalCaches } from './clearLocalCaches';
+export type { ClearLocalCachesResult } from './clearLocalCaches';
+
 // The clouds query key — apps invalidate it right after login. The rest of the REST hooks went down
 // to the app layer (ADR-0070 Decision 5); this key stays because the runtime is what invalidates it.
 export { cloudsKeys } from './hooks/queryKeys';
