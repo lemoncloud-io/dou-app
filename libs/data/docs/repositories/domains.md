@@ -1,6 +1,6 @@
 # The 13 domains
 
-> Status: Live · Last updated: 2026-09-28 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
+> Status: Live · Last updated: 2026-09-29 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
 
 The per-domain facade catalogue for `repositories/`. A table for looking up which method reads local
 and which hits remote, and what rule differs per domain — **a document you look things up in**, not one
@@ -35,7 +35,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `listPendingImageChats(channelId)`
 
 - `sendChat` — creates an optimistic pending message, marked `isFailed` on failure.
-- `startUploads` / `completeUploads` — `upload.start` / `upload.complete` passed straight through, checked against the response mirror and never cached (a ticket holds signed URLs). They sit on the chat facade because an upload exists only to become a message's attachment.
+- `startUploads` / `completeUploads` — `upload.start` / `upload.complete` passed straight through, checked against the upload contract and never cached (a ticket holds signed URLs). They sit on the chat facade because an upload exists only to become a message's attachment.
 - `createPendingImageChat` · `sendPendingImageChat` · `failPendingImageChat` · `listPendingImageChats` — the pending row of an image message, written **before** any byte moves, with local-only `PendingUploadSlot`s; the send swaps the server row in the way `sendChat` does, then reads it back once with `chat.get`, because the send's answer carries no image address. The sequence that drives them, and why the rows outlive a reload → [uploads](../uploads/README.md#pending-image-rows).
 - `updateChat` — optimistic: the new body is written to the cache before the request and rolled back if it fails. Callers must not write the cache themselves; two writers race over one row.
 - `deleteChat` — **not optimistic.** The server soft-deletes (`PUT { hidden: true }`), and the row is hidden only once that answer arrives. It used to hide first and restore on failure, but the restore could not work: `cacheWrite` merges, so writing the previous record back cannot clear a key that record never had — and `hidden` was a key the optimistic write added. A failed delete left the message looking deleted while it was alive on the server. There is no rollback now because there is no optimistic write to undo (ADR-0103).

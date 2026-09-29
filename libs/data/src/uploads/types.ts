@@ -1,62 +1,66 @@
 /**
- * Upload response mirror, its runtime guard, and the ports the image send sequence runs on.
+ * The upload answers' types, their runtime guard, and the ports the image send sequence runs on.
  *
- * **Why a mirror.** `@lemoncloud/chatic-socials-api` re-exports its upload response types
- * (`UploadStartResult`, `UploadTicket`, `UploadStatus`, …) from `lemon-model/upload`, and the root
- * `resolutions."lemon-model"` pin (1.2.2) predates that entry point. Under `skipLibCheck` every one
- * of those names silently resolves to `any` — `const x: UploadStartResult = 42` compiles. So this
- * file carries the shape itself: only the fields the send sequence reads, with names copied from
- * the `lemon-model` 1.5 `upload` contract.
- *
- * **Delete this mirror when the pin reaches `lemon-model` >= 1.5** and read the SDK types instead.
- * Until then nothing outside the upload data source may see the raw `any` response: the guard
- * below is the one place it becomes a typed value.
+ * **Why a guard, now that the types are real.** The answer types come from the upload contract
+ * (`lemon-model/upload`), re-exported by `@lemoncloud/chatic-socials-api`. But the socket gateway's
+ * `start<T>` / `complete<T>` return whatever came over the wire cast to `T`: the types say what the
+ * server promises, not what arrived. The guard below is the one place an answer becomes a typed
+ * value, and it fails the whole operation when the answer breaks the contract.
  */
 
 import type { PendingUploadSlot } from '@chatic/app-messages';
+import type {
+    UploadCompleteResult,
+    UploadDirectTransfer,
+    UploadStartResult,
+    UploadStatus,
+    UploadTicket,
+} from '@lemoncloud/chatic-socials-api';
 import type { UploadCompleteInput, UploadStartInput } from '@lemoncloud/chatic-sockets-lib';
 
-/** The server's lifecycle of one upload. */
-export type UploadStatusMirror = 'pending' | 'stored' | 'failed';
-
-const UPLOAD_STATUSES: readonly UploadStatusMirror[] = ['pending', 'stored', 'failed'];
+/** One upload as the server reports it. The SDK does not re-export the contract's `Upload` by name. */
+type Upload = UploadTicket['upload'];
 
 /**
- * A presigned PUT destination. **`url` and `headers` are credentials** — never log them, persist
- * them, or put them in an error message. The ticket's other fields (`kind`, `maxBytes`,
- * `expiresAt`) are not read.
+ * The part of an `Upload` the guard checks and keeps. It is assignable to `Upload`, but it does not
+ * claim the fields the guard drops: a `stored` upload here has no `url`, which the full type would
+ * promise.
  */
-export interface UploadPutTarget {
-    url: string;
-    headers: Record<string, string>;
+export type CheckedUpload = Pick<Upload, 'id' | 'status' | 'error'>;
+
+/**
+ * A key per contract status, so a status the contract adds fails to compile here instead of being
+ * rejected at runtime as an unknown one.
+ */
+const UPLOAD_STATUSES: Record<UploadStatus, true> = { pending: true, stored: true, failed: true };
+
+/**
+ * One slot of `upload.start`'s answer as the socket surface issues it. The contract allows an inline
+ * transfer too, but the socket surface has no `send` operation, so presigned PUT is the only kind a
+ * client here can execute. The guard rejects any other.
+ */
+export interface PresignedUploadTicket extends UploadTicket {
+    upload: CheckedUpload;
+    transfer?: UploadDirectTransfer;
 }
 
-/** One upload as the server reports it. `id` is absent only for a slot rejected at `start`. */
-export interface UploadMirror {
-    id?: string;
-    status: UploadStatusMirror;
-    /** Human-readable detail when `failed`. Branch on `status`, never on this string. */
-    error?: string;
+export interface PresignedUploadStartResult extends UploadStartResult {
+    list: PresignedUploadTicket[];
 }
 
-/** One slot of `upload.start`'s answer — same position as the slot that asked. */
-export interface UploadTicketMirror {
-    upload: UploadMirror;
-    transfer?: UploadPutTarget;
-    thumbnailTransfer?: UploadPutTarget;
-}
-
-export interface UploadStartResultMirror {
-    list: UploadTicketMirror[];
-}
-
-export interface UploadCompleteResultMirror {
-    list: UploadMirror[];
+export interface CheckedUploadCompleteResult extends UploadCompleteResult {
+    list: CheckedUpload[];
 }
 
 /**
- * The answer did not have the shape the mirror promises. It fails the socket operation as a whole
- * — the caller cannot tell which slot, if any, the server meant — never a single slot.
+ * What a PUT sender needs from a transfer: where to send and what to send with it. **`url` and
+ * `headers` are credentials** — never log them, persist them, or put them in an error message.
+ */
+export type UploadPutTarget = Pick<UploadDirectTransfer, 'url' | 'headers'>;
+
+/**
+ * The answer broke the upload contract. It fails the socket operation as a whole — the caller
+ * cannot tell which slot, if any, the server meant — never a single slot.
  *
  * The message names the offending path only. It never echoes a value: a malformed ticket may still
  * hold a signed URL.
@@ -71,35 +75,49 @@ export class UploadResponseShapeError extends Error {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const readUpload = (value: unknown, operation: 'start' | 'complete', path: string): UploadMirror => {
+const isUploadStatus = (value: unknown): value is UploadStatus =>
+    typeof value === 'string' && Object.prototype.hasOwnProperty.call(UPLOAD_STATUSES, value);
+
+const readUpload = (value: unknown, operation: 'start' | 'complete', path: string): CheckedUpload => {
     if (!isRecord(value)) throw new UploadResponseShapeError(operation, path);
     const { id, status, error } = value;
-    if (!UPLOAD_STATUSES.includes(status as UploadStatusMirror)) {
-        throw new UploadResponseShapeError(operation, `${path}.status`);
-    }
+    if (!isUploadStatus(status)) throw new UploadResponseShapeError(operation, `${path}.status`);
     if (id !== undefined && typeof id !== 'string') throw new UploadResponseShapeError(operation, `${path}.id`);
     // Anything but `failed` must name the upload it is about, or there is nothing to PUT or send.
     if (status !== 'failed' && !id) throw new UploadResponseShapeError(operation, `${path}.id`);
     return {
         ...(id ? { id } : {}),
-        status: status as UploadStatusMirror,
+        status,
         ...(typeof error === 'string' ? { error } : {}),
     };
 };
 
-const readPutTarget = (value: unknown, path: string): UploadPutTarget | undefined => {
+const readDirectTransfer = (value: unknown, path: string): UploadDirectTransfer | undefined => {
     if (value === undefined || value === null) return undefined;
-    if (!isRecord(value) || typeof value['url'] !== 'string' || !isRecord(value['headers'])) {
-        // An inline transfer (no url) lands here too: the socket surface fixes presigned PUT, so a
-        // ticket without a destination is a broken answer, not a different way to send.
-        throw new UploadResponseShapeError('start', path);
+    // An inline transfer lands here too: without a `send` operation on the socket surface, a ticket
+    // this client cannot PUT is a broken answer, not a different way to send.
+    if (!isRecord(value) || value['kind'] !== 'presigned-put') throw new UploadResponseShapeError('start', path);
+    const { method, url, headers, maxBytes, expiresAt } = value;
+    if (method !== 'PUT') throw new UploadResponseShapeError('start', `${path}.method`);
+    if (typeof url !== 'string') throw new UploadResponseShapeError('start', `${path}.url`);
+    if (!isRecord(headers)) throw new UploadResponseShapeError('start', `${path}.headers`);
+    if (typeof maxBytes !== 'number') throw new UploadResponseShapeError('start', `${path}.maxBytes`);
+    if (expiresAt !== undefined && typeof expiresAt !== 'number') {
+        throw new UploadResponseShapeError('start', `${path}.expiresAt`);
     }
-    const headers: Record<string, string> = {};
-    for (const [name, header] of Object.entries(value['headers'])) {
-        if (typeof header !== 'string') throw new UploadResponseShapeError('start', `${path}.headers`);
-        headers[name] = header;
+    const entries = Object.entries(headers);
+    if (entries.some(([, header]) => typeof header !== 'string')) {
+        throw new UploadResponseShapeError('start', `${path}.headers`);
     }
-    return { url: value['url'], headers };
+    return {
+        kind: 'presigned-put',
+        method: 'PUT',
+        url,
+        // `fromEntries` defines each name as an own property, so not even a `__proto__` header is lost.
+        headers: Object.fromEntries(entries) as Record<string, string>,
+        maxBytes,
+        ...(expiresAt !== undefined ? { expiresAt } : {}),
+    };
 };
 
 const readList = (value: unknown, operation: 'start' | 'complete'): unknown[] => {
@@ -107,13 +125,17 @@ const readList = (value: unknown, operation: 'start' | 'complete'): unknown[] =>
     return value['list'];
 };
 
-/** Narrows `upload.start`'s answer to the mirror, copying only the fields the mirror names. */
-export const parseUploadStartResult = (value: unknown): UploadStartResultMirror => ({
+/**
+ * Narrows `upload.start`'s answer to the contract, copying only the fields it checks: an upload's
+ * `id` · `status` · `error`, and every field of a presigned PUT. What the server adds on top (the
+ * echoed declaration, `stereo`, …) is dropped, because nothing here reads it.
+ */
+export const parseUploadStartResult = (value: unknown): PresignedUploadStartResult => ({
     list: readList(value, 'start').map((ticket, index) => {
         const path = `list[${index}]`;
         if (!isRecord(ticket)) throw new UploadResponseShapeError('start', path);
-        const transfer = readPutTarget(ticket['transfer'], `${path}.transfer`);
-        const thumbnailTransfer = readPutTarget(ticket['thumbnailTransfer'], `${path}.thumbnailTransfer`);
+        const transfer = readDirectTransfer(ticket['transfer'], `${path}.transfer`);
+        const thumbnailTransfer = readDirectTransfer(ticket['thumbnailTransfer'], `${path}.thumbnailTransfer`);
         return {
             upload: readUpload(ticket['upload'], 'start', `${path}.upload`),
             ...(transfer ? { transfer } : {}),
@@ -122,8 +144,11 @@ export const parseUploadStartResult = (value: unknown): UploadStartResultMirror 
     }),
 });
 
-/** Narrows `upload.complete`'s answer to the mirror. Every entry must carry the id it settles. */
-export const parseUploadCompleteResult = (value: unknown): UploadCompleteResultMirror => ({
+/**
+ * Narrows `upload.complete`'s answer to the contract. The contract lets an upload omit its `id`
+ * only when `start` rejected it, so every entry here must carry the id it settles.
+ */
+export const parseUploadCompleteResult = (value: unknown): CheckedUploadCompleteResult => ({
     list: readList(value, 'complete').map((item, index) => {
         const upload = readUpload(item, 'complete', `list[${index}]`);
         if (!upload.id) throw new UploadResponseShapeError('complete', `list[${index}].id`);
@@ -167,8 +192,8 @@ export type PutPort = (target: UploadPutTarget, file: File, label: string) => Pr
  */
 export interface SendImagePorts {
     prepare(file: File): Promise<PreparedImageMirror>;
-    start(input: UploadStartInput): Promise<UploadStartResultMirror>;
-    complete(input: UploadCompleteInput): Promise<UploadCompleteResultMirror>;
+    start(input: UploadStartInput): Promise<PresignedUploadStartResult>;
+    complete(input: UploadCompleteInput): Promise<CheckedUploadCompleteResult>;
     put: PutPort;
     /** Sends the message with the stored uploads, in picking order, and settles the pending row. */
     send(input: { uploadIds: string[] }): Promise<unknown>;
