@@ -820,3 +820,78 @@ describe('ChannelList drawing order', () => {
         expect(useSidebarOrderStore.getState().ids).toEqual(['C2', 'C1', 'D1']);
     });
 });
+
+describe('ChannelList place members without a 1:1', () => {
+    const general = { id: 'C1', name: 'general', memberIds: ['me', 'u-b', 'u-a', 'u-new'] } as DomainChannel;
+    const dm = { id: 'D1', stereo: 'dm', memberIds: ['me', 'u-dm'] } as DomainChannel;
+    const memberPeers = [
+        { peerId: 'u-b', channelId: 'C1' },
+        { peerId: 'u-a', channelId: 'C1' },
+        { peerId: 'u-new', channelId: 'C1' },
+    ];
+    const renderWith = (props: { onStartDm?: (peerId: string) => void; query?: string }) =>
+        render(
+            <ChannelList
+                channels={[general, dm]}
+                isLoading={false}
+                selectedChannelId={null}
+                query={props.query ?? ''}
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+                memberPeers={memberPeers}
+                onStartDm={props.onStartDm}
+            />,
+            { wrapper }
+        );
+    const dmSectionRows = () =>
+        Array.from(document.querySelectorAll<HTMLElement>('[data-channel-row]')).map(el => el.textContent);
+
+    beforeEach(() => {
+        hydrate.cloud = new Map([
+            ['u-dm', { name: 'Dana' }],
+            ['u-a', { name: 'Alice' }],
+            ['u-b', { name: 'Bob' }],
+        ]);
+    });
+    afterEach(() => {
+        hydrate.cloud = new Map();
+    });
+
+    // A place whose people have no 1:1 with me still shows them, so the section is never empty.
+    it('lists them after the 1:1s, by name, and starts the 1:1 on click', () => {
+        const onStartDm = vi.fn();
+        renderWith({ onStartDm });
+
+        expect(dmSectionRows().slice(-3)).toEqual(['DDana', 'AAlice', 'BBob']);
+        fireEvent.click(screen.getByText('Bob'));
+        expect(onStartDm).toHaveBeenCalledWith('u-b');
+    });
+
+    // They have no room to order, so the section never lets one be picked up.
+    it('does not let them be dragged', () => {
+        renderWith({ onStartDm: vi.fn() });
+
+        const wrapper = screen.getByText('Alice').closest('[data-channel-row]')?.parentElement;
+        expect(wrapper?.className).toContain('cursor-default');
+    });
+
+    it('waits for a name rather than draw a raw id, and asks for it', () => {
+        renderWith({ onStartDm: vi.fn() });
+
+        expect(screen.queryByText('u-new')).toBeNull();
+        expect(hydrate.peers).toContainEqual({ peerId: 'u-new', channelId: 'C1' });
+    });
+
+    it('filters them with the sidebar query', () => {
+        renderWith({ onStartDm: vi.fn(), query: 'ali' });
+
+        expect(screen.getByText('Alice')).toBeTruthy();
+        expect(screen.queryByText('Bob')).toBeNull();
+    });
+
+    it('lists no one where a 1:1 cannot be started', () => {
+        renderWith({});
+
+        expect(screen.queryByText('Alice')).toBeNull();
+    });
+});

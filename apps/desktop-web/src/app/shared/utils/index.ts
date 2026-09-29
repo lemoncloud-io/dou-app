@@ -16,6 +16,7 @@ export * from './notifiableChat';
 export * from './dmDisplay';
 export * from './cloudDmPlaces';
 export * from './placeUnreadCounts';
+export * from './placeMemberPeers';
 export * from './readCacheRecords';
 export * from './resolvePushCloudId';
 export * from './parsePushDeeplink';

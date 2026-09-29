@@ -54,6 +54,19 @@ describe('useChannels', () => {
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1', 'group-b']));
         // The whole cloud's placement, not only this place's, for callers that route to another place.
         expect(result.current.dmPlaces.get('dm-1')).toEqual(['place-b']);
+        // Its only other member already has this 1:1, so no one is left to offer.
+        expect(result.current.memberPeers).toEqual([]);
+    });
+
+    it("lists the open place's members who have no 1:1 here yet", async () => {
+        cacheRows = [
+            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer', 'new'] },
+            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+        ];
+
+        const { result } = renderHook(() => useChannels('place-b'));
+
+        await waitFor(() => expect(result.current.memberPeers).toEqual([{ peerId: 'new', channelId: 'group-b' }]));
     });
 
     it('leaves a cloud 1:1 out of a place its peer is not in', async () => {

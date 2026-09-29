@@ -57,6 +57,10 @@ interface ChannelListProps {
      * 1:1 can be started (not on the Default Cloud); with it, the section shows even while empty.
      */
     onCreateDm?: () => void;
+    /** People of this place with no 1:1 here yet, listed after the 1:1s (from `useChannels`). */
+    memberPeers?: ReadonlyArray<{ peerId: string; channelId: string }>;
+    /** Starts the 1:1 with one of `memberPeers`. Passed only where a 1:1 can be started. */
+    onStartDm?: (peerId: string) => void;
 }
 
 const ChannelSkeleton = () => {
@@ -206,6 +210,40 @@ const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
+/** A person's avatar as the Direct messages rows draw it: their photo, else a colored initial. */
+const personAvatar = (seed: string, display: { name: string; thumbnail?: string }): ReactNode => (
+    <Avatar className="h-6 w-6 shrink-0">
+        {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
+        <AvatarFallback className="text-nano font-semibold" style={avatarStyle(seed || display.name)}>
+            {display.name.charAt(0).toUpperCase() || '?'}
+        </AvatarFallback>
+    </Avatar>
+);
+
+/** A person of this place with no 1:1 yet. It reads like a 1:1 row and starts one when clicked. */
+const MemberRow = ({
+    peerId,
+    label,
+    icon,
+    onStart,
+}: {
+    peerId: string;
+    label: string;
+    icon: ReactNode;
+    onStart: (peerId: string) => void;
+}) => (
+    <button
+        type="button"
+        onClick={() => onStart(peerId)}
+        // Arrow keys walk every row through this attribute, 1:1s and people alike.
+        data-channel-row={`member:${peerId}`}
+        className="focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile hover:bg-accent"
+    >
+        <span className="flex shrink-0 items-center text-foreground">{icon}</span>
+        <span className="min-w-0 flex-1 truncate text-callout text-sidebar-foreground">{label}</span>
+    </button>
+);
+
 /** A section header's "+" — the Channels and Direct messages sections share it. */
 const SectionAddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
     <Hint label={label}>
@@ -232,6 +270,8 @@ export const ChannelList = ({
     isDefaultMode,
     onCreateChannel,
     onCreateDm,
+    memberPeers,
+    onStartDm,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
@@ -299,19 +339,27 @@ export const ChannelList = ({
     // DM rows show the other party: this place's profile where they set one, else their cloud
     // profile from the user cache — field by field, so a place nick with no place photo keeps the
     // cloud photo.
+    // People with no 1:1 yet are named the same way, so they share the lookup.
+    const canStartDm = !!onStartDm;
+    const members = useMemo(() => (canStartDm ? (memberPeers ?? []) : []), [canStartDm, memberPeers]);
     const counterpartIds = useMemo(
-        () => dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
-        [dms, myUid]
+        () => [
+            ...dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
+            ...members.map(member => member.peerId),
+        ],
+        [dms, myUid, members]
     );
     const counterpartProfiles = useCloudProfiles(counterpartIds);
     // Rows this place's profiles don't name read the user cache, which only an opened room fills.
     const unnamedPeers = useMemo(
         () =>
-            dms.flatMap(c => {
-                const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
-                return c.id && peerId && !placeProfiles[peerId]?.nick?.trim() ? [{ channelId: c.id, peerId }] : [];
-            }),
-        [dms, myUid, placeProfiles]
+            dms
+                .flatMap(c => {
+                    const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
+                    return c.id && peerId && !placeProfiles[peerId]?.nick?.trim() ? [{ channelId: c.id, peerId }] : [];
+                })
+                .concat(members.filter(member => !placeProfiles[member.peerId]?.nick?.trim())),
+        [dms, myUid, members, placeProfiles]
     );
     useHydrateDmPeers(unnamedPeers);
 
@@ -337,17 +385,7 @@ export const ChannelList = ({
         );
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),
-            icon: (
-                <Avatar className="h-6 w-6 shrink-0">
-                    {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
-                    <AvatarFallback
-                        className="text-nano font-semibold"
-                        style={avatarStyle(counterpartId || display.name)}
-                    >
-                        {display.name.charAt(0).toUpperCase() || '?'}
-                    </AvatarFallback>
-                </Avatar>
-            ),
+            icon: personAvatar(counterpartId, display),
         };
     };
 
@@ -430,7 +468,18 @@ export const ChannelList = ({
         return dm ? [dm] : [];
     });
 
-    if (visibleRegular.length + visibleDms.length === 0) {
+    // A person with no 1:1 yet is never drawn as a raw id: the row waits for a name to load.
+    const q = query.trim().toLowerCase();
+    const memberRows = members
+        .flatMap(({ peerId }) => {
+            const cloud = counterpartProfiles.get(peerId);
+            const display = resolveDisplay(placeProfiles[peerId], cloud?.name ?? '', cloud?.thumbnail);
+            if (!display.name || display.name === peerId) return [];
+            return !q || display.name.toLowerCase().includes(q) ? [{ peerId, display }] : [];
+        })
+        .sort((a, b) => a.display.name.localeCompare(b.display.name));
+
+    if (visibleRegular.length + visibleDms.length + memberRows.length === 0) {
         return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
     }
 
@@ -438,14 +487,15 @@ export const ChannelList = ({
     const isFiltering = query.trim().length > 0;
     // An empty section still has to hold its "+", or the first 1:1 has nowhere to start from. A
     // filter that matches no 1:1 hides it, like every other section.
-    const showDmSection = visibleDms.length > 0 || (!!onCreateDm && !isFiltering);
+    const showDmSection = visibleDms.length > 0 || memberRows.length > 0 || (!!onCreateDm && !isFiltering);
 
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
     };
     // A move rewrites only the moved section's slice; the other section keeps its stored order.
     const makeSectionReorder = (section: 'ch' | 'dm') => (keys: string[]) => {
-        const orderedIds = keys.map(key => key.replace(/^(ch|dm):/, ''));
+        // A person without a 1:1 has no room to order; their rows stay behind the 1:1s by name.
+        const orderedIds = keys.filter(key => !key.startsWith('member:')).map(key => key.replace(/^(ch|dm):/, ''));
         const dmIds = new Set(dms.map(c => c.id ?? ''));
         const chIds = new Set(regular.map(c => c.id ?? ''));
         if (section === 'ch') {
@@ -625,7 +675,22 @@ export const ChannelList = ({
                 <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
-                    items={visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
+                    items={[
+                        ...visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm')),
+                        ...memberRows.map(({ peerId, display }) => ({
+                            key: `member:${peerId}`,
+                            keepWhenCollapsed: false,
+                            dragDisabled: true,
+                            node: (
+                                <MemberRow
+                                    peerId={peerId}
+                                    label={display.name}
+                                    icon={personAvatar(peerId, display)}
+                                    onStart={peerId => onStartDm?.(peerId)}
+                                />
+                            ),
+                        })),
+                    ]}
                     dragDisabled={isFiltering}
                     onReorder={makeSectionReorder('dm')}
                     action={onCreateDm && <SectionAddButton label={t('dm.new.open')} onClick={onCreateDm} />}

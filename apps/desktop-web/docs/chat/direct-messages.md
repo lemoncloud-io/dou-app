@@ -25,6 +25,13 @@ Desktop offers no way to start one there, and every entry point below hides.
 - **A peer found in no place** is still reachable. The 1:1 is listed in its stamped place (`sid`)
   when that place is mine, and in every place otherwise. The same applies while a room's members are
   not known yet.
+- **Everyone else in the place is listed too.** After the 1:1s, the section lists the place's
+  members I have no 1:1 with there yet (`placeMemberPeers`, the same group-channel membership), by
+  name. Clicking one starts the 1:1 through `useStartDm`, and the new room then takes the person's
+  place among the 1:1s. These rows have no room, so they cannot be dragged or starred, and a person
+  whose name has not loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the
+  members of a group channel they are in. Without them, a place where no one has a 1:1 with me
+  showed an empty section.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.

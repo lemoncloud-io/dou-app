@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { isCloudWideChannel, isInPlaceList, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
-import { cloudDmPlaces, computeChannelUnread } from '../utils';
+import { cloudDmPlaces, computeChannelUnread, placeMemberPeers } from '../utils';
 import { useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 import { usePlaces } from './usePlaces';
@@ -108,6 +108,11 @@ export const useChannels = (
         () => cloudDmPlaces(cloudRows, { myUid: myUid ?? null, placeIds }),
         [cloudRows, myUid, placeIds]
     );
+    // The open place's people with no 1:1 here yet, which the sidebar lists after the 1:1s.
+    const memberPeers = useMemo(
+        () => (placeId ? placeMemberPeers(cloudRows, { myUid: myUid ?? null, placeId, dmPlaces }) : []),
+        [cloudRows, myUid, placeId, dmPlaces]
+    );
     const rawChannels = useMemo(() => {
         // No place is only read for a cloud that has none, where every 1:1 is all there is.
         const listed = cloudRows.filter(c =>
@@ -152,5 +157,5 @@ export const useChannels = (
     // A 1:1 cannot be placed before my places are known, so the list is not final until they are.
     const isLoading = rawLoading || (!!placeId && placesLoading) || (rawChannels.length === 0 && !confidentEmpty);
 
-    return { channels, isLoading, dmPlaces };
+    return { channels, isLoading, dmPlaces, memberPeers };
 };

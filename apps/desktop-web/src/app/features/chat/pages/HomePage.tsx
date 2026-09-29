@@ -118,7 +118,7 @@ export const HomePage = () => {
     // A subscription cloud with no place at all still lists its 1:1s. Only once the places are known
     // to be empty — while they load or a switch is in flight, "no place" just means "not yet".
     const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
-    const { channels, isLoading, dmPlaces } = useChannels(selectedSiteId ?? undefined, {
+    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(selectedSiteId ?? undefined, {
         cloudWideOnly: hasNoPlace,
     });
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
@@ -128,7 +128,7 @@ export const HomePage = () => {
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
-    const { isAvailable: canStartDm } = useStartDm();
+    const { isAvailable: canStartDm, startDm } = useStartDm();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
@@ -727,6 +727,8 @@ export const HomePage = () => {
                                 // The picker's pool is the people in this place's channels, so a cloud
                                 // with no place would only ever offer no one.
                                 onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
+                                memberPeers={memberPeers}
+                                onStartDm={canStartDm && !hasNoPlace ? peerId => void startDm(peerId) : undefined}
                             />
                         </div>
                     </>
