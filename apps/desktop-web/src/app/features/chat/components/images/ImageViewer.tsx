@@ -235,7 +235,7 @@ export const ImageViewer = ({
                                                     )}
                                                 >
                                                     <img
-                                                        src={image.url}
+                                                        src={image.thumbUrl ?? image.url}
                                                         alt=""
                                                         draggable={false}
                                                         className="h-full w-full object-cover"

@@ -1,20 +1,52 @@
+import { isPendingUploadSlot, type DomainChat } from '@chatic/data';
+
 /**
  * One image on a message or in the composer tray.
  *
- * The server has no image upload API yet, so nothing on the wire carries images: a
- * message's images come from `useChatImagesStore` (see there) and a tray item is a
- * local `File` behind an object URL. When the API lands, the reader in
- * `useChatImages` is the one place that has to learn the server field.
+ * A message's images come from its `upload$$` (`toChatImages` below): the local previews while it is
+ * being sent, the server's signed addresses once it is. A tray item is a local `File` behind an object
+ * URL. `useChatImages` is the one reader of a message's images.
  */
 export interface ChatImage {
     id: string;
     /** File name as the sender picked it — shown on a single image and in the viewer. */
     name: string;
-    /** Displayable source: an object URL today, the uploaded file's URL later. */
+    /** The full image: an object URL for a local file, the signed original for a sent one. Empty when there is none to load. */
     url: string;
+    /** A smaller image for the feed tile, when the server made one. The viewer always opens `url`. */
+    thumbUrl?: string;
     /** Still uploading — the tile blurs and spins instead of offering actions. */
     isUploading?: boolean;
+    /** Will not load: the send failed, or the server reports the upload as failed or gone. */
+    isFailed?: boolean;
 }
+
+/**
+ * A message's images from its `upload$$`. The server keeps no file name (the tiles are a fixed size),
+ * so each image is named by its place in the message.
+ *
+ * A pending slot shows its local preview, spinning while it is sent. A server upload shows its
+ * thumbnail and opens its original; one the server marks failed or reports with an error has nothing
+ * to load, and one with no address yet (the read-back has not landed) is still on its way. The
+ * addresses are signed and short-lived: shown, never kept.
+ */
+export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): ChatImage[] =>
+    (slots ?? []).map((slot, index): ChatImage => {
+        const name = `image-${index + 1}`;
+        if (isPendingUploadSlot(slot)) {
+            return {
+                id: `${messageId}:${index}`,
+                name,
+                url: slot.localThumbUrl,
+                isUploading: slot.localStatus === 'sending',
+                isFailed: slot.localStatus === 'failed',
+            };
+        }
+        const id = slot.id ?? `${messageId}:${index}`;
+        if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
+        if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
+        return { id, name, url: slot.orgUrl, ...(slot.thumbUrl ? { thumbUrl: slot.thumbUrl } : {}) };
+    });
 
 /** The most images one message can carry (Figma "#max 10 images"). */
 export const MAX_ATTACHMENTS = 10;

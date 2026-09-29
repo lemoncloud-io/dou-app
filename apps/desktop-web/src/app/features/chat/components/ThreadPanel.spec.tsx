@@ -23,10 +23,12 @@ vi.mock('@chatic/app-runtime', () => ({
 
 let messages: DomainChat[] = [];
 vi.mock('../../../shared/hooks/useChats', () => ({ useChats: () => ({ messages }) }));
-const sendMessage = vi.fn();
 vi.mock('../../../shared/hooks/useChatMutations', () => ({
-    useChatMutations: () => ({ sendMessage, retryMessage: vi.fn(), discardMessage: vi.fn() }),
+    useChatMutations: () => ({ sendMessage: vi.fn(), retryMessage: vi.fn(), discardMessage: vi.fn() }),
 }));
+const composerSend = vi.fn();
+const useComposerSend = vi.fn((_target: unknown) => ({ send: composerSend }));
+const clearTray = vi.fn();
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
     usePanelWidth: () => ({ width: 384, minWidth: 280, maxWidth: 640, panelRef: { current: null } }),
@@ -40,17 +42,19 @@ vi.mock('../hooks', () => ({
         attachments: [],
         addFiles: vi.fn(),
         remove: vi.fn(),
+        clear: clearTray,
         notice: null,
         dismissNotice: vi.fn(),
     }),
     useFileDrop: () => ({ isDragging: false, dropHandlers: {} }),
     useChatImages: () => [],
+    useComposerSend: (target: unknown) => useComposerSend(target),
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about
 // what the panel renders above it — and what it does with a reply the composer hands up.
-let composerOnSend: ((content: string) => void) | undefined;
+let composerOnSend: ((content: string, files: File[]) => void) | undefined;
 vi.mock('./Composer', () => ({
-    Composer: ({ onSend }: { onSend: (content: string) => void }) => {
+    Composer: ({ onSend }: { onSend: (content: string, files: File[]) => void }) => {
         composerOnSend = onSend;
         return null;
     },
@@ -167,16 +171,28 @@ describe('ThreadPanel', () => {
 
     // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the
     // reply is in flight cannot send it through the next cloud's socket.
-    it("sends a reply to the channel's own cloud", () => {
-        sendMessage.mockReset().mockResolvedValue(undefined);
+    it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", () => {
         messages = [chat(1, { content: 'root' })];
+        const files = [new File(['a'], 'a.png', { type: 'image/png' })];
 
         render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
             wrapper,
         });
-        composerOnSend?.('reply');
+        composerOnSend?.('reply', files);
 
-        expect(sendMessage).toHaveBeenCalledWith('cloud-a', { channelId: 'C1', content: 'reply', parentId: 'C1:1' });
+        expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: 'C1', parentId: 'C1:1' });
+        expect(composerSend).toHaveBeenCalledWith('reply', files);
+        expect(clearTray).toHaveBeenCalled();
+    });
+
+    it('binds no room for pictures until the root has loaded, so it is not taken for the chat pane', () => {
+        messages = [];
+
+        render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
+            wrapper,
+        });
+
+        expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: '' });
     });
 
     it('counts only real replies, not the reaction events', () => {

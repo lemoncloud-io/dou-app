@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Download, MoreVertical } from 'lucide-react';
+import { Download, ImageOff, MoreVertical } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -31,6 +31,10 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
     const { t } = useTranslation();
     const [isMenuOpen, setMenuOpen] = useState(false);
     const hasOverflow = overflow > 0;
+    // Nothing to open or save yet (uploading) or at all (failed).
+    const isInactive = !!image.isUploading || !!image.isFailed;
+    // The feed draws the thumbnail when the server made one; the viewer opens the original.
+    const src = image.thumbUrl ?? image.url;
 
     return (
         <div
@@ -42,20 +46,31 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
             <button
                 type="button"
                 onClick={onOpen}
-                disabled={image.isUploading}
+                disabled={isInactive}
                 aria-label={
-                    hasOverflow ? t('chat.image.more', { count: overflow }) : t('chat.image.open', { name: image.name })
+                    hasOverflow
+                        ? t('chat.image.more', { count: overflow })
+                        : image.isFailed
+                          ? t('chat.image.failed')
+                          : t('chat.image.open', { name: image.name })
                 }
                 className="focus-ring absolute inset-0 rounded-2xl"
             >
-                <img
-                    src={image.url}
-                    alt={image.name}
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                    className={cn('h-full w-full object-cover', image.isUploading && 'scale-105 blur-[2px]')}
-                />
+                {src && !image.isFailed && (
+                    <img
+                        src={src}
+                        alt={image.name}
+                        loading="lazy"
+                        decoding="async"
+                        draggable={false}
+                        className={cn('h-full w-full object-cover', image.isUploading && 'scale-105 blur-[2px]')}
+                    />
+                )}
+                {image.isFailed && (
+                    <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                        <ImageOff size={24} aria-hidden />
+                    </span>
+                )}
                 {(hasOverflow || image.isUploading) && <span aria-hidden className="absolute inset-0 bg-overlay/40" />}
                 {(hasOverflow || image.isUploading) && (
                     <span className="absolute inset-0 flex items-center justify-center">
@@ -68,7 +83,7 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                     </span>
                 )}
             </button>
-            {!image.isUploading && !hasOverflow && (
+            {!isInactive && !hasOverflow && (
                 <div
                     className={cn(
                         'absolute right-2 top-2 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-2 py-1.5 shadow-raised transition-opacity duration-150 ease-tactile',

@@ -576,7 +576,7 @@ export const MessageRow = memo(
                                         together, the text shows above"). A tombstone or an open editor has none. */}
                                     {message.id && !message.hidden && !isEditing && (
                                         <MessageImages
-                                            messageId={message.id}
+                                            message={message}
                                             canDelete={group.isMine}
                                             author={{
                                                 name: group.ownerName,

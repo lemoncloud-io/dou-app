@@ -267,6 +267,8 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
         // written before it reaches the map, and the sweep must not catch it in between.
         const attachedAt = Date.now();
         void (async () => {
+            // A screen still waiting for its room (no channel row yet) has nothing it could sweep.
+            if (!cid || !channelId) return;
             await beforeSweepRef.current?.();
             let rows;
             try {

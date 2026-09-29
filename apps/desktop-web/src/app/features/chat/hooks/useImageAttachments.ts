@@ -16,9 +16,10 @@ let nextId = 0;
  * notice a refused batch raises (over ten, a duplicate, an unsupported type).
  *
  * Each file gets an object URL for its preview and is marked uploading until the
- * browser has decoded it, which is what the tile's spinner shows today; once there is an
- * upload API the same flag covers the real transfer. URLs are revoked on remove, on
- * clear, when `scopeKey` changes (another channel or thread) and on unmount.
+ * browser has decoded it — the tray tile's spinner. The upload itself starts only at send,
+ * on the message's own row. URLs are revoked on remove, on clear (the send clears the
+ * tray; the sent row keeps its own previews), when `scopeKey` changes (another channel
+ * or thread) and on unmount.
  */
 export const useImageAttachments = (scopeKey: string) => {
     const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);

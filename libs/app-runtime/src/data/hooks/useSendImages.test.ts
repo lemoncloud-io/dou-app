@@ -416,6 +416,15 @@ describe('useSendImages', () => {
             live.unmount();
         });
 
+        it('does not sweep before the screen has a room to sweep', async () => {
+            const { unmount } = renderHook(() => useBound({ cid: '', channelId: '' }));
+            await act(async () => undefined);
+
+            expect(beforeSweep).not.toHaveBeenCalled();
+            expect(chat.listPendingImageChats).not.toHaveBeenCalled();
+            unmount();
+        });
+
         it('lets the shell catch up before it looks for leftovers', async () => {
             let caughtUp: () => void = () => undefined;
             beforeSweep.mockImplementationOnce(

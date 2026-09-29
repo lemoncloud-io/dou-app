@@ -2,7 +2,8 @@
 
 > Canonical code: [`hooks/useSendImages.ts`](../../src/data/hooks/useSendImages.ts). The sequence it
 > runs is `@chatic/data`'s, documented in
-> [libs/data docs/uploads](../../../data/docs/uploads/README.md). Consumer: `apps/web`'s shell binding
+> [libs/data docs/uploads](../../../data/docs/uploads/README.md). Consumers: `apps/desktop-web`'s room and
+> thread composers (`useComposerSend`, which binds `xhrPut`), and `apps/web`'s shell binding
 > ([image-send.md](../../../../apps/web/docs/feature/channels/image-send.md)).
 
 `data.useSendImages({ cid, channelId, parentId?, put, beforeSweep? })` sends picked images as one
@@ -18,7 +19,8 @@ What differs between shells enters as two ports, so every shell runs the same or
 | `beforeSweep` | none                         | catch up with transfers the app finished while the page was away   |
 
 `sendImages` resolves once the send has settled, sent or failed — a caller that has to follow the
-message with another one awaits it.
+message with another one awaits it. Desktop sends the composer's text first, at the press, and the
+pictures after it, so it awaits nothing.
 
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
@@ -74,6 +76,8 @@ this screen, and has no entry in the map. `canRetry` is false for those, so dele
 out. A row written after the screen attached is skipped, because it may simply not have reached the
 map yet. Text optimistic rows are not touched. They have the same fate after a reload, but that
 predates this hook.
+
+A screen with no room yet (an empty `cid` or `channelId`) does not sweep.
 
 The sweep waits for `beforeSweep` first: a shell that finishes transfers while the page is away
 catches up there, so a row it finished is settled rather than failed as a leftover.
