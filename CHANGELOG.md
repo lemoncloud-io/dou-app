@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-29] - root@0.72.1, @chatic/web@0.55.1
+
+### Bug Fixes
+
+- (web) open an invited room wherever leaving the accept screen lands, not only on home
+
 ## [2026-09-29] - root@0.72.0, @chatic/desktop-web@0.16.0
 
 ### Features
