@@ -59,6 +59,7 @@ import {
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { canModifyMessage } from '@chatic/data';
 import { messagePlainText } from '../utils/messagePlainText';
@@ -617,7 +618,7 @@ export const ChannelRoomPage = () => {
     };
 
     const handleOpenMessageActions = (message: ClientChatView) => {
-        if (!message.content) return;
+        if (!canOpenMessageActions(message)) return;
         setActionMessage(message);
     };
 
@@ -1242,6 +1243,7 @@ export const ChannelRoomPage = () => {
                 // Authorship stays this app's own `isOwner` — the value already deciding which
                 // side of the feed the bubble sits on.
                 canModify={!!actionMessage && canModifyMessage(actionMessage, actionMessage.isOwner)}
+                hasText={!!actionMessage && hasMessageText(actionMessage)}
                 isCopying={isCopyingMessage}
                 onPickEmoji={handlePickEmoji}
                 onMoreEmoji={() => setEmojiPickerOpen(true)}

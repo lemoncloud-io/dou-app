@@ -58,9 +58,9 @@ and fades once scrolling stops.
 ## A message row
 
 [`ChannelMessageRow`](../../../src/app/features/channels/components/ChannelMessageRow.tsx) renders
-the body and then, as separate rows in the same column, the things that comment on it: the sender's
-own `attach$` card, then the link preview the client derived, then the reaction chips, then the
-thread footer.
+the body and then, as separate rows in the same column, its images when it has text too (pressed
+like the body — see **Long press**), then the things that comment on it: the sender's own `attach$`
+card, then the link preview the client derived, then the reaction chips, then the thread footer.
 
 The order of the first two is the argument for the whole list: `attach$` is part of what the sender
 sent, the unfurl is something the client found. The last three sit **outside** the long-press
@@ -133,6 +133,16 @@ prevented for a mouse: cancelling it on touch kills the browser's own panning fo
 a thread is mostly bubbles, so scrolling died in bands down the screen. Selection is suppressed with
 `select-none` instead. A drift past 10px cancels the hold, and the `click` that follows a fired
 long-press is swallowed so a link does not also navigate.
+
+The image tiles are the same target as the bubble, whether they replace it or sit under it: a photo
+is the message, so it takes a reaction or a thread like text does. The swallowed `click` there is the
+tile's own, so a hold does not open the viewer under the sheet. The viewer is portalled to the body
+but is still the tiles' child in React, and React bubbles along that tree — so the gesture ignores any
+event whose DOM target is outside its own element, or a hold on the open viewer would open the sheet.
+
+What the sheet then holds is the page's call, through `utils/messageActions.ts`: text always has
+Copy, so a text message opens even before it lands; an image-only message has no text to copy or
+edit, so it opens only once persisted, when a reaction, a thread and delete apply.
 
 **Tombstones.** `message.hidden` is a message another client soft-deleted. The row keeps its place
 — a message vanishing mid-read leaves no account of what happened — and renders the shared

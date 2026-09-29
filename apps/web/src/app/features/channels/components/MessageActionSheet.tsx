@@ -26,6 +26,11 @@ interface MessageActionSheetProps {
      * `canModifyMessage` verdict, which the page computes so every surface asks it the same way.
      */
     canModify: boolean;
+    /**
+     * The message has text of its own. An image-only message has none, so Copy and Edit — the two
+     * actions that act on text — are left out for it; delete still applies.
+     */
+    hasText: boolean;
     isCopying: boolean;
     onPickEmoji: (emoji: string) => void;
     onMoreEmoji: () => void;
@@ -37,7 +42,8 @@ interface MessageActionSheetProps {
 
 /**
  * Long-press action sheet for one message: a one-tap reaction row (recents + fixed
- * quick reactions), then the thread and copy actions. Replaces the old Radix dropdown —
+ * quick reactions), then the thread and copy actions (copy only when the message has
+ * text). Replaces the old Radix dropdown —
  * a narrow dropdown cannot hold the emoji row, and sheet options are the touch-target
  * size the dropdown items were not (ADR-0093).
  *
@@ -55,8 +61,11 @@ interface MessageActionSheetProps {
  * mine, so the list is now two rows or four. Do not "restore" the invariant by pulling
  * them back out: the alternative was a second message-action surface on a phone, and one
  * sheet that sometimes has more in it beats two places to look. What is preserved is the
- * part the invariant was protecting — the existing two actions keep their positions,
- * because the new rows go BELOW them. Adding anything further goes below as well.
+ * part the invariant was protecting, as an ORDER: thread, copy, edit, delete, with each
+ * row present only when it applies. Adding anything further goes below. A message with no
+ * text (a photo) has no copy and no edit, so on my own photo delete sits where copy sits
+ * on text — accepted because the delete asks for confirmation. Do not "fix" that by
+ * showing a disabled copy on a photo; it reads as a broken feature.
  *
  * WHO reacted is deliberately not here — it lives in `ReactionDetailSheet`, reached by
  * long-pressing the chip itself. This sheet answers "what can I do to this message";
@@ -69,6 +78,7 @@ export const MessageActionSheet = ({
     canReact,
     canReply,
     canModify,
+    hasText,
     isCopying,
     onPickEmoji,
     onMoreEmoji,
@@ -132,22 +142,26 @@ export const MessageActionSheet = ({
             {canReply && (
                 <SheetAction icon={<IconThread size={26} />} label={t('chat.thread.replyAction')} onClick={onReply} />
             )}
-            <SheetAction
-                icon={
-                    isCopying ? (
-                        <IconSpinner size={20} className="animate-spin text-muted-foreground" />
-                    ) : (
-                        <IconCopy size={22} />
-                    )
-                }
-                label={t('chat.room.copyMessage')}
-                disabled={isCopying}
-                onClick={onCopy}
-            />
-            {/* Below the existing two, always — see the note on the stable row count above. */}
+            {hasText && (
+                <SheetAction
+                    icon={
+                        isCopying ? (
+                            <IconSpinner size={20} className="animate-spin text-muted-foreground" />
+                        ) : (
+                            <IconCopy size={22} />
+                        )
+                    }
+                    label={t('chat.room.copyMessage')}
+                    disabled={isCopying}
+                    onClick={onCopy}
+                />
+            )}
+            {/* After thread and copy, always — see the note on the row order above. */}
             {canModify && (
                 <>
-                    <SheetAction icon={<Pencil size={22} />} label={t('chat.room.editMessage')} onClick={onEdit} />
+                    {hasText && (
+                        <SheetAction icon={<Pencil size={22} />} label={t('chat.room.editMessage')} onClick={onEdit} />
+                    )}
                     {/* `deleteMessage`, NOT the `delete` key an unsent row's ✕ uses. That one
                         clears a failed send from my own screen; this one removes the message for
                         everyone. They never appear on the same message, but the same person meets

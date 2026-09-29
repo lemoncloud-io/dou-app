@@ -16,6 +16,7 @@ import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
 import { MessageText } from '../components/MessageText';
+import { MessageImages } from '../components/MessageImages';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { MessageDetailDialog } from '../components/MessageDetailDialog';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
@@ -33,6 +34,7 @@ import {
 import { profilePlaceOf } from '../lib';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { messagePlainText } from '../utils/messagePlainText';
 import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { buildThread } from '../utils/buildThread';
@@ -315,18 +317,24 @@ export const ThreadPage = () => {
     /**
      * The root, rendered as the thread's SUBJECT rather than as another message (Figma
      * 4722:22934): a 36px avatar and name on one line, then the body as plain 16px text with
-     * no bubble and no side, then its reaction chips.
+     * no bubble and no side (when it has any), then its images, then its reaction chips.
      *
      * A bubble would put the root in the same visual class as the replies under it, and a
      * right-aligned bubble (when the root is mine) would put the thread's own subject off to
      * one side of the screen it opens. It also has no read receipt and no time of its own —
      * the room row it was opened from carries both, and repeating them here says nothing.
+     *
+     * A root another client soft-deleted is drawn the way the room draws the same row: the
+     * shared deleted phrase and nothing of the original — not the text, which the row often
+     * still carries, not the images and not the chips. The thread stays reachable, since its
+     * replies are still a conversation, but its subject no longer says what was deleted.
      */
     const renderRoot = (message: ClientChatView) => {
         const avatarSrc = message.ownerId
             ? (profileMap.get(message.ownerId)?.thumbnail ?? memberById.get(message.ownerId)?.thumbnail)
             : undefined;
-        const tallies = message.id ? reactions.get(message.id) : undefined;
+        const isDeleted = !!message.hidden;
+        const tallies = !isDeleted && message.id ? reactions.get(message.id) : undefined;
         return (
             <div data-testid="thread-root" className="flex flex-col px-3">
                 <div className="flex items-center gap-2.5 px-1 py-1.5">
@@ -336,9 +344,22 @@ export const ThreadPage = () => {
                     </span>
                 </div>
                 <div className="flex flex-col gap-3 px-1 py-1.5">
-                    <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
-                        <MessageText text={messagePlainText(message.content)} />
-                    </p>
+                    {isDeleted ? (
+                        <p className="text-base italic leading-normal tracking-[-0.08px] text-muted-foreground">
+                            {t('chat.room.deletedMessage')}
+                        </p>
+                    ) : (
+                        hasMessageText(message) && (
+                            <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
+                                <MessageText text={messagePlainText(message.content)} />
+                            </p>
+                        )
+                    )}
+                    {/* A photo can root a thread like a line of text can, and then the photo is the
+                        subject — without it the page opens on a name over nothing. */}
+                    {!isDeleted && (message.upload$$?.length ?? 0) > 0 && (
+                        <MessageImages uploads={message.upload$$} chatId={message.id} cid={message.cid} align="start" />
+                    )}
                     {tallies && tallies.length > 0 && (
                         <ReactionChips
                             tallies={tallies}
@@ -367,7 +388,7 @@ export const ThreadPage = () => {
             }
             time={formatTime(message.timestamp)}
             read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
-            onLongPress={() => message.content && setActionMessage(message)}
+            onLongPress={() => canOpenMessageActions(message) && setActionMessage(message)}
             onExpand={() => setExpandedMessage({ content: messagePlainText(message.content) })}
             onRetry={() => undefined}
             onDelete={() => undefined}
@@ -480,6 +501,7 @@ export const ThreadPage = () => {
                 canReact={canReact}
                 canReply={false}
                 canModify={canModify}
+                hasText={!!actionMessage && hasMessageText(actionMessage)}
                 isCopying={isCopying}
                 onPickEmoji={handlePickEmoji}
                 onMoreEmoji={() => setPickerOpen(true)}

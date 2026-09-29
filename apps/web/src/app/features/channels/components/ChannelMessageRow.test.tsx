@@ -64,13 +64,27 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
 
+// Stubbed: the real editor focuses and scrolls itself into view on mount, which jsdom cannot do.
+// These cases only need the row to be in its edit state.
+jest.mock('./MessageEditor', () => ({ MessageEditor: () => <div data-testid="message-editor" /> }));
+
 // Stubbed so the image cases assert what the row decides — whether images are drawn, and in place of
 // the bubble or under it — rather than how the tiles lay themselves out (pinned in the kit's tests).
-jest.mock('./MessageImages', () => ({
-    MessageImages: ({ uploads, align }: any) => (
-        <div data-testid="message-images" data-count={uploads?.length ?? 0} data-align={align} />
-    ),
-}));
+// The tile is a real button so the long-press cases can tell a swallowed tap from one that opens the
+// viewer, and the viewer is portalled to the body as the real Radix one is — React still bubbles its
+// events through the row, which is the case the gesture has to ignore.
+const mockOpenTile = jest.fn();
+jest.mock('./MessageImages', () => {
+    const { createPortal } = jest.requireActual('react-dom');
+    return {
+        MessageImages: ({ uploads, align }: any) => (
+            <div data-testid="message-images" data-count={uploads?.length ?? 0} data-align={align}>
+                <button data-testid="image-tile" onClick={mockOpenTile} />
+                {createPortal(<div data-testid="image-viewer" />, document.body)}
+            </div>
+        ),
+    };
+});
 
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
@@ -674,5 +688,116 @@ describe('ChannelMessageRow — image messages', () => {
         render(<ChannelMessageRow {...baseProps} message={imageRow({ hidden: true })} />);
 
         expect(screen.queryByTestId('message-images')).not.toBeInTheDocument();
+    });
+
+    describe('long press on the images', () => {
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        const hold = (target: HTMLElement, ms = 500) => {
+            fireEvent.pointerDown(target, { pointerType: 'touch' });
+            act(() => {
+                jest.advanceTimersByTime(ms);
+            });
+        };
+
+        // The images are the message: a photo gets the same sheet — reactions, a thread — as text.
+        it('opens the action sheet on an image-only message', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
+            render(<ChannelMessageRow {...props} />);
+
+            hold(screen.getByTestId('image-tile'));
+
+            expect(props.onLongPress).toHaveBeenCalledTimes(1);
+        });
+
+        it('opens it on the images that sit under a text bubble too', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({ content: '사진 보내요' }) };
+            render(<ChannelMessageRow {...props} />);
+
+            hold(screen.getByTestId('image-tile'));
+
+            expect(props.onLongPress).toHaveBeenCalledTimes(1);
+        });
+
+        it('opens it on a right-click', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
+            render(<ChannelMessageRow {...props} />);
+
+            fireEvent.contextMenu(screen.getByTestId('image-tile'));
+
+            expect(props.onLongPress).toHaveBeenCalledTimes(1);
+        });
+
+        it('swallows the tap that ends the hold, so the viewer does not open under the sheet', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
+            render(<ChannelMessageRow {...props} />);
+
+            hold(screen.getByTestId('image-tile'));
+            // `detail: 1` — a click a pointer produced, as the release of a hold does.
+            fireEvent.click(screen.getByTestId('image-tile'), { detail: 1 });
+
+            expect(props.onLongPress).toHaveBeenCalledTimes(1);
+            expect(mockOpenTile).not.toHaveBeenCalled();
+        });
+
+        // A right-click leaves the flag set with no click to consume it; Enter on the focused tile
+        // afterwards is a new act and must open the photo.
+        it('does not swallow a keyboard activation after a right-click', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
+            render(<ChannelMessageRow {...props} />);
+
+            fireEvent.contextMenu(screen.getByTestId('image-tile'));
+            fireEvent.click(screen.getByTestId('image-tile'), { detail: 0 });
+
+            expect(mockOpenTile).toHaveBeenCalledTimes(1);
+        });
+
+        // The bubble is the editor then; a sheet from the images would offer Edit again and drop
+        // the draft.
+        it('does not open the sheet from the images of a message being edited', () => {
+            const props = {
+                ...baseProps,
+                onLongPress: jest.fn(),
+                message: imageRow({ content: '사진 보내요' }),
+                edit: {
+                    draft: '사진 보내요!',
+                    onDraftChange: jest.fn(),
+                    isSaving: false,
+                    hasFailed: false,
+                    onSave: jest.fn(),
+                    onCancel: jest.fn(),
+                },
+            };
+            render(<ChannelMessageRow {...props} />);
+
+            hold(screen.getByTestId('image-tile'));
+            fireEvent.contextMenu(screen.getByTestId('image-tile'));
+
+            expect(props.onLongPress).not.toHaveBeenCalled();
+        });
+
+        it('lets a short tap through to open the viewer', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
+            render(<ChannelMessageRow {...props} />);
+
+            hold(screen.getByTestId('image-tile'), 100);
+            fireEvent.pointerUp(screen.getByTestId('image-tile'), { pointerType: 'touch' });
+            fireEvent.click(screen.getByTestId('image-tile'));
+
+            expect(props.onLongPress).not.toHaveBeenCalled();
+            expect(mockOpenTile).toHaveBeenCalledTimes(1);
+        });
+
+        // The viewer is portalled out of the row's DOM but not out of its React tree.
+        it('ignores a hold or right-click inside the open viewer', () => {
+            const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
+            render(<ChannelMessageRow {...props} />);
+
+            hold(screen.getByTestId('image-viewer'));
+            fireEvent.contextMenu(screen.getByTestId('image-viewer'));
+
+            expect(props.onLongPress).not.toHaveBeenCalled();
+        });
     });
 });

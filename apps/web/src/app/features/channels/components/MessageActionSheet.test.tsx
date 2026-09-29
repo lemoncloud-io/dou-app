@@ -15,6 +15,7 @@ const baseProps = {
     canReact: true,
     canReply: true,
     canModify: false,
+    hasText: true,
     isCopying: false,
     onPickEmoji: jest.fn(),
     onMoreEmoji: jest.fn(),
@@ -136,6 +137,18 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
 
         fireEvent.click(screen.getByText('chat.room.deleteMessage'));
         expect(baseProps.onDelete).toHaveBeenCalledTimes(1);
+    });
+
+    // An image-only message: reactions, the thread and delete still apply, but there is no text for
+    // Copy or Edit to act on.
+    it('leaves out copy and edit for a message with no text, keeping reply and delete', () => {
+        render(<MessageActionSheet {...baseProps} canModify hasText={false} />);
+
+        const labels = screen
+            .getAllByText(/^chat\.(room|thread)\.(replyAction|copyMessage|editMessage|deleteMessage)$/)
+            .map(node => node.textContent);
+        expect(labels).toEqual(['chat.thread.replyAction', 'chat.room.deleteMessage']);
+        expect(screen.getByLabelText('chat.room.moreEmoji')).toBeInTheDocument();
     });
 
     // Sharing wording with 'chat.room.delete' — the ✕ on an unsent row — would read as "the one I
