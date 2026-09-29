@@ -26,7 +26,7 @@ vi.mock('@chatic/app-runtime', () => ({
 }));
 vi.mock('./useChannelReadCursors', () => ({ useChannelReadCursors: () => ({}) }));
 
-let placesState = { places: [{ id: 'place-a' }, { id: 'place-b' }], isLoading: false };
+let placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };
 vi.mock('./usePlaces', () => ({ usePlaces: () => placesState }));
 
 import { useChannels } from './useChannels';
@@ -39,7 +39,7 @@ describe('useChannels', () => {
         cacheRows = [];
         deferEmit = false;
         listeners.length = 0;
-        placesState = { places: [{ id: 'place-a' }, { id: 'place-b' }], isLoading: false };
+        placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };
     });
 
     it('lists a cloud 1:1 in a place where its peer shares a group channel, whichever place its creator stood in', async () => {
@@ -83,7 +83,7 @@ describe('useChannels', () => {
 
     // Until my places load, no 1:1 can be placed, so the list must not read as final yet.
     it('stays loading until my places have loaded', async () => {
-        placesState = { places: [], isLoading: true };
+        placesState = { placeIds: [], isLoading: true };
         cacheRows = [
             { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer'] },
             { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },

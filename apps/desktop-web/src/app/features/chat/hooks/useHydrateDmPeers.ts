@@ -45,7 +45,9 @@ export const useHydrateDmPeers = (peers: readonly DmPeerRef[]): void => {
         const requested = requestedRef.current;
         const peersByRoom = new Map<string, string[]>();
         for (const { channelId, peerId } of peersRef.current) {
-            peersByRoom.set(channelId, [...(peersByRoom.get(channelId) ?? []), peerId]);
+            const roomPeers = peersByRoom.get(channelId);
+            if (roomPeers) roomPeers.push(peerId);
+            else peersByRoom.set(channelId, [peerId]);
         }
         for (const [channelId, peerIds] of peersByRoom) {
             const asked = requested.get(channelId) ?? new Set<string>();

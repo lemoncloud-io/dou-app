@@ -36,13 +36,7 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
-    const { places } = usePlaces();
-    // Keyed on the ids, not the array: the place cache re-emits a fresh array on every write.
-    const placeIdsKey = places
-        .map(place => place.id ?? '')
-        .filter(Boolean)
-        .join('\u0000');
-    const placeIds = useMemo(() => (placeIdsKey ? placeIdsKey.split('\u0000') : []), [placeIdsKey]);
+    const { placeIds } = usePlaces();
 
     // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
     const [fetched, setFetched] = useState<{ cloudId: string | null; list: DomainChannel[] }>({

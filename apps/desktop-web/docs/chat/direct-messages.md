@@ -13,10 +13,11 @@ Desktop offers no way to start one there, and every entry point below hides.
 
 - **In the places where its peer shares a group channel with me, exactly once each.** People are
   invited per place, so a 1:1 belongs where the other person is. `useChannels` reads the cloud's
-  whole channel cache once (`observeList({ sid: '' })`) and keeps a row when it is in the open
-  place's list (`isInPlaceList`), or when it is a cloud 1:1 (`isCloudWideChannel`, from
-  `@chatic/data`) that `cloudDmPlaces` files under the open place. Filtering on `c.sid === placeId`
-  instead would show a 1:1 only under its creator's place.
+  whole channel cache once (`observeList({ sid: '' })`) and keeps a row when `listingPlaces` names
+  the open place: a group channel's own place, or, for a cloud 1:1 (`isCloudWideChannel`, from
+  `@chatic/data`), the places `cloudDmPlaces` files it under. The unread counts and the quick
+  switcher's index read the same helper. Filtering on `c.sid === placeId` instead would show a 1:1
+  only under its creator's place.
 - **Membership is read from the group channels I am in.** A place's members are taken to be the
   union of `memberIds` over its group channels. The server has no place member list to ask, and the
   place profile cache is no substitute: members who never set a profile have no row there (a test

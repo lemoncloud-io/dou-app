@@ -424,6 +424,8 @@ export const HomePage = () => {
         closeActivity();
     }, [activeCloudId, closeSaved, closeActivity]);
 
+    const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
+
     // A held or misplaced pending open (one that arrived while the list loaded, or a cross-cloud
     // open landed in a 1:1's stamped place) moves once to where the room is listed. Not mid-switch,
     // and not before a place is selected: the auto-select effect settles the place first, and a
@@ -437,7 +439,7 @@ export const HomePage = () => {
         if (isLoading || isSwitching || pendingPlaceRef.current) return;
         const placeId = pendingRedirectPlace(pendingId, {
             placeId: selectedPlaceId,
-            listedIds: new Set(channels.map(channel => channel.id ?? '')),
+            listedIds: listedChannelIds,
             dmPlaces,
             redirectedId: redirectedPendingRef.current,
             namedPlaceId: pendingNamedPlaceRef.current,
@@ -445,7 +447,7 @@ export const HomePage = () => {
         if (!placeId) return;
         redirectedPendingRef.current = pendingId;
         switchPlace(placeId);
-    }, [channels, isLoading, isSwitching, dmPlaces, selectedPlaceId, switchPlace]);
+    }, [listedChannelIds, isLoading, isSwitching, dmPlaces, selectedPlaceId, switchPlace]);
 
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads; otherwise keep a
@@ -532,17 +534,16 @@ export const HomePage = () => {
     // Only the 1:1s the switcher would offer: listed elsewhere, in a place still on the rail.
     const knownPeers = useMemo(() => {
         const known = activeCloudId ? knownByCloud[activeCloudId] : undefined;
-        const listed = new Set(channels.map(channel => channel.id ?? ''));
         const railPlaces = new Set(places.map(place => place.id ?? ''));
         return Object.values(known ?? {}).flatMap(entry =>
             entry.peerId &&
             entry.placeId !== selectedPlaceId &&
             railPlaces.has(entry.placeId) &&
-            !listed.has(entry.channelId)
+            !listedChannelIds.has(entry.channelId)
                 ? [{ channelId: entry.channelId, peerId: entry.peerId }]
                 : []
         );
-    }, [knownByCloud, activeCloudId, channels, places, selectedPlaceId]);
+    }, [knownByCloud, activeCloudId, listedChannelIds, places, selectedPlaceId]);
     const knownPeerProfiles = useCloudProfiles(useMemo(() => knownPeers.map(peer => peer.peerId), [knownPeers]));
     // Only an opened room loads its members, so a 1:1 filed from a place not visited yet asks for its
     // person here; until then the row carries the room name.
@@ -554,10 +555,10 @@ export const HomePage = () => {
         return elsewhereChannelRows(known, {
             placeId: selectedPlaceId,
             placeName: new Map(places.map(place => [place.id ?? '', place.name ?? place.id ?? ''])),
-            listedIds: new Set(channels.map(channel => channel.id ?? '')),
+            listedIds: listedChannelIds,
             peerName: peerId => knownPeerProfiles.get(peerId)?.name ?? '',
         });
-    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places, channels, knownPeerProfiles]);
+    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places, listedChannelIds, knownPeerProfiles]);
 
     // Picking one of those is the same move as jumping to a saved message in
     // another place: switch place, then land on the channel once it loads.
@@ -643,7 +644,6 @@ export const HomePage = () => {
         // A jump inside the channel may have opened a thread the reader did not have.
         else if (channelId === selectedChannelId) closeThread();
     };
-    const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
     const jumpReturn = shouldOfferReturn(jumpOrigin, here, listedChannelIds)
         ? {
               // Back in the channel after a jump inside it: its name would say "you are here".

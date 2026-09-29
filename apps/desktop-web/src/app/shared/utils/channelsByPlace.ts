@@ -1,4 +1,6 @@
-import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
+
+import { listingPlaces } from './cloudDmPlaces';
 
 /**
  * A cloud's channels grouped by the places that list them: a group under its own place, a cloud 1:1
@@ -11,9 +13,10 @@ export const channelsByPlace = (
 ): Map<string, DomainChannel[]> => {
     const byPlace = new Map<string, DomainChannel[]>();
     for (const channel of channels) {
-        const places = isCloudWideChannel(channel) ? (dmPlaces.get(channel.id ?? '') ?? []) : [channel.sid];
-        for (const placeId of places) {
-            if (placeId) byPlace.set(placeId, [...(byPlace.get(placeId) ?? []), channel]);
+        for (const placeId of listingPlaces(channel, dmPlaces)) {
+            const list = byPlace.get(placeId);
+            if (list) list.push(channel);
+            else byPlace.set(placeId, [channel]);
         }
     }
     return byPlace;

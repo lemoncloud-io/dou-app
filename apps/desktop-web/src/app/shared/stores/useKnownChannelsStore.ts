@@ -7,7 +7,7 @@ import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 import { dmCounterpartId } from '../utils/dmDisplay';
 
 /** One channel the user has seen, remembered so the switcher can offer it again. */
-interface KnownChannel {
+export interface KnownChannel {
     channelId: string;
     placeId: string;
     name: string;

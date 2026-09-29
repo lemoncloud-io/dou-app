@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { isCloudWideChannel, isInPlaceList, type DomainChannel } from '@chatic/data';
+import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
-import { cloudDmPlaces, computeChannelUnread, placeMemberPeers } from '../utils';
+import { cloudDmPlaces, computeChannelUnread, listingPlaces, placeMemberPeers } from '../utils';
 import { useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 import { usePlaces } from './usePlaces';
@@ -62,7 +62,7 @@ export const useChannels = (
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
     const { isVerified } = runtime.connection.useRuntimeSocketState();
-    const { places, isLoading: placesLoading } = usePlaces();
+    const { placeIds, isLoading: placesLoading } = usePlaces();
     const [cloudRows, setCloudRows] = useState<DomainChannel[]>([]);
     const [rawLoading, setRawLoading] = useState(true);
 
@@ -103,12 +103,6 @@ export const useChannels = (
         };
     }, [channelRepository, placeId, myUid, cloudWideOnly]);
 
-    // Keyed on the ids, not the array: the place cache re-emits a fresh array on every write.
-    const placeIdsKey = places
-        .map(place => place.id ?? '')
-        .filter(Boolean)
-        .join('\u0000');
-    const placeIds = useMemo(() => (placeIdsKey ? placeIdsKey.split('\u0000') : []), [placeIdsKey]);
     const dmPlaces = useMemo(
         () => cloudDmPlaces(cloudRows, { myUid: myUid ?? null, placeIds }),
         [cloudRows, myUid, placeIds]
@@ -121,7 +115,7 @@ export const useChannels = (
     const rawChannels = useMemo(() => {
         // No place is only read for a cloud that has none, where every 1:1 is all there is.
         const listed = cloudRows.filter(c =>
-            placeId ? isInPlaceList(c, placeId) || !!dmPlaces.get(c.id ?? '')?.includes(placeId) : isCloudWideChannel(c)
+            placeId ? listingPlaces(c, dmPlaces).includes(placeId) : isCloudWideChannel(c)
         );
         return sortByName(listed);
     }, [cloudRows, dmPlaces, placeId]);

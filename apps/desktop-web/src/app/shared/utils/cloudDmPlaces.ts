@@ -45,3 +45,13 @@ export const cloudDmPlaces = (
     }
     return listing;
 };
+
+/**
+ * The places whose list holds a channel: a group channel its own place, a cloud 1:1 the places
+ * `cloudDmPlaces` gave it (none while my places are unknown).
+ */
+export const listingPlaces = (
+    channel: DomainChannel,
+    dmPlaces: ReadonlyMap<string, readonly string[]>
+): readonly string[] =>
+    isCloudWideChannel(channel) ? (dmPlaces.get(channel.id ?? '') ?? []) : channel.sid ? [channel.sid] : [];

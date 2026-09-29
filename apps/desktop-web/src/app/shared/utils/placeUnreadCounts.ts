@@ -1,6 +1,7 @@
 import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 
 import { computeChannelUnread } from './channelUnread';
+import { listingPlaces } from './cloudDmPlaces';
 
 /**
  * Unread messages per place for one cloud's channels, plus the total that the window title and OS
@@ -27,10 +28,9 @@ export const placeUnreadCounts = (
     const byPlace: Record<string, number> = {};
     let total = 0;
     for (const channel of channels) {
-        const cloudWide = isCloudWideChannel(channel);
         // A room with no place was never counted; a 1:1 is placed by the rule instead of its stamp.
-        if (!cloudWide && !channel.sid) continue;
-        const places = cloudWide ? (dmPlaces.get(channel.id ?? '') ?? []) : [channel.sid ?? ''];
+        const places = listingPlaces(channel, dmPlaces);
+        if (!isCloudWideChannel(channel) && places.length === 0) continue;
         // Read boundary: the channel's own `$join` (chatNo + the metaNo snapshot that nets
         // system messages out), with the local cursor clearing the badge on read.
         const unread = computeChannelUnread(channel, myUid, readCursors[channel.id ?? '']);
