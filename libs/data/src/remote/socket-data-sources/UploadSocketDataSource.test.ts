@@ -29,8 +29,20 @@ describe('UploadSocketDataSource', () => {
             list: [
                 {
                     upload: { id: 'up-1', status: 'pending', name: 'a.jpg' },
-                    transfer: { kind: 'presigned-put', method: 'PUT', url: 'https://s3/o', headers: { a: '1' } },
-                    thumbnailTransfer: { kind: 'presigned-put', method: 'PUT', url: 'https://s3/t', headers: {} },
+                    transfer: {
+                        kind: 'presigned-put',
+                        method: 'PUT',
+                        url: 'https://s3/o',
+                        headers: { a: '1' },
+                        maxBytes: 9,
+                    },
+                    thumbnailTransfer: {
+                        kind: 'presigned-put',
+                        method: 'PUT',
+                        url: 'https://s3/t',
+                        headers: {},
+                        maxBytes: 9,
+                    },
                 },
             ],
         });
@@ -42,8 +54,20 @@ describe('UploadSocketDataSource', () => {
             list: [
                 {
                     upload: { id: 'up-1', status: 'pending' },
-                    transfer: { url: 'https://s3/o', headers: { a: '1' } },
-                    thumbnailTransfer: { url: 'https://s3/t', headers: {} },
+                    transfer: {
+                        kind: 'presigned-put',
+                        method: 'PUT',
+                        url: 'https://s3/o',
+                        headers: { a: '1' },
+                        maxBytes: 9,
+                    },
+                    thumbnailTransfer: {
+                        kind: 'presigned-put',
+                        method: 'PUT',
+                        url: 'https://s3/t',
+                        headers: {},
+                        maxBytes: 9,
+                    },
                 },
             ],
         });
@@ -72,9 +96,15 @@ describe('UploadSocketDataSource', () => {
     });
 
     it('fails the start operation as a whole when a ticket is missing a required field', async () => {
-        mockGateways.upload.start.mockResolvedValue({ list: [{ transfer: { url: 'https://s3/o', headers: {} } }] });
+        mockGateways.upload.start.mockResolvedValue({
+            list: [
+                { transfer: { kind: 'presigned-put', method: 'PUT', url: 'https://s3/o', headers: {}, maxBytes: 9 } },
+            ],
+        });
 
-        await expect(dataSource.start(startPayload)).rejects.toBeInstanceOf(UploadResponseShapeError);
+        await expect(dataSource.start(startPayload)).rejects.toThrow(
+            new UploadResponseShapeError('start', 'list[0].upload')
+        );
     });
 
     it('fails the complete operation as a whole when an entry has no id', async () => {

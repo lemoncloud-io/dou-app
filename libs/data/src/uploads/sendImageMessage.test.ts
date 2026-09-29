@@ -1,12 +1,12 @@
+import type { UploadDirectTransfer } from '@lemoncloud/chatic-socials-api';
 import { sendImageMessage, type SendImageOptions } from './sendImageMessage';
 import type {
     PreparedImageMirror,
+    PresignedUploadStartResult,
+    PresignedUploadTicket,
     PutPort,
     PutResult,
     SendImagePorts,
-    UploadPutTarget,
-    UploadStartResultMirror,
-    UploadTicketMirror,
 } from './types';
 
 const SIGNED = 'https://bucket.s3.amazonaws.com/key?X-Amz-Signature=';
@@ -19,12 +19,15 @@ const prepared = (source: File, { thumbnail = true }: { thumbnail?: boolean } = 
     thumbnail: thumbnail ? { file: file(`${source.name}-thumb`, 'image/jpeg', 10), width: 40, height: 30 } : null,
 });
 
-const target = (slot: number, payload: 'o' | 't', generation = 1): UploadPutTarget => ({
+const target = (slot: number, payload: 'o' | 't', generation = 1): UploadDirectTransfer => ({
+    kind: 'presigned-put',
+    method: 'PUT',
     url: `${SIGNED}${slot}-${payload}-${generation}`,
     headers: { 'content-type': 'image/jpeg', 'x-amz-security-token': SECRET_HEADER },
+    maxBytes: 1000,
 });
 
-const ticket = (slot: number, generation = 1, withThumb = true): UploadTicketMirror => ({
+const ticket = (slot: number, generation = 1, withThumb = true): PresignedUploadTicket => ({
     upload: { id: `up-${slot}`, status: 'pending' },
     transfer: target(slot, 'o', generation),
     ...(withThumb ? { thumbnailTransfer: target(slot, 't', generation) } : {}),
@@ -37,7 +40,7 @@ const createPorts = (count: number) => {
     const ports = {
         prepare: jest.fn(async (source: File) => prepared(source)),
         start: jest.fn(
-            async (input: Parameters<SendImagePorts['start']>[0]): Promise<UploadStartResultMirror> => ({
+            async (input: Parameters<SendImagePorts['start']>[0]): Promise<PresignedUploadStartResult> => ({
                 list: input.list.map((intent, i) =>
                     // A re-issue names the upload it renews; answer it with a second-generation ticket.
                     intent.id

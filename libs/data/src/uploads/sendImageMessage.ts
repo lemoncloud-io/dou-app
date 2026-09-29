@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 import type { UploadCompleteInput, UploadStartInput } from '@lemoncloud/chatic-sockets-lib';
-import type { PreparedImageMirror, PutResult, SendImagePorts, UploadPutTarget, UploadTicketMirror } from './types';
+import type { PreparedImageMirror, PresignedUploadTicket, PutResult, SendImagePorts, UploadPutTarget } from './types';
 import { UploadResponseShapeError } from './types';
 
 /**
@@ -257,7 +257,7 @@ export const sendImageMessage = async (
     }
 };
 
-const applyTicket = (slot: Slot, ticket: UploadTicketMirror) => {
+const applyTicket = (slot: Slot, ticket: PresignedUploadTicket) => {
     const { upload } = ticket;
     slot.uploadId = upload.id;
     if (upload.status === 'failed') {

@@ -15,7 +15,7 @@ import type {
     UploadCompleteInput,
     UploadStartInput,
 } from '../remote/socket-data-sources';
-import type { UploadCompleteResultMirror, UploadStartResultMirror } from '../uploads/types';
+import type { CheckedUploadCompleteResult, PresignedUploadStartResult } from '../uploads/types';
 import { isPendingUploadSlot } from '../uploads/types';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -39,9 +39,9 @@ export interface IChatRepository extends DisposableRepository {
     setReaction(payload: ChatReactionInput): Promise<DomainChat>;
 
     /** Declares image slots for an attachment message; one ticket per slot, same order. */
-    startUploads(payload: UploadStartInput): Promise<UploadStartResultMirror>;
+    startUploads(payload: UploadStartInput): Promise<PresignedUploadStartResult>;
     /** Settles the slots — failed transfers included — and returns each upload's final status. */
-    completeUploads(payload: UploadCompleteInput): Promise<UploadCompleteResultMirror>;
+    completeUploads(payload: UploadCompleteInput): Promise<CheckedUploadCompleteResult>;
     /**
      * Writes the optimistic row of an image message before any byte moves, one `sending` slot per
      * image. With `pendingId` it re-arms that same row for a retry instead of adding another.
@@ -196,11 +196,11 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
      * a separate repository would own no state of its own. Nothing is cached: a ticket holds signed
      * URLs, which must not be stored, and the message row is what the screen renders.
      */
-    public startUploads(payload: UploadStartInput): Promise<UploadStartResultMirror> {
+    public startUploads(payload: UploadStartInput): Promise<PresignedUploadStartResult> {
         return this.uploadSocketDataSource.start(payload);
     }
 
-    public completeUploads(payload: UploadCompleteInput): Promise<UploadCompleteResultMirror> {
+    public completeUploads(payload: UploadCompleteInput): Promise<CheckedUploadCompleteResult> {
         return this.uploadSocketDataSource.complete(payload);
     }
 
