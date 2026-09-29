@@ -25,6 +25,7 @@ export * from './useUser';
 export * from './useMyProfile';
 export * from './useSiteProfiles';
 export * from './useAuthorNames';
+export * from './useChannelLabels';
 export * from './useCopyToClipboard';
 export * from './useDesktopBadge';
 export * from './usePanelWidth';

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -49,6 +49,12 @@ export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): Reado
     // synchronous seed below re-reads it.
     const [tick, setTick] = useState(0);
 
+    // Synchronous per-render read of the memo: a warm author paints on frame one.
+    // `tick` is a dep so a live update (written to the memo) re-reads it.
+    const resolved = useMemo(() => seedFromMemo(ids), [ids, tick]);
+    const resolvedRef = useRef(resolved);
+    resolvedRef.current = resolved;
+
     useEffect(() => {
         if (ids.length === 0) return;
         const unsubs = ids.map(id =>
@@ -56,15 +62,16 @@ export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): Reado
                 if (!user) return;
                 const name = displayName(user);
                 // displayName falls back to the raw id — treat that as unresolved.
-                if (!name || name === id || nameMemo.get(id) === name) return;
+                if (!name || name === id) return;
                 nameMemo.set(id, name);
-                setTick(t => t + 1);
+                // Compare with what THIS caller returned, not with the memo: another
+                // caller may have written the same name first, and skipping on that
+                // left this one showing the raw id for good.
+                if (resolvedRef.current.get(id) !== name) setTick(t => t + 1);
             })
         );
         return () => unsubs.forEach(unsub => unsub());
     }, [ids, userRepository]);
 
-    // Synchronous per-render read of the memo: a warm author paints on frame one.
-    // `tick` is a dep so a live update (written to the memo) re-reads it.
-    return useMemo(() => seedFromMemo(ids), [ids, tick]);
+    return resolved;
 };

@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { CornerUpLeft, X } from 'lucide-react';
 
 interface JumpReturnBarProps {
-    /** Name of the channel the reader left, already display-formatted. */
-    originName: string;
+    /**
+     * Name of the channel the reader left, already display-formatted. Absent when
+     * the jump stayed in this channel: the way back is to a place in it.
+     */
+    originName?: string;
     onReturn: () => void;
     onDismiss: () => void;
 }
@@ -31,7 +34,9 @@ export const JumpReturnBar = ({ originName, onReturn, onDismiss }: JumpReturnBar
                 className="focus-ring tactile flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-caption text-foreground transition-colors ease-tactile hover:bg-accent"
             >
                 <CornerUpLeft size={14} className="shrink-0 text-muted-foreground" aria-hidden />
-                <span className="truncate">{t('chat.jump.return', { name: originName })}</span>
+                <span className="truncate">
+                    {originName ? t('chat.jump.return', { name: originName }) : t('chat.jump.returnHere')}
+                </span>
             </button>
             <button
                 type="button"

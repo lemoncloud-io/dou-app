@@ -13,6 +13,7 @@ import {
     Hint,
     Skeleton,
     avatarStyle,
+    bareChannelName,
     dmCounterpartId,
     isSelfChannel,
     lastChatNoOf,
@@ -376,7 +377,7 @@ export const ChannelList = ({
     const dmById = new Map(dmRows.map(dm => [dm.channel.id ?? '', dm]));
     const chById = new Map(regular.map(c => [c.id ?? '', c]));
     const orderedChannelIds = applyChannelOrder(
-        regular.filter(c => matchesQuery(c, c.name ?? c.id ?? '')).map(c => c.id ?? ''),
+        regular.filter(c => matchesQuery(c, bareChannelName(c.name) || (c.id ?? ''))).map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
     const orderedDmIds = applyChannelOrder(
@@ -519,7 +520,11 @@ export const ChannelList = ({
     // stored pin order; ids not in the current list are skipped.
     const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
     for (const c of visibleRegular) {
-        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: CHANNEL_GLYPH });
+        favoriteById.set(c.id ?? '', {
+            channel: c,
+            label: bareChannelName(c.name) || (c.id ?? ''),
+            icon: CHANNEL_GLYPH,
+        });
     }
     for (const dm of dmRows) favoriteById.set(dm.channel.id ?? '', { channel: dm.channel, ...dm.identity });
     const favoriteRows = pinnedIds.flatMap(id => {
@@ -551,7 +556,7 @@ export const ChannelList = ({
                         id="ch"
                         title={t('sidebar.channels')}
                         items={visibleRegular.map(channel =>
-                            row(channel, channel.name ?? channel.id ?? '', CHANNEL_GLYPH, 'ch')
+                            row(channel, bareChannelName(channel.name) || (channel.id ?? ''), CHANNEL_GLYPH, 'ch')
                         )}
                         dragDisabled={isFiltering}
                         onReorder={makeSectionReorder('ch')}
