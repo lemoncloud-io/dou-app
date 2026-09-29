@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-09-29] - root@0.71.0, @chatic/web@0.55.0
+
+### Features
+
+- (web) keep chat images by upload, not by signed address (ADR-0128)
+- (web-ui-kit) draw a thumbnail under a loading original in the image viewer
+
 ## [2026-09-29] - No version updates
 
 ### Bug Fixes

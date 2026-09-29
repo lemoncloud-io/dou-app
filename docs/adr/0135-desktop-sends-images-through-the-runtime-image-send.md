@@ -1,4 +1,4 @@
-# ADR-0128: desktop sends images through the runtime's image send, the text first
+# ADR-0135: desktop sends images through the runtime's image send, the text first
 
 > Status: Accepted · Decided: 2026-09-29
 > Scope: `libs/app-runtime/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·

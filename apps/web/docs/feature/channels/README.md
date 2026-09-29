@@ -65,8 +65,7 @@ everything below the repository call (`@chatic/data`, `@chatic/app-runtime`).
 ## Structure
 
 **A component never calls a repository.** Data enters through `hooks/`, and a component receives it
-as props — which is why the pure modules in `utils/` and `lib/` can be tested without React or a
-runtime.
+as props — which is why the pure modules in `utils/` can be tested without React or a runtime.
 
 Five screens sit behind `ChannelRoutes`: the room, the full-screen thread, settings, and the two
 invite screens (adding people, and the issued link). There is no create-channel screen here — a room
@@ -77,8 +76,11 @@ Files whose contents the name does not give away:
 - `types/index.ts` — `ClientChannelView`, `ClientChatView` and `ChannelMember`, plus re-exports of
   the domain models, so feature code imports its types from one place. There is no `types/` file per
   model to open.
-- `lib/` holds only `resolveChannelTitle` and `resolveChannelAvatar`: the two answers other features
-  are allowed to borrow. Everything else that is pure lives in `utils/`.
+- `lib/` holds two kinds of module. Through its barrel, the answers other features are allowed to
+  borrow: `resolveChannelTitle`, `resolveChannelAvatar` and `channelStereoPolicy`. Outside it, the image
+  cache (`imageCache.ts`) and its IndexedDB store (`imageCacheStore.ts`) — stateful, and reached only
+  through `hooks/useCachedImages` ([image-send.md](./image-send.md)). Everything else that is pure lives
+  in `utils/`.
 - `utils/membership.ts` — `hasLeftChannel`, `isChannelMember`, `isSomeoneElsesSelfChat`, three
   questions about a join row that nothing else can answer.
 - `utils/displayName.ts` — the one chain that turns a user id into a name.
@@ -90,15 +92,15 @@ Six native bridge calls are made from this feature and no new capability is aske
 
 ## Documents
 
-| File                                                   | What it covers                                                                              |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                |
-| [image-send.md](./image-send.md)                       | Photos: the attach menu and pickers, the send, the tiles and viewer, retry and leftovers    |
-| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll |
-| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page        |
-| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                   |
-| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite      |
-| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                  |
+| File                                                   | What it covers                                                                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                              |
+| [image-send.md](./image-send.md)                       | Photos: the attach menu and pickers, the send, the tiles and viewer, the image cache, retry and leftovers |
+| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll               |
+| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                      |
+| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                                 |
+| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite                    |
+| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                |
 
 ## How to verify
 

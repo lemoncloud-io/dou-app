@@ -2,7 +2,7 @@
 
 reader, and sending is rejected
 
-> Status: Accepted (Decision 2 is Superseded by [ADR-0128](./0128-desktop-sends-images-through-the-runtime-image-send.md), which also points Decision 1's reader at the message's uploads) · Decided: 2026-09-11 · Implemented: `da34a447` · `8d167f16` (PR #446)
+> Status: Accepted (Decision 2 is Superseded by [ADR-0135](./0135-desktop-sends-images-through-the-runtime-image-send.md), which also points Decision 1's reader at the message's uploads) · Decided: 2026-09-11 · Implemented: `da34a447` · `8d167f16` (PR #446)
 > Scope: `apps/desktop-web/src/app/features/chat/**` (image components · `useChatImages` ·
 > `useChatImagesStore` · `useImageAttachments` · `Composer`) ·
 > `apps/desktop-web/src/app/features/debug/pages/DebugImagesPage.tsx` ·

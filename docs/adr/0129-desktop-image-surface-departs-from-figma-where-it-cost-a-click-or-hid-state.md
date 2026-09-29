@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-09-29 · Implemented: PR #508 (`fix/desktop-chat-critique`)
 > · Scope: `apps/desktop-web/src/app/features/chat/components/images/**` ·
 > `apps/desktop-web/src/app/features/chat/hooks/useImageAttachments.ts` · `DESIGN.md`
-> · Builds on [ADR-0128](./0128-desktop-sends-images-through-the-runtime-image-send.md) (the send path);
+> · Builds on [ADR-0135](./0135-desktop-sends-images-through-the-runtime-image-send.md) (the send path);
 > this one is only about what the screens show.
 
 ## Context

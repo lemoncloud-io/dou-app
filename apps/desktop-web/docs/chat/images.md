@@ -6,7 +6,7 @@ tiles that open a full-image viewer.
 
 The send itself is the runtime's, shared with apps/web: `data.useSendImages`, documented in
 [`libs/app-runtime/docs/data/image-send.md`](../../../../libs/app-runtime/docs/data/image-send.md).
-ADR-0128 records why desktop uses it. This document covers the screens. ADR-0129 records where they
+ADR-0135 records why desktop uses it. This document covers the screens. ADR-0129 records where they
 depart from the Figma frames.
 
 Components are in `features/chat/components/images/`, and the tray state is in
