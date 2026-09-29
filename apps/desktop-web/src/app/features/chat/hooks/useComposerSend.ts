@@ -43,9 +43,10 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         discard: discardImages,
     } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: xhrPut });
 
+    const failed = useCallback(() => toast({ variant: 'destructive', description: t('toast.messageFailed') }), [t]);
+
     const send = useCallback(
         (content: string, files: readonly File[]) => {
-            const failed = () => toast({ variant: 'destructive', description: t('toast.messageFailed') });
             if (content) {
                 void sendMessage(cid, { channelId, content, ...(parentId ? { parentId } : {}) }).catch(failed);
             }
@@ -53,12 +54,11 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
             // shows on its row instead.
             if (files.length > 0) void sendImages([...files]).catch(failed);
         },
-        [cid, channelId, parentId, sendImages, sendMessage, t]
+        [cid, channelId, parentId, sendImages, sendMessage, failed]
     );
 
     const retry = useCallback(
         (message: DomainChat) => {
-            const failed = () => toast({ variant: 'destructive', description: t('toast.messageFailed') });
             if (!isUnsentImageMessage(message)) {
                 void retryMessage(message).catch(failed);
                 return;
@@ -70,7 +70,7 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
                 if (!retried && filesGone) toast({ variant: 'destructive', description: t('chat.image.retryGone') });
             }, failed);
         },
-        [canRetryImages, retryImages, retryMessage, t]
+        [canRetryImages, retryImages, retryMessage, failed, t]
     );
 
     // A new function whenever the runtime's does, so a memoised row re-renders its Retry.
