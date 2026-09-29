@@ -35,22 +35,28 @@ export const isSupportedImage = (file: Pick<File, 'type'>): boolean =>
 export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>): string =>
     `${file.name}:${file.size}:${file.lastModified}`;
 
-/** Why a drop or pick was (partly) refused — each maps to one notice dialog. */
+/** Why a file in a drop or pick was refused. */
 export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported';
+
+/** How many files each reason refused; a reason that refused nothing is absent. */
+export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
 
 export interface AttachmentValidation<T> {
     accepted: T[];
-    /** The first refusal met, if any. One dialog per drop — a stack of three reads as a crash. */
-    rejection?: AttachmentRejection;
+    /**
+     * Every refusal, counted. Only the first used to be kept, so a drop of nine into a
+     * tray of two said "up to 10" and never that one of the nine was left out.
+     */
+    rejected: AttachmentRejections;
 }
 
 /**
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
- * Order of refusal follows the Figma notices: an unsupported type is refused outright,
- * a file already in the tray (or twice in this batch) is a duplicate, and whatever
- * would push the tray past `MAX_ATTACHMENTS` is over the limit. Accepted files keep
- * their incoming order up to the limit, so a drop of twelve keeps the first ten.
+ * An unsupported type is refused outright, a file already in the tray (or twice in
+ * this batch) is a duplicate, and whatever would push the tray past `MAX_ATTACHMENTS`
+ * is over the limit. Accepted files keep their incoming order up to the limit, so a
+ * drop of twelve keeps the first ten.
  */
 export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
     existingKeys: readonly string[],
@@ -58,9 +64,9 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
 ): AttachmentValidation<T> => {
     const seen = new Set(existingKeys);
     const accepted: T[] = [];
-    let rejection: AttachmentRejection | undefined;
+    const rejected: AttachmentRejections = {};
     const reject = (reason: AttachmentRejection) => {
-        rejection ??= reason;
+        rejected[reason] = (rejected[reason] ?? 0) + 1;
     };
     for (const file of incoming) {
         if (!isSupportedImage(file)) {
@@ -79,7 +85,7 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
         seen.add(key);
         accepted.push(file);
     }
-    return { accepted, rejection };
+    return { accepted, rejected };
 };
 
 export interface ImageGridLayout {

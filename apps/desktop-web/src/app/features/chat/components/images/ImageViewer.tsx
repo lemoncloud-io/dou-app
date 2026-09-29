@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronLeft, ChevronRight, Download, MoreVertical, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { Hint, avatarStyle } from '../../../../shared';
+import { avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
-import { ImageMoreMenu } from './ImageMoreMenu';
+import { ImageActions } from './ImageActions';
 
 /** Who sent the images — the viewer's thread column repeats the message header. */
 export interface ImageAuthor {
@@ -37,10 +37,10 @@ interface ImageViewerProps {
 
 /** Shared shape of the round prev/next controls over the image. */
 const NAV_BUTTON =
-    'focus-ring absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-raised transition-opacity duration-150 ease-tactile disabled:hidden';
+    'focus-ring absolute top-1/2 z-raised flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-elevated text-foreground shadow-raised disabled:hidden';
 
-/** Controls that surface on hover or focus ("shown on hover over the menu or close button"). */
-const REVEAL = 'opacity-0 group-hover/viewer:opacity-100 focus-visible:opacity-100 focus-within:opacity-100';
+/** How far past its own size the stage may draw a small picture before it turns to mush. */
+const MAX_UPSCALE = 2;
 
 /**
  * Full-view image viewer (Figma "#full image view").
@@ -62,17 +62,23 @@ export const ImageViewer = ({
     onReply,
 }: ImageViewerProps) => {
     const { t } = useTranslation();
-    const [index, setIndex] = useState(0);
+    const [index, setIndex] = useState(openIndex ?? 0);
     // The description says the position on open; the live line only speaks once it changes.
     const [hasMoved, setHasMoved] = useState(false);
-    const [isMenuOpen, setMenuOpen] = useState(false);
+    // The picture's own size, so the stage can fit it without blowing a thumbnail up to fill a monitor.
+    const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
+    const [seenOpenIndex, setSeenOpenIndex] = useState(openIndex);
     const isOpen = openIndex !== null;
     const isMulti = images.length > 1;
 
-    useEffect(() => {
+    // Follows a new `openIndex` during render rather than in an effect, so opening takes
+    // one render instead of two.
+    if (openIndex !== seenOpenIndex) {
+        setSeenOpenIndex(openIndex);
         if (openIndex !== null) setIndex(openIndex);
         setHasMoved(false);
-    }, [openIndex]);
+        setNatural(null);
+    }
 
     // A delete can shrink the set under the viewer; keep the index on a real image and
     // close once none are left.
@@ -83,7 +89,9 @@ export const ImageViewer = ({
     }, [images.length, index, isOpen, onClose]);
 
     const current = images[Math.min(index, images.length - 1)];
+    const position = Math.min(index, images.length - 1) + 1;
     const moveTo = (next: number) => {
+        if (next !== index) setNatural(null);
         setIndex(next);
         setHasMoved(true);
     };
@@ -95,38 +103,53 @@ export const ImageViewer = ({
                 closeLabel={t('common.close')}
                 variant="bare"
                 hideClose
-                // Figma: the app stays visible behind the viewer, frosted rather than blacked out.
-                overlayClassName="bg-background/40 backdrop-blur-md"
+                // A plain scrim. The frosted layer Figma drew left the app readable behind the
+                // picture, competing with it, and cost a full-window blur on every frame.
+                overlayClassName="bg-overlay/70"
                 onKeyDown={event => {
-                    // The More menu is portalled but still inside this tree, so its arrow keys
-                    // bubble here too; moving through the menu stepped the picture behind it.
-                    if (event.defaultPrevented || (event.target as Element).closest?.('[role="menu"]')) return;
+                    // Whatever already handled the key (a control inside the viewer) keeps it.
+                    if (event.defaultPrevented) return;
                     if (event.key === 'ArrowLeft') step(-1);
                     if (event.key === 'ArrowRight') step(1);
                 }}
                 // 32px from every edge is the Figma frame, and it holds on any window size.
-                className="group/viewer inset-8 flex gap-0 overflow-hidden rounded-[20px] shadow-overlay outline-none"
+                className="inset-8 flex gap-0 overflow-hidden rounded-[20px] shadow-overlay outline-none"
             >
                 <DialogTitle className="sr-only">{current?.name ?? t('chat.image.viewer')}</DialogTitle>
                 <DialogDescription className="sr-only">
-                    {t('chat.image.position', { index: index + 1, count: images.length })}
+                    {t('chat.image.position', { index: position, count: images.length })}
                 </DialogDescription>
                 {/* The description is read once, on open. Stepping with the arrows changed the
                     picture in silence, so the position is also said as it changes. */}
                 {isMulti && (
                     <span role="status" aria-live="polite" className="sr-only">
-                        {hasMoved && t('chat.image.position', { index: index + 1, count: images.length })}
+                        {hasMoved && t('chat.image.position', { index: position, count: images.length })}
                     </span>
                 )}
                 {current && (
                     <>
                         <div className="relative flex min-w-0 flex-1 flex-col bg-muted">
                             <div className="relative flex min-h-0 flex-1 items-center justify-center px-16 pb-4 pt-8">
+                                {/* Fills the stage and keeps its shape, up to twice its own size:
+                                    drawn at natural size, a small picture was a speck in the
+                                    middle of the window. */}
                                 <img
+                                    key={current.id}
                                     src={current.url}
-                                    alt={current.name}
+                                    alt={t('chat.image.alt', {
+                                        index: position,
+                                        count: images.length,
+                                        name: author.name,
+                                    })}
                                     draggable={false}
-                                    className="max-h-full max-w-full select-none rounded-sm object-contain"
+                                    onLoad={event =>
+                                        setNatural({
+                                            width: event.currentTarget.naturalWidth,
+                                            height: event.currentTarget.naturalHeight,
+                                        })
+                                    }
+                                    style={fitStyle(natural)}
+                                    className="h-full w-full select-none rounded-sm object-contain"
                                 />
                                 {isMulti && (
                                     <>
@@ -135,7 +158,7 @@ export const ImageViewer = ({
                                             onClick={() => step(-1)}
                                             disabled={index === 0}
                                             aria-label={t('chat.image.previous')}
-                                            className={cn(NAV_BUTTON, 'left-7', REVEAL)}
+                                            className={cn(NAV_BUTTON, 'left-7')}
                                         >
                                             <ChevronLeft size={18} aria-hidden />
                                         </button>
@@ -144,7 +167,7 @@ export const ImageViewer = ({
                                             onClick={() => step(1)}
                                             disabled={index === images.length - 1}
                                             aria-label={t('chat.image.next')}
-                                            className={cn(NAV_BUTTON, 'right-7', REVEAL)}
+                                            className={cn(NAV_BUTTON, 'right-7')}
                                         >
                                             <ChevronRight size={18} aria-hidden />
                                         </button>
@@ -164,41 +187,16 @@ export const ImageViewer = ({
                                     </button>
                                 )}
                             </div>
-                            <div
-                                className={cn(
-                                    'flex shrink-0 items-center gap-3 px-8 pb-6',
-                                    isMenuOpen ? 'opacity-100' : REVEAL
-                                )}
-                            >
+                            {/* Always on screen. It used to wait for a hover, so the only way to
+                                learn the viewer could save or copy was to wave the pointer around. */}
+                            <div className="flex shrink-0 items-center gap-3 px-8 pb-6">
                                 <span className="min-w-0 flex-1 truncate text-caption font-medium text-foreground">
                                     {current.name}
                                 </span>
-                                <Hint label={t('chat.image.download')}>
-                                    <button
-                                        type="button"
-                                        onClick={() => onDownload(current)}
-                                        aria-label={t('chat.image.download')}
-                                        className="focus-ring flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-foreground/[0.08]"
-                                    >
-                                        <Download size={18} aria-hidden />
-                                    </button>
-                                </Hint>
-                                <ImageMoreMenu
-                                    side="top"
+                                <ImageActions
+                                    onDownload={() => onDownload(current)}
                                     onCopy={() => onCopy(current)}
                                     onDelete={onDelete && (() => onDelete(current))}
-                                    onOpenChange={setMenuOpen}
-                                    trigger={
-                                        <Hint label={t('chat.image.menu')}>
-                                            <button
-                                                type="button"
-                                                aria-label={t('chat.image.menu')}
-                                                className="focus-ring flex h-9 w-9 items-center justify-center rounded-md bg-foreground/[0.08] text-foreground"
-                                            >
-                                                <MoreVertical size={18} aria-hidden />
-                                            </button>
-                                        </Hint>
-                                    }
                                 />
                             </div>
                         </div>
@@ -254,6 +252,8 @@ export const ImageViewer = ({
                                                     <img
                                                         src={image.url}
                                                         alt=""
+                                                        loading="lazy"
+                                                        decoding="async"
                                                         draggable={false}
                                                         className="h-full w-full object-cover"
                                                     />
@@ -289,6 +289,10 @@ export const ImageViewer = ({
     );
 };
 
+/** Caps the picture at `MAX_UPSCALE` times its own size; until it has loaded, no cap. */
+const fitStyle = (natural: { width: number; height: number } | null): CSSProperties | undefined =>
+    natural ? { maxWidth: natural.width * MAX_UPSCALE, maxHeight: natural.height * MAX_UPSCALE } : undefined;
+
 interface ImageSetMetaProps {
     count: number;
     onDownloadAll: () => void;
@@ -298,7 +302,7 @@ interface ImageSetMetaProps {
 export const ImageSetMeta = ({ count, onDownloadAll }: ImageSetMetaProps) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center gap-3 text-caption font-medium tracking-[-0.005em] text-muted-foreground">
+        <div className="flex items-center gap-3 text-caption font-medium text-muted-foreground">
             <span>{t('chat.image.fileCount', { count })}</span>
             <button
                 type="button"

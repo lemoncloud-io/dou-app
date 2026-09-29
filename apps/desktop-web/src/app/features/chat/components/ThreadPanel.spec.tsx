@@ -40,8 +40,6 @@ vi.mock('../hooks', () => ({
         attachments: [],
         addFiles: vi.fn(),
         remove: vi.fn(),
-        notice: null,
-        dismissNotice: vi.fn(),
     }),
     useFileDrop: () => ({ isDragging: false, dropHandlers: {} }),
     useChatImages: () => [],

@@ -9,35 +9,44 @@ describe('validateAttachments', () => {
     it('accepts supported images in order', () => {
         const result = validateAttachments([], [file('a.png'), file('b.jpg', 'image/jpeg')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png', 'b.jpg']);
-        expect(result.rejection).toBeUndefined();
+        expect(result.rejected).toEqual({});
     });
 
     it('refuses a type the viewer cannot draw, keeping the rest', () => {
         const result = validateAttachments([], [file('doc.pdf', 'application/pdf'), file('a.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
-        expect(result.rejection).toBe('unsupported');
+        expect(result.rejected).toEqual({ unsupported: 1 });
     });
 
     // A re-pick of a file already in the tray, and the same file twice in one drop.
     it('refuses duplicates against the tray and within the batch', () => {
         const a = file('a.png');
-        expect(validateAttachments([attachmentKey(a)], [a]).rejection).toBe('duplicate');
+        expect(validateAttachments([attachmentKey(a)], [a]).rejected).toEqual({ duplicate: 1 });
         const batch = validateAttachments([], [a, a]);
         expect(batch.accepted).toHaveLength(1);
-        expect(batch.rejection).toBe('duplicate');
+        expect(batch.rejected).toEqual({ duplicate: 1 });
     });
 
     it('keeps the first files up to the limit and flags the overflow', () => {
         const existing = Array.from({ length: MAX_ATTACHMENTS - 1 }, (_, i) => `k${i}`);
         const result = validateAttachments(existing, [file('a.png'), file('b.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
-        expect(result.rejection).toBe('limit');
+        expect(result.rejected).toEqual({ limit: 1 });
     });
 
-    // One dialog per drop: the first refusal met is the one reported.
-    it('reports only the first refusal', () => {
-        const result = validateAttachments([], [file('x.heic', 'image/heic'), file('a.png'), file('a.png')]);
-        expect(result.rejection).toBe('unsupported');
+    // Only the first refusal used to be reported, so a mixed drop hid the rest of what it left out.
+    it('counts every refusal by reason', () => {
+        const existing = Array.from({ length: MAX_ATTACHMENTS - 2 }, (_, i) => `k${i}`);
+        const result = validateAttachments(existing, [
+            file('x.heic', 'image/heic'),
+            file('a.png'),
+            file('a.png'),
+            file('b.png'),
+            file('c.png'),
+            file('d.png'),
+        ]);
+        expect(result.accepted.map(f => f.name)).toEqual(['a.png', 'b.png']);
+        expect(result.rejected).toEqual({ unsupported: 1, duplicate: 1, limit: 2 });
     });
 });
 

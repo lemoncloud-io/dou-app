@@ -647,7 +647,7 @@ export const MessageList = ({
                         type="button"
                         onClick={scrollToBottom}
                         aria-label={t('chat.jumpToLatest')}
-                        className="focus-ring tactile absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
+                        className="focus-ring tactile absolute bottom-4 left-1/2 z-float flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
                             {newCount > NEW_BADGE_CAP
@@ -663,7 +663,7 @@ export const MessageList = ({
                             type="button"
                             onClick={scrollToBottom}
                             aria-label={t('chat.jumpToLatest')}
-                            className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
+                            className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-float flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
                         >
                             <ChevronDown size={18} />
                         </button>

@@ -1,57 +1,29 @@
 import { useTranslation } from 'react-i18next';
 
-import { FileCode2, FileText, Image } from 'lucide-react';
+import { ImagePlus } from 'lucide-react';
 
 import { MAX_ATTACHMENTS } from '../../utils';
 
 /**
- * The three fills of Figma's stacked-files mark ("#image drag over"). They are
- * illustration, not interface: the only place in the desktop client that carries a
- * hue other than the lime, and they stay fixed in both themes because the mark is
- * one drawing. The hues are the `illustration-*` tokens, kept apart from the
- * interface palette so the exception is countable.
- * The glyphs on the two light fills are dark, not white — white measured 1.4:1 on
- * the yellow and 2.1:1 on the green, i.e. the icons were invisible.
- */
-const FILE_MARK = {
-    code: 'bg-illustration-code text-black/70',
-    note: 'bg-illustration-note text-black/70',
-    image: 'bg-illustration-image text-white',
-} as const;
-
-/**
  * Shown over the conversation while files are dragged in (Figma "#image drag over"): a
- * dashed drop zone, the stacked-files mark, and the limit. Pointer-transparent, so the
- * drag events keep landing on the pane underneath.
+ * dashed drop zone, an image mark, and the limit. Pointer-transparent, so the drag
+ * events keep landing on the pane underneath.
+ *
+ * It said "images and files" under a drawing of a code file and a note, and then
+ * refused both: only images are taken. The copy and the mark now say images, and the
+ * mark uses the app's own accent instead of three hues found nowhere else.
  */
 export const AttachmentDropOverlay = () => {
     const { t } = useTranslation();
     return (
         <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-6 bottom-5 top-4 z-30 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-description/60 bg-background/85 backdrop-blur-[2px] animate-fade-in"
+            className="pointer-events-none absolute inset-x-6 bottom-5 top-4 z-overlay flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-description/60 bg-background/95 animate-fade-in"
         >
-            {/* Figma's mark: a blue image card between a green code file and a yellow note. */}
-            <span className="relative mb-2 h-[72px] w-[104px]">
-                <span
-                    className={`absolute left-1 top-0 flex h-11 w-9 -rotate-12 items-center justify-center rounded-lg ${FILE_MARK.code}`}
-                >
-                    <FileCode2 size={18} aria-hidden />
-                </span>
-                <span
-                    className={`absolute right-1 top-3 flex h-11 w-9 rotate-12 items-center justify-center rounded-lg ${FILE_MARK.note}`}
-                >
-                    <FileText size={18} aria-hidden />
-                </span>
-                <span
-                    className={`absolute left-1/2 top-4 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-xl ${FILE_MARK.image} shadow-raised`}
-                >
-                    <Image size={28} aria-hidden />
-                </span>
+            <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-raised">
+                <ImagePlus size={28} aria-hidden />
             </span>
-            <p className="text-headline font-semibold tracking-[-0.01em] text-foreground">
-                {t('chat.attach.dropTitle')}
-            </p>
+            <p className="text-headline font-semibold text-foreground">{t('chat.attach.dropTitle')}</p>
             <p className="text-callout text-label">{t('chat.attach.dropHint', { count: MAX_ATTACHMENTS })}</p>
         </div>
     );

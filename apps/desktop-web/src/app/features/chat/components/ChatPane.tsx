@@ -48,7 +48,7 @@ import { useShellSidebar } from './DesktopLayout';
 import { JumpReturnBar } from './JumpReturnBar';
 import { MessageList } from './MessageList';
 import { HEADER_ICON_BUTTON } from './headerStyles';
-import { AttachmentDropOverlay, AttachmentNoticeDialog } from './images';
+import { AttachmentDropOverlay } from './images';
 
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
@@ -398,7 +398,6 @@ export const ChatPane = ({
                 />
                 {isDragging && <AttachmentDropOverlay />}
             </div>
-            <AttachmentNoticeDialog notice={tray.notice} onDismiss={tray.dismissNotice} />
         </>
     );
 };

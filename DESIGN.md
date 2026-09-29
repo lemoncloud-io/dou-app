@@ -221,7 +221,14 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 - **Layering** is done with surface tokens, not shadows: `bg-elevated` above
   `bg-background` above `bg-well`, separated by `border-hairline`. Cards only when
   elevation is the right affordance, never nested.
-- Overlays: `bg-overlay/…` scrim; dialog and sheet content on `bg-popover`.
+- Overlays: `bg-overlay/…` scrim; dialog and sheet content on `bg-popover`. Marks drawn
+  on the scrim (an image's "+n", its upload spinner) use `on-overlay`. No glass: nothing
+  in the desktop client blurs what is behind it.
+- **Stacking** (desktop): one named scale in `tailwind.config.js`, no numeric `z-*`.
+  `z-raised` (a toolbar or sticky label above its own row), `z-float` (pills, the mention
+  list and a drawer's scrim over a pane), `z-overlay` (the drop zone over a whole pane),
+  `z-drawer` (a panel or drawer laid over its neighbour), `z-popover` (fixed to the
+  viewport, level with ui-kit's dialogs and menus at 50).
 
 ## Layout
 
@@ -331,6 +338,10 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 - **Reduced motion**: a global `prefers-reduced-motion: reduce` block collapses every
   animation and transition to 0.01ms. Nothing is gated on a transition finishing.
 - Targets: 36px minimum, 40px for primary controls. An isolated control that must look smaller takes `hit-target`, which grows only its hit area.
+- **Hover-revealed controls** (desktop): a control that waits for hover takes
+  `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent. It
+  hides only on devices that can hover, shows while the pointer or focus is anywhere in
+  its group, and can be pinned while something it opened is on screen.
 
 ## State vocabulary
 

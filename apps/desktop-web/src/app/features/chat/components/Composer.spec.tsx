@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
@@ -39,5 +39,53 @@ describe('Composer autoFocus', () => {
         await settle();
         expect(document.activeElement).toBe(field);
         field.remove();
+    });
+});
+
+describe('Composer paste', () => {
+    afterEach(cleanup);
+
+    const paste = (target: Element, data: { files: File[]; text?: string; types: string[] }) =>
+        fireEvent.paste(target, {
+            clipboardData: {
+                files: data.files,
+                types: data.types,
+                getData: (type: string) => (type === 'text/plain' ? (data.text ?? '') : ''),
+            },
+        });
+
+    // Excel and Word put the cells' text and a picture of them on the clipboard together;
+    // taking the picture used to throw the text away.
+    it('keeps the text of a paste that also carries an image', async () => {
+        const onAddFiles = vi.fn();
+        const { container } = render(
+            <Composer onSend={() => undefined} channelId="P1" onAddFiles={onAddFiles} onRemoveAttachment={vi.fn()} />,
+            { wrapper }
+        );
+        await settle();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+        const image = new File(['x'], 'cells.png', { type: 'image/png' });
+        await act(async () => {
+            paste(input, { files: [image], text: 'Q3 total 1,204', types: ['Files', 'text/plain', 'text/html'] });
+        });
+        await settle();
+        expect(onAddFiles).toHaveBeenCalledWith([image]);
+        expect(input.textContent).toContain('Q3 total 1,204');
+    });
+
+    // Finder and Explorer put a copied file's name on the clipboard as plain text.
+    it('does not type the name of a copied file into the message', async () => {
+        const { container } = render(
+            <Composer onSend={() => undefined} channelId="P2" onAddFiles={vi.fn()} onRemoveAttachment={vi.fn()} />,
+            { wrapper }
+        );
+        await settle();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+        const image = new File(['x'], 'IMG_1234.png', { type: 'image/png' });
+        await act(async () => {
+            paste(input, { files: [image], text: 'IMG_1234.png', types: ['Files', 'text/plain'] });
+        });
+        await settle();
+        expect(input.textContent).not.toContain('IMG_1234.png');
     });
 });

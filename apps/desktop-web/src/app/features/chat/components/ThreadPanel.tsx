@@ -23,7 +23,7 @@ import { useFileDrop, useImageAttachments, useMentionables, useMessageViewer, ty
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
-import { AttachmentDropOverlay, AttachmentNoticeDialog } from './images';
+import { AttachmentDropOverlay } from './images';
 
 interface ThreadPanelProps {
     /** The channel the open thread belongs to (the host's selected channel). */
@@ -163,7 +163,6 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                 )}
                 {isDragging && root && <AttachmentDropOverlay />}
             </div>
-            <AttachmentNoticeDialog notice={tray.notice} onDismiss={tray.dismissNotice} />
         </ResizablePanel>
     );
 };

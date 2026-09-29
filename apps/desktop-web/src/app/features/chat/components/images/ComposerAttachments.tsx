@@ -6,8 +6,9 @@ import { X } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 
 import type { ComposerAttachment } from '../../hooks';
+import { MAX_ATTACHMENTS } from '../../utils';
 import { ImageSpinner } from './ImageSpinner';
-import { Hint } from '../../../../shared';
+import { Hint, hoverReveal } from '../../../../shared';
 
 interface ComposerAttachmentsProps {
     attachments: ComposerAttachment[];
@@ -17,8 +18,12 @@ interface ComposerAttachmentsProps {
 }
 
 /**
- * The tray of picked images inside the composer (Figma "Image"): 92px tiles, a spinner
- * while one is still loading, and the remove "×" on hover or focus ("delete button on hover").
+ * The tray of picked images inside the composer (Figma "Image"): 92px tiles in one row
+ * that scrolls sideways, a spinner until a preview has decoded, the remove "×" on hover
+ * or focus ("delete button on hover"), and how many of the ten are used.
+ *
+ * The row used to wrap, so ten images took about 40% of the window and pushed the
+ * conversation out of view while you wrote the message that goes with them.
  */
 export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: ComposerAttachmentsProps) => {
     const { t } = useTranslation();
@@ -32,6 +37,10 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
     const [announcement, setAnnouncementState] = useState({ text: '', seq: 0 });
     const setAnnouncement = (text: string) => setAnnouncementState(current => ({ text, seq: current.seq + 1 }));
     const previousCount = useRef(attachments.length);
+    // Previews that have decoded. Local to the tray: it was a second decode through
+    // `new Image()` in the hook, for a flag only this spinner reads.
+    const [decoded, setDecoded] = useState<ReadonlySet<string>>(() => new Set());
+    const markDecoded = (id: string) => setDecoded(current => (current.has(id) ? current : new Set(current).add(id)));
 
     useEffect(() => {
         const added = attachments.length - previousCount.current;
@@ -60,36 +69,64 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
                 <span key={announcement.seq}>{announcement.text}</span>
             </span>
             {attachments.length > 0 && (
-                <ul ref={listRef} aria-label={t('chat.attach.tray')} className="flex flex-wrap gap-3.5 py-1">
-                    {attachments.map((attachment, index) => (
-                        <li key={attachment.id} className="group/att relative h-[92px] w-[92px] shrink-0">
-                            <div className="h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted">
-                                <img
-                                    src={attachment.url}
-                                    alt={attachment.name}
-                                    draggable={false}
-                                    className={cn('h-full w-full object-cover', attachment.isUploading && 'blur-[1px]')}
-                                />
-                                {attachment.isUploading && (
-                                    <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-overlay/40">
-                                        <ImageSpinner className="h-5 w-5 border-2" />
-                                    </span>
-                                )}
-                            </div>
-                            <Hint label={t('chat.attach.remove', { name: attachment.name })}>
-                                <button
-                                    type="button"
-                                    data-remove=""
-                                    onClick={() => remove(index, attachment)}
-                                    aria-label={t('chat.attach.remove', { name: attachment.name })}
-                                    className="focus-ring hit-target absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-background bg-foreground text-background opacity-0 transition-opacity focus-visible:opacity-100 group-hover/att:opacity-100"
+                <div className="flex items-end gap-3">
+                    <ul
+                        ref={listRef}
+                        aria-label={t('chat.attach.tray')}
+                        // pt/pr leave room for the "×" that overhangs each tile's corner.
+                        className="scrollbar-thin flex min-w-0 flex-1 gap-3.5 overflow-x-auto pb-1 pr-2 pt-2"
+                    >
+                        {attachments.map((attachment, index) => {
+                            const isDecoding = !decoded.has(attachment.id);
+                            return (
+                                <li
+                                    key={attachment.id}
+                                    aria-busy={isDecoding || undefined}
+                                    className="group/att relative h-[92px] w-[92px] shrink-0"
                                 >
-                                    <X size={14} aria-hidden />
-                                </button>
-                            </Hint>
-                        </li>
-                    ))}
-                </ul>
+                                    <div className="h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted">
+                                        <img
+                                            src={attachment.url}
+                                            alt={attachment.name}
+                                            decoding="async"
+                                            draggable={false}
+                                            onLoad={() => markDecoded(attachment.id)}
+                                            onError={() => markDecoded(attachment.id)}
+                                            className={cn('h-full w-full object-cover', isDecoding && 'blur-[1px]')}
+                                        />
+                                        {isDecoding && (
+                                            <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-overlay/40">
+                                                <ImageSpinner className="h-5 w-5 border-2" />
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Hint label={t('chat.attach.remove', { name: attachment.name })}>
+                                        <button
+                                            type="button"
+                                            data-remove=""
+                                            onClick={() => remove(index, attachment)}
+                                            aria-label={t('chat.attach.remove', { name: attachment.name })}
+                                            className={cn(
+                                                'focus-ring hit-target absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-background bg-foreground text-background',
+                                                hoverReveal('att')
+                                            )}
+                                        >
+                                            <X size={14} aria-hidden />
+                                        </button>
+                                    </Hint>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    <span className="shrink-0 pb-1 text-caption tabular-nums text-muted-foreground">
+                        <span aria-hidden>
+                            {attachments.length}/{MAX_ATTACHMENTS}
+                        </span>
+                        <span className="sr-only">
+                            {t('chat.attach.countLabel', { count: attachments.length, max: MAX_ATTACHMENTS })}
+                        </span>
+                    </span>
+                </div>
             )}
         </>
     );

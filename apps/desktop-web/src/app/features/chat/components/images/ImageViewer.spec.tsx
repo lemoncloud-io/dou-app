@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -13,11 +13,11 @@ const images = ['a.png', 'b.png', 'c.png'].map((name, index) => ({ id: `i${index
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
-const renderViewer = () =>
+const renderViewer = (openIndex = 0) =>
     render(
         <ImageViewer
             images={images}
-            openIndex={0}
+            openIndex={openIndex}
             onClose={vi.fn()}
             author={{ name: 'Ada', colorSeed: 'ada', time: '10:00' }}
             onDownload={vi.fn()}
@@ -42,16 +42,9 @@ describe('ImageViewer keys', () => {
         expect(position()).toContain('Image 2 of 3');
     });
 
-    // The More menu is portalled but lives in the viewer's React tree, so its arrow keys
-    // bubbled to the viewer and stepped the picture behind the open menu.
-    it('leaves arrow keys pressed inside the More menu to the menu', async () => {
-        renderViewer();
-        fireEvent.keyDown(screen.getByRole('button', { name: 'More' }), { key: 'Enter' });
-        const menu = await screen.findByRole('menu');
-        await act(async () => {
-            fireEvent.keyDown(menu, { key: 'ArrowRight' });
-        });
-        expect(position()).not.toContain('Image 2 of 3');
+    it('describes the picture by position and sender, not by its file name', () => {
+        renderViewer(1);
+        expect(screen.getByRole('img', { name: 'Image 2 of 3 from Ada' })).toBeTruthy();
     });
 
     // The dialog description already reads the position on open; saying it again doubled it.

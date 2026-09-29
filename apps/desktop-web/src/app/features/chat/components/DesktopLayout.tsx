@@ -77,7 +77,7 @@ const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
         { key: 'shell.skip.sidebar', run: onSidebar },
     ];
     return (
-        <div className="pointer-events-none absolute left-2 top-2 z-50 flex flex-col gap-1">
+        <div className="pointer-events-none absolute left-2 top-2 z-popover flex flex-col gap-1">
             {links.map(link => (
                 <button
                     key={link.key}
@@ -166,7 +166,7 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                     <div
                         aria-hidden
                         onClick={close}
-                        className={`absolute inset-y-0 right-0 z-20 bg-overlay/40 animate-fade-in ${drawerLeft}`}
+                        className={`absolute inset-y-0 right-0 z-float bg-overlay/40 animate-fade-in ${drawerLeft}`}
                     />
                 )}
                 {/* Unmounted while the drawer is shut, rather than hidden: the column's
@@ -185,8 +185,8 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                         aria-label={drawerOpen ? t('sidebar.channels') : undefined}
                         className={
                             isDrawer
-                                ? `absolute inset-y-0 ${drawerLeft} z-30 flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in`
-                                : 'relative z-10 flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
+                                ? `absolute inset-y-0 ${drawerLeft} z-drawer flex w-[286px] max-w-[85%] flex-col overflow-hidden border-r border-hairline bg-sidebar text-sidebar-foreground shadow-raised animate-fade-in`
+                                : 'relative z-raised flex shrink-0 flex-col overflow-hidden border-x border-hairline bg-sidebar text-sidebar-foreground'
                         }
                     >
                         {drawerOpen && (

@@ -24,6 +24,15 @@ module.exports = {
             },
         },
         extend: {
+            // One stacking scale for the app's own layers (DESIGN.md "Elevation"). ui-kit's
+            // dialogs, menus and toasts sit at 50 and above, so everything here stays below.
+            zIndex: {
+                raised: '10', // above its own row or pane: a toolbar, a sticky label, a resize handle
+                float: '20', // floats over a pane's content: jump pills, the mention list, a drawer's scrim
+                overlay: '25', // covers a whole pane: the drop zone
+                drawer: '30', // a panel or drawer laid over its neighbour in a narrow window
+                popover: '50', // fixed to the viewport, level with ui-kit's popovers
+            },
             colors: {
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',
@@ -116,14 +125,10 @@ module.exports = {
                 },
                 'badge-member': 'hsl(var(--badge-member))',
                 favorite: 'hsl(var(--favorite))',
-                illustration: {
-                    code: 'hsl(var(--illustration-code))',
-                    note: 'hsl(var(--illustration-note))',
-                    image: 'hsl(var(--illustration-image))',
-                },
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
+                'on-overlay': 'hsl(var(--on-overlay))',
                 // Engineering pass — layering surfaces (depth without hardcoded grays)
                 elevated: 'hsl(var(--elevated))',
                 hairline: 'hsl(var(--hairline))',

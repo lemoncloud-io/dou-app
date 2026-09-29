@@ -117,14 +117,12 @@
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
         --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
-        /* The drop overlay's stacked-files drawing: illustration, one drawing in
-           both themes, so the dark block does not redefine them. */
-        --illustration-code: 137 49% 57%; /* #5BC77A */
-        --illustration-note: 47 93% 67%; /* #F9D65C */
-        --illustration-image: 205 82% 55%; /* #2E9BEA */
         --tab-active: 0 0% 10%;
         --tab-inactive: 218 5% 46%;
         --overlay: 0 0% 0%;
+        /* Marks drawn on the overlay scrim (a "+n" count, an upload spinner). The
+           scrim is black in both themes, so this is white in both. */
+        --on-overlay: 0 0% 100%;
 
         /* Presence + the self avatar's disc. Figma "1명 Profile" (blue_bk #102346)
            and Colors/Green #34C759 — fixed in both themes by design, so they are
@@ -234,6 +232,7 @@
         --tab-active: 60 7% 92%;
         --tab-inactive: 60 0% 55%;
         --overlay: 0 0% 0%;
+        --on-overlay: 0 0% 100%;
 
         /* Layering + elevation primitives (dark). */
         --elevated: 90 2% 18%; /* #2E2F2D */
@@ -317,8 +316,12 @@
 
     /* Grow an isolated control's hit area to the 36px floor without changing how
        big it looks. Only for controls with no close neighbour: overlapping hit
-       areas make a tap land on the wrong one. */
-    .hit-target {
+       areas make a tap land on the wrong one.
+       The ::before only needs a positioned parent, so a control that is already
+       absolute or fixed keeps its own position: this rule sits later in the
+       utilities layer than `absolute`, and used to pull the composer tray's
+       remove button out of its corner. */
+    .hit-target:not(.absolute):not(.fixed):not(.sticky) {
         position: relative;
     }
     .hit-target::before {

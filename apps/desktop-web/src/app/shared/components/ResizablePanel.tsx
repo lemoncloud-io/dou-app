@@ -58,7 +58,7 @@ export const ResizablePanel = ({
             ref={resize.panelRef}
             style={{ width: resize.width }}
             className={cn(
-                'absolute inset-y-0 right-0 z-30 flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none',
+                'absolute inset-y-0 right-0 z-drawer flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none',
                 className
             )}
         >

@@ -1,14 +1,11 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { Download, MoreVertical } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 
 import type { ChatImage } from '../../utils';
-import { ImageMoreMenu } from './ImageMoreMenu';
+import { ImageActions } from './ImageActions';
 import { ImageSpinner } from './ImageSpinner';
-import { Hint } from '../../../../shared';
+import { hoverReveal } from '../../../../shared';
 
 interface ImageTileProps {
     image: ChatImage;
@@ -23,14 +20,16 @@ interface ImageTileProps {
 
 /**
  * One image in a message (Figma "Image"): rounded, hairline-bordered, opens the viewer
- * on click. The save + "More" bar only shows on hover or keyboard focus, and stays up
- * while its menu is open — the menu portals out of the tile, so hover alone would drop
- * the bar from under the pointer.
+ * on click. Save, copy and delete sit in a bar over the corner that shows on hover or
+ * keyboard focus (always, on a device without hover).
+ *
+ * An uploading tile stays in the tab order and says so. It used to be a disabled
+ * button, which a screen reader skips, so the upload had no presence at all.
  */
 export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onDelete, className }: ImageTileProps) => {
     const { t } = useTranslation();
-    const [isMenuOpen, setMenuOpen] = useState(false);
     const hasOverflow = overflow > 0;
+    const isUploading = !!image.isUploading;
 
     return (
         <div
@@ -41,67 +40,48 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
         >
             <button
                 type="button"
-                onClick={onOpen}
-                disabled={image.isUploading}
+                onClick={() => {
+                    if (!isUploading) onOpen();
+                }}
+                aria-disabled={isUploading || undefined}
+                aria-busy={isUploading || undefined}
                 aria-label={
-                    hasOverflow ? t('chat.image.more', { count: overflow }) : t('chat.image.open', { name: image.name })
+                    isUploading
+                        ? t('chat.image.uploading', { name: image.name })
+                        : hasOverflow
+                          ? t('chat.image.more', { count: overflow })
+                          : t('chat.image.open', { name: image.name })
                 }
-                className="focus-ring absolute inset-0 rounded-2xl"
+                className={cn('focus-ring absolute inset-0 rounded-2xl', isUploading && 'cursor-default')}
             >
                 <img
                     src={image.url}
-                    alt={image.name}
+                    alt=""
                     loading="lazy"
                     decoding="async"
                     draggable={false}
-                    className={cn('h-full w-full object-cover', image.isUploading && 'scale-105 blur-[2px]')}
+                    className={cn('h-full w-full object-cover', isUploading && 'scale-105 blur-[2px]')}
                 />
-                {(hasOverflow || image.isUploading) && <span aria-hidden className="absolute inset-0 bg-overlay/40" />}
-                {(hasOverflow || image.isUploading) && (
+                {(hasOverflow || isUploading) && <span aria-hidden className="absolute inset-0 bg-overlay/50" />}
+                {(hasOverflow || isUploading) && (
                     <span className="absolute inset-0 flex items-center justify-center">
-                        {image.isUploading && <ImageSpinner className="absolute h-11 w-11" />}
+                        {isUploading && <ImageSpinner className="absolute h-11 w-11" />}
                         {hasOverflow && (
-                            <span className="text-display font-semibold tracking-[-0.01em] text-white">
+                            <span aria-hidden className="text-display font-semibold text-on-overlay">
                                 +{overflow}
                             </span>
                         )}
                     </span>
                 )}
             </button>
-            {!image.isUploading && !hasOverflow && (
-                <div
-                    className={cn(
-                        'absolute right-2 top-2 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-2 py-1.5 shadow-raised transition-opacity duration-150 ease-tactile',
-                        isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/tile:opacity-100'
-                    )}
-                >
-                    <Hint label={t('chat.image.download')}>
-                        <button
-                            type="button"
-                            onClick={onDownload}
-                            aria-label={t('chat.image.download')}
-                            className="focus-ring flex h-9 w-9 items-center justify-center rounded text-foreground"
-                        >
-                            <Download size={16} aria-hidden />
-                        </button>
-                    </Hint>
-                    <ImageMoreMenu
-                        onCopy={onCopy}
-                        onDelete={onDelete}
-                        onOpenChange={setMenuOpen}
-                        trigger={
-                            <Hint label={t('chat.image.menu')}>
-                                <button
-                                    type="button"
-                                    aria-label={t('chat.image.menu')}
-                                    className="focus-ring flex h-9 w-9 items-center justify-center rounded bg-foreground/[0.08] text-foreground"
-                                >
-                                    <MoreVertical size={16} aria-hidden />
-                                </button>
-                            </Hint>
-                        }
-                    />
-                </div>
+            {!isUploading && !hasOverflow && (
+                <ImageActions
+                    onDownload={onDownload}
+                    onCopy={onCopy}
+                    onDelete={onDelete}
+                    variant="overlay"
+                    className={cn('absolute right-2 top-2', hoverReveal('tile'))}
+                />
             )}
         </div>
     );

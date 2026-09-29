@@ -24,3 +24,4 @@ export * from './formatDate';
 export * from './tileInitials';
 export * from './channelLabel';
 export * from './messagePreview';
+export * from './hoverReveal';

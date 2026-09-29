@@ -19,7 +19,7 @@ import { useComposerDraftStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';
 import { shouldCaptureTyping } from '../utils';
 import type { Mentionable } from './MentionAutocomplete';
-import { AttachMenu, ComposerAttachments } from './images';
+import { AttachButton, ComposerAttachments } from './images';
 import {
     COMPOSER_NODES,
     COMPOSER_THEME,
@@ -157,6 +157,10 @@ const ComposerInner = ({
         <div
             className="bg-background px-6 pb-5 pt-2"
             // Pasted images join the tray; pasted text still goes to the editor untouched.
+            // A copy from Excel or Word carries the text and a picture of it together, and
+            // taking the files used to drop the text: it goes in as plain text alongside.
+            // Only for a rich copy (HTML or RTF on the clipboard): a file copied in Finder
+            // or Explorer carries its own name as plain text, which is not a message.
             onPasteCapture={event => {
                 if (!onAddFiles) return;
                 const files = Array.from(event.clipboardData.files);
@@ -164,6 +168,15 @@ const ComposerInner = ({
                 event.preventDefault();
                 event.stopPropagation();
                 onAddFiles(files);
+                const types = Array.from(event.clipboardData.types ?? []);
+                const isRichCopy = types.includes('text/html') || types.includes('text/rtf');
+                const text = isRichCopy ? event.clipboardData.getData('text/plain') : '';
+                if (text && !files.some(file => file.name === text.trim())) {
+                    editor.update(() => {
+                        const selection = $getSelection();
+                        ($isRangeSelection(selection) ? selection : $getRoot().selectEnd()).insertRawText(text);
+                    });
+                }
             }}
         >
             <div
@@ -174,7 +187,7 @@ const ComposerInner = ({
                 )}
             >
                 <div className="flex items-center gap-2 px-5 py-3">
-                    {onAddFiles && <AttachMenu onFiles={onAddFiles} />}
+                    {onAddFiles && <AttachButton onFiles={onAddFiles} />}
                     <ComposerToolbar />
                     {/* The newline key is the one thing people get wrong in a chat box; say it
                         while it matters (there is text) and stay out of the way otherwise. */}
