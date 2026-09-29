@@ -18,7 +18,10 @@ export type EntryKind =
     | 'deeplink'
     /** LEAVING the login screen. Entering it belongs to `useNavigateToLogin` — see the rule below. */
     | 'auth-transition'
-    /** An OS notification tap, or a tap on the in-app banner. */
+    /**
+     * An OS notification tap, or a tap on the in-app banner. Also the room an accepted invite hands
+     * over, once the accept screen is gone — it lands in a room from outside just as a tap does.
+     */
     | 'push'
     /** Everything else. Named so that "no policy applies" is explicit. */
     | 'in-app';

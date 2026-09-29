@@ -119,14 +119,6 @@ jest.mock('../../../hooks', () => ({
 jest.mock('../stores/useCloudPushMarkStore', () => ({
     useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),
 }));
-// The channel an accepted invite handed over. Mutable so a test can land on home with one pending.
-let pendingInviteChannelId: string | null = null;
-const clearPendingChannelMock = jest.fn();
-jest.mock('../../../stores/usePendingInviteChannel', () => ({
-    usePendingInviteChannel: (
-        selector: (state: { channelId: string | null; clearPendingChannel: () => void }) => unknown
-    ) => selector({ channelId: pendingInviteChannelId, clearPendingChannel: clearPendingChannelMock }),
-}));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => <div /> }));
 jest.mock('../../onboarding', () => ({ OnboardingModal: () => null }));
 
@@ -255,40 +247,6 @@ beforeEach(() => {
     isMembershipLoading = false;
     catalog = { clouds: [], hasCloudCatalog: true, isPendingClouds: false };
     collapsedSections = {};
-    pendingInviteChannelId = null;
-});
-
-describe('HomePage — pending invite channel', () => {
-    // `canGoBackInApp` reads the router's index off the current history entry; setting it here is
-    // how a test stands home at the bottom of the stack or above it.
-    const standAtHistoryIndex = (idx: number) => window.history.replaceState({ idx }, '');
-    afterEach(() => window.history.replaceState(null, ''));
-
-    it('pushes the invited room when home is at the bottom of the stack, so back returns to home', () => {
-        // A cold start: the shell loaded home first, and the cloud lane rewound onto it.
-        standAtHistoryIndex(0);
-        pendingInviteChannelId = 'ch-invited';
-        render(<HomePage />);
-
-        expect(clearPendingChannelMock).toHaveBeenCalledTimes(1);
-        expect(navigateMock).toHaveBeenCalledWith(ROUTES.channels.room('ch-invited'), { replace: false });
-    });
-
-    it('replaces a home above the bottom of the stack, so home is not stacked twice under the room', () => {
-        // The relay lane leaves by replacing its accept screen with home, on top of the home the shell
-        // loaded first. Pushing here would leave [home, home, room].
-        standAtHistoryIndex(1);
-        pendingInviteChannelId = 'ch-invited';
-        render(<HomePage />);
-
-        expect(navigateMock).toHaveBeenCalledWith(ROUTES.channels.room('ch-invited'), { replace: true });
-    });
-
-    it('does not open a room when no invite is pending', () => {
-        render(<HomePage />);
-
-        expect(navigateMock).not.toHaveBeenCalledWith(expect.stringContaining('/room'), expect.anything());
-    });
 });
 
 describe('HomePage — relay mode', () => {

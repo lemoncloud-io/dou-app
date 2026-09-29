@@ -7,10 +7,14 @@ import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChan
 import { ROUTES } from '../../../../routes/paths';
 
 /**
- * Step 3 of invite entry: always land on home so the newly-entered site becomes the active place.
- * When the invite carries a `channelId` it is stashed as the pending invite channel and HomePage
- * opens that room immediately — the place profile is optional and no longer gates entry, so the
- * flow is: accept → connect place → channel.
+ * Step 3 of invite entry: leave the accept screen, and hand over the room when there is one. The
+ * cloud and the place are already switched by the steps before this one, so all that is left is
+ * where the reader ends up.
+ *
+ * When the invite carries a `channelId` it is stashed as the pending invite channel, and
+ * `useOpenPendingInviteChannel` in the layout opens that room on whatever screen leaving lands on.
+ * The place profile is optional and no longer gates entry, so the flow is: accept → connect place →
+ * channel.
  */
 export const useEnterInvitedChannel = () => {
     const enterStack = useStackNavigate();
@@ -21,7 +25,8 @@ export const useEnterInvitedChannel = () => {
             if (info?.channelId) setPendingChannel(info.channelId);
             // Home is the fallback, not the destination. A link that arrived while the app was
             // already open has the reader's previous screen underneath, and rewinding onto it is
-            // what stops the acceptance screen from staying in the backward path.
+            // what stops the acceptance screen from staying in the backward path. The room, if
+            // any, opens on top of that screen.
             enterStack('deeplink', ROUTES.home);
         },
         [enterStack, setPendingChannel]

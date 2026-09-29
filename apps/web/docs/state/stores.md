@@ -21,7 +21,7 @@ the app session, and a relaunch re-earns every mark from an empty store.
 | `useMessageJumpStore`     | `useMessageJumpStore.ts`     | The pending "scroll to this message" target for a search-result jump, keyed by `channelId`/`chatNo` plus a `nonce` so a repeat jump to the same message still fires. |
 | `useAddCloudRequest`      | `useAddCloudRequest.ts`      | Whether the "add a cloud" flow should open, raised from `home` and consumed by `AddCloudFlowHost`.                                                                   |
 | `useEmailBindRequest`     | `useEmailBindRequest.ts`     | The cloud id awaiting an email bind, raised from wherever a screen notices an unbound cloud and consumed by `EmailBindRequestHost`.                                  |
-| `usePendingInviteChannel` | `usePendingInviteChannel.ts` | The channel id to open once an invite acceptance lands the user on `home`.                                                                                           |
+| `usePendingInviteChannel` | `usePendingInviteChannel.ts` | The room an accepted invite hands over, opened by `useOpenPendingInviteChannel` wherever leaving the accept screen lands.                                            |
 | `useChannelSyncMarkStore` | `useChannelSyncMarkStore.ts` | Which clouds have had their channel delta answered this session, so an empty cache is not read as an empty cloud — [data-flow.md](./data-flow.md).                   |
 
 `useAddCloudRequest` and `useEmailBindRequest` exist because features do not import each other

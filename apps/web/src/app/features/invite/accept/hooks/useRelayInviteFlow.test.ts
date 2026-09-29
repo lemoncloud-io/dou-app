@@ -7,7 +7,7 @@ const acceptInvite = jest.fn();
 const rejectInvite = jest.fn();
 const resolveChannel = jest.fn();
 const setPendingChannel = jest.fn();
-const navigate = jest.fn();
+const enterStack = jest.fn();
 const toast = jest.fn();
 const waitUntilSlotVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
@@ -41,7 +41,9 @@ jest.mock('@chatic/bridges', () => ({
         info: jest.fn(),
     },
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+// The stack rules have their own suite (navigation/stackPolicy.test.ts); this one asserts which rule
+// an exit asks for.
+jest.mock('../../../../navigation', () => ({ useStackNavigate: () => enterStack }));
 
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../../hooks', () => ({
@@ -459,14 +461,16 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
 });
 
 describe('useRelayInviteFlow — 수락 결과', () => {
-    it('채널이 도착하면 pending 채널로 넘기고 홈으로 보낸다', async () => {
+    it('hands a resolved room over and leaves by the deeplink rule, not by replacing with home', async () => {
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
         act(() => result.current.accept());
 
         await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
-        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        // The rule rewinds onto the screen under the accept screen, where the layout opens the room.
+        // Replacing with home put a second home above the one the shell loads first.
+        expect(enterStack).toHaveBeenCalledWith('deeplink', '/');
         expect(toast).not.toHaveBeenCalled();
     });
 
@@ -479,7 +483,7 @@ describe('useRelayInviteFlow — 수락 결과', () => {
 
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'relayInviteAccept.channelPending' }));
         expect(setPendingChannel).not.toHaveBeenCalled();
-        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        expect(enterStack).toHaveBeenCalledWith('deeplink', '/');
     });
 
     it('수락 응답의 channelId를 해소 1단으로 넘긴다 (ADR-0035)', async () => {
@@ -634,7 +638,7 @@ describe('useRelayInviteFlow — 다시 시도', () => {
         });
 
         await waitFor(() => expect(result.current.phase).toBe('review'));
-        expect(navigate).not.toHaveBeenCalled();
+        expect(enterStack).not.toHaveBeenCalled();
     });
 
     it('안내를 그대로 닫으면 홈으로 간다', async () => {
@@ -645,7 +649,7 @@ describe('useRelayInviteFlow — 다시 시도', () => {
         act(() => result.current.dismissNotice());
 
         expect(result.current.phase).toBe('closed');
-        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        expect(enterStack).toHaveBeenCalledWith('deeplink', '/');
     });
 });
 
@@ -659,7 +663,7 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         expect(result.current.phase).toBe('declining');
         expect(rejectInvite).not.toHaveBeenCalled();
         expect(acceptInvite).not.toHaveBeenCalled();
-        expect(navigate).not.toHaveBeenCalled();
+        expect(enterStack).not.toHaveBeenCalled();
     });
 
     it('다이얼로그에서 물러나면(cancelStep) 아무것도 보내지 않고 review로 돌아간다', async () => {
@@ -682,7 +686,7 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
 
         expect(rejectInvite).toHaveBeenCalledWith(CODE);
         expect(toast).toHaveBeenCalledWith({ title: 'relayInviteAccept.declinedToast' });
-        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        expect(enterStack).toHaveBeenCalledWith('deeplink', '/');
         expect(result.current.phase).toBe('closed');
     });
 
@@ -728,7 +732,7 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         await act(async () => result.current.confirmDecline());
 
         await waitFor(() => expect(result.current.notice).toBe('alreadyJoined'));
-        expect(navigate).not.toHaveBeenCalled();
+        expect(enterStack).not.toHaveBeenCalled();
     });
 
     it('그 외 실패는 조회 단계와 같은 매핑이다 (404 → notFound)', async () => {
@@ -752,7 +756,7 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         await waitFor(() => expect(acceptInvite).toHaveBeenCalled());
 
         act(() => result.current.close());
-        expect(navigate).not.toHaveBeenCalled();
+        expect(enterStack).not.toHaveBeenCalled();
 
         await act(async () => {
             release(view({ state: 'accepted' }));

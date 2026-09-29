@@ -4,7 +4,13 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 
 import { useHandlePushNavigation } from '../../bridge';
-import { useActiveCloudUnreads, useBackHandler, useDeviceSync, useInAppPushMessage } from '../../hooks';
+import {
+    useActiveCloudUnreads,
+    useBackHandler,
+    useDeviceSync,
+    useInAppPushMessage,
+    useOpenPendingInviteChannel,
+} from '../../hooks';
 import { ROUTES } from '../../routes/paths';
 import { BottomNavigation } from '../components';
 
@@ -29,6 +35,8 @@ export const UnifiedLayout = (): JSX.Element => {
     useHandlePushNavigation();
     // Surface foreground pushes as an in-app banner; a click routes like a push tap.
     useInAppPushMessage();
+    // Open the room an accepted invite handed over, wherever leaving the accept screen landed.
+    useOpenPendingInviteChannel();
 
     const { pathname } = useLocation();
     const isMain = isMainVariant(pathname);
