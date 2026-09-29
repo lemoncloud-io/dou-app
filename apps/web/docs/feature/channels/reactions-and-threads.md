@@ -13,8 +13,8 @@ the unfiltered window**, because the rows it needs are exactly the rows the feed
 ## Layout
 
 Four pure modules carry the derivations — `foldReactions.ts`, `buildThread.ts`, the curated
-`emoji.ts` set (nine categories) and `longPress.ts`, whose single threshold is shared by bubbles and
-chips. Everything else is presentation: the chip row, the reactor sheet, the action sheet, the
+`emoji.ts` set (nine categories) and `longPress.ts`, whose single threshold is shared by bubbles, image
+tiles and chips — plus `messageActions.ts`, which decides whether the action sheet opens at all. Everything else is presentation: the chip row, the reactor sheet, the action sheet, the
 picker, the thread footer and the thread page. `useRecentEmojiStore` holds the device-local recents.
 
 ## Responsibilities
@@ -84,8 +84,13 @@ would make the same gesture feel like two gestures depending on where the thumb 
 | Target        | Tap                  | Press and hold                     |
 | ------------- | -------------------- | ---------------------------------- |
 | message body  | —                    | `MessageActionSheet`               |
+| image tile    | `ImageViewer`        | `MessageActionSheet`               |
 | reaction chip | toggle that reaction | `ReactionDetailSheet`              |
 | chip row `+`  | `EmojiPickerSheet`   | — (not a toggle, no pressed state) |
+
+A photo is a message, so its tiles open the same sheet the bubble does; the sheet leaves Copy and Edit
+out for a message with no text (`hasText`). A photo can therefore root a thread, and the thread page
+draws the root's images as its subject.
 
 The chip splits its two gestures by frequency: toggling is common, so it gets the cheap gesture.
 The `click` that follows a fired long-press is swallowed so one gesture cannot do both.
@@ -96,7 +101,8 @@ only appears once a message has at least one — a strip reserved under every me
 vertical rhythm than it earns.
 
 `MessageActionSheet` holds a six-slot quick row (recents first, then the fixed `QUICK_REACTIONS`,
-then a fallback set), a "more" button into the full picker, and the thread and copy actions. Its
+then a fallback set), a "more" button into the full picker, and the thread and copy actions (copy
+only when the message has text). Its
 pressed state mirrors the chips, so tapping an emoji already reacted with sends `off`. **Who
 reacted is not in this sheet** — this one answers "what can I do to this message", the reactor sheet
 answers "who is in this reaction", and faces need room this list has not.
@@ -108,8 +114,10 @@ value that already decides which side of the feed a bubble sits on.
 
 Those two break the sheet's constant row count, which existed so targets would not move under the
 thumb between long-presses. That was given up knowingly: the alternative was a second
-message-action surface on a phone. What the rule protected is kept — the new actions are appended
-**below** thread and copy, which never move, and anything added later goes below as well.
+message-action surface on a phone. What the rule protected is kept as an **order** — thread, copy,
+edit, delete — and anything added later goes below. A message with no text has no Copy and no
+Edit, so on my own photo Delete takes the slot Copy holds on text; the confirmation in front of the
+delete is what makes that acceptable (ADR-0136).
 
 Delete here is the **server** delete, and it has its own wording (`chat.room.deleteMessage`) because
 `chat.room.delete` already means clearing an unsent row from your own screen. The two never appear
@@ -174,7 +182,8 @@ profile map.
   one conversation inside a channel; wearing the channel's name and face would read as having
   navigated to the channel. Back returns to the room.
 - **The root renders as the thread's subject**, not as another message: a 36px avatar and name on
-  one line, then the body as plain text with no bubble and no side, then its chips. A bubble would
+  one line, then the body as plain text with no bubble and no side (when it has any), then its
+  images, then its chips. A bubble would
   put the subject in the same visual class as the replies, and a right-aligned one would push it to
   the edge of the screen it opens. It carries no time and no receipt — the room row it was opened
   from has both.

@@ -59,10 +59,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
 jest.mock('../components/ChannelMessageRow', () => ({
     // The real row shows the "전체보기" affordance only on a truncated message; here every row
     // carries it, so a test can drive `onExpand` without composing a 200-character body.
-    ChannelMessageRow: ({ message, onExpand }: any) => (
+    ChannelMessageRow: ({ message, onExpand, onLongPress }: any) => (
         <div data-testid={`row-${message.id}`} data-owner={String(!!message.isOwner)}>
             {message.content}
             <button data-testid={`expand-${message.id}`} onClick={onExpand} />
+            <button data-testid={`press-${message.id}`} onClick={onLongPress} />
         </div>
     ),
 }));
@@ -72,7 +73,14 @@ jest.mock('../components/MessageText', () => ({ MessageText: ({ text }: any) => 
 jest.mock('../components/ReactionChips', () => ({
     ReactionChips: ({ tallies }: any) => <div data-testid="root-chips">{tallies?.length ?? 0}</div>,
 }));
-jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () => null }));
+jest.mock('../components/MessageImages', () => ({
+    MessageImages: ({ uploads }: any) => <div data-testid="root-images" data-count={uploads?.length ?? 0} />,
+}));
+// Surfaces only whether the sheet opened and whether it was told the message has text.
+jest.mock('../components/MessageActionSheet', () => ({
+    MessageActionSheet: ({ open, hasText }: any) =>
+        open ? <div data-testid="action-sheet" data-has-text={String(hasText)} /> : null,
+}));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 // The image send and the attach flow have their own tests; here only what the thread hands them.
@@ -439,5 +447,46 @@ describe('ThreadPage — who "me" is', () => {
 
         expect(screen.getByTestId('row-ch1:8').dataset.owner).toBe('true');
         expect(screen.getByTestId('row-ch1:9').dataset.owner).toBe('false');
+    });
+});
+
+describe('ThreadPage — image messages', () => {
+    const upload$$ = [{ id: 'u1', status: 'stored', orgUrl: 'https://s3/1' }] as DomainChat['upload$$'];
+
+    // A photo can root a thread now that it can be long-pressed, and the photo is then the subject.
+    it('draws an image-only root with its images and no empty text line', () => {
+        mockLocationState = { rootChat: chat({ content: '', upload$$ }) };
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('root-images')).toHaveAttribute('data-count', '1');
+        expect(screen.getByTestId('thread-root').querySelector('p')).toBeNull();
+    });
+
+    it('draws no images on a root without any', () => {
+        mockLocationState = { rootChat: chat() };
+
+        render(<ThreadPage />);
+
+        expect(screen.queryByTestId('root-images')).not.toBeInTheDocument();
+    });
+
+    it('opens the action sheet on an image-only reply, telling it there is no text', () => {
+        mockChats = [chat(), chat({ id: 'ch1:8', chatNo: 8, content: '', upload$$, parentId: '7' })];
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('press-ch1:8'));
+
+        expect(screen.getByTestId('action-sheet')).toHaveAttribute('data-has-text', 'false');
+    });
+
+    // Still on its way: no chatNo, so no reaction and no delete — and no text to copy.
+    it('keeps the sheet shut for an image-only reply that has not landed', () => {
+        mockChats = [chat(), chat({ id: 'ch1:8', chatNo: undefined, content: '', upload$$, parentId: '7' })];
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('press-ch1:8'));
+
+        expect(screen.queryByTestId('action-sheet')).not.toBeInTheDocument();
     });
 });
