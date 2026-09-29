@@ -11,6 +11,9 @@ jest.mock('@chatic/app-runtime', () => ({
         connection: {
             useRuntimeSocketState: jest.fn(),
         },
+        session: {
+            getGlobalSessionContext: jest.fn(),
+        },
     },
 }));
 jest.mock('@chatic/bridges', () => ({
@@ -35,6 +38,9 @@ const setVerified = (isVerified: boolean) =>
 const setCachedChats = (chatNos: number[]) =>
     cacheReadList.mockResolvedValue({ list: chatNos.map(chatNo => ({ chatNo })) });
 
+const setSelectedCloud = (cid: string) =>
+    (runtime.session.getGlobalSessionContext as jest.Mock).mockReturnValue({ cloud: { cloudId: cid } });
+
 // The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = mockUseAppForeground.mock.calls.at(-1)?.[0];
@@ -50,6 +56,7 @@ beforeEach(() => {
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { cacheReadList, refreshList } });
     (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ updateLocalSnapshot });
     setVerified(true);
+    setSelectedCloud('cloud-a');
 });
 
 describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보정', () => {
@@ -62,7 +69,8 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
 
         expect(updateLocalSnapshot).toHaveBeenCalledWith(
             { type: 'chat', id: 'ch-1' },
-            { id: 'ch-1', lastNo: 7, minNo: 0, messages: [] }
+            { id: 'ch-1', lastNo: 7, minNo: 0, messages: [] },
+            { cid: 'cloud-a' }
         );
         expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-1' });
     });
@@ -125,5 +133,31 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
 
         // Reaching here without an unhandled rejection is the assertion.
         expect(refreshList).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends the baseline to the cloud the cache read was made in', async () => {
+        setSelectedCloud('cloud-b');
+        setCachedChats([4]);
+
+        await act(async () => {
+            renderHook(() => useForegroundChatRefresh('ch-1'));
+        });
+
+        expect(updateLocalSnapshot).toHaveBeenCalledWith(expect.anything(), expect.anything(), { cid: 'cloud-b' });
+    });
+
+    it('does not push a baseline or fetch when the selection left the cloud during the cache read', async () => {
+        cacheReadList.mockImplementation(async () => {
+            // The switch lands while the read is in flight.
+            setSelectedCloud('cloud-b');
+            return { list: [{ chatNo: 7 }] };
+        });
+
+        await act(async () => {
+            renderHook(() => useForegroundChatRefresh('ch-1'));
+        });
+
+        expect(updateLocalSnapshot).not.toHaveBeenCalled();
+        expect(refreshList).not.toHaveBeenCalled();
     });
 });

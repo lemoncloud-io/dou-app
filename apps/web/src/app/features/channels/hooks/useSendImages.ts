@@ -9,6 +9,8 @@ import { useAppForeground } from '../../../bridge/useAppForeground';
 import { getShellPut, syncShellTransfers } from '../../../bridge/shellUpload';
 
 interface PendingImages {
+    /** The cloud the row was written in — where its upload and its send go, whatever is selected by then. */
+    cid: string;
     channelId: string;
     parentId?: string;
     files: File[];
@@ -39,7 +41,15 @@ const release = (pendingId: string) => {
 
 const log = (message: string, data?: Record<string, unknown>) => logger.info('UPLOAD', message, data);
 
+/**
+ * The chat repository of the room's own cloud, never the selection's: an upload takes seconds, and a
+ * switch in that time would otherwise put the finished message on the next cloud's socket.
+ */
+const chatOf = (cid: string) => runtime.data.getCloudRepositories(cid).chat;
+
 export interface UseSendImagesInput {
+    /** The cloud of the room the pictures are sent from — the channel row's `cid`. */
+    cid: string;
     channelId: string;
     /** Thread-reply target — the root's full id. Omit for a top-level message. */
     parentId?: string;
@@ -54,35 +64,37 @@ export interface UseSendImagesInput {
  * files in memory are marked failed (`canRetry` is false for them — delete is all that is left), and
  * transfers the native shell finished while the page was away are caught up.
  */
-export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
-    const { chat } = runtime.data.useRuntimeRepositories();
-    const chatRef = useRef(chat);
-    chatRef.current = chat;
+export const useSendImages = ({ cid, channelId, parentId }: UseSendImagesInput) => {
     // Whether this screen is still attached. A send that finishes creating its row after the screen
     // left must not park its files in the page map, where no cleanup would ever reach them.
     const attachedRef = useRef(true);
 
-    /** Runs the sequence for an entry already marked `inFlight` by its caller. */
+    /**
+     * Runs the sequence for an entry already marked `inFlight` by its caller, holding its cloud's
+     * socket from the first upload request to the send, so a switch meanwhile cannot tear it down.
+     */
     const run = useCallback(async (pendingId: string) => {
         const entry = pendingImages.get(pendingId);
         if (!entry) return;
-        const repository = chatRef.current;
-        const ports: SendImagePorts = {
-            prepare: file => prepareImage(file, CHAT_ATTACHMENT),
-            start: payload => repository.startUploads(payload),
-            complete: payload => repository.completeUploads(payload),
-            put: getShellPut(),
-            send: ({ uploadIds }) => repository.sendPendingImageChat(pendingId, { uploadIds }),
-        };
-
-        const result = await sendImageMessage(entry.files, ports);
+        const result = await runtime.data.runInCloud(entry.cid, ({ chat: repository }) => {
+            const ports: SendImagePorts = {
+                prepare: file => prepareImage(file, CHAT_ATTACHMENT),
+                start: payload => repository.startUploads(payload),
+                complete: payload => repository.completeUploads(payload),
+                put: getShellPut(),
+                send: ({ uploadIds }) => repository.sendPendingImageChat(pendingId, { uploadIds }),
+            };
+            return sendImageMessage(entry.files, ports);
+        });
         if (result.status === 'sent') {
             release(pendingId);
             return;
         }
-        await repository.failPendingImageChat(pendingId).catch(error => {
-            log('image message: could not mark the row failed', { error: (error as Error)?.name });
-        });
+        await chatOf(entry.cid)
+            .failPendingImageChat(pendingId)
+            .catch(error => {
+                log('image message: could not mark the row failed', { error: (error as Error)?.name });
+            });
         // Only now: a retry let in before the failure was written would be overwritten by it.
         entry.inFlight = false;
         if (entry.detached) release(pendingId);
@@ -96,7 +108,7 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
             const urls = files.map(file => URL.createObjectURL(file));
             let pendingId: string;
             try {
-                pendingId = await chatRef.current.createPendingImageChat({
+                pendingId = await chatOf(cid).createPendingImageChat({
                     channelId,
                     ...(parentId ? { parentId } : {}),
                     localThumbUrls: urls,
@@ -106,6 +118,7 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
                 throw error;
             }
             pendingImages.set(pendingId, {
+                cid,
                 channelId,
                 parentId,
                 files,
@@ -115,7 +128,7 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
             });
             await run(pendingId);
         },
-        [channelId, parentId, run]
+        [cid, channelId, parentId, run]
     );
 
     /** Tries the same pictures again, on the same row. False when the files are gone or it is still sending. */
@@ -126,7 +139,7 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
             // Claimed before the first await, so a second tap in the same moment finds it taken.
             entry.inFlight = true;
             try {
-                await chatRef.current.createPendingImageChat({
+                await chatOf(entry.cid).createPendingImageChat({
                     channelId: entry.channelId,
                     ...(entry.parentId ? { parentId: entry.parentId } : {}),
                     localThumbUrls: entry.urls,
@@ -156,7 +169,9 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
         attachedRef.current = true;
         // Back on a screen whose send is still running: its files are wanted again.
         for (const entry of pendingImages.values()) {
-            if (entry.channelId === channelId && entry.parentId === parentId) entry.detached = false;
+            if (entry.cid === cid && entry.channelId === channelId && entry.parentId === parentId) {
+                entry.detached = false;
+            }
         }
         // Only rows older than this screen can be leftovers. A row sent from here in the meantime is
         // written before it reaches the map, and the sweep must not catch it in between.
@@ -165,7 +180,7 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
             await syncShellTransfers();
             let rows;
             try {
-                rows = await chatRef.current.listPendingImageChats(channelId);
+                rows = await chatOf(cid).listPendingImageChats(channelId);
             } catch {
                 return;
             }
@@ -176,7 +191,9 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
                     row.isPending ||
                     row.upload$$?.some(slot => isPendingUploadSlot(slot) && slot.localStatus === 'sending');
                 if (!stillSending) continue;
-                await chatRef.current.failPendingImageChat(row.id).catch(() => undefined);
+                await chatOf(cid)
+                    .failPendingImageChat(row.id)
+                    .catch(() => undefined);
             }
         })();
 
@@ -187,12 +204,12 @@ export const useSendImages = ({ channelId, parentId }: UseSendImagesInput) => {
             // still running keeps its files until it settles, so it can still finish.
             for (const [pendingId, entry] of pendingImages) {
                 // A room and its thread share the channel id; each screen drops only its own.
-                if (entry.channelId !== channelId || entry.parentId !== parentId) continue;
+                if (entry.cid !== cid || entry.channelId !== channelId || entry.parentId !== parentId) continue;
                 if (entry.inFlight) entry.detached = true;
                 else release(pendingId);
             }
         };
-    }, [channelId, parentId]);
+    }, [cid, channelId, parentId]);
 
     useAppForeground(() => {
         void syncShellTransfers();

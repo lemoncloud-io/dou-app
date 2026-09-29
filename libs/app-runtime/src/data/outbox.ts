@@ -36,18 +36,26 @@ import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
  * constructs one — it keeps its manual resend button.
  */
 
-/** One queued send. `id` is the client-side key (the failed optimistic row's cache id). */
+/**
+ * One queued send. `id` is the client-side key (the failed optimistic row's cache id); `cid` is the
+ * cloud the message was written in, which is where it has to go — its failed row sits in that cloud's
+ * partition, and a channel id means nothing in another cloud.
+ */
 export interface OutboxEntry {
     id: string;
+    cid: string;
     channelId: string;
     payload: ChatSendInput;
     enqueuedAt: number;
 }
 
-export type OutboxEnqueueInput = Pick<OutboxEntry, 'id' | 'channelId' | 'payload'>;
+export type OutboxEnqueueInput = Pick<OutboxEntry, 'id' | 'cid' | 'channelId' | 'payload'>;
 
 export interface ChatOutboxOptions {
-    /** Performs the actual send. Rejecting keeps the entry queued for the next attempt. */
+    /**
+     * Performs the actual send, to `entry.cid`. Rejecting retires the entry; its row stays failed, for
+     * the manual retry or the caller's next sweep.
+     */
     send(entry: OutboxEntry): Promise<unknown>;
     /** Has an equivalent message already landed server-side? See the asymmetry above. */
     hasLanded(entry: OutboxEntry): Promise<boolean>;
@@ -61,26 +69,34 @@ export interface ChatOutbox {
     start(): void;
     /** Deactivates; the queue is kept. */
     stop(): void;
-    /** Whether the transport can carry a send — pass `isConnected && isVerified`. */
-    setReady(ready: boolean): void;
+    /**
+     * Whether `cid`'s socket can carry a send — pass whether its slot is verified. Each cloud has its
+     * own: a cloud whose socket is down must not hold back another's queue, and a cloud with no slot
+     * keeps its entries until it has one.
+     */
+    setReady(cid: string, ready: boolean): void;
     enqueue(input: OutboxEnqueueInput): void;
     /** Removes a queued entry, e.g. when the user hits manual retry for it. */
     remove(id: string): void;
-    pending(channelId?: string): readonly OutboxEntry[];
+    /** The queued entries, all of them or `cid`'s. */
+    pending(cid?: string): readonly OutboxEntry[];
     /** Resolves once every channel's in-flight drain has settled. */
     flush(): Promise<void>;
 }
+
+// A channel id is only unique inside its cloud.
+const queueKeyOf = (cid: string, channelId: string): string => `${cid}|${channelId}`;
 
 export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
     const { send, hasLanded, discard, now = Date.now } = options;
 
     // Per channel, because order only has to hold WITHIN a channel — a stuck channel must not
-    // block another's queue.
+    // block another's queue. Every entry in one queue has the same cloud, which the key carries.
     const queues = new Map<string, OutboxEntry[]>();
     const chains = new Map<string, Promise<void>>();
     const scheduled = new Set<string>();
+    const readyClouds = new Set<string>();
     let running = false;
-    let ready = false;
 
     // Remove by IDENTITY, never by position: `remove()` can splice the queue from a UI event while
     // this drain is awaiting, and a positional shift would then drop whichever entry slid into
@@ -90,9 +106,9 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
         if (index >= 0) queue.splice(index, 1);
     };
 
-    const drainChannel = async (channelId: string): Promise<void> => {
-        const queue = queues.get(channelId);
-        while (running && ready && queue?.length) {
+    const drainChannel = async (key: string): Promise<void> => {
+        const queue = queues.get(key);
+        while (running && queue?.length && readyClouds.has(queue[0].cid)) {
             const entry = queue[0];
             // A probe that cannot answer is treated as "not found" — resend, per the at-least-once
             // contract above.
@@ -112,7 +128,9 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
                 dequeue(queue, entry);
             }
         }
-        if (queue && !queue.length) queues.delete(channelId);
+        // Only if it is still this key's queue: a `remove()` that emptied it mid-send deletes the key,
+        // and an `enqueue()` after that starts a fresh array under it, which must survive this pass.
+        if (queue && !queue.length && queues.get(key) === queue) queues.delete(key);
     };
 
     // Serialize read-modify-write per channel, the same shape ChatSyncPlan uses, so a reconnect
@@ -120,17 +138,17 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
     // that has not started yet already covers whatever arrived since, and stacking a second one
     // would re-send the entry the first is about to take (enqueue + a ready transition in the same
     // tick is the normal reconnect shape).
-    const drain = (channelId: string): Promise<void> => {
-        const previous = chains.get(channelId);
-        if (scheduled.has(channelId)) return previous ?? Promise.resolve();
-        scheduled.add(channelId);
+    const drain = (key: string): Promise<void> => {
+        const previous = chains.get(key);
+        if (scheduled.has(key)) return previous ?? Promise.resolve();
+        scheduled.add(key);
         const pass = () => {
-            scheduled.delete(channelId);
-            return drainChannel(channelId);
+            scheduled.delete(key);
+            return drainChannel(key);
         };
         const next = (previous ?? Promise.resolve()).then(pass, pass);
         chains.set(
-            channelId,
+            key,
             next.then(
                 () => undefined,
                 () => undefined
@@ -139,38 +157,46 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
         return next;
     };
 
-    const drainAll = (): void => [...queues.keys()].forEach(channelId => void drain(channelId));
+    const drainWhere = (matches: (entry: OutboxEntry) => boolean): void =>
+        [...queues.entries()].forEach(([key, queue]) => {
+            if (queue.length && matches(queue[0])) void drain(key);
+        });
 
     return {
         start: () => {
             running = true;
-            drainAll();
+            drainWhere(() => true);
         },
         stop: () => {
             running = false;
         },
-        setReady: (next: boolean) => {
-            if (next === ready) return;
-            ready = next;
-            if (ready) drainAll();
+        setReady: (cid, next) => {
+            if (next === readyClouds.has(cid)) return;
+            if (!next) {
+                readyClouds.delete(cid);
+                return;
+            }
+            readyClouds.add(cid);
+            drainWhere(entry => entry.cid === cid);
         },
         enqueue: input => {
-            const queue = queues.get(input.channelId) ?? [];
+            const key = queueKeyOf(input.cid, input.channelId);
+            const queue = queues.get(key) ?? [];
             if (queue.some(entry => entry.id === input.id)) return;
             queue.push({ ...input, enqueuedAt: now() });
-            queues.set(input.channelId, queue);
-            void drain(input.channelId);
+            queues.set(key, queue);
+            void drain(key);
         },
         remove: id => {
-            for (const [channelId, queue] of queues) {
+            for (const [key, queue] of queues) {
                 const index = queue.findIndex(entry => entry.id === id);
                 if (index < 0) continue;
                 queue.splice(index, 1);
-                if (!queue.length) queues.delete(channelId);
+                if (!queue.length) queues.delete(key);
                 return;
             }
         },
-        pending: channelId => (channelId ? [...(queues.get(channelId) ?? [])] : [...queues.values()].flat()),
+        pending: cid => [...queues.values()].flat().filter(entry => !cid || entry.cid === cid),
         flush: async () => {
             await Promise.all([...chains.values()]);
         },

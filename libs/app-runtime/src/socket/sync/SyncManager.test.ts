@@ -369,6 +369,19 @@ describe('SyncManager', () => {
             expect(syncManager.listTargets()).toEqual([{ type: 'channel', id: '1000001', cid: 'cloud-b' }]);
         });
 
+        it('lets the shorthands name the cloud, with or without an interval', () => {
+            const syncManager = createManager('join');
+            bindSlot(CLOUD_A, makeClient('cloud-a'));
+
+            syncManager.registerJoin('ch-1@uid-a', undefined, { cid: 'cloud-a' });
+            syncManager.registerProfile('p-1@uid-a', 60_000, { cid: 'cloud-a' });
+
+            expect(syncManager.listTargets()).toEqual([
+                { type: 'join', id: 'ch-1@uid-a', cid: 'cloud-a' },
+                { type: 'profile', id: 'p-1@uid-a', intervalMs: 60_000, cid: 'cloud-a' },
+            ]);
+        });
+
         it('refuses a word that is not a cloud id, and records nothing', () => {
             const syncManager = createManager('channel');
 

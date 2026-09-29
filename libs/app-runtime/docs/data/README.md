@@ -11,12 +11,13 @@ is [docs/sync/](../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              17 source files, 9 tests
+data/                              18 source files, 10 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
 ├── cacheStorageRouting.ts        resolveCacheBackend — the one routing decision
 ├── nativeCacheSupport.ts         what the installed shell says it can store
+├── cloudChat.ts                  sendChatInCloud · getCloudRepositories — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
 ├── index.ts                      the `data` facade group
@@ -63,8 +64,8 @@ splices `socketCid` in for.
 
 `getScopedRepositories(cid)` is a second repository graph pinned to one cloud, built on first use and
 kept for the session. It exists for work that belongs to a cloud other than — or independently of —
-the selected one: today the sync plans, each writing its slot's frames, and chat prime's cache read
-and first page.
+the selected one: the sync plans, each writing its slot's frames; chat prime's cache read and first
+page; and every chat send (below). Apps reach it as `data.getCloudRepositories(cid)`.
 
 | Part          | App graph (`getRepositories`)               | Scoped graph (`getScopedRepositories(cid)`)                       |
 | ------------- | ------------------------------------------- | ----------------------------------------------------------------- |
@@ -91,6 +92,31 @@ Two things it deliberately is not:
 
 HTTP still follows the committed session on both graphs; nothing that writes through a scoped graph
 calls it.
+
+### Writes addressed to a cloud
+
+A chat send is two moments on the app graph: the optimistic row's partition is read when the call
+starts, and the socket when the request goes out, after that row has been written. Both follow the
+selection, so a switch landing between them left the row in the cloud the user pressed send in and
+sent the message to the one they moved to — and nothing refused it, because `sendChat` has no
+`acceptsAnswer` check to fail. When the outgoing cloud's slot was then torn down, the request died
+with it.
+
+`data.runInCloud(cid, work)` names the cloud once, up front, and runs `work` against that cloud's
+graph; `data.sendChatInCloud(cid, payload)` is the text send on top of it, and the image send (a row,
+an upload, then the send) runs inside one `runInCloud` so the hold covers the whole sequence:
+
+- It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
+- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/socket/](../socket/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
+- The cloud is the caller's to name, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
+
+A cloud with no slot bound fails the send at once rather than waiting for one, and the hold does not
+open one for it: at the moment of the press the cloud on screen always has a slot, so an unbound one
+means the session is not ready, and a failed row the user can retry says so better than a message
+that sits pending.
+
+Reactions, edits, deletes and read markers still go through the app graph. They are the same shape
+of write, and moving them is the same change made again.
 
 ### The three factories
 
@@ -146,10 +172,10 @@ constructs one, so this export cannot change behaviour by existing.
 interface ChatOutbox {
     start(): void;
     stop(): void; // deactivates; the queue is kept
-    setReady(ready: boolean): void; // pass `isConnected && isVerified`
-    enqueue(input: OutboxEnqueueInput): void;
+    setReady(cid: string, ready: boolean): void; // pass whether that cloud's slot is verified
+    enqueue(input: OutboxEnqueueInput): void; // { id, cid, channelId, payload }
     remove(id: string): void;
-    pending(channelId?: string): readonly OutboxEntry[];
+    pending(cid?: string): readonly OutboxEntry[];
     flush(): Promise<void>;
 }
 ```
@@ -157,8 +183,10 @@ interface ChatOutbox {
 The guarantee is **at-least-once, in order, per channel** — not exactly-once, because the wire carries
 no idempotency key. What shapes the rest:
 
+- **An entry carries the cloud it was written in**, because its failed row sits in that cloud's partition and its channel id means nothing anywhere else. Queues are keyed by `(cid, channelId)`, and readiness is per cloud: one cloud's socket being down holds back its own queue and no other. A cloud with no slot keeps its entries until it has one — the outbox never opens a socket to resend.
+
 - **One attempt per ready transition.** That is structural, not a setting: there is no attempt counter and no backoff timer, so a flapping connection cannot turn into a send storm.
-- **Queues are per channel**, each with its own promise chain, and concurrent drains collapse into one.
+- **Queues are per channel within a cloud**, each with its own promise chain, and concurrent drains collapse into one.
 - **Dequeue is by identity, never by position** — an entry removed while a drain is in flight must not shift the one being sent.
 - **`hasLanded` is asymmetric.** `true` is strong; `false` only means "could not find it", so the entry is resent.
 - **A failed send retires the entry** and leaves the row marked failed, where the user can retry it deliberately.
@@ -185,8 +213,16 @@ const { channel, chat } = runtime.data.useRuntimeRepositories();
 // Outside React — the same graph, resolved synchronously
 const repos = getRepositories();
 
-// One cloud's graph, whichever cloud is selected (runtime-internal today)
-const cloudA = getDataManager().getScopedRepositories('cloud-a');
+// One cloud's graph, whichever cloud is selected
+const cloudA = runtime.data.getCloudRepositories('cloud-a');
+
+// A chat send, to the cloud of the row the user pressed send in
+await runtime.data.sendChatInCloud(channel.cid, { channelId: channel.id, content });
+
+// A write of several requests, all to that cloud, its socket held until the last one settles
+await runtime.data.runInCloud(channel.cid, async ({ chat }) => {
+    /* create the row, upload, send */
+});
 ```
 
 Everything else about using a repository — subscribing with `observe*`, refreshing, writing —
@@ -199,6 +235,7 @@ belongs to [`libs/data`](../../../data/README.md).
 - **Do not capture `getSocketManager()` at construction.** Resolve it per call.
 - **Do not put a routing branch in a factory, an adapter or an app.** `resolveCacheBackend` is the one decision point, and a second one drifts from it invisibly.
 - **Do not call `configureDataRuntime` after first repository access.** It is silently ignored (with a warning), which reads as "my policy does nothing".
+- **Do not send a chat through `useRuntimeRepositories().chat.sendChat`.** It follows the selection, and a switch in flight splits the write across two clouds. Use `sendChatInCloud` with the cloud of the row on screen.
 - **Do not give the outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm.
 
 ## Notes for implementers and tests

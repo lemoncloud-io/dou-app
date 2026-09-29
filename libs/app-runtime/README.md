@@ -21,7 +21,7 @@ grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | g
 
 Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
 `apps/testbed`. The surface itself is locked symbol by symbol by
-[`src/public-surface.test.ts`](./src/public-surface.test.ts): 67 value exports across the seven
+[`src/public-surface.test.ts`](./src/public-surface.test.ts): 74 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 
 This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
@@ -162,11 +162,11 @@ libs/app-runtime/src/
 ├── facade.ts         the seven groups, assembled from group barrels
 ├── init.ts           initAppRuntime — five boot steps, in order
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
-├── connection/       11 files — the host, SocketBinder, SocketReauthBinder, 5 hooks
-├── session/          53 files — store (12) · auth (9) · scope (3) · hooks (28)
+├── connection/       17 files — the host, SocketBinder, SocketReauthBinder, 9 hooks, 3 utils
+├── session/          56 files — store (12) · auth (10) · scope (3) · hooks (30)
 ├── socket/           34 files — SocketManager (6) + utils (3) + auth wiring (17) + sync (8)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
-├── data/             17 files — DataManager, 3 factories, cache routing, outbox, 4 hooks
+├── data/             18 files — DataManager, 3 factories, cache routing, cloud-addressed sends, outbox, 4 hooks
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
@@ -350,7 +350,7 @@ cd libs/app-runtime && npx eslint src             # flat config — run it from 
 
 - Type checking must be `tsc -b`. Inside `libs/app-runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 67 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 74 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `apps/testbed` and `libs/data`. That workflow excludes `desktop-web` from `typecheck` (a long-standing error baseline) and `web` from `test` (7 failures of 2720), so those two are the ones to run by hand.

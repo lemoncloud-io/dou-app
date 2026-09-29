@@ -15,6 +15,7 @@ export * from './useChannelSort';
 export * from './useCloudCatalog';
 export * from './useChannelUnreads';
 export * from './useChatSyncRegistration';
+export * from './useCloudScope';
 export * from './useDeviceSync';
 export * from './useHomeChannels';
 export * from './useInAppPushMessage';

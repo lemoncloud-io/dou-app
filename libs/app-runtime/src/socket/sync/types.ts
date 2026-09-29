@@ -72,11 +72,14 @@ export interface SyncManagerDeps {
 export interface ISyncManager {
     register(target: SyncTargetDescriptor, options?: SyncRegisterOptions): () => void;
     registerDevice(id?: string, intervalMs?: number): () => void;
-    registerChannel(id: string, intervalMs?: number): () => void;
-    registerChat(id: string, intervalMs?: number): () => void;
-    registerPlace(id: string, intervalMs?: number): () => void;
-    registerProfile(id: string, intervalMs?: number): () => void;
-    registerJoin(id: string, intervalMs?: number): () => void;
+    // The shorthands below take the same options as `register`: pass `{ cid }` whenever the caller
+    // knows the cloud the target is for, so it cannot land on whichever cloud is selected when the
+    // effect happens to run.
+    registerChannel(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void;
+    registerChat(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void;
+    registerPlace(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void;
+    registerProfile(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void;
+    registerJoin(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void;
     // Generic baseline bridge — delegates to the runtime of the target's cloud slot (no-op when that
     // slot is not bound). Domain-shaped snapshots (chat `{ lastNo }`, others `{ updatedAt }`/`{ tick }`)
     // are built by the caller.

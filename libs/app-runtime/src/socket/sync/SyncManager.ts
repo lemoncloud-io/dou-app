@@ -209,44 +209,59 @@ export class SyncManager implements ISyncManager {
         });
     }
 
-    public registerChannel(id: string, intervalMs?: number): () => void {
-        return this.register({
-            type: 'channel',
-            id,
-            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
-        });
+    public registerChannel(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void {
+        return this.register(
+            {
+                type: 'channel',
+                id,
+                ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+            },
+            options
+        );
     }
 
-    public registerChat(id: string, intervalMs?: number): () => void {
-        return this.register({
-            type: 'chat',
-            id,
-            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
-        });
+    public registerChat(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void {
+        return this.register(
+            {
+                type: 'chat',
+                id,
+                ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+            },
+            options
+        );
     }
 
-    public registerPlace(id: string, intervalMs?: number): () => void {
-        return this.register({
-            type: 'place',
-            id,
-            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
-        });
+    public registerPlace(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void {
+        return this.register(
+            {
+                type: 'place',
+                id,
+                ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+            },
+            options
+        );
     }
 
-    public registerProfile(id: string, intervalMs?: number): () => void {
-        return this.register({
-            type: 'profile',
-            id,
-            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
-        });
+    public registerProfile(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void {
+        return this.register(
+            {
+                type: 'profile',
+                id,
+                ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+            },
+            options
+        );
     }
 
-    public registerJoin(id: string, intervalMs?: number): () => void {
-        return this.register({
-            type: 'join',
-            id,
-            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
-        });
+    public registerJoin(id: string, intervalMs?: number, options?: SyncRegisterOptions): () => void {
+        return this.register(
+            {
+                type: 'join',
+                id,
+                ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+            },
+            options
+        );
     }
 
     public listTargets(): SyncTargetListing[] {

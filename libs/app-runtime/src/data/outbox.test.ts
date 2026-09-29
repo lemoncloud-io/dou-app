@@ -4,6 +4,8 @@ import { createChatOutbox, type ChatOutbox, type ChatOutboxOptions, type OutboxE
 
 const payload = (channelId: string, content: string): ChatSendInput => ({ channelId, content });
 
+const CID = 'cloud-a';
+
 interface Harness {
     outbox: ChatOutbox;
     send: jest.MockedFunction<ChatOutboxOptions['send']>;
@@ -24,7 +26,7 @@ const harness = (over: Partial<ChatOutboxOptions> = {}): Harness => {
 /** Bring the outbox to the state it lives in on desktop: activated and on a verified socket. */
 const activate = async (outbox: ChatOutbox) => {
     outbox.start();
-    outbox.setReady(true);
+    outbox.setReady(CID, true);
     await outbox.flush();
 };
 
@@ -32,8 +34,8 @@ describe('createChatOutbox', () => {
     it('is inert until start() — activation is the app opt-in, not the import', async () => {
         const { outbox, send } = harness();
 
-        outbox.setReady(true);
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'hi') });
+        outbox.setReady(CID, true);
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'hi') });
         await outbox.flush();
 
         expect(send).not.toHaveBeenCalled();
@@ -44,8 +46,10 @@ describe('createChatOutbox', () => {
         const { outbox, send, sentIds } = harness();
         outbox.start();
 
-        ['a', 'b', 'c'].forEach(id => outbox.enqueue({ id, channelId: 'ch-1', payload: payload('ch-1', id) }));
-        outbox.setReady(true);
+        ['a', 'b', 'c'].forEach(id =>
+            outbox.enqueue({ id, cid: CID, channelId: 'ch-1', payload: payload('ch-1', id) })
+        );
+        outbox.setReady(CID, true);
         await outbox.flush();
 
         expect(send).toHaveBeenCalledTimes(3);
@@ -57,11 +61,11 @@ describe('createChatOutbox', () => {
         const { outbox, send } = harness();
         outbox.start();
 
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'hi') });
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'hi') });
         await outbox.flush();
         expect(send).not.toHaveBeenCalled();
 
-        outbox.setReady(true);
+        outbox.setReady(CID, true);
         await outbox.flush();
         expect(send).toHaveBeenCalledTimes(1);
     });
@@ -70,9 +74,9 @@ describe('createChatOutbox', () => {
         const { outbox, send } = harness();
         outbox.start();
 
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'hi') });
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'hi') });
-        outbox.setReady(true);
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'hi') });
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'hi') });
+        outbox.setReady(CID, true);
         await outbox.flush();
 
         expect(send).toHaveBeenCalledTimes(1);
@@ -82,9 +86,9 @@ describe('createChatOutbox', () => {
         const { outbox, send } = harness();
         outbox.start();
 
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'hi') });
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'hi') });
         outbox.remove('a');
-        outbox.setReady(true);
+        outbox.setReady(CID, true);
         await outbox.flush();
 
         expect(send).not.toHaveBeenCalled();
@@ -110,9 +114,9 @@ describe('createChatOutbox', () => {
         });
         outbox.start();
 
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-        outbox.enqueue({ id: 'b', channelId: 'ch-1', payload: payload('ch-1', 'b') });
-        outbox.setReady(true);
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+        outbox.enqueue({ id: 'b', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'b') });
+        outbox.setReady(CID, true);
 
         await drainParked;
         outbox.remove('a');
@@ -130,7 +134,7 @@ describe('createChatOutbox', () => {
         await activate(outbox);
 
         outbox.stop();
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'hi') });
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'hi') });
         await outbox.flush();
 
         expect(send).not.toHaveBeenCalled();
@@ -143,8 +147,8 @@ describe('createChatOutbox', () => {
             entry.channelId === 'ch-1' ? Promise.reject(new Error('boom')) : Promise.resolve(undefined)
         );
 
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-        outbox.enqueue({ id: 'b', channelId: 'ch-2', payload: payload('ch-2', 'b') });
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+        outbox.enqueue({ id: 'b', cid: CID, channelId: 'ch-2', payload: payload('ch-2', 'b') });
         await activate(outbox);
 
         expect(sentIds()).toEqual(['a', 'b']);
@@ -158,7 +162,7 @@ describe('createChatOutbox', () => {
             const { outbox, send, discard, sentIds } = harness();
             send.mockRejectedValueOnce(new Error('boom'));
 
-            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
             await activate(outbox);
 
             expect(sentIds()).toEqual(['a']);
@@ -172,8 +176,8 @@ describe('createChatOutbox', () => {
             const { outbox, send, sentIds } = harness();
             send.mockRejectedValueOnce(new Error('boom'));
 
-            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-            outbox.enqueue({ id: 'b', channelId: 'ch-1', payload: payload('ch-1', 'b') });
+            outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.enqueue({ id: 'b', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'b') });
             await activate(outbox);
 
             expect(sentIds()).toEqual(['a', 'b']);
@@ -188,11 +192,11 @@ describe('createChatOutbox', () => {
             const { outbox, send } = harness();
             outbox.start();
 
-            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-            outbox.setReady(false);
+            outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.setReady(CID, false);
             expect(outbox.pending()).toHaveLength(1);
 
-            outbox.setReady(true);
+            outbox.setReady(CID, true);
             await outbox.flush();
 
             expect(send).toHaveBeenCalledTimes(1);
@@ -206,8 +210,8 @@ describe('createChatOutbox', () => {
             hasLanded.mockResolvedValue(true);
             outbox.start();
 
-            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-            outbox.setReady(true);
+            outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.setReady(CID, true);
             await outbox.flush();
 
             expect(send).not.toHaveBeenCalled();
@@ -221,8 +225,10 @@ describe('createChatOutbox', () => {
             hasLanded.mockImplementation(entry => Promise.resolve(entry.id === 'a'));
             outbox.start();
 
-            ['a', 'b', 'c'].forEach(id => outbox.enqueue({ id, channelId: 'ch-1', payload: payload('ch-1', id) }));
-            outbox.setReady(true);
+            ['a', 'b', 'c'].forEach(id =>
+                outbox.enqueue({ id, cid: CID, channelId: 'ch-1', payload: payload('ch-1', id) })
+            );
+            outbox.setReady(CID, true);
             await outbox.flush();
 
             expect(sentIds()).toEqual(['b', 'c']);
@@ -233,11 +239,93 @@ describe('createChatOutbox', () => {
             hasLanded.mockRejectedValue(new Error('cache unavailable'));
             outbox.start();
 
-            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-            outbox.setReady(true);
+            outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.setReady(CID, true);
             await outbox.flush();
 
             expect(send).toHaveBeenCalledTimes(1);
         });
+    });
+
+    describe('per cloud', () => {
+        it('drains only the clouds whose socket is ready', async () => {
+            const { outbox, sentIds } = harness();
+            outbox.start();
+            outbox.enqueue({ id: 'a', cid: 'cloud-a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.enqueue({ id: 'b', cid: 'cloud-b', channelId: 'ch-1', payload: payload('ch-1', 'b') });
+
+            outbox.setReady('cloud-b', true);
+            await outbox.flush();
+
+            expect(sentIds()).toEqual(['b']);
+            expect(outbox.pending('cloud-a').map(entry => entry.id)).toEqual(['a']);
+        });
+
+        it('keeps the same channel id in two clouds as two queues', async () => {
+            const { outbox, send } = harness();
+            outbox.enqueue({ id: 'a', cid: 'cloud-a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            outbox.enqueue({ id: 'b', cid: 'cloud-b', channelId: 'ch-1', payload: payload('ch-1', 'b') });
+            outbox.start();
+            outbox.setReady('cloud-a', true);
+            outbox.setReady('cloud-b', true);
+            await outbox.flush();
+
+            expect(send.mock.calls.map(([entry]) => [entry.cid, entry.id])).toEqual([
+                ['cloud-a', 'a'],
+                ['cloud-b', 'b'],
+            ]);
+        });
+
+        it('stops a cloud that goes unready mid-queue without touching another', async () => {
+            const sent: string[] = [];
+            let resolveFirst: () => void = () => undefined;
+            let markFirstInFlight: () => void = () => undefined;
+            const firstInFlight = new Promise<void>(resolve => (markFirstInFlight = resolve));
+            const { outbox } = harness({
+                send: async entry => {
+                    sent.push(entry.id);
+                    if (entry.id !== 'a1') return;
+                    markFirstInFlight();
+                    await new Promise<void>(resolve => (resolveFirst = resolve));
+                },
+            });
+            outbox.start();
+            outbox.setReady('cloud-a', true);
+            outbox.setReady('cloud-b', true);
+            outbox.enqueue({ id: 'a1', cid: 'cloud-a', channelId: 'ch-1', payload: payload('ch-1', 'a1') });
+            outbox.enqueue({ id: 'a2', cid: 'cloud-a', channelId: 'ch-1', payload: payload('ch-1', 'a2') });
+            outbox.enqueue({ id: 'b1', cid: 'cloud-b', channelId: 'ch-2', payload: payload('ch-2', 'b1') });
+            await firstInFlight;
+
+            outbox.setReady('cloud-a', false);
+            resolveFirst();
+            await outbox.flush();
+
+            expect(sent.sort()).toEqual(['a1', 'b1']);
+            expect(outbox.pending().map(entry => entry.id)).toEqual(['a2']);
+        });
+    });
+
+    it('keeps an entry enqueued after remove() emptied the queue its drain was still sending from', async () => {
+        let finishFirst: () => void = () => undefined;
+        const sent: string[] = [];
+        const { outbox } = harness({
+            send: async entry => {
+                sent.push(entry.id);
+                if (entry.id === 'a') await new Promise<void>(resolve => (finishFirst = resolve));
+            },
+        });
+        outbox.start();
+        outbox.setReady(CID, true);
+        outbox.enqueue({ id: 'a', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'a') });
+        while (!sent.length) await Promise.resolve();
+
+        outbox.remove('a');
+        outbox.enqueue({ id: 'b', cid: CID, channelId: 'ch-1', payload: payload('ch-1', 'b') });
+        finishFirst();
+        await outbox.flush();
+
+        expect(sent).toEqual(['a', 'b']);
+        expect(outbox.pending()).toEqual([]);
     });
 });

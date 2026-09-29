@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
+import { readSelectedCloudId, useSelectedCloudId } from '../../../hooks/useCloudScope';
+
 /**
  * Per-member profile poll cadence (ms) for a chat room.
  *
@@ -22,6 +24,10 @@ const PROFILE_SYNC_INTERVAL_MS = 20_000;
  * bootstrapped with a one-shot `refreshItem` so a never-seen member (or a cold cache) populates
  * immediately instead of waiting for the first poll tick or a site-wide delta sync.
  *
+ * The cloud is the selected one — the same cloud the observation reads, since the app graph scopes it
+ * to the selection. Targets are registered for it by name and wait for its own slot, and the effect
+ * re-runs on the uid the account has there (a target tagged with an old uid never runs again).
+ *
  * Returns a `userId -> DomainProfile` map so callers can resolve a member's nick/thumbnail.
  */
 export const useChannelProfiles = (
@@ -30,10 +36,11 @@ export const useChannelProfiles = (
     syncIntervalMs: number = PROFILE_SYNC_INTERVAL_MS
 ) => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
-    // An account change retires targets registered by the previous session (SyncManager
-    // scopes them by uid), so re-register on it — see the note in `useSyncTarget`.
-    const uid = runtime.session.useGlobalSession().identity.userId;
+    const cid = useSelectedCloudId();
+    const isVerified = runtime.connection.useCloudVerified(cid);
+    // An account change retires targets registered under the previous uid in this cloud
+    // (SyncManager tags them by it), so re-register on it — see the note in `useSyncTarget`.
+    const uid = runtime.session.useUidInCloud(cid);
 
     const [profiles, setProfiles] = useState<DomainProfile[]>([]);
     // Whether this hook has produced a reading yet — see `hasSnapshot` in the return.
@@ -67,13 +74,18 @@ export const useChannelProfiles = (
         if (!sid || !isVerified || activeMemberIds.length === 0) return;
 
         const sync = runtime.sync.getSyncManager();
-        const disposers = activeMemberIds.map(userId => sync.registerProfile(`${sid}@${userId}`, syncIntervalMs));
+        const disposers = activeMemberIds.map(userId =>
+            sync.registerProfile(`${sid}@${userId}`, syncIntervalMs, { cid })
+        );
 
         let disposed = false;
         void (async () => {
             try {
                 const cached = await profileRepository.cacheReadList({ sid });
-                if (disposed) return;
+                // The app graph fetches through whichever cloud is selected when the call starts. If
+                // the selection moved during the read, the refreshes below would ask the next cloud for
+                // this cloud's members — and the re-run for that cloud does its own bootstrap anyway.
+                if (disposed || readSelectedCloudId() !== cid) return;
                 const cachedUserIds = new Set(
                     (cached?.list ?? []).map(profile => profile.userId ?? profile.uid).filter(Boolean)
                 );
@@ -96,7 +108,7 @@ export const useChannelProfiles = (
             disposers.forEach(dispose => dispose());
         };
         // memberKey captures the membership set; activeMemberIds is read once per key.
-    }, [profileRepository, sid, isVerified, memberKey, syncIntervalMs, uid]);
+    }, [profileRepository, sid, cid, isVerified, memberKey, syncIntervalMs, uid]);
 
     const profileMap = useMemo(() => {
         const map = new Map<string, DomainProfile>();

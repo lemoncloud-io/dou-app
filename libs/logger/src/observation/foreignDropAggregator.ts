@@ -3,15 +3,14 @@ import { logger } from '../runtime';
 
 /**
  * Where a drop happened. A plain label, not a domain concept — it exists so the aggregate says which
- * of the ten skip sites produced the count rather than reporting an anonymous number.
+ * of the repositories' skip sites produced the count rather than reporting an anonymous number.
  */
 export type ForeignDropSource =
     | 'channel-refresh'
     | 'channel-sync'
     | 'channel-self'
     | 'channel-start-dm'
-    | 'place-refresh'
-    | 'sync-frame';
+    | 'place-refresh';
 
 export interface ForeignDropInput {
     source: ForeignDropSource;
@@ -22,8 +21,8 @@ export interface ForeignDropInput {
 }
 
 /**
- * Counts cache writes and socket frames dropped because the answering socket belonged to a
- * different cloud, and reports one entry per window instead of one per drop.
+ * Counts cache writes dropped because the answering socket belonged to a different cloud, and
+ * reports one entry per window instead of one per drop.
  *
  * **Why aggregate rather than log each.** These fire on the sync poll, which runs per registered
  * target every couple of seconds with dozens of targets live on the home screen. One entry per drop
@@ -31,11 +30,11 @@ export interface ForeignDropInput {
  * oldest-first, so the burst would push out the very entries explaining what preceded it. The
  * catalog forbids per-frame logging for exactly this reason.
  *
- * **Why it lives in the logging core.** Two libraries drop these — the repositories and the sync
- * plans — and both already see this package re-exported through `@chatic/bridges`, so a shared home
- * here costs no new dependency. One home also means one window: an aggregator per consumer would
- * split the same switch into two counts. The trade-off is that a domain word (`cid`) appears in the
- * core; it is carried as an opaque string and nothing here interprets it.
+ * **Why it lives in the logging core.** The repositories drop these, and they already see this
+ * package re-exported through `@chatic/bridges`, so a home here costs no new dependency. The sync
+ * plans used to drop frames too, which is why it was shared; a sync target now runs only on its own
+ * cloud's socket, so they have nothing left to drop. The trade-off is that a domain word (`cid`)
+ * appears in the core; it is carried as an opaque string and nothing here interprets it.
  *
  * **The timer only exists while drops do.** The first drop opens a window; closing it reports and
  * clears. An always-on interval would charge an idle device for a thing that is not happening.

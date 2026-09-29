@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -95,7 +96,8 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
         // normalises to chatNo itself on store) — so send root.id, not rootId.
         // Unreachable when !root (Composer isn't rendered then); type guard only.
         if (!root?.id) return;
-        void sendMessage({ channelId, content, parentId: root.id }).catch(() =>
+        // Addressed to the channel's cloud, like the chat pane's send.
+        void sendMessage(channel.cid || RELAY_CLOUD_ID, { channelId, content, parentId: root.id }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
         );
     };

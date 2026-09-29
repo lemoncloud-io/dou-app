@@ -89,9 +89,12 @@ quote the request it failed on.
 | `listPendingImageChats(channelId)`                                 | the channel's unsent rows that hold pending slots                                                                                                               |
 
 - **A pending row keeps the scope it was written in.** A send takes long enough for a cloud switch,
-  so the repository remembers each row's scope and reads, fails and sends it there. A send whose
-  active cloud is no longer the row's throws instead of posting the uploads to the wrong cloud. A
-  re-arm of a row that was deleted meanwhile throws too, rather than recreating it without a channel.
+  so the repository remembers each row's scope and reads, fails and sends it there. On a graph that
+  follows the selection, a send whose selected cloud is no longer the row's throws instead of posting
+  the uploads to the wrong cloud. A graph bound to one cloud (the runtime's scoped graph, which the
+  apps' image send runs on) sends on that cloud's own socket, so its row and its send always agree.
+  A re-arm of a row that was deleted meanwhile throws too, rather than recreating it without a
+  channel.
 - **A sent message is read back once.** `chat.send`'s answer names the uploads but not where to fetch
   them: its `upload$$` is `{ id, status, stereo }`. The sender gets no broadcast of its own message
   that could fill the addresses in, which was measured on dev. `chat.get` answers `orgUrl` and

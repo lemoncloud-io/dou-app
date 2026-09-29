@@ -23,6 +23,10 @@ export type { ConnectivityStatus } from './hooks/useConnectivity';
 // module (see data/index.ts's header) — they were always connection concepts.
 export { useRuntimeSocketState } from './hooks/useRuntimeSocketState';
 export { useSlotVerified } from './hooks/useSlotVerified';
+// Per cloud: whether one named cloud's socket is verified, and every cloud whose socket is — for a
+// consumer that works across all of them.
+export { useCloudVerified } from './hooks/useCloudVerified';
+export { useVerifiedClouds } from './hooks/useVerifiedClouds';
 export { RELAY_SLOT } from '../socket/utils/slotKey';
 
 // The clouds that keep a socket session in the background. The app hands over membership; the cap

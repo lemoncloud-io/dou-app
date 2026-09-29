@@ -136,18 +136,18 @@ was lost, the situation it describes was happening.
 
 ## The foreign-drop aggregator
 
-`foreignDropAggregator` is the one producer in this package. During a cloud switch the cache `cid`
-moves to the target immediately while the outgoing socket is still connected and still delivering
-frames, so writes aimed at the old cloud are dropped on purpose — correct behaviour that leaves the
-following screen stale with no record of why.
+`foreignDropAggregator` is the one producer in this package. During a cloud switch the selected
+`cid` moves to the target immediately while a request made on the app graph can still be answered by
+the outgoing cloud's socket, so the repository drops that answer instead of writing it under the new
+cloud — correct behaviour that leaves the following screen stale with no record of why.
 
 ```ts
 foreignDropAggregator.record({ source, cid, socketCid });
 ```
 
-- **It lives here because its consumers are two libs** — `libs/data`'s repositories and `libs/app-runtime`'s sync plans — and both already see this package re-exported through `@chatic/bridges`, so a shared home costs no new dependency. One home also means one window: an aggregator per consumer would split a single switch into two counts. The price is that a domain word (`cid`) appears in the core; it is carried as an opaque string and nothing here interprets it.
+- **It lives here because its consumer already sees this package** — `libs/data`'s repositories reach it through `@chatic/bridges`, so the home costs no new dependency. `libs/app-runtime`'s sync plans used to be a second consumer; a sync target now runs only on its own cloud's socket, so a plan has no foreign frame left to drop, and that label is gone. The price is that a domain word (`cid`) appears in the core; it is carried as an opaque string and nothing here interprets it.
 - **The window is 5 seconds.** A switch's optimistic window is short, so a longer window separates the entry from the switch that caused it and a shorter one splits one switch across several lines.
-- **Drops are grouped by `source|cid|socketCid`** and reported one `warn`/`CACHE` per group. `source` is a plain label naming the skip site — `channel-refresh`, `channel-sync`, `channel-self`, `place-refresh`, `sync-frame` — so the aggregate says _which_ site produced the count.
+- **Drops are grouped by `source|cid|socketCid`** and reported one `warn`/`CACHE` per group. `source` is a plain label naming the skip site — `channel-refresh`, `channel-sync`, `channel-self`, `channel-start-dm`, `place-refresh` — so the aggregate says _which_ site produced the count.
 - **The timer exists only while drops do.** The first drop opens the window; closing it reports and clears. An always-on interval would charge an idle device for something that is not happening.
 
 `flushNow()` and `reset()` are on the interface for tests. Nothing in production calls them, and a

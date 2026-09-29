@@ -50,6 +50,11 @@ Keeping the cache fresh is a second, separate act:
 | `useChannelProfiles` | `profile.observeList({ sid })`                       | `sync.registerProfile` on `<sid>@<userId>`, per active member |
 | `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                  |
 
+Both registrars register with an explicit `{ cid }`: `useJoinPositions` takes the room's cloud from
+its caller (the channel row's `cid`), `useChannelProfiles` uses the selected cloud — the one its
+observation reads. A target registered without a cloud lands on whichever cloud is selected when the
+effect runs, and during a switch that is not necessarily the cloud the screen is showing.
+
 `registerJoin` and `registerProfile` are refcounted by key, so the room re-registering my own join
 dedups with whatever the home surface already holds.
 
@@ -63,11 +68,18 @@ way round (`users.map(...)`) hid every member whose user row had not arrived; in
 is the only member there is, so the section rendered empty forever. `ChannelMember` is
 `Partial<DomainUser> & { id }` for exactly this reason.
 
-### A network read waits for `isVerified`
+### A network read waits for its socket to verify
 
-Anything that talks to the server — `syncChannelUsers`, `registerJoin`, `registerProfile` — is
-gated on `runtime.connection.useRuntimeSocketState().isVerified` and takes it as an effect
-dependency, so it retries itself on the `false → true` edge after a reconnect or a site switch.
+Anything that talks to the server is gated on verification and takes it as an effect dependency,
+so it retries itself on the `false → true` edge after a reconnect or a site switch. Which socket
+depends on where the call goes:
+
+- A sync target registered for a named cloud (`registerJoin`, `registerProfile`) runs on that
+  cloud's own slot, so it waits for that slot — `runtime.connection.useCloudVerified(cid)`, which
+  reads a missing id as the relay.
+- A call through the app graph (`syncChannelUsers`, a `refreshList`) goes out on the active slot, so
+  it waits for `runtime.connection.useRuntimeSocketState().isVerified`.
+
 Cache observation is never gated: the screen renders whatever is already local.
 
 `useJoinPositions` carries a second gate, `isMember` (from
@@ -155,7 +167,7 @@ independent buttons only reflect their own in-flight state.
 | Hook                  | Actions                                                                                | Repository                   |
 | --------------------- | -------------------------------------------------------------------------------------- | ---------------------------- |
 | `useChannelMutations` | `createChannel` · `updateChannel` · `deleteChannel` · `leaveChannel` · `inviteChannel` | channel (+ join, for a kick) |
-| `useChatMutations`    | `sendMessage` · `readMessage` · `deleteMessage`                                        | chat, join                   |
+| `useChatMutations`    | `sendMessage` · `retryMessage` · `readMessage` · `deleteMessage`                       | chat, join                   |
 | `useJoinMutations`    | `updateJoin` (my nick / notify)                                                        | join                         |
 | `useUserMutations`    | `requestInvite` · `requestInviteBatch`                                                 | user                         |
 
@@ -164,10 +176,22 @@ Image messages have their own write hook, `useSendImages` (`sendImages` · `retr
 the picked files a retry needs — and it is not in the hooks barrel yet: nothing imports it until the
 composer's picker is wired. Everything about it → [image-send.md](./image-send.md).
 
-Two of these are worth knowing before you call them:
+Worth knowing before you call them:
 
-- **`deleteMessage` is a cache delete.** There is no server chat-delete API here. `apps/web` can
-  render a tombstone that another client created, and cannot create one.
+- **A send names its cloud.** `sendMessage(cid, payload)` goes through
+  `runtime.data.sendChatInCloud`, not the app graph. A send is an optimistic cache write followed by
+  a socket request, and the app graph resolves each from the selection at the moment it happens — so
+  a cloud switch landing in between put the row in one cloud and the message on another's socket.
+  The caller reads `cid` when the user presses send: the room uses the channel row's `cid` (the
+  selection only until the row has loaded), the thread the root's.
+- **A retry goes back where the message was sent.** `retryMessage(row)` deletes the failed row from
+  `row.cid`'s partition and resends to `row.cid`, carrying `parentId` and `contentType` across
+  (`toResendPayload`, which also rebuilds a bare-chatNo `parentId` into `<channelId>:<chatNo>`). A
+  retry that dropped them would turn a failed thread reply into a top-level message. Today only the
+  room retries, and the room shows no replies, so that half is latent until a thread offers a retry.
+  The payload is checked before the delete, so a row the send would refuse is kept, not removed.
+- **`deleteMessage(cid, id)` is a cache delete** — the ✕ beside a failed send, addressed to the
+  cloud the row lives in. The server delete is `deleteServerMessage`, a different action.
 - **A kick writes the join row itself.** `leaveChannel({ channelId, userId })` removes someone
   else, and nothing server-side pushes a join update for the target, so the hook marks their row
   `joined: 0, reason: 'kicked'` in the same local join cache the member list observes. Without it
@@ -189,9 +213,13 @@ observer per cache per screen, not a convenience.
 2. Read through `runtime.data.useRuntimeRepositories()`. Never import a data source or a gateway.
 3. If it observes a cache another hook on the same screen already observes, take that list as a
    parameter instead — see `useChannelMembers({ joins })`.
-4. If it fetches, gate it on `isVerified` and keep that gate in the dependency array.
-5. If it registers a sync target, return the disposer from the effect. Registration is synchronous
-   so an early cleanup cannot race it.
+4. If it fetches, gate it on verification and keep that gate in the dependency array — the named
+   cloud's `runtime.connection.useCloudVerified(cid)` for work addressed to a cloud, the active
+   slot's `isVerified` for a call through the app graph (§ A network read waits for its socket).
+5. If it registers a sync target, pass its cloud (`{ cid }` as the last argument), build any
+   `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`, keep both in the dependency array, and
+   return the disposer from the effect. Registration is synchronous so an early cleanup cannot race
+   it.
 6. Co-locate `*.test.ts`.
 
 ### What not to do
@@ -218,9 +246,16 @@ observer per cache per screen, not a convenience.
 - `useChannel` accepts a `seed` — the row the navigating screen already had, passed through
   navigation state. It renders the room instantly and disarms the resolve timeout, but it does not
   touch resolution semantics: a cold cache's first `null` is still "fetch in flight".
-- Sync targets are scoped to the account that registered them, so `useJoinPositions` and
-  `useChannelProfiles` both take the session `userId` as a dependency and re-register on an account
-  change.
+- A sync target is tagged with the uid the account has in the target's cloud and only runs while
+  that still matches, so `useJoinPositions` and `useChannelProfiles` both take
+  `runtime.session.useUidInCloud(cid)` as a dependency and re-register on an account change. Not
+  the session `userId`: every cloud gives the account a different uid, and the session's is only
+  the committed cloud's.
+- For the same reason `ChannelRoomPage` recognises me by `useUidInCloud(<room's cid>)`, not the
+  session `userId` — every "is this me" it asks compares against ids the room's cloud minted (the
+  roster, join rows, owner ids, profile keys), and `allMemberIds` builds `<channelId>@<uid>` join
+  ids out of it. `useChannelJoins` and `useChats` still pick `myJoin` / `isOwner` by the session
+  uid; the two agree everywhere except inside a switch.
 - Profile polling runs at 20s in a room and 60s on list surfaces
   (`LIST_PROFILE_SYNC_INTERVAL_MS`) — one target per member means the request rate is
   `members / interval` for as long as the screen is open. First paint never waits for a tick: the
