@@ -454,7 +454,7 @@ export const MessageRow = memo(
                                         onOpenThread ? 'pr-20' : 'pr-12',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
-                                            'bg-primary/10 ring-1 ring-primary/40'
+                                            'bg-primary/10 ring-1 ring-ring'
                                     )}
                                 >
                                     {i > 0 && msgTime && (

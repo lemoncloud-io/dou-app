@@ -108,8 +108,9 @@ const PlaceTile = ({
             </span>
             <span
                 className={cn(
-                    'max-w-full truncate text-callout font-medium leading-tight text-rail-foreground transition-opacity',
-                    !isActive && 'opacity-70 group-hover:opacity-100'
+                    'max-w-full truncate text-callout font-medium leading-tight transition-colors',
+                    // A faded label measured under AA; the quieter tone is a token that clears it.
+                    isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
                 )}
             >
                 {name}

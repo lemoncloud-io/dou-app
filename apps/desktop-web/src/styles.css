@@ -41,8 +41,10 @@
         --secondary-foreground: 0 0% 10%;
 
         --muted: 180 5% 96%; /* #F4F5F5 BK_50 */
-        /* #84888F BK_600 is 3.6:1 on white — one step darker keeps secondary text AA. */
-        --muted-foreground: 218 5% 46%;
+        /* #84888F BK_600 is 3.6:1 on white. Secondary text also sits on the tinted
+           surfaces (hover, chips, the composer box), where 46% measured 4.33:1 and
+           3.71:1; 40% clears 4.5:1 on every one (src/tokenContrast.spec.ts). */
+        --muted-foreground: 218 5% 40%;
 
         --accent: 180 5% 96%; /* #F4F5F5 hover */
         --accent-foreground: 0 0% 10%;
@@ -63,7 +65,9 @@
         --banner-from-l: 90%;
         --banner-to-l: 82%;
 
-        --destructive: 3 100% 59%; /* #FF3B30 파일 삭제 */
+        /* Figma #FF3B30 is 3.58:1 on white as text and carries white at the same 3.58:1 as a
+           fill: every error line and every Delete was under AA. One deeper red serves both. */
+        --destructive: 358 80% 44%;
         --destructive-foreground: 0 0% 100%;
 
         /* Transient warning / connecting state (replaces hardcoded amber-*). */
@@ -83,13 +87,15 @@
         /* BK_500 #9FA2A7 measures 2.6:1 on white and BK_600 #84888F 3.6:1, both
            under the 4.5:1 this system holds placeholders and secondary text to.
            Both take the same one-step darkening --muted-foreground already took. */
-        --placeholder: 218 5% 46%;
-        --description: 218 5% 46%; /* timestamps */
+        --placeholder: 218 5% 40%;
+        --description: 218 5% 40%; /* timestamps */
         --surface: 0 0% 100%;
         /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
         --main-accent: 76 96% 39%;
         --input-border: 240 5% 92%;
-        --focus-border: 76 96% 39%; /* composer focus (Figma #이미지 전송 전) */
+        /* Composer focus. Figma's GR2 lime (#90C304) outlines at 2.1:1 on white, under the
+           3:1 a focus indicator needs, so light mode takes the ink lime the focus ring uses. */
+        --focus-border: var(--focus-ring);
 
         /* Toast (always dark surface) */
         --toast: 222 75% 12%; /* #081837 */
@@ -186,8 +192,10 @@
         --banner-from-l: 26%;
         --banner-to-l: 17%;
 
-        --destructive: 3 100% 59%; /* #FF3B30 */
-        --destructive-foreground: 0 0% 98%;
+        /* Lifted for text on the dark panes (4.7:1 even on the hover fill); a fill of it
+           then carries dark ink, not white. */
+        --destructive: 3 100% 73%;
+        --destructive-foreground: 0 0% 8%;
 
         /* Transient warning / connecting state (dark). */
         --warning: 43 90% 55%;
@@ -199,7 +207,7 @@
 
         /* Gray scale (dark) */
         --label: 60 2% 76%; /* #C3C3C1 */
-        --placeholder: 60 0% 55%; /* #8C8C8B */
+        --placeholder: 60 0% 64%; /* #8C8C8B measured 4.02:1 on a card; lifted to clear 4.5:1 */
         --description: 82 5% 65%; /* #A8ABA3 */
         --surface: 90 3% 15%;
         --main-accent: 76 96% 39%; /* #90C304 */

@@ -77,7 +77,7 @@ export const SidebarHeader = ({
                     </h2>
                 )}
                 {/* ⌘K opens the QuickSwitcher (see QuickSwitcher.tsx); this inline filter stays click-to-use. */}
-                <label className="flex items-center gap-2 rounded-full bg-well px-3.5 py-3 focus-within:ring-2 focus-within:ring-primary/50">
+                <label className="flex items-center gap-2 rounded-full bg-well px-3.5 py-3 focus-within:ring-2 focus-within:ring-ring">
                     <Search size={16} aria-hidden className="shrink-0 text-muted-foreground" />
                     <input
                         value={query}

@@ -95,7 +95,7 @@ export const ProfileCardContent = ({
                 <div className="mt-3 flex items-center gap-2">
                     <span className="truncate text-base font-bold tracking-tight text-foreground">{name}</span>
                     {isOwner && (
-                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-nano font-semibold uppercase text-primary">
+                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-nano font-semibold uppercase text-primary-ink">
                             {t('channels.members.owner')}
                         </span>
                     )}
@@ -136,7 +136,7 @@ export const ProfileCardContent = ({
                             <span className="truncate text-xs text-foreground">{userId}</span>
                         </span>
                         {copied ? (
-                            <Check size={14} className="shrink-0 text-primary" />
+                            <Check size={14} className="shrink-0 text-primary-ink" />
                         ) : (
                             <Copy size={14} className="shrink-0 text-muted-foreground" />
                         )}
