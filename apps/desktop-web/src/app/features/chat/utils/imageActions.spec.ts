@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { downloadImage } from './imageActions';
+import { copyImageToClipboard, downloadImage } from './imageActions';
 
 /** Every anchor the page clicked, as it was at the click. */
 const clicked: { href: string; download: string }[] = [];
@@ -51,5 +51,35 @@ describe('downloadImage', () => {
 
         await expect(downloadImage({ url: 'https://storage.example/o', name: 'image-1' })).rejects.toThrow();
         expect(clicked).toEqual([]);
+    });
+
+    it('fetches without the page cookies', async () => {
+        const fetch = vi.fn(async () => ({ ok: true, blob: async () => new Blob(['x'], { type: 'image/png' }) }));
+        vi.stubGlobal('fetch', fetch);
+
+        await downloadImage({ url: 'https://storage.example/o', name: 'image-1' });
+
+        expect(fetch).toHaveBeenCalledWith('https://storage.example/o', { credentials: 'omit' });
+    });
+
+    it('refuses an address an image cannot come from, fetching nothing', async () => {
+        const fetch = vi.fn();
+        vi.stubGlobal('fetch', fetch);
+
+        await expect(downloadImage({ url: 'http://internal.example/o', name: 'image-1' })).rejects.toThrow();
+        await expect(downloadImage({ url: 'data:text/html,<b>x</b>', name: 'image-1' })).rejects.toThrow();
+        expect(fetch).not.toHaveBeenCalled();
+        expect(clicked).toEqual([]);
+    });
+});
+
+describe('copyImageToClipboard', () => {
+    it('rejects on an error answer instead of decoding the error page', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({ ok: false, blob: async () => new Blob(['<html>']) }))
+        );
+
+        await expect(copyImageToClipboard('https://storage.example/o')).rejects.toThrow('image fetch failed');
     });
 });

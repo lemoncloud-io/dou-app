@@ -21,6 +21,14 @@ export interface ChatImage {
     isFailed?: boolean;
 }
 
+/**
+ * Where an image may be loaded from: a signed storage address (`https:`), or a page-local one
+ * (`blob:`, `data:image/`). A message's addresses come from the server and other members, so an
+ * `http:`, `file:` or `javascript:` one is treated as an image with nothing to load.
+ */
+export const isSafeImageUrl = (url: string): boolean =>
+    url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:image/');
+
 /** An unsent image message: its `upload$$` still holds local slots, sending or failed. */
 export const isUnsentImageMessage = (message: Pick<DomainChat, 'upload$$'>): boolean =>
     !!message.upload$$?.some(isPendingUploadSlot);
@@ -53,7 +61,9 @@ export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): 
         const id = slot.id ?? `${messageId}:${index}`;
         if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
         if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
-        return { id, name, url: slot.orgUrl, ...(slot.thumbUrl ? { thumbUrl: slot.thumbUrl } : {}) };
+        if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };
+        const thumbUrl = slot.thumbUrl && isSafeImageUrl(slot.thumbUrl) ? slot.thumbUrl : undefined;
+        return { id, name, url: slot.orgUrl, ...(thumbUrl ? { thumbUrl } : {}) };
     });
 
 /** The most images one message can carry (Figma "#max 10 images"). */

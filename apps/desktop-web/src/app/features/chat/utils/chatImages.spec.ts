@@ -100,6 +100,18 @@ describe('toChatImages', () => {
         ]);
     });
 
+    it('loads nothing from an address that is not a signed https one', () => {
+        expect(
+            toChatImages('row-1', [
+                { id: 'up-1', status: 'stored', orgUrl: 'javascript:alert(1)' },
+                { id: 'up-2', status: 'stored', orgUrl: 'https://s/o', thumbUrl: 'http://s/t' },
+            ] as never)
+        ).toEqual([
+            { id: 'up-1', name: 'image-1', url: '', isFailed: true },
+            { id: 'up-2', name: 'image-2', url: 'https://s/o' },
+        ]);
+    });
+
     it('shows an upload with no address yet as still on its way', () => {
         expect(toChatImages('row-1', [{ id: 'up-1', status: 'stored' }])).toEqual([
             { id: 'up-1', name: 'image-1', url: '', isUploading: true },

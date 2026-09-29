@@ -1,4 +1,4 @@
-import type { ChatImage } from './chatImages';
+import { isSafeImageUrl, type ChatImage } from './chatImages';
 
 const clickSave = (href: string, name: string): void => {
     const anchor = document.createElement('a');
@@ -29,14 +29,23 @@ const withExtension = (name: string, type: string): string => {
  * address on another origin, where Chromium ignores `download` and navigates instead — so it is
  * fetched first and saved from an object URL. Rejects when that fetch fails, having clicked nothing.
  */
+/**
+ * The bytes of a remote image. Only an address an image may come from, and without this page's
+ * cookies — the address is signed, and it came from message data.
+ */
+const fetchImage = async (url: string): Promise<Blob> => {
+    if (!isSafeImageUrl(url)) throw new Error('image address refused');
+    const response = await fetch(url, { credentials: 'omit' });
+    if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
+    return response.blob();
+};
+
 export const downloadImage = async (image: Pick<ChatImage, 'url' | 'name'>): Promise<void> => {
-    if (image.url.startsWith('blob:') || image.url.startsWith('data:')) {
+    if (image.url.startsWith('blob:') || image.url.startsWith('data:image/')) {
         clickSave(image.url, image.name);
         return;
     }
-    const response = await fetch(image.url);
-    if (!response.ok) throw new Error(`image download failed: ${response.status}`);
-    const blob = await response.blob();
+    const blob = await fetchImage(image.url);
     const href = URL.createObjectURL(blob);
     clickSave(href, withExtension(image.name, blob.type));
     // After the click has handed the bytes to the download, not before it.
@@ -73,7 +82,6 @@ const toPngBlob = async (source: Blob): Promise<Blob> => {
 
 /** "Copy image": the pixels of this one image onto the clipboard. Rejects when the platform refuses. */
 export const copyImageToClipboard = async (url: string): Promise<void> => {
-    const response = await fetch(url);
-    const png = await toPngBlob(await response.blob());
+    const png = await toPngBlob(await fetchImage(url));
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
 };
