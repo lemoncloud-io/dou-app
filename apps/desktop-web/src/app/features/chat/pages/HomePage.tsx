@@ -6,6 +6,7 @@ import { JoinWithInviteDialog, useJoinDialogStore } from '../../auth';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
+    NewDmDialog,
     useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
@@ -33,6 +34,7 @@ import {
     useLastChannelStore,
     useSelectedChannelStore,
     useSiteProfiles,
+    useStartDm,
     isSelfChannel,
     useUnreadStore,
 } from '../../../shared';
@@ -49,6 +51,7 @@ import {
     ThreadPanel,
 } from '../components';
 import { useMessageViewer, useReadCounts } from '../hooks';
+import { pendingOpenRoute } from '../utils';
 import { useThreadStore } from '../stores';
 
 const isWindowActive = (): boolean =>
@@ -120,6 +123,9 @@ export const HomePage = () => {
     const requestMessageJump = useMessageJumpStore(s => s.request);
     const setJumpOrigin = useMessageJumpStore(s => s.setOrigin);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
+    // Only this screen opens the new-message picker, so its open state stays local.
+    const [isNewDmOpen, setIsNewDmOpen] = useState(false);
+    const { isAvailable: canStartDm } = useStartDm();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
@@ -241,7 +247,12 @@ export const HomePage = () => {
         // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
         pendingThreadRef.current = rootId ? { channelId, rootId } : null;
         pendingOpenAtBottomRef.current = rootId ? null : channelId;
-        if (cloudId && cloudId !== activeCloud) {
+        const route = pendingOpenRoute(pendingOpen, {
+            cloudId: activeCloud,
+            placeId: selectedPlaceId,
+            listedIds: new Set(channels.map(channel => channel.id ?? '')),
+        });
+        if (route === 'switch-cloud' && cloudId) {
             // Cross-cloud: switch cloud first. The target place lands via the
             // auto-select effect (pendingPlaceRef), then the channel via the
             // pending-channel effect — each once its data loads. Refs are set now
@@ -250,10 +261,14 @@ export const HomePage = () => {
             pendingPlaceRef.current = placeId || null;
             armPendingExpiry();
             void switchAfterHandshake(() => switchCloud(cloudId));
-        } else if (placeId && placeId !== selectedPlaceId) {
+        } else if (route === 'switch-place') {
             pendingChannelRef.current = channelId;
             armPendingExpiry();
             void switchAfterHandshake(() => switchPlace(placeId));
+        } else if (route === 'wait') {
+            // Land on it through the pending-channel effect once the list carries it.
+            pendingChannelRef.current = channelId;
+            armPendingExpiry();
         } else {
             selectChannel(channelId);
             if (rootId) openThreadNowOrDefer(channelId, rootId);
@@ -638,6 +653,7 @@ export const HomePage = () => {
                                 onSelectElsewhere={selectElsewhere}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
+                                onCreateDm={canStartDm ? () => setIsNewDmOpen(true) : undefined}
                             />
                         </div>
                     </>
@@ -691,6 +707,8 @@ export const HomePage = () => {
                 }
             />
             <CreateChannelDialog onCreated={openCreatedChannel} />
+            {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
+            {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some

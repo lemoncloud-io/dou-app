@@ -51,6 +51,11 @@ interface ChannelListProps {
     isDefaultMode: boolean;
     /** The Channels section's "+" (hidden on the Default Cloud, which cannot create channels). */
     onCreateChannel?: () => void;
+    /**
+     * The Direct messages section's "+", which opens the new-message picker. Passed only where a
+     * 1:1 can be started (not on the Default Cloud); with it, the section shows even while empty.
+     */
+    onCreateDm?: () => void;
 }
 
 const ChannelSkeleton = () => {
@@ -211,6 +216,7 @@ export const ChannelList = ({
     onSelectElsewhere,
     isDefaultMode,
     onCreateChannel,
+    onCreateDm,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
@@ -398,6 +404,9 @@ export const ChannelList = ({
 
     // A filtered view is a subset — dragging it would write a partial order, so rows lock.
     const isFiltering = query.trim().length > 0;
+    // An empty section still has to hold its "+", or the first 1:1 has nowhere to start from. A
+    // filter that matches no 1:1 hides it, like every other section.
+    const showDmSection = visibleDms.length > 0 || (!!onCreateDm && !isFiltering);
 
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
@@ -572,16 +581,30 @@ export const ChannelList = ({
                             )
                         }
                     />
-                    {visibleDms.length > 0 && <Divider />}
+                    {showDmSection && <Divider />}
                 </>
             )}
-            {visibleDms.length > 0 && (
+            {showDmSection && (
                 <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
                     items={visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
                     dragDisabled={isFiltering}
                     onReorder={makeSectionReorder('dm')}
+                    action={
+                        onCreateDm && (
+                            <Hint label={t('dm.new.open')}>
+                                <button
+                                    type="button"
+                                    onClick={onCreateDm}
+                                    aria-label={t('dm.new.open')}
+                                    className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
+                                >
+                                    <Plus size={16} aria-hidden />
+                                </button>
+                            </Hint>
+                        )
+                    }
                 />
             )}
             {/* The row menus' dialog stack renders ONCE here, keyed to the last

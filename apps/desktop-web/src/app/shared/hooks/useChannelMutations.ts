@@ -86,10 +86,10 @@ export const useDesktopChannelMutations = () => {
         [channelRepository, run]
     );
 
-    // DM creation was removed: the socket v2 `channel.create` contract drops
+    // No 1:1 is created here: the socket v2 `channel.create` contract drops
     // `userIds`, so a dm-stereo start reaches the backend as owner-only and its
     // derived channel id collides with existing channels (destroys their
-    // memberIds). Re-add only after the server accepts members at creation.
+    // memberIds). A 1:1 is opened by naming the peer instead — see useStartDm.
 
     const setChannelNotify = useCallback(
         ({

@@ -659,3 +659,50 @@ describe('ChannelList folded section', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Channels' }));
     });
 });
+
+describe('ChannelList Direct messages "+"', () => {
+    const general = { id: 'C1', name: 'general' } as DomainChannel;
+    const renderWith = (props: { onCreateDm?: () => void; query?: string; channels?: DomainChannel[] }) =>
+        render(
+            <ChannelList
+                channels={props.channels ?? [general]}
+                isLoading={false}
+                selectedChannelId={null}
+                query={props.query ?? ''}
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+                onCreateDm={props.onCreateDm}
+            />,
+            { wrapper }
+        );
+
+    // The first 1:1 has to start somewhere, so the section keeps its header while empty.
+    it('shows the section with its "+" before there is any 1:1, and opens the picker', () => {
+        const onCreateDm = vi.fn();
+        renderWith({ onCreateDm });
+
+        expect(screen.getByRole('button', { name: 'Direct messages' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'New message' }));
+        expect(onCreateDm).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides the empty section where a 1:1 cannot be started', () => {
+        renderWith({});
+
+        expect(screen.queryByRole('button', { name: 'Direct messages' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'New message' })).toBeNull();
+    });
+
+    it('hides the empty section while a filter matches no 1:1', () => {
+        renderWith({ onCreateDm: vi.fn(), query: 'gen' });
+
+        expect(screen.queryByRole('button', { name: 'Direct messages' })).toBeNull();
+    });
+
+    it('offers the "+" next to existing 1:1s too', () => {
+        const dm = { id: 'D1', stereo: 'dm', name: 'u1' } as DomainChannel;
+        renderWith({ onCreateDm: vi.fn(), channels: [general, dm] });
+
+        expect(screen.getByRole('button', { name: 'New message' })).toBeTruthy();
+    });
+});

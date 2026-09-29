@@ -8,3 +8,4 @@ export * from './AvatarRowsSkeleton';
 export * from './MemberRow';
 export * from './MemberList';
 export * from './ChannelSettingsPanel';
+export * from './NewDmDialog';
