@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import { isCloudWideChannel, isInPlaceList, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { computeChannelUnread } from '../utils';
@@ -24,14 +24,25 @@ const EMPTY_SETTLE_MS = 600;
 const EMPTY_WEDGE_CEILING_MS = 4000;
 
 /**
- * Streams the channel list for a place from the engine's channel cache (mirrors
- * apps/web useHomeChannels). List discovery + per-channel realtime sync are owned
+ * Streams the channel list for a place from the engine's channel cache. List discovery + per-channel realtime sync are owned
  * globally by the runtime (useBackgroundSync / the sync layer), so this hook only
  * observes the cache: a new message, an invite, or a read updates the cached
  * channel record and re-emits here, keeping unread badges fresh without a manual
- * refetch. The relay cache is not sid-isolated, so results are filtered to the
- * active place and the list is reset on place switch so the previous place's
- * channels don't flash.
+ * refetch. The list is reset on place switch so the previous place's channels
+ * don't flash.
+ *
+ * It reads the whole cloud and filters in JS, because the list for a place is not
+ * the same thing as the rows whose `sid` names it. A 1:1 opened inside a
+ * subscription cloud belongs to the cloud: the server stamps it with whichever
+ * place its creator happened to be in, which says nothing about where either
+ * participant reads it. So it is listed in every place of its cloud, and never
+ * through the place filter (that half is what keeps it from showing twice in the
+ * creator's place). Relay 1:1s really do live in the relay's one place and go
+ * through the place filter like any group. A per-place `observeList({ sid })`
+ * could not serve this: outside the relay the cache scopes that read by `sid`,
+ * so the 1:1s stamped with another place never reach it. (apps/web keeps its place
+ * list and its cloud 1:1 section apart; desktop's sidebar already buckets 1:1s into
+ * their own section, so one list serves both.)
  *
  * `uid` is part of the cache observer's scope key ({cid, sid, uid}) and flips only at
  * cloud-switch commit, after the optimistic `cid` pre-apply. sid alone cannot key the
@@ -71,9 +82,9 @@ export const useChannels = (placeId: string | undefined) => {
         // painted and overwrites it with the previous cloud's list, and nothing re-emits until
         // the next cache write (sending a message appeared to "fix" it). Ignore late arrivals.
         let cancelled = false;
-        const unsubscribe = channelRepository.observeList({ sid: placeId }, result => {
+        const unsubscribe = channelRepository.observeList({ sid: '' }, result => {
             if (cancelled) return;
-            const list = (result?.list ?? []).filter(c => c.sid === placeId);
+            const list = (result?.list ?? []).filter(c => isInPlaceList(c, placeId) || isCloudWideChannel(c));
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });
