@@ -6,8 +6,16 @@ import { cn } from '@chatic/lib/utils';
 import { IconBack, IconChevronRight, IconClose } from '../../resources/icons';
 
 export interface ImageViewerProps {
-    /** The images that can be shown, in order — a message's images. */
-    images: string[];
+    /**
+     * The images that can be shown, in order — a message's images. An entry may be undefined while the
+     * host is still resolving its address; its page then shows the placeholder, if any, or black.
+     */
+    images: (string | undefined)[];
+    /**
+     * A small copy of each image, drawn under it until it has loaded — the tile the viewer was opened
+     * from, which is usually already on hand while the original is still on its way.
+     */
+    placeholders?: (string | undefined)[];
     /** Which one is showing. `null` closes the viewer. */
     index: number | null;
     /** Asks to show another image. The host owns the index. */
@@ -50,7 +58,8 @@ interface Press {
  * here yet.
  *
  * Only the showing image and its neighbours are drawn, so ten originals are not loaded at once and a
- * neighbour is ready by the time it slides in.
+ * neighbour is ready by the time it slides in. An original can be several megabytes, so while one is
+ * on its way its `placeholder` — the small copy the tile drew — stands in for it instead of black.
  *
  * Stateless: the index belongs to the host, which is also what lets a refreshed address reach an
  * image that is already open. The drag offset is the only thing held here.
@@ -61,6 +70,7 @@ interface Press {
  */
 export const ImageViewer = ({
     images,
+    placeholders,
     index,
     onIndexChange,
     onClose,
@@ -80,6 +90,16 @@ export const ImageViewer = ({
         const target = current + step;
         if (target >= 0 && target < images.length) onIndexChange(target);
     };
+
+    // The addresses that have finished loading, so their placeholder can go. Kept by address rather
+    // than by position: a refreshed address has to load again before it covers the placeholder.
+    const [loaded, setLoaded] = React.useState<ReadonlySet<string>>(() => new Set());
+    // Only addresses still in `images` are kept, so a viewer handed a new address per refresh does not
+    // collect every one it was ever given.
+    const markLoaded = (src: string) =>
+        setLoaded(previous =>
+            previous.has(src) ? previous : new Set([...previous].filter(known => images.includes(known))).add(src)
+        );
 
     // How far the strip is pulled off its resting place, while a finger holds it.
     const [dragX, setDragX] = React.useState(0);
@@ -185,25 +205,42 @@ export const ImageViewer = ({
                         )}
                         style={{ transform: `translate3d(calc(${-current * 100}% + ${dragX}px), 0, 0)` }}
                     >
-                        {images.map((src, i) => (
-                            <div
-                                key={i}
-                                data-backdrop=""
-                                aria-hidden={i !== current || undefined}
-                                className="flex h-full w-full shrink-0 items-center justify-center"
-                            >
-                                {open && Math.abs(i - current) <= 1 && (
-                                    <img
-                                        src={src}
-                                        alt=""
-                                        data-current={i === current || undefined}
-                                        className="max-h-full max-w-full select-none object-contain"
-                                        draggable={false}
-                                        onError={() => onError?.(i)}
-                                    />
-                                )}
-                            </div>
-                        ))}
+                        {images.map((src, i) => {
+                            const drawn = open && Math.abs(i - current) <= 1;
+                            const placeholder = placeholders?.[i];
+                            return (
+                                <div
+                                    key={i}
+                                    data-backdrop=""
+                                    aria-hidden={i !== current || undefined}
+                                    className="relative flex h-full w-full shrink-0 items-center justify-center"
+                                >
+                                    {/* Stretched to the page and letterboxed, where the original will land.
+                                        It lets taps through, so a tap beside the photo still closes. */}
+                                    {drawn && placeholder && !(src && loaded.has(src)) && (
+                                        <img
+                                            src={placeholder}
+                                            alt=""
+                                            aria-hidden
+                                            data-placeholder=""
+                                            className="pointer-events-none absolute inset-0 size-full select-none object-contain"
+                                            draggable={false}
+                                        />
+                                    )}
+                                    {drawn && src && (
+                                        <img
+                                            src={src}
+                                            alt=""
+                                            data-current={i === current || undefined}
+                                            className="relative max-h-full max-w-full select-none object-contain"
+                                            draggable={false}
+                                            onLoad={() => markLoaded(src)}
+                                            onError={() => onError?.(i)}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                     {many && (
                         <span
