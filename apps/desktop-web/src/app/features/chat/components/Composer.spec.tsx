@@ -1,0 +1,151 @@
+import type { ReactNode } from 'react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+
+import '../../../../i18n';
+
+import { useComposerDraftStore } from '../../../shared';
+import type { ComposerAttachment } from '../hooks';
+import { Composer } from './Composer';
+
+const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
+
+// Lexical moves DOM focus after its own update cycle, a tick after mount.
+const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 100)));
+
+describe('Composer autoFocus', () => {
+    afterEach(cleanup);
+
+    // Opening a thread left focus in the feed behind the panel.
+    it('takes focus on mount when asked', async () => {
+        const { container } = render(<Composer onSend={() => undefined} channelId="C1" autoFocus />, { wrapper });
+        await settle();
+        expect(document.activeElement).toBe(container.querySelector('[data-composer-input]'));
+    });
+
+    it('leaves focus alone otherwise', async () => {
+        const { container } = render(<Composer onSend={() => undefined} channelId="C2" />, { wrapper });
+        await settle();
+        expect(document.activeElement).not.toBe(container.querySelector('[data-composer-input]'));
+    });
+
+    // A thread can open seconds after the click, once its channel loads; by then the reader
+    // may be typing in the channel's composer.
+    it('does not take focus from a field the reader is typing in', async () => {
+        const field = document.createElement('input');
+        document.body.appendChild(field);
+        field.focus();
+        render(<Composer onSend={() => undefined} channelId="C3" autoFocus />, { wrapper });
+        await settle();
+        expect(document.activeElement).toBe(field);
+        field.remove();
+    });
+});
+
+describe('Composer paste', () => {
+    afterEach(cleanup);
+
+    const paste = (target: Element, data: { files: File[]; text?: string; types: string[] }) =>
+        fireEvent.paste(target, {
+            clipboardData: {
+                files: data.files,
+                types: data.types,
+                getData: (type: string) => (type === 'text/plain' ? (data.text ?? '') : ''),
+            },
+        });
+
+    // Excel and Word put the cells' text and a picture of them on the clipboard together;
+    // taking the picture used to throw the text away.
+    it('keeps the text of a paste that also carries an image', async () => {
+        const onAddFiles = vi.fn();
+        const { container } = render(
+            <Composer onSend={() => undefined} channelId="P1" onAddFiles={onAddFiles} onRemoveAttachment={vi.fn()} />,
+            { wrapper }
+        );
+        await settle();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+        const image = new File(['x'], 'cells.png', { type: 'image/png' });
+        await act(async () => {
+            paste(input, { files: [image], text: 'Q3 total 1,204', types: ['Files', 'text/plain', 'text/html'] });
+        });
+        await settle();
+        expect(onAddFiles).toHaveBeenCalledWith([image]);
+        expect(input.textContent).toContain('Q3 total 1,204');
+    });
+
+    // Finder and Explorer put a copied file's name on the clipboard as plain text.
+    it('does not type the name of a copied file into the message', async () => {
+        const { container } = render(
+            <Composer onSend={() => undefined} channelId="P2" onAddFiles={vi.fn()} onRemoveAttachment={vi.fn()} />,
+            { wrapper }
+        );
+        await settle();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+        const image = new File(['x'], 'IMG_1234.png', { type: 'image/png' });
+        await act(async () => {
+            paste(input, { files: [image], text: 'IMG_1234.png', types: ['Files', 'text/plain'] });
+        });
+        await settle();
+        expect(input.textContent).not.toContain('IMG_1234.png');
+    });
+});
+
+describe('Composer send', () => {
+    afterEach(cleanup);
+    beforeEach(() => {
+        useComposerDraftStore.setState({ drafts: {} });
+    });
+
+    const picked = (): ComposerAttachment => {
+        const file = new File(['a'], 'a.png', { type: 'image/png' });
+        return { id: 'attachment-1', key: 'a.png:1:1', name: 'a.png', url: 'blob:a', file };
+    };
+
+    const renderComposer = (attachments: ComposerAttachment[], onSend = vi.fn()) => {
+        render(
+            <Composer
+                channelId="ch-1"
+                onSend={onSend}
+                attachments={attachments}
+                onAddFiles={vi.fn()}
+                onRemoveAttachment={vi.fn()}
+            />,
+            { wrapper }
+        );
+        return onSend;
+    };
+
+    const sendButton = () => screen.getByRole('button', { name: 'Send' });
+
+    it('sends pictures on their own, with no text', async () => {
+        const attachment = picked();
+        const onSend = renderComposer([attachment]);
+
+        await act(async () => fireEvent.click(sendButton()));
+
+        expect(onSend).toHaveBeenCalledWith('', [attachment.file]);
+    });
+
+    it('hands the text and the files up together', async () => {
+        useComposerDraftStore.setState({ drafts: { 'ch-1': 'caption' } });
+        const attachment = picked();
+        const onSend = renderComposer([attachment]);
+        // The editor loads the channel's draft after it mounts.
+        await screen.findByText('caption');
+
+        await act(async () => fireEvent.click(sendButton()));
+
+        expect(onSend).toHaveBeenCalledWith('caption', [attachment.file]);
+    });
+
+    it('sends nothing when there is neither text nor a picture', async () => {
+        const onSend = renderComposer([]);
+
+        expect((sendButton() as HTMLButtonElement).disabled).toBe(true);
+        await act(async () => fireEvent.click(sendButton()));
+
+        expect(onSend).not.toHaveBeenCalled();
+    });
+});

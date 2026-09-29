@@ -273,7 +273,7 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
     // Anchor a fixed wrapper at the caret; MentionAutocomplete's `bottom-full` floats
     // the list just above it, so the menu follows the caret.
     return createPortal(
-        <div ref={menuRef} className="fixed z-50" style={{ left: caretRect.left, top: caretRect.top }}>
+        <div ref={menuRef} className="fixed z-popover" style={{ left: caretRect.left, top: caretRect.top }}>
             <MentionAutocomplete items={items} activeIndex={activeIndex} onSelect={select} />
         </div>,
         document.body

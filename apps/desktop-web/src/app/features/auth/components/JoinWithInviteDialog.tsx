@@ -63,7 +63,7 @@ export const JoinWithInviteDialog = () => {
                         aria-describedby={error ? 'join-invite-error' : undefined}
                     />
                     {error && (
-                        <p id="join-invite-error" role="alert" className="-mt-1 text-sm text-destructive">
+                        <p id="join-invite-error" role="alert" className="-mt-1 text-callout text-destructive">
                             {inviteLoginErrorText(error, t)}
                         </p>
                     )}

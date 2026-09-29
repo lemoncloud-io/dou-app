@@ -13,11 +13,12 @@ import {
     Hint,
     Skeleton,
     avatarStyle,
+    bareChannelName,
     dmCounterpartId,
     isSelfChannel,
     lastChatNoOf,
     resolveDisplay,
-    messagePlainText,
+    messagePreview,
     useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
@@ -29,7 +30,7 @@ import {
 import { SearchDialog } from '../../search';
 import { ChannelActionDialogs, useChannelActions } from '../../channels';
 import { useHydrateDmPeers, useLastChat } from '../hooks';
-import { useSidebarSectionsStore } from '../stores';
+import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
 import { QuickSwitcher, type ElsewhereChannel } from './QuickSwitcher';
@@ -136,7 +137,7 @@ const ChannelRow = memo(function ChannelRow({
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
     const preview = useMemo(
-        () => (lastChat?.hidden ? t('sidebar.deletedPreview') : messagePlainText(lastChat?.content?.trim())),
+        () => (lastChat?.hidden ? t('sidebar.deletedPreview') : lastChat ? messagePreview(lastChat) : ''),
         [lastChat, t]
     );
     return (
@@ -158,7 +159,7 @@ const ChannelRow = memo(function ChannelRow({
                 <span className="flex shrink-0 items-center text-foreground">{icon}</span>
                 <span
                     className={cn(
-                        'min-w-0 flex-1 truncate text-callout tracking-[-0.01em]',
+                        'min-w-0 flex-1 truncate text-callout',
                         isMuted ? 'text-muted-foreground' : 'text-sidebar-foreground',
                         indicator !== 'none' && 'font-semibold'
                     )}
@@ -248,6 +249,12 @@ export const ChannelList = ({
         if (isLoading || !pinScope) return;
         migrateLegacyFavorites(pinScope, channels.map(c => c.id ?? '').filter(Boolean));
     }, [pinScope, isLoading, channels]);
+    // The drawing order, unfiltered, for the next-unread shortcut (useNextUnreadShortcut).
+    // Computed below the early returns, pushed to the store after every render.
+    const displayOrderRef = useRef<string[]>([]);
+    useEffect(() => {
+        useSidebarOrderStore.getState().setIds(displayOrderRef.current);
+    });
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
@@ -377,7 +384,7 @@ export const ChannelList = ({
         return (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
                 {dialogs}
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-lg text-muted-foreground shadow-well">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-title font-normal text-muted-foreground shadow-well">
                     #
                 </span>
                 <span className="text-callout text-foreground">{t('chat.noChannels')}</span>
@@ -407,7 +414,7 @@ export const ChannelList = ({
     const dmById = new Map(dmRows.map(dm => [dm.channel.id ?? '', dm]));
     const chById = new Map(regular.map(c => [c.id ?? '', c]));
     const orderedChannelIds = applyChannelOrder(
-        regular.filter(c => matchesQuery(c, c.name ?? c.id ?? '')).map(c => c.id ?? ''),
+        regular.filter(c => matchesQuery(c, bareChannelName(c.name) || (c.id ?? ''))).map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
     const orderedDmIds = applyChannelOrder(
@@ -553,13 +560,27 @@ export const ChannelList = ({
     // stored pin order; ids not in the current list are skipped.
     const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
     for (const c of visibleRegular) {
-        favoriteById.set(c.id ?? '', { channel: c, label: c.name ?? c.id ?? '', icon: CHANNEL_GLYPH });
+        favoriteById.set(c.id ?? '', {
+            channel: c,
+            label: bareChannelName(c.name) || (c.id ?? ''),
+            icon: CHANNEL_GLYPH,
+        });
     }
     for (const dm of dmRows) favoriteById.set(dm.channel.id ?? '', { channel: dm.channel, ...dm.identity });
     const favoriteRows = pinnedIds.flatMap(id => {
         const fav = favoriteById.get(id);
         return fav ? [fav] : [];
     });
+    // Unfiltered: a sidebar filter narrows what is drawn, not what the shortcut walks.
+    const allChannelIds = applyChannelOrder(
+        regular.map(c => c.id ?? ''),
+        pinScope ? storedChannelOrder : undefined
+    );
+    const allDmIds = applyChannelOrder(
+        dms.map(c => c.id ?? ''),
+        pinScope ? storedChannelOrder : undefined
+    );
+    displayOrderRef.current = [...new Set([...pinnedIds, ...allChannelIds, ...allDmIds])].filter(Boolean);
 
     return (
         // The switcher lives here (not HomePage) because this is where the
@@ -585,7 +606,7 @@ export const ChannelList = ({
                         id="ch"
                         title={t('sidebar.channels')}
                         items={visibleRegular.map(channel =>
-                            row(channel, channel.name ?? channel.id ?? '', CHANNEL_GLYPH, 'ch')
+                            row(channel, bareChannelName(channel.name) || (channel.id ?? ''), CHANNEL_GLYPH, 'ch')
                         )}
                         dragDisabled={isFiltering}
                         onReorder={makeSectionReorder('ch')}

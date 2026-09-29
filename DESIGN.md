@@ -88,41 +88,41 @@ change every message on mobile, which is a separate decision.
 
 ### Desktop palette (light, from Figma `247-10714`)
 
-| Token                                  | HSL            | Hex / role                                           |
-| -------------------------------------- | -------------- | ---------------------------------------------------- |
-| `--background`                         | `0 0% 100%`    | main pane                                            |
-| `--foreground`                         | `0 0% 10%`     | `#1A1A1A`                                            |
-| `--rail`                               | `0 0% 96%`     | `#F5F5F5` cloud rail                                 |
-| `--rail-elevated`                      | `0 0% 100%`    | place rail                                           |
-| `--sidebar`                            | `0 0% 100%`    | channel list panel                                   |
-| `--secondary` / `--muted` / `--accent` | `180 5% 96%`   | `#F4F5F5` chips, hover                               |
-| `--muted-foreground`                   | `218 5% 46%`   | one step darker than BK_600, which is 3.6:1 on white |
-| `--border` / `--hairline`              | `240 5% 92%`   | `#EAEAEC`                                            |
-| `--input`                              | `240 6% 90%`   | `#E5E5E8` composer box                               |
-| `--well`                               | `0 0% 96%`     | search bar, code block ground                        |
-| `--destructive`                        | `3 100% 59%`   | `#FF3B30`                                            |
-| `--warning`                            | `38 92% 50%`   | connecting banner                                    |
-| `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                            |
-| `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)               |
-| `--favorite`                           | `35 100% 50%`  | `#FF9500`                                            |
-| `--toast`                              | `222 75% 12%`  | `#081837`, always dark                               |
+| Token                                  | HSL            | Hex / role                                                           |
+| -------------------------------------- | -------------- | -------------------------------------------------------------------- |
+| `--background`                         | `0 0% 100%`    | main pane                                                            |
+| `--foreground`                         | `0 0% 10%`     | `#1A1A1A`                                                            |
+| `--rail`                               | `0 0% 96%`     | `#F5F5F5` cloud rail                                                 |
+| `--rail-elevated`                      | `0 0% 100%`    | place rail                                                           |
+| `--sidebar`                            | `0 0% 100%`    | channel list panel                                                   |
+| `--secondary` / `--muted` / `--accent` | `180 5% 96%`   | `#F4F5F5` chips, hover                                               |
+| `--muted-foreground`                   | `218 5% 40%`   | darker than BK_600 (3.6:1); 4.5:1 on hover and composer tints too    |
+| `--border` / `--hairline`              | `240 5% 92%`   | `#EAEAEC`                                                            |
+| `--input`                              | `240 6% 90%`   | `#E5E5E8` composer box                                               |
+| `--well`                               | `0 0% 96%`     | search bar, code block ground                                        |
+| `--destructive`                        | `358 80% 44%`  | deeper than Figma `#FF3B30` (3.58:1 as text and as a fill), ADR-0133 |
+| `--warning`                            | `38 92% 50%`   | connecting banner                                                    |
+| `--badge-unread`                       | `349 100% 59%` | `#FF2D55`                                                            |
+| `--link`                               | `217 72% 38%`  | URLs in message text (7.59:1 on white)                               |
+| `--favorite`                           | `35 100% 50%`  | `#FF9500`                                                            |
+| `--toast`                              | `220 7% 14%`   | `#222325` BK_900, always dark; neutral, not a navy of its own        |
 
 ### Desktop palette (dark, from Figma `254-541` / `259-566`)
 
 Warm near-neutral grays, same lime.
 
-| Token                                                     | Hex                                                      |
-| --------------------------------------------------------- | -------------------------------------------------------- |
-| `--background`                                            | `#252624` main pane                                      |
-| `--card` / `--sidebar` / `--rail-elevated` / `--elevated` | `#2E2F2D`                                                |
-| `--rail` / `--muted` / `--secondary` / `--well`           | `#121312`                                                |
-| `--foreground`                                            | `#EBEBE8`                                                |
-| `--accent` (hover)                                        | `#38393A`                                                |
-| `--border` / `--hairline`                                 | `#424540`                                                |
-| `--input`                                                 | `#3D3E3C`                                                |
-| `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark)    |
-| `--link`                                                  | `212 90% 72%` URLs in message text (6.84:1 on `#252624`) |
-| `--toast`                                                 | `#F4F5F5` light card, dark text                          |
+| Token                                                     | Hex                                                                                 |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `--background`                                            | `#252624` main pane                                                                 |
+| `--card` / `--sidebar` / `--rail-elevated` / `--elevated` | `#2E2F2D`                                                                           |
+| `--rail` / `--muted` / `--secondary` / `--well`           | `#121312`                                                                           |
+| `--foreground`                                            | `#EBEBE8`                                                                           |
+| `--accent` (hover)                                        | `#38393A`                                                                           |
+| `--border` / `--hairline`                                 | `#424540`                                                                           |
+| `--input`                                                 | `#3D3E3C`                                                                           |
+| `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark; light mode uses the ink lime) |
+| `--link`                                                  | `212 90% 72%` URLs in message text (6.84:1 on `#252624`)                            |
+| `--toast`                                                 | `#F4F5F5` light card, dark text                                                     |
 
 ### Mobile web palette
 
@@ -176,7 +176,9 @@ Hierarchy comes from weight and tracking, not only size.
 
 A dash in the weight column means the step sets none, and the component picks it. No
 component uses an arbitrary `text-[Npx]`; a new size is a new step here, registered in
-`libs/ui-kit/src/utils/index.ts` so `cn()` keeps it apart from text colors.
+`libs/ui-kit/src/utils/index.ts` so `cn()` keeps it apart from text colors. Desktop
+components use these steps only, not Tailwind's `text-xs`…`text-2xl`, and take tracking
+from the step rather than an arbitrary `tracking-[…]`.
 
 Component-level details, measured against Figma:
 
@@ -221,7 +223,14 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 - **Layering** is done with surface tokens, not shadows: `bg-elevated` above
   `bg-background` above `bg-well`, separated by `border-hairline`. Cards only when
   elevation is the right affordance, never nested.
-- Overlays: `bg-overlay/…` scrim; dialog and sheet content on `bg-popover`.
+- Overlays: `bg-overlay/…` scrim; dialog and sheet content on `bg-popover`. Marks drawn
+  on the scrim (an image's "+n", its upload spinner) use `on-overlay`. No glass: nothing
+  in the desktop client blurs what is behind it.
+- **Stacking** (desktop): one named scale in `tailwind.config.js`, no numeric `z-*`.
+  `z-raised` (a toolbar or sticky label above its own row), `z-float` (pills, the mention
+  list and a drawer's scrim over a pane), `z-overlay` (the drop zone over a whole pane),
+  `z-drawer` (a panel or drawer laid over its neighbour), `z-popover` (fixed to the
+  viewport, level with ui-kit's dialogs and menus at 50).
 
 ## Layout
 
@@ -231,17 +240,17 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 [ cloud rail ][ place rail ][ channel sidebar | drag ][ main pane ][ trailing panel ]
 ```
 
-| Region          | Code                                                                                                                                     | Figma                                                                    |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                                           | 80px "Icon Rail", 48px tile                                              |
-| Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                                 | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
-| Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                                   | 286px "Channel List Panel", 16px inset                                   |
-| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline                | same                                                                     |
-| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                       | same                                                                     |
-| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)                     | same                                                                     |
-| Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                       | 35px avatar                                                              |
-| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, backdrop blur, 24px gutters | 121px box, 24px gutters                                                  |
-| Trailing panels | resizable, defaults: thread 384, settings / saved / mentions / profile 320, debug 440                                                    | —                                                                        |
+| Region          | Code                                                                                                                              | Figma                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Cloud rail      | `w-rail` = 68px, `bg-rail`, 48px tiles at 14px radius, user menu pinned bottom                                                    | 80px "Icon Rail", 48px tile                                              |
+| Place rail      | 68px, `bg-rail-elevated`, only when the cloud has places                                                                          | 80px "Workspace Rail", 48px active / 40px inactive tiles with 12px label |
+| Channel sidebar | default 286px, drag 200 to 480, persisted in `chatic.sidebar.width`; `bg-sidebar`, hairline both edges                            | 286px "Channel List Panel", 16px inset                                   |
+| Sidebar header  | place name, pill search 41px tall on `bg-well`, four 36px action rows (profile, notifications, activity, saved), hairline         | same                                                                     |
+| Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                | same                                                                     |
+| Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)              | same                                                                     |
+| Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                | 35px avatar                                                              |
+| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, 24px gutters         | 121px box, 24px gutters                                                  |
+| Trailing panels | resizable, every panel opens at `PANEL_WIDTH` 360 and remembers its own drag; below 1280px it covers the chat (scrim, chat inert) | —                                                                        |
 
 The rail width difference (68 versus 80) is a deliberate code choice shared by
 `DesktopLayout` and `AppShellSkeleton` through the `w-rail` token, so the boot skeleton
@@ -306,7 +315,8 @@ classes so what you type is what readers see.
 - `SIDEBAR_ACTION_ROW`: full-width 14px row, `text-label`, hover to foreground.
 - `ResizablePanel` + `PanelResizeHandle`: keyboard-resizable, `aria-valuemin/max`.
 - `Skeleton` / `AppShellSkeleton`: boot placeholder mirroring the real shell.
-- `ConnectionBanner`, `UpdateBanner`, `Hint`, `ProfileCard` popover (256px).
+- `ConnectionBanner`, `UpdateBanner`, `Hint` (ink: `bg-foreground text-background`, never
+  the lime), `ProfileCard` popover (256px, a plain `bg-muted` band over the avatar).
 
 ## Icons
 
@@ -319,7 +329,9 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 ## Motion and interaction
 
 - **Focus**: `.focus-ring` on every interactive element — a 2px background gap then a
-  4px `primary/60` ring, visible only on `:focus-visible`.
+  ring in `--focus-ring` (the ink lime in light mode, the fill lime in dark: 3:1 or more
+  on the pane), visible only on `:focus-visible`. Every focus indicator uses it; the
+  token pairs are checked by `apps/desktop-web/src/tokenContrast.spec.ts`.
 - **Press**: `.tactile` scales to 0.97 over 140ms with `ease-tactile`
   (`cubic-bezier(0.16, 1, 0.3, 1)`). Transform only, no layout.
 - **Transitions**: colour changes use `transition-colors ease-tactile`. Panels animate
@@ -329,6 +341,11 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 - **Reduced motion**: a global `prefers-reduced-motion: reduce` block collapses every
   animation and transition to 0.01ms. Nothing is gated on a transition finishing.
 - Targets: 36px minimum, 40px for primary controls. An isolated control that must look smaller takes `hit-target`, which grows only its hit area.
+- **Hover-revealed controls** (desktop): a control that waits for hover takes
+  `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent. It
+  hides only on devices that can hover, and shows while the pointer or focus is anywhere
+  in its group. The message toolbar is the one exception: it also slides in, and stays
+  up while something it opened (the emoji grid, a dialog) is on screen.
 
 ## State vocabulary
 

@@ -1,17 +1,38 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Search } from 'lucide-react';
+import { Hash, Search, User } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { formatShortDate, messagePlainText, useListboxNav } from '../../../shared';
+import {
+    channelKind,
+    channelRef,
+    formatShortDate,
+    messagePlainText,
+    useAuthorNames,
+    useChannelLabels,
+    useListboxNav,
+} from '../../../shared';
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
 
-const formatTime = formatShortDate;
+const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+/** "Today", "Yesterday", or the date (with the year when it is not this year). */
+const formatWhen = (ms: number | undefined, t: (key: string) => string): string => {
+    if (!ms) return '';
+    const date = new Date(ms);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (isSameDay(date, now)) return t('chat.today');
+    if (isSameDay(date, yesterday)) return t('chat.yesterday');
+    return formatShortDate(ms);
+};
 
 /** Bold the first occurrence of the query inside the message snippet. */
 const highlight = (content: string, query: string): ReactNode => {
@@ -52,6 +73,11 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
     const { results, isSearching, isTruncated } = useMessageSearch(open ? query : '', channels);
+    const labelOf = useChannelLabels(channels);
+    // Rows were the snippet and a date only, so two hits from different people read
+    // as the same line twice.
+    const ownerIds = useMemo(() => results.flatMap(result => result.matches.map(chat => chat.ownerId)), [results]);
+    const names = useAuthorNames(ownerIds);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -160,7 +186,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                         // picking it opens the channel. Say so, or a screen
                                         // reader hears a heading that answers Enter.
                                         aria-label={t('search.openChannel', {
-                                            name: result.channel.name ?? channelId,
+                                            name: channelRef(channelKind(result.channel), labelOf(result.channel)),
                                         })}
                                         onMouseEnter={() => nav.setActiveIndex(headerIndex)}
                                         onClick={() => pick(options[headerIndex])}
@@ -169,10 +195,16 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                             headerIndex === nav.activeIndex ? 'bg-accent' : 'hover:bg-accent/60'
                                         )}
                                     >
-                                        <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
-                                        <span className="truncate">{result.channel.name ?? result.channel.id}</span>
+                                        {channelKind(result.channel) === 'channel' ? (
+                                            <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
+                                        ) : (
+                                            <User size={12} className="shrink-0 text-muted-foreground" aria-hidden />
+                                        )}
+                                        <span className="truncate">{labelOf(result.channel)}</span>
+                                        {/* Held back while a search is running: the old count stayed
+                                            up and jumped (4, then 13) as the cache filled in. */}
                                         <span className="ml-auto shrink-0 font-normal tabular-nums text-muted-foreground">
-                                            {t('search.matchCount', { count: result.matchCount })}
+                                            {isSearching ? '…' : t('search.matchCount', { count: result.matchCount })}
                                         </span>
                                     </button>
                                     {result.matches.map(chat => {
@@ -190,15 +222,22 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                                 onMouseEnter={() => nav.setActiveIndex(index)}
                                                 onClick={() => pick(options[index])}
                                                 className={cn(
-                                                    'tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile',
+                                                    'tactile flex flex-col gap-0.5 rounded-md py-1.5 pl-7 pr-3 text-left transition-colors ease-tactile',
                                                     index === nav.activeIndex ? 'bg-accent' : 'hover:bg-accent/60'
                                                 )}
                                             >
-                                                <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
-                                                    {highlight(messagePlainText(chat.content), trimmed)}
+                                                <span className="flex items-baseline gap-2">
+                                                    {/* Blank until the profile resolves: a stand-in name
+                                                        flashed on every row, then changed. */}
+                                                    <span className="min-w-0 flex-1 truncate text-caption font-semibold text-foreground">
+                                                        {chat.ownerId ? names.get(chat.ownerId) : undefined}
+                                                    </span>
+                                                    <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
+                                                        {formatWhen(chat.createdAt ?? chat.createdAtMs, t)}
+                                                    </span>
                                                 </span>
-                                                <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
-                                                    {formatTime(chat.createdAt ?? chat.createdAtMs)}
+                                                <span className="truncate text-callout text-muted-foreground">
+                                                    {highlight(messagePlainText(chat.content), trimmed)}
                                                 </span>
                                             </button>
                                         );

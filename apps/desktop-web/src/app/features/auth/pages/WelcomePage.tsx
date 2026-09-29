@@ -22,7 +22,7 @@ export const WelcomePage = () => {
     return (
         <AuthCard title={t('welcome.title')} subtitle={t('welcome.subtitle')}>
             {isError && (
-                <p role="alert" className="-mt-2 text-sm text-destructive">
+                <p role="alert" className="-mt-2 text-callout text-destructive">
                     {t('welcome.registerFailed')}
                 </p>
             )}

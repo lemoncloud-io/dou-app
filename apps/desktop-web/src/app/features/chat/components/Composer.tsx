@@ -13,13 +13,12 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type EditorState } from 'lexical';
 
 import { cn } from '@chatic/lib/utils';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useComposerDraftStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';
 import { shouldCaptureTyping } from '../utils';
 import type { Mentionable } from './MentionAutocomplete';
-import { AttachMenu, ComposerAttachments } from './images';
+import { AttachButton, ComposerAttachments } from './images';
 import {
     COMPOSER_NODES,
     COMPOSER_THEME,
@@ -34,7 +33,8 @@ import {
 } from './editor';
 
 interface ComposerProps {
-    onSend: (content: string) => void;
+    /** The text as markdown (may be empty) and the tray's files (may be none) — never both empty. */
+    onSend: (content: string, files: File[]) => void;
     /** Channel the draft belongs to — preserves unsent text across switches. */
     channelId: string;
     /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
@@ -50,6 +50,8 @@ interface ComposerProps {
      * One composer per window should claim this — the channel's, not the thread's.
      */
     capturesTyping?: boolean;
+    /** Take focus on mount: the thread panel's reply box, since opening a thread is to reply. */
+    autoFocus?: boolean;
 }
 
 const ComposerInner = ({
@@ -61,6 +63,7 @@ const ComposerInner = ({
     onAddFiles,
     onRemoveAttachment,
     capturesTyping,
+    autoFocus,
 }: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
@@ -90,13 +93,10 @@ const ComposerInner = ({
             .read(() => $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true))
             .trim();
         if (!markdown && attachments.length === 0) return;
-        // No upload API on the server yet: refuse the whole send rather than drop the
-        // images silently or post their text without them. The text and the tray stay.
-        if (attachments.length > 0) {
-            toast({ variant: 'info', description: t('chat.attach.unavailable') });
-            return;
-        }
-        onSend(markdown);
+        onSend(
+            markdown,
+            attachments.map(attachment => attachment.file)
+        );
         // Clearing the document fires handleChange, which drops the draft.
         editor.update(
             () => {
@@ -114,7 +114,7 @@ const ComposerInner = ({
             // can keep typing without re-clicking the input.
             { onUpdate: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }) }
         );
-    }, [editor, onSend, attachments, t]);
+    }, [editor, onSend, attachments]);
 
     // Focusing during keydown hands the same keystroke to the editor, so the first letter
     // lands in the message instead of being lost.
@@ -127,6 +127,23 @@ const ComposerInner = ({
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [capturesTyping, editor]);
 
+    // The node itself rather than editor.focus(), which places a selection and leaves DOM
+    // focus to follow it.
+    const focusInput = useCallback(() => editor.getRootElement()?.focus({ preventScroll: true }), [editor]);
+
+    // A panel that opened took no focus, so a keyboard user stayed in the feed behind it with
+    // no way in short of tabbing through every message. Per thread (channelId carries the root),
+    // and never out of a field the reader is typing in: a thread can open seconds after the
+    // click that asked for it, once its channel has loaded.
+    useEffect(() => {
+        if (!autoFocus) return;
+        const active = document.activeElement;
+        const typingElsewhere =
+            active instanceof HTMLElement &&
+            (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
+        if (!typingElsewhere) focusInput();
+    }, [autoFocus, channelId, focusInput]);
+
     const insertEmoji = (emoji: string) => {
         editor.update(() => {
             ($getSelection() ?? $getRoot().selectEnd()).insertText(emoji);
@@ -138,6 +155,10 @@ const ComposerInner = ({
         <div
             className="bg-background px-6 pb-5 pt-2"
             // Pasted images join the tray; pasted text still goes to the editor untouched.
+            // A copy from Excel or Word carries the text and a picture of it together, and
+            // taking the files used to drop the text: it goes in as plain text alongside.
+            // Only for a rich copy (HTML or RTF on the clipboard): a file copied in Finder
+            // or Explorer carries its own name as plain text, which is not a message.
             onPasteCapture={event => {
                 if (!onAddFiles) return;
                 const files = Array.from(event.clipboardData.files);
@@ -145,6 +166,15 @@ const ComposerInner = ({
                 event.preventDefault();
                 event.stopPropagation();
                 onAddFiles(files);
+                const types = Array.from(event.clipboardData.types ?? []);
+                const isRichCopy = types.includes('text/html') || types.includes('text/rtf');
+                const text = isRichCopy ? event.clipboardData.getData('text/plain') : '';
+                if (text && !files.some(file => file.name === text.trim())) {
+                    editor.update(() => {
+                        const selection = $getSelection();
+                        ($isRangeSelection(selection) ? selection : $getRoot().selectEnd()).insertRawText(text);
+                    });
+                }
             }}
         >
             <div
@@ -155,7 +185,7 @@ const ComposerInner = ({
                 )}
             >
                 <div className="flex items-center gap-2 px-5 py-3">
-                    {onAddFiles && <AttachMenu onFiles={onAddFiles} />}
+                    {onAddFiles && <AttachButton onFiles={onAddFiles} />}
                     <ComposerToolbar />
                     {/* The newline key is the one thing people get wrong in a chat box; say it
                         while it matters (there is text) and stay out of the way otherwise. */}
@@ -187,7 +217,11 @@ const ComposerInner = ({
                             />
                         </div>
                         {onRemoveAttachment && (
-                            <ComposerAttachments attachments={attachments} onRemove={onRemoveAttachment} />
+                            <ComposerAttachments
+                                attachments={attachments}
+                                onRemove={onRemoveAttachment}
+                                onEmptied={focusInput}
+                            />
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-4">

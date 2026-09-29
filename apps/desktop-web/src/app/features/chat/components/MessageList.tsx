@@ -7,9 +7,10 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { Hint, Skeleton, resolveDisplay, useReducedMotion, useSiteProfileMap } from '../../../shared';
+import { Hint, Skeleton, resolveDisplay, useReducedMotion, useRovingFocus, useSiteProfileMap } from '../../../shared';
 import {
     buildMessageRows,
+    firstVisibleChatNo,
     isOwnMessage,
     isViewerId,
     type MessageViewer,
@@ -37,6 +38,8 @@ interface MessageListProps {
     /** Thread panel only: total replies under the root — renders an "N replies" divider. */
     threadReplyCount?: number;
     onRetry?: (message: DomainChat) => void;
+    /** Whether a failed message offers Retry (a picture message only while its pictures are in memory). */
+    canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
     /** Fetch older history when the reader scrolls near the top. */
@@ -51,10 +54,15 @@ interface MessageListProps {
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open a thread; wired only for the main channel feed (not the thread panel). */
     onOpenThread?: (rootId: string) => void;
-    /** Scroll a specific message into view + flash it (saved-item / search jump). */
-    jumpTarget?: { chatNo: number; nonce: number };
+    /**
+     * Scroll a specific message into view + flash it (saved-item / search jump).
+     * `restore` puts it back at the top of the view without the flash (a return trip).
+     */
+    jumpTarget?: { chatNo: number | null; nonce: number; restore?: boolean };
     /** Called once a jump is consumed (landed or abandoned) so the store can clear. */
     onJumpConsumed?: () => void;
+    /** The first message in view as the reader scrolls; null at the latest. */
+    onReadingPosition?: (chatNo: number | null) => void;
     /** Read/unread counts per message (see `useReadCounts`); absent shows no receipts. */
     readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
     /**
@@ -91,6 +99,7 @@ export const MessageList = ({
     baselineReadNo,
     threadReplyCount,
     onRetry,
+    canRetry,
     onDiscard,
     onLoadOlder,
     hasMore,
@@ -101,6 +110,7 @@ export const MessageList = ({
     onOpenThread,
     jumpTarget,
     onJumpConsumed,
+    onReadingPosition,
     readCountOf,
     intro,
 }: MessageListProps) => {
@@ -108,6 +118,7 @@ export const MessageList = ({
     const reducedMotion = useReducedMotion();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const roving = useRovingFocus(scrollRef);
     // Latched at mount (MessageList remounts per channel via its key), so a later
     // store clear can't flip it before the first fill lands.
     const openAtBottomRef = useRef(openAtBottom);
@@ -379,6 +390,12 @@ export const MessageList = ({
         return () => cancelAnimationFrame(pinRafRef.current);
     }, [scrollSignal]);
 
+    // The "New messages" divider clears only when the reader actively scrolls
+    // DOWN into the bottom (a not-near-bottom → near-bottom transition). Focus,
+    // channel-open auto-scroll, and live-follow all land at the bottom too but
+    // must NOT dismiss an unseen divider — track the previous state for the edge.
+    const wasNearBottomRef = useRef(true);
+
     // Drive a jump request: center the target message's DOM node and flash it.
     // If it isn't loaded (older than the live page), page older — bounded — and
     // the `messages` dependency re-runs this as each page lands.
@@ -393,12 +410,34 @@ export const MessageList = ({
         // Already handled (landed or abandoned) — don't re-scroll on live-tail ticks
         // that re-run this effect before the store clears the target.
         if (jumpRef.current.done) return;
+        // A return point is the reading position, not a message to find. Back to the
+        // latest, or to an anchor that is gone, both end at the bottom, where the feed
+        // opens; paging back for it and reporting "not found" would strand the reader.
+        const restoreToBottom = () => {
+            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: true };
+            setAtBottom(true);
+            wasNearBottomRef.current = true;
+            pinToBottom();
+            onJumpConsumed?.();
+        };
+        if (jumpTarget.chatNo == null) {
+            restoreToBottom();
+            return;
+        }
         const node = el.querySelector<HTMLElement>(`[data-chat-no="${jumpTarget.chatNo}"]`);
         if (node) {
-            node.scrollIntoView({ block: 'center' });
-            setHighlightChatNo(jumpTarget.chatNo);
-            if (highlightTimer.current) clearTimeout(highlightTimer.current);
-            highlightTimer.current = setTimeout(() => setHighlightChatNo(null), 1600);
+            node.scrollIntoView({ block: jumpTarget.restore ? 'start' : 'center' });
+            if (!jumpTarget.restore) {
+                setHighlightChatNo(jumpTarget.chatNo);
+                if (highlightTimer.current) clearTimeout(highlightTimer.current);
+                highlightTimer.current = setTimeout(() => setHighlightChatNo(null), 1600);
+            }
+            // Settle the pin state now. It used to wait for the scroll frame, so a page
+            // landing in between still saw "at the bottom", followed the tail, and carried
+            // the reader past the message they jumped to.
+            const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+            setAtBottom(nearBottom);
+            wasNearBottomRef.current = nearBottom;
             jumpRef.current.done = true;
             onJumpConsumed?.();
             return;
@@ -413,6 +452,10 @@ export const MessageList = ({
         // Say so. Giving up silently left the reader mid-history, paged back up to
         // eight pages, with no highlight and no hint that the target was not found.
         if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
+            if (jumpTarget.restore) {
+                restoreToBottom();
+                return;
+            }
             jumpRef.current.done = true;
             toast({ variant: 'info', description: t('chat.jump.notFound') });
             onJumpConsumed?.();
@@ -441,12 +484,6 @@ export const MessageList = ({
         []
     );
 
-    // The "New messages" divider clears only when the reader actively scrolls
-    // DOWN into the bottom (a not-near-bottom → near-bottom transition). Focus,
-    // channel-open auto-scroll, and live-follow all land at the bottom too but
-    // must NOT dismiss an unseen divider — track the previous state for the edge.
-    const wasNearBottomRef = useRef(true);
-
     // Scroll events fire many times per frame; the handler reads three layout
     // properties each time. Coalesce to one pass per animation frame.
     const scrollRafRef = useRef(0);
@@ -463,6 +500,7 @@ export const MessageList = ({
         if (!el) return;
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
         setAtBottom(nearBottom);
+        if (onReadingPosition) onReadingPosition(nearBottom ? null : firstVisibleChatNo(el));
         // Clear the divider only on a genuine scroll DOWN into the bottom (was
         // above it, now near it). Opening a channel or an auto-follow also reaches
         // the bottom, but those keep the divider until the reader scrolls past it.
@@ -527,6 +565,8 @@ export const MessageList = ({
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
+                onFocus={roving.onFocus}
+                onKeyDown={roving.onKeyDown}
                 role="log"
                 aria-live="polite"
                 aria-relevant="additions"
@@ -587,6 +627,7 @@ export const MessageList = ({
                                     key={row.group.key}
                                     group={row.group}
                                     onRetry={onRetry}
+                                    canRetry={canRetry}
                                     onDiscard={onDiscard}
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}
@@ -613,7 +654,7 @@ export const MessageList = ({
                         type="button"
                         onClick={scrollToBottom}
                         aria-label={t('chat.jumpToLatest')}
-                        className="focus-ring tactile absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
+                        className="focus-ring tactile absolute bottom-4 left-1/2 z-float flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary pl-3 pr-2.5 text-caption font-semibold text-primary-foreground shadow-overlay transition-transform ease-tactile hover:bg-primary/90"
                     >
                         <span className="tabular-nums">
                             {newCount > NEW_BADGE_CAP
@@ -629,7 +670,7 @@ export const MessageList = ({
                             type="button"
                             onClick={scrollToBottom}
                             aria-label={t('chat.jumpToLatest')}
-                            className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
+                            className="focus-ring tactile border-hairline absolute bottom-4 right-4 z-float flex h-9 w-9 items-center justify-center rounded-full border bg-elevated text-foreground shadow-overlay transition-transform ease-tactile hover:bg-accent"
                         >
                             <ChevronDown size={18} />
                         </button>

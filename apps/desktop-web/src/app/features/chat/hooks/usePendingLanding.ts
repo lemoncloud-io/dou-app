@@ -25,7 +25,7 @@ export const usePendingLanding = () => {
     const pendingPlaceRef = useRef<string | null>(null);
     // A message to scroll to once a cross-place jump's channel has loaded (paired
     // with pendingChannelRef when the saved item lives in another place).
-    const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
+    const pendingJumpRef = useRef<{ channelId: string; chatNo: number; restore?: boolean } | null>(null);
     // Set when the deferred open is a NOTIFICATION click (not a saved jump): the
     // channel should land at its latest message once it loads (requestOpenAtBottom).
     const pendingOpenAtBottomRef = useRef<string | null>(null);

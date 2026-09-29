@@ -90,13 +90,18 @@ export const useMentionsStore = create<MentionsState>()(
 
 interface MentionsPanelState {
     isOpen: boolean;
+    /** The row last opened from this pane; marked when the pane opens again. */
+    openedId: string | null;
     open: () => void;
     close: () => void;
+    markOpened: (id: string) => void;
 }
 
 /** Whether the trailing Activity pane is open (HomePage enforces pane exclusivity). */
 export const useMentionsPanelStore = create<MentionsPanelState>(set => ({
     isOpen: false,
+    openedId: null,
     open: () => set({ isOpen: true }),
     close: () => set({ isOpen: false }),
+    markOpened: id => set({ openedId: id }),
 }));

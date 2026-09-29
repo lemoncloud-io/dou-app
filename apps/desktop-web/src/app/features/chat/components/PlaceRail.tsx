@@ -108,8 +108,9 @@ const PlaceTile = ({
             </span>
             <span
                 className={cn(
-                    'max-w-full truncate text-callout font-medium leading-tight text-rail-foreground transition-opacity',
-                    !isActive && 'opacity-70 group-hover:opacity-100'
+                    'max-w-full truncate text-callout font-medium leading-tight transition-colors',
+                    // A faded label measured under AA; the quieter tone is a token that clears it.
+                    isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
                 )}
             >
                 {name}
@@ -241,8 +242,14 @@ export const PlaceRail = ({
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
+                    {/* A tool, not an account action: its own group, away from Log out. */}
                     {(import.meta.env.DEV || debugEnabled) && (
-                        <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openDebugPanel(true)}>
+                                {t('rail.menu.debug')}
+                            </DropdownMenuItem>
+                        </>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => (isGuest ? setConfirmingLogout(true) : runLogout())}>

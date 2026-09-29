@@ -55,13 +55,13 @@ export const InviteLoginPage = () => {
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error ? 'invite-code-error' : undefined}
                     className={cn(
-                        'focus-ring h-11 rounded-lg border bg-background px-3 text-sm text-foreground outline-none transition-colors',
+                        'focus-ring h-11 rounded-lg border bg-background px-3 text-callout text-foreground outline-none transition-colors',
                         'border-input focus:border-focus-border disabled:opacity-50'
                     )}
                 />
                 {/* role="alert" so a rejected code is announced, not just drawn. */}
                 {error && (
-                    <p id="invite-code-error" role="alert" className="-mt-2 text-sm text-destructive">
+                    <p id="invite-code-error" role="alert" className="-mt-2 text-callout text-destructive">
                         {inviteLoginErrorText(error, t)}
                     </p>
                 )}

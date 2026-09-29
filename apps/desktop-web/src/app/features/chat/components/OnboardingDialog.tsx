@@ -71,7 +71,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
     };
 
     const stepLabel = (
-        <p className="text-xs tabular-nums text-muted-foreground">{t('onboarding.step', { step, total: 2 })}</p>
+        <p className="text-micro tabular-nums text-muted-foreground">{t('onboarding.step', { step, total: 2 })}</p>
     );
 
     return (
@@ -88,7 +88,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                             {t(showChannelStatus ? 'onboarding.welcome.body' : 'onboarding.welcome.bodyWorkspace')}
                         </DialogDescription>
                         {showChannelStatus && (
-                            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-callout text-muted-foreground">
                                 {isChannelReady ? (
                                     <Check size={16} className="shrink-0 text-primary-ink" />
                                 ) : (
@@ -112,7 +112,7 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                         {/* The title was also the description, so the card said its own
                             heading twice and a screen reader read it twice. */}
                         <DialogDescription>{t('onboarding.tips.body')}</DialogDescription>
-                        <ul className="flex flex-col gap-2 pt-2 text-sm text-foreground">
+                        <ul className="flex flex-col gap-2 pt-2 text-callout text-foreground">
                             <li>{t('onboarding.tips.send')}</li>
                             {/* What the rail and the switcher are for: the two things a
                                 new member cannot guess from looking at the screen. */}

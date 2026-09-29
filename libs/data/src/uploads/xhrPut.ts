@@ -1,4 +1,4 @@
-import type { PutPort, PutResult } from '@chatic/data';
+import type { PutPort, PutResult } from './types';
 
 /**
  * Headers the browser owns. The ticket lists them because they are signed, but `XMLHttpRequest`
@@ -18,7 +18,7 @@ const PUT_TIMEOUT_MS = 5 * 60_000;
 const readProviderCode = (body: string): string | undefined => /<Code>([^<]+)<\/Code>/.exec(body)?.[1];
 
 /**
- * PUTs the bytes from the page itself — the web shell's only way, and the old app's fallback when
+ * PUTs the bytes from the page itself — the browser and desktop shells' only way, and the old app's fallback when
  * its shell has no transfer module. Uploads started here stop when the page stops.
  *
  * No progress listener: the screen shows no progress, and a listener on `upload` turns every

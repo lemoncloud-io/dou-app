@@ -153,8 +153,8 @@ const Section = ({
     <div className="rounded-xl border border-border bg-card px-4 py-3">
         <div className="mb-2 flex items-start justify-between gap-2">
             <div>
-                <p className="text-sm font-semibold text-foreground">{title}</p>
-                {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+                <p className="text-callout font-semibold text-foreground">{title}</p>
+                {hint && <p className="text-micro text-muted-foreground">{hint}</p>}
             </div>
             {action}
         </div>
@@ -165,7 +165,7 @@ const Section = ({
 const Stat = ({ label, value, sub }: { label: string; value: string; sub?: string }) => (
     <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
         <p className="text-nano uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mt-0.5 text-sm font-semibold text-foreground">{value}</p>
+        <p className="mt-0.5 text-callout font-semibold text-foreground">{value}</p>
         {sub && <p className="truncate text-tiny text-muted-foreground">{sub}</p>}
     </div>
 );
@@ -185,7 +185,7 @@ const HealthCard = ({
     gapText: string;
 }) => (
     <div className="rounded-xl border border-border bg-card p-4">
-        <p className="mb-3 text-sm font-semibold text-foreground">At a glance</p>
+        <p className="mb-3 text-callout font-semibold text-foreground">At a glance</p>
         <div className="grid grid-cols-2 gap-3">
             <Stat label="Socket" value={`${socket.dot} ${socket.text}`} />
             <Stat label="Received this session" value={`${frameCount} ${frameCount === 1 ? 'frame' : 'frames'}`} />
@@ -219,13 +219,15 @@ const SocketFrameLog = () => {
             }
         >
             <div className="max-h-72 divide-y divide-border/60 overflow-y-auto">
-                {frames.length === 0 && <p className="py-3 text-sm text-muted-foreground">No data received yet…</p>}
+                {frames.length === 0 && (
+                    <p className="py-3 text-callout text-muted-foreground">No data received yet…</p>
+                )}
                 {frames.map(f => (
                     <div key={f.seq} className="py-1.5">
                         <button
                             type="button"
                             onClick={() => setOpenSeq(openSeq === f.seq ? null : f.seq)}
-                            className="flex w-full items-baseline gap-2 text-left text-xs"
+                            className="flex w-full items-baseline gap-2 text-left text-micro"
                         >
                             <span className="font-mono text-muted-foreground">{fmtTime(f.at)}</span>
                             <span className="font-medium text-foreground">{frameLabel(f.domain, f.action)}</span>
@@ -290,7 +292,7 @@ const CacheExplorer = ({
                 <select
                     value={typeFilter}
                     onChange={e => setTypeFilter(e.target.value)}
-                    className="rounded border border-border bg-background px-2 py-1 text-xs"
+                    className="rounded border border-border bg-background px-2 py-1 text-micro"
                 >
                     {types.map(t => (
                         <option key={t} value={t}>
@@ -302,13 +304,13 @@ const CacheExplorer = ({
                     value={text}
                     onChange={e => setText(e.target.value)}
                     placeholder="Search by id / channel / key"
-                    className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs"
+                    className="flex-1 rounded border border-border bg-background px-2 py-1 text-micro"
                 />
             </div>
 
             {channelId && gap && (
                 <div
-                    className={`mb-2 rounded-lg px-3 py-2 text-xs ${
+                    className={`mb-2 rounded-lg px-3 py-2 text-micro ${
                         gap.missing > 0
                             ? 'bg-red-500/15 text-red-600 dark:text-red-400'
                             : 'bg-green-500/15 text-green-600 dark:text-green-400'
@@ -334,7 +336,7 @@ const CacheExplorer = ({
                         <button
                             type="button"
                             onClick={() => setOpenKey(openKey === r.key ? null : r.key)}
-                            className="flex w-full items-baseline gap-2 text-left text-xs"
+                            className="flex w-full items-baseline gap-2 text-left text-micro"
                         >
                             <span className="font-medium text-primary">{TYPE_LABEL[r.type] ?? r.type}</span>
                             {r.chat_no !== undefined && <span className="font-mono text-amber-600">#{r.chat_no}</span>}
@@ -429,8 +431,8 @@ export const DebugSyncPage = () => {
         <div className="mx-auto w-full max-w-4xl p-6">
             <div className="mb-4 flex items-start justify-between">
                 <div>
-                    <h1 className="text-base font-semibold text-foreground">Socket / Cache</h1>
-                    <p className="text-xs text-muted-foreground">
+                    <h1 className="text-lead font-semibold text-foreground">Socket / Cache</h1>
+                    <p className="text-micro text-muted-foreground">
                         Check live socket traffic and the local cache (IndexedDB) status.
                     </p>
                 </div>
@@ -462,7 +464,7 @@ export const DebugSyncPage = () => {
                 >
                     {baseline ? (
                         <div
-                            className={`mb-2 rounded-lg px-3 py-2 text-sm font-semibold ${
+                            className={`mb-2 rounded-lg px-3 py-2 text-callout font-semibold ${
                                 survival
                                     ? 'bg-green-500/15 text-green-600 dark:text-green-400'
                                     : 'bg-red-500/15 text-red-600 dark:text-red-400'
@@ -475,7 +477,7 @@ export const DebugSyncPage = () => {
                             </span>
                         </div>
                     ) : (
-                        <p className="mb-2 text-xs text-muted-foreground">
+                        <p className="mb-2 text-micro text-muted-foreground">
                             Open a channel, receive a message, then use “Save baseline → Refresh” to check whether the
                             cache persists.
                         </p>
@@ -507,7 +509,7 @@ export const DebugSyncPage = () => {
                     hint="Clears the fake records (channels/messages) created in the “Cache write playground” tab in one go. Use it to remove [sample] messages mixed into real chats."
                 >
                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-callout text-muted-foreground">
                             {debugRows.length > 0
                                 ? `Found ${debugRows.length} debug records`
                                 : 'Clean (no debug records)'}

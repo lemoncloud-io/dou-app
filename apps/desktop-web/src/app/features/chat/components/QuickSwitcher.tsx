@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Search } from 'lucide-react';
+import { Hash, Search, User } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { useLastChannelStore, useListboxNav } from '../../../shared';
+import { bareChannelName, channelKind, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../shared';
 import { useSearchDialogStore } from '../../search';
 import { useQuickSwitcherStore } from '../stores';
 
@@ -28,7 +28,12 @@ export interface ElsewhereChannel {
  * list is what the person opened most recently — it used to be an arbitrary,
  * unsorted first eight — topped up from the rest when there are few recents.
  */
-const rankChannels = (channels: DomainChannel[], query: string, recent: string[]): DomainChannel[] => {
+export const rankChannels = (
+    channels: DomainChannel[],
+    query: string,
+    recent: string[],
+    labelOf: (channel: DomainChannel) => string
+): DomainChannel[] => {
     const q = query.trim().toLowerCase();
     if (!q) {
         const byId = new Map(channels.map(c => [c.id, c]));
@@ -36,7 +41,9 @@ const rankChannels = (channels: DomainChannel[], query: string, recent: string[]
         const rest = channels.filter(c => !recent.includes(c.id ?? ''));
         return [...recents, ...rest].slice(0, MAX_RESULTS);
     }
-    const label = (c: DomainChannel) => (c.name ?? c.id ?? '').toLowerCase();
+    // Match what the row shows. Matching the room's own name found a DM by an id
+    // nobody sees, and never by the person's name on the row.
+    const label = (c: DomainChannel) => labelOf(c).toLowerCase();
     const starts = channels.filter(c => label(c).startsWith(q));
     const includes = channels.filter(c => !label(c).startsWith(q) && label(c).includes(q));
     return [...starts, ...includes].slice(0, MAX_RESULTS);
@@ -85,7 +92,8 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
         if (open) setQuery('');
     }, [open]);
 
-    const ranked = useMemo(() => rankChannels(channels, query, recent), [channels, query, recent]);
+    const labelOf = useChannelLabels(channels);
+    const ranked = useMemo(() => rankChannels(channels, query, recent, labelOf), [channels, query, recent, labelOf]);
 
     // Only for a typed query, and only names that match: a switcher that always
     // listed the whole cloud would bury the channels a person actually works in.
@@ -168,8 +176,12 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
                                             : 'text-muted-foreground hover:bg-accent/60'
                                     )}
                                 >
-                                    <Hash size={14} className="shrink-0" aria-hidden />
-                                    <span className="truncate">{channel.name ?? channel.id}</span>
+                                    {channelKind(channel) === 'channel' ? (
+                                        <Hash size={14} className="shrink-0" aria-hidden />
+                                    ) : (
+                                        <User size={14} className="shrink-0" aria-hidden />
+                                    )}
+                                    <span className="truncate">{labelOf(channel)}</span>
                                 </button>
                             </li>
                         ))}
@@ -193,7 +205,7 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
                                         )}
                                     >
                                         <Hash size={14} className="shrink-0" aria-hidden />
-                                        <span className="truncate">{item.name}</span>
+                                        <span className="truncate">{bareChannelName(item.name)}</span>
                                         {/* Which place it is in, because picking it moves the app there. */}
                                         <span className="ml-auto shrink-0 truncate rounded bg-muted px-1.5 py-0.5 text-caption text-muted-foreground">
                                             {item.placeName}

@@ -125,9 +125,7 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                             isCollapsed && '-rotate-90'
                         )}
                     />
-                    <h3 className="truncate text-lead font-semibold tracking-[-0.01em] text-sidebar-foreground">
-                        {title}
-                    </h3>
+                    <h3 className="truncate text-lead font-semibold text-sidebar-foreground">{title}</h3>
                 </button>
                 {action}
             </div>

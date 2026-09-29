@@ -41,8 +41,10 @@
         --secondary-foreground: 0 0% 10%;
 
         --muted: 180 5% 96%; /* #F4F5F5 BK_50 */
-        /* #84888F BK_600 is 3.6:1 on white — one step darker keeps secondary text AA. */
-        --muted-foreground: 218 5% 46%;
+        /* #84888F BK_600 is 3.6:1 on white. Secondary text also sits on the tinted
+           surfaces (hover, chips, the composer box), where 46% measured 4.33:1 and
+           3.71:1; 40% clears 4.5:1 on every one (src/tokenContrast.spec.ts). */
+        --muted-foreground: 218 5% 40%;
 
         --accent: 180 5% 96%; /* #F4F5F5 hover */
         --accent-foreground: 0 0% 10%;
@@ -59,11 +61,9 @@
         --avatar-l: 40%;
         --avatar-fg: 0 0% 100%;
 
-        /* Profile-card banner: soft hue-tinted gradient the avatar straddles */
-        --banner-from-l: 90%;
-        --banner-to-l: 82%;
-
-        --destructive: 3 100% 59%; /* #FF3B30 파일 삭제 */
+        /* Figma #FF3B30 is 3.58:1 on white as text and carries white at the same 3.58:1 as a
+           fill: every error line and every Delete was under AA. One deeper red serves both. */
+        --destructive: 358 80% 44%;
         --destructive-foreground: 0 0% 100%;
 
         /* Transient warning / connecting state (replaces hardcoded amber-*). */
@@ -83,16 +83,18 @@
         /* BK_500 #9FA2A7 measures 2.6:1 on white and BK_600 #84888F 3.6:1, both
            under the 4.5:1 this system holds placeholders and secondary text to.
            Both take the same one-step darkening --muted-foreground already took. */
-        --placeholder: 218 5% 46%;
-        --description: 218 5% 46%; /* timestamps */
+        --placeholder: 218 5% 40%;
+        --description: 218 5% 40%; /* timestamps */
         --surface: 0 0% 100%;
         /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
         --main-accent: 76 96% 39%;
         --input-border: 240 5% 92%;
-        --focus-border: 76 96% 39%; /* composer focus (Figma #이미지 전송 전) */
+        /* Composer focus. Figma's GR2 lime (#90C304) outlines at 2.1:1 on white, under the
+           3:1 a focus indicator needs, so light mode takes the ink lime the focus ring uses. */
+        --focus-border: var(--focus-ring);
 
         /* Toast (always dark surface) */
-        --toast: 222 75% 12%; /* #081837 */
+        --toast: 220 7% 14%; /* #222325 BK_900: neutral ink, not the navy only toasts used */
         --toast-foreground: 210 6% 96%; /* #F4F5F5 */
         --toast-muted: 220 3% 81%; /* #CFD0D3 */
 
@@ -111,14 +113,14 @@
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
         --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
-        /* The drop overlay's stacked-files drawing: illustration, one drawing in
-           both themes, so the dark block does not redefine them. */
-        --illustration-code: 137 49% 57%; /* #5BC77A */
-        --illustration-note: 47 93% 67%; /* #F9D65C */
-        --illustration-image: 205 82% 55%; /* #2E9BEA */
         --tab-active: 0 0% 10%;
         --tab-inactive: 218 5% 46%;
         --overlay: 0 0% 0%;
+        /* Marks drawn on the overlay scrim (a "+n" count, an upload spinner). The
+           scrim is black in both themes, so this is white in both. */
+        --on-overlay: 0 0% 100%;
+        /* The active cloud tile (Figma Icon Rail): a black tile in both themes. */
+        --tile-active: 0 0% 0%;
 
         /* Presence + the self avatar's disc. Figma "1명 Profile" (blue_bk #102346)
            and Colors/Green #34C759 — fixed in both themes by design, so they are
@@ -182,12 +184,10 @@
         --avatar-l: 58%;
         --avatar-fg: 0 0% 8%;
 
-        /* Profile-card banner (dark): dim hue tint */
-        --banner-from-l: 26%;
-        --banner-to-l: 17%;
-
-        --destructive: 3 100% 59%; /* #FF3B30 */
-        --destructive-foreground: 0 0% 98%;
+        /* Lifted for text on the dark panes (4.7:1 even on the hover fill); a fill of it
+           then carries dark ink, not white. */
+        --destructive: 3 100% 73%;
+        --destructive-foreground: 0 0% 8%;
 
         /* Transient warning / connecting state (dark). */
         --warning: 43 90% 55%;
@@ -199,7 +199,7 @@
 
         /* Gray scale (dark) */
         --label: 60 2% 76%; /* #C3C3C1 */
-        --placeholder: 60 0% 55%; /* #8C8C8B */
+        --placeholder: 60 0% 64%; /* #8C8C8B measured 4.02:1 on a card; lifted to clear 4.5:1 */
         --description: 82 5% 65%; /* #A8ABA3 */
         --surface: 90 3% 15%;
         --main-accent: 76 96% 39%; /* #90C304 */
@@ -226,6 +226,9 @@
         --tab-active: 60 7% 92%;
         --tab-inactive: 60 0% 55%;
         --overlay: 0 0% 0%;
+        --on-overlay: 0 0% 100%;
+        /* The active cloud tile (Figma Icon Rail): a black tile in both themes. */
+        --tile-active: 0 0% 0%;
 
         /* Layering + elevation primitives (dark). */
         --elevated: 90 2% 18%; /* #2E2F2D */
@@ -309,8 +312,12 @@
 
     /* Grow an isolated control's hit area to the 36px floor without changing how
        big it looks. Only for controls with no close neighbour: overlapping hit
-       areas make a tap land on the wrong one. */
-    .hit-target {
+       areas make a tap land on the wrong one.
+       The ::before only needs a positioned parent, so a control that is already
+       absolute or fixed keeps its own position: this rule sits later in the
+       utilities layer than `absolute`, and used to pull the composer tray's
+       remove button out of its corner. */
+    .hit-target:not(.absolute):not(.fixed):not(.sticky) {
         position: relative;
     }
     .hit-target::before {
@@ -323,10 +330,11 @@
         transform: translate(-50%, -50%);
     }
 
-    /* Tactile press — GPU-only (transform), springy ease. No layout thrash. */
+    /* Tactile press — GPU-only (transform), springy ease. No layout thrash.
+       No will-change: it asked for a compositor layer on every tactile button in
+       the feed, for a 140ms press the browser promotes on its own. */
     .tactile {
         transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
-        will-change: transform;
     }
     .tactile:active {
         transform: scale(0.97);

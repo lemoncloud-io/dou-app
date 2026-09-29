@@ -22,7 +22,15 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import { Hint, ScrollHint, distinctInitials, useScrollOverflow, type RailCloud, useRemoveCloud } from '../../../shared';
+import {
+    Hint,
+    ScrollHint,
+    cloudLabel,
+    distinctInitials,
+    useScrollOverflow,
+    type RailCloud,
+    useRemoveCloud,
+} from '../../../shared';
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -72,7 +80,9 @@ export const CloudRail = ({
     };
 
     const scroll = useScrollOverflow<HTMLDivElement>();
-    const initials = distinctInitials(clouds.map(cloud => cloud.name ?? cloud.id ?? ''));
+    // An id on a tile reads as noise; a cloud without a real name is "Untitled".
+    const labels = clouds.map(cloud => cloudLabel(cloud, t('cloud.untitled')));
+    const initials = distinctInitials(labels);
 
     return (
         <div className="flex h-full w-full flex-col items-center">
@@ -96,17 +106,22 @@ export const CloudRail = ({
                         const isInactive = cloud.status && cloud.status !== 'active';
                         // Home/Default can't be removed; owned + invited clouds can.
                         const removable = cloud.kind !== 'home';
+                        // A cloud whose setup failed cannot be opened; say why before the click fails.
+                        const tileLabel =
+                            cloud.status === 'error'
+                                ? t('cloud.setupFailedLabel', { name: labels[index] })
+                                : labels[index];
                         return (
                             <ContextMenu key={cloud.id}>
                                 <ContextMenuTrigger asChild>
                                     {/* Plain wrapper, as on the channel rows: composing the Radix
                                     trigger onto Hint's own trigger drops onContextMenu. */}
                                     <div className="contents">
-                                        <Hint label={cloud.name ?? cloud.id}>
+                                        <Hint label={tileLabel}>
                                             <button
                                                 onClick={() => onSelectCloud(cloud.id)}
                                                 disabled={isSwitching}
-                                                aria-label={cloud.name ?? cloud.id}
+                                                aria-label={tileLabel}
                                                 aria-current={isActive ? 'true' : undefined}
                                                 className={cn(
                                                     'relative flex h-12 w-12 items-center justify-center rounded-[14px] font-bold',
@@ -115,7 +130,7 @@ export const CloudRail = ({
                                                     // Figma Icon Rail: the active cloud is a black tile with a
                                                     // lime ring and lime initial; the others sit quiet on the rail.
                                                     isActive
-                                                        ? 'border-2 border-primary bg-black text-primary'
+                                                        ? 'border-2 border-primary bg-tile-active text-primary'
                                                         : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
                                                     isInactive && 'opacity-50',
                                                     // Block a second switch mid-handshake; dim non-active icons for feedback.

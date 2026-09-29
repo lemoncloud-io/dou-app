@@ -64,7 +64,7 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
                     <button
                         type="button"
                         onClick={onBack}
-                        className="focus-ring -ml-1.5 flex items-center gap-1 self-start rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        className="focus-ring -ml-1.5 flex items-center gap-1 self-start rounded-md px-1.5 py-1 text-callout font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
                         <ArrowLeft size={16} />
                         {t('common.back')}
@@ -73,8 +73,8 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
                 <div className="flex flex-col gap-3">
                     <img src={douMark} alt="" width={48} height={48} className="h-12 w-12 rounded-xl" />
                     <div className="flex flex-col gap-1">
-                        <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
-                        <p className="text-sm text-muted-foreground">{subtitle}</p>
+                        <h1 className="text-headline font-bold tracking-tight text-foreground">{title}</h1>
+                        <p className="text-callout text-muted-foreground">{subtitle}</p>
                     </div>
                 </div>
                 {children}

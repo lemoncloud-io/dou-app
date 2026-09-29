@@ -44,7 +44,7 @@ export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => 
                 >
                     <Avatar className="size-8 shrink-0">
                         {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
-                        <AvatarFallback className="text-xs font-semibold" style={avatarStyle(member.id || name)}>
+                        <AvatarFallback className="text-micro font-semibold" style={avatarStyle(member.id || name)}>
                             {initial}
                         </AvatarFallback>
                     </Avatar>

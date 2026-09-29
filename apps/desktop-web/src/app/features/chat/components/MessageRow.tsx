@@ -35,6 +35,7 @@ import {
     canModifyMessage,
     hasMyReaction,
     isEdited,
+    isSendingImages,
     threadRootId,
     type MessageGroup,
     type ReactionTally,
@@ -47,6 +48,7 @@ import {
     avatarStyle,
     formatClockTime,
     formatShortDate,
+    useMediaQuery,
     useSavedItemsStore,
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
@@ -87,6 +89,8 @@ export interface ThreadMetaView {
 interface MessageRowProps {
     group: MessageGroup;
     onRetry?: (message: DomainChat) => void;
+    /** Whether Retry is offered on a failed message. Absent: always (a text message can always be resent). */
+    canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
     /** Folded reactions for the whole feed, keyed by message id. */
@@ -175,12 +179,6 @@ const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
 /** Structural equality for one small map entry (a reaction tally, a thread meta). */
 const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
 
-/**
- * Pointer devices hide the toolbar until hover; touch shows it always, so it is
- * only made inert where it can actually be hidden.
- */
-const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches === true;
-
 const formatTime = formatClockTime;
 
 const isSameCalendarDay = (a: Date, b: Date): boolean =>
@@ -207,6 +205,7 @@ export const MessageRow = memo(
     ({
         group,
         onRetry,
+        canRetry,
         onDiscard,
         reactions,
         reactorName,
@@ -220,6 +219,10 @@ export const MessageRow = memo(
         receiptUnread,
     }: MessageRowProps) => {
         const { t } = useTranslation();
+        // Pointer devices hide the toolbar until hover; touch shows it always, so it is
+        // only made inert where it can actually be hidden. Live, not read once at import:
+        // a mouse plugged into a touch laptop left every toolbar inert or exposed for good.
+        const canHover = useMediaQuery('(hover: hover)');
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
         // `isStuck` below compares Date.now() during render, which only moves when
         // something else re-renders the row: a send that hung sat at 50% opacity
@@ -338,11 +341,16 @@ export const MessageRow = memo(
             // The full-width hover band is the toolbar's runway: it has to read in
             // peripheral vision on wide windows, so it is stronger than a typical
             // list hover.
-            <div className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70">
+            <div
+                data-roving-group=""
+                className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70"
+            >
                 <UserProfilePopover {...profileProps}>
                     {/* The focus ring traces the button, so its radius has to follow the
                         avatar's — a square ring around a round disc reads as a bug. */}
-                    <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-full">
+                    {/* Out of the tab order: the name beside it opens the same card, and one
+                        stop per author is enough on the way through the feed. */}
+                    <button type="button" tabIndex={-1} className="focus-ring tactile h-9 w-9 shrink-0 rounded-full">
                         <Avatar className="h-9 w-9">
                             {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
                             <AvatarFallback className="text-caption font-semibold" style={avatarStyle(group.colorSeed)}>
@@ -359,22 +367,25 @@ export const MessageRow = memo(
                             <UserProfilePopover {...profileProps}>
                                 <button
                                     type="button"
-                                    className="focus-ring truncate rounded text-lead font-bold leading-tight tracking-[-0.005em] text-foreground hover:underline"
+                                    className="focus-ring truncate rounded text-lead font-bold leading-tight text-foreground hover:underline"
                                 >
                                     {group.ownerName}
                                 </button>
                             </UserProfilePopover>
                         )}
-                        <span className="text-caption font-medium tabular-nums tracking-[-0.005em] text-description">
+                        <span className="text-caption font-medium tabular-nums text-description">
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
                         {group.messages.map((message, i) => {
                             // A long-pending row is an unsent artifact, not an in-flight
-                            // send — treat it as failed so Retry/Delete are offered.
+                            // send — treat it as failed so Retry/Delete are offered. Pictures
+                            // still uploading are in flight however long they take; a picture
+                            // row a reload left behind is failed by the send's own sweep.
                             const isStuck =
                                 !!message.isPending &&
+                                !isSendingImages(message) &&
                                 Date.now() - (message.createdAt ?? message.createdAtMs ?? 0) > STUCK_PENDING_MS;
                             const isPending = message.isPending && !isStuck;
                             const isFailed = message.isFailed || isStuck;
@@ -432,13 +443,13 @@ export const MessageRow = memo(
                                 if (isEditDirty && message.id) editMessage(message.id, trimmedDraft);
                             };
                             return (
-                                // Reserve the toolbar slot: both actions in the main feed, copy
-                                // only in the (narrower) thread panel — a full 80px reserve there
-                                // wastes scarce width.
                                 <div
                                     key={key}
                                     data-chat-no={message.chatNo}
-                                    tabIndex={0}
+                                    // The feed keeps one message in the tab order and moves it
+                                    // with the arrow keys (MessageList's roving focus).
+                                    tabIndex={-1}
+                                    data-roving-item=""
                                     role="article"
                                     aria-label={msgTime ? `${group.ownerName}, ${msgTime}` : group.ownerName}
                                     onMouseEnter={() => setHoverKey(key)}
@@ -451,14 +462,13 @@ export const MessageRow = memo(
                                     }}
                                     className={cn(
                                         'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
-                                        onOpenThread ? 'pr-20' : 'pr-12',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
-                                            'bg-primary/10 ring-1 ring-primary/40'
+                                            'bg-primary/10 ring-1 ring-ring'
                                     )}
                                 >
                                     {i > 0 && msgTime && (
-                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground/70 group-hover/msg:block">
+                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block">
                                             {msgTime}
                                         </span>
                                     )}
@@ -553,8 +563,7 @@ export const MessageRow = memo(
                                                 // Opt message text back into selection: the app body sets
                                                 // user-select:none for chrome (Slack/Discord-style), which
                                                 // otherwise blocks copying message content.
-                                                'select-text whitespace-pre-wrap break-words text-body',
-                                                isFailed ? 'text-destructive' : 'text-foreground',
+                                                'select-text whitespace-pre-wrap break-words text-body text-foreground',
                                                 isPending && 'opacity-50'
                                             )}
                                         >
@@ -576,7 +585,7 @@ export const MessageRow = memo(
                                         together, the text shows above"). A tombstone or an open editor has none. */}
                                     {message.id && !message.hidden && !isEditing && (
                                         <MessageImages
-                                            messageId={message.id}
+                                            message={message}
                                             canDelete={group.isMine}
                                             author={{
                                                 name: group.ownerName,
@@ -589,8 +598,10 @@ export const MessageRow = memo(
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
                                     )}
-                                    {failure?.id === message.id && (
-                                        <span className="mt-0.5 block text-caption text-destructive">
+                                    {/* `failure &&` first: an unsent message has no id, and
+                                        `undefined === undefined` drew this line with no failure. */}
+                                    {failure && failure.id === message.id && (
+                                        <span role="status" className="mt-0.5 block text-caption text-destructive">
                                             {failure.kind === 'delete' ? t('chat.deleteFailed') : t('chat.editFailed')}
                                         </span>
                                     )}
@@ -611,7 +622,7 @@ export const MessageRow = memo(
                                         message leaves no chips behind when it fails, so a line nested
                                         under `tallies` would be exactly the case that stays silent. */}
                                     {reactionFailedId === message.id && (
-                                        <span className="mt-0.5 block text-caption text-destructive">
+                                        <span role="status" className="mt-0.5 block text-caption text-destructive">
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
@@ -643,11 +654,10 @@ export const MessageRow = memo(
                                     only thing still tying the grid to the message it acts on. */}
                                     {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
                                         <div
-                                            inert={
-                                                CAN_HOVER && !isToolbarPinned && hoverKey !== key && focusKey !== key
-                                            }
+                                            data-row-actions=""
+                                            inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
                                             className={cn(
-                                                'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                                'absolute -top-10 right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned
                                                     ? 'translate-x-0 opacity-100'
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
@@ -669,7 +679,7 @@ export const MessageRow = memo(
                                                         label={t('chat.reaction.quick', { emoji })}
                                                         pressed={hasMyReaction(tallies, emoji)}
                                                         className={cn(
-                                                            'text-base leading-none hover:bg-accent',
+                                                            'text-lead leading-none hover:bg-accent',
                                                             hasMyReaction(tallies, emoji) && 'bg-accent'
                                                         )}
                                                         onClick={() => {
@@ -876,10 +886,15 @@ export const MessageRow = memo(
                                             }}
                                         />
                                     )}
+                                    {/* A status, so the failure is announced where it appears; the
+                                        message text keeps its own colour, the line carries the red. */}
                                     {isFailed && (
-                                        <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
+                                        <span
+                                            role="status"
+                                            className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive"
+                                        >
                                             {t('chat.failed')}
-                                            {onRetry && (
+                                            {onRetry && (canRetry?.(message) ?? true) && (
                                                 <button
                                                     type="button"
                                                     onClick={() => onRetry(message)}

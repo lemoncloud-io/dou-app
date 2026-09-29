@@ -28,7 +28,7 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect }: MentionAut
     return (
         <div
             role="listbox"
-            className="scrollbar-thin absolute bottom-full left-0 z-20 mb-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-hairline bg-elevated p-1 shadow-overlay"
+            className="scrollbar-thin absolute bottom-full left-0 z-float mb-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-hairline bg-elevated p-1 shadow-overlay"
         >
             {items.map((item, i) => (
                 <button

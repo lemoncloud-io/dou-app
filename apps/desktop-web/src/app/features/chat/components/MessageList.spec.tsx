@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -22,6 +22,13 @@ vi.mock('@chatic/app-runtime', () => ({
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
         },
     },
+}));
+
+// The feed reports a failed jump through a toast; the spy is how a test sees it.
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    toast,
 }));
 
 // Initialises i18next as a side effect, so `t` resolves to real copy instead of
@@ -260,13 +267,13 @@ describe('MessageList', () => {
             { wrapper }
         );
 
-        expect(screen.getAllByText(/^Read /)).toHaveLength(1);
-        expect(screen.getByText('Read 2')).toBeDefined();
-        expect(screen.getByText('Unread 1')).toBeDefined();
+        expect(screen.getAllByText(/^Seen by /)).toHaveLength(1);
+        expect(screen.getByText('Seen by 2')).toBeDefined();
+        expect(screen.getByText('Unseen by 1')).toBeDefined();
     });
 
     // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
-    // one active member, or nothing synced yet. Rendering "Read 0" there states something
+    // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
     // false rather than staying quiet.
     it('shows no receipt when the counts are unavailable', () => {
         render(
@@ -280,7 +287,7 @@ describe('MessageList', () => {
             { wrapper }
         );
 
-        expect(screen.queryByText(/^Read /)).toBeNull();
+        expect(screen.queryByText(/^Seen by /)).toBeNull();
     });
 
     it('renders a reaction chip without throwing', () => {
@@ -302,5 +309,201 @@ describe('MessageList', () => {
         // the same emoji, so a bare text query finds two things and cannot say which
         // one is the tally.
         expect(screen.getByLabelText('👍 · Me, Ada')).toBeDefined();
+    });
+
+    describe('an unsent picture message', () => {
+        const OLD = 1_700_000_000_000;
+        const pictures = (localStatus: 'sending' | 'failed', fields: Partial<DomainChat> = {}): DomainChat =>
+            ({
+                id: 'optimistic-chat-images-1',
+                channelId: 'C1',
+                chatNo: 0,
+                ownerId: 'me',
+                content: '',
+                isPending: localStatus === 'sending',
+                isFailed: localStatus === 'failed',
+                createdAt: OLD,
+                upload$$: [{ localStatus, localThumbUrl: 'blob:1' }],
+                ...fields,
+            }) as DomainChat;
+
+        it('is still sending after a minute, not stuck: a large upload takes its time', () => {
+            render(
+                <MessageList
+                    messages={[pictures('sending')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    onRetry={vi.fn()}
+                    onDiscard={vi.fn()}
+                />,
+                { wrapper }
+            );
+
+            expect(screen.queryByText('Not delivered')).toBeNull();
+            // Drawn, and drawn as a send in flight: its tile says it is uploading.
+            expect(screen.getByRole('button', { name: 'Uploading image-1' }).getAttribute('aria-busy')).toBe('true');
+        });
+
+        it('offers Retry and Delete once it has failed and its pictures are still here', () => {
+            const onRetry = vi.fn();
+            const row = pictures('failed');
+            render(
+                <MessageList
+                    messages={[row]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    onRetry={onRetry}
+                    onDiscard={vi.fn()}
+                    canRetry={() => true}
+                />,
+                { wrapper }
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+            expect(onRetry).toHaveBeenCalledWith(row);
+            expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
+        });
+
+        it('offers Delete only when its pictures are gone (a reload)', () => {
+            render(
+                <MessageList
+                    messages={[pictures('failed')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    onRetry={vi.fn()}
+                    onDiscard={vi.fn()}
+                    canRetry={() => false}
+                />,
+                { wrapper }
+            );
+
+            expect(screen.getByText('Not delivered')).toBeDefined();
+            expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+            expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
+        });
+    });
+});
+
+describe('MessageList jumps', () => {
+    const scrollIntoView = vi.mocked(Element.prototype.scrollIntoView);
+    const feed = [message(1, 'ada', 'one'), message(2, 'ada', 'two'), message(3, 'ada', 'three')];
+
+    afterEach(() => {
+        cleanup();
+        scrollIntoView.mockClear();
+        toast.mockClear();
+    });
+
+    const renderJump = (jumpTarget: { chatNo: number; nonce: number; restore?: boolean }) =>
+        render(
+            <MessageList
+                messages={feed}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                jumpTarget={jumpTarget}
+            />,
+            { wrapper }
+        );
+
+    it('centres a jump target and flashes it', () => {
+        const { container } = renderJump({ chatNo: 2, nonce: 1 });
+        const row = container.querySelector('[data-chat-no="2"]');
+        expect(scrollIntoView.mock.contexts).toContain(row);
+        expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'center' });
+        expect(row?.outerHTML).toMatch(/bg-primary\/10/);
+    });
+
+    // A return trip puts the reader back where they were reading: top of the view, no flash.
+    it('puts a restored message at the top of the view without flashing it', () => {
+        const { container } = renderJump({ chatNo: 2, nonce: 1, restore: true });
+        const row = container.querySelector('[data-chat-no="2"]');
+        expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'start' });
+        expect(row?.outerHTML).not.toMatch(/bg-primary\/10/);
+    });
+
+    // The pin state used to wait for the scroll frame after a landing. A page arriving in
+    // between still read "at the bottom", followed the tail, and carried the reader away.
+    it('stops following the tail once a jump lands above it', () => {
+        const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
+        const client = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(500);
+        try {
+            const { container, rerender } = renderJump({ chatNo: 2, nonce: 1 });
+            const scroller = container.querySelector<HTMLElement>('[data-chat-no="2"]')?.closest('.overflow-y-auto');
+            expect(scroller).toBeTruthy();
+            if (!scroller) return;
+            scroller.scrollTop = 300;
+            rerender(
+                <MessageList
+                    messages={[...feed, message(4, 'ada', 'four')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map([['ada', 'Ada']])}
+                    jumpTarget={{ chatNo: 2, nonce: 1 }}
+                />
+            );
+            expect(scroller.scrollTop).toBe(300);
+        } finally {
+            heights.mockRestore();
+            client.mockRestore();
+        }
+    });
+
+    // The way back to "the latest" or to an anchor that is gone ends at the bottom. Paging
+    // back for it and saying "not found" left the reader deeper in history than before.
+    it.each([
+        ['to the latest', null],
+        ['to an anchor that is gone', 99],
+    ])('lands a restore %s at the bottom without a not-found notice', async (_, chatNo) => {
+        const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
+        const onJumpConsumed = vi.fn();
+        try {
+            const { container } = render(
+                <MessageList
+                    messages={feed}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map([['ada', 'Ada']])}
+                    hasMore={false}
+                    jumpTarget={{ chatNo, nonce: 1, restore: true }}
+                    onJumpConsumed={onJumpConsumed}
+                />,
+                { wrapper }
+            );
+            const scroller = container.querySelector<HTMLElement>('[data-chat-no="1"]')?.closest('.overflow-y-auto');
+            await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+            expect(scroller?.scrollTop).toBe(2000);
+            expect(onJumpConsumed).toHaveBeenCalledTimes(1);
+            expect(toast).not.toHaveBeenCalled();
+        } finally {
+            heights.mockRestore();
+        }
+    });
+});
+
+describe('MessageList failed send', () => {
+    afterEach(cleanup);
+
+    // The failure line was plain text a screen reader passed over, and its button said
+    // only "Delete" beside a message that has other delete actions.
+    it('announces the failure and names what Delete removes', () => {
+        const failed = { ...message(1, 'me', 'lost'), id: undefined, isFailed: true } as DomainChat;
+        render(
+            <MessageList
+                messages={[failed]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map()}
+                onRetry={vi.fn()}
+                onDiscard={vi.fn()}
+            />,
+            { wrapper }
+        );
+        expect(screen.getByRole('status').textContent).toContain('Not delivered');
+        expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
     });
 });

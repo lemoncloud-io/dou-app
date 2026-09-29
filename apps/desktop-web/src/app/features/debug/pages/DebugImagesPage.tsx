@@ -46,10 +46,10 @@ const buildSamples = async (count: number, uploading: boolean): Promise<ChatImag
     );
 
 /**
- * Dev-only preview of message images. The server has no upload API yet, so nothing real
- * carries images; this hangs generated samples on the open channel's latest messages
- * (1 · 2 · 4 · 10 images) so the feed grid, the hover actions and the viewer can be
- * checked in the real layout. Local to this window — nothing is sent.
+ * Dev-only preview of message images: hangs generated samples on the open channel's latest
+ * messages (1 · 2 · 4 · 10 images) so the feed grid, the hover actions and the viewer can
+ * be checked in the real layout without sending anything. A message that carries images of
+ * its own shows those instead. Local to this window — nothing is sent.
  */
 export const DebugImagesPage = () => {
     const channelId = useSelectedChannelStore(s => s.selectedChannelId);
@@ -78,16 +78,17 @@ export const DebugImagesPage = () => {
 
     return (
         <div className="mx-auto flex w-full max-w-md flex-col gap-4 p-8">
-            <h1 className="text-base font-semibold text-foreground">Message images</h1>
-            <p className="text-xs text-muted-foreground">
+            <h1 className="text-lead font-semibold text-foreground">Message images</h1>
+            <p className="text-micro text-muted-foreground">
                 Hangs sample images on the open channel&apos;s latest {SAMPLE_COUNTS.length} messages (
-                {SAMPLE_COUNTS.join(' · ')} images). Local preview only — the upload API does not exist yet.
+                {SAMPLE_COUNTS.join(' · ')} images). Local preview only — a message with images of its own keeps showing
+                those.
             </p>
-            <div className="rounded-xl border border-border bg-card p-4 text-xs text-muted-foreground">
+            <div className="rounded-xl border border-border bg-card p-4 text-micro text-muted-foreground">
                 channel: {channelId ?? '—'} · eligible messages: {targets.length} · messages with images:{' '}
                 {attachedCount}
             </div>
-            <label className="flex items-center gap-2 text-sm text-foreground">
+            <label className="flex items-center gap-2 text-callout text-foreground">
                 <input type="checkbox" checked={uploading} onChange={e => setUploading(e.target.checked)} />
                 Show as uploading
             </label>

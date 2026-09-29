@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
 
 import type { DomainChannel, DomainPlace } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
     Hint,
     avatarStyle,
+    hoverReveal,
     unreadMentionCount,
     ResizablePanel,
     useMentionsPanelStore,
@@ -26,14 +28,22 @@ interface MentionRowProps {
     /** Resolved channel name (current place only); chip is hidden when absent. */
     channelName?: string;
     removeLabel: string;
+    /** The row last opened from this pane: the message the reader went to. */
+    isCurrent?: boolean;
     onOpen: () => void;
     onRemove: () => void;
 }
 
-const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: MentionRowProps) => (
-    <div className="group/mention relative flex rounded-md border border-hairline bg-elevated shadow-raised transition-colors ease-tactile hover:bg-accent/60">
+const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemove }: MentionRowProps) => (
+    <div
+        className={cn(
+            'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
+            isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
+        )}
+    >
         <button
             type="button"
+            aria-current={isCurrent || undefined}
             onClick={onOpen}
             className="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-md p-2.5 text-left"
         >
@@ -43,7 +53,10 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
             </span>
             <Avatar className="mt-0.5 h-9 w-9 shrink-0">
                 {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
-                <AvatarFallback className="text-sm font-semibold" style={avatarStyle(item.colorSeed ?? item.ownerName)}>
+                <AvatarFallback
+                    className="text-callout font-semibold"
+                    style={avatarStyle(item.colorSeed ?? item.ownerName)}
+                >
                     {item.ownerName.charAt(0).toUpperCase() || '?'}
                 </AvatarFallback>
             </Avatar>
@@ -67,14 +80,20 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
         <ChevronRight
             size={16}
             aria-hidden
-            className="pointer-events-none absolute bottom-2 right-2 text-muted-foreground opacity-0 transition-opacity ease-tactile group-hover/mention:opacity-100"
+            className={cn(
+                'pointer-events-none absolute bottom-2 right-2 text-muted-foreground',
+                hoverReveal('mention')
+            )}
         />
         <Hint label={removeLabel}>
             <button
                 type="button"
                 onClick={onRemove}
                 aria-label={removeLabel}
-                className="focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
+                className={cn(
+                    'focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
+                    hoverReveal('mention')
+                )}
             >
                 <X size={13} />
             </button>
@@ -102,6 +121,8 @@ interface MentionsPanelProps {
 export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: MentionsPanelProps) => {
     const { t } = useTranslation();
     const close = useMentionsPanelStore(s => s.close);
+    const openedId = useMentionsPanelStore(s => s.openedId);
+    const markOpened = useMentionsPanelStore(s => s.markOpened);
     const items = useMentionsStore(s => s.items);
     const markRead = useMentionsStore(s => s.markRead);
     const markAllRead = useMentionsStore(s => s.markAllRead);
@@ -132,7 +153,6 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     return (
         <ResizablePanel
             storageKey={'chatic.mentionsPanel.width'}
-            defaultWidth={320}
             resizeLabel={t('activity.resize')}
             onClose={close}
             className="bg-background"
@@ -174,7 +194,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                     <p className="px-2 text-caption text-muted-foreground">{t('saved.deviceLocal')}</p>
                     {groups.map(group => (
                         <div key={group.key || 'none'} className="flex flex-col gap-1">
-                            <p className="sticky top-0 z-[1] flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
+                            <p className="sticky top-0 z-raised flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
                                 <span className="truncate">{placeName(group.key)}</span>
                                 <span className="shrink-0 tabular-nums">{group.items.length}</span>
                             </p>
@@ -184,7 +204,9 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                                     item={item}
                                     channelName={channelName(item.channelId)}
                                     removeLabel={t('saved.remove')}
+                                    isCurrent={item.id === openedId}
                                     onOpen={() => {
+                                        markOpened(item.id);
                                         markRead(item.id);
                                         onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
                                         close();

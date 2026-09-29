@@ -86,8 +86,8 @@ portalled to `document.body` is the one thing a call site cannot correct.
 
 ## Scope
 
-**In** — shadcn/ui primitives (Radix, cmdk and lucide wrappers), the toast store they share, and
-`cn`.
+**In** — shadcn/ui primitives (Radix, cmdk and lucide wrappers), the toast store they share, `cn`,
+and the dialog focus helpers (`utils/openerFocus.tsx`).
 
 **Out** — the DoU mobile design system, its token sheet and its icons (`libs/web-ui-kit`); the
 Tailwind config and CSS custom properties that give these classes values (each host app); screens,
@@ -110,6 +110,7 @@ flowchart TD
     C["components/ui × 29<br/><i>@chatic/ui-kit/components/ui/&lt;name&gt;</i>"]:::ui
     T["use-toast.ts<br/><i>module-level toast store</i>"]:::ui
     U["utils/index.ts<br/><i>cn — @chatic/lib/utils</i>"]:::util
+    F["utils/openerFocus.tsx<br/><i>dialog focus on open and close</i>"]:::util
 
     R["@radix-ui/* × 17<br/>cmdk · lucide-react"]:::ext
     TW["tailwind.config.js + styles.css<br/><i>owned by each host</i>"]:::ext
@@ -121,6 +122,7 @@ flowchart TD
     S --> C
     C --> T
     C --> U
+    C --> F
     C --> R
     C -.->|"semantic classes"| TW
 ```
@@ -138,6 +140,7 @@ Those five counts are files reaching a `components/ui/` path — 154 in all. Nin
 libs/ui-kit/src/
 ├── index.ts            public barrel — one line, and it exports `cn` only
 ├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size scale
+├── utils/openerFocus.tsx  focus back to whatever opened a dialog (dialog, alert-dialog)
 └── components/ui/      29 primitives, one file each, plus use-toast.ts
 ```
 
@@ -168,38 +171,38 @@ grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.t
     | grep -v node_modules | grep -v '^libs/ui-kit/'
 ```
 
-| Module          | Importers | Where                                             | Local edits                        |
-| --------------- | --------: | ------------------------------------------------- | ---------------------------------- |
-| `use-toast`     |        79 | web 68 · desktop-web 11                           | `TOAST_REMOVE_DELAY` cut to 1s     |
-| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | —                                  |
-| `dialog`        |        24 | web 13 · desktop-web 10 · admin-v2 1              | variants · `hideClose` · width cap |
-| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3              | —                                  |
-| `avatar`        |        13 | desktop-web 13                                    | —                                  |
-| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin-v2 1 · web-ui-kit 1 | width cap                          |
-| `input`         |         9 | desktop-web 6 · admin-v2 2 · web 1                | restyled to DoU tokens             |
-| `tooltip`       |         7 | desktop-web 6 · web 1                             | —                                  |
-| `label`         |         5 | desktop-web 3 · admin-v2 2                        | —                                  |
-| `sheet`         |         5 | web 4 · web-ui-kit 1                              | `hideClose` · width cap on bottom  |
-| `popover`       |         4 | desktop-web 4                                     | —                                  |
-| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | —                                  |
-| `table`         |         3 | admin-v2 3                                        | —                                  |
-| `badge`         |         2 | admin-v2 2                                        | —                                  |
-| `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten                          |
-| `card`          |         1 | web 1                                             | —                                  |
-| `context-menu`  |         1 | desktop-web 1                                     | icon sizing on items               |
-| `skeleton`      |         1 | admin-v2 1                                        | —                                  |
-| `textarea`      |         1 | admin-v2 1                                        | —                                  |
-| `toast`         |         0 | rendered by `toaster`                             | restyled · viewport moved to top   |
-| `command`       |         0 | —                                                 | `sr-only` name for the dialog      |
-| `accordion`     |         0 | —                                                 | —                                  |
-| `alert`         |         0 | —                                                 | —                                  |
-| `breadcrumb`    |         0 | —                                                 | —                                  |
-| `checkbox`      |         0 | —                                                 | —                                  |
-| `pagination`    |         0 | —                                                 | —                                  |
-| `scroll-area`   |         0 | —                                                 | —                                  |
-| `select`        |         0 | —                                                 | —                                  |
-| `separator`     |         0 | —                                                 | —                                  |
-| `tabs`          |         0 | —                                                 | —                                  |
+| Module          | Importers | Where                                             | Local edits                                       |
+| --------------- | --------: | ------------------------------------------------- | ------------------------------------------------- |
+| `use-toast`     |        79 | web 68 · desktop-web 11                           | `TOAST_REMOVE_DELAY` cut to 1s                    |
+| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | —                                                 |
+| `dialog`        |        24 | web 13 · desktop-web 10 · admin-v2 1              | variants · `hideClose` · width cap · focus return |
+| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3              | —                                                 |
+| `avatar`        |        13 | desktop-web 13                                    | —                                                 |
+| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin-v2 1 · web-ui-kit 1 | width cap · focus on open and return              |
+| `input`         |         9 | desktop-web 6 · admin-v2 2 · web 1                | restyled to DoU tokens                            |
+| `tooltip`       |         7 | desktop-web 6 · web 1                             | —                                                 |
+| `label`         |         5 | desktop-web 3 · admin-v2 2                        | —                                                 |
+| `sheet`         |         5 | web 4 · web-ui-kit 1                              | `hideClose` · width cap on bottom                 |
+| `popover`       |         4 | desktop-web 4                                     | —                                                 |
+| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | —                                                 |
+| `table`         |         3 | admin-v2 3                                        | —                                                 |
+| `badge`         |         2 | admin-v2 2                                        | —                                                 |
+| `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten                                         |
+| `card`          |         1 | web 1                                             | —                                                 |
+| `context-menu`  |         1 | desktop-web 1                                     | icon sizing on items                              |
+| `skeleton`      |         1 | admin-v2 1                                        | —                                                 |
+| `textarea`      |         1 | admin-v2 1                                        | —                                                 |
+| `toast`         |         0 | rendered by `toaster`                             | restyled · viewport moved to top                  |
+| `command`       |         0 | —                                                 | `sr-only` name for the dialog                     |
+| `accordion`     |         0 | —                                                 | —                                                 |
+| `alert`         |         0 | —                                                 | —                                                 |
+| `breadcrumb`    |         0 | —                                                 | —                                                 |
+| `checkbox`      |         0 | —                                                 | —                                                 |
+| `pagination`    |         0 | —                                                 | —                                                 |
+| `scroll-area`   |         0 | —                                                 | —                                                 |
+| `select`        |         0 | —                                                 | —                                                 |
+| `separator`     |         0 | —                                                 | —                                                 |
+| `tabs`          |         0 | —                                                 | —                                                 |
 
 **Ten primitives are imported by nothing at all** — `accordion`, `alert`, `breadcrumb`, `checkbox`,
 `command`, `pagination`, `scroll-area`, `select`, `separator`, `tabs`. That is not dead code in the
@@ -236,17 +239,17 @@ for f in libs/ui-kit/src/components/ui/*.tsx libs/ui-kit/src/components/ui/*.ts;
 done
 ```
 
-| File               | What a regenerate would destroy                                                                                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap, `default`'s own `--dialog-width`, and the safe-area padding           |
-| `toast.tsx`        | The whole surface: `bg-toast` tokens, left accent border, viewport pinned to the top under `pt-safe-top`, custom enter/exit animations                                                           |
-| `sheet.tsx`        | `hideClose`, and `mx-auto max-w-[var(--app-width,100%)]` on the `bottom` side                                                                                                                    |
-| `toaster.tsx`      | Status icons, `duration={1500}`, `swipeDirection="up"`, and the two-column body layout                                                                                                           |
-| `alert-dialog.tsx` | The same `--dialog-width` rule as `DialogContent`'s `default` variant                                                                                                                            |
-| `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm` |
-| `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                  |
-| `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires                                                                                           |
-| `context-menu.tsx` | `gap-2` and `[&>svg]:size-4` on items, so icons match `dropdown-menu`                                                                                                                            |
+| File               | What a regenerate would destroy                                                                                                                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap, `default`'s own `--dialog-width`, the safe-area padding, and the return of focus to the opener (`utils/openerFocus.tsx`) |
+| `toast.tsx`        | The whole surface: `bg-toast` tokens, left accent border, viewport pinned to the top under `pt-safe-top`, custom enter/exit animations                                                                                                              |
+| `sheet.tsx`        | `hideClose`, and `mx-auto max-w-[var(--app-width,100%)]` on the `bottom` side                                                                                                                                                                       |
+| `toaster.tsx`      | Status icons, `duration={1500}`, `swipeDirection="up"`, and the two-column body layout                                                                                                                                                              |
+| `alert-dialog.tsx` | The same `--dialog-width` rule as `DialogContent`'s `default` variant, the return of focus to the opener, and focus on the first control when there is no Cancel                                                                                    |
+| `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm`                                                    |
+| `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                                                                     |
+| `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires                                                                                                                                              |
+| `context-menu.tsx` | `gap-2` and `[&>svg]:size-4` on items, so icons match `dropdown-menu`                                                                                                                                                                               |
 
 An untouched file is not the same thing as a file identical to today's registry — upstream moves.
 `tabs.tsx` here is `h-10 rounded-md` where the registry now writes `h-9 rounded-lg`, and
@@ -367,10 +370,14 @@ npx tsc -b libs/ui-kit/tsconfig.json --force
 npx nx lint @chatic/ui-kit
 ```
 
-**The type check is the whole check.** There is no jest config and no spec file in this module, so
+**The type check is the whole check here.** There is no jest config and no spec file in this module, so
 Nx infers no `test` target — `nx show project @chatic/ui-kit` lists `build`, `build-deps`, `lint`,
 `typecheck` and `watch-deps`, and nothing else. Correctness of a visual change is established by
-rendering it in a consumer, not here.
+rendering it in a consumer, not here. The two behaviours this lib adds on top of Radix are tested
+that way too, in `apps/desktop-web/src/app/shared/components/dialogFocus.spec.tsx`: focus returns
+to whatever opened a dialog (Radix only knows the Trigger, and a dialog opened from state has none),
+and an alert dialog with no Cancel focuses its first control on open. A caller that wants focus
+elsewhere on close moves it in `onCloseAutoFocus` and calls `preventDefault()`.
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
   passing it proves nothing. `tsconfig.json` references `tsconfig.lib.json` only; there is no

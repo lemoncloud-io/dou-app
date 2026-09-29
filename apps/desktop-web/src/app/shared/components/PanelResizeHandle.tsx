@@ -25,7 +25,7 @@ export const PanelResizeHandle = ({ label, panel }: PanelResizeHandleProps) => (
         onPointerDown={panel.startResize}
         onKeyDown={panel.resizeByKey}
         className={cn(
-            'focus-ring absolute inset-y-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60',
+            'focus-ring absolute inset-y-0 z-raised w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60',
             panel.edge === 'left' ? 'left-0' : 'right-0'
         )}
     />

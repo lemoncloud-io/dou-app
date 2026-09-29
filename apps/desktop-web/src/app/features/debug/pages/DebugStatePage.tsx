@@ -7,7 +7,7 @@ import { useChannels, useClouds, usePlaces, useSelectedChannelStore } from '../.
 const Row = ({ label, value }: { label: string; value: string | number | boolean | null | undefined }) => (
     <div className="flex flex-col gap-0.5 py-1.5">
         <span className="text-nano uppercase tracking-wide text-muted-foreground">{label}</span>
-        <span className="break-all font-mono text-xs text-foreground">{String(value ?? '—')}</span>
+        <span className="break-all font-mono text-micro text-foreground">{String(value ?? '—')}</span>
     </div>
 );
 
@@ -33,7 +33,7 @@ export const DebugStatePage = () => {
 
     return (
         <div className="mx-auto w-full max-w-4xl p-6">
-            <h1 className="mb-4 text-base font-semibold text-foreground">State</h1>
+            <h1 className="mb-4 text-lead font-semibold text-foreground">State</h1>
             <div className="grid gap-4">
                 <Section title="Session">
                     <Row label="Authenticated" value={isAuthenticated} />

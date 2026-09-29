@@ -21,7 +21,7 @@ export const ScrollHint = ({ edge, surface }: ScrollHintProps) => (
     <span
         aria-hidden
         className={cn(
-            'pointer-events-none absolute inset-x-0 z-10 flex h-8 justify-center to-transparent text-rail-foreground',
+            'pointer-events-none absolute inset-x-0 z-raised flex h-8 justify-center to-transparent text-rail-foreground',
             FADE[surface][edge],
             edge === 'top' ? 'top-0 items-start' : 'bottom-0 items-end'
         )}

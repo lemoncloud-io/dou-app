@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMediaQuery } from './useMediaQuery';
 
 /**
  * Whether the viewer asked for reduced motion.
@@ -9,16 +9,4 @@ import { useEffect, useState } from 'react';
  * stylesheet, and a requestAnimationFrame loop never consults it at all. This is
  * the JS half of the same preference.
  */
-export const useReducedMotion = (): boolean => {
-    const [reduced, setReduced] = useState(
-        () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-    );
-    useEffect(() => {
-        const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-        if (!query) return;
-        const onChange = () => setReduced(query.matches);
-        query.addEventListener('change', onChange);
-        return () => query.removeEventListener('change', onChange);
-    }, []);
-    return reduced;
-};
+export const useReducedMotion = (): boolean => useMediaQuery('(prefers-reduced-motion: reduce)');

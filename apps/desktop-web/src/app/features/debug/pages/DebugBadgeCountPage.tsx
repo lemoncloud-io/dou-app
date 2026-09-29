@@ -29,8 +29,8 @@ export const DebugBadgeCountPage = () => {
 
     return (
         <div className="mx-auto flex w-full max-w-md flex-col gap-4 p-8">
-            <h1 className="text-base font-semibold text-foreground">OS badge</h1>
-            <div className="rounded-xl border border-border bg-card p-4 text-xs text-muted-foreground">
+            <h1 className="text-lead font-semibold text-foreground">OS badge</h1>
+            <div className="rounded-xl border border-border bg-card p-4 text-micro text-muted-foreground">
                 desktop shell: {native ? 'yes' : 'no (badge is a no-op in browser)'}
             </div>
 
@@ -39,7 +39,7 @@ export const DebugBadgeCountPage = () => {
                     value={count}
                     onChange={e => setCount(e.target.value)}
                     inputMode="numeric"
-                    className="h-10 w-24 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-focus-border"
+                    className="h-10 w-24 rounded-lg border border-input bg-background px-3 text-callout outline-none focus:border-focus-border"
                 />
                 <Button size="sm" onClick={() => void setBadge(Math.max(0, Number(count) || 0))}>
                     Set badge
@@ -49,7 +49,7 @@ export const DebugBadgeCountPage = () => {
                 </Button>
             </div>
 
-            <ul className="scrollbar-thin max-h-80 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+            <ul className="scrollbar-thin max-h-80 overflow-y-auto rounded-lg border border-border bg-background p-3 text-micro text-muted-foreground">
                 {log.map((line, index) => (
                     <li key={`${line}-${index}`}>{line}</li>
                 ))}

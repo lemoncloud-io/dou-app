@@ -173,7 +173,7 @@ const PeerRow = ({ candidate, display, onPick, disabled }: PeerRowProps) => {
         >
             <Avatar className="size-8 shrink-0">
                 {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
-                <AvatarFallback className="text-xs font-semibold" style={avatarStyle(candidate.id || name)}>
+                <AvatarFallback className="text-micro font-semibold" style={avatarStyle(candidate.id || name)}>
                     {initial}
                 </AvatarFallback>
             </Avatar>

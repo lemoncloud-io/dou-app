@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { attachmentKey, validateAttachments, type AttachmentRejection, type ChatImage } from '../utils';
+import type { TFunction } from 'i18next';
+
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import {
+    MAX_ATTACHMENTS,
+    attachmentKey,
+    validateAttachments,
+    type AttachmentRejections,
+    type ChatImage,
+} from '../utils';
 
 /** A picked file waiting in the composer tray. */
 export interface ComposerAttachment extends ChatImage {
@@ -11,18 +22,23 @@ export interface ComposerAttachment extends ChatImage {
 
 let nextId = 0;
 
+const REASONS = ['limit', 'duplicate', 'unsupported'] as const;
+
 /**
- * The composer's image tray: add (pick / drop / paste), remove, clear — plus the one
- * notice a refused batch raises (over ten, a duplicate, an unsupported type).
+ * The composer's image tray: add (pick / drop / paste), remove, clear.
  *
- * Each file gets an object URL for its preview and is marked uploading until the
- * browser has decoded it, which is what the tile's spinner shows today; once there is an
- * upload API the same flag covers the real transfer. URLs are revoked on remove, on
- * clear, when `scopeKey` changes (another channel or thread) and on unmount.
+ * Each file gets an object URL for its preview. The upload itself starts only at send,
+ * on the message's own row. URLs are revoked on remove, on clear (the send clears the
+ * tray; the sent row keeps its own previews), when `scopeKey` changes (another channel
+ * or thread) and on unmount.
+ *
+ * Files a batch could not take are reported in a toast that counts them by reason.
+ * It was a blocking dialog, one reason per drop: the rest of what was left out went
+ * unsaid, and a duplicate stopped everything until it was dismissed.
  */
 export const useImageAttachments = (scopeKey: string) => {
+    const { t } = useTranslation();
     const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
-    const [notice, setNotice] = useState<AttachmentRejection | null>(null);
     // Mirror for the callbacks below, so `addFiles` validates against the tray as it is
     // right now even when two drops land before a render.
     const current = useRef<ComposerAttachment[]>([]);
@@ -41,11 +57,11 @@ export const useImageAttachments = (scopeKey: string) => {
 
     const addFiles = useCallback(
         (files: readonly File[]) => {
-            const { accepted, rejection } = validateAttachments(
+            const { accepted, rejected } = validateAttachments(
                 current.current.map(attachment => attachment.key),
                 files
             );
-            if (rejection) setNotice(rejection);
+            reportRejections(rejected, t);
             if (accepted.length === 0) return;
             const added = accepted.map(
                 (file): ComposerAttachment => ({
@@ -54,24 +70,11 @@ export const useImageAttachments = (scopeKey: string) => {
                     name: file.name,
                     url: URL.createObjectURL(file),
                     file,
-                    isUploading: true,
                 })
             );
             commit([...current.current, ...added]);
-            added.forEach(attachment => {
-                const image = new Image();
-                const settle = () =>
-                    commit(
-                        current.current.map(item =>
-                            item.id === attachment.id ? { ...item, isUploading: false } : item
-                        )
-                    );
-                image.onload = settle;
-                image.onerror = settle;
-                image.src = attachment.url;
-            });
         },
-        [commit]
+        [commit, t]
     );
 
     const remove = useCallback(
@@ -83,7 +86,14 @@ export const useImageAttachments = (scopeKey: string) => {
         [commit]
     );
 
-    const dismissNotice = useCallback(() => setNotice(null), []);
+    return { attachments, addFiles, remove, clear };
+};
 
-    return { attachments, addFiles, remove, clear, notice, dismissNotice };
+const reportRejections = (rejected: AttachmentRejections, t: TFunction) => {
+    const lines = REASONS.filter(reason => rejected[reason]).map(reason =>
+        t(`chat.attach.rejected.${reason}`, { count: rejected[reason], max: MAX_ATTACHMENTS })
+    );
+    if (lines.length === 0) return;
+    // An unsupported file is the one refusal that is a mistake; the other two are limits.
+    toast({ variant: rejected.unsupported ? 'destructive' : 'info', description: lines.join(' ') });
 };

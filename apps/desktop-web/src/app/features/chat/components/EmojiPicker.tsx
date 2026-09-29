@@ -49,7 +49,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                             aria-selected={isRecent}
                             onClick={() => setCategoryKey('recent')}
                             className={cn(
-                                'focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
+                                'focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-lead transition-colors ease-tactile hover:bg-accent',
                                 isRecent && 'bg-accent'
                             )}
                         >
@@ -65,7 +65,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                             aria-selected={categoryKey === cat.key}
                             onClick={() => setCategoryKey(cat.key)}
                             className={cn(
-                                'focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base transition-colors ease-tactile hover:bg-accent',
+                                'focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-lead transition-colors ease-tactile hover:bg-accent',
                                 categoryKey === cat.key && 'bg-accent'
                             )}
                         >
@@ -81,7 +81,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                         key={emoji}
                         type="button"
                         onClick={() => pick(emoji)}
-                        className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-lg transition-colors ease-tactile hover:bg-accent"
+                        className="focus-ring tactile flex h-9 w-9 items-center justify-center rounded-md text-title font-normal transition-colors ease-tactile hover:bg-accent"
                     >
                         {emoji}
                     </button>

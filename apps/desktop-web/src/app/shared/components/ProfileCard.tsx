@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 
 import { useCopyToClipboard, useDisplayProfile, useStartDm, useUser } from '../hooks';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
-import { avatarStyle, bannerStyle } from '../utils';
+import { avatarStyle } from '../utils';
 
 interface UserProfilePopoverProps {
     userId: string;
@@ -43,7 +43,7 @@ interface ProfileCardContentProps extends Omit<UserProfilePopoverProps, 'childre
  * Card body. Rendered only while the popover is open (Radix unmounts closed
  * content), so the user subscription lives only for the open card — never one
  * per message row. Other users expose just avatar/name/nick, so the card stays
- * deliberately minimal: hue banner, identity, a Message action, and a copy-id row. Also reused as
+ * deliberately minimal: plain banner, identity, a Message action, and a copy-id row. Also reused as
  * the body of the trailing ProfilePanel (without onExpand).
  */
 export const ProfileCardContent = ({
@@ -83,26 +83,28 @@ export const ProfileCardContent = ({
 
     return (
         <div>
-            <div className="h-16 w-full" style={bannerStyle(seed)} />
+            {/* A plain band. It was a two-hue gradient per person: the only gradient in
+                the app, and a colour the palette has nowhere else. */}
+            <div className="h-16 w-full bg-muted" />
             <div className="px-4 pb-4">
                 <Avatar className="-mt-8 size-16 ring-4 ring-popover">
                     {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
-                    <AvatarFallback className="text-lg font-semibold" style={avatarStyle(seed)}>
+                    <AvatarFallback className="text-title font-semibold" style={avatarStyle(seed)}>
                         {initial}
                     </AvatarFallback>
                 </Avatar>
 
                 <div className="mt-3 flex items-center gap-2">
-                    <span className="truncate text-base font-bold tracking-tight text-foreground">{name}</span>
+                    <span className="truncate text-lead font-bold tracking-tight text-foreground">{name}</span>
                     {isOwner && (
-                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-nano font-semibold uppercase text-primary">
+                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-nano font-semibold uppercase text-primary-ink">
                             {t('channels.members.owner')}
                         </span>
                     )}
                 </div>
-                {nick && <span className="block truncate text-sm text-muted-foreground">@{nick}</span>}
+                {nick && <span className="block truncate text-callout text-muted-foreground">@{nick}</span>}
                 {channelCount > 0 && (
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-0.5 block text-micro text-muted-foreground">
                         {t('profile.channelCount', { count: channelCount })}
                     </span>
                 )}
@@ -112,7 +114,7 @@ export const ProfileCardContent = ({
                         type="button"
                         onClick={handleMessage}
                         disabled={isStarting}
-                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-micro font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                     >
                         <MessageCircle size={14} aria-hidden />
                         {t('dm.start.message')}
@@ -133,10 +135,10 @@ export const ProfileCardContent = ({
                             <span className="text-nano font-medium uppercase tracking-wide text-muted-foreground">
                                 {t('profile.id')}
                             </span>
-                            <span className="truncate text-xs text-foreground">{userId}</span>
+                            <span className="truncate text-micro text-foreground">{userId}</span>
                         </span>
                         {copied ? (
-                            <Check size={14} className="shrink-0 text-primary" />
+                            <Check size={14} className="shrink-0 text-primary-ink" />
                         ) : (
                             <Copy size={14} className="shrink-0 text-muted-foreground" />
                         )}
@@ -147,7 +149,7 @@ export const ProfileCardContent = ({
                     <button
                         type="button"
                         onClick={onExpand}
-                        className="mt-3 w-full rounded-lg border border-border bg-accent/40 px-3 py-2 text-center text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="mt-3 w-full rounded-lg border border-border bg-accent/40 px-3 py-2 text-center text-micro font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         {t('profile.card.viewFull')}
                     </button>

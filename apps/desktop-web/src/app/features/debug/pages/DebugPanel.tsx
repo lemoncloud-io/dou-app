@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -42,37 +42,30 @@ const PAGES: Record<TabId, () => JSX.Element> = {
  * below xl it overlays. Because it renders in the same window as the app it
  * shares every store + the IndexedDB cache, so it shows the *actual* live app
  * state and you can keep chatting while watching it update. Width drag-resizes
- * (left edge, persisted); closes on Esc, ✕, or Exit.
+ * (left edge, persisted); closes on Esc (through ResizablePanel), ✕, or Exit.
  */
 export const DebugPanel = () => {
     const setOverlayOpen = useDebugModeStore(s => s.setOverlayOpen);
     const [active, setActive] = useState<TabId>('state');
 
-    const close = () => setOverlayOpen(false);
-
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') close();
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, []);
+    // Handed to ResizablePanel, which owns Escape and, in a narrow window, the scrim.
+    const close = useCallback(() => setOverlayOpen(false), [setOverlayOpen]);
 
     const ActivePage = PAGES[active];
 
     return (
         <ResizablePanel
             storageKey={'chatic.debugPanel.width'}
-            defaultWidth={440}
             resizeLabel="Resize debug panel"
             className="bg-background text-foreground"
+            onClose={close}
         >
             <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-primary">Debug</span>
+                <span className="text-micro font-bold uppercase tracking-widest text-primary">Debug</span>
                 <button
                     type="button"
                     onClick={close}
-                    className="ml-auto rounded-lg px-2 py-1 text-xs text-red-600 hover:bg-red-500/10 dark:text-red-400"
+                    className="ml-auto rounded-lg px-2 py-1 text-micro text-red-600 hover:bg-red-500/10 dark:text-red-400"
                 >
                     Exit
                 </button>
@@ -84,7 +77,7 @@ export const DebugPanel = () => {
                         type="button"
                         onClick={() => setActive(tab.id)}
                         className={cn(
-                            'whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition-colors',
+                            'whitespace-nowrap rounded-lg px-3 py-1.5 text-micro transition-colors',
                             active === tab.id
                                 ? 'bg-primary/15 font-semibold text-primary'
                                 : 'text-muted-foreground hover:bg-muted'

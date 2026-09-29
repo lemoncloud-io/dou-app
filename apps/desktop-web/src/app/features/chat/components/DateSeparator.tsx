@@ -33,7 +33,9 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
     // with the day instead of striking through the messages under a stuck pill.
     return (
         <>
-            <div className="pointer-events-none sticky top-0 z-10 flex justify-center pt-2">
+            {/* -top-5 cancels the feed's own top padding (py-5), so a stuck pill sits 8px
+                under the header instead of floating over the first line of text. */}
+            <div className="pointer-events-none sticky -top-5 z-raised flex justify-center pt-2">
                 <span
                     style={{ height: PILL_HEIGHT_PX }}
                     className="pointer-events-auto flex items-center rounded-full border border-hairline bg-background px-3 text-micro font-medium tabular-nums text-label shadow-raised"

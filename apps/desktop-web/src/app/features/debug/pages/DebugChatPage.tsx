@@ -204,10 +204,10 @@ export const DebugChatPage = () => {
         <div className="p-6">
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                    <h1 className="text-base font-semibold text-foreground">
+                    <h1 className="text-lead font-semibold text-foreground">
                         Cache write playground (channels + messages)
                     </h1>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-micro text-muted-foreground">
                         Create and delete records directly to watch optimistic cache writes and stream updates in real
                         time. (Writes real debug records into the cache.)
                     </p>
@@ -218,9 +218,9 @@ export const DebugChatPage = () => {
             </div>
             <section className="grid w-full grid-cols-1 gap-6">
                 <article className="rounded-2xl border border-border bg-card p-4">
-                    <h2 className="text-lg font-semibold">Channel</h2>
+                    <h2 className="text-title font-semibold">Channel</h2>
                     <div className="mt-4 flex flex-col gap-3">
-                        <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                        <div className="rounded-lg border border-border bg-background p-3 text-micro text-muted-foreground">
                             <p>placeId: {placeId}</p>
                             <p>stream: {channelSubscribed ? 'ON' : 'OFF'}</p>
                             <p>count: {channelSnapshot?.list?.length ?? 0}</p>
@@ -230,27 +230,27 @@ export const DebugChatPage = () => {
                             <button
                                 type="button"
                                 onClick={subscribeChannels}
-                                className="rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background"
+                                className="rounded-lg bg-foreground px-3 py-2 text-callout font-medium text-background"
                             >
                                 stream subscribe
                             </button>
                             <button
                                 type="button"
                                 onClick={unsubscribeChannels}
-                                className="rounded-lg border border-border px-3 py-2 text-sm"
+                                className="rounded-lg border border-border px-3 py-2 text-callout"
                             >
                                 stream unsubscribe
                             </button>
                             <button
                                 type="button"
                                 onClick={() => void createChannel()}
-                                className="col-span-2 rounded-lg border border-border px-3 py-2 text-sm"
+                                className="col-span-2 rounded-lg border border-border px-3 py-2 text-callout"
                             >
                                 channel create (auto)
                             </button>
                         </div>
 
-                        <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs">
+                        <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-micro">
                             {(channelSnapshot?.list || []).map(item => (
                                 <li
                                     key={item.id}
@@ -278,7 +278,7 @@ export const DebugChatPage = () => {
                             ))}
                         </ul>
 
-                        <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                        <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-micro text-muted-foreground">
                             {channelLogs.map((line, index) => (
                                 <li key={`${line}-${index}`}>{line}</li>
                             ))}
@@ -287,9 +287,9 @@ export const DebugChatPage = () => {
                 </article>
 
                 <article className="rounded-2xl border border-border bg-card p-4">
-                    <h2 className="text-lg font-semibold">Chat</h2>
+                    <h2 className="text-title font-semibold">Chat</h2>
                     <div className="mt-4 flex flex-col gap-3">
-                        <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                        <div className="rounded-lg border border-border bg-background p-3 text-micro text-muted-foreground">
                             <p>channelId: {selectedChannelId || '-'}</p>
                             <p>stream: {chatSubscribed ? 'ON' : 'OFF'}</p>
                             <p>count: {chatSnapshot?.list?.length ?? 0}</p>
@@ -300,29 +300,29 @@ export const DebugChatPage = () => {
                             <button
                                 type="button"
                                 onClick={() => void createChat()}
-                                className="rounded-lg border border-border px-3 py-2 text-sm"
+                                className="rounded-lg border border-border px-3 py-2 text-callout"
                             >
                                 create 1 message (auto)
                             </button>
                             <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-2">
-                                <span className="text-xs text-muted-foreground">count</span>
+                                <span className="text-micro text-muted-foreground">count</span>
                                 <input
                                     value={sampleCount}
                                     onChange={event => setSampleCount(event.target.value)}
-                                    className="w-full bg-transparent text-xs outline-none"
+                                    className="w-full bg-transparent text-micro outline-none"
                                     placeholder="20"
                                 />
                             </div>
                             <button
                                 type="button"
                                 onClick={() => void createSampleChats()}
-                                className="col-span-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm font-medium"
+                                className="col-span-2 rounded-lg border border-border bg-muted px-3 py-2 text-callout font-medium"
                             >
                                 bulk-create sample chats (auto chatNo)
                             </button>
                         </div>
 
-                        <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs">
+                        <ul className="max-h-64 overflow-y-auto rounded-lg border border-border bg-background p-3 text-micro">
                             {(chatSnapshot?.list || []).map(item => (
                                 <li
                                     key={item.id}
@@ -336,7 +336,7 @@ export const DebugChatPage = () => {
                                                 <input
                                                     value={editingChatContent}
                                                     onChange={event => setEditingChatContent(event.target.value)}
-                                                    className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-none"
+                                                    className="w-full rounded border border-border bg-background px-2 py-1 text-micro outline-none"
                                                 />
                                                 <button
                                                     type="button"
@@ -383,7 +383,7 @@ export const DebugChatPage = () => {
                             ))}
                         </ul>
 
-                        <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                        <ul className="max-h-52 overflow-y-auto rounded-lg border border-border bg-background p-3 text-micro text-muted-foreground">
                             {chatLogs.map((line, index) => (
                                 <li key={`${line}-${index}`}>{line}</li>
                             ))}

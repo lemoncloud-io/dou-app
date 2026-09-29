@@ -1,20 +1,70 @@
+import { isPendingUploadSlot, type DomainChat } from '@chatic/data';
+
 /**
  * One image on a message or in the composer tray.
  *
- * The server has no image upload API yet, so nothing on the wire carries images: a
- * message's images come from `useChatImagesStore` (see there) and a tray item is a
- * local `File` behind an object URL. When the API lands, the reader in
- * `useChatImages` is the one place that has to learn the server field.
+ * A message's images come from its `upload$$` (`toChatImages` below): the local previews while it is
+ * being sent, the server's signed addresses once it is. A tray item is a local `File` behind an object
+ * URL. `useChatImages` is the one reader of a message's images.
  */
 export interface ChatImage {
     id: string;
     /** File name as the sender picked it — shown on a single image and in the viewer. */
     name: string;
-    /** Displayable source: an object URL today, the uploaded file's URL later. */
+    /** The full image: an object URL for a local file, the signed original for a sent one. Empty when there is none to load. */
     url: string;
+    /** A smaller image for the feed tile, when the server made one. The viewer always opens `url`. */
+    thumbUrl?: string;
     /** Still uploading — the tile blurs and spins instead of offering actions. */
     isUploading?: boolean;
+    /** Will not load: the send failed, or the server reports the upload as failed or gone. */
+    isFailed?: boolean;
 }
+
+/**
+ * Where an image may be loaded from: a signed storage address (`https:`), or a page-local one
+ * (`blob:`, `data:image/`). A message's addresses come from the server and other members, so an
+ * `http:`, `file:` or `javascript:` one is treated as an image with nothing to load.
+ */
+export const isSafeImageUrl = (url: string): boolean =>
+    url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:image/');
+
+/** An unsent image message: its `upload$$` still holds local slots, sending or failed. */
+export const isUnsentImageMessage = (message: Pick<DomainChat, 'upload$$'>): boolean =>
+    !!message.upload$$?.some(isPendingUploadSlot);
+
+/** An image message whose upload is still running — a long one is not stuck, however long it takes. */
+export const isSendingImages = (message: Pick<DomainChat, 'upload$$'>): boolean =>
+    !!message.upload$$?.some(slot => isPendingUploadSlot(slot) && slot.localStatus === 'sending');
+
+/**
+ * A message's images from its `upload$$`. The server keeps no file name (the tiles are a fixed size),
+ * so each image is named by its place in the message.
+ *
+ * A pending slot shows its local preview, spinning while it is sent. A server upload shows its
+ * thumbnail and opens its original; one the server marks failed or reports with an error has nothing
+ * to load, and one with no address yet (the read-back has not landed) is still on its way. The
+ * addresses are signed and short-lived: shown, never kept.
+ */
+export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): ChatImage[] =>
+    (slots ?? []).map((slot, index): ChatImage => {
+        const name = `image-${index + 1}`;
+        if (isPendingUploadSlot(slot)) {
+            return {
+                id: `${messageId}:${index}`,
+                name,
+                url: slot.localThumbUrl,
+                isUploading: slot.localStatus === 'sending',
+                isFailed: slot.localStatus === 'failed',
+            };
+        }
+        const id = slot.id ?? `${messageId}:${index}`;
+        if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
+        if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
+        if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };
+        const thumbUrl = slot.thumbUrl && isSafeImageUrl(slot.thumbUrl) ? slot.thumbUrl : undefined;
+        return { id, name, url: slot.orgUrl, ...(thumbUrl ? { thumbUrl } : {}) };
+    });
 
 /** The most images one message can carry (Figma "#max 10 images"). */
 export const MAX_ATTACHMENTS = 10;
@@ -35,22 +85,28 @@ export const isSupportedImage = (file: Pick<File, 'type'>): boolean =>
 export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>): string =>
     `${file.name}:${file.size}:${file.lastModified}`;
 
-/** Why a drop or pick was (partly) refused — each maps to one notice dialog. */
+/** Why a file in a drop or pick was refused. */
 export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported';
+
+/** How many files each reason refused; a reason that refused nothing is absent. */
+export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
 
 export interface AttachmentValidation<T> {
     accepted: T[];
-    /** The first refusal met, if any. One dialog per drop — a stack of three reads as a crash. */
-    rejection?: AttachmentRejection;
+    /**
+     * Every refusal, counted. Only the first used to be kept, so a drop of nine into a
+     * tray of two said "up to 10" and never that one of the nine was left out.
+     */
+    rejected: AttachmentRejections;
 }
 
 /**
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
- * Order of refusal follows the Figma notices: an unsupported type is refused outright,
- * a file already in the tray (or twice in this batch) is a duplicate, and whatever
- * would push the tray past `MAX_ATTACHMENTS` is over the limit. Accepted files keep
- * their incoming order up to the limit, so a drop of twelve keeps the first ten.
+ * An unsupported type is refused outright, a file already in the tray (or twice in
+ * this batch) is a duplicate, and whatever would push the tray past `MAX_ATTACHMENTS`
+ * is over the limit. Accepted files keep their incoming order up to the limit, so a
+ * drop of twelve keeps the first ten.
  */
 export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
     existingKeys: readonly string[],
@@ -58,9 +114,9 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
 ): AttachmentValidation<T> => {
     const seen = new Set(existingKeys);
     const accepted: T[] = [];
-    let rejection: AttachmentRejection | undefined;
+    const rejected: AttachmentRejections = {};
     const reject = (reason: AttachmentRejection) => {
-        rejection ??= reason;
+        rejected[reason] = (rejected[reason] ?? 0) + 1;
     };
     for (const file of incoming) {
         if (!isSupportedImage(file)) {
@@ -79,7 +135,7 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
         seen.add(key);
         accepted.push(file);
     }
-    return { accepted, rejection };
+    return { accepted, rejected };
 };
 
 export interface ImageGridLayout {

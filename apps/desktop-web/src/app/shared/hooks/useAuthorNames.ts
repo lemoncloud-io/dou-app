@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -50,6 +50,12 @@ export const useCloudProfiles = (ids: readonly (string | undefined)[]): Readonly
     // synchronous seed below re-reads it.
     const [tick, setTick] = useState(0);
 
+    // Synchronous per-render read of the memo: a warm person paints on frame one.
+    // `tick` is a dep so a live update (written to the memo) re-reads it.
+    const resolved = useMemo(() => seedFromMemo(keyedIds), [keyedIds, tick]);
+    const resolvedRef = useRef(resolved);
+    resolvedRef.current = resolved;
+
     useEffect(() => {
         if (keyedIds.length === 0) return;
         const unsubs = keyedIds.map(id =>
@@ -60,18 +66,18 @@ export const useCloudProfiles = (ids: readonly (string | undefined)[]): Readonly
                 const name = resolved && resolved !== id ? resolved : undefined;
                 const thumbnail = user.thumbnail || undefined;
                 if (!name && !thumbnail) return;
-                const known = profileMemo.get(id);
-                if (known?.name === name && known?.thumbnail === thumbnail) return;
                 profileMemo.set(id, { name, thumbnail });
-                setTick(t => t + 1);
+                // Compare with what THIS caller returned, not with the memo: another caller
+                // may have written the same profile first, and skipping on that left this
+                // one showing the raw id for good.
+                const shown = resolvedRef.current.get(id);
+                if (shown?.name !== name || shown?.thumbnail !== thumbnail) setTick(t => t + 1);
             })
         );
         return () => unsubs.forEach(unsub => unsub());
     }, [keyedIds, userRepository]);
 
-    // Synchronous per-render read of the memo: a warm person paints on frame one.
-    // `tick` is a dep so a live update (written to the memo) re-reads it.
-    return useMemo(() => seedFromMemo(keyedIds), [keyedIds, tick]);
+    return resolved;
 };
 
 /** Message author names from the `user` cache, keyed by owner id — see {@link useCloudProfiles}. */

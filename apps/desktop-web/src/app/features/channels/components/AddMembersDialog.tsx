@@ -73,6 +73,8 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                             value={query}
                             onChange={e => setQuery(e.target.value)}
                             placeholder={t('channels.addMembers.searchPlaceholder')}
+                            // The placeholder was its only name, and it is gone once you type.
+                            aria-label={t('channels.addMembers.searchPlaceholder')}
                             className="focus-ring h-9 border-hairline bg-well pl-8 text-callout shadow-well"
                             disabled={isAdding}
                         />
@@ -191,7 +193,7 @@ const CandidateRow = ({ candidate, isSelected, onToggle, disabled }: CandidateRo
         >
             <Avatar className="size-8 shrink-0">
                 {candidate.thumbnail && <AvatarImage src={candidate.thumbnail} alt={name} />}
-                <AvatarFallback className="text-xs font-semibold" style={avatarStyle(candidate.id || name)}>
+                <AvatarFallback className="text-micro font-semibold" style={avatarStyle(candidate.id || name)}>
                     {initial}
                 </AvatarFallback>
             </Avatar>
