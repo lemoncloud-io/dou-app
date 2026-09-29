@@ -67,6 +67,21 @@ with the next channel sync. So:
 
 The same landing serves notification clicks, saved-item jumps and newly created channels.
 
+## Opening a 1:1 from elsewhere
+
+A notification, a toast, a saved item or a mention names a place for the room it opens. For a 1:1
+that place is only its stamp (`sid`), which need not list it, so `openPlaceFor` picks the place
+instead: this place when it lists the room, else the named place when it does, else the first place
+that does. Switching to a place that does not list the room would wait on it until the pending
+landing expires. A room no place is known to list yet keeps the named place and waits as above.
+
+**An open that cannot be placed yet** is held instead of switched: another cloud's 1:1, whose rooms
+are read only after the cloud switch, and any open that arrives while HomePage is still loading (a
+notification clicked from settings remounts it with an empty list). The first lands in the named
+place, the second stays put, and once the list loads without the room HomePage moves to the place
+`openPlaceFor` picks (`pendingRedirectPlace`) — once per room, and never while a switch is in
+flight, so a list that never gains the room cannot bounce between places.
+
 ## Naming and picturing the other person
 
 One rule on every surface — the sidebar row, the room's header and intro, and the New message picker:
