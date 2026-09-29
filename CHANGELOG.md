@@ -2,6 +2,16 @@
 
 ## [2026-09-29] - No version updates
 
+### Features
+
+- (app-runtime,web) keep every cloud off screen current with one delta a minute (ADR-0125)
+
+### Bug Fixes
+
+- (data) keep a sync cursor in its own graph's partition, not the selected one
+
+## [2026-09-29] - No version updates
+
 ### Refactor
 
 - (data) take the upload answers' types from lemon-model 1.5
