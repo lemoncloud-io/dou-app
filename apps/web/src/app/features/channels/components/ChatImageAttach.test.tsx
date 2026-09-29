@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
+import type { PhotoPicker } from '../hooks/usePhotoPicker';
 import { useChatImageAttach } from './ChatImageAttach';
 
 const toast = jest.fn();
@@ -12,10 +13,46 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 
+const openSettings = jest.fn();
+jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () => openSettings() } }));
+
+const unsupportedPicker = (): PhotoPicker => ({
+    supported: false,
+    access: null,
+    recent: [],
+    probe: jest.fn().mockResolvedValue(undefined),
+    gridOpen: false,
+    openGrid: jest.fn(),
+    closeGrid: jest.fn(),
+    albumsOpen: false,
+    toggleAlbums: jest.fn(),
+    albums: [],
+    album: { title: 'Recents' },
+    selectAlbum: jest.fn(),
+    photos: [],
+    hasMore: false,
+    loadMore: jest.fn(),
+    picked: [],
+    toggle: jest.fn(),
+    takePicked: jest.fn().mockResolvedValue([]),
+    manageSelection: jest.fn().mockResolvedValue(undefined),
+});
+// The component's own picker is the browser/old-app one unless a test injects another.
+jest.mock('../hooks/usePhotoPicker', () => ({ usePhotoPicker: () => mockOwnPicker }));
+let mockOwnPicker: PhotoPicker = unsupportedPicker();
+
 const photo = (name: string, type = 'image/jpeg', lastModified = 1) => new File(['x'], name, { type, lastModified });
 
-const Harness = ({ sendImages, disabled }: { sendImages: (files: File[]) => Promise<void>; disabled?: boolean }) => {
-    const { button, overlays } = useChatImageAttach({ sendImages, disabled });
+const Harness = ({
+    sendImages,
+    disabled,
+    picker,
+}: {
+    sendImages: (files: File[]) => Promise<void>;
+    disabled?: boolean;
+    picker?: PhotoPicker;
+}) => {
+    const { button, overlays } = useChatImageAttach({ sendImages, disabled, picker });
     return (
         <>
             {button}
@@ -32,7 +69,11 @@ const pick = (testId: string, files: File[]) => {
     return input;
 };
 
-beforeEach(() => toast.mockClear());
+beforeEach(() => {
+    toast.mockClear();
+    openSettings.mockClear();
+    mockOwnPicker = unsupportedPicker();
+});
 
 describe('useChatImageAttach', () => {
     it('sends what was picked at once, in pick order', () => {
@@ -110,5 +151,88 @@ describe('useChatImageAttach', () => {
         render(<Harness sendImages={jest.fn()} disabled />);
 
         expect(screen.getByRole('button', { name: 'chat.attach.open' })).toBeDisabled();
+    });
+});
+
+describe('useChatImageAttach — in-app grid', () => {
+    const gridPicker = (over: Partial<PhotoPicker> = {}): PhotoPicker => ({
+        ...unsupportedPicker(),
+        supported: true,
+        access: 'granted',
+        recent: [{ id: 'r1', src: 'data:r1' }],
+        ...over,
+    });
+    const openMenu = () => fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+
+    // Opening the menu is how an unknown shell is learned, and how the strip stays fresh.
+    it('probes the library when the menu opens', () => {
+        const picker = gridPicker({ supported: null });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        openMenu();
+
+        expect(picker.probe).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not ask a shell already known to have no picker', () => {
+        const picker = unsupportedPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        openMenu();
+
+        expect(picker.probe).not.toHaveBeenCalled();
+    });
+
+    it('opens the grid from the photos entry instead of the file input', () => {
+        const picker = gridPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+        const input = screen.getByTestId('chat-attach-library') as HTMLInputElement;
+        const click = jest.spyOn(input, 'click');
+
+        openMenu();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.photo' }));
+
+        expect(picker.openGrid).toHaveBeenCalledWith(undefined);
+        expect(click).not.toHaveBeenCalled();
+    });
+
+    it('opens the grid with the tapped recent photo already picked', () => {
+        const picker = gridPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        openMenu();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.recentPhoto:{"position":1}' }));
+
+        expect(picker.openGrid).toHaveBeenCalledWith({ id: 'r1', src: 'data:r1' });
+    });
+
+    it('sends to settings instead of opening an empty grid when access is denied', () => {
+        const picker = gridPicker({ access: 'denied' });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        openMenu();
+        expect(screen.queryByRole('button', { name: 'chat.attach.seeAll' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.photo' }));
+
+        expect(picker.openGrid).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.permission.settings' }));
+        expect(openSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends the grid pick through the same judge as a file pick', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({
+            gridOpen: true,
+            picked: [{ id: 'p1', src: 'data:p1' }],
+            photos: [{ id: 'p1', src: 'data:p1' }],
+            takePicked: jest.fn().mockResolvedValue([photo('p1.jpg'), photo('p2.heic', 'image/heic')]),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":1}' }));
+        await act(async () => undefined);
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['p1.jpg']);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
     });
 });

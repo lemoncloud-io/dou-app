@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 90 web→app request types, 99 app→web message types, the payload
+can cross the WebView boundary — 94 web→app request types, 103 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -77,7 +77,7 @@ that `AppLogInfo` mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessage`,
 `AppSuccessMessage`, `AppFailureMessage`); the native handler signatures (`WebMessageHandler`,
 `WebMessageHandlerResponse`, `WebMessageHandlerMap`); the bridge failure taxonomy (`BridgeErrorCode`,
-`BridgeError`, `BridgeErrorResponse`); and 17 payload files under `model/`.
+`BridgeError`, `BridgeErrorResponse`); and 18 payload files under `model/`.
 
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
@@ -93,7 +93,7 @@ flowchart TD
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
     Model["model/ × 18<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>88 request types</i>"]:::map
+    WM["WebMessagePayloadMap<br/><i>94 request types</i>"]:::map
     AM["AppMessageDataMap<br/><i>95 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
@@ -157,9 +157,9 @@ libs/app-messages/src/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
     ├── web-message.ts            WebMessagePayloadMap (92) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (101) + the AppMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (105) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    17 files — the payloads, grouped by domain
+    └── model/                    18 files — the payloads, grouped by domain
 ```
 
 24 files, 2,987 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
@@ -173,6 +173,7 @@ The payload files, with what is in each:
 | `cache.ts`         | 465   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages |
 | `common.ts`        | 220   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                       |
 | `file-transfer.ts` | 133   | The native file-transfer contract — start, cancel, list, ack, temp file, state event                     |
+| `photo-library.ts` | 98    | The in-app photo picker — albums, a page of previews, a picked photo's bytes, iOS limited access         |
 | `device.ts`        | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file                           |
 | `iap.ts`           | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                      |
 | `notification.ts`  | 129   | FCM token, badge count and base, push marks, OS notification                                             |
@@ -261,7 +262,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 88 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 94 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

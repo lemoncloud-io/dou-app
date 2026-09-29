@@ -78,11 +78,28 @@ a failure, so its message cannot hang in "sending".
 
 ## Picking — `useChatImageAttach`
 
-The composer's leading button opens the attach menu — photos, camera, files — and every entry is the
-page's own file input, in the app as much as in a browser. The app's WebView hands a file input to the
-OS chooser, and it returns real bytes; the photo-library bridge of an app built before this feature
-ignores what the page asks for and returns a path the page cannot read. The camera entry has its own
-input with `capture`, so it opens the camera directly; photos and files share one without it.
+The composer's leading button opens the attach menu — photos, camera, files. How photos are picked
+depends on the shell:
+
+| Shell                                   | Photos                                                               |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| app with the photo-library bridge       | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
+| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser |
+
+The page learns which by asking: opening the menu requests the newest photos (`ListPhotos`), and an
+app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A
+timeout is not learned from. The older app's own photo bridge is not used as a fallback: it ignores
+what the page asks for and returns a device path the page cannot read, while the file input returns
+real bytes — the profile and channel photo fields already rely on it inside the app.
+
+The camera entry is a capturing file input in every shell, so it opens the camera directly and needs
+nothing from the app. Files always use the page's input.
+
+In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
+page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
+one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG), so the pending row appears once
+they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
+a "choose more" row that re-lists after the system sheet closes.
 
 What is picked is judged before anything is sent (`judgeChatImages` in `@chatic/data`): the four
 formats the server takes, 20MB a file, the same photo tapped twice, and ten a message
