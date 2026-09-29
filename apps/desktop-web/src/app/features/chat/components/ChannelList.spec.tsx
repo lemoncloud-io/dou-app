@@ -73,9 +73,16 @@ vi.mock('@chatic/shared', async () => ({
 }));
 
 let lastChat: DomainChat | undefined;
-vi.mock('../hooks', () => ({ useLastChat: () => lastChat, useHydrateDmPeers: () => undefined }));
+// The last rows the sidebar asked to have named, and the place profiles it sees.
+const hydrate = vi.hoisted(() => ({ peers: [] as unknown[], profiles: {} as Record<string, { nick?: string }> }));
+vi.mock('../hooks', () => ({
+    useLastChat: () => lastChat,
+    useHydrateDmPeers: (peers: unknown[]) => {
+        hydrate.peers = peers;
+    },
+}));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
-vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => ({}) }));
+vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => hydrate.profiles }));
 // Both mount global keyboard/dialog machinery; this file is about what a row renders.
 // `dialogStub.portal` turns the switcher into the shape that matters for the arrow-key
 // guard: a portalled input that is a React child of the nav but a DOM child of body.
@@ -704,5 +711,37 @@ describe('ChannelList Direct messages "+"', () => {
         renderWith({ onCreateDm: vi.fn(), channels: [general, dm] });
 
         expect(screen.getByRole('button', { name: 'New message' })).toBeTruthy();
+    });
+});
+
+describe('ChannelList 1:1 names', () => {
+    it('asks to name only the 1:1 rows no place profile names', () => {
+        hydrate.profiles = { 'u-named': { nick: 'Aiden' }, 'u-blank': { nick: '  ' } };
+        const channels = [
+            { id: 'C1', name: 'general', memberIds: ['me', 'u-group'] },
+            { id: 'D1', stereo: 'dm', memberIds: ['me', 'u-named'] },
+            { id: 'D2', stereo: 'dm', memberIds: ['me', 'u-plain'] },
+            { id: 'D3', stereo: 'dm', memberIds: ['me', 'u-blank'] },
+            { id: 'D4', stereo: 'dm', memberIds: ['me'] },
+            { id: 'S1', stereo: 'self', memberIds: ['me'] },
+        ] as DomainChannel[];
+
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        expect(hydrate.peers).toEqual([
+            { channelId: 'D2', peerId: 'u-plain' },
+            { channelId: 'D3', peerId: 'u-blank' },
+        ]);
+        hydrate.profiles = {};
     });
 });

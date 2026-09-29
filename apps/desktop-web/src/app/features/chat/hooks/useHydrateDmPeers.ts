@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
@@ -28,21 +28,19 @@ export const useHydrateDmPeers = (peers: readonly DmPeerRef[]): void => {
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const requestedRef = useRef(new Set<string>());
 
-    // Stable key so a re-render with the same rows does not re-run the effect.
-    const key = useMemo(
-        () =>
-            peers
-                .map(p => `${p.channelId}:${p.peerId}`)
-                .sort()
-                .join(','),
-        [peers]
-    );
+    // The caller rebuilds `peers` on every render; the effect keys on this string instead, and reads
+    // the rows through a ref so it never parses ids back out of it.
+    const key = peers
+        .map(p => `${p.channelId}\u0000${p.peerId}`)
+        .sort()
+        .join('\u0001');
+    const peersRef = useRef(peers);
+    peersRef.current = peers;
 
     useEffect(() => {
         if (!isVerified || !key) return;
         const requested = requestedRef.current;
-        for (const entry of key.split(',')) {
-            const [channelId, peerId] = entry.split(':');
+        for (const { channelId, peerId } of peersRef.current) {
             if (requested.has(channelId)) continue;
             requested.add(channelId);
             void (async () => {

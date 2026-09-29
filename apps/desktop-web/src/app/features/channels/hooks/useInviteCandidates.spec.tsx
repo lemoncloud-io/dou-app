@@ -223,4 +223,22 @@ describe('useInviteCandidates', () => {
         expect(byId.get('u-1')).toEqual(['design']);
         expect(byId.get('u-2')).toEqual([]);
     });
+
+    it('reads 1:1 and self rosters from the cache without fetching them', async () => {
+        channels = [
+            { id: 'ch-a', name: 'design' },
+            { id: 'dm-1', name: '', stereo: 'dm' },
+            { id: 'self-1', name: '', stereo: 'self' },
+        ];
+        rostersByChannel = {
+            'ch-a': [{ id: 'me' }, { id: 'u-1', name: 'Aiden' }],
+            'dm-1': [{ id: 'me' }, { id: 'u-2', name: 'SteveJ' }],
+        };
+
+        const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(refreshList.mock.calls.map(([query]) => query.channelId)).toEqual(['ch-a']);
+        expect(result.current.candidates.map(c => c.id).sort()).toEqual(['u-1', 'u-2']);
+    });
 });

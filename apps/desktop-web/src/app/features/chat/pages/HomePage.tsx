@@ -656,7 +656,9 @@ export const HomePage = () => {
                                 onSelectElsewhere={selectElsewhere}
                                 isDefaultMode={isDefaultMode}
                                 onCreateChannel={openCreateChannel}
-                                onCreateDm={canStartDm ? () => setIsNewDmOpen(true) : undefined}
+                                // The picker's pool is the people in this place's channels, so a cloud
+                                // with no place would only ever offer no one.
+                                onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
                             />
                         </div>
                     </>

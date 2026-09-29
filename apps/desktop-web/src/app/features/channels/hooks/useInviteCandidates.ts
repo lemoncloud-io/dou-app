@@ -65,6 +65,11 @@ export const useInviteCandidates = (
     const targetMemberKey = (channels.find(c => c.id === targetChannelId)?.memberIds ?? []).join(',');
 
     const myChannelIds = useMemo(() => channelKey.split(',').filter(Boolean), [channelKey]);
+    const personalRoomKey = channels
+        .filter(c => isDmChannel(c) || isSelfChannel(c))
+        .map(c => c.id ?? '')
+        .join(',');
+    const personalRoomIds = useMemo(() => new Set(personalRoomKey.split(',').filter(Boolean)), [personalRoomKey]);
     const channelNameById = useMemo(() => new Map(channels.map(c => [c.id ?? '', viaLabelOf(c)])), [channelNameKey]);
     // Second exclusion source, independent of the roster read: the channel record's own member
     // list. Without it a failed (or not-yet-run) target roster fetch leaves the exclusion set
@@ -86,9 +91,12 @@ export const useInviteCandidates = (
             // each member's read-state into the join cache, which is keyed `channelId@userId`, so
             // no channel can overwrite another's. A channel that fails (permissions, transport)
             // simply contributes nobody — a partial pool is more useful than an empty one.
+            // 1:1 and self rooms are read from the cache only: their one other member is someone I
+            // already talk to, and the sidebar loads that roster when it names the row.
+            const fetchIds = channelIds.filter(id => id === targetChannelId || !personalRoomIds.has(id));
             const results = fetch
                 ? await Promise.allSettled(
-                      channelIds.map(channelId => userRepository.refreshList({ channelId, detail: true }))
+                      fetchIds.map(channelId => userRepository.refreshList({ channelId, detail: true }))
                   )
                 : [];
             if (results.length > 0 && results.every(r => r.status === 'rejected')) {
@@ -122,7 +130,7 @@ export const useInviteCandidates = (
             }
             return [...byId.values()];
         },
-        [userRepository, enabled, targetChannelId, myChannelIds, channelNameById, targetMemberIds, myUid]
+        [userRepository, enabled, targetChannelId, myChannelIds, personalRoomIds, channelNameById, targetMemberIds, myUid]
     );
 
     useEffect(() => {

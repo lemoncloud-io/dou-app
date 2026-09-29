@@ -25,9 +25,27 @@ import { usePendingOpenStore } from '../stores';
  * and a call whose cloud was switched away from before it answered opens nothing and returns null.
  * A failure is logged, shown as a toast, and returns null.
  */
+type Repositories = ReturnType<typeof runtime.data.useRuntimeRepositories>;
+
+/** One channel delta sync on the cloud's cursor — the key `useBackgroundSync` advances. */
+const syncCloudChannels = async (
+    channelRepository: Repositories['channel'],
+    syncMeta: Repositories['syncMeta'],
+    cloudId: string
+): Promise<void> => {
+    const kind = `channel-sync:${cloudId}`;
+    try {
+        const { syncedAt } = await channelRepository.syncChannels(await syncMeta.getSyncedAt(kind));
+        await syncMeta.setSyncedAt(kind, syncedAt);
+    } catch (error) {
+        // The background poll still lists the room; only the immediate landing is lost.
+        logger.warn('CHANNEL', '[useStartDm] channel sync after start failed', { error });
+    }
+};
+
 export const useStartDm = () => {
     const { t } = useTranslation();
-    const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
+    const { channel: channelRepository, syncMeta } = runtime.data.useRuntimeRepositories();
     const cloudId = runtime.session.useGlobalSession().cloud.cloudId;
     const isAvailable = !!cloudId && cloudId !== RELAY_CLOUD_ID;
 
@@ -49,6 +67,10 @@ export const useStartDm = () => {
                 if (!room?.id) throw new Error('[useStartDm] the room came back without an id');
                 if (cloudIdRef.current !== startedIn) return null;
                 usePendingOpenStore.getState().request({ placeId: '', channelId: room.id });
+                // A room the call just created comes back without a place, so it is not cached and the
+                // sidebar only lists it after the next channel sync. The background poll is a minute
+                // away, past the pending open's expiry, so pull the delta now on the same cursor.
+                if (!room.sid && startedIn) void syncCloudChannels(channelRepository, syncMeta, startedIn);
                 return room;
             } catch (error) {
                 logger.error('CHANNEL', '[useStartDm] start failed', { error });
@@ -59,7 +81,7 @@ export const useStartDm = () => {
                 setIsStarting(false);
             }
         },
-        [channelRepository, isAvailable, t]
+        [channelRepository, syncMeta, isAvailable, t]
     );
 
     return { startDm, isStarting, isAvailable };
