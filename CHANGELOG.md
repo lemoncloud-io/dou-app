@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-09-29] - root@0.69.0, @chatic/desktop-web@0.14.0
+
+### Features
+
+- (desktop-web) list a cloud's 1:1s when the cloud has no place
+- (desktop-web) open a 1:1 from another person's profile card
+- (desktop-web) start a 1:1 from the Direct messages section
+
+### Bug Fixes
+
+- (desktop-web) fall back to the cloud photo on a 1:1 sidebar row
+- (desktop-web) show a 1:1 peer's place photo in the room and picker
+- (desktop-web) open a new 1:1 at once and trim its roster loads
+- (desktop-web) name a 1:1 row before its room is opened
+- (data,web,desktop-web) return a new 1:1 when its answer has no place
+- (mobile) gate the bridge and OpenURL to trusted origins and schemes
+- (desktop-web) open no 1:1 whose cloud was left mid-call
+- (desktop-web) list a cloud 1:1 in every place, not one place
+
+### Refactor
+
+- (desktop-web) pull the home screen's landing out for tests
+- (desktop-web) share the section "+" and simplify via labels
+
+### Other
+
+- revert: (mobile) move the WebView trust gate to its own PR
+
 ## [2026-09-29] - root@0.68.0, @chatic/web@0.54.0
 
 ### Features
