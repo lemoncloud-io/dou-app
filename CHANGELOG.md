@@ -4,6 +4,20 @@
 
 ### Features
 
+- (perf,web,app-runtime,mobile,data) trace a room open until its latest page is on screen
+
+### Bug Fixes
+
+- (mobile,perf) accept a well-formed trace name the app build does not know yet
+
+### Other
+
+- test: (web/channels) stub the room sync trace hook in the room page's hook mock
+
+## [2026-09-29] - No version updates
+
+### Features
+
 - (app-runtime,web,desktop-web) send a chat to its own cloud, not the selected one (ADR-0122)
 
 ### Documentation
