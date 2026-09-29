@@ -47,3 +47,25 @@ export const shouldCaptureTyping = (event: KeyboardEvent): boolean => {
         ':is([role="dialog"], [role="alertdialog"], [role="menu"]):not([data-state="closed"])'
     );
 };
+
+/**
+ * The channel Alt+Shift+↓/↑ lands on from outside the sidebar: the next (or previous)
+ * one with unread, in the order the sidebar draws them, wrapping around. Null when
+ * nothing else is unread. (Inside the sidebar the same chord reorders the focused row.)
+ */
+export const nextUnreadChannelId = (
+    ordered: readonly { id?: string; unreadCount?: number }[],
+    currentId: string | null,
+    direction: 1 | -1
+): string | null => {
+    const count = ordered.length;
+    if (count === 0) return null;
+    // Not found: start just before the first row (going down) or at it (going up).
+    const found = ordered.findIndex(channel => channel.id === currentId);
+    const from = found >= 0 ? found : direction === 1 ? -1 : 0;
+    for (let step = 1; step <= count; step += 1) {
+        const channel = ordered[(((from + direction * step) % count) + count) % count];
+        if (channel.id && channel.id !== currentId && (channel.unreadCount ?? 0) > 0) return channel.id;
+    }
+    return null;
+};

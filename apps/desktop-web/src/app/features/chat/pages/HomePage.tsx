@@ -54,7 +54,7 @@ import {
     MentionsPanel,
     ThreadPanel,
 } from '../components';
-import { useMessageViewer, usePendingLanding, useReadCounts } from '../hooks';
+import { useMessageViewer, useNextUnreadShortcut, usePendingLanding, useReadCounts } from '../hooks';
 import { landingTarget, pendingOpenRoute } from '../utils';
 import { useThreadStore } from '../stores';
 import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
@@ -456,6 +456,7 @@ export const HomePage = () => {
         },
         [selectChannel]
     );
+    useNextUnreadShortcut(channels, selectedChannelId, selectFromList);
     const jumpToSavedRef = useRef(jumpToSaved);
     jumpToSavedRef.current = jumpToSaved;
 

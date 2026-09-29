@@ -30,7 +30,7 @@ import {
 import { SearchDialog } from '../../search';
 import { ChannelActionDialogs, useChannelActions } from '../../channels';
 import { useHydrateDmPeers, useLastChat } from '../hooks';
-import { useSidebarSectionsStore } from '../stores';
+import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
 import { QuickSwitcher, type ElsewhereChannel } from './QuickSwitcher';
@@ -249,6 +249,12 @@ export const ChannelList = ({
         if (isLoading || !pinScope) return;
         migrateLegacyFavorites(pinScope, channels.map(c => c.id ?? '').filter(Boolean));
     }, [pinScope, isLoading, channels]);
+    // The drawing order, unfiltered, for the next-unread shortcut (useNextUnreadShortcut).
+    // Computed below the early returns, pushed to the store after every render.
+    const displayOrderRef = useRef<string[]>([]);
+    useEffect(() => {
+        useSidebarOrderStore.getState().setIds(displayOrderRef.current);
+    });
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
@@ -565,6 +571,16 @@ export const ChannelList = ({
         const fav = favoriteById.get(id);
         return fav ? [fav] : [];
     });
+    // Unfiltered: a sidebar filter narrows what is drawn, not what the shortcut walks.
+    const allChannelIds = applyChannelOrder(
+        regular.map(c => c.id ?? ''),
+        pinScope ? storedChannelOrder : undefined
+    );
+    const allDmIds = applyChannelOrder(
+        dms.map(c => c.id ?? ''),
+        pinScope ? storedChannelOrder : undefined
+    );
+    displayOrderRef.current = [...new Set([...pinnedIds, ...allChannelIds, ...allDmIds])].filter(Boolean);
 
     return (
         // The switcher lives here (not HomePage) because this is where the

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { shouldCaptureTyping, sidebarMoveChord } from './keyboard';
+import { nextUnreadChannelId, shouldCaptureTyping, sidebarMoveChord } from './keyboard';
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document.body): KeyboardEvent => {
     const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
@@ -59,5 +59,29 @@ describe('sidebarMoveChord', () => {
         expect(sidebarMoveChord({ altKey: false, shiftKey: true, key: 'ArrowUp' })).toBeNull();
         expect(sidebarMoveChord({ altKey: true, shiftKey: false, key: 'ArrowUp' })).toBeNull();
         expect(sidebarMoveChord({ altKey: true, shiftKey: true, key: 'Enter' })).toBeNull();
+    });
+});
+
+describe('nextUnreadChannelId', () => {
+    const list = [
+        { id: 'a', unreadCount: 0 },
+        { id: 'b', unreadCount: 2 },
+        { id: 'c', unreadCount: 0 },
+        { id: 'd', unreadCount: 1 },
+    ];
+
+    it('goes to the next unread in sidebar order, wrapping around', () => {
+        expect(nextUnreadChannelId(list, 'b', 1)).toBe('d');
+        expect(nextUnreadChannelId(list, 'd', 1)).toBe('b');
+        expect(nextUnreadChannelId(list, 'c', -1)).toBe('b');
+    });
+
+    it('starts from the top when nothing is open', () => {
+        expect(nextUnreadChannelId(list, null, 1)).toBe('b');
+        expect(nextUnreadChannelId(list, null, -1)).toBe('d');
+    });
+
+    it('stays put when nothing else is unread', () => {
+        expect(nextUnreadChannelId([{ id: 'a', unreadCount: 3 }], 'a', 1)).toBeNull();
     });
 });

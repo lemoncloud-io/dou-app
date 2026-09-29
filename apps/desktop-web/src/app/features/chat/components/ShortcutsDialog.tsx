@@ -59,6 +59,14 @@ export const ShortcutsDialog = () => {
         {
             keys: (
                 <>
+                    <Kbd>{ALT} ⇧ ↑</Kbd> <Kbd>{ALT} ⇧ ↓</Kbd>
+                </>
+            ),
+            label: t('shortcuts.nextUnread'),
+        },
+        {
+            keys: (
+                <>
                     <Kbd>Enter</Kbd> / <Kbd>Shift Enter</Kbd>
                 </>
             ),

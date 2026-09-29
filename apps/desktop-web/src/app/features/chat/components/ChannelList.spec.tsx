@@ -109,7 +109,7 @@ vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
 
-import { useSidebarSectionsStore } from '../stores';
+import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
 import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
@@ -398,7 +398,7 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
     it('the dialog cheat sheet mentions the move chord', () => {
         render(<ShortcutsDialog />, { wrapper });
         fireEvent.keyDown(window, { key: '?' });
-        expect(screen.getByText('Move the focused channel up or down')).toBeTruthy();
+        expect(screen.getByText('In the sidebar: move the focused channel up or down')).toBeTruthy();
         // chord rendering follows the platform glyph (⌥ on mac, Alt elsewhere) — one is present
         const chord = screen.queryAllByText('⌥ ⇧ ↑').length > 0 ? '⌥ ⇧ ↑' : 'Alt ⇧ ↑';
         expect(screen.getAllByText(chord).length).toBeGreaterThan(0);
@@ -789,5 +789,34 @@ describe('ChannelList 1:1 names', () => {
         expect(photoOf(/Cloudy/)).toBe('cloud.png');
         hydrate.profiles = {};
         hydrate.cloud = new Map();
+    });
+});
+
+describe('ChannelList drawing order', () => {
+    afterEach(() => {
+        cleanup();
+        storedOrder.ids = [];
+    });
+
+    // The next-unread shortcut walks this order; a sidebar filter must not shorten it.
+    it('publishes the whole order, even while a filter is typed', () => {
+        const channels = [
+            { id: 'C1', name: 'general' },
+            { id: 'C2', name: 'random' },
+            { id: 'D1', stereo: 'dm', name: 'u1' },
+        ] as DomainChannel[];
+        storedOrder.ids = ['C2', 'C1'];
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId="C1"
+                query="gen"
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+        expect(useSidebarOrderStore.getState().ids).toEqual(['C2', 'C1', 'D1']);
     });
 });
