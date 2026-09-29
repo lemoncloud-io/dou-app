@@ -11,7 +11,8 @@ import { useEffect } from 'react';
  * tore down the pane the user was reading.
  *
  * So the listener asks first whether a Radix layer is on screen, and yields to
- * it when one is. The panel only closes when Escape had nothing else to close.
+ * it when one is, and ignores an Escape something else already handled. The panel
+ * only closes when Escape had nothing else to close.
  */
 const RADIX_LAYER_SELECTOR = [
     '[role="dialog"][data-state="open"]',
@@ -33,6 +34,9 @@ export const useEscapeClose = (close?: () => void): void => {
         if (!close) return;
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return;
+            // Something inside the panel already used this Escape (the inline message
+            // editor cancels an edit with it). It is not a second request to close.
+            if (e.defaultPrevented) return;
             if (hasOpenOverlay()) return;
             close();
         };

@@ -553,8 +553,7 @@ export const MessageRow = memo(
                                                 // Opt message text back into selection: the app body sets
                                                 // user-select:none for chrome (Slack/Discord-style), which
                                                 // otherwise blocks copying message content.
-                                                'select-text whitespace-pre-wrap break-words text-body',
-                                                isFailed ? 'text-destructive' : 'text-foreground',
+                                                'select-text whitespace-pre-wrap break-words text-body text-foreground',
                                                 isPending && 'opacity-50'
                                             )}
                                         >
@@ -589,8 +588,10 @@ export const MessageRow = memo(
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
                                     )}
-                                    {failure?.id === message.id && (
-                                        <span className="mt-0.5 block text-caption text-destructive">
+                                    {/* `failure &&` first: an unsent message has no id, and
+                                        `undefined === undefined` drew this line with no failure. */}
+                                    {failure && failure.id === message.id && (
+                                        <span role="status" className="mt-0.5 block text-caption text-destructive">
                                             {failure.kind === 'delete' ? t('chat.deleteFailed') : t('chat.editFailed')}
                                         </span>
                                     )}
@@ -611,7 +612,7 @@ export const MessageRow = memo(
                                         message leaves no chips behind when it fails, so a line nested
                                         under `tallies` would be exactly the case that stays silent. */}
                                     {reactionFailedId === message.id && (
-                                        <span className="mt-0.5 block text-caption text-destructive">
+                                        <span role="status" className="mt-0.5 block text-caption text-destructive">
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
@@ -876,8 +877,13 @@ export const MessageRow = memo(
                                             }}
                                         />
                                     )}
+                                    {/* A status, so the failure is announced where it appears; the
+                                        message text keeps its own colour, the line carries the red. */}
                                     {isFailed && (
-                                        <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
+                                        <span
+                                            role="status"
+                                            className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive"
+                                        >
                                             {t('chat.failed')}
                                             {onRetry && (
                                                 <button

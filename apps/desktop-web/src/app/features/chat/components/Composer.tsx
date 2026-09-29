@@ -49,6 +49,8 @@ interface ComposerProps {
      * One composer per window should claim this — the channel's, not the thread's.
      */
     capturesTyping?: boolean;
+    /** Take focus on mount: the thread panel's reply box, since opening a thread is to reply. */
+    autoFocus?: boolean;
 }
 
 const ComposerInner = ({
@@ -60,6 +62,7 @@ const ComposerInner = ({
     onAddFiles,
     onRemoveAttachment,
     capturesTyping,
+    autoFocus,
 }: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
@@ -126,6 +129,23 @@ const ComposerInner = ({
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [capturesTyping, editor]);
 
+    // The node itself rather than editor.focus(), which places a selection and leaves DOM
+    // focus to follow it.
+    const focusInput = useCallback(() => editor.getRootElement()?.focus({ preventScroll: true }), [editor]);
+
+    // A panel that opened took no focus, so a keyboard user stayed in the feed behind it with
+    // no way in short of tabbing through every message. Per thread (channelId carries the root),
+    // and never out of a field the reader is typing in: a thread can open seconds after the
+    // click that asked for it, once its channel has loaded.
+    useEffect(() => {
+        if (!autoFocus) return;
+        const active = document.activeElement;
+        const typingElsewhere =
+            active instanceof HTMLElement &&
+            (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
+        if (!typingElsewhere) focusInput();
+    }, [autoFocus, channelId, focusInput]);
+
     const insertEmoji = (emoji: string) => {
         editor.update(() => {
             ($getSelection() ?? $getRoot().selectEnd()).insertText(emoji);
@@ -186,7 +206,11 @@ const ComposerInner = ({
                             />
                         </div>
                         {onRemoveAttachment && (
-                            <ComposerAttachments attachments={attachments} onRemove={onRemoveAttachment} />
+                            <ComposerAttachments
+                                attachments={attachments}
+                                onRemove={onRemoveAttachment}
+                                onEmptied={focusInput}
+                            />
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-4">

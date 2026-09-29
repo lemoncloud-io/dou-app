@@ -63,12 +63,15 @@ export const ImageViewer = ({
 }: ImageViewerProps) => {
     const { t } = useTranslation();
     const [index, setIndex] = useState(0);
+    // The description says the position on open; the live line only speaks once it changes.
+    const [hasMoved, setHasMoved] = useState(false);
     const [isMenuOpen, setMenuOpen] = useState(false);
     const isOpen = openIndex !== null;
     const isMulti = images.length > 1;
 
     useEffect(() => {
         if (openIndex !== null) setIndex(openIndex);
+        setHasMoved(false);
     }, [openIndex]);
 
     // A delete can shrink the set under the viewer; keep the index on a real image and
@@ -80,7 +83,11 @@ export const ImageViewer = ({
     }, [images.length, index, isOpen, onClose]);
 
     const current = images[Math.min(index, images.length - 1)];
-    const step = (delta: number) => setIndex(i => Math.min(images.length - 1, Math.max(0, i + delta)));
+    const moveTo = (next: number) => {
+        setIndex(next);
+        setHasMoved(true);
+    };
+    const step = (delta: number) => moveTo(Math.min(images.length - 1, Math.max(0, index + delta)));
 
     return (
         <Dialog open={isOpen && !!current} onOpenChange={open => !open && onClose()}>
@@ -91,6 +98,9 @@ export const ImageViewer = ({
                 // Figma: the app stays visible behind the viewer, frosted rather than blacked out.
                 overlayClassName="bg-background/40 backdrop-blur-md"
                 onKeyDown={event => {
+                    // The More menu is portalled but still inside this tree, so its arrow keys
+                    // bubble here too; moving through the menu stepped the picture behind it.
+                    if (event.defaultPrevented || (event.target as Element).closest?.('[role="menu"]')) return;
                     if (event.key === 'ArrowLeft') step(-1);
                     if (event.key === 'ArrowRight') step(1);
                 }}
@@ -101,6 +111,13 @@ export const ImageViewer = ({
                 <DialogDescription className="sr-only">
                     {t('chat.image.position', { index: index + 1, count: images.length })}
                 </DialogDescription>
+                {/* The description is read once, on open. Stepping with the arrows changed the
+                    picture in silence, so the position is also said as it changes. */}
+                {isMulti && (
+                    <span role="status" aria-live="polite" className="sr-only">
+                        {hasMoved && t('chat.image.position', { index: index + 1, count: images.length })}
+                    </span>
+                )}
                 {current && (
                     <>
                         <div className="relative flex min-w-0 flex-1 flex-col bg-muted">
@@ -225,7 +242,7 @@ export const ImageViewer = ({
                                                 <button
                                                     key={image.id}
                                                     type="button"
-                                                    onClick={() => setIndex(i)}
+                                                    onClick={() => moveTo(i)}
                                                     aria-label={t('chat.image.open', { name: image.name })}
                                                     aria-current={i === index ? 'true' : undefined}
                                                     className={cn(

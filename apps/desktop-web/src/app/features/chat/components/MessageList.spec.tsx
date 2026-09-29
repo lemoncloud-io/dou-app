@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -302,5 +302,28 @@ describe('MessageList', () => {
         // the same emoji, so a bare text query finds two things and cannot say which
         // one is the tally.
         expect(screen.getByLabelText('👍 · Me, Ada')).toBeDefined();
+    });
+});
+
+describe('MessageList failed send', () => {
+    afterEach(cleanup);
+
+    // The failure line was plain text a screen reader passed over, and its button said
+    // only "Delete" beside a message that has other delete actions.
+    it('announces the failure and names what Delete removes', () => {
+        const failed = { ...message(1, 'me', 'lost'), id: undefined, isFailed: true } as DomainChat;
+        render(
+            <MessageList
+                messages={[failed]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map()}
+                onRetry={vi.fn()}
+                onDiscard={vi.fn()}
+            />,
+            { wrapper }
+        );
+        expect(screen.getByRole('status').textContent).toContain('Not delivered');
+        expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
     });
 });

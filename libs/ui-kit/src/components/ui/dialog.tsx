@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 
+import { useOpenerFocus } from '../../utils/openerFocus';
+
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -90,28 +92,47 @@ const DialogContent = React.forwardRef<
         /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
         overlayClassName?: string;
     }
->(({ className, children, hideClose, closeLabel = 'Close', variant = 'default', overlayClassName, ...props }, ref) => (
-    <DialogPortal>
-        <DialogOverlay className={overlayClassName} />
-        <DialogPrimitive.Content
-            ref={ref}
-            className={cn(
-                'fixed z-50 grid gap-4 bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-                dialogVariants[variant],
-                className
-            )}
-            {...props}
-        >
-            {children}
-            {!hideClose && (
-                <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">{closeLabel}</span>
-                </DialogPrimitive.Close>
-            )}
-        </DialogPrimitive.Content>
-    </DialogPortal>
-));
+>(
+    (
+        {
+            className,
+            children,
+            hideClose,
+            closeLabel = 'Close',
+            variant = 'default',
+            overlayClassName,
+            onCloseAutoFocus,
+            ...props
+        },
+        ref
+    ) => {
+        const { Capture, withReturn } = useOpenerFocus();
+        return (
+            <DialogPortal>
+                <DialogOverlay className={overlayClassName} />
+                <DialogPrimitive.Content
+                    ref={ref}
+                    onCloseAutoFocus={withReturn(onCloseAutoFocus)}
+                    className={cn(
+                        'fixed z-50 grid gap-4 bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+                        dialogVariants[variant],
+                        className
+                    )}
+                    {...props}
+                >
+                    <Capture />
+                    {children}
+                    {!hideClose && (
+                        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">{closeLabel}</span>
+                        </DialogPrimitive.Close>
+                    )}
+                </DialogPrimitive.Content>
+            </DialogPortal>
+        );
+    }
+);
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
