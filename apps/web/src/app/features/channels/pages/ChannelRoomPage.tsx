@@ -23,6 +23,9 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { useChatImageAttach } from '../components/ChatImageAttach';
+import { useSendImages } from '../hooks/useSendImages';
+import { isPendingImageChat } from '../utils/imageTiles';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DmInviteFooter } from '../components/DmInviteFooter';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
@@ -364,6 +367,12 @@ export const ChannelRoomPage = () => {
 
     const { sendMessage, retryMessage, readMessage, deleteMessage } = useChatMutations();
     const editing = useMessageEditing(stableChannelId);
+    // The composer's lock, shared by the text field and the attach button: a photo sent into an
+    // empty 1:1 would strand the same unread badge a text would.
+    const composerLocked = isPeerGone || editing.isEditing;
+    // Photos go to the room's own cloud, the same one a text sent from here goes to.
+    const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
+    const attach = useChatImageAttach({ sendImages: imageSend.sendImages, disabled: composerLocked, inputRef });
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
@@ -572,12 +581,27 @@ export const ChannelRoomPage = () => {
     // An unsent row lives in the partition of the cloud it was sent to, which is the row's own `cid`.
     const handleDeleteMessage = async (message: ClientChatView) => {
         if (!message.id) return;
+        // An image row's picked files are held for a retry; deleting the row lets them go. A no-op
+        // for any other row.
+        imageSend.discard(message.id);
         await deleteMessage(message.cid, message.id);
     };
 
     // Resent to the row's own cloud, with its thread target and content type intact (see retryMessage).
     const handleRetryMessage = async (message: ClientChatView) => {
         if (!message.id) return;
+        // An image row goes back through the image send, on the same row with the same files. The
+        // text path below would resend its empty `content` — a blank message.
+        //
+        // Asked at the tap, not while drawing: whether the files are still held is not React state,
+        // and the send marks the row failed a moment before it lets a retry in, so a render-time read
+        // could hide the button on the very row that just failed. A row whose files are gone — a
+        // reload left it behind — can only be deleted, and says so.
+        if (isPendingImageChat(message)) {
+            if (imageSend.canRetry(message.id)) void imageSend.retry(message.id);
+            else toast({ title: t('chat.attach.cannotRetry') });
+            return;
+        }
         retryMessage(message)
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
@@ -1198,9 +1222,11 @@ export const ChannelRoomPage = () => {
                     //
                     // Also locked while a message is being edited: two live fields on one screen
                     // and there is no telling which one you are typing into.
-                    disabled={isPeerGone || editing.isEditing}
+                    disabled={composerLocked}
+                    leadingSlot={attach.button}
                 />
             </div>
+            {attach.overlays}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 

@@ -75,4 +75,15 @@ describe('MessageInput', () => {
         expect(screen.getByRole('textbox')).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     });
+
+    // The attach button lives in the pill (Figma 3749:27998) but the input must not learn what it is.
+    it('draws a leading slot before the textarea, and nothing when none is given', () => {
+        const { rerender } = render(<MessageInput value="" onChange={jest.fn()} />);
+        expect(screen.queryByRole('button', { name: 'Attach' })).not.toBeInTheDocument();
+
+        rerender(<MessageInput value="" onChange={jest.fn()} leadingSlot={<button>Attach</button>} />);
+        const slot = screen.getByRole('button', { name: 'Attach' });
+        const textarea = screen.getByRole('textbox');
+        expect(slot.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
 });

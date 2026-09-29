@@ -84,6 +84,24 @@ jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () =>
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/RoomIntro', () => ({ RoomIntro: () => null }));
 jest.mock('../components/RoomSkeleton', () => ({ RoomSkeleton: () => null }));
+// The image send and the attach flow have their own tests; here only what the room hands them.
+const mockSendImagesInputs: { cid: string; channelId: string }[] = [];
+const mockImageRetry = jest.fn();
+let mockImageCanRetry = true;
+jest.mock('../hooks/useSendImages', () => ({
+    useSendImages: (input: { cid: string; channelId: string }) => {
+        mockSendImagesInputs.push(input);
+        return {
+            sendImages: jest.fn(),
+            retry: (id: string) => mockImageRetry(id),
+            canRetry: () => mockImageCanRetry,
+            discard: jest.fn(),
+        };
+    },
+}));
+jest.mock('../components/ChatImageAttach', () => ({
+    useChatImageAttach: () => ({ button: null, overlays: null }),
+}));
 jest.mock('../lib', () => ({
     ...jest.requireActual('../lib/channelStereoPolicy'),
     resolveChannelAvatar: () => ({ src: undefined }),
@@ -248,5 +266,44 @@ describe('ChannelRoomPage — staying in my own room during a switch', () => {
         render(<ChannelRoomPage />);
 
         expect(toast).toHaveBeenCalledWith({ title: 'chat.notAMember' });
+    });
+});
+
+describe('ChannelRoomPage — photos', () => {
+    const failedImageRow = () =>
+        failedRow({ content: '', upload$$: [{ localStatus: 'failed', localThumbUrl: 'blob:1' }] } as never);
+
+    beforeEach(() => {
+        mockSendImagesInputs.length = 0;
+        mockImageRetry.mockReset();
+        mockImageCanRetry = true;
+    });
+
+    it("sends photos to the room's own cloud, like a text", () => {
+        render(<ChannelRoomPage />);
+
+        expect(mockSendImagesInputs.at(-1)).toEqual({ cid: 'cloud-b', channelId: 'ch1' });
+    });
+
+    // The text retry resends `content`, which an image row does not have — it would post a blank message.
+    it('retries a failed image row through the image send, not the text path', () => {
+        mockMessages = [failedImageRow()];
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('retry-tmp-1'));
+
+        expect(mockImageRetry).toHaveBeenCalledWith('tmp-1');
+        expect(mockRetryMessage).not.toHaveBeenCalled();
+    });
+
+    it('says to delete an image row whose files a reload took away', () => {
+        mockImageCanRetry = false;
+        mockMessages = [failedImageRow()];
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('retry-tmp-1'));
+
+        expect(mockImageRetry).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.cannotRetry' });
     });
 });

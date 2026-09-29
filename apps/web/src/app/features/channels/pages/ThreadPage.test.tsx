@@ -75,6 +75,21 @@ jest.mock('../components/ReactionChips', () => ({
 jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () => null }));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
+// The image send and the attach flow have their own tests; here only what the thread hands them.
+const mockAttachInputs: { disabled?: boolean }[] = [];
+const mockSendImagesInputs: { cid: string; channelId: string; parentId?: string }[] = [];
+jest.mock('../hooks/useSendImages', () => ({
+    useSendImages: (input: { cid: string; channelId: string; parentId?: string }) => {
+        mockSendImagesInputs.push(input);
+        return { sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() };
+    },
+}));
+jest.mock('../components/ChatImageAttach', () => ({
+    useChatImageAttach: (input: { disabled?: boolean }) => {
+        mockAttachInputs.push(input);
+        return { button: null, overlays: null };
+    },
+}));
 // The barrel is mocked to keep `@chatic/assets` out of jest; `profilePlaceOf` is a pure rule, so
 // the real one is used rather than a stub that could disagree with it.
 jest.mock('../lib', () => ({
@@ -337,6 +352,47 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         // `content` it is handed, so its JSON is the harness, not the app.
         expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
         expect(screen.getByText('503 upstream timeout')).toBeInTheDocument();
+    });
+});
+
+describe('ThreadPage — 사진 첨부', () => {
+    beforeEach(() => {
+        mockAttachInputs.length = 0;
+        mockSendImagesInputs.length = 0;
+    });
+
+    // Photos reply by the root's full id, like text. Without the root there is no id, and a send
+    // without one would land in the main feed instead of the thread.
+    it('locks attaching until the root is loaded', () => {
+        mockIsLoading = true;
+        mockChats = [];
+
+        render(<ThreadPage />);
+
+        expect(mockAttachInputs.at(-1)?.disabled).toBe(true);
+    });
+
+    it('sends photos as replies to the root once it is there', () => {
+        mockChats = [chat()];
+
+        render(<ThreadPage />);
+
+        expect(mockSendImagesInputs.at(-1)).toEqual({
+            cid: expect.any(String),
+            channelId: expect.any(String),
+            parentId: 'ch1:7',
+        });
+        expect(mockAttachInputs.at(-1)?.disabled).toBe(false);
+    });
+
+    // Same rule as a text reply: the root's cloud, not the channel's.
+    it("sends photos to the root's cloud", () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-b' })];
+
+        render(<ThreadPage />);
+
+        expect(mockSendImagesInputs.at(-1)?.cid).toBe('cloud-b');
     });
 });
 

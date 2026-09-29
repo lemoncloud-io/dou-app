@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { MessageInput } from '@chatic/web-ui-kit';
+import { ComposerAttachButton, MessageInput } from '@chatic/web-ui-kit';
 
 const meta: Meta<typeof MessageInput> = {
     title: 'web-ui-kit/foundations/MessageInput',
@@ -26,3 +26,18 @@ const Demo = ({ initial }: { initial: string }) => {
 
 export const Empty: Story = { render: () => <Demo initial="" /> };
 export const MaxHeight: Story = { render: () => <Demo initial={'입력창 Max Height 테스트 '.repeat(8)} /> };
+
+const WithAttachDemo = () => {
+    const [value, setValue] = useState('');
+    const [open, setOpen] = useState(false);
+    return (
+        <MessageInput
+            value={value}
+            onChange={setValue}
+            onSend={() => setValue('')}
+            leadingSlot={<ComposerAttachButton open={open} onClick={() => setOpen(v => !v)} />}
+        />
+    );
+};
+
+export const WithAttach: Story = { render: () => <WithAttachDemo /> };

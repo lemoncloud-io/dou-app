@@ -16,6 +16,8 @@ interface PendingImages {
     files: File[];
     /** One object URL per file — the pending row's previews. Revoked when the entry goes. */
     urls: string[];
+    /** Whether `urls` already point at the thumbnails rather than the picked originals. */
+    thumbnailed: boolean;
     inFlight: boolean;
     /** The screen that sent it has left; drop the entry as soon as its send settles. */
     detached: boolean;
@@ -40,6 +42,40 @@ const release = (pendingId: string) => {
 };
 
 const log = (message: string, data?: Record<string, unknown>) => logger.info('UPLOAD', message, data);
+
+/**
+ * Points a pending row's previews at the thumbnails the preparation just made.
+ *
+ * The row is written before anything is prepared, so it can only start from the picked originals —
+ * a phone photo is several megapixels, and the feed would decode ten of them for tiles a few hundred
+ * pixels wide. Once every image is prepared the row is rewritten ONCE, with a thumbnail preview for
+ * each image that has one (a GIF is not re-encoded and keeps its original). It runs before the upload
+ * starts, so it can never land after the row has been swapped for the server's.
+ */
+const switchToThumbnailPreviews = async (pendingId: string, thumbnails: (File | null)[]): Promise<void> => {
+    const entry = pendingImages.get(pendingId);
+    if (!entry || entry.thumbnailed || thumbnails.every(file => !file)) return;
+    const next = entry.urls.map((url, i) => {
+        const thumbnail = thumbnails[i];
+        return thumbnail ? URL.createObjectURL(thumbnail) : url;
+    });
+    const revokeNew = () => next.forEach((url, i) => url !== entry.urls[i] && URL.revokeObjectURL(url));
+    try {
+        await chatOf(entry.cid).createPendingImageChat({
+            channelId: entry.channelId,
+            ...(entry.parentId ? { parentId: entry.parentId } : {}),
+            localThumbUrls: next,
+            pendingId,
+        });
+    } catch {
+        // The row is gone (deleted meanwhile); keep what the entry had.
+        revokeNew();
+        return;
+    }
+    entry.urls.forEach((url, i) => url !== next[i] && URL.revokeObjectURL(url));
+    entry.urls = next;
+    entry.thumbnailed = true;
+};
 
 /**
  * The chat repository of the room's own cloud, never the selection's: an upload takes seconds, and a
@@ -77,8 +113,16 @@ export const useSendImages = ({ cid, channelId, parentId }: UseSendImagesInput) 
         const entry = pendingImages.get(pendingId);
         if (!entry) return;
         const result = await runtime.data.runInCloud(entry.cid, ({ chat: repository }) => {
+            // Collected as each image is prepared; when the last one is, the row switches to them.
+            const thumbnails: (File | null)[] = [];
             const ports: SendImagePorts = {
-                prepare: file => prepareImage(file, CHAT_ATTACHMENT),
+                prepare: async file => {
+                    const prepared = await prepareImage(file, CHAT_ATTACHMENT);
+                    thumbnails.push(prepared.thumbnail?.file ?? null);
+                    if (thumbnails.length === entry.files.length)
+                        {await switchToThumbnailPreviews(pendingId, thumbnails);}
+                    return prepared;
+                },
                 start: payload => repository.startUploads(payload),
                 complete: payload => repository.completeUploads(payload),
                 put: getShellPut(),
@@ -123,6 +167,7 @@ export const useSendImages = ({ cid, channelId, parentId }: UseSendImagesInput) 
                 parentId,
                 files,
                 urls,
+                thumbnailed: false,
                 inFlight: true,
                 detached: !attachedRef.current,
             });

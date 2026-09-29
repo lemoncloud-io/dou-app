@@ -85,3 +85,8 @@ export { IconDangerCircle, type IconDangerCircleProps } from './IconDangerCircle
 // want the outline look; the tier pills use these.
 export { IconBoltSolid, type IconBoltSolidProps } from './IconBoltSolid';
 export { IconStarsSolid, type IconStarsSolidProps } from './IconStarsSolid';
+// Chat attach-menu glyphs (Solar "Bold" set, exported from the attach sheet `3749:27536`): photos ·
+// camera · files. Each is 32px in the design and coloured by its tile, so they fill `currentColor`.
+export { IconGalleryWideSolid, type IconGalleryWideSolidProps } from './IconGalleryWideSolid';
+export { IconCameraSolid, type IconCameraSolidProps } from './IconCameraSolid';
+export { IconFileSolid, type IconFileSolidProps } from './IconFileSolid';

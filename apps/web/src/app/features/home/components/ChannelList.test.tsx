@@ -778,3 +778,41 @@ describe('ChannelList — room-open trace', () => {
         expect(roomOpenTrace.claim('g1')?.name).toBe('chat_room_open');
     });
 });
+
+// An image message has no text, so its preview would be a blank line — it reads as a photo count.
+describe('ChannelList — image message preview', () => {
+    const renderWith = (lastChat: any) => {
+        mockLastChat = lastChat;
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'p1', stereo: 'group', name: '사진방' })]}
+                joinByChannel={new Map()}
+                isLoading={false}
+            />
+        );
+    };
+    afterEach(() => {
+        mockLastChat = null;
+    });
+
+    it('previews a single photo as a photo', () => {
+        renderWith({ content: '', uploadIds: ['u1'], createdAtMs: 1 });
+        expect(screen.getByText('chat.attach.preview')).toBeInTheDocument();
+    });
+
+    it('counts several photos from the list head', () => {
+        renderWith({ content: '', uploadIds: ['u1', 'u2', 'u3'], createdAtMs: 1 });
+        expect(screen.getByText('chat.attach.previewCount')).toBeInTheDocument();
+    });
+
+    it('keeps the text when the message has some', () => {
+        renderWith({ content: '보냈어요', uploadIds: ['u1'], createdAtMs: 1 });
+        expect(screen.getByText('보냈어요')).toBeInTheDocument();
+        expect(screen.queryByText('chat.attach.preview')).not.toBeInTheDocument();
+    });
+
+    it('still says deleted for a deleted image message', () => {
+        renderWith({ content: '', uploadIds: ['u1'], hidden: true, createdAtMs: 1 });
+        expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
+    });
+});
