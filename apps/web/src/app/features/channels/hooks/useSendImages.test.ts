@@ -5,6 +5,8 @@ import type { DomainChat, SendImageResult } from '@chatic/data';
 
 import { useAppForeground } from '../../../bridge/useAppForeground';
 import { syncShellTransfers } from '../../../bridge/shellUpload';
+import { prepareImage } from '@chatic/shared';
+
 import { useSendImages } from './useSendImages';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -404,5 +406,118 @@ describe('useSendImages', () => {
             expect(syncShellTransfers).toHaveBeenCalledTimes(2);
             unmount();
         });
+    });
+});
+
+describe('useSendImages — previews while sending', () => {
+    const thumb = (name: string) => new File(['t'], `${name}-thumb.jpg`, { type: 'image/jpeg' });
+    const order: string[] = [];
+
+    // The mocked sequence calls the real prepare port the hook binds, then records where `start`
+    // would run — which is what the preview switch has to come before.
+    const runSequence = (result: SendImageResult = sent) =>
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                for (const file of picked) await ports.prepare(file);
+                order.push('start');
+                return result;
+            }
+        );
+
+    beforeEach(() => {
+        order.length = 0;
+        chat.createPendingImageChat.mockImplementation(async ({ pendingId }: { pendingId?: string }) => {
+            order.push(pendingId ? 'rewrite' : 'create');
+            return pendingId ?? `row-${++rowSeq}`;
+        });
+    });
+
+    // A phone photo is several megapixels; the feed must not decode ten of them for small tiles.
+    it('switches the row to the thumbnails once every image is prepared, before the upload starts', async () => {
+        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: { file: thumb(file.name) },
+        }));
+        runSequence();
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(order).toEqual(['create', 'rewrite', 'start']);
+        const [first, second] = chat.createPendingImageChat.mock.calls.map(call => call[0]);
+        expect(second.pendingId).toBeDefined();
+        expect(second.localThumbUrls).toHaveLength(2);
+        expect(second.localThumbUrls).not.toEqual(first.localThumbUrls);
+        // The original previews are let go once the thumbnails replace them.
+        expect(revoked).toEqual(expect.arrayContaining(first.localThumbUrls));
+        unmount();
+    });
+
+    it('keeps the original preview for an image that has no thumbnail', async () => {
+        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: file.name === 'a.jpg' ? { file: thumb('a') } : null,
+        }));
+        runSequence();
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        const [first, second] = chat.createPendingImageChat.mock.calls.map(call => call[0]);
+        expect(second.localThumbUrls[0]).not.toBe(first.localThumbUrls[0]);
+        expect(second.localThumbUrls[1]).toBe(first.localThumbUrls[1]);
+        unmount();
+    });
+
+    it('does not rewrite the row when no image has a thumbnail', async () => {
+        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({ original: { file }, thumbnail: null }));
+        runSequence();
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(order).toEqual(['create', 'start']);
+        unmount();
+    });
+
+    it('does not switch again on a retry, since the row already shows the thumbnails', async () => {
+        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: { file: thumb(file.name) },
+        }));
+        runSequence(failed);
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'c', channelId: 'ch-1' }));
+        await act(() => result.current.sendImages(files()));
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        order.length = 0;
+
+        runSequence(sent);
+        await act(async () => {
+            await result.current.retry(pendingId);
+        });
+
+        // The retry's own reset of the row, then straight to the upload — no second switch.
+        expect(order).toEqual(['rewrite', 'start']);
+        unmount();
+    });
+
+    it('lets the new previews go when the row was deleted before the switch', async () => {
+        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: { file: thumb(file.name) },
+        }));
+        runSequence();
+        chat.createPendingImageChat.mockImplementation(async ({ pendingId }: { pendingId?: string }) => {
+            if (pendingId) throw new Error('gone');
+            return `row-${++rowSeq}`;
+        });
+        const created = urlSeq;
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        // Two originals, then two thumbnails; the thumbnails were never shown and are revoked.
+        expect(revoked).toEqual(expect.arrayContaining([`blob:${created + 3}`, `blob:${created + 4}`]));
+        unmount();
     });
 });

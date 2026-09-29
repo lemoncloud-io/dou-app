@@ -35,8 +35,12 @@ whichever cloud is on screen by the time it ends.
    once the failure is written, and a retry claims the row before its first await, so a double tap
    runs once. A retry of a row deleted meanwhile answers `false` and lets the files go.
 
-The preview is the original file's object URL. The thumbnail does not exist yet when the row is
-written, and re-writing the row once it does would cost a cache write per image.
+The row starts from the original files' object URLs: the thumbnails do not exist yet when it is
+written, and holding the row back until they do would break "the pick is the send". Once every image
+is prepared — before the upload starts — the row is rewritten **once**, with a thumbnail preview for
+each image that has one (a GIF keeps its original). One cache write per message, not per image, and
+the feed stops decoding full-size photos for small tiles. A retry keeps the thumbnails it already has.
+While a message is still on its way its viewer shows that preview, not the original.
 
 ## Which PUT
 
