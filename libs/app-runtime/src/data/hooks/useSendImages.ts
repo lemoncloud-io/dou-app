@@ -157,8 +157,9 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
                 prepare: async file => {
                     const prepared = await prepareImage(file, CHAT_ATTACHMENT);
                     thumbnails.push(prepared.thumbnail?.file ?? null);
-                    if (thumbnails.length === entry.files.length)
+                    if (thumbnails.length === entry.files.length) {
                         await switchToThumbnailPreviews(pendingId, thumbnails);
+                    }
                     return prepared;
                 },
                 start: payload => repository.startUploads(payload),
