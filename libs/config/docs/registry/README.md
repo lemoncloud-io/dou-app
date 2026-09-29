@@ -112,8 +112,8 @@ lists keys is copyable.
 
 | Axis            | Counts                                                                                                                      |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `writableBy`    | `['local','server']` 32 · `[]` 21 · `['local']` 17 · `['shell','local']` 9 · `['shell']` 6 · `['shell','local','server']` 1 |
-| `persist`       | `session` 41 · `none` 25 · `local` 11 · `shell` 9                                                                           |
+| `writableBy`    | `['local','server']` 32 · `[]` 21 · `['local']` 18 · `['shell','local']` 8 · `['shell']` 6 · `['shell','local','server']` 1 |
+| `persist`       | `session` 41 · `none` 25 · `local` 12 · `shell` 8                                                                           |
 | `appliesAt`     | absent 54 · `live` 24 · `restart` 5 · `reconnect` 3                                                                         |
 | Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 17                                                                      |
 | Server-writable | 33 of 86                                                                                                                    |
@@ -131,9 +131,7 @@ Two more keys are writable in principle and have no writer in practice. `net.rel
 `net.relay.wss` are `writableBy: ['local']`, and the only code that touches them is the logout path,
 which **clears** them. The `?_backend` query parameter that shares their purpose is consumed by the
 invite flow and never lands in the registry, so today the debug panel is the only thing that can set
-either. `ui.language` is the third of this kind: declared `surface: 'user'`, and its one appearance
-outside the registry is the legacy shell-key map — i18next manages the language under a key of its
-own.
+either.
 
 ### The enforced invariants
 

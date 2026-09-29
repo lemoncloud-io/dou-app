@@ -10,7 +10,7 @@ import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit'
 import { runtime } from '@chatic/app-runtime';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
-import { useAppIcon } from '../hooks';
+import { useAppIcon, useLanguagePreference } from '../hooks';
 import { useOnboarding, useTheme } from '../../../hooks';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { PageHeader } from '../../../ui/components';
@@ -24,7 +24,7 @@ const Chevron = () => <IconChevronRight className="size-[18px] text-description"
  */
 export const SettingsPage = () => {
     const navigate = useNavigateWithTransition();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { isGuest } = runtime.session.useRuntimeProfile();
 
     const { setTheme, isDarkTheme } = useTheme();
@@ -43,7 +43,8 @@ export const SettingsPage = () => {
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
 
-    const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
+    const { preference: languagePreference } = useLanguagePreference();
+    const currentLanguageLabel = t(`mypage.language.${languagePreference}`);
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
     // iOS only: Android has no live-version source yet (see ADR-0033), so a status label there would

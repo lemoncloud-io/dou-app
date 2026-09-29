@@ -15,8 +15,8 @@ interface ManagedKey {
     decode: (value: unknown) => unknown;
 }
 
-// Only these three ever had a native-bridge-backed answer worth fetching — `language` is owned by
-// i18next, and every other `ui.*`/`debug.*` key is either `local`-only (nothing for native to
+// Only these three ever had a native-bridge-backed answer worth fetching — `ui.language` is
+// `local`-only (the shell derives its own language from the device), and every other `ui.*`/`debug.*` key is either `local`-only (nothing for native to
 // answer) or has no legacy bridge counterpart at all (see legacyPreferenceMigration.ts).
 const MANAGED_KEYS: readonly ManagedKey[] = [
     {

@@ -243,7 +243,7 @@ that mirror, so the mirror is invisible; in a browser it is the only copy.
 
 `SaveConfigValue` is answered with `NOT_FOUND` by an app that predates it. The web ships before the
 app, so this is routine rather than exceptional. `apps/web`'s shell adapter learns the answer once
-per session and downgrades to the legacy `SavePreference` bridge — but only for the four keys that
+per session and downgrades to the legacy `SavePreference` bridge — but only for the three keys that
 have a legacy equivalent. A key with nothing to fall back to reaches `onShellWriteFailed`, which is
 the honest outcome.
 

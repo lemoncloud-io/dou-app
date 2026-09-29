@@ -12,7 +12,7 @@ floating nav, safe areas, keyboard insets — belongs to
 
 ## Layout
 
-Fourteen pages, six components, five hooks, and `flags.ts` — one boolean waiting on a backend packet.
+Fourteen pages, six components, six hooks, and `flags.ts` — one boolean waiting on a backend packet.
 The route table declares fifteen routes: the fourteen pages here plus feedback's, whose screen lives
 in another feature.
 
@@ -110,6 +110,17 @@ both of whom are sitting on the default home, not inside a cloud.
 Invited clouds are absent from that catalog on purpose. You cannot release someone else's cloud, so
 being a member of one must not summon the row.
 
+### Language defaults to the device, and only a choice is remembered
+
+The language sheet lists **Device language** first, then `한국어` and `English`, and ticks the stored
+choice (`ui.language`, default `system`) — not `i18n.language`. With `system` the two differ in
+meaning even when they show the same language, and the tick has to say which one the person picked.
+`useLanguagePreference` writes the choice and switches the screen at once; the row's trailing label
+reads `mypage.language.<choice>`.
+
+How `system` becomes a language, and why the choice is `persist: 'local'` when the other user
+preferences go to the shell, is in [state/stores.md](../../state/stores.md#the-language-choice--uilanguage).
+
 ### The unlock moved off the version row
 
 Tapping the app version ten times used to open the debug gate, which meant one row had to be both a
@@ -139,7 +150,7 @@ The feature exports its route table, which the router mounts under `/mypage/*`. 
 through hooks and never touch a core object: `useIsAccountGuest` for the hub's branch, `useMyUser`
 for the account profile, `useMembershipInfo` for the subscription row, `useCloudSessionCatalog` /
 `useClouds` for owned clouds, `runtime.session.useSessionSelection` and `useRuntimeProfile` for the
-session, and `useDevicePushMute` for the mute toggle.
+session, `useDevicePushMute` for the mute toggle, and `useLanguagePreference` for the language sheet.
 
 ### What not to do
 
@@ -156,9 +167,9 @@ session, and `useDevicePushMute` for the mute toggle.
 
 ## Notes for implementers and tests
 
-- **Seven specs cover this feature**, and they cover the hooks rather than the screens: `useAppIcon`,
-  `useDevicePushMute`, `useSocialLinks`, `useUpdateProfile`, plus `AccountLinkSection`,
-  `CloudManagePage` and `LoginPage`. The pages themselves are checked in the browser preview.
+- **Eight specs cover this feature**, and they cover the hooks rather than the screens: `useAppIcon`,
+  `useDevicePushMute`, `useLanguagePreference`, `useSocialLinks`, `useUpdateProfile`, plus
+  `AccountLinkSection`, `CloudManagePage` and `LoginPage`. The pages themselves are checked in the browser preview.
 
     ```bash
     npx jest --config apps/web/jest.config.js features/mypage

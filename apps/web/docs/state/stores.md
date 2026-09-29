@@ -66,6 +66,7 @@ this folder — because desktop-web needs to read the exact same record apps/web
 | `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)                |
 | `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)            |
 | `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)                      |
+| `ui.language`               | — (the legacy field was never used)   | `useLanguagePreference` (`features/mypage/hooks`)            |
 
 Every hook reads with `useConfigValue('ui.x')` (`@chatic/config/react`) and writes with
 `config.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The
@@ -130,15 +131,43 @@ this fallback.
 in that fallback path — the two fields have opposite polarity. The theme value can arrive in the
 mobile zustand-persist JSON envelope, which `parseThemeBridgeValue` normalizes.
 
+## The language choice — `ui.language`
+
+Settings' language sheet writes `ui.language` with `{ lane: 'local' }` through `useLanguagePreference`
+(`features/mypage/hooks/`), which also calls `i18n.changeLanguage` so the screen follows at once.
+
+It is the one user preference that is `persist: 'local'` rather than `'shell'`, and the reason is
+timing. `src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx`
+has run `config.init()` — so it cannot ask `config.get`. It reads the key's persisted value straight
+out of localStorage (`readStoredLanguagePreference`), and a single local key is the only place that
+read has to look. Nothing native reads the choice: the shell works out its own language from the
+device.
+
+`system` is resolved on every boot, from the device languages in order — the shell's injected
+`CHATIC_APP_CURRENT_LANGUAGE` first, then `navigator.languages`. The shell's value has to come first
+because inside the iOS WebView `navigator.language` is the app bundle's localization, which is
+English only, not the device's. Nothing supported → `en`.
+
+This replaced i18next-browser-languagedetector, which wrote the language in effect into
+`@${PROJECT}_${ENV}.i18nextLng` — the first-launch guess, and every change the old sheet made — and
+read that back first ever after. The device setting was looked at once, and on iOS it answered
+English for everyone. That stored value is not carried over: a guess and a choice sit in the same key
+and cannot be told apart, and on iOS the stored `en` is the bug itself. **Every existing install
+starts on `system`, and someone who had picked a language other than the device's picks it once
+more.** The decision and its alternatives are ADR-0136.
+
+The key is still written with the language in effect, because `relaySession` points lemon-web-core's
+`x-lemon-language` header at `i18nextLng`. The SDK reads that name under its own prefix and storage
+(`@<project>.i18nextLng`), which matches this key only in a native local build — so in deployed builds
+the header is not sent, which was already true before the change.
+
 ## Out of scope (deliberately)
 
 - **`debugSettings`** (`chatic_debug_mode`) — a dead declaration even under `usePreferenceStore`:
   the URL-toggle feature it backed was removed (ADR-0080 decision 13). Never became a config key.
-- **`language`** — nothing in the repo reads or writes `chatic-language`. The actual UI language is
-  owned end-to-end by i18next's `LanguageDetector`, under its own separate key
-  (`@${PROJECT}_${ENV}.i18nextLng`). A `ui.language` registry key is declared in
-  `libs/config/src/registry/ui.ts` but has no consumer yet — folding i18next into `@chatic/config`
-  is a separate, larger piece of work.
+- **`language`** — nothing in the repo reads or writes `chatic-language`, so there was nothing to
+  carry over. The language choice is `ui.language` now (`system` · `ko` · `en`, default `system`),
+  but it did not come through this store — see [above](#the-language-choice--uilanguage).
 - **Mobile's `debugSettingsStore`** (`mockServiceMode`, `overlay*`, …) — apps/web has no screen that
   would use it, so it was never integrated. `logUploadHold`/`debugModeEnabled` already work through
   their own dedicated bridge messages, independent of this store.

@@ -210,6 +210,7 @@
         "updateAvailable": "업데이트 필요",
         "upToDate": "최신 버전",
         "language": {
+            "system": "기기 언어",
             "ko": "한국어",
             "en": "English",
             "select": "언어 선택"

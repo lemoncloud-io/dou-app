@@ -4,22 +4,29 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-kit/components/ui/sheet';
 
+import type { LanguagePreference } from '../../../../i18n/languagePreference';
+import { useLanguagePreference } from '../hooks/useLanguagePreference';
+
 interface LanguageSelectSheetProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-const languages = [
-    { code: 'ko', label: '한국어' },
-    { code: 'en', label: 'English' },
-] as const;
+// A language names itself in its own script, so it can be found whatever the screen is showing now.
+// `system` is the one row that has to be translated.
+const LANGUAGE_LABELS: Record<Exclude<LanguagePreference, 'system'>, string> = {
+    ko: '한국어',
+    en: 'English',
+};
+
+const OPTIONS: readonly LanguagePreference[] = ['system', 'ko', 'en'];
 
 export const LanguageSelectSheet = ({ isOpen, onClose }: LanguageSelectSheetProps) => {
-    const { i18n, t } = useTranslation();
-    const currentLanguage = i18n.language;
+    const { t } = useTranslation();
+    const { preference, setPreference } = useLanguagePreference();
 
-    const handleLanguageChange = (langCode: string) => {
-        i18n.changeLanguage(langCode);
+    const handleLanguageChange = (next: LanguagePreference) => {
+        setPreference(next);
         onClose();
     };
 
@@ -36,17 +43,19 @@ export const LanguageSelectSheet = ({ isOpen, onClose }: LanguageSelectSheetProp
                 </div>
                 <SheetDescription className="sr-only">{t('mypage.language.select')}</SheetDescription>
                 <div className="px-5 py-2">
-                    {languages.map(lang => (
+                    {OPTIONS.map(option => (
                         <button
-                            key={lang.code}
-                            onClick={() => handleLanguageChange(lang.code)}
+                            key={option}
+                            onClick={() => handleLanguageChange(option)}
                             className={cn(
                                 'flex w-full items-center justify-between rounded-lg px-3 py-4 transition-colors',
-                                currentLanguage === lang.code ? 'bg-accent/10' : 'active:bg-muted'
+                                preference === option ? 'bg-accent/10' : 'active:bg-muted'
                             )}
                         >
-                            <span className="text-[15px] text-foreground">{lang.label}</span>
-                            {currentLanguage === lang.code && <Check size={20} className="text-primary" />}
+                            <span className="text-[15px] text-foreground">
+                                {option === 'system' ? t('mypage.language.system') : LANGUAGE_LABELS[option]}
+                            </span>
+                            {preference === option && <Check size={20} className="text-primary" />}
                         </button>
                     ))}
                 </div>

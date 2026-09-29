@@ -1,12 +1,19 @@
 import { initReactI18next } from 'react-i18next';
 
 import i18n from 'i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
 import ChainedBackend from 'i18next-chained-backend';
 import LocalStorageBackend from 'i18next-localstorage-backend';
 import Backend from 'i18next-xhr-backend';
 
 import { logger } from '@chatic/bridges';
+
+import {
+    FALLBACK_LANGUAGE,
+    SUPPORTED_LANGUAGES,
+    deviceLanguageCandidates,
+    readStoredLanguagePreference,
+    resolveLanguage,
+} from './languagePreference';
 
 // This module runs at IMPORT time (`i18n.use(...).init(...)` below is a top-level call), which
 // happens before `main.tsx`'s own body — including its `config.init(...)` — ever executes: ES
@@ -18,8 +25,15 @@ import { logger } from '@chatic/bridges';
 // `import.meta` holder these used to come through, `@chatic/web-config`).
 const PROJECT = (import.meta.env.VITE_PROJECT || '').toLowerCase();
 const ENV = (import.meta.env.VITE_ENV || '').toLowerCase();
-/** i18next's own localStorage key name — not a setting, just where it keeps the language. */
+/**
+ * Where the language in effect is written — not the setting (that is `ui.language`). The name is the
+ * one i18next's detector used, kept because `relaySession` points lemon-web-core's
+ * `x-lemon-language` header at `i18nextLng`. The SDK reads that name under its own prefix and in its
+ * own storage, which matches this key only in a native local build, so in a deployed build the header
+ * is not sent — as it was not before. Keeping the write keeps that behaviour unchanged.
+ */
 const LANGUAGE_KEY = 'i18nextLng';
+const LANGUAGE_STORAGE_KEY = `@${PROJECT}_${ENV}.${LANGUAGE_KEY}`;
 
 const I18N_VERSION = process.env.I18N_VERSION || 'fallback';
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -41,16 +55,33 @@ if (!isDevelopment) {
     }
 }
 
+// The language is resolved here rather than by i18next-browser-languagedetector. The detector read
+// the key above first and wrote whatever it detected back into it, so the language a device happened
+// to report on first launch was kept forever and the device setting was never looked at again — and on
+// iOS that first report was English for everyone (see `deviceLanguageCandidates`). Only an explicit
+// choice in Settings is remembered now; `system` is resolved from the device on every boot.
+const safeLocalStorage = (): Storage | undefined => {
+    try {
+        return typeof localStorage === 'undefined' ? undefined : localStorage;
+    } catch {
+        return undefined;
+    }
+};
+
+i18n.on('languageChanged', language => {
+    try {
+        safeLocalStorage()?.setItem(LANGUAGE_STORAGE_KEY, language);
+    } catch {
+        // Best-effort — only the request header reads it, and it is rewritten on the next change.
+    }
+});
+
 i18n.use(ChainedBackend)
-    .use(
-        new LanguageDetector(null, {
-            lookupLocalStorage: `@${PROJECT}_${ENV}.${LANGUAGE_KEY}`,
-        })
-    )
     .use(initReactI18next)
     .init({
-        fallbackLng: 'en',
-        supportedLngs: ['ko', 'en'],
+        lng: resolveLanguage(readStoredLanguagePreference(safeLocalStorage()), deviceLanguageCandidates()),
+        fallbackLng: FALLBACK_LANGUAGE,
+        supportedLngs: [...SUPPORTED_LANGUAGES],
         interpolation: {
             escapeValue: false,
         },

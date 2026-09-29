@@ -175,7 +175,7 @@ gate is why no screen ever sees a half-built session.
 apps/web/src/
 ├── main.tsx            boot, ordered by contract (see principle 7)
 ├── styles.css          Tailwind entry
-├── i18n/               locale resources
+├── i18n/               locale loading and boot language resolution
 ├── assets/             app-local static files
 ├── types/              ambient declarations
 └── app/
