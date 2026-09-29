@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-29] - root@0.72.2, @chatic/desktop-web@0.16.1
+
+### Bug Fixes
+
+- (desktop-web) load full pretendard files, not the unicode subset
+
 ## [2026-09-29] - No version updates
 
 ### Features
