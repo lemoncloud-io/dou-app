@@ -42,7 +42,7 @@ export const InviteCreateDialog = ({ channelId, onClose }: Props) => {
             const cid = activeServer.kind === 'cloud' ? activeServer.cloudId : (cloud.cloudId ?? '');
             const code = link.code ?? invite.code ?? '';
             if (!code) {
-                throw new Error('초대 코드를 만들지 못했습니다 (Location/code 없음).');
+                throw new Error("Couldn't create the invite code (no Location/code).");
             }
             const bundle = encodeInvite({
                 code,
@@ -78,7 +78,7 @@ export const InviteCreateDialog = ({ channelId, onClose }: Props) => {
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">초대 만들기</span>
+                    <span className="font-semibold text-sm">Create invite</span>
                     <button
                         onClick={onClose}
                         className="text-muted-foreground hover:text-foreground text-lg leading-none"
@@ -89,17 +89,17 @@ export const InviteCreateDialog = ({ channelId, onClose }: Props) => {
 
                 {!code ? (
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground font-mono truncate">채널: {channelId}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">Channel: {channelId}</p>
                         <input
                             value={name}
                             onChange={e => setName(e.target.value)}
-                            placeholder="이름"
+                            placeholder="Name"
                             className={inputClass}
                         />
                         <input
                             value={phone}
                             onChange={e => setPhone(e.target.value)}
-                            placeholder="전화번호"
+                            placeholder="Phone number"
                             className={inputClass}
                         />
                         {error && <p className="text-xs text-destructive">{error}</p>}
@@ -108,13 +108,13 @@ export const InviteCreateDialog = ({ channelId, onClose }: Props) => {
                             disabled={creating || !name.trim() || !phone.trim()}
                             className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                         >
-                            {creating ? '생성 중...' : '초대 코드 생성'}
+                            {creating ? 'Creating...' : 'Generate invite code'}
                         </button>
                     </div>
                 ) : (
                     <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">
-                            아래 코드를 복사해 상대에게 전달하세요 (수락: /invite).
+                            Copy the code below and send it to the other person (accept at /invite).
                         </p>
                         <textarea
                             readOnly
@@ -127,13 +127,13 @@ export const InviteCreateDialog = ({ channelId, onClose }: Props) => {
                                 onClick={() => void handleCopy()}
                                 className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground hover:opacity-80"
                             >
-                                {copied ? '복사됨 ✓' : '복사'}
+                                {copied ? 'Copied ✓' : 'Copy'}
                             </button>
                             <button
                                 onClick={onClose}
                                 className="px-3 py-1.5 text-sm rounded border border-border text-muted-foreground hover:text-foreground"
                             >
-                                닫기
+                                Close
                             </button>
                         </div>
                     </div>

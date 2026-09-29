@@ -53,7 +53,7 @@ export const OAuthResponsePage = () => {
 
     return (
         <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-            로그인 처리 중...
+            Signing you in...
         </div>
     );
 };

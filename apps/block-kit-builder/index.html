@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
     <head>
         <meta charset="utf-8" />
-        <title>DoU Block Kit Builder — 블록킷 메시지 payload 작성·미리보기</title>
+        <title>DoU Block Kit Builder — compose and preview Block Kit message payloads</title>
         <base href="/" />
 
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#ffffff" />
         <meta
             name="description"
-            content="DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 바로 복사한다. header·section·divider·context 네 블록을 지원한다."
+            content="Build a Block Kit message to send to a DoU channel, preview it with the same renderer as the real message, and copy the payload JSON directly. Supports four blocks: header, section, divider, and context."
         />
         <meta name="robots" content="index, follow" />
         <!-- Absolute and self-referential on purpose. The distribution answers 403/404
@@ -24,21 +24,21 @@
         <meta property="og:title" content="DoU Block Kit Builder" />
         <meta
             property="og:description"
-            content="DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 바로 복사한다."
+            content="Build a Block Kit message to send to a DoU channel, preview it with the same renderer as the real message, and copy the payload JSON directly."
         />
         <meta property="og:image" content="https://block-kit.chatic.io/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://block-kit.chatic.io/" />
         <meta property="og:site_name" content="DoU" />
-        <meta property="og:locale" content="ko_KR" />
+        <meta property="og:locale" content="en_US" />
 
         <!-- Twitter Card -->
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="DoU Block Kit Builder" />
         <meta
             name="twitter:description"
-            content="DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 바로 복사한다."
+            content="Build a Block Kit message to send to a DoU channel, preview it with the same renderer as the real message, and copy the payload JSON directly."
         />
         <meta name="twitter:image" content="https://block-kit.chatic.io/og-image.png" />
 
@@ -62,13 +62,13 @@
                         "applicationCategory": "DeveloperApplication",
                         "operatingSystem": "Web",
                         "browserRequirements": "Requires JavaScript",
-                        "inLanguage": "ko",
-                        "description": "DoU 채널로 보낼 Block Kit 메시지를 만들고, 실제 메시지와 같은 렌더러로 미리 보고, payload JSON을 복사하는 도구. header·section·divider·context 네 블록을 지원한다.",
+                        "inLanguage": "en",
+                        "description": "A tool that builds a Block Kit message to send to a DoU channel, previews it with the same renderer as the real message, and copies the payload JSON. Supports four blocks: header, section, divider, and context.",
                         "featureList": [
-                            "블록을 쌓아 메시지를 구성하고 드래그로 순서를 바꾼다",
-                            "실제 DoU 메시지와 같은 렌더러로 미리 본다",
-                            "payload JSON을 양방향으로 편집하고 복사한다",
-                            "오류·근태·배포 템플릿에서 시작한다"
+                            "Stack blocks to compose a message and reorder them by dragging",
+                            "Preview with the same renderer as a real DoU message",
+                            "Edit and copy the payload JSON in both directions",
+                            "Start from an error, attendance, or deployment template"
                         ],
                         "publisher": { "@id": "https://chatic.io/#org" }
                     },
@@ -103,33 +103,37 @@
             <main style="margin: 0 auto; max-width: 42rem; padding: 3rem 1.5rem; line-height: 1.7">
                 <h1>DoU Block Kit Builder</h1>
                 <p>
-                    DoU 채널로 보낼 <strong>Block Kit 메시지</strong>를 만드는 도구입니다. 에러 리포트나 배포 알림처럼
-                    구조가 있는 메시지를 평문 한 덩어리가 아니라 제목·구분선·필드 표로 보내려면, 발신 측이 이 payload를
-                    만들어 보냅니다.
+                    A tool for building a <strong>Block Kit message</strong> to send to a DoU channel. When a structured
+                    message — an error report or a deployment notice — needs a title, a divider, and a field table
+                    instead of one plain-text blob, the sender builds this payload and sends it.
                 </p>
-                <p>화면은 세 칸입니다.</p>
+                <p>The screen has three panes.</p>
                 <ul>
                     <li>
-                        <strong>Compose</strong> — 템플릿에서 시작하거나 블록을 하나씩 쌓고, 드래그로 순서를 바꿉니다.
+                        <strong>Compose</strong> — start from a template or stack blocks one at a time, and reorder them
+                        by dragging.
                     </li>
                     <li>
-                        <strong>Message</strong> — 실제 DoU 메시지와 <em>같은 렌더러</em>로 그립니다. 미리보기가 실물과
-                        어긋나지 않는 이유입니다.
+                        <strong>Message</strong> — rendered with the <em>same renderer</em> as a real DoU message.
+                        That's why the preview never drifts from the real thing.
                     </li>
-                    <li><strong>Payload</strong> — 그 블록이 컴파일된 JSON. 양방향으로 편집하고 복사합니다.</li>
+                    <li>
+                        <strong>Payload</strong> — the JSON those blocks compile to. Edit and copy it in either
+                        direction.
+                    </li>
                 </ul>
                 <p>
-                    지원 블록은 넷입니다 — <code>header</code>(제목) · <code>section</code>(문단과 2열 필드) ·
-                    <code>divider</code>(구분선) · <code>context</code>(작은 회색 한 줄). 텍스트는 Slack mrkdwn 문법을
-                    씁니다: <code>*굵게*</code>, <code>_기울임_</code>, <code>`코드`</code>,
-                    <code>&lt;url|라벨&gt;</code>. 그 밖의 블록을 보내도 깨지지 않고, 그 자리에 원문 JSON이 라벨과 함께
-                    표시됩니다.
+                    Four blocks are supported — <code>header</code> (title) · <code>section</code> (a paragraph and
+                    two-column fields) · <code>divider</code> (a dividing line) · <code>context</code> (a small gray
+                    line). Text uses Slack mrkdwn syntax: <code>*bold*</code>, <code>_italic_</code>,
+                    <code>`code`</code>, <code>&lt;url|label&gt;</code>. Any other block still renders without breaking
+                    — its raw JSON is shown in place, along with its label.
                 </p>
-                <p>템플릿 세 종으로 시작할 수 있습니다: 오류(Error) · 근태(Attendance) · 배포(Deployment).</p>
+                <p>You can start from three templates: Error · Attendance · Deployment.</p>
                 <noscript>
                     <p>
-                        <strong>편집기를 쓰려면 JavaScript가 필요합니다.</strong> 이 페이지의 설명은 도구 없이도 읽을 수
-                        있도록 그대로 두었습니다.
+                        <strong>The editor needs JavaScript to run.</strong> This page's description was left as plain
+                        text so it can still be read without the tool.
                     </p>
                 </noscript>
             </main>

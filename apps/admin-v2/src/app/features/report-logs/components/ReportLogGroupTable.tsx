@@ -23,7 +23,7 @@ interface ReportLogGroupTableProps {
 
 export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTableProps) => {
     if (groups.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">집계할 로그가 없습니다.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No logs to aggregate.</p>;
     }
 
     const maxCount = groups[0]?.count ?? 1;
@@ -32,11 +32,11 @@ export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTablePro
         <Table>
             <TableHeader>
                 <TableRow className="text-xs uppercase tracking-wide text-muted-foreground">
-                    <TableHead className="w-40">건수</TableHead>
+                    <TableHead className="w-40">Count</TableHead>
                     <TableHead className="w-24">Type</TableHead>
-                    <TableHead>메시지</TableHead>
+                    <TableHead>Message</TableHead>
                     <TableHead className="w-32">App</TableHead>
-                    <TableHead className="w-40">최근 발생</TableHead>
+                    <TableHead className="w-40">Last occurred</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>

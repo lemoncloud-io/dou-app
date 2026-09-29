@@ -182,7 +182,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                             e.stopPropagation();
                                             wl.removeUser(u.id);
                                         }}
-                                        title="관측 해제"
+                                        title="Stop observing"
                                         style={{
                                             appearance: 'none',
                                             background: 'none',
@@ -209,9 +209,11 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                 lineHeight: 1.6,
                             }}
                         >
-                            관측할 유저를 추가하세요
+                            Add a user to observe
                             <br />
-                            <span style={{ color: 'var(--sm-text-8)', fontSize: 11 }}>아래 + 추가 버튼을 누르세요</span>
+                            <span style={{ color: 'var(--sm-text-8)', fontSize: 11 }}>
+                                Press the + Add button below
+                            </span>
                         </div>
                     )}
                 </div>
@@ -232,7 +234,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             color: ACCENT,
                         }}
                     >
-                        + 관측 유저 추가
+                        + Add observed user
                     </button>
                 </div>
             </div>
@@ -312,8 +314,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                     {selected ? (
                         <button
                             onClick={wl.reloadDevices}
-                            title="디바이스 목록 새로고침"
-                            aria-label="디바이스 목록 새로고침"
+                            title="Refresh device list"
+                            aria-label="Refresh device list"
                             style={{
                                 appearance: 'none',
                                 background: 'var(--sm-panel-2)',
@@ -378,7 +380,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                             onClick={() =>
                                                 setSendTarget({ stage: wl.stage, user: selected, device: d })
                                             }
-                                            title="클릭하여 unicast 전송 패널 열기"
+                                            title="Click to open the unicast send panel"
                                             style={{
                                                 padding: '14px 16px',
                                                 borderBottom: '1px solid var(--sm-raised-2)',
@@ -453,8 +455,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                         setDeleteError(null);
                                                         setDeleteTarget(d);
                                                     }}
-                                                    title="디바이스 삭제"
-                                                    aria-label="디바이스 삭제"
+                                                    title="Delete device"
+                                                    aria-label="Delete device"
                                                     style={{
                                                         appearance: 'none',
                                                         background: 'none',
@@ -498,7 +500,9 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                             textOverflow: 'ellipsis',
                                                         }}
                                                     >
-                                                        {d.viewing ? `채널 ${d.viewing} 보는 중` : '보는 채널 없음'}
+                                                        {d.viewing
+                                                            ? `Watching channel ${d.viewing}`
+                                                            : 'Not watching a channel'}
                                                     </span>
                                                 </span>
                                                 {d.viewing && d.viewingFor != null ? (
@@ -510,7 +514,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                             flexShrink: 0,
                                                         }}
                                                     >
-                                                        체류 {dur(d.viewingFor)}
+                                                        dwell {dur(d.viewingFor)}
                                                     </span>
                                                 ) : null}
                                             </div>
@@ -537,7 +541,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                     fontSize: 12,
                                 }}
                             >
-                                이 유저의 디바이스 없음
+                                No devices for this user
                             </div>
                         )}
                     </div>
@@ -552,7 +556,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             fontSize: 12,
                         }}
                     >
-                        좌측에서 관측 유저를 선택하세요
+                        Select an observed user on the left
                     </div>
                 )}
             </div>
@@ -596,10 +600,11 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             gap: 14,
                         }}
                     >
-                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sm-text)' }}>디바이스 삭제</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sm-text)' }}>Delete device</span>
                         <span style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--sm-text-3)' }}>
-                            <span style={{ fontFamily: "'Geist Mono',monospace" }}>{deleteTarget.name}</span> 디바이스를
-                            이 유저에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+                            Removes device{' '}
+                            <span style={{ fontFamily: "'Geist Mono',monospace" }}>{deleteTarget.name}</span> from this
+                            user. This action cannot be undone.
                         </span>
                         {deleteError ? <span style={{ fontSize: 12, color: '#e5484d' }}>{deleteError}</span> : null}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -619,7 +624,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                     color: 'var(--sm-text-3)',
                                 }}
                             >
-                                취소
+                                Cancel
                             </button>
                             <button
                                 onClick={() => {
@@ -645,7 +650,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                     opacity: deleting ? 0.6 : 1,
                                 }}
                             >
-                                {deleting ? '삭제 중…' : '삭제'}
+                                {deleting ? 'Deleting…' : 'Delete'}
                             </button>
                         </div>
                     </div>

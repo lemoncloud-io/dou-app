@@ -30,17 +30,17 @@ export const InvitePage = () => {
         setError(null);
         const payload = decodeInvite(text);
         if (!payload) {
-            setError('초대 코드가 올바르지 않습니다.');
+            setError('The invite code is invalid.');
             return;
         }
         if (!delegatorId) {
-            setError('게스트 로그인 후 수락할 수 있습니다. (로그인 페이지에서 게스트로 입장하세요)');
+            setError('You can accept only after a guest login. (Enter as a guest on the login page)');
             return;
         }
 
         setAccepting(true);
         try {
-            setStatus('초대 수락 중...');
+            setStatus('Accepting invite...');
             const data = (await runtime.session.registerUserWithInviteCode(
                 payload.code,
                 delegatorId,
@@ -64,7 +64,7 @@ export const InvitePage = () => {
                 });
             }
 
-            setStatus('초대 수락 완료 — 홈에서 초대 클라우드를 선택해 입장하세요.');
+            setStatus('Invite accepted — select the invited cloud on the home screen to enter.');
             setDone(true);
         } catch (e: any) {
             setStatus(null);
@@ -78,20 +78,20 @@ export const InvitePage = () => {
         <div className="min-h-dvh flex items-center justify-center p-4">
             <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">초대 수락</span>
+                    <span className="font-semibold text-sm">Accept invite</span>
                     <button
                         onClick={() => navigate('/chat')}
                         className="text-muted-foreground hover:text-foreground text-xs"
                     >
-                        채팅으로
+                        To chat
                     </button>
                 </div>
 
-                <p className="text-xs text-muted-foreground">전달받은 초대 코드를 붙여넣고 수락하세요.</p>
+                <p className="text-xs text-muted-foreground">Paste the invite code you received and accept it.</p>
                 <textarea
                     value={text}
                     onChange={e => setText(e.target.value)}
-                    placeholder="초대 코드 붙여넣기"
+                    placeholder="Paste invite code"
                     className="w-full h-28 border border-border bg-background rounded p-2 text-[10px] font-mono break-all focus:outline-none focus:ring-1 focus:ring-primary"
                 />
 
@@ -103,7 +103,7 @@ export const InvitePage = () => {
                         onClick={() => navigate('/chat')}
                         className="w-full px-3 py-2 text-sm rounded bg-primary text-primary-foreground hover:opacity-80"
                     >
-                        홈으로 가기
+                        Go home
                     </button>
                 ) : (
                     <button
@@ -111,7 +111,7 @@ export const InvitePage = () => {
                         disabled={accepting || !text.trim()}
                         className="w-full px-3 py-2 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                     >
-                        {accepting ? '수락 처리 중...' : '초대 수락'}
+                        {accepting ? 'Accepting...' : 'Accept invite'}
                     </button>
                 )}
             </div>

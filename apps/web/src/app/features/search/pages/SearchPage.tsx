@@ -151,8 +151,8 @@ export const SearchPage = () => {
                 <SearchInput
                     value={query}
                     onChange={setQuery}
-                    placeholder={t('search.placeholder', '방 이름, 플레이스명으로 검색')}
-                    label={t('search.placeholder', '방 이름, 플레이스명으로 검색')}
+                    placeholder={t('search.placeholder')}
+                    label={t('search.placeholder')}
                     autoFocus
                     onKeyDown={event => {
                         if (event.key === 'Enter') submit(query);
@@ -163,12 +163,7 @@ export const SearchPage = () => {
             {/* The scan covers one cloud (ADR-0088 decision 2), so say so up front rather than letting
                 a missing result look like missing data. */}
             <p className="px-4 pb-2 text-[11px] leading-4 text-description">
-                {activeCloudName
-                    ? t('search.scopeNoticeNamed', {
-                          cloud: activeCloudName,
-                          defaultValue: "'{{cloud}}'에서만 검색됩니다",
-                      })
-                    : t('search.scopeNotice', '현재 클라우드에서만 검색됩니다')}
+                {activeCloudName ? t('search.scopeNoticeNamed', { cloud: activeCloudName }) : t('search.scopeNotice')}
             </p>
 
             <div className="flex-1 overflow-y-auto">
@@ -183,22 +178,18 @@ export const SearchPage = () => {
                     // Scanning with nothing to show yet. Without this the page rendered an empty
                     // container, which reads as "no results" and then flips to results.
                     <div className="flex flex-col" role="status" aria-busy="true">
-                        <span className="sr-only">{t('search.searching', '검색 중이에요')}</span>
+                        <span className="sr-only">{t('search.searching')}</span>
                         <ResultRowSkeleton />
                         <ResultRowSkeleton />
                         <ResultRowSkeleton />
                     </div>
                 ) : !hasResults ? (
-                    <p className="px-4 py-10 text-center text-sm text-description">
-                        {t('search.noResults', '검색 결과가 없습니다.')}
-                    </p>
+                    <p className="px-4 py-10 text-center text-sm text-description">{t('search.noResults')}</p>
                 ) : (
                     <div className="flex flex-col">
                         {rows.clouds.length > 0 && (
                             <section>
-                                <h2 className="px-4 py-2 text-xs font-medium text-description">
-                                    {t('search.clouds', '클라우드')}
-                                </h2>
+                                <h2 className="px-4 py-2 text-xs font-medium text-description">{t('search.clouds')}</h2>
                                 {rows.clouds.map(cloud => (
                                     <ResultRow
                                         key={cloud.id}
@@ -216,9 +207,7 @@ export const SearchPage = () => {
 
                         {rows.places.length > 0 && (
                             <section>
-                                <h2 className="px-4 py-2 text-xs font-medium text-description">
-                                    {t('search.places', '플레이스')}
-                                </h2>
+                                <h2 className="px-4 py-2 text-xs font-medium text-description">{t('search.places')}</h2>
                                 {rows.places.map(place => (
                                     <ResultRow
                                         key={`${place.cid}:${place.placeId}`}
@@ -233,7 +222,7 @@ export const SearchPage = () => {
                         {rows.channels.length > 0 && (
                             <section>
                                 <h2 className="px-4 py-2 text-xs font-medium text-description">
-                                    {t('search.channels', '채널')}
+                                    {t('search.channels')}
                                 </h2>
                                 {rows.channels.map(channel => (
                                     <ResultRow
@@ -263,9 +252,7 @@ export const SearchPage = () => {
 
                         {rows.chats.length > 0 && (
                             <section>
-                                <h2 className="px-4 py-2 text-xs font-medium text-description">
-                                    {t('search.chat', 'Chat')}
-                                </h2>
+                                <h2 className="px-4 py-2 text-xs font-medium text-description">{t('search.chat')}</h2>
                                 {rows.chats.map(chat => (
                                     <ResultRow
                                         key={`${chat.cid}:${chat.chatId}`}
@@ -280,7 +267,7 @@ export const SearchPage = () => {
                                                 </span>
                                             )
                                         }
-                                        title={chat.senderName ?? t('search.unknownSender', '알 수 없는 사용자')}
+                                        title={chat.senderName ?? t('search.unknownSender')}
                                         subtitle={<HighlightText text={chat.content} query={trimmed} />}
                                         context={formatResultContext(chat.placeName, chat.channelName)}
                                         trailing={<Stamp value={chat.createdAt} />}

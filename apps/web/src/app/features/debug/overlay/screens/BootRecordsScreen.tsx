@@ -5,7 +5,10 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { CopyButton } from '../../components/CopyButton';
 import { useDebugOperation } from '../../hooks';
+import { useBootRecordsScreenStrings } from '../../i18n/screens/BootRecordsScreen';
 import { appBridge } from '../../../../bridge';
+
+type BootRecordsScreenStrings = ReturnType<typeof useBootRecordsScreenStrings>;
 
 /**
  * What the NATIVE side recorded about past boots — moved here from the app's own Boot Performance
@@ -23,14 +26,25 @@ import { appBridge } from '../../../../bridge';
 const ms = (value: number | null | undefined) => (value != null ? `${value} ms` : null);
 
 /** Native milestones in timeline order, so rows read top to bottom as the boot happened. */
-const NATIVE_MARKS = [
-    ['provider-ready', 'provider ready'],
-    ['app-mount', 'app mount'],
-    ['main-screen-mount', 'main screen mount'],
-    ['load-start', 'WebView load start'],
-    ['load-end', 'WebView load end'],
-    ['web-app-ready', 'web app ready'],
+const NATIVE_MARK_KEYS = [
+    'provider-ready',
+    'app-mount',
+    'main-screen-mount',
+    'load-start',
+    'load-end',
+    'web-app-ready',
 ] as const;
+
+/** Maps each native mark key to its label in the `t.nativeMarks` table above. */
+const NATIVE_MARK_LABEL_KEYS: Record<(typeof NATIVE_MARK_KEYS)[number], keyof BootRecordsScreenStrings['nativeMarks']> =
+    {
+        'provider-ready': 'providerReady',
+        'app-mount': 'appMount',
+        'main-screen-mount': 'mainScreenMount',
+        'load-start': 'loadStart',
+        'load-end': 'loadEnd',
+        'web-app-ready': 'webAppReady',
+    };
 
 interface Loaded {
     records: BootRecord[];
@@ -39,6 +53,7 @@ interface Loaded {
 }
 
 export const BootRecordsScreen = () => {
+    const t = useBootRecordsScreenStrings();
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const [busy, setBusy] = useState(false);
     // Shared so the NOT_FOUND wording and the learning are the same here as on every other screen
@@ -49,7 +64,7 @@ export const BootRecordsScreen = () => {
     const load = useCallback(async () => {
         setBusy(true);
         await run(
-            '부팅 기록',
+            t.loadOperation,
             async () => {
                 const res = await appBridge.fetchBootRecords();
                 setLoaded({
@@ -62,7 +77,7 @@ export const BootRecordsScreen = () => {
             'FetchBootRecords'
         );
         setBusy(false);
-    }, [run]);
+    }, [run, t]);
 
     useEffect(() => {
         void load();
@@ -70,10 +85,10 @@ export const BootRecordsScreen = () => {
 
     const clear = useCallback(async () => {
         setBusy(true);
-        await run('기록 초기화', () => appBridge.clearBootRecords(), 'ClearBootRecords');
+        await run(t.clearOperation, () => appBridge.clearBootRecords(), 'ClearBootRecords');
         setBusy(false);
         await load();
-    }, [run, load]);
+    }, [run, load, t]);
 
     return (
         <div className="space-y-3 p-4">
@@ -84,7 +99,7 @@ export const BootRecordsScreen = () => {
                     disabled={busy || unsupported}
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
-                    새로고침
+                    {t.refresh}
                 </button>
                 <button
                     type="button"
@@ -92,23 +107,23 @@ export const BootRecordsScreen = () => {
                     disabled={busy || unsupported || !loaded?.records.length}
                     className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
                 >
-                    초기화
+                    {t.clear}
                 </button>
-                {loaded && <CopyButton value={() => JSON.stringify(loaded.records, null, 2)} label="JSON 복사" />}
-                <span className="ml-auto text-xs text-muted-foreground">{loaded?.records.length ?? 0}건</span>
+                {loaded && <CopyButton value={() => JSON.stringify(loaded.records, null, 2)} label={t.copyJson} />}
+                <span className="ml-auto text-xs text-muted-foreground">{t.rowCount(loaded?.records.length ?? 0)}</span>
             </div>
 
             {result && <p className="break-all font-mono text-[12px] text-muted-foreground">{result}</p>}
 
             {loaded && (
-                <Section title="현재 앱 실행">
-                    <Row label="WebView 프로세스 종료" value={loaded.contentProcessReloadCount} />
-                    <Row label="마지막 포그라운드 복귀" value={ms(loaded.lastForegroundResumeMs)} />
+                <Section title={t.currentRun.title}>
+                    <Row label={t.currentRun.webViewKills} value={loaded.contentProcessReloadCount} />
+                    <Row label={t.currentRun.lastResume} value={ms(loaded.lastForegroundResumeMs)} />
                 </Section>
             )}
 
             {loaded?.records.length === 0 && !unsupported && (
-                <p className="text-xs text-muted-foreground">기록이 없습니다 — 앱을 한 번 재시작하면 남습니다</p>
+                <p className="text-xs text-muted-foreground">{t.noRecords}</p>
             )}
 
             {loaded?.records.map(record => (
@@ -116,18 +131,22 @@ export const BootRecordsScreen = () => {
                     key={record.finalizedAt}
                     title={`${new Date(record.finalizedAt).toLocaleString()} · ${record.type} · v${record.appVersion}`}
                 >
-                    <Row label="총 부팅" value={ms(record.totalMs)} />
-                    {NATIVE_MARKS.map(([key, label]) => (
-                        <Row key={key} label={label} value={ms(record.native[key])} />
+                    <Row label={t.totalBoot} value={ms(record.totalMs)} />
+                    {NATIVE_MARK_KEYS.map(key => (
+                        <Row
+                            key={key}
+                            label={t.nativeMarks[NATIVE_MARK_LABEL_KEYS[key]]}
+                            value={ms(record.native[key])}
+                        />
                     ))}
                     {record.web ? (
                         <>
-                            <Row label="web main start" value={ms(record.web.marks.mainStartMs)} />
-                            <Row label="web app render" value={ms(record.web.marks.appRenderMs)} />
-                            <Row label="web session init" value={ms(record.web.marks.sessionInitializedMs)} />
+                            <Row label={t.webSnapshot.mainStart} value={ms(record.web.marks.mainStartMs)} />
+                            <Row label={t.webSnapshot.appRender} value={ms(record.web.marks.appRenderMs)} />
+                            <Row label={t.webSnapshot.sessionInit} value={ms(record.web.marks.sessionInitializedMs)} />
                         </>
                     ) : (
-                        <Row label="웹 스냅샷" value="없음 (타임아웃)" />
+                        <Row label={t.webSnapshot.label} value={t.webSnapshot.none} />
                     )}
                 </Section>
             ))}

@@ -154,16 +154,26 @@ once unlocked.
    `section`, a `load` that imports the component, plus `size` or `requiresShell` if it needs them.
 3. Add the icon to `DEBUG_SCREEN_ICONS` in `screenIcons.tsx` — the map is typed against the
    manifest, so a missing one fails to compile.
-4. Add `title` and `short` for the screen in **both** language tables in `i18n.ts`. The tables are
-   `Record<DebugScreenKey, …>`, so the compiler asks for both.
+4. Add `title` and `short` for the screen in **both** language tables in `i18n/index.ts`. The tables
+   are `Record<DebugScreenKey, …>`, so the compiler asks for both.
+5. Put every word the screen itself shows in `i18n/screens/<Screen>.ts`: an `en` table, a `ko` table
+   typed `typeof en`, and `export const use<Screen>Strings = defineDebugStrings({ ko, en })`. Text
+   with a number or a name in it is a function (`(count: number) => string`), because word order
+   and plurals differ. Logs and thrown errors stay inline English — they are for whoever reads the
+   console, not for the panel. Words several screens share (copy buttons, operation results) are
+   in `i18n/screens/shared.ts`.
+6. In the screen's test, pin the language with `setDebugLanguageForTests('en')` in `beforeEach`
+   (and call the undo it returns in `afterEach`). i18next is not initialised under jest, so an
+   unpinned test renders the Korean fallback.
 
 Nothing else. The registry, the menu, the tab strip and the size rules all derive from step 2.
 
 ### What not to do
 
-- **Do not write a label next to the screen that uses it.** Every string goes in `i18n.ts`, in both
-  tables. A label written wherever the screen happens to be registered is how a single menu ends up
-  listing some screens in English and others in Korean.
+- **Do not write a label next to the screen that uses it.** Every word the panel shows — chrome,
+  menu, screen names and screen bodies — goes in a table under `i18n/`, in both languages. A label
+  written wherever it happens to be used is how one panel ends up half English and half Korean.
+  Korean is the fallback language: the QA docs the panel is used against are Korean.
 - **Do not fetch the panel's copy from `/locales/`.** The panel is what you open when boot is
   broken, and translations behind a network request come up as raw keys in exactly that case.
 - **Do not put `import.meta` in a file that has a unit test.** ts-jest transpiles to CommonJS and

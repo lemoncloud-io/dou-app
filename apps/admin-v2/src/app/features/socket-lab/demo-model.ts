@@ -212,23 +212,23 @@ export const formatDeviceSummary = (view?: DeviceView | null): string => {
 };
 
 export const formatViewing = (view?: DeviceView | null): string => {
-    if (!view) return '유휴';
+    if (!view) return 'idle';
     const type = `${view.viewingType ?? ''}`.trim();
     const id = `${view.viewingId ?? ''}`.trim();
-    if (!type || !id) return '유휴';
-    return `📺 #${type}:${id} 보는 중`;
+    if (!type || !id) return 'idle';
+    return `📺 watching #${type}:${id}`;
 };
 
 export const formatRelativeTime = (at?: number, now: number = Date.now()): string => {
     if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) return '-';
     const deltaSec = Math.max(0, Math.round((now - at) / 1000));
-    if (deltaSec < 3) return '방금';
-    if (deltaSec < 60) return `${deltaSec}초 전`;
+    if (deltaSec < 3) return 'just now';
+    if (deltaSec < 60) return `${deltaSec}s ago`;
     const deltaMin = Math.round(deltaSec / 60);
-    if (deltaMin < 60) return `${deltaMin}분 전`;
+    if (deltaMin < 60) return `${deltaMin}m ago`;
     const deltaHour = Math.round(deltaMin / 60);
-    if (deltaHour < 24) return `${deltaHour}시간 전`;
-    return `${Math.round(deltaHour / 24)}일 전`;
+    if (deltaHour < 24) return `${deltaHour}h ago`;
+    return `${Math.round(deltaHour / 24)}d ago`;
 };
 
 export const formatChannelSummary = (view?: DemoChannelView | null): string => {

@@ -360,7 +360,9 @@ export class WebBridgeClient implements IWebBridgeClient {
                 setTimeout(() => {
                     reject({
                         code: failure.code ?? 'BRIDGE_SIMULATION_FAILURE',
-                        message: failure.message ?? '브릿지 시뮬레이션 설정에 의해 요청이 실패했습니다.',
+                        message:
+                            failure.message ??
+                            'The request failed because the bridge simulation was configured to fail.',
                         reason: 'The bridge simulation was configured to fail before reaching the app host.',
                         requestType,
                         expectedResponseType,
@@ -497,7 +499,7 @@ export class WebBridgeClient implements IWebBridgeClient {
             }
             pending.reject({
                 code: 'DESTROYED',
-                message: '브릿지 클라이언트가 파괴되어 대기 중인 비동기 약속이 거절되었습니다.',
+                message: 'The bridge client was destroyed, so this pending request was rejected.',
                 requestType: pending.requestType,
                 expectedResponseType: pending.expectedResponseType,
                 recoverable: false,
@@ -553,7 +555,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     private createNativeNotSupportedError(requestType: WebMessageType): BridgeError {
         return {
             code: 'NATIVE_NOT_SUPPORTED',
-            message: '일반 브라우저 환경에서는 네이티브 브릿지 기능을 사용할 수 없습니다.',
+            message: 'Native bridge functionality is not available in a plain browser environment.',
             reason: 'No native bridge adapter became available before the configured readiness timeout.',
             requestType,
             protocolVersion: this.version,

@@ -82,7 +82,7 @@ describe('ReportLogsPage — 수집', () => {
 
         renderPage();
 
-        expect(await screen.findByText('2건 전수 수집 완료')).toBeTruthy();
+        expect(await screen.findByText('Collected all 2 rows')).toBeTruthy();
         expect(screen.getByText('로그인 실패')).toBeTruthy();
     });
 
@@ -91,7 +91,7 @@ describe('ReportLogsPage — 수집', () => {
 
         renderPage();
 
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
         // The range is the operator's to move, so nothing is assumed on their behalf. The
         // walk is still bounded — by the cap, which `CorpusProgress` reports when it bites.
         expect(lastParams().from).toBeUndefined();
@@ -111,7 +111,7 @@ describe('ReportLogsPage — 수집', () => {
 
         renderPage();
 
-        await screen.findByText('2건 전수 수집 완료');
+        await screen.findByText('Collected all 2 rows');
         expect(fetchReportLogs).toHaveBeenCalledOnce();
     });
 
@@ -131,7 +131,7 @@ describe('ReportLogsPage — 수집', () => {
 
         renderPage();
 
-        await screen.findByText(/상한 500건까지만 수집/);
+        await screen.findByText(/Capped at 500 rows/);
         expect(fetchReportLogs.mock.calls.length).toBe(1);
         expect(fetchReportLogs.mock.calls.map(c => c[0]?.page)).toEqual([0]);
     });
@@ -139,14 +139,14 @@ describe('ReportLogsPage — 수집', () => {
     it('spends nothing on axis changes that are immediately superseded', async () => {
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
         const before = fetchReportLogs.mock.calls.length;
 
         // A date being typed fires a change per keystroke. Each one used to launch a full
         // walk whose result the next one discarded.
-        fireEvent.change(screen.getByLabelText('종료일 (KST)'), { target: { value: '2026-09-0' } });
-        fireEvent.change(screen.getByLabelText('종료일 (KST)'), { target: { value: '2026-09-01' } });
-        fireEvent.change(screen.getByLabelText('종료일 (KST)'), { target: { value: '2026-09-02' } });
+        fireEvent.change(screen.getByLabelText('To date (KST)'), { target: { value: '2026-09-0' } });
+        fireEvent.change(screen.getByLabelText('To date (KST)'), { target: { value: '2026-09-01' } });
+        fireEvent.change(screen.getByLabelText('To date (KST)'), { target: { value: '2026-09-02' } });
 
         await waitFor(() => expect(lastParams().to).toBe('2026-09-02'));
         // One walk for the value that stuck, not three.
@@ -158,7 +158,7 @@ describe('ReportLogsPage — 수집', () => {
         // has not changed is the cost react-query's keyed cache removes.
         servePage([entry()]);
         const { unmount, client } = renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
         const spent = fetchReportLogs.mock.calls.length;
         unmount();
 
@@ -190,10 +190,10 @@ describe('ReportLogsPage — 수집', () => {
     it('collects again when the operator asks, held rows or not', async () => {
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
         const spent = fetchReportLogs.mock.calls.length;
 
-        fireEvent.click(screen.getByText('다시 수집'));
+        fireEvent.click(screen.getByText('Recollect'));
 
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(spent));
     });
@@ -204,25 +204,25 @@ describe('ReportLogsPage — 수집', () => {
         // Refreshing has to mean "throw away what is held", not just "re-ask for these axes".
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
         // Cache a second set of axes, then come back so both are held.
-        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: 'warn' } });
+        fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'warn' } });
         await waitFor(() => expect(lastParams().level).toBe('warn'));
-        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: '' } });
+        fireEvent.change(screen.getByLabelText('Level'), { target: { value: '' } });
         // Nothing to wait on in the DOM here — coming back is a cache hit, so it issues no
         // request and changes no text. The wait is for the axes to settle into the query key
         // before the click, which is a timer (`AXES_SETTLE_MS`), not a render.
         await new Promise(resolve => setTimeout(resolve, 400));
         const cached = fetchReportLogs.mock.calls.length;
 
-        fireEvent.click(screen.getByText('다시 수집'));
+        fireEvent.click(screen.getByText('Recollect'));
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(cached));
         expect(lastParams().level).toBeUndefined();
         const spent = fetchReportLogs.mock.calls.length;
 
         // Held from before the refresh, so this must walk again rather than replay the cache.
-        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: 'warn' } });
+        fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'warn' } });
 
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(spent));
         expect(lastParams().level).toBe('warn');
@@ -234,7 +234,7 @@ describe('ReportLogsPage — 수집', () => {
         renderPage();
 
         expect(await screen.findByText(/403 FORBIDDEN/)).toBeTruthy();
-        expect(screen.getByRole('button', { name: '다시 시도' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
     });
 });
 
@@ -242,10 +242,10 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
     it('re-queries when a server axis changes', async () => {
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
         const before = fetchReportLogs.mock.calls.length;
 
-        fireEvent.change(screen.getByLabelText('레벨'), { target: { value: 'warn' } });
+        fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'warn' } });
 
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(before));
         expect(lastParams().level).toBe('warn');
@@ -254,11 +254,11 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
     it('does NOT re-query when a client axis changes', async () => {
         servePage([entry(), entry({ tag: 'chat', message: '다른 태그' })]);
         renderPage();
-        await screen.findByText('2건 전수 수집 완료');
+        await screen.findByText('Collected all 2 rows');
         const before = fetchReportLogs.mock.calls.length;
 
         // The whole point of splitting the axes: typing must not throw away the corpus.
-        fireEvent.change(screen.getByLabelText('검색'), { target: { value: '다른' } });
+        fireEvent.change(screen.getByLabelText('Search'), { target: { value: '다른' } });
 
         await waitFor(() => expect(screen.queryByText('로그인 실패')).toBeNull());
         expect(screen.getByText('다른 태그')).toBeTruthy();
@@ -268,12 +268,12 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
     it('keeps facet options from the corpus, not from what is currently shown', async () => {
         servePage([entry(), entry({ tag: 'chat', message: '다른 태그' })]);
         renderPage();
-        await screen.findByText('2건 전수 수집 완료');
+        await screen.findByText('Collected all 2 rows');
 
-        fireEvent.change(screen.getByLabelText('태그 (2) · 서버'), { target: { value: 'chat' } });
+        fireEvent.change(screen.getByLabelText('Tag (2) · server'), { target: { value: 'chat' } });
 
         // Still two options after selecting one — otherwise there is no way back.
-        await waitFor(() => expect(screen.getByLabelText('태그 (2) · 서버')).toBeTruthy());
+        await waitFor(() => expect(screen.getByLabelText('Tag (2) · server')).toBeTruthy());
     });
 
     /**
@@ -284,10 +284,10 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
     it('sends a tag selection to the server as a filter', async () => {
         servePage([entry(), entry({ tag: 'chat', message: '다른 태그' })]);
         renderPage();
-        await screen.findByText('2건 전수 수집 완료');
+        await screen.findByText('Collected all 2 rows');
         const before = fetchReportLogs.mock.calls.length;
 
-        fireEvent.change(screen.getByLabelText('태그 (2) · 서버'), { target: { value: 'chat' } });
+        fireEvent.change(screen.getByLabelText('Tag (2) · server'), { target: { value: 'chat' } });
 
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(before));
         expect(lastParams().tag).toBe('chat');
@@ -301,9 +301,9 @@ describe('ReportLogsPage — 서버 축 vs 수집분 축', () => {
     it('keeps a selected facet visible even when it is the only value left', async () => {
         servePage([entry({ tag: 'chat', message: '하나뿐' })]);
         renderPage('/report-logs?tag=chat');
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
-        expect(screen.getByLabelText('태그 (1) · 서버')).toBeTruthy();
+        expect(screen.getByLabelText('Tag (1) · server')).toBeTruthy();
     });
 });
 
@@ -311,32 +311,32 @@ describe('ReportLogsPage — 추적 핀', () => {
     it('pins a uid from the row and narrows the query server-side', async () => {
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
-        fireEvent.click(screen.getByTitle('유저 u1 로 추적 (서버 조회)'));
+        fireEvent.click(screen.getByTitle('Track user u1 (server query)'));
 
         await waitFor(() => expect(lastParams().uid).toBe('u1'));
-        expect(screen.getByText('추적 중')).toBeTruthy();
+        expect(screen.getByText('Tracking')).toBeTruthy();
     });
 
     it('warns that issue records cannot be reached by a uid pin', async () => {
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
-        fireEvent.click(screen.getByTitle('유저 u1 로 추적 (서버 조회)'));
+        fireEvent.click(screen.getByTitle('Track user u1 (server query)'));
 
         // Slack reports carry no hoisted uid, so the pin silently excludes them —
         // saying so is the difference between "this user has no reports" and "I cannot see them".
-        expect(await screen.findByText(/제보 레코드는 uid 축이 없어/)).toBeTruthy();
+        expect(await screen.findByText(/Report records have no uid axis/)).toBeTruthy();
     });
 
     it('pinning a runId opens the timeline for that run', async () => {
         servePage([entry({ timestamp: 2_000 }), entry({ message: '먼저 일어난 일', timestamp: 1_000 })]);
         renderPage();
-        await screen.findByText('2건 전수 수집 완료');
+        await screen.findByText('Collected all 2 rows');
 
-        fireEvent.click(screen.getAllByTitle('실행 run-a 로 추적 (서버 조회)')[0]);
+        fireEvent.click(screen.getAllByTitle('Track run run-a (server query)')[0]);
 
         // The timeline is ascending, so the earlier event leads.
         const timeline = await screen.findByRole('list');
@@ -347,11 +347,11 @@ describe('ReportLogsPage — 추적 핀', () => {
     it('unpinning a runId leaves the timeline rather than drawing nothing', async () => {
         servePage([entry()]);
         renderPage('/report-logs?runId=run-a&mode=timeline');
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
-        fireEvent.click(screen.getByRole('button', { name: '실행 추적 해제' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Untrack run' }));
 
-        await waitFor(() => expect(screen.queryByText('추적 중')).toBeNull());
+        await waitFor(() => expect(screen.queryByText('Tracking')).toBeNull());
         // The axes settle before a walk starts, so the wire params catch up a beat later.
         await waitFor(() => expect(lastParams().runId).toBeUndefined());
     });
@@ -361,7 +361,7 @@ describe('ReportLogsPage — 상세', () => {
     it('opens the detail beside the list, not over it', async () => {
         servePage([entry()]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
         fireEvent.click(screen.getByText('로그인 실패'));
 
@@ -375,7 +375,7 @@ describe('ReportLogsPage — 상세', () => {
         servePage([entry()]);
         renderPage();
 
-        expect(await screen.findByText('행을 선택하면 상세가 여기에 열립니다.')).toBeTruthy();
+        expect(await screen.findByText('Select a row to open its detail here.')).toBeTruthy();
     });
 });
 
@@ -387,7 +387,7 @@ describe('ReportLogsPage — 발생 시각', () => {
             entry({ message: '먼저 일어난 일', timestamp: 1_000 }, 'x2'),
         ]);
         renderPage();
-        await screen.findByText('2건 전수 수집 완료');
+        await screen.findByText('Collected all 2 rows');
 
         const rows = screen.getAllByRole('row').slice(1);
         expect(rows[0].textContent).toContain('나중에 일어난 일');
@@ -396,8 +396,8 @@ describe('ReportLogsPage — 발생 시각', () => {
     it('flags a row whose upload lagged its occurrence', async () => {
         servePage([entry({ timestamp: 1_700_000_000_000 - 600_000 })]);
         renderPage();
-        await screen.findByText('1건 전수 수집 완료');
+        await screen.findByText('Collected all 1 row');
 
-        expect(screen.getByText('지연')).toBeTruthy();
+        expect(screen.getByText('lag')).toBeTruthy();
     });
 });

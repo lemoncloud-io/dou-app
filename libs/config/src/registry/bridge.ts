@@ -9,8 +9,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const bridgeModule: ConfigRegistryModule = {
     'bridge.request.timeoutMs': {
-        title: '브릿지 요청 타임아웃',
-        description: '셸에 보낸 요청이 이만큼 지나면 응답 없음으로 처리한다.',
+        title: 'Bridge request timeout',
+        description: 'Treats a request sent to the shell as unanswered after this much time.',
         type: 'number',
         defaultValue: 15_000,
         surface: 'dev',
@@ -19,8 +19,8 @@ export const bridgeModule: ConfigRegistryModule = {
         appliesAt: 'restart',
     },
     'bridge.handshake.waitTimeoutMs': {
-        title: '브릿지 핸드셰이크 대기 시간',
-        description: '셸의 준비 신호를 이만큼 기다리다 포기한다.',
+        title: 'Bridge handshake wait time',
+        description: "How long to wait for the shell's ready signal before giving up.",
         type: 'number',
         defaultValue: 10_000,
         surface: 'dev',

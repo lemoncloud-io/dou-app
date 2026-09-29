@@ -24,6 +24,8 @@
 > `libs/web-config/src/env.ts` (no longer exists in this tree) ·
 > [logUploadSwitch.ts](../../apps/web/src/app/runtime/logging/logUploadSwitch.ts) ·
 > [debugSettingsStore.ts](../../apps/mobile/src/app/stores/debugSettingsStore.ts)
+> · **Amended by [ADR-0122](./0122-english-for-tools-i18n-for-what-users-and-qa-read.md):** registry
+> `title`/`description` are written in English, not Korean.
 
 > **This document does not reference the earlier design document on feature toggles** (by instruction).
 > The context comes only from code measured in the current tree, not from earlier decisions. Measured
@@ -153,7 +155,7 @@ by device. And the app still launches.
 
 ```ts
 type ConfigEntry<T> = {
-    /** The name the panel shows instead of the dot-notation key. Korean (ADR-0080 decision 3). */
+    /** The name the panel shows instead of the dot-notation key. Korean (ADR-0080 decision 3) — English since ADR-0122. */
     title: string;
     /** What value this changes · why it exists. One sentence. */
     description: string;

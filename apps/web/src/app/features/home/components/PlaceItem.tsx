@@ -63,16 +63,13 @@ export const PlaceItem = ({
         <Loader2
             size={16}
             role="img"
-            aria-label={t('placeList.switching', '플레이스로 이동 중이에요')}
+            aria-label={t('placeList.switching')}
             className="shrink-0 animate-spin text-description"
         />
     ) : isSelected ? (
-        <VerifiedBadge size={18} label={t('placeList.selected', '선택됨')} />
+        <VerifiedBadge size={18} label={t('placeList.selected')} />
     ) : hasUnread ? (
-        <span
-            className="size-1.5 shrink-0 rounded-full bg-red-500"
-            aria-label={t('placeList.hasUnread', '읽지 않음')}
-        />
+        <span className="size-1.5 shrink-0 rounded-full bg-red-500" aria-label={t('placeList.hasUnread')} />
     ) : null;
 
     return (

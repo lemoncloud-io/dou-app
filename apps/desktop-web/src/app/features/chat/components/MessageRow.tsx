@@ -534,6 +534,10 @@ export const MessageRow = memo(
                                             <BlockKitMessage
                                                 blocks={blocks}
                                                 raw={content}
+                                                labels={{
+                                                    expandCode: count => t('chat.codeBlock.expand', { count }),
+                                                    collapseCode: t('chat.codeBlock.collapse'),
+                                                }}
                                                 renderFallback={raw => (
                                                     <RichText
                                                         content={raw}

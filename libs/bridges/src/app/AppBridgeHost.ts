@@ -183,7 +183,7 @@ export class AppBridgeHost implements IAppBridgeHost {
                     this.createErrorResponse(
                         message,
                         'NOT_FOUND',
-                        `등록된 핸들러를 찾을 수 없습니다: ${message.type}`,
+                        `No handler registered for message type: ${message.type}`,
                         {
                             reason: 'No handler is registered for the incoming WebMessage type.',
                             recoverable: true,
@@ -226,7 +226,7 @@ export class AppBridgeHost implements IAppBridgeHost {
                     this.createErrorResponse(
                         message,
                         error?.code ?? 'INTERNAL_ERROR',
-                        error?.message ?? '네이티브 내부 처리 중 에러가 발생했습니다.',
+                        error?.message ?? 'An error occurred during native-side processing.',
                         {
                             reason: 'A registered native handler threw an uncaught exception.',
                             details: { name: error?.name },

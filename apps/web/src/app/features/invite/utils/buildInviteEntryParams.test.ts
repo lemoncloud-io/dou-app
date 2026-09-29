@@ -57,7 +57,7 @@ describe('buildInviteEntryParams', () => {
         expect(() => buildInviteEntryParams('?api=x&stage=dev')).toThrow('code');
         expect(() => buildInviteEntryParams('?relay')).toThrow('code');
         // A half address is a broken cloud link, not a relay link — it must not silently fall through to relay.
-        expect(() => buildInviteEntryParams('?code=c&stage=dev')).toThrow('api 또는 backend');
+        expect(() => buildInviteEntryParams('?code=c&stage=dev')).toThrow('api or backend');
         expect(() => buildInviteEntryParams('?code=c&api=x')).toThrow('stage');
     });
 });

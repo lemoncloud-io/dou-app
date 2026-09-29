@@ -95,15 +95,15 @@ export const validateOverrideForm = (form: OverrideFormState, now: number): stri
     // The API treats the reason as optional; this console does not (ADR-0101, decision 6). Who changed
     // what and why is the whole audit trail — the relay only keeps the most recent one.
     if (!form.reason.trim()) {
-        errors.push('사유를 입력해 주세요.');
+        errors.push('Enter a reason.');
     }
 
     if (form.mode !== 'release' && form.until) {
         const until = toEpochEndOfDay(form.until);
         if (until === undefined) {
-            errors.push('만료일 형식이 올바르지 않습니다.');
+            errors.push('The expiry date is not a valid format.');
         } else if (until <= now) {
-            errors.push('만료일은 오늘 이후여야 합니다.');
+            errors.push('The expiry date must be after today.');
         }
     }
 
@@ -146,15 +146,15 @@ export interface OverrideSummary {
  * on this screen: a block suspends clouds while the store keeps charging, and `auto` creates them.
  */
 export const describeOverride = (form: OverrideFormState, membership: MembershipView | undefined): OverrideSummary => {
-    const userId = membership?.userId || '이 유저';
+    const userId = membership?.userId || 'This user';
 
     if (form.mode === 'release') {
         return {
-            title: '관리자 오버라이드를 해제합니다',
+            title: 'Release the admin override',
             lines: [
-                `${userId}의 구독 판정이 즉시 영수증 기준으로 돌아갑니다.`,
-                '부여했던 기간과 등급이 함께 풀립니다.',
-                '누가·언제·왜 조작했는지의 기록은 남습니다.',
+                `${userId}'s subscription verdict reverts to the receipt immediately.`,
+                'The granted term and grade are lifted together.',
+                'The record of who did this, when, and why is kept.',
             ],
         };
     }
@@ -163,14 +163,14 @@ export const describeOverride = (form: OverrideFormState, membership: Membership
         const until = toEpochEndOfDay(form.until);
 
         return {
-            title: '이 유저의 구독을 차단합니다',
+            title: "Block this user's subscription",
             lines: [
-                `${userId}의 구독이 무효가 됩니다 (${form.blockStatus}).`,
-                '이 유저의 Cloud가 보류·회수 대상이 됩니다. 표시만 바뀌는 것이 아닙니다.',
-                '스토어 결제는 계속 나갑니다. 앱에서는 "만료"가 아니라 이용 제한으로 보입니다.',
+                `${userId}'s subscription becomes invalid (${form.blockStatus}).`,
+                "This user's Clouds become subject to suspension/reclaim. It is not just a display change.",
+                'Store billing keeps charging. The app shows this as a usage restriction, not "expired".',
                 until !== undefined
-                    ? `${formatDay(until)}이 지나면 차단이 저절로 풀립니다.`
-                    : '해제하기 전까지 유지됩니다.',
+                    ? `The block lifts automatically after ${formatDay(until)}.`
+                    : 'Stays in effect until released.',
             ],
         };
     }
@@ -178,20 +178,20 @@ export const describeOverride = (form: OverrideFormState, membership: Membership
     const until = toEpochEndOfDay(form.until);
     const lines = [
         until !== undefined
-            ? `${userId}의 구독을 ${formatDay(until)}까지 유효로 만듭니다.`
-            : `${userId}의 구독을 기한 없이 유효로 만듭니다. 해제하기 전까지 유지됩니다.`,
-        '보류돼 있던 Cloud가 복원됩니다.',
+            ? `Makes ${userId}'s subscription valid through ${formatDay(until)}.`
+            : `Makes ${userId}'s subscription valid indefinitely. Stays in effect until released.`,
+        'Suspended Clouds are restored.',
     ];
 
     if (form.productId) {
-        lines.push(`등급이 ${form.productId}로 바뀌어 보유 한도가 그 상품 기준이 됩니다.`);
+        lines.push(`The grade changes to ${form.productId}, so the cloud limit follows that product.`);
     }
 
     lines.push(
         form.auto
-            ? '한도가 늘어 모자란 만큼 Cloud 생성 요청이 바로 큐에 들어갑니다.'
-            : '한도만 늘고 Cloud 생성은 유저가 직접 합니다.'
+            ? 'The limit rises, and Cloud creation requests for the shortfall are queued right away.'
+            : 'Only the limit increases; the user creates Clouds themselves.'
     );
 
-    return { title: '이 유저에게 구독을 부여합니다', lines };
+    return { title: 'Grant this user a subscription', lines };
 };

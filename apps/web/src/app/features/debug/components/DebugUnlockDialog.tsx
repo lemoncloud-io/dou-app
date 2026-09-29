@@ -9,6 +9,8 @@ import {
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { TextField } from '@chatic/web-ui-kit';
 
+import { useDebugSharedStrings } from '../i18n/screens/shared';
+
 interface DebugUnlockDialogProps {
     isOpen: boolean;
     hasError: boolean;
@@ -26,6 +28,7 @@ interface DebugUnlockDialogProps {
  */
 export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: DebugUnlockDialogProps) => {
     const [code, setCode] = useState('');
+    const strings = useDebugSharedStrings();
 
     // Clear the input on every close (cancel, wrong-code lockout) and after a wrong
     // attempt so the user re-enters a fresh code rather than editing the rejected one.
@@ -47,11 +50,9 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
         <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
             <AlertDialogContent className="gap-4 rounded-[12px] p-6">
                 <AlertDialogTitle className="text-center text-[16px] font-semibold text-foreground">
-                    Enter Debug Code
+                    {strings.unlockDialog.title}
                 </AlertDialogTitle>
-                <AlertDialogDescription className="sr-only">
-                    Enter the debug entry code to unlock debug tools.
-                </AlertDialogDescription>
+                <AlertDialogDescription className="sr-only">{strings.unlockDialog.description}</AlertDialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     {/* `px-0` because this dialog carries its own padding. `TextField` ships a 16px
                         gutter of its own for full-bleed form screens, where the field IS the screen's
@@ -61,17 +62,17 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
                         className="px-0"
                         value={code}
                         onChange={setCode}
-                        error={hasError ? 'Wrong code' : undefined}
-                        placeholder="Debug code"
+                        error={hasError ? strings.unlockDialog.wrongCode : undefined}
+                        placeholder={strings.unlockDialog.placeholder}
                         autoFocus
                         autoComplete="off"
                         autoCapitalize="none"
                         autoCorrect="off"
                         spellCheck={false}
-                        aria-label="debug entry code"
+                        aria-label={strings.unlockDialog.ariaLabel}
                     />
                     <Button type="submit" disabled={!code.trim()}>
-                        Unlock
+                        {strings.unlockDialog.unlock}
                     </Button>
                 </form>
             </AlertDialogContent>

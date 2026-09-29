@@ -53,9 +53,11 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
    runs in each app's entry point, after this module has already evaluated. `useVersionCheck`'s
    polling interval is the worked example: its env branch was deleted rather than moved.
 7. **A component added here brings no translations with it.** `VersionUpdateBanner` calls
-   `useTranslation()` against `version.*` keys that live in the consuming app's locale files. The three
-   error screens break this rule — they render the hardcoded Korean `ERROR_MESSAGES` table in
-   `consts/`. That split is an inconsistency, not a design; follow the i18n side of it.
+   `useTranslation()` against `version.*` keys that live in the consuming app's locale files, and the
+   three error screens read `error.screen.*` the same way (`components/useErrorScreenText.ts`). The
+   error screens differ in one respect: every lookup carries its English default from
+   `ERROR_MESSAGES`, because they are what renders when something already failed — possibly the
+   `/locales` request itself — and a raw key there would be worse than English.
 8. **An export with no reader is a defect, not inventory.** Nothing in the repo type checks against
    an unused export, so the only thing that catches one is the sweep in
    [Scope](#the-membership-rule-and-where-it-fails). Run it before you add, and run it when you remove
@@ -209,8 +211,9 @@ libs/shared/src/
 Four things the filenames do not tell you.
 
 - **`consts/index.ts` is not just re-exports.** The `ERROR_MESSAGES` table — six error kinds, each with
-  a title, a description and two button labels — is declared inline there. There is no
-  `errorMessages.ts` to open.
+  a title, a description and two button labels, in English — is declared inline there. It is the
+  fallback, not the copy a reader normally sees; the translated text is in the app's locale files
+  under `error.screen.*`. There is no `errorMessages.ts` to open.
 - **`hooks/useGlobalLoader.tsx` holds the zustand store, not a component.** It is `.tsx` and contains
   no JSX. The overlay that reads the store is `components/GlobalLoader.tsx`.
 - **`@chatic/lib/utils`, imported by `VersionUpdateBanner`, is `libs/ui-kit/src/utils`.** The alias does
@@ -295,7 +298,7 @@ there is no env branch.
 
 `ErrorFallback` is a `react-error-boundary` fallback: it classifies the error by substring — both
 English and Korean, so `'연결'` reads as a network failure the same as `'network'` — picks an icon and a
-message from `ERROR_MESSAGES`, and focuses its own container so a screen reader lands on the error
+message (`error.screen.<kind>.*`, falling back to `ERROR_MESSAGES`), and focuses its own container so a screen reader lands on the error
 rather than on whatever came before. `RouterErrorFallback` is the router's `errorElement` and classifies
 `isRouteErrorResponse` by status instead; a 404 renders `NotFoundPage` and, deliberately, does **not**
 call `onError` — only real failures are reported upward.

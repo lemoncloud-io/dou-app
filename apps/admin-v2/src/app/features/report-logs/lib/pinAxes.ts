@@ -19,7 +19,7 @@ export const PIN_KEYS = ['uid', 'cid', 'runId'] as const;
 export type PinKey = (typeof PIN_KEYS)[number];
 
 export const PIN_LABEL: Record<PinKey, string> = {
-    uid: '유저',
-    cid: '클라우드',
-    runId: '실행',
+    uid: 'user',
+    cid: 'cloud',
+    runId: 'run',
 };

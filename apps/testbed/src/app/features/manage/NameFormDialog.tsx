@@ -18,7 +18,7 @@ const inputClass =
 // Shared modal for the testbed name-only create/edit flows (channel/place). Create vs edit differ
 // only by the initial value, so a single dialog covers both. Submit is gated by the shared
 // normalizeName rule; a failing write keeps the dialog open and shows the message.
-export const NameFormDialog = ({ title, label, initialValue = '', submitLabel = '저장', onSubmit, onClose }: Props) => {
+export const NameFormDialog = ({ title, label, initialValue = '', submitLabel = 'Save', onSubmit, onClose }: Props) => {
     const [name, setName] = useState(initialValue);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export const NameFormDialog = ({ title, label, initialValue = '', submitLabel = 
                         onKeyDown={e => {
                             if (e.key === 'Enter') void handleSubmit();
                         }}
-                        placeholder="이름"
+                        placeholder="Name"
                         className={inputClass}
                     />
                 </label>
@@ -76,7 +76,7 @@ export const NameFormDialog = ({ title, label, initialValue = '', submitLabel = 
                     disabled={!isValid || saving}
                     className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
                 >
-                    {saving ? '저장 중...' : submitLabel}
+                    {saving ? 'Saving...' : submitLabel}
                 </button>
             </div>
         </div>

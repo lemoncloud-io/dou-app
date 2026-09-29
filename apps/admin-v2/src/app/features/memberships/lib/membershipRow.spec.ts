@@ -14,7 +14,7 @@ const view = (fields: Partial<MembershipView>): MembershipView => fields as Memb
 
 describe('describeOverrideBadge', () => {
     it('오버라이드가 없으면 없음이다', () => {
-        expect(describeOverrideBadge(view({ status: 'active' }), NOW)).toEqual({ kind: 'none', label: '없음' });
+        expect(describeOverrideBadge(view({ status: 'active' }), NOW)).toEqual({ kind: 'none', label: 'None' });
     });
 
     it('해제된 레코드도 없음이다', () => {
@@ -24,14 +24,14 @@ describe('describeOverrideBadge', () => {
     it('무기한 부여를 무기한으로 표시한다', () => {
         const badge = describeOverrideBadge(view({ adminStatus: 'active' }), NOW);
         expect(badge.kind).toBe('grant');
-        expect(badge.label).toContain('무기한');
+        expect(badge.label).toContain('Indefinite');
     });
 
     it('기한부 부여에 만료일을 붙인다', () => {
         const badge = describeOverrideBadge(view({ adminStatus: 'active', adminUntil: NOW + HOUR }), NOW);
         expect(badge.kind).toBe('grant');
-        expect(badge.label).toContain('부여');
-        expect(badge.label).not.toContain('무기한');
+        expect(badge.label).toContain('Grant');
+        expect(badge.label).not.toContain('Indefinite');
     });
 
     it('차단은 어떤 상태로 막았는지까지 보여준다', () => {
@@ -72,7 +72,7 @@ describe('hasDerivationMismatch', () => {
 describe('describeGrade', () => {
     it('오버라이드 등급이 활성이면 영수증 상품을 괄호로 함께 보여준다', () => {
         const $m = view({ adminStatus: 'active', adminProductId: 'pro_tier_03', productId: 'pro_tier_01' });
-        expect(describeGrade($m, NOW)).toBe('pro_tier_03 (영수증: pro_tier_01)');
+        expect(describeGrade($m, NOW)).toBe('pro_tier_03 (receipt: pro_tier_01)');
     });
 
     it('오버라이드가 만료됐으면 영수증 상품만 보여준다', () => {
@@ -95,12 +95,12 @@ describe('describeTargetServer', () => {
         expect(describeTargetServer('https://api.example.com/dou-v1')).toEqual({
             endpoint: 'https://api.example.com/dou-v1',
             isProd: true,
-            label: '운영',
+            label: 'Production',
         });
     });
 
     it('dou-d1 은 개발이다', () => {
-        expect(describeTargetServer('https://api.example.com/dou-d1').label).toBe('개발');
+        expect(describeTargetServer('https://api.example.com/dou-d1').label).toBe('Development');
     });
 
     it('끝의 슬래시는 무시한다', () => {
@@ -109,13 +109,13 @@ describe('describeTargetServer', () => {
 
     // Insisting a production URL is dev is the expensive mistake. A backend endpoint (/v1) isn't a relay either.
     it('규칙에 안 맞으면 개발이라고 단정하지 않고 모른다고 한다', () => {
-        expect(describeTargetServer('https://api.example.com/x9').label).toBe('알 수 없음');
-        expect(describeTargetServer('https://api.example.com/v1').label).toBe('알 수 없음');
+        expect(describeTargetServer('https://api.example.com/x9').label).toBe('Unknown');
+        expect(describeTargetServer('https://api.example.com/v1').label).toBe('Unknown');
     });
 
     it('비어 있으면 미설정으로 표시한다', () => {
-        expect(describeTargetServer(undefined).endpoint).toBe('(미설정)');
-        expect(describeTargetServer('  ').label).toBe('알 수 없음');
+        expect(describeTargetServer(undefined).endpoint).toBe('(not configured)');
+        expect(describeTargetServer('  ').label).toBe('Unknown');
     });
 });
 

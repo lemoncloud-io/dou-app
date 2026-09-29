@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { ConfigScreen } from './ConfigScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 import { config } from '@chatic/config';
 
 const snapshotAll = jest.fn();
@@ -50,12 +51,17 @@ const numberSnap = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('ConfigScreen', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
         jest.clearAllMocks();
         snapshotAll.mockReturnValue([snap()]);
         set.mockReturnValue({ ok: true });
         clear.mockReturnValue({ ok: true });
     });
+
+    afterEach(() => restoreLanguage());
 
     // The dotted key is an implementation detail — the registry already has a human-readable name and a one-sentence description.
     it('키 대신 이름과 설명, 값과 이긴 행을 보여준다', () => {
@@ -75,8 +81,8 @@ describe('ConfigScreen', () => {
         ]);
         render(<ConfigScreen />);
 
-        expect(screen.getByText('오버라이드됨 (1)')).toBeInTheDocument();
-        expect(screen.getByText('나머지 (1)')).toBeInTheDocument();
+        expect(screen.getByText('Overridden (1)')).toBeInTheDocument();
+        expect(screen.getByText('Rest (1)')).toBeInTheDocument();
     });
 
     // Prevents the circularity of the lock screen containing the lock switch itself (ADR-0080 decision 6).
@@ -105,7 +111,7 @@ describe('ConfigScreen', () => {
         render(<ConfigScreen />);
 
         // The key isn't shown on screen, but it still works as a search term.
-        await userEvent.type(screen.getByPlaceholderText(/찾기/), 'relay');
+        await userEvent.type(screen.getByPlaceholderText(/Search/), 'relay');
         expect(screen.getByText('릴레이 주소')).toBeInTheDocument();
 
         expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
@@ -116,13 +122,13 @@ describe('ConfigScreen', () => {
         snapshotAll.mockReturnValue([]);
         render(<ConfigScreen />);
 
-        expect(screen.getByText(/배선되지 않았습니다/)).toBeInTheDocument();
+        expect(screen.getByText(/isn't wired up yet/)).toBeInTheDocument();
     });
 
     it('JSON 복사는 키·값·이긴 행을 담는다', async () => {
         render(<ConfigScreen />);
 
-        await userEvent.click(screen.getByRole('button', { name: 'JSON 복사' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Copy JSON' }));
 
         expect(copyTextWithResult).toHaveBeenCalledWith(expect.stringContaining('"origin": "local"'));
     });
@@ -136,7 +142,7 @@ describe('ConfigScreen', () => {
         const input = screen.getByDisplayValue('4');
         await userEvent.clear(input);
         await userEvent.type(input, '9');
-        await userEvent.click(screen.getByRole('button', { name: '적용' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
         expect(set).toHaveBeenCalledWith('net.retry.maxRetries', 9, { lane: 'local' });
     });
@@ -149,17 +155,17 @@ describe('ConfigScreen', () => {
         const input = screen.getByDisplayValue('4');
         await userEvent.clear(input);
         await userEvent.type(input, 'abc');
-        await userEvent.click(screen.getByRole('button', { name: '적용' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
         expect(set).not.toHaveBeenCalled();
-        expect(screen.getByText('숫자가 아닙니다')).toBeInTheDocument();
+        expect(screen.getByText('Not a number')).toBeInTheDocument();
     });
 
     it('불리언 키는 눌러서 뒤집는다', async () => {
         render(<ConfigScreen />);
 
         await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
-        await userEvent.click(screen.getByRole('button', { name: '끄기' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Off' }));
 
         expect(set).toHaveBeenCalledWith('log.upload.hold', false, { lane: 'local' });
     });
@@ -168,7 +174,7 @@ describe('ConfigScreen', () => {
         render(<ConfigScreen />);
 
         await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
-        await userEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Revert' }));
 
         expect(clear).toHaveBeenCalledWith('log.upload.hold', { lane: 'local' });
     });
@@ -179,9 +185,9 @@ describe('ConfigScreen', () => {
         render(<ConfigScreen />);
 
         await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
-        await userEvent.click(screen.getByRole('button', { name: '끄기' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Off' }));
 
-        expect(screen.getByText('오버라이드 잠금이 걸려 있습니다')).toBeInTheDocument();
+        expect(screen.getByText('Override lock is on')).toBeInTheDocument();
     });
 
     // Rendering a control for a key that can't be written would make the person pressing it think it changed.
@@ -191,8 +197,8 @@ describe('ConfigScreen', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /로그 업로드 보류/ }));
 
-        expect(screen.queryByRole('button', { name: '끄기' })).not.toBeInTheDocument();
-        expect(screen.getByText(/읽기 전용/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Off' })).not.toBeInTheDocument();
+        expect(screen.getByText(/Read-only/)).toBeInTheDocument();
     });
 
     it('적용 시점을 함께 말한다', async () => {
@@ -201,14 +207,14 @@ describe('ConfigScreen', () => {
 
         await userEvent.click(screen.getByRole('button', { name: /HTTP 재시도 횟수/ }));
 
-        expect(screen.getByText(/재시작 후 적용/)).toBeInTheDocument();
+        expect(screen.getByText(/Applies after restart/)).toBeInTheDocument();
     });
 
     it('새로고침은 다시 읽는다', async () => {
         render(<ConfigScreen />);
         const before = snapshotAll.mock.calls.length;
 
-        await userEvent.click(screen.getByRole('button', { name: '새로고침' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
 
         expect(snapshotAll.mock.calls.length).toBeGreaterThan(before);
     });

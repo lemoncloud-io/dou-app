@@ -8,6 +8,7 @@ import { appBridge } from '../../../../bridge';
 import { getLogQueueView } from '../../../../runtime/logging/logQueueView';
 import { isLogUploadHeld, isLogUploadHeldByApp, setLogUploadHold } from '../../../../runtime/logging/logUploadSwitch';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
+import { useLogBufferScreenStrings } from '../../i18n/screens/LogBufferScreen';
 import {
     collectLogTags,
     filterLogs,
@@ -81,36 +82,35 @@ const ActionButton = ({
  * reads it as "stop collecting my logs" would believe a privacy control that
  * isn't one.
  */
-const HoldToggle = ({ held, byApp, onToggle }: { held: boolean; byApp: boolean; onToggle: () => void }) => (
-    <div className="flex flex-col gap-2">
-        <button
-            type="button"
-            onClick={onToggle}
-            disabled={byApp}
-            className={`flex min-h-[42px] items-center justify-between gap-3 rounded-[10px] border px-3 text-left text-[13px] font-semibold disabled:opacity-60 ${
-                held
-                    ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'
-                    : 'border-border bg-background text-foreground'
-            }`}
-        >
-            <span>서버 전송 {held ? '보류 중' : '보류'}</span>
-            <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                    held ? 'bg-yellow-500/20' : 'bg-muted text-muted-foreground'
+const HoldToggle = ({ held, byApp, onToggle }: { held: boolean; byApp: boolean; onToggle: () => void }) => {
+    const t = useLogBufferScreenStrings();
+    return (
+        <div className="flex flex-col gap-2">
+            <button
+                type="button"
+                onClick={onToggle}
+                disabled={byApp}
+                className={`flex min-h-[42px] items-center justify-between gap-3 rounded-[10px] border px-3 text-left text-[13px] font-semibold disabled:opacity-60 ${
+                    held
+                        ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'
+                        : 'border-border bg-background text-foreground'
                 }`}
             >
-                {held ? 'ON' : 'OFF'}
-            </span>
-        </button>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-            {byApp
-                ? '앱 디버그 메뉴가 보류를 켰습니다 — 끄는 것도 그쪽입니다.'
-                : held
-                  ? '큐를 비우지 않습니다. 재현한 로그가 큐에 남습니다. 수집은 계속되며, 끄면 다음 전송에 쌓인 것이 나갑니다.'
-                  : '평시에는 전송돼 큐가 비어 있는 것이 정상입니다. 수집 거부(기기 opt-out)와는 다른 레버입니다.'}
-        </p>
-    </div>
-);
+                <span>{held ? t.upload.holding : t.upload.hold}</span>
+                <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        held ? 'bg-yellow-500/20' : 'bg-muted text-muted-foreground'
+                    }`}
+                >
+                    {held ? t.upload.on : t.upload.off}
+                </span>
+            </button>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                {byApp ? t.upload.heldByApp : held ? t.upload.heldNote : t.upload.notHeldNote}
+            </p>
+        </div>
+    );
+};
 
 /**
  * Small copy button used inside an expanded log entry. Distinct from the shared `CopyButton`: the
@@ -146,6 +146,7 @@ const LogRow = ({
     onToggle: () => void;
     onCopy: (value: string) => void;
 }) => {
+    const t = useLogBufferScreenStrings();
     const level = (log.level ?? 'unknown') as AppLogLevel | 'unknown';
     const data = stringifyValue(log.data);
     const error = hasErrorValue(log.error) ? stringifyValue(log.error) : '';
@@ -182,8 +183,10 @@ const LogRow = ({
                     {data ? (
                         <div className="min-w-0">
                             <div className="mb-1 flex items-center justify-between gap-2">
-                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">data</span>
-                                <LogCopyButton label="Copy" value={data} onCopy={onCopy} />
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    {t.logs.data}
+                                </span>
+                                <LogCopyButton label={t.logs.copy} value={data} onCopy={onCopy} />
                             </div>
                             <pre className="max-h-[240px] max-w-full overflow-auto whitespace-pre-wrap break-words rounded-[10px] bg-muted p-2 font-mono text-[11px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
                                 {data}
@@ -193,8 +196,10 @@ const LogRow = ({
                     {error ? (
                         <div className="min-w-0">
                             <div className="mb-1 flex items-center justify-between gap-2">
-                                <span className="text-[10px] uppercase tracking-wide text-destructive">error</span>
-                                <LogCopyButton label="Copy" value={error} onCopy={onCopy} />
+                                <span className="text-[10px] uppercase tracking-wide text-destructive">
+                                    {t.logs.error}
+                                </span>
+                                <LogCopyButton label={t.logs.copy} value={error} onCopy={onCopy} />
                             </div>
                             <pre className="max-h-[240px] max-w-full overflow-auto whitespace-pre-wrap break-words rounded-[10px] bg-destructive/10 p-2 font-mono text-[11px] leading-relaxed text-destructive [overflow-wrap:anywhere]">
                                 {error}
@@ -202,7 +207,7 @@ const LogRow = ({
                         </div>
                     ) : null}
                     <div className="flex justify-end">
-                        <LogCopyButton label="Copy entry" value={formatLogForCopy(log)} onCopy={onCopy} />
+                        <LogCopyButton label={t.logs.copyEntry} value={formatLogForCopy(log)} onCopy={onCopy} />
                     </div>
                 </div>
             ) : null}
@@ -211,12 +216,13 @@ const LogRow = ({
 };
 
 export const LogBufferScreen = () => {
+    const t = useLogBufferScreenStrings();
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const [limit, setLimit] = useState(LOG_FETCH_LIMIT);
     const [logs, setLogs] = useState<AppLogInfo[]>([]);
     const [queueSize, setQueueSize] = useState<number | null>(null);
     const [isFetchingLogs, setIsFetchingLogs] = useState(false);
-    const [lastAction, setLastAction] = useState('Idle');
+    const [lastAction, setLastAction] = useState(t.actions.idle);
     const [lastResponseAt, setLastResponseAt] = useState<string | null>(null);
     const [clearSuccess, setClearSuccess] = useState<boolean | null>(null);
 
@@ -273,20 +279,26 @@ export const LogBufferScreen = () => {
     // across paging, so only the new (older) rows mount, appended at the bottom.
     const keyByLog = useMemo(() => new Map(logs.map((log, index) => [log, logs.length - 1 - index])), [logs]);
 
-    const markRequest = useCallback((action: string) => {
-        setLastAction(`${action} requested`);
-        setLastResponseAt(null);
-        setClearSuccess(null);
-    }, []);
+    const markRequest = useCallback(
+        (action: string) => {
+            setLastAction(t.requested(action));
+            setLastResponseAt(null);
+            setClearSuccess(null);
+        },
+        [t]
+    );
 
-    const markResponse = useCallback((action: string, size: number) => {
-        setLastAction(`${action} received`);
-        setQueueSize(size);
-        setLastResponseAt(new Date().toLocaleTimeString());
-    }, []);
+    const markResponse = useCallback(
+        (action: string, size: number) => {
+            setLastAction(t.received(action));
+            setQueueSize(size);
+            setLastResponseAt(new Date().toLocaleTimeString());
+        },
+        [t]
+    );
 
     const fetchLogs = useCallback(
-        async (nextLimit: number, action = 'Fetch') => {
+        async (nextLimit: number, action = t.actions.fetch) => {
             // Plain web: read the running uploader's queue synchronously.
             // Ordering and paging are handled at display time (newest-first), so
             // there is no incremental limit or bridge round-trip here.
@@ -312,25 +324,25 @@ export const LogBufferScreen = () => {
                 setLogs(res.data?.logs ?? []);
                 markResponse(action, res.data?.size ?? 0);
             } catch (error) {
-                setLastAction(`${action} failed`);
+                setLastAction(t.failed(action));
                 logger.warn('LOG_BUFFER', 'fetchLogUploadQueue failed', error);
             } finally {
                 setIsFetchingLogs(false);
             }
         },
-        [isOnMobileApp, markRequest, markResponse]
+        [isOnMobileApp, markRequest, markResponse, t]
     );
 
     const refreshLogs = useCallback(() => {
-        fetchLogs(LOG_FETCH_LIMIT, 'Refresh');
-    }, [fetchLogs]);
+        fetchLogs(LOG_FETCH_LIMIT, t.actions.refresh);
+    }, [fetchLogs, t]);
 
     const loadMoreLogs = useCallback(() => {
         if (isFetchingLogs || !hasMoreLogs) return;
 
         const nextLimit = queueSize === null ? limit + LOG_FETCH_LIMIT : Math.min(limit + LOG_FETCH_LIMIT, queueSize);
-        fetchLogs(nextLimit, 'Load more');
-    }, [queueSize, fetchLogs, hasMoreLogs, isFetchingLogs, limit]);
+        fetchLogs(nextLimit, t.actions.loadMore);
+    }, [queueSize, fetchLogs, hasMoreLogs, isFetchingLogs, limit, t]);
 
     const handleScroll = useCallback(
         (event: UIEvent<HTMLDivElement>) => {
@@ -359,21 +371,21 @@ export const LogBufferScreen = () => {
             getLogQueueView()?.clear();
             setLogs([]);
             setClearSuccess(true);
-            markResponse('Discard', 0);
+            markResponse(t.actions.discard, 0);
             return;
         }
 
-        markRequest('Discard');
+        markRequest(t.actions.discard);
         try {
             const res = await appBridge.clearLogUploadQueue();
             setLogs([]);
             setClearSuccess(Boolean(res?.success));
-            markResponse('Discard', res.data?.size ?? 0);
+            markResponse(t.actions.discard, res.data?.size ?? 0);
         } catch (error) {
-            setLastAction('Discard failed');
+            setLastAction(t.failed(t.actions.discard));
             logger.warn('LOG_BUFFER', 'clearLogUploadQueue failed', error);
         }
-    }, [isOnMobileApp, markRequest, markResponse]);
+    }, [isOnMobileApp, markRequest, markResponse, t]);
 
     const generateSampleLogs = useCallback(() => {
         const requestId = Date.now().toString(36);
@@ -387,13 +399,13 @@ export const LogBufferScreen = () => {
             data: { requestId, source },
         });
 
-        setLastAction('Sample logs sent');
+        setLastAction(t.sampleLogsSent);
         // The debug sample never reaches the queue and so never shows up here —
         // that is the level policy working, not a bug.
         // Hybrid needs a charge to land before the app queue holds these, which
         // is a bridge round-trip away; web queues synchronously.
         window.setTimeout(refreshLogs, isOnMobileApp ? 250 : 0);
-    }, [isOnMobileApp, refreshLogs]);
+    }, [isOnMobileApp, refreshLogs, t]);
 
     const toggleLevel = useCallback((level: AppLogLevel) => {
         setActiveLevels(prev => {
@@ -438,9 +450,9 @@ export const LogBufferScreen = () => {
         } catch (error) {
             logger.warn('LOG_BUFFER', 'flush failed', error);
             setFlushState('idle');
-            setLastAction('flush failed');
+            setLastAction(t.upload.flushFailed);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         fetchLogs(LOG_FETCH_LIMIT);
@@ -463,43 +475,45 @@ export const LogBufferScreen = () => {
                 className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none"
             >
                 <div className="flex min-w-0 max-w-full flex-col gap-3 p-4 pb-10">
-                    <Section title="Status">
+                    <Section title={t.status.title}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                            <Metric label="Mobile App" value={isOnMobileApp} />
-                            <Metric label="Queue Size" value={queueSize} />
-                            <Metric label="Loaded Logs" value={logs.length} />
-                            <Metric label="Shown" value={visibleLogs.length} />
-                            <Metric label="Last Action" value={lastAction} />
-                            <Metric label="Last Response" value={lastResponseAt} />
-                            {isOnMobileApp ? <Metric label="Limit" value={limit} /> : null}
-                            <Metric label="Discarded" value={clearSuccess} />
+                            <Metric label={t.status.mobileApp} value={isOnMobileApp} />
+                            <Metric label={t.status.queueSize} value={queueSize} />
+                            <Metric label={t.status.loadedLogs} value={logs.length} />
+                            <Metric label={t.status.shown} value={visibleLogs.length} />
+                            <Metric label={t.status.lastAction} value={lastAction} />
+                            <Metric label={t.status.lastResponse} value={lastResponseAt} />
+                            {isOnMobileApp ? <Metric label={t.status.limit} value={limit} /> : null}
+                            <Metric label={t.status.discarded} value={clearSuccess} />
                         </div>
                         <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-                            {isOnMobileApp
-                                ? '앱의 미전송 큐입니다 (비-debug만). debug는 콘솔에만 남습니다.'
-                                : '이 탭의 미전송 큐입니다 (비-debug만). debug는 콘솔에만 남습니다.'}
+                            {isOnMobileApp ? t.status.queueNoteApp : t.status.queueNoteWeb}
                         </p>
                     </Section>
 
-                    <Section title="Controls">
+                    <Section title={t.controls.title}>
                         <div className="grid grid-cols-2 gap-2">
                             <ActionButton
                                 icon={<Zap size={15} />}
-                                label="Sample"
+                                label={t.controls.sample}
                                 tone="primary"
                                 onClick={generateSampleLogs}
                             />
-                            <ActionButton icon={<RefreshCw size={15} />} label="Refresh" onClick={refreshLogs} />
+                            <ActionButton
+                                icon={<RefreshCw size={15} />}
+                                label={t.controls.refresh}
+                                onClick={refreshLogs}
+                            />
                             <ActionButton
                                 icon={<Trash2 size={15} />}
-                                label="버리기"
+                                label={t.controls.discard}
                                 tone="danger"
                                 onClick={discardQueued}
                             />
                         </div>
                     </Section>
 
-                    <Section title="Upload">
+                    <Section title={t.upload.title}>
                         <HoldToggle held={uploadHeld} byApp={heldByApp} onToggle={toggleUploadHold} />
                         <div className="flex items-center gap-2 pt-1">
                             <button
@@ -508,25 +522,25 @@ export const LogBufferScreen = () => {
                                 onClick={() => void flushNow()}
                                 className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
                             >
-                                지금 보내기
+                                {t.upload.sendNow}
                             </button>
                             <span className="text-xs text-muted-foreground">
-                                {flushState === 'sending' && '보내는 중…'}
-                                {flushState === 'sent' && '보냈습니다 (서버 수락 여부는 큐가 보장)'}
-                                {flushState === 'unavailable' && '업로더가 돌고 있지 않습니다'}
-                                {uploadHeld && flushState === 'idle' && '홀드 중 — 보내기가 막혀 있을 수 있습니다'}
+                                {flushState === 'sending' && t.upload.sending}
+                                {flushState === 'sent' && t.upload.sent}
+                                {flushState === 'unavailable' && t.upload.unavailable}
+                                {uploadHeld && flushState === 'idle' && t.upload.onHold}
                             </span>
                         </div>
                     </Section>
 
-                    <Section title="Filter">
+                    <Section title={t.filter.title}>
                         <div className="flex items-center gap-2 rounded-[10px] border border-border bg-background px-3">
                             <Search size={14} className="shrink-0 text-muted-foreground" />
                             <input
                                 type="text"
                                 value={query}
                                 onChange={event => setQuery(event.target.value)}
-                                placeholder={'검색 · -제외 · tag:NET · "따옴표 구"'}
+                                placeholder={t.filter.placeholder}
                                 className="min-h-[40px] w-full min-w-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
                             />
                             {query ? (
@@ -535,7 +549,7 @@ export const LogBufferScreen = () => {
                                     onClick={() => setQuery('')}
                                     className="shrink-0 text-[12px] font-semibold text-muted-foreground"
                                 >
-                                    Clear
+                                    {t.filter.clear}
                                 </button>
                             ) : null}
                         </div>
@@ -561,7 +575,7 @@ export const LogBufferScreen = () => {
                                     onClick={() => setActiveLevels(new Set())}
                                     className="rounded-full px-3 py-1 text-[11px] font-semibold text-muted-foreground"
                                 >
-                                    Reset
+                                    {t.filter.reset}
                                 </button>
                             ) : null}
                         </div>
@@ -592,24 +606,18 @@ export const LogBufferScreen = () => {
                                         onClick={() => setActiveTags(new Set())}
                                         className="rounded-full px-3 py-1 text-[11px] font-semibold text-muted-foreground"
                                     >
-                                        Reset
+                                        {t.filter.reset}
                                     </button>
                                 ) : null}
                             </div>
                         ) : null}
                     </Section>
 
-                    <Section
-                        title={`Logs (${visibleLogs.length}${visibleLogs.length !== logs.length ? ` / ${logs.length}` : ''})`}
-                    >
+                    <Section title={t.logs.title(visibleLogs.length, logs.length)}>
                         {visibleLogs.length === 0 ? (
                             <div className="py-8 text-center">
                                 <p className="text-[13px] text-muted-foreground">
-                                    {logs.length > 0
-                                        ? 'No logs match the filter'
-                                        : uploadHeld
-                                          ? '보류 중이지만 큐가 비어 있습니다 — 아직 전송할 로그가 없습니다.'
-                                          : '큐가 비어 있습니다.'}
+                                    {logs.length > 0 ? t.logs.noMatch : uploadHeld ? t.logs.heldEmpty : t.logs.empty}
                                 </p>
                                 {/* The empty view is the expected state while sending is on
                                     — the uploader drains what it ships. Saying so here is
@@ -617,8 +625,7 @@ export const LogBufferScreen = () => {
                                     report (S11). */}
                                 {logs.length === 0 && !uploadHeld ? (
                                     <p className="mx-auto mt-2 max-w-[280px] text-[11px] leading-relaxed text-muted-foreground">
-                                        전송이 켜져 있으면 비어 있는 것이 정상입니다. 로그를 붙잡아 보려면 위의 전송
-                                        보류를 켜세요.
+                                        {t.logs.emptyHint}
                                     </p>
                                 ) : null}
                             </div>
@@ -641,7 +648,7 @@ export const LogBufferScreen = () => {
                         )}
                         {hasMoreLogs && visibleLogs.length > 0 ? (
                             <div className="border-t border-border py-3 text-center text-[12px] text-muted-foreground">
-                                {isFetchingLogs ? 'Loading...' : `Scroll to load ${LOG_FETCH_LIMIT} more`}
+                                {isFetchingLogs ? t.logs.loading : t.logs.loadMore(LOG_FETCH_LIMIT)}
                             </div>
                         ) : null}
                     </Section>
@@ -659,7 +666,7 @@ export const LogBufferScreen = () => {
                             : 'bg-foreground text-background'
                     }`}
                 >
-                    {copyState === 'failed' ? '복사 실패' : 'Copied'}
+                    {copyState === 'failed' ? t.copyFailed : t.copied}
                 </div>
             ) : null}
         </div>

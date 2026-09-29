@@ -19,30 +19,30 @@ const BASELINE_KEY = '__dou_debug_sync_baseline';
 const ROW_CAP = 300;
 
 const TYPE_LABEL: Record<string, string> = {
-    chat: '메시지',
-    channel: '채널',
-    join: '멤버',
-    user: '사용자',
-    site: '플레이스',
-    profile: '프로필',
-    invitecloud: '초대',
+    chat: 'Message',
+    channel: 'Channel',
+    join: 'Member',
+    user: 'User',
+    site: 'Place',
+    profile: 'Profile',
+    invitecloud: 'Invite',
 };
 
 const FRAME_LABEL: Record<string, string> = {
-    'chat.send': '💬 새 메시지',
-    'chat.feed': '📥 메시지 동기화',
-    'chat.update': '✏️ 메시지 수정',
-    'chat.delete': '🗑️ 메시지 삭제',
-    'channel.create': '➕ 채널 생성',
-    'channel.update': '📂 채널 변경',
-    'channel.sync': '🔄 채널 동기화',
-    'join.update': '👁️ 읽음·멤버 변경',
-    'user.read': '👁️ 읽음 처리',
-    'user.update': '🙍 사용자 변경',
-    'auth.update': '🔑 인증 갱신',
-    'sync.update': '🔄 동기화',
-    'system.ping': '📡 연결 확인',
-    'system.info': 'ℹ️ 서버 정보',
+    'chat.send': '💬 New message',
+    'chat.feed': '📥 Message sync',
+    'chat.update': '✏️ Message edited',
+    'chat.delete': '🗑️ Message deleted',
+    'channel.create': '➕ Channel created',
+    'channel.update': '📂 Channel changed',
+    'channel.sync': '🔄 Channel sync',
+    'join.update': '👁️ Read/member change',
+    'user.read': '👁️ Read receipt',
+    'user.update': '🙍 User changed',
+    'auth.update': '🔑 Auth refresh',
+    'sync.update': '🔄 Sync',
+    'system.ping': '📡 Connection check',
+    'system.info': 'ℹ️ Server info',
 };
 
 const frameLabel = (domain: string, action: string): string =>
@@ -185,12 +185,12 @@ const HealthCard = ({
     gapText: string;
 }) => (
     <div className="rounded-xl border border-border bg-card p-4">
-        <p className="mb-3 text-sm font-semibold text-foreground">한눈에 보기</p>
+        <p className="mb-3 text-sm font-semibold text-foreground">At a glance</p>
         <div className="grid grid-cols-2 gap-3">
-            <Stat label="소켓 연결" value={`${socket.dot} ${socket.text}`} />
-            <Stat label="이번 세션 수신" value={`${frameCount} 프레임`} />
-            <Stat label="저장된 캐시" value={`${totalRows}개`} sub={typeText} />
-            <Stat label="메시지 누락" value={gapText} />
+            <Stat label="Socket" value={`${socket.dot} ${socket.text}`} />
+            <Stat label="Received this session" value={`${frameCount} ${frameCount === 1 ? 'frame' : 'frames'}`} />
+            <Stat label="Cached rows" value={`${totalRows}`} sub={typeText} />
+            <Stat label="Missing messages" value={gapText} />
         </div>
     </div>
 );
@@ -205,23 +205,21 @@ const SocketFrameLog = () => {
 
     return (
         <Section
-            title={`실시간 소켓 수신 (${frames.length})`}
-            hint="서버에서 방금 도착한 데이터입니다. 줄을 누르면 원본 JSON이 보입니다."
+            title={`Live socket feed (${frames.length})`}
+            hint="Data that just arrived from the server. Click a row to see the raw JSON."
             action={
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setPaused(!paused)}>
-                        {paused ? '재개' : '일시정지'}
+                        {paused ? 'Resume' : 'Pause'}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={clear}>
-                        지우기
+                        Clear
                     </Button>
                 </div>
             }
         >
             <div className="max-h-72 divide-y divide-border/60 overflow-y-auto">
-                {frames.length === 0 && (
-                    <p className="py-3 text-sm text-muted-foreground">아직 수신된 데이터가 없습니다…</p>
-                )}
+                {frames.length === 0 && <p className="py-3 text-sm text-muted-foreground">No data received yet…</p>}
                 {frames.map(f => (
                     <div key={f.seq} className="py-1.5">
                         <button
@@ -280,11 +278,11 @@ const CacheExplorer = ({
 
     return (
         <Section
-            title={`저장된 캐시 (${filtered.length}/${rows.length})`}
-            hint="기기에 실제로 저장된 레코드입니다 (IndexedDB). 줄을 누르면 내용이 보입니다."
+            title={`Cached rows (${filtered.length}/${rows.length})`}
+            hint="Records actually stored on this device (IndexedDB). Click a row to see its content."
             action={
                 <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-                    {loading ? '읽는 중…' : '새로고침'}
+                    {loading ? 'Loading…' : 'Refresh'}
                 </Button>
             }
         >
@@ -296,14 +294,14 @@ const CacheExplorer = ({
                 >
                     {types.map(t => (
                         <option key={t} value={t}>
-                            {t === 'all' ? '전체' : `${TYPE_LABEL[t] ?? t} (${t})`}
+                            {t === 'all' ? 'All' : `${TYPE_LABEL[t] ?? t} (${t})`}
                         </option>
                     ))}
                 </select>
                 <input
                     value={text}
                     onChange={e => setText(e.target.value)}
-                    placeholder="id / 채널 / key 검색"
+                    placeholder="Search by id / channel / key"
                     className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs"
                 />
             </div>
@@ -317,13 +315,15 @@ const CacheExplorer = ({
                     }`}
                 >
                     <span className="font-semibold">
-                        {gap.missing > 0 ? `⚠️ 메시지 ${gap.missing}개 빠짐` : '✅ 누락 없음'}
+                        {gap.missing > 0
+                            ? `⚠️ ${gap.missing} ${gap.missing === 1 ? 'message' : 'messages'} missing`
+                            : '✅ No gaps'}
                     </span>{' '}
                     <span className="text-muted-foreground">
-                        (열린 채널, {gap.count}개 저장 · 범위 {gap.min ?? '—'}…{gap.max ?? '—'})
+                        (open channel, {gap.count} stored · range {gap.min ?? '—'}…{gap.max ?? '—'})
                     </span>
                     {gap.ranges.length > 0 && (
-                        <div className="mt-1 font-mono text-nano">빠진 번호: {gap.ranges.join(', ')}</div>
+                        <div className="mt-1 font-mono text-nano">Missing numbers: {gap.ranges.join(', ')}</div>
                     )}
                 </div>
             )}
@@ -392,18 +392,18 @@ export const DebugSyncPage = () => {
     const totalChats = typeTotals.chat ?? 0;
     const socket = isConnected
         ? isVerified
-            ? { dot: '🟢', text: '연결됨 · 인증 완료' }
-            : { dot: '🟡', text: '연결됨 · 인증 대기' }
-        : { dot: '🔴', text: '끊김' };
+            ? { dot: '🟢', text: 'Connected · verified' }
+            : { dot: '🟡', text: 'Connected · verifying' }
+        : { dot: '🔴', text: 'Disconnected' };
     const typeText = Object.entries(typeTotals)
         .sort((a, b) => b[1] - a[1])
         .map(([t, n]) => `${TYPE_LABEL[t] ?? t} ${n}`)
         .join(' · ');
     const gapText = !selectedChannelId
-        ? '채널을 열면 검사'
+        ? 'Opens a channel to check'
         : gap && gap.missing > 0
-          ? `⚠️ ${gap.missing}개 빠짐`
-          : '✅ 누락 없음';
+          ? `⚠️ ${gap.missing} missing`
+          : '✅ No gaps';
 
     const debugRows = useMemo(() => rows.filter(r => typeof r.id === 'string' && r.id.startsWith('debug-')), [rows]);
 
@@ -429,9 +429,9 @@ export const DebugSyncPage = () => {
         <div className="mx-auto w-full max-w-4xl p-6">
             <div className="mb-4 flex items-start justify-between">
                 <div>
-                    <h1 className="text-base font-semibold text-foreground">소켓 / 캐시</h1>
+                    <h1 className="text-base font-semibold text-foreground">Socket / Cache</h1>
                     <p className="text-xs text-muted-foreground">
-                        실시간 소켓 수신과 로컬 캐시(IndexedDB) 상태를 확인합니다.
+                        Check live socket traffic and the local cache (IndexedDB) status.
                     </p>
                 </div>
                 <VersionInfo className="text-right" />
@@ -441,7 +441,7 @@ export const DebugSyncPage = () => {
                 <HealthCard
                     socket={socket}
                     totalRows={rows.length}
-                    typeText={typeText || '비어 있음'}
+                    typeText={typeText || 'Empty'}
                     frameCount={frameCount}
                     gapText={gapText}
                 />
@@ -457,8 +457,8 @@ export const DebugSyncPage = () => {
                 />
 
                 <Section
-                    title="재시작 후에도 남아있나?"
-                    hint="현재 캐시를 기준으로 저장한 뒤 새로고침하면, 데이터가 살아남았는지 자동으로 비교합니다."
+                    title="Does it survive a restart?"
+                    hint="Save the current cache as a baseline, then refresh — it automatically compares whether the data survived."
                 >
                     {baseline ? (
                         <div
@@ -468,23 +468,24 @@ export const DebugSyncPage = () => {
                                     : 'bg-red-500/15 text-red-600 dark:text-red-400'
                             }`}
                         >
-                            {survival ? '✅ 통과 — 재시작 후에도 캐시 유지됨' : '❌ 실패 — 캐시가 줄었음'}
+                            {survival ? '✅ Passed — cache survived the restart' : '❌ Failed — cache shrank'}
                             <span className="ml-2 font-normal text-muted-foreground">
-                                (저장 {baseline.totalRows}개 → 지금 {rows.length}개, 기준 {fmtTime(baseline.capturedAt)}
+                                (saved {baseline.totalRows} → now {rows.length}, baseline {fmtTime(baseline.capturedAt)}
                                 )
                             </span>
                         </div>
                     ) : (
                         <p className="mb-2 text-xs text-muted-foreground">
-                            채널에 들어가 메시지를 받은 뒤 “기준 저장 → 새로고침”으로 캐시 유지 여부를 확인하세요.
+                            Open a channel, receive a message, then use “Save baseline → Refresh” to check whether the
+                            cache persists.
                         </p>
                     )}
                     <div className="flex flex-wrap gap-2">
                         <Button size="sm" onClick={captureBaseline}>
-                            기준 저장
+                            Save baseline
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => navigate(0)}>
-                            새로고침
+                            Refresh
                         </Button>
                         {baseline && (
                             <Button
@@ -495,21 +496,21 @@ export const DebugSyncPage = () => {
                                     navigate(0);
                                 }}
                             >
-                                기준 삭제
+                                Clear baseline
                             </Button>
                         )}
                     </div>
                 </Section>
 
                 <Section
-                    title="debug 데이터 정리"
-                    hint="“캐시 쓰기 실험” 탭에서 만든 가짜 레코드(채널/메시지)를 한 번에 지웁니다. 실제 채팅에 섞인 [sample] 메시지를 없앨 때 사용하세요."
+                    title="Clean up debug data"
+                    hint="Clears the fake records (channels/messages) created in the “Cache write playground” tab in one go. Use it to remove [sample] messages mixed into real chats."
                 >
                     <div className="flex items-center justify-between gap-3">
                         <span className="text-sm text-muted-foreground">
                             {debugRows.length > 0
-                                ? `debug 레코드 ${debugRows.length}개 발견`
-                                : '깨끗함 (debug 레코드 없음)'}
+                                ? `Found ${debugRows.length} debug records`
+                                : 'Clean (no debug records)'}
                         </span>
                         <Button
                             variant="outline"
@@ -517,7 +518,7 @@ export const DebugSyncPage = () => {
                             onClick={() => void purgeDebugData()}
                             disabled={debugRows.length === 0}
                         >
-                            정리
+                            Clean up
                         </Button>
                     </div>
                 </Section>

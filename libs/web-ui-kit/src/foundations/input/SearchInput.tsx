@@ -23,7 +23,7 @@ export interface SearchInputProps extends Omit<React.InputHTMLAttributes<HTMLInp
  * action button (e.g. the friend-picker's invite-link button).
  */
 export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
-    ({ value, onChange, placeholder = '검색', trailing, label, className, ...props }, ref) => {
+    ({ value, onChange, placeholder = 'Search', trailing, label, className, ...props }, ref) => {
         return (
             <div className={cn('flex w-full items-center gap-2', className)}>
                 <div className="flex h-11 flex-1 items-center gap-0.5 rounded-full bg-secondary px-4">

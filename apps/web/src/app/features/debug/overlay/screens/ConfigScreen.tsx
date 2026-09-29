@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { config } from '@chatic/config';
-import type { ConfigSnapshot, SetRejection, SetResult } from '@chatic/config';
+import type { ConfigSnapshot, SetResult } from '@chatic/config';
 
 import { CopyButton } from '../../components/CopyButton';
 import { Section } from '../../components/Section';
+import { useConfigScreenStrings } from '../../i18n/screens/ConfigScreen';
+
+type ConfigScreenStrings = ReturnType<typeof useConfigScreenStrings>;
 
 /**
  * Every setting this device is actually running with, and — for the keys this device may write —
@@ -33,24 +36,14 @@ const isHidden = (snapshot: ConfigSnapshot) => snapshot.entry.meta === true || s
 
 const show = (value: unknown) => (typeof value === 'object' ? JSON.stringify(value) : String(value));
 
-const REJECTION_TEXT: Record<SetRejection, string> = {
-    unknownKey: '레지스트리에 없는 키입니다',
-    laneNotAllowed: '이 화면이 쓸 수 있는 키가 아닙니다 (로컬 레인 밖)',
-    locked: '오버라이드 잠금이 걸려 있습니다',
-    invalidValue: '이 키의 타입과 맞지 않는 값입니다',
-    notWired: '설정이 아직 배선되지 않았습니다',
-};
-
-/** When the change actually lands. A control that silently needs a restart is a lie. */
-const APPLIES_AT_TEXT = {
-    live: '즉시 적용',
-    reconnect: '재연결 후 적용',
-    restart: '재시작 후 적용',
-} as const;
-
-const reasonOf = (result: SetResult) => (result.ok ? null : REJECTION_TEXT[result.reason]);
+// `reasonOf` reads the table it's given rather than a module-level one, since the hook that
+// resolves the current language can only run inside a component (ConfigScreen and ConfigRow each
+// call it, then pass their own `t` through here).
+const reasonOf = (result: SetResult, t: ConfigScreenStrings): string | null =>
+    result.ok ? null : t.rejection[result.reason];
 
 export const ConfigScreen = () => {
+    const t = useConfigScreenStrings();
     const [query, setQuery] = useState('');
     const [tick, setTick] = useState(0);
 
@@ -89,41 +82,37 @@ export const ConfigScreen = () => {
 
     return (
         <div className="flex flex-col gap-3 p-4">
-            <p className="text-[13px] text-muted-foreground">
-                이 기기가 실제로 쓰는 값 — 이긴 행(origin)까지 보고, 쓸 수 있는 키는 여기서 바꿉니다
-            </p>
+            <p className="text-[13px] text-muted-foreground">{t.description}</p>
 
             <div className="flex items-center gap-2">
                 <input
                     type="text"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
-                    placeholder="키 또는 이름으로 찾기"
+                    placeholder={t.searchPlaceholder}
                     className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-foreground"
                 />
                 <button type="button" onClick={refresh} className="rounded-md border border-border px-2 py-1 text-xs">
-                    새로고침
+                    {t.refresh}
                 </button>
-                <CopyButton value={copyAll} label="JSON 복사" />
+                <CopyButton value={copyAll} label={t.copyJson} />
             </div>
 
             {snapshots.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                    레지스트리가 아직 배선되지 않았습니다 — `config.init()` 전이거나 이 빌드에 어댑터가 없습니다
-                </p>
+                <p className="text-xs text-muted-foreground">{t.notWiredUp}</p>
             ) : (
                 <>
-                    <Section title={`오버라이드됨 (${overridden.length})`}>
+                    <Section title={t.overriddenTitle(overridden.length)}>
                         {overridden.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">없습니다 — 전부 빌드가 정한 값입니다</p>
+                            <p className="text-xs text-muted-foreground">{t.noneOverridden}</p>
                         ) : (
-                            overridden.map(s => <ConfigRow key={s.key} snapshot={s} onChanged={refresh} />)
+                            overridden.map(s => <ConfigRow key={s.key} snapshot={s} onChanged={refresh} t={t} />)
                         )}
                     </Section>
 
-                    <Section title={`나머지 (${rest.length})`}>
+                    <Section title={t.restTitle(rest.length)}>
                         {rest.map(s => (
-                            <ConfigRow key={s.key} snapshot={s} onChanged={refresh} />
+                            <ConfigRow key={s.key} snapshot={s} onChanged={refresh} t={t} />
                         ))}
                     </Section>
                 </>
@@ -136,7 +125,15 @@ export const ConfigScreen = () => {
  * One key. Collapsed it reads like the old list row; expanded it offers the control for its type.
  * Expanding one key at a time keeps 80+ rows scannable — a screen of inline editors is not.
  */
-const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChanged: () => void }) => {
+const ConfigRow = ({
+    snapshot,
+    onChanged,
+    t,
+}: {
+    snapshot: ConfigSnapshot;
+    onChanged: () => void;
+    t: ConfigScreenStrings;
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const [draft, setDraft] = useState(() => show(snapshot.value));
     const [message, setMessage] = useState<string | null>(null);
@@ -146,13 +143,13 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
 
     const apply = (next: unknown) => {
         const result = config.set(key, next, { lane: 'local' });
-        setMessage(reasonOf(result));
+        setMessage(reasonOf(result, t));
         if (result.ok) onChanged();
     };
 
     const revert = () => {
         const result = config.clear(key, { lane: 'local' });
-        setMessage(reasonOf(result));
+        setMessage(reasonOf(result, t));
         if (result.ok) {
             setDraft(show(config.snapshotAll().find(s => s.key === key)?.value));
             onChanged();
@@ -163,7 +160,7 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
         if (entry.type === 'number') {
             const parsed = Number(draft);
             if (draft.trim() === '' || Number.isNaN(parsed)) {
-                setMessage('숫자가 아닙니다');
+                setMessage(t.notANumber);
                 return;
             }
             apply(parsed);
@@ -173,7 +170,7 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
             try {
                 apply(JSON.parse(draft));
             } catch (e) {
-                setMessage(`JSON 파싱 실패: ${(e as Error).message}`);
+                setMessage(t.jsonParseFailed((e as Error).message));
             }
             return;
         }
@@ -206,7 +203,8 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
                 <div className="mt-2 rounded-lg bg-muted/40 p-2.5">
                     <p className="text-[11px] text-muted-foreground">{entry.description}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                        기본 {show(entry.defaultValue)} · {entry.type} · {APPLIES_AT_TEXT[entry.appliesAt ?? 'restart']}
+                        {t.defaultLabel} {show(entry.defaultValue)} · {entry.type} ·{' '}
+                        {t.appliesAt[entry.appliesAt ?? 'restart']}
                     </p>
 
                     {canEdit ? (
@@ -217,7 +215,7 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
                                     onClick={() => apply(!value)}
                                     className="rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground"
                                 >
-                                    {value ? '끄기' : '켜기'}
+                                    {value ? t.off : t.on}
                                 </button>
                             )}
 
@@ -252,7 +250,7 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
                                         onClick={applyDraft}
                                         className="rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground"
                                     >
-                                        적용
+                                        {t.apply}
                                     </button>
                                 </>
                             )}
@@ -263,13 +261,13 @@ const ConfigRow = ({ snapshot, onChanged }: { snapshot: ConfigSnapshot; onChange
                                     onClick={revert}
                                     className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground"
                                 >
-                                    되돌리기
+                                    {t.revert}
                                 </button>
                             )}
                         </div>
                     ) : (
                         <p className="mt-2 text-[11px] text-muted-foreground">
-                            이 기기에서는 읽기 전용입니다 — 쓸 수 있는 주체: {canWrite.join(', ') || '없음'}
+                            {t.readOnly(canWrite.join(', ') || t.noWriters)}
                         </p>
                     )}
 

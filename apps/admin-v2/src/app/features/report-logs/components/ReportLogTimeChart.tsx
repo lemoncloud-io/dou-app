@@ -19,7 +19,7 @@ const fmt = (ms: number): string =>
 
 export const ReportLogTimeChart = ({ buckets }: ReportLogTimeChartProps) => {
     if (buckets.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">표시할 데이터가 없습니다.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No data to display.</p>;
     }
 
     const max = Math.max(...buckets.map(b => b.count), 1);
@@ -31,7 +31,7 @@ export const ReportLogTimeChart = ({ buckets }: ReportLogTimeChartProps) => {
         <div className="flex flex-col gap-2 p-4">
             <div className="flex items-baseline justify-between text-xs text-muted-foreground">
                 <span>
-                    {buckets.length}구간 · 총 {total.toLocaleString()}건 · 최대 {max.toLocaleString()}건/구간
+                    {buckets.length} buckets · {total.toLocaleString()} total · {max.toLocaleString()} max/bucket
                 </span>
             </div>
             {/* Bars: height ∝ count, spike (== max) highlighted. */}
@@ -44,7 +44,7 @@ export const ReportLogTimeChart = ({ buckets }: ReportLogTimeChartProps) => {
                             key={i}
                             className="group relative flex-1"
                             style={{ height: '100%' }}
-                            title={`${fmt(b.start)}\n${b.count}건`}
+                            title={`${fmt(b.start)}\n${b.count} ${b.count === 1 ? 'row' : 'rows'}`}
                         >
                             <div
                                 className={`absolute bottom-0 w-full rounded-t ${isSpike ? 'bg-destructive' : 'bg-primary'}`}

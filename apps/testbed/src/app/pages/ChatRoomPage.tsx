@@ -19,7 +19,7 @@ const formatChatTime = (ms?: number): string => {
     if (!ms) return '';
     const date = new Date(ms);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('ko', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 };
 
 export const ChatRoomPage = () => {
@@ -381,19 +381,19 @@ export const ChatRoomPage = () => {
                     onClick={() => setIsImageLogOpen(open => !open)}
                     className="shrink-0 px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                 >
-                    업로드 로그{imageSend.log.length > 0 ? ` (${imageSend.log.length})` : ''}
+                    Upload log{imageSend.log.length > 0 ? ` (${imageSend.log.length})` : ''}
                 </button>
                 <button
                     onClick={() => setIsSystemSendOpen(true)}
                     className="shrink-0 px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                 >
-                    시스템
+                    System
                 </button>
                 <button
                     onClick={() => setIsInviteOpen(true)}
                     className="shrink-0 px-3 py-1 text-xs rounded border border-primary text-primary hover:bg-primary/10"
                 >
-                    초대
+                    Invite
                 </button>
             </div>
 
@@ -426,12 +426,12 @@ export const ChatRoomPage = () => {
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 space-y-2"
             >
-                {isLoadingMore && <p className="text-center text-xs text-muted-foreground py-2">불러오는 중...</p>}
+                {isLoadingMore && <p className="text-center text-xs text-muted-foreground py-2">Loading...</p>}
                 {!hasMore && chats.length > 0 && (
-                    <p className="text-center text-xs text-muted-foreground py-2">처음 메시지입니다</p>
+                    <p className="text-center text-xs text-muted-foreground py-2">This is the first message</p>
                 )}
                 {chats.length === 0 ? (
-                    <p className="text-center text-xs text-muted-foreground py-8">메시지가 없습니다</p>
+                    <p className="text-center text-xs text-muted-foreground py-8">No messages</p>
                 ) : (
                     [...chats].reverse().map(chat =>
                         // System messages (join/leave) render as a centered pill, not a chat bubble.
@@ -476,15 +476,15 @@ export const ChatRoomPage = () => {
                     onClick={() => imageInputRef.current?.click()}
                     disabled={imageSend.isSending}
                     className="px-3 py-2 rounded-lg border border-border text-sm disabled:opacity-50"
-                    aria-label="사진 보내기"
+                    aria-label="Send photo"
                 >
-                    사진
+                    Photo
                 </button>
                 <textarea
                     value={message}
                     onChange={e => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="메시지를 입력하세요"
+                    placeholder="Type a message"
                     rows={1}
                     className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -493,7 +493,7 @@ export const ChatRoomPage = () => {
                     disabled={!message.trim() || isSending}
                     className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 transition-opacity"
                 >
-                    전송
+                    Send
                 </button>
             </div>
         </div>
@@ -560,7 +560,7 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                 <p className="text-[10px] text-muted-foreground break-all">
                     <span className="font-medium">user:</span> {userName}
                     {' · '}
-                    <span className="font-medium">profile:</span> {nick ?? '없음'}
+                    <span className="font-medium">profile:</span> {nick ?? 'none'}
                 </p>
                 <div
                     className={`min-w-0 max-w-full rounded-2xl px-3 py-2 text-sm ${
@@ -579,9 +579,9 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                     <span className="truncate max-w-[10rem]">{chat.ownerId ?? '—'}</span>
                     <span>#{chat.chatNo}</span>
                     {time && <span>{time}</span>}
-                    {unreadCount > 0 && <span className="text-primary">안읽음 {unreadCount}</span>}
-                    {chat.isPending && <span>전송중</span>}
-                    {chat.isFailed && <span className="text-destructive">실패</span>}
+                    {unreadCount > 0 && <span className="text-primary">Unread {unreadCount}</span>}
+                    {chat.isPending && <span>Sending</span>}
+                    {chat.isFailed && <span className="text-destructive">Failed</span>}
                 </div>
             </div>
         </div>

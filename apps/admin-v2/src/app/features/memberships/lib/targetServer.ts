@@ -21,7 +21,7 @@ export interface TargetServer {
     label: string;
 }
 
-const STAGE_LABEL: Record<RelayStage, string> = { v1: '운영', d1: '개발' };
+const STAGE_LABEL: Record<RelayStage, string> = { v1: 'Production', d1: 'Development' };
 
 /** The configured endpoint with its `dou-XX` segment removed, e.g. `https://api.example.com`. */
 export const relayHost = (endpoint: string | undefined): string =>
@@ -44,7 +44,7 @@ export const relayBaseFor = (endpoint: string | undefined, stage: RelayStage): s
 export const describeTargetServer = (endpoint: string | undefined): TargetServer => {
     const url = (endpoint ?? '').trim().replace(/\/+$/, '');
     if (!url) {
-        return { endpoint: '(미설정)', isProd: false, label: '알 수 없음' };
+        return { endpoint: '(not configured)', isProd: false, label: 'Unknown' };
     }
 
     const stage = (url.match(/\/dou-([^/]*)$/)?.[1] ?? '') as RelayStage;
@@ -52,7 +52,7 @@ export const describeTargetServer = (endpoint: string | undefined): TargetServer
         return { endpoint: url, isProd: stage === 'v1', label: STAGE_LABEL[stage] };
     }
 
-    return { endpoint: url, isProd: false, label: '알 수 없음' };
+    return { endpoint: url, isProd: false, label: 'Unknown' };
 };
 
 export const configuredEndpoint = (): string | undefined => import.meta.env.VITE_DOU_ENDPOINT;

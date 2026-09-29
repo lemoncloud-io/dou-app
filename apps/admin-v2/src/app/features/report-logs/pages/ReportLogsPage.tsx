@@ -46,10 +46,10 @@ import type { ViewMode } from '../hooks/use-log-console-state';
 import type { PinKey } from '../lib/pinAxes';
 
 const VIEW_LABELS: Array<{ value: ViewMode; label: string }> = [
-    { value: 'list', label: '목록' },
-    { value: 'group', label: '집계' },
-    { value: 'time', label: '추이' },
-    { value: 'timeline', label: '타임라인' },
+    { value: 'list', label: 'List' },
+    { value: 'group', label: 'Aggregate' },
+    { value: 'time', label: 'Trend' },
+    { value: 'timeline', label: 'Timeline' },
 ];
 
 export const ReportLogsPage = () => {
@@ -234,7 +234,7 @@ export const ReportLogsPage = () => {
                         disabled={corpus.isCollecting}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                     >
-                        {corpus.isCollecting ? '수집 중…' : '다시 수집'}
+                        {corpus.isCollecting ? 'Collecting…' : 'Recollect'}
                     </button>
                 </div>
             </div>
@@ -251,7 +251,7 @@ export const ReportLogsPage = () => {
 
     const main = (() => {
         if (corpus.phase === 'collecting' && corpus.loaded === 0) {
-            return <p className="px-4 py-10 text-center text-sm text-muted-foreground">수집 중…</p>;
+            return <p className="px-4 py-10 text-center text-sm text-muted-foreground">Collecting…</p>;
         }
         if (mode === 'group') return <ReportLogGroupTable groups={groups} onSelect={g => setSelected(g.sample)} />;
         if (mode === 'time') return <ReportLogTimeChart buckets={buckets} />;

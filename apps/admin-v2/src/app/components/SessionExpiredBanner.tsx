@@ -25,9 +25,9 @@ export const SessionExpiredBanner = () => {
 
     return (
         <div className="session-expired-banner" role="alert">
-            <span>세션이 만료되었습니다. 화면은 그대로 두었으니, 이어서 작업하려면 다시 로그인해 주세요.</span>
+            <span>Your session has expired. The screen was left as-is — log in again to keep working.</span>
             <button type="button" onClick={() => void runtime.session.logoutSession()}>
-                다시 로그인
+                Log in again
             </button>
         </div>
     );

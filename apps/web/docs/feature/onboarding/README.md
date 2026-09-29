@@ -72,9 +72,9 @@ finishing it does not mark onboarding complete.
 
 ### Copy comes from two different places
 
-- **Carousel** — `useOnboardingSteps()` builds all four steps in TypeScript, branching on
-  `i18n.language` for ko/en and pulling images from `@chatic/assets`. Two numbers in slide 1 are
-  interpolated from `MAX_PLACES` and `MAX_CHANNELS_PER_PLACE` rather than written into the sentence,
+- **Carousel** — `useOnboardingSteps()` builds the four steps from `onboarding.steps.*` in the
+  locale files; only the image pick (from `@chatic/assets`) still branches on `i18n.language`. Two
+  numbers in slide 1 are interpolated from `MAX_PLACES` and `MAX_CHANNELS_PER_PLACE` rather than written into the sentence,
   because the slide is a promise about what the app allows and it kept promising the old limits after
   they moved. The 100 in slide 3 stays a literal: no constant owns a room's member capacity, and the
   nearest one (`MAX_INVITE_SELECTION`) caps a different thing.

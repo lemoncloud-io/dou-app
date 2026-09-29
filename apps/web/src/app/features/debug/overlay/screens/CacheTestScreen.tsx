@@ -5,6 +5,8 @@ import type { AppMessageData } from '@chatic/app-messages';
 import { type TestRecord } from '@chatic/app-messages';
 import { webClient } from '@chatic/bridges';
 
+import { useCacheTestStrings } from '../../i18n/screens/CacheTestScreen';
+
 const BULK_COUNTS = [10, 50, 100, 500, 1000, 2000];
 
 type LogLevel = 'info' | 'success' | 'warning' | 'error';
@@ -131,6 +133,8 @@ const LogEntryView = ({ log, index }: { log: LogEntry; index: number }) => {
 // --- Page ---
 
 export const CacheTestScreen = () => {
+    const strings = useCacheTestStrings();
+
     // Core Dashboard States
     const [activeTab, setActiveTab] = useState<ActiveTab>('scenarios');
     const [isRunning, setIsRunning] = useState(false);
@@ -285,8 +289,8 @@ export const CacheTestScreen = () => {
             max: 0,
         });
         setSlowOps([]);
-        addLog('info', '텔레메트리', '시스템 성능 분석 지표가 초기화되었습니다.');
-    }, [addLog]);
+        addLog('info', strings.log.tags.telemetry, strings.log.resetStats);
+    }, [addLog, strings]);
 
     // ----------------------------------------------------
     // SQLite Record Explorer Actions (CRUD & Fetch)
@@ -298,33 +302,33 @@ export const CacheTestScreen = () => {
             try {
                 const response = await webClient.request({ type: 'FetchAllTestRecords', data: {} });
                 if (response.type !== 'OnFetchAllTestRecords') {
-                    throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                    throw new Error(`Unexpected response type: ${response.type}`);
                 }
                 const typed = response as AppMessageData<'OnFetchAllTestRecords'>;
 
                 const sorted = [...typed.data.items].sort((a, b) => b.updated_at - a.updated_at);
                 setRecords(sorted);
                 if (!silent) {
-                    addLog('success', '익스플로러', `총 ${sorted.length}개의 SQLite 테스트 데이터를 로드했습니다.`);
+                    addLog('success', strings.log.tags.explorer, strings.log.explorer.loaded(sorted.length));
                 }
             } catch (e: any) {
-                addLog('error', '익스플로러', `레코드 목록 로드 실패: ${e.message ?? String(e)}`);
+                addLog('error', strings.log.tags.explorer, strings.log.explorer.loadFailed(e.message ?? String(e)));
             } finally {
                 if (!silent) setIsExplorerLoading(false);
             }
         },
-        [addLog]
+        [addLog, strings]
     );
 
     // Handle Manual Insert
     const handleCreateRecord = useCallback(async () => {
         if (!newKey.trim()) {
-            addLog('warning', '익스플로러', '추가할 레코드의 Key를 입력해주세요.');
+            addLog('warning', strings.log.tags.explorer, strings.log.explorer.enterKey);
             return;
         }
 
         setIsRunning(true);
-        addLog('info', '익스플로러', `수동 레코드 추가 요청: '${newKey}' -> '${newValue}'`);
+        addLog('info', strings.log.tags.explorer, strings.log.explorer.manualAddRequest(newKey, newValue));
         const start = performance.now();
 
         try {
@@ -335,32 +339,32 @@ export const CacheTestScreen = () => {
             const duration = performance.now() - start;
 
             if (response.type !== 'OnSaveTestRecord') {
-                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                throw new Error(`Unexpected response type: ${response.type}`);
             }
             const typed = response as AppMessageData<'OnSaveTestRecord'>;
             if (typed.data.success) {
-                addLog('success', '익스플로러', `레코드 '${newKey}' 저장 성공 (${duration.toFixed(1)}ms)`);
+                addLog('success', strings.log.tags.explorer, strings.log.explorer.saved(newKey, duration));
                 setNewKey('');
                 setNewValue('');
-                updateStats(duration, true, '익스플로러:SaveTestRecord(수동 추가)');
+                updateStats(duration, true, strings.log.explorer.manualAddOpLabel);
                 await loadAllRecords(true);
             } else {
-                throw new Error('저장 처리가 실패했습니다.');
+                throw new Error('Save failed.');
             }
         } catch (e: any) {
             const duration = performance.now() - start;
-            addLog('error', '익스플로러', `레코드 저장 실패: ${e.message ?? String(e)}`);
-            updateStats(duration, false, '익스플로러:SaveTestRecord(수동 추가)');
+            addLog('error', strings.log.tags.explorer, strings.log.explorer.saveFailed(e.message ?? String(e)));
+            updateStats(duration, false, strings.log.explorer.manualAddOpLabel);
         } finally {
             setIsRunning(false);
         }
-    }, [newKey, newValue, addLog, updateStats, loadAllRecords]);
+    }, [newKey, newValue, addLog, updateStats, loadAllRecords, strings]);
 
     // Handle Inline Edit
     const handleUpdateRecord = useCallback(
         async (key: string, value: string) => {
             setIsRunning(true);
-            addLog('info', '익스플로러', `인라인 레코드 수정 요청: '${key}' = '${value}'`);
+            addLog('info', strings.log.tags.explorer, strings.log.explorer.inlineEditRequest(key, value));
             const start = performance.now();
 
             try {
@@ -368,26 +372,26 @@ export const CacheTestScreen = () => {
                 const duration = performance.now() - start;
 
                 if (response.type !== 'OnSaveTestRecord') {
-                    throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                    throw new Error(`Unexpected response type: ${response.type}`);
                 }
                 const typed = response as AppMessageData<'OnSaveTestRecord'>;
                 if (typed.data.success) {
-                    addLog('success', '익스플로러', `레코드 '${key}' 수정 성공 (${duration.toFixed(1)}ms)`);
+                    addLog('success', strings.log.tags.explorer, strings.log.explorer.updated(key, duration));
                     setEditingKey(null);
-                    updateStats(duration, true, '익스플로러:SaveTestRecord(인라인 수정)');
+                    updateStats(duration, true, strings.log.explorer.inlineEditOpLabel);
                     await loadAllRecords(true);
                 } else {
-                    throw new Error('수정 처리가 실패했습니다.');
+                    throw new Error('Update failed.');
                 }
             } catch (e: any) {
                 const duration = performance.now() - start;
-                addLog('error', '익스플로러', `레코드 수정 실패: ${e.message ?? String(e)}`);
-                updateStats(duration, false, '익스플로러:SaveTestRecord(인라인 수정)');
+                addLog('error', strings.log.tags.explorer, strings.log.explorer.updateFailed(e.message ?? String(e)));
+                updateStats(duration, false, strings.log.explorer.inlineEditOpLabel);
             } finally {
                 setIsRunning(false);
             }
         },
-        [addLog, updateStats, loadAllRecords]
+        [addLog, updateStats, loadAllRecords, strings]
     );
 
     // Start Inline Edit mode
@@ -416,7 +420,7 @@ export const CacheTestScreen = () => {
     // Scenario 1: Bulk Save
     const runSqliteBulkSave = useCallback(async () => {
         setIsRunning(true);
-        addLog('info', 'SQL_SAVE', `SQLite 테이블에 고유 데이터 ${sqliteBulkCount}개를 벌크 생성 및 저장 중...`);
+        addLog('info', 'SQL_SAVE', strings.log.sqlSave.bulkSaving(sqliteBulkCount));
         const start = performance.now();
 
         try {
@@ -429,37 +433,33 @@ export const CacheTestScreen = () => {
             const duration = performance.now() - start;
 
             if (response.type !== 'OnSaveAllTestRecords') {
-                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                throw new Error(`Unexpected response type: ${response.type}`);
             }
             const typed = response as AppMessageData<'OnSaveAllTestRecords'>;
             if (typed.data.success) {
                 addLog(
                     'success',
                     'SQL_SAVE',
-                    `성공적으로 ${typed.data.count}개의 데이터를 벌크 저장했습니다. 경과 시간: ${duration.toFixed(1)}ms (${(duration / sqliteBulkCount).toFixed(2)}ms/레코드)`
+                    strings.log.sqlSave.bulkSaved(typed.data.count, duration, (duration / sqliteBulkCount).toFixed(2))
                 );
                 updateStats(duration, true, `SQL_SAVE:SaveAllTestRecords(${sqliteBulkCount})`);
                 await loadAllRecords(true);
             } else {
-                throw new Error('네이티브 벌크 저장 응답이 실패 상태를 반환했습니다.');
+                throw new Error('Native bulk save responded with a failure status.');
             }
         } catch (e: any) {
             const duration = performance.now() - start;
-            addLog(
-                'error',
-                'SQL_SAVE',
-                `벌크 저장 중 오류 발생: ${duration.toFixed(1)}ms. 에러: ${e.message ?? String(e)}`
-            );
+            addLog('error', 'SQL_SAVE', strings.log.sqlSave.bulkSaveError(duration, e.message ?? String(e)));
             updateStats(duration, false, `SQL_SAVE:SaveAllTestRecords(${sqliteBulkCount})`);
         } finally {
             setIsRunning(false);
         }
-    }, [sqliteBulkCount, addLog, updateStats, loadAllRecords]);
+    }, [sqliteBulkCount, addLog, updateStats, loadAllRecords, strings]);
 
     // Scenario 1: Bulk Fetch
     const runSqliteBulkFetch = useCallback(async () => {
         setIsRunning(true);
-        addLog('info', 'SQL_FETCH', `SQLite 데이터베이스에서 전체 데이터 조회를 실행 중...`);
+        addLog('info', 'SQL_FETCH', strings.log.sqlFetch.fetching);
         const start = performance.now();
 
         try {
@@ -467,30 +467,30 @@ export const CacheTestScreen = () => {
             const duration = performance.now() - start;
 
             if (response.type !== 'OnFetchAllTestRecords') {
-                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                throw new Error(`Unexpected response type: ${response.type}`);
             }
             const typed = response as AppMessageData<'OnFetchAllTestRecords'>;
             const count = typed.data.items.length;
             addLog(
                 'success',
                 'SQL_FETCH',
-                `총 ${count}개의 레코드를 로드했습니다. 경과 시간: ${duration.toFixed(1)}ms (${count > 0 ? (duration / count).toFixed(2) : 0}ms/레코드)`
+                strings.log.sqlFetch.loaded(count, duration, count > 0 ? (duration / count).toFixed(2) : 0)
             );
             updateStats(duration, true, `SQL_FETCH:FetchAllTestRecords(${count})`);
             await loadAllRecords(true);
         } catch (e: any) {
             const duration = performance.now() - start;
-            addLog('error', 'SQL_FETCH', `조회 실패: ${duration.toFixed(1)}ms. 에러: ${e.message ?? String(e)}`);
+            addLog('error', 'SQL_FETCH', strings.log.sqlFetch.fetchFailed(duration, e.message ?? String(e)));
             updateStats(duration, false, 'SQL_FETCH:FetchAllTestRecords');
         } finally {
             setIsRunning(false);
         }
-    }, [addLog, updateStats, loadAllRecords]);
+    }, [addLog, updateStats, loadAllRecords, strings]);
 
     // Scenario 1: Clear SQLite Database
     const runSqliteClear = useCallback(async () => {
         setIsRunning(true);
-        addLog('warning', 'SQL_CLEAR', `SQLite 'test_records' 테이블의 모든 레코드를 비우는 중...`);
+        addLog('warning', 'SQL_CLEAR', strings.log.sqlClear.clearing);
         const start = performance.now();
 
         try {
@@ -498,28 +498,24 @@ export const CacheTestScreen = () => {
             const duration = performance.now() - start;
 
             if (response.type !== 'OnClearTestRecords') {
-                throw new Error(`예상치 못한 응답 타입: ${response.type}`);
+                throw new Error(`Unexpected response type: ${response.type}`);
             }
             const typed = response as AppMessageData<'OnClearTestRecords'>;
             if (typed.data.success) {
-                addLog(
-                    'success',
-                    'SQL_CLEAR',
-                    `SQLite 테이블을 성공적으로 초기화했습니다. 소요 시간: ${duration.toFixed(1)}ms`
-                );
+                addLog('success', 'SQL_CLEAR', strings.log.sqlClear.cleared(duration));
                 updateStats(duration, true, 'SQL_CLEAR:ClearTestRecords');
                 await loadAllRecords(true);
             } else {
-                throw new Error('초기화 작업이 실패했습니다.');
+                throw new Error('Clear operation failed.');
             }
         } catch (e: any) {
             const duration = performance.now() - start;
-            addLog('error', 'SQL_CLEAR', `초기화 작업 실패: ${duration.toFixed(1)}ms. 에러: ${e.message ?? String(e)}`);
+            addLog('error', 'SQL_CLEAR', strings.log.sqlClear.clearFailed(duration, e.message ?? String(e)));
             updateStats(duration, false, 'SQL_CLEAR:ClearTestRecords');
         } finally {
             setIsRunning(false);
         }
-    }, [addLog, updateStats, loadAllRecords]);
+    }, [addLog, updateStats, loadAllRecords, strings]);
 
     // Scenario 2: Concurrency Write-Consistency Verification
     const runSqliteConcurrencyTest = useCallback(async () => {
@@ -527,8 +523,8 @@ export const CacheTestScreen = () => {
         setConcurrencyResult({ status: 'running', expected: `Value-${concurrencyCount}`, actual: '', duration: 0 });
         addLog(
             'info',
-            '동시성_검증',
-            `동일 키 '${concurrencyKey}'에 대해 ${concurrencyCount}회 연속 쓰기 명령을 병렬 전송(Promise.all) 중...`
+            strings.log.tags.concurrencyCheck,
+            strings.log.concurrency.sending(concurrencyCount, concurrencyKey)
         );
 
         const start = performance.now();
@@ -540,17 +536,13 @@ export const CacheTestScreen = () => {
                 );
             }
 
-            addLog('info', '동시성_검증', `병렬 Promise들의 반환을 대기 중...`);
+            addLog('info', strings.log.tags.concurrencyCheck, strings.log.concurrency.waiting);
             await Promise.all(promises);
 
-            addLog(
-                'info',
-                '동시성_검증',
-                `연속 쓰기 완료. DB에 최종적으로 영속화된 '${concurrencyKey}'의 값을 확인 중...`
-            );
+            addLog('info', strings.log.tags.concurrencyCheck, strings.log.concurrency.checking(concurrencyKey));
             const fetchResponse = await webClient.request({ type: 'FetchTestRecord', data: { key: concurrencyKey } });
             if (fetchResponse.type !== 'OnFetchTestRecord') {
-                throw new Error(`예상치 못한 응답 타입: ${fetchResponse.type}`);
+                throw new Error(`Unexpected response type: ${fetchResponse.type}`);
             }
             const typedFetch = fetchResponse as AppMessageData<'OnFetchTestRecord'>;
 
@@ -563,40 +555,40 @@ export const CacheTestScreen = () => {
                 setConcurrencyResult({ status: 'success', expected: expectedValue, actual: finalValue, duration });
                 addLog(
                     'success',
-                    '동시성_검증',
-                    `🏆 검증 성공! '${concurrencyKey}'의 최종값은 예상대로 '${finalValue}'입니다. 네이티브 AsyncMutexQueue가 동시 요청을 완벽히 직렬화하여 처리했습니다.`
+                    strings.log.tags.concurrencyCheck,
+                    strings.log.concurrency.verified(concurrencyKey, finalValue)
                 );
-                updateStats(duration, true, `동시성_검증:SaveTestRecord*${concurrencyCount}+FetchTestRecord`);
+                updateStats(duration, true, strings.log.concurrency.opLabel(concurrencyCount));
                 await loadAllRecords(true);
             } else {
                 setConcurrencyResult({ status: 'fail', expected: expectedValue, actual: finalValue, duration });
                 addLog(
                     'error',
-                    '동시성_검증',
-                    `⚠️ 레이스 컨디션 감지. 예상치 '${expectedValue}' 이지만 DB 실젯값은 '${finalValue}'로 훼손되었습니다.`
+                    strings.log.tags.concurrencyCheck,
+                    strings.log.concurrency.raceDetected(expectedValue, finalValue)
                 );
-                updateStats(duration, false, `동시성_검증:SaveTestRecord*${concurrencyCount}+FetchTestRecord`);
+                updateStats(duration, false, strings.log.concurrency.opLabel(concurrencyCount));
             }
         } catch (e: any) {
             const duration = performance.now() - start;
             setConcurrencyResult({ status: 'fail', expected: `Value-${concurrencyCount}`, actual: 'ERROR', duration });
-            addLog('error', '동시성_검증', `검증 실패: ${e.message ?? String(e)}`);
-            updateStats(duration, false, `동시성_검증:SaveTestRecord*${concurrencyCount}+FetchTestRecord`);
+            addLog(
+                'error',
+                strings.log.tags.concurrencyCheck,
+                strings.log.concurrency.verifyFailed(e.message ?? String(e))
+            );
+            updateStats(duration, false, strings.log.concurrency.opLabel(concurrencyCount));
         } finally {
             setIsRunning(false);
         }
-    }, [concurrencyCount, concurrencyKey, addLog, updateStats, loadAllRecords]);
+    }, [concurrencyCount, concurrencyKey, addLog, updateStats, loadAllRecords, strings]);
 
     // Scenario 3: Hybrid Bridge Flooding / Stress Testing
     const runSqliteFloodTest = useCallback(async () => {
         setIsRunning(true);
         setFloodProgress(0);
         setFloodStats(null);
-        addLog(
-            'info',
-            '스트레스',
-            `${floodStrategy.toUpperCase()} 전략으로 총 ${floodCount}회의 부하 요청을 브릿지에 전달 중...`
-        );
+        addLog('info', strings.log.tags.stress, strings.log.stress.sending(floodCount, floodStrategy));
 
         const start = performance.now();
         let resolvedCount = 0;
@@ -704,93 +696,100 @@ export const CacheTestScreen = () => {
 
             addLog(
                 'success',
-                '스트레스',
-                `부하 테스트 완료! 총 소요 시간: ${elapsed.toFixed(
-                    0
-                )}ms. 처리량: ${rps} req/s. 성공률: ${successRate}%. 평균 RTT: ${avgMs}ms (σ=${stddevMs}ms).`
+                strings.log.tags.stress,
+                strings.log.stress.complete(elapsed, rps, successRate, avgMs, stddevMs)
             );
-            updateStats(elapsed, successRate > 95, `스트레스:SaveTestRecord*${floodCount}(${floodStrategy})`);
+            updateStats(elapsed, successRate > 95, strings.log.stress.opLabel(floodCount, floodStrategy));
             await loadAllRecords(true);
         } catch (e: any) {
             const elapsed = performance.now() - start;
-            addLog('error', '스트레스', `부하 테스트 중단: ${elapsed.toFixed(0)}ms. 에러: ${e.message ?? String(e)}`);
-            updateStats(elapsed, false, `스트레스:SaveTestRecord*${floodCount}(${floodStrategy})`);
+            addLog('error', strings.log.tags.stress, strings.log.stress.aborted(elapsed, e.message ?? String(e)));
+            updateStats(elapsed, false, strings.log.stress.opLabel(floodCount, floodStrategy));
         } finally {
             setIsRunning(false);
         }
-    }, [floodCount, floodStrategy, addLog, updateStats, loadAllRecords]);
+    }, [floodCount, floodStrategy, addLog, updateStats, loadAllRecords, strings]);
 
     // Initial Database Load
     useEffect(() => {
         addLog(
             'info',
-            '초기화',
-            `실시간 텔레메트리 대시보드가 로드되었습니다. 환경: ${isOnMobileApp ? '하이브리드 앱 웹뷰' : '일반 웹 브라우저'}`
+            strings.log.tags.init,
+            strings.log.init.loaded(isOnMobileApp ? strings.log.init.envHybrid : strings.log.init.envBrowser)
         );
         loadAllRecords();
-    }, [isOnMobileApp, addLog, loadAllRecords]);
+    }, [isOnMobileApp, addLog, loadAllRecords, strings]);
 
     return (
         <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background">
             <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none">
                 <div className="flex min-w-0 max-w-full flex-col gap-3 p-4 pb-10">
                     {/* 1. Always visible at top: status info (Status Summary) */}
-                    <Section title="실시간 DB 상태 정보">
+                    <Section title={strings.dbStatus.sectionTitle}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                             <Metric
-                                label="모바일 앱 연동"
-                                value={isOnMobileApp ? '연결됨 (WebView)' : '미연결 (일반 브라우저)'}
+                                label={strings.dbStatus.mobileAppLink}
+                                value={isOnMobileApp ? strings.dbStatus.connected : strings.dbStatus.notConnected}
                             />
-                            <Metric label="통신 보증" value="직렬화 큐 (Active)" />
-                            <Metric label="총 실행 수" value={totalOps} />
-                            <Metric label="평균 RTT 지연시간" value={avgLatency ? `${avgLatency} ms` : '-'} />
                             <Metric
-                                label="RTT 표준편차"
+                                label={strings.dbStatus.deliveryGuarantee}
+                                value={strings.dbStatus.deliveryGuaranteeValue}
+                            />
+                            <Metric label={strings.dbStatus.totalOperations} value={totalOps} />
+                            <Metric
+                                label={strings.dbStatus.avgRttLatency}
+                                value={avgLatency ? `${avgLatency} ms` : '-'}
+                            />
+                            <Metric
+                                label={strings.dbStatus.rttStdDeviation}
                                 value={latencyStdDevMs !== null ? `${latencyStdDevMs.toFixed(1)} ms` : '-'}
                             />
-                            <Metric label="처리량 (ops/s)" value={opsPerSec !== null ? opsPerSec.toFixed(2) : '-'} />
-                            <Metric label="실패 수" value={failCount} />
                             <Metric
-                                label="벤치마크 성공 비율"
+                                label={strings.dbStatus.throughput}
+                                value={opsPerSec !== null ? opsPerSec.toFixed(2) : '-'}
+                            />
+                            <Metric label={strings.dbStatus.failureCount} value={failCount} />
+                            <Metric
+                                label={strings.dbStatus.benchmarkSuccessRate}
                                 value={totalOps > 0 ? `${((successCount / totalOps) * 100).toFixed(1)}%` : '100%'}
                             />
-                            <Metric label="SQLite 대상 테이블" value="test_records" />
+                            <Metric label={strings.dbStatus.sqliteTargetTable} value="test_records" />
                         </div>
                     </Section>
 
-                    <Section title="느린 요청 TOP 10 (전체 RTT 기준)">
+                    <Section title={strings.slowest.sectionTitle}>
                         <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-3">
-                            <Metric label="샘플 수" value={latencyStats.count} />
+                            <Metric label={strings.slowest.sampleCount} value={latencyStats.count} />
                             <Metric
-                                label="평균 RTT (mean)"
+                                label={strings.slowest.avgRttMean}
                                 value={latencyStats.count > 0 ? `${latencyStats.mean.toFixed(1)} ms` : '-'}
                             />
                             <Metric
-                                label="최소 RTT"
+                                label={strings.slowest.minRtt}
                                 value={latencyStats.count > 0 ? `${latencyStats.min.toFixed(1)} ms` : '-'}
                             />
                             <Metric
-                                label="최대 RTT"
+                                label={strings.slowest.maxRtt}
                                 value={latencyStats.count > 0 ? `${latencyStats.max.toFixed(1)} ms` : '-'}
                             />
                         </div>
 
                         {slowOps.length === 0 ? (
                             <p className="py-8 text-center text-[12.5px] text-muted-foreground">
-                                아직 측정된 실행 기록이 없습니다. 성능 시나리오를 실행하면 자동으로 집계됩니다.
+                                {strings.slowest.empty}
                             </p>
                         ) : (
                             <div className="rounded-xl border border-border bg-background">
                                 <div className="flex items-center justify-between border-b border-border px-3 py-2">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                        실행 기록 (느린 순)
+                                        {strings.slowest.runLog}
                                     </p>
                                     <button
                                         type="button"
                                         onClick={resetStats}
                                         className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
                                     >
-                                        통계 초기화
+                                        {strings.slowest.resetStats}
                                     </button>
                                 </div>
                                 <div className="divide-y divide-border">
@@ -837,7 +836,7 @@ export const CacheTestScreen = () => {
                     </Section>
 
                     {/* 2. Dashboard 3-way tab selector */}
-                    <Section title="모니터링 탭 선택">
+                    <Section title={strings.tabs.sectionTitle}>
                         <div className="flex w-full gap-1.5 rounded-xl bg-background p-1 border border-border">
                             {(['scenarios', 'explorer', 'logs'] as const).map(tab => (
                                 <button
@@ -851,10 +850,10 @@ export const CacheTestScreen = () => {
                                     }`}
                                 >
                                     {tab === 'scenarios'
-                                        ? '성능 시나리오'
+                                        ? strings.tabs.scenarios
                                         : tab === 'explorer'
-                                          ? '레코드 익스플로러'
-                                          : `실시간 로그 (${logs.length})`}
+                                          ? strings.tabs.explorer
+                                          : strings.tabs.logs(logs.length)}
                                 </button>
                             ))}
                         </div>
@@ -866,20 +865,19 @@ export const CacheTestScreen = () => {
                     {activeTab === 'scenarios' && (
                         <>
                             {/* Scenario 1: Large Data SQL Benchmarks */}
-                            <Section title="시나리오 1: 대용량 데이터 성능 측정">
+                            <Section title={strings.scenario1.title}>
                                 <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
-                                    대량의 데이터 쓰기 및 조회 처리를 빈번히 수행할 때 네이티브 SQLite의 소요 시간 및
-                                    평균 처리량(throughput)을 측정합니다.
+                                    {strings.scenario1.description}
                                 </p>
 
                                 <p className="mb-2 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                                    테스트 대상 레코드 개수
+                                    {strings.scenario1.countLabel}
                                 </p>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {BULK_COUNTS.map(count => (
                                         <Chip
                                             key={count}
-                                            label={`${count}개 레코드`}
+                                            label={strings.scenario1.chip(count)}
                                             active={sqliteBulkCount === count}
                                             onClick={() => setSqliteBulkCount(count)}
                                         />
@@ -889,20 +887,20 @@ export const CacheTestScreen = () => {
                                 <div className="grid grid-cols-3 gap-2">
                                     <ActionButton
                                         icon={<Plus size={14} />}
-                                        label="대량 저장"
+                                        label={strings.scenario1.bulkSave}
                                         tone="primary"
                                         onClick={runSqliteBulkSave}
                                         disabled={isRunning}
                                     />
                                     <ActionButton
                                         icon={<RefreshCw size={14} />}
-                                        label="대량 로드"
+                                        label={strings.scenario1.bulkLoad}
                                         onClick={runSqliteBulkFetch}
                                         disabled={isRunning}
                                     />
                                     <ActionButton
                                         icon={<Trash2 size={14} />}
-                                        label="전체 초기화"
+                                        label={strings.scenario1.clearAll}
                                         tone="danger"
                                         onClick={runSqliteClear}
                                         disabled={isRunning}
@@ -911,16 +909,15 @@ export const CacheTestScreen = () => {
                             </Section>
 
                             {/* Scenario 2: Concurrency Write-Consistency Verification */}
-                            <Section title="시나리오 2: 동시 쓰기 정합성 및 Mutex 검증">
+                            <Section title={strings.scenario2.title}>
                                 <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
-                                    동일한 키에 대해 수백 개의 빈번한 쓰기 요청을 동시에 전송(Promise.all)하고, 최종
-                                    저장된 레코드가 마지막으로 요청된 값과 정확히 일치하는지 순차 정합성을 검증합니다.
+                                    {strings.scenario2.description}
                                 </p>
 
                                 <div className="mb-4 grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            테스트 테이블 키
+                                            {strings.scenario2.keyLabel}
                                         </label>
                                         <input
                                             type="text"
@@ -931,17 +928,17 @@ export const CacheTestScreen = () => {
                                     </div>
                                     <div>
                                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            동시 쓰기 횟수 (N)
+                                            {strings.scenario2.countLabel}
                                         </label>
                                         <select
                                             value={concurrencyCount}
                                             onChange={e => setConcurrencyCount(Number(e.target.value))}
                                             className="w-full h-[38px] rounded-[8px] border border-border bg-background px-3 py-1 font-mono text-[12.5px] text-foreground outline-none focus:border-primary"
                                         >
-                                            <option value="50">50회 연속 쓰기</option>
-                                            <option value="100">100회 연속 쓰기</option>
-                                            <option value="200">200회 연속 쓰기</option>
-                                            <option value="500">500회 연속 쓰기</option>
+                                            <option value="50">{strings.scenario2.writeCountOption(50)}</option>
+                                            <option value="100">{strings.scenario2.writeCountOption(100)}</option>
+                                            <option value="200">{strings.scenario2.writeCountOption(200)}</option>
+                                            <option value="500">{strings.scenario2.writeCountOption(500)}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -967,27 +964,27 @@ export const CacheTestScreen = () => {
                                             )}
                                             <span className="uppercase tracking-wide">
                                                 {concurrencyResult.status === 'running'
-                                                    ? '직렬화 쓰기 큐 순서 제어 검증 중...'
+                                                    ? strings.scenario2.running
                                                     : concurrencyResult.status === 'success'
-                                                      ? '순차 정합성 검증 완료 (통과)'
-                                                      : '순차 일관성 훼손 오류 (실패)'}
+                                                      ? strings.scenario2.passed
+                                                      : strings.scenario2.failed}
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-1">
                                             <div>
-                                                예상 최종값:{' '}
+                                                {strings.scenario2.expectedLabel}{' '}
                                                 <span className="font-semibold text-foreground">
                                                     {concurrencyResult.expected}
                                                 </span>
                                             </div>
                                             <div>
-                                                DB 실제값:{' '}
+                                                {strings.scenario2.actualLabel}{' '}
                                                 <span className="font-semibold text-foreground">
                                                     {concurrencyResult.actual}
                                                 </span>
                                             </div>
                                             <div>
-                                                소요 시간:{' '}
+                                                {strings.scenario2.elapsedLabel}{' '}
                                                 <span className="font-semibold text-foreground">
                                                     {concurrencyResult.duration.toFixed(1)}ms
                                                 </span>
@@ -998,7 +995,7 @@ export const CacheTestScreen = () => {
 
                                 <ActionButton
                                     icon={<Lock size={14} />}
-                                    label="순차 정합성 일관성 검증하기"
+                                    label={strings.scenario2.runButton}
                                     tone="primary"
                                     onClick={runSqliteConcurrencyTest}
                                     disabled={isRunning}
@@ -1006,40 +1003,39 @@ export const CacheTestScreen = () => {
                             </Section>
 
                             {/* Scenario 3: Hybrid Bridge Flooding / Stress Testing */}
-                            <Section title="시나리오 3: 하이브리드 브릿지 포화 스트레스 테스트">
+                            <Section title={strings.scenario3.title}>
                                 <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
-                                    웹뷰 브릿지를 통해 서로 다른 라우팅 방식으로 수천 개의 동시 작업을 쏟아부어 포화
-                                    상태에서의 반응 속도와 대기 전송 안정성을 테스트합니다.
+                                    {strings.scenario3.description}
                                 </p>
 
                                 <div className="mb-4 grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            총 요청 전송 수
+                                            {strings.scenario3.totalRequestsLabel}
                                         </label>
                                         <select
                                             value={floodCount}
                                             onChange={e => setFloodCount(Number(e.target.value))}
                                             className="w-full h-[38px] rounded-[8px] border border-border bg-background px-3 py-1 font-mono text-[12.5px] text-foreground outline-none focus:border-primary"
                                         >
-                                            <option value="100">100회 브릿지 부하 전송</option>
-                                            <option value="500">500회 브릿지 부하 전송</option>
-                                            <option value="1000">1000회 브릿지 부하 전송</option>
-                                            <option value="2000">2000회 브릿지 부하 전송</option>
+                                            <option value="100">{strings.scenario3.bridgeLoadOption(100)}</option>
+                                            <option value="500">{strings.scenario3.bridgeLoadOption(500)}</option>
+                                            <option value="1000">{strings.scenario3.bridgeLoadOption(1000)}</option>
+                                            <option value="2000">{strings.scenario3.bridgeLoadOption(2000)}</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                            부하 분배 전송 방식
+                                            {strings.scenario3.strategyLabel}
                                         </label>
                                         <select
                                             value={floodStrategy}
                                             onChange={e => setFloodStrategy(e.target.value as any)}
                                             className="w-full h-[38px] rounded-[8px] border border-border bg-background px-3 py-1 font-mono text-[12.5px] text-foreground outline-none focus:border-primary"
                                         >
-                                            <option value="parallel">일시 병렬 전송 (Promise.all)</option>
-                                            <option value="chunked">그룹 청크 분할 (50개씩 지연)</option>
-                                            <option value="sequential">단일 동기식 순차 전송 (Waterfall)</option>
+                                            <option value="parallel">{strings.scenario3.strategyParallel}</option>
+                                            <option value="chunked">{strings.scenario3.strategyChunked}</option>
+                                            <option value="sequential">{strings.scenario3.strategySequential}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1047,7 +1043,7 @@ export const CacheTestScreen = () => {
                                 {isRunning && floodProgress > 0 && (
                                     <div className="mb-4">
                                         <div className="mb-1.5 flex items-center justify-between text-[11px] font-mono font-bold text-muted-foreground">
-                                            <span>부하 전송 진행도</span>
+                                            <span>{strings.scenario3.sendProgress}</span>
                                             <span>{floodProgress}%</span>
                                         </div>
                                         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -1062,41 +1058,53 @@ export const CacheTestScreen = () => {
                                 {floodStats && (
                                     <div className="mb-4 rounded-[12px] bg-muted/65 border border-border p-3 font-mono text-[11px]">
                                         <div className="font-bold text-foreground uppercase tracking-wide mb-2">
-                                            스트레스 벤치마크 분석 보고
+                                            {strings.scenario3.report}
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 text-center">
                                             <div className="rounded-[10px] border border-border bg-background/60 p-2">
-                                                <p className="text-[9px] text-muted-foreground">총 소요 시간</p>
+                                                <p className="text-[9px] text-muted-foreground">
+                                                    {strings.scenario3.totalTime}
+                                                </p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     {floodStats.totalTime} ms
                                                 </p>
                                             </div>
                                             <div className="rounded-[10px] border border-border bg-background/60 p-2">
-                                                <p className="text-[9px] text-muted-foreground">처리량</p>
+                                                <p className="text-[9px] text-muted-foreground">
+                                                    {strings.scenario3.throughput}
+                                                </p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     {floodStats.rps} req/s
                                                 </p>
                                             </div>
                                             <div className="rounded-[10px] border border-border bg-background/60 p-2">
-                                                <p className="text-[9px] text-muted-foreground">전송 성공률</p>
+                                                <p className="text-[9px] text-muted-foreground">
+                                                    {strings.scenario3.successRate}
+                                                </p>
                                                 <p className="text-[13.5px] font-semibold text-primary">
                                                     {floodStats.successRate}%
                                                 </p>
                                             </div>
                                             <div className="rounded-[10px] border border-border bg-background/60 p-2">
-                                                <p className="text-[9px] text-muted-foreground">평균 RTT</p>
+                                                <p className="text-[9px] text-muted-foreground">
+                                                    {strings.scenario3.avgRtt}
+                                                </p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     {floodStats.avgMs} ms
                                                 </p>
                                             </div>
                                             <div className="rounded-[10px] border border-border bg-background/60 p-2">
-                                                <p className="text-[9px] text-muted-foreground">RTT 표준편차</p>
+                                                <p className="text-[9px] text-muted-foreground">
+                                                    {strings.scenario3.rttStdDeviation}
+                                                </p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     σ {floodStats.stddevMs} ms
                                                 </p>
                                             </div>
                                             <div className="rounded-[10px] border border-border bg-background/60 p-2">
-                                                <p className="text-[9px] text-muted-foreground">느린 요청 (Top1)</p>
+                                                <p className="text-[9px] text-muted-foreground">
+                                                    {strings.scenario3.slowestTop1}
+                                                </p>
                                                 <p className="text-[13.5px] font-semibold text-foreground">
                                                     {floodStats.topSlow?.[0]
                                                         ? `${floodStats.topSlow[0].durationMs} ms`
@@ -1109,7 +1117,7 @@ export const CacheTestScreen = () => {
                                             <div className="mt-3 rounded-[10px] border border-border bg-background/60">
                                                 <div className="border-b border-border px-3 py-2">
                                                     <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                                                        느린 요청 TOP 10 (Flood 단건 RTT)
+                                                        {strings.scenario3.top10Title}
                                                     </p>
                                                 </div>
                                                 <div className="divide-y divide-border">
@@ -1148,7 +1156,7 @@ export const CacheTestScreen = () => {
 
                                 <ActionButton
                                     icon={<Flame size={14} />}
-                                    label="브릿지 포화 스트레스 테스트 기동"
+                                    label={strings.scenario3.startButton}
                                     tone="primary"
                                     onClick={runSqliteFloodTest}
                                     disabled={isRunning}
@@ -1161,29 +1169,28 @@ export const CacheTestScreen = () => {
                     {/* TAB 2: EXPLORER (SQLite REAL-TIME CRUD EXPLORER)        */}
                     {/* ======================================================== */}
                     {activeTab === 'explorer' && (
-                        <Section title="SQLite 실시간 레코드 익스플로러">
+                        <Section title={strings.explorerTab.title}>
                             <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
-                                모바일 기기 SQLite `test_records` 테이블 내부의 모든 레코드를 조회하고 직접 개별적으로
-                                수정 및 추가할 수 있는 데이터 제어 패널입니다.
+                                {strings.explorerTab.description}
                             </p>
 
                             {/* Manual Insert Form */}
                             <div className="mb-4 rounded-xl border border-border bg-background p-3">
                                 <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
                                     <Sparkles size={11} />
-                                    <span>신규 테스트 레코드 수동 추가</span>
+                                    <span>{strings.explorerTab.addNewTitle}</span>
                                 </p>
                                 <div className="flex flex-col gap-2.5 sm:flex-row">
                                     <input
                                         type="text"
-                                        placeholder="키 (Key) 입력..."
+                                        placeholder={strings.explorerTab.keyPlaceholder}
                                         value={newKey}
                                         onChange={e => setNewKey(e.target.value)}
                                         className="flex-1 rounded-[8px] border border-border bg-card px-3 py-1.5 font-mono text-[12.5px] text-foreground outline-none focus:border-primary"
                                     />
                                     <input
                                         type="text"
-                                        placeholder="값 (Value) 입력..."
+                                        placeholder={strings.explorerTab.valuePlaceholder}
                                         value={newValue}
                                         onChange={e => setNewValue(e.target.value)}
                                         className="flex-1 rounded-[8px] border border-border bg-card px-3 py-1.5 font-mono text-[12.5px] text-foreground outline-none focus:border-primary"
@@ -1195,7 +1202,7 @@ export const CacheTestScreen = () => {
                                         className="flex items-center justify-center gap-1 rounded-[8px] bg-primary px-4 py-1.5 text-[12px] font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
                                     >
                                         <Plus size={13} />
-                                        <span>추가</span>
+                                        <span>{strings.explorerTab.addButton}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1206,7 +1213,7 @@ export const CacheTestScreen = () => {
                                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                                     <input
                                         type="text"
-                                        placeholder="키 또는 값 실시간 필터 검색..."
+                                        placeholder={strings.explorerTab.filterPlaceholder}
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
                                         className="w-full rounded-[8px] border border-border bg-background py-1.5 pl-8 pr-3 text-[12px] text-foreground outline-none focus:border-primary"
@@ -1217,7 +1224,7 @@ export const CacheTestScreen = () => {
                                     onClick={() => loadAllRecords()}
                                     disabled={isExplorerLoading || isRunning}
                                     className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] border border-border bg-card text-foreground hover:bg-muted disabled:opacity-40"
-                                    title="목록 새로고침"
+                                    title={strings.explorerTab.refreshTitle}
                                 >
                                     <RefreshCw className={`h-3.5 w-3.5 ${isExplorerLoading ? 'animate-spin' : ''}`} />
                                 </button>
@@ -1228,14 +1235,16 @@ export const CacheTestScreen = () => {
                                 {isExplorerLoading && records.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 gap-2">
                                         <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-                                        <span className="text-[12px] text-muted-foreground">SQLite DB 조회 중...</span>
+                                        <span className="text-[12px] text-muted-foreground">
+                                            {strings.explorerTab.loading}
+                                        </span>
                                     </div>
                                 ) : filteredRecords.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
                                         <FileText className="mb-2 h-7 w-7 text-muted-foreground/50" />
-                                        <p className="text-[12.5px] font-medium">데이터가 없습니다.</p>
+                                        <p className="text-[12.5px] font-medium">{strings.explorerTab.noData}</p>
                                         <p className="text-[10px] text-muted-foreground/75 mt-0.5 font-sans">
-                                            수동 추가 폼 또는 성능 시나리오 탭에서 데이터를 먼저 삽입하세요.
+                                            {strings.explorerTab.noDataHint}
                                         </p>
                                     </div>
                                 ) : (
@@ -1270,7 +1279,7 @@ export const CacheTestScreen = () => {
                                                                         }
                                                                         disabled={isRunning}
                                                                         className="flex h-7 w-7 items-center justify-center rounded-[6px] bg-primary text-primary-foreground"
-                                                                        title="수정사항 저장"
+                                                                        title={strings.explorerTab.saveTitle}
                                                                     >
                                                                         <Check size={13} />
                                                                     </button>
@@ -1278,7 +1287,7 @@ export const CacheTestScreen = () => {
                                                                         type="button"
                                                                         onClick={cancelEditing}
                                                                         className="flex h-7 w-7 items-center justify-center rounded-[6px] border border-border bg-card text-foreground"
-                                                                        title="취소"
+                                                                        title={strings.explorerTab.cancelTitle}
                                                                     >
                                                                         <XCircle size={13} />
                                                                     </button>
@@ -1287,7 +1296,7 @@ export const CacheTestScreen = () => {
                                                                 <div className="mt-1 break-all font-mono text-[12.5px] text-muted-foreground whitespace-pre-wrap [overflow-wrap:anywhere]">
                                                                     {record.value || (
                                                                         <span className="italic text-muted-foreground/40">
-                                                                            (빈 값)
+                                                                            {strings.explorerTab.emptyValue}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1300,7 +1309,7 @@ export const CacheTestScreen = () => {
                                                                 type="button"
                                                                 onClick={() => startEditing(record.key, record.value)}
                                                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-border bg-card text-muted-foreground hover:text-foreground"
-                                                                title="값 수정"
+                                                                title={strings.explorerTab.editTitle}
                                                             >
                                                                 <Edit2 size={12} />
                                                             </button>
@@ -1308,7 +1317,7 @@ export const CacheTestScreen = () => {
                                                     </div>
 
                                                     <div className="mt-2.5 flex items-center justify-between text-[9px] text-muted-foreground">
-                                                        <span>마지막 변경</span>
+                                                        <span>{strings.explorerTab.lastChanged}</span>
                                                         <span className="font-mono">
                                                             {new Date(record.updated_at).toLocaleString('ko-KR', {
                                                                 hour12: false,
@@ -1334,7 +1343,7 @@ export const CacheTestScreen = () => {
                     {/* TAB 3: TELEMETRY LOGS (REAL-TIME CONSOLE STREAM)          */}
                     {/* ======================================================== */}
                     {activeTab === 'logs' && (
-                        <Section title={`텔레메트리 실시간 분석 로그 (${logs.length})`}>
+                        <Section title={strings.logsTab.title(logs.length)}>
                             {logs.length > 0 ? (
                                 <div className="mb-3 flex items-center justify-between">
                                     <button
@@ -1342,23 +1351,23 @@ export const CacheTestScreen = () => {
                                         onClick={clearLogs}
                                         className="text-[11px] font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-wider"
                                     >
-                                        로그 스트림 비우기
+                                        {strings.logsTab.clear}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={resetStats}
                                         className="text-[11px] font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-wider"
                                     >
-                                        롤링 통계 초기화
+                                        {strings.logsTab.resetStats}
                                     </button>
                                 </div>
                             ) : null}
 
                             {logs.length === 0 ? (
                                 <p className="py-16 text-center text-[13px] text-muted-foreground">
-                                    측정 데이터 및 이벤트 히스토리가 비어 있습니다.
+                                    {strings.logsTab.emptyLine1}
                                     <br />
-                                    성능 시나리오 또는 레코드 제어를 실행하세요.
+                                    {strings.logsTab.emptyLine2}
                                 </p>
                             ) : (
                                 <div className="overflow-y-auto divide-y divide-border pr-1 max-h-[500px]">

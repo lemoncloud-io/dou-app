@@ -53,10 +53,10 @@ const numInput = (
 );
 
 const PRESET_META = [
-    { key: 'fanout', title: 'Fan-out scale', desc: 'N 1→50, 낮은 rate · degradation 곡선' },
-    { key: 'throughput', title: 'Throughput', desc: 'N 고정, rate 최대 · 포화점' },
-    { key: 'spike', title: 'Spike', desc: '0→N 순간 ramp · 연결 폭주' },
-    { key: 'soak', title: 'Soak', desc: '낮은 rate, 긴 duration · 누수' },
+    { key: 'fanout', title: 'Fan-out scale', desc: 'N 1→50, low rate · degradation curve' },
+    { key: 'throughput', title: 'Throughput', desc: 'N fixed, max rate · saturation point' },
+    { key: 'spike', title: 'Spike', desc: '0→N instant ramp · connection surge' },
+    { key: 'soak', title: 'Soak', desc: 'low rate, long duration · leaks' },
 ];
 
 export default function LoadConfig({ load }: LoadConfigProps) {
@@ -96,7 +96,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                             textTransform: 'uppercase',
                         }}
                     >
-                        Load Test 설정
+                        Load Test settings
                     </span>
                     <span
                         style={{
@@ -109,13 +109,13 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                             padding: '4px 9px',
                         }}
                     >
-                        target __canary_load__ · 읽기전용
+                        target __canary_load__ · read-only
                     </span>
                 </div>
                 <div style={{ padding: '4px 18px 16px' }}>
                     {row(
                         'Subscribers (N)',
-                        '동시 구독 연결 수',
+                        'Concurrent subscribe connections',
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: 240 }}>
                             <input
                                 type="range"
@@ -141,7 +141,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                     )}
                     {row(
                         'Publishers (M)',
-                        '동시 송신 연결 수 (1–5)',
+                        'Concurrent publish connections (1–5)',
                         numInput(cfg.pubs, v => load.setConfig({ pubs: Math.max(1, Math.min(5, +v || 1)) }), {
                             min: 1,
                             max: 5,
@@ -149,12 +149,12 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                     )}
                     {row(
                         'Send rate',
-                        'publisher당 msg/s',
+                        'msg/s per publisher',
                         numInput(cfg.rate, v => load.setConfig({ rate: Math.max(1, +v || 1) }), { min: 1 })
                     )}
                     {row(
                         'Payload size',
-                        '메시지 크기 (bytes)',
+                        'Message size (bytes)',
                         numInput(cfg.payload, v => load.setConfig({ payload: Math.max(16, +v || 16) }), {
                             min: 16,
                             step: 16,
@@ -162,7 +162,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                     )}
                     {row(
                         'Ramp-up',
-                        'Staged = 단계적 증가로 knee 탐색',
+                        'Staged = find the knee via gradual increase',
                         <div
                             style={{
                                 display: 'flex',
@@ -206,12 +206,12 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                     )}
                     {row(
                         'Duration',
-                        '종료 조건 (초)',
+                        'Stop condition (sec)',
                         numInput(cfg.duration, v => load.setConfig({ duration: Math.max(5, +v || 5) }), { min: 5 })
                     )}
                     {row(
-                        'gap-drop 주입',
-                        '부하 중 유실 → catch-up 검증',
+                        'Inject gap-drop',
+                        'Drop during load → verify catch-up',
                         <button
                             onClick={() => load.setConfig({ gapDrop: !cfg.gapDrop })}
                             style={{
@@ -226,7 +226,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                                 ...seg(cfg.gapDrop),
                             }}
                         >
-                            {cfg.gapDrop ? 'gap-drop 주입 ON' : 'gap-drop 주입 off'}
+                            {cfg.gapDrop ? 'gap-drop inject ON' : 'gap-drop inject off'}
                         </button>,
                         true
                     )}
@@ -250,7 +250,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                     }}
                 >
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d29922', flexShrink: 0 }} />{' '}
-                    browser-bound · 1탭 기준 최대 ~50 conns. 풀 로드테스트가 아닌 스케일 스모크 테스트.
+                    browser-bound · up to ~50 conns per tab. A scale smoke test, not a full load test.
                 </div>
                 <div
                     style={{
@@ -272,7 +272,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                             textTransform: 'uppercase',
                         }}
                     >
-                        프리셋 시나리오
+                        Preset scenarios
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 12 }}>
                         {PRESET_META.map(p => (
@@ -314,7 +314,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                         gap: 4,
                     }}
                 >
-                    <span style={{ fontSize: 11, color: 'var(--sm-text-4)' }}>예상 부하</span>
+                    <span style={{ fontSize: 11, color: 'var(--sm-text-4)' }}>Expected load</span>
                     <span
                         style={{
                             fontFamily: "'Geist Mono',monospace",

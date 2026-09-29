@@ -36,14 +36,14 @@ interface LogFilterRailProps {
 }
 
 const KINDS: Array<{ value: ReportKind; label: string }> = [
-    { value: 'all', label: '전체' },
-    { value: 'log-entry', label: '로그' },
-    { value: 'issue', label: '제보' },
-    { value: 'error', label: '구 에러 리포트' },
+    { value: 'all', label: 'All' },
+    { value: 'log-entry', label: 'Log' },
+    { value: 'issue', label: 'Issue' },
+    { value: 'error', label: 'Legacy error report' },
 ];
 
 const LEVELS = [
-    { value: '', label: '전체' },
+    { value: '', label: 'All' },
     { value: 'error', label: 'error' },
     { value: 'warn', label: 'warn' },
     { value: 'info', label: 'info' },
@@ -59,16 +59,16 @@ const LEVELS = [
  * corpus narrowed on the server instead of only hiding rows already fetched.
  */
 const CLIENT_FACETS: Array<{ key: FacetKey; label: string; onServer?: true }> = [
-    { key: 'tag', label: '태그', onServer: true },
-    { key: 'appVersion', label: '앱 버전', onServer: true },
-    { key: 'webVersion', label: '웹 버전', onServer: true },
-    { key: 'route', label: '화면', onServer: true },
-    { key: 'source', label: '출처' },
+    { key: 'tag', label: 'Tag', onServer: true },
+    { key: 'appVersion', label: 'App version', onServer: true },
+    { key: 'webVersion', label: 'Web version', onServer: true },
+    { key: 'route', label: 'Screen', onServer: true },
+    { key: 'source', label: 'Source' },
     { key: 'app', label: 'App' },
-    { key: 'env', label: '환경' },
+    { key: 'env', label: 'Env' },
     { key: 'os', label: 'OS', onServer: true },
-    { key: 'osVersion', label: 'OS 버전', onServer: true },
-    { key: 'model', label: '기기', onServer: true },
+    { key: 'osVersion', label: 'OS version', onServer: true },
+    { key: 'model', label: 'Device', onServer: true },
 ];
 
 const fieldClass =
@@ -135,8 +135,11 @@ export const LogFilterRail = ({
 
     return (
         <aside className="flex w-64 shrink-0 flex-col gap-6 overflow-auto border-r border-border bg-card p-4">
-            <Group title="조회 조건" caption="서버에서 전체 데이터를 상대로 걸립니다. 바꾸면 다시 수집합니다.">
-                <Field label="스테이지">
+            <Group
+                title="Query conditions"
+                caption="Applied server-side across the full dataset. Changing one restarts the collection."
+            >
+                <Field label="Stage">
                     <select
                         value={server.stage}
                         onChange={e => onServerAxis({ stage: e.target.value as ReportStage })}
@@ -146,7 +149,7 @@ export const LogFilterRail = ({
                         <option value="d1">dev (d1)</option>
                     </select>
                 </Field>
-                <Field label="종류">
+                <Field label="Kind">
                     <select
                         value={server.kind}
                         onChange={e => onServerAxis({ kind: e.target.value })}
@@ -159,7 +162,7 @@ export const LogFilterRail = ({
                         ))}
                     </select>
                 </Field>
-                <Field label="레벨">
+                <Field label="Level">
                     <select
                         value={server.level}
                         onChange={e => onServerAxis({ level: e.target.value })}
@@ -173,7 +176,7 @@ export const LogFilterRail = ({
                     </select>
                 </Field>
                 {/* KST day boundaries, applied to `createdAt` — see the range caveat below. */}
-                <Field label="시작일 (KST)">
+                <Field label="From date (KST)">
                     <input
                         type="date"
                         value={server.from}
@@ -182,7 +185,7 @@ export const LogFilterRail = ({
                         className={fieldClass}
                     />
                 </Field>
-                <Field label="종료일 (KST)">
+                <Field label="To date (KST)">
                     <input
                         type="date"
                         value={server.to}
@@ -192,14 +195,15 @@ export const LogFilterRail = ({
                     />
                 </Field>
                 <p className="text-[11px] leading-snug text-muted-foreground">
-                    기간은 서버 <span className="font-mono">도달</span> 시각 기준입니다. 화면의 시각·순서는{' '}
-                    <span className="font-mono">발생</span> 기준이라 경계에서 하루 어긋난 행이 섞일 수 있습니다.
+                    The range is matched against server <span className="font-mono">arrival</span> time. The screen's
+                    times and order use <span className="font-mono">occurrence</span> time, so rows near the boundary
+                    can be off by a day.
                 </p>
             </Group>
 
             <Group
-                title="수집분 필터"
-                caption={`값과 건수는 수집한 ${corpusSize.toLocaleString()}건을 센 것입니다. ${SERVER_AXIS_CAVEAT}`}
+                title="Collected-set filters"
+                caption={`Values and counts are over the ${corpusSize.toLocaleString()} collected rows. ${SERVER_AXIS_CAVEAT}`}
                 action={
                     hasClientNarrowing ? (
                         <button
@@ -207,17 +211,17 @@ export const LogFilterRail = ({
                             onClick={onClearClient}
                             className="text-[11px] text-muted-foreground underline hover:text-foreground"
                         >
-                            초기화
+                            Reset
                         </button>
                     ) : undefined
                 }
             >
-                <Field label="검색">
+                <Field label="Search">
                     <input
                         type="text"
                         value={draft}
                         onChange={e => setDraft(e.target.value)}
-                        placeholder="메시지·유저·태그…"
+                        placeholder="Message, user, tag…"
                         className={fieldClass}
                     />
                 </Field>
@@ -236,14 +240,14 @@ export const LogFilterRail = ({
                     return (
                         <Field
                             key={facet.key}
-                            label={`${facet.label} (${values.length})${facet.onServer ? ' · 서버' : ''}`}
+                            label={`${facet.label} (${values.length})${facet.onServer ? ' · server' : ''}`}
                         >
                             <select
                                 value={selection[facet.key] ?? ''}
                                 onChange={e => onFacet(facet.key, e.target.value)}
                                 className={fieldClass}
                             >
-                                <option value="">전체</option>
+                                <option value="">All</option>
                                 {values.map(value => (
                                     <option key={value.value} value={value.value}>
                                         {value.value} ({value.count.toLocaleString()})

@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 
 import { render, screen, within } from '@testing-library/react';
 
+import { setDebugLanguageForTests } from '../../i18n';
 import { CacheMetricsScreen } from './CacheMetricsScreen';
 
 const read = jest.fn();
@@ -27,12 +28,18 @@ const metrics = read;
 const dataRows = () => screen.getAllByRole('row').slice(1); // drop the header row
 
 describe('CacheMetricsScreen', () => {
+    let restoreLanguage: () => void;
+    beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
+    });
+    afterEach(() => restoreLanguage());
+
     it('아직 호출이 없으면 빈 상태를 보여준다', () => {
         metrics.mockReturnValue({ totalOps: 0, operations: {} });
 
         render(<CacheMetricsScreen />);
 
-        expect(screen.getByText('아직 기록된 호출이 없습니다.')).toBeInTheDocument();
+        expect(screen.getByText('No calls recorded yet.')).toBeInTheDocument();
     });
 
     // The whole point of this screen is that sort order is by cumulative time (count × avg), not
@@ -66,7 +73,17 @@ describe('CacheMetricsScreen', () => {
 
         render(<CacheMetricsScreen />);
 
-        expect(screen.getByText(/총 201회/)).toBeInTheDocument();
-        expect(screen.getByText(/누적 1,300ms/)).toBeInTheDocument();
+        expect(screen.getByText(/201 total calls/)).toBeInTheDocument();
+        expect(screen.getByText(/1,300ms cumulative/)).toBeInTheDocument();
+    });
+
+    it('renders the Korean table when the app language is Korean', () => {
+        restoreLanguage();
+        restoreLanguage = setDebugLanguageForTests('ko');
+        metrics.mockReturnValue({ totalOps: 0, operations: {} });
+
+        render(<CacheMetricsScreen />);
+
+        expect(screen.getByText('아직 기록된 호출이 없습니다.')).toBeInTheDocument();
     });
 });

@@ -3,6 +3,7 @@ import { runtime } from '@chatic/app-runtime';
 import type { DataRepositories } from '@chatic/data';
 
 import { CopyButton } from '../../components/CopyButton';
+import { useDBBrowserStrings } from '../../i18n/screens/DBBrowser';
 
 type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'invite';
 
@@ -57,6 +58,7 @@ export const TEMPLATES: Record<CacheType, () => Record<string, unknown>> = {
 
 function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataRepositories; onClick: () => void }) {
     const [count, setCount] = useState<number | null>(null);
+    const strings = useDBBrowserStrings();
 
     useEffect(() => {
         const repo = repos[REPO_KEY[type]] as unknown as {
@@ -73,13 +75,16 @@ function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataReposi
             className="border border-border bg-card rounded-lg p-3 text-left hover:bg-muted transition-colors"
         >
             <p className="text-sm font-medium">{type}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{count === null ? '로딩 중...' : `${count}건`}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+                {count === null ? strings.typeCard.loading : strings.typeCard.rows(count)}
+            </p>
         </button>
     );
 }
 
 function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => void; onEdit: () => void }) {
     const [expanded, setExpanded] = useState(false);
+    const strings = useDBBrowserStrings();
 
     const summary = ['cid', 'uid', 'channelId', 'name']
         .filter(k => row[k] !== undefined)
@@ -105,7 +110,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
                     }}
                     className="shrink-0 text-primary hover:opacity-70"
                 >
-                    수정
+                    {strings.rowItem.edit}
                 </button>
                 <button
                     onClick={e => {
@@ -114,7 +119,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
                     }}
                     className="shrink-0 text-destructive hover:opacity-70"
                 >
-                    삭제
+                    {strings.rowItem.delete}
                 </button>
             </div>
             {expanded && (
@@ -127,6 +132,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
 }
 
 function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepositories; onBack: () => void }) {
+    const strings = useDBBrowserStrings();
     const fields = FILTER_FIELDS[type];
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [results, setResults] = useState<DomainRow[] | null>(null);
@@ -221,7 +227,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
         <div className="space-y-3">
             <div className="flex items-center gap-2">
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground text-sm">
-                    ← 목록
+                    {strings.detail.backToList}
                 </button>
                 <span className="font-semibold text-sm">{type}</span>
             </div>
@@ -250,20 +256,20 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                     onClick={openTemplate}
                     className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:opacity-80"
                 >
-                    + 새 행(템플릿)
+                    {strings.detail.newRowTemplate}
                 </button>
                 <button
                     onClick={() => setShowWritePanel(v => !v)}
                     className="px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                 >
-                    {showWritePanel ? '작성 취소' : '데이터 추가/수정'}
+                    {showWritePanel ? strings.detail.cancelEditing : strings.detail.addEditData}
                 </button>
                 {!areYouSure ? (
                     <button
                         onClick={() => setAreYouSure(true)}
                         className="px-3 py-1 text-xs rounded border border-destructive text-destructive hover:opacity-70"
                     >
-                        전체삭제
+                        {strings.detail.clearAll}
                     </button>
                 ) : (
                     <>
@@ -271,13 +277,13 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                             onClick={() => void handleClear()}
                             className="px-3 py-1 text-xs rounded bg-destructive text-destructive-foreground"
                         >
-                            확인
+                            {strings.detail.confirm}
                         </button>
                         <button
                             onClick={() => setAreYouSure(false)}
                             className="px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                         >
-                            취소
+                            {strings.detail.cancel}
                         </button>
                     </>
                 )}
@@ -285,7 +291,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 
             {showWritePanel && (
                 <div className="border border-border bg-card rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-semibold">데이터 추가/수정 (JSON)</p>
+                    <p className="text-xs font-semibold">{strings.detail.addEditDataJson}</p>
                     <textarea
                         value={writeJson}
                         onChange={e => setWriteJson(e.target.value)}
@@ -297,7 +303,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                         onClick={() => void handleWrite()}
                         className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground"
                     >
-                        저장
+                        {strings.detail.save}
                     </button>
                 </div>
             )}
@@ -305,13 +311,13 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
             {results !== null && (
                 <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                        <p className="text-xs text-muted-foreground">{results.length}건</p>
+                        <p className="text-xs text-muted-foreground">{strings.detail.rows(results.length)}</p>
                         {results.length > 0 && (
-                            <CopyButton value={() => JSON.stringify(results, null, 2)} label="전체 복사" />
+                            <CopyButton value={() => JSON.stringify(results, null, 2)} label={strings.detail.copyAll} />
                         )}
                     </div>
                     {results.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">결과 없음</p>
+                        <p className="text-xs text-muted-foreground">{strings.detail.noResults}</p>
                     ) : (
                         results.map(row => (
                             <RowItem
@@ -325,7 +331,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                 </div>
             )}
 
-            {loading && <p className="text-xs text-muted-foreground font-medium">조회 중...</p>}
+            {loading && <p className="text-xs text-muted-foreground font-medium">{strings.detail.querying}</p>}
         </div>
     );
 }
@@ -333,6 +339,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 export const DBBrowser = () => {
     const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
     const [selected, setSelected] = useState<CacheType | null>(null);
+    const strings = useDBBrowserStrings();
 
     if (selected) {
         return <DetailView type={selected} repos={repos} onBack={() => setSelected(null)} />;
@@ -340,7 +347,7 @@ export const DBBrowser = () => {
 
     return (
         <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cache Tables</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{strings.cacheTables}</p>
             <div className="grid grid-cols-2 gap-2">
                 {ALL_TYPES.map(type => (
                     <TypeCard key={type} type={type} repos={repos} onClick={() => setSelected(type)} />

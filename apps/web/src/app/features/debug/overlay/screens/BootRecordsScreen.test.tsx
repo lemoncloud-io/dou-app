@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { BootRecordsScreen } from './BootRecordsScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 import { resetUnsupportedCommands } from '../../hooks';
 
 const fetchBootRecords = jest.fn();
@@ -34,11 +35,16 @@ const ok = (over: Record<string, unknown> = {}) =>
     });
 
 describe('BootRecordsScreen', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
+        restoreLanguage = setDebugLanguageForTests('en');
         jest.clearAllMocks();
         // Learning is module-scoped, so what one case learns must not leak into the next.
         resetUnsupportedCommands();
     });
+
+    afterEach(() => restoreLanguage());
 
     it('네이티브 마일스톤과 총 부팅 시간을 기록마다 보여준다', async () => {
         fetchBootRecords.mockImplementation(() => ok());
@@ -48,7 +54,8 @@ describe('BootRecordsScreen', () => {
         expect(screen.getByText('975 ms')).toBeInTheDocument(); // web-app-ready
         expect(screen.getByText('provider ready')).toBeInTheDocument();
         expect(screen.getByText('12 ms')).toBeInTheDocument();
-        expect(screen.getByText('1건')).toBeInTheDocument();
+        // Fixes the "1 rows" plural bug: one record now reads "1 row".
+        expect(screen.getByText('1 row')).toBeInTheDocument();
     });
 
     // These two are not the value of any one record but the state of the app currently running — that's why they arrive together in the same request.
@@ -56,7 +63,7 @@ describe('BootRecordsScreen', () => {
         fetchBootRecords.mockImplementation(() => ok());
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText('현재 앱 실행')).toBeInTheDocument();
+        expect(await screen.findByText('Current app run')).toBeInTheDocument();
         expect(screen.getByText('2')).toBeInTheDocument();
         expect(screen.getByText('4321 ms')).toBeInTheDocument();
     });
@@ -65,14 +72,14 @@ describe('BootRecordsScreen', () => {
         fetchBootRecords.mockImplementation(() => ok({ records: [record({ web: null })] }));
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText('없음 (타임아웃)')).toBeInTheDocument();
+        expect(await screen.findByText('None (timed out)')).toBeInTheDocument();
     });
 
     it('기록이 없으면 재시작하면 남는다고 알려준다', async () => {
         fetchBootRecords.mockImplementation(() => ok({ records: [] }));
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText(/기록이 없습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/No records/)).toBeInTheDocument();
     });
 
     // An older app doesn't know this command and answers NOT_FOUND. Saying "there are no
@@ -82,25 +89,25 @@ describe('BootRecordsScreen', () => {
         fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText(/이 앱 버전이 지원하지 않습니다/)).toBeInTheDocument();
-        expect(screen.queryByText(/기록이 없습니다/)).not.toBeInTheDocument();
+        expect(await screen.findByText(/not supported by this app version/)).toBeInTheDocument();
+        expect(screen.queryByText(/No records/)).not.toBeInTheDocument();
     });
 
     // Locking the button is more honest than continuing to offer one that does nothing when pressed.
     it('명령을 모른다고 배우면 버튼을 잠근다', async () => {
         fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
         render(<BootRecordsScreen />);
-        await screen.findByText(/이 앱 버전이 지원하지 않습니다/);
+        await screen.findByText(/not supported by this app version/);
 
-        expect(screen.getByRole('button', { name: '새로고침' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Refresh' })).toBeDisabled();
     });
 
     it('일반 실패는 버전 차이와 구분해 적는다', async () => {
         fetchBootRecords.mockImplementation(() => Promise.reject(new Error('storage down')));
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText(/실패: storage down/)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: '새로고침' })).not.toBeDisabled();
+        expect(await screen.findByText(/failed: storage down/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Refresh' })).not.toBeDisabled();
     });
 
     it('초기화를 누르면 앱에 지우게 하고 다시 읽는다', async () => {
@@ -109,7 +116,7 @@ describe('BootRecordsScreen', () => {
         render(<BootRecordsScreen />);
         await screen.findByText('980 ms');
 
-        await userEvent.click(screen.getByRole('button', { name: '초기화' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
         await waitFor(() => expect(clearBootRecords).toHaveBeenCalledTimes(1));
         expect(fetchBootRecords).toHaveBeenCalledTimes(2);
@@ -118,8 +125,8 @@ describe('BootRecordsScreen', () => {
     it('기록이 없으면 초기화 버튼은 눌리지 않는다', async () => {
         fetchBootRecords.mockImplementation(() => ok({ records: [] }));
         render(<BootRecordsScreen />);
-        await screen.findByText(/기록이 없습니다/);
+        await screen.findByText(/No records/);
 
-        expect(screen.getByRole('button', { name: '초기화' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled();
     });
 });

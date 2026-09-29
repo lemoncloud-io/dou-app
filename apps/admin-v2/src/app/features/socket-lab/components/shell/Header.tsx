@@ -70,7 +70,7 @@ export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, 
                         onFocus={() => setFocused(true)}
                         onBlur={() => setFocused(false)}
                         spellCheck={false}
-                        title="WebSocket 엔드포인트 — 편집 가능"
+                        title="WebSocket endpoint — editable"
                         style={{
                             fontFamily: "'Geist Mono',monospace",
                             fontSize: 11.5,

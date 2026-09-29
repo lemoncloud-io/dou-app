@@ -11,10 +11,10 @@ const now = 1_700_000_000_000;
 describe('formatRelative', () => {
     it('buckets by unit', () => {
         expect(formatRelative(undefined, now)).toBe('-');
-        expect(formatRelative(now - 5_000, now)).toBe('방금');
-        expect(formatRelative(now - 5 * 60_000, now)).toBe('5분 전');
-        expect(formatRelative(now - 2 * 3_600_000, now)).toBe('2시간 전');
-        expect(formatRelative(now - 3 * 86_400_000, now)).toBe('3일 전');
+        expect(formatRelative(now - 5_000, now)).toBe('just now');
+        expect(formatRelative(now - 5 * 60_000, now)).toBe('5m ago');
+        expect(formatRelative(now - 2 * 3_600_000, now)).toBe('2h ago');
+        expect(formatRelative(now - 3 * 86_400_000, now)).toBe('3d ago');
     });
 });
 

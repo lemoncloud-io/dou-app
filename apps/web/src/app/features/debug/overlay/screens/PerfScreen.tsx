@@ -6,6 +6,7 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { CopyButton } from '../../components/CopyButton';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
+import { usePerfScreenStrings } from '../../i18n/screens/PerfScreen';
 import { useRuntimeMetrics } from '../../metrics/useRuntimeMetrics';
 import { getLongTaskStats, isLongTaskSupported, type LongTaskStats } from '../../metrics/longTasks';
 import { getVitals, type VitalSample } from '../../../../utils/webVitalsStore';
@@ -19,6 +20,7 @@ const readUsedHeapMb = (): number | null => {
 // All values are computed web-side by the MetricsCollector; this tab only renders
 // the snapshot plus a 1s poll of the live sync target registry.
 export const PerfScreen = () => {
+    const strings = usePerfScreenStrings();
     const metrics = useRuntimeMetrics();
     const socketState = runtime.connection.useRuntimeSocketState();
     const [targets, setTargets] = useState<Array<SyncTargetDescriptor & { cid: string }>>([]);
@@ -49,35 +51,39 @@ export const PerfScreen = () => {
     return (
         <div className="space-y-3 p-4">
             <div className="flex justify-end">
-                <CopyButton value={snapshot} label="지표 복사" />
+                <CopyButton value={snapshot} label={strings.copyMetrics} />
             </div>
 
-            <Section title={`Sync Targets (${targets.length})`}>
+            <Section title={strings.syncTargets.title(targets.length)}>
                 {targets.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">등록된 sync 타깃이 없습니다</p>
+                    <p className="text-xs text-muted-foreground">{strings.syncTargets.empty}</p>
                 ) : (
-                    targets.map(t => (
-                        <Row key={`${t.cid}|${t.type}:${t.id ?? ''}`} label={t.type} value={t.id ?? '(current)'} />
+                    targets.map(target => (
+                        <Row
+                            key={`${target.cid}|${target.type}:${target.id ?? ''}`}
+                            label={target.type}
+                            value={target.id ?? strings.syncTargets.current}
+                        />
                     ))
                 )}
             </Section>
 
-            <Section title="Throughput / Latency">
-                <Row label="chat msgs total" value={metrics.chatMessagesTotal} />
-                <Row label="chat msgs/s (10s)" value={metrics.chatMessagesPerSec} />
+            <Section title={strings.throughput.title}>
+                <Row label={strings.throughput.chatMsgsTotal} value={metrics.chatMessagesTotal} />
+                <Row label={strings.throughput.chatMsgsPerSec} value={metrics.chatMessagesPerSec} />
                 <Row
-                    label="last latency"
+                    label={strings.throughput.lastLatency}
                     value={metrics.lastChatLatencyMs != null ? `${metrics.lastChatLatencyMs} ms` : null}
                 />
                 <Row
-                    label="avg latency"
+                    label={strings.throughput.avgLatency}
                     value={metrics.avgChatLatencyMs != null ? `${metrics.avgChatLatencyMs} ms` : null}
                 />
             </Section>
 
-            <Section title="Cache observations">
+            <Section title={strings.cache.title}>
                 {Object.keys(metrics.cacheObservations).length === 0 ? (
-                    <p className="text-xs text-muted-foreground">관측된 변화가 없습니다</p>
+                    <p className="text-xs text-muted-foreground">{strings.cache.empty}</p>
                 ) : (
                     Object.entries(metrics.cacheObservations).map(([domain, count]) => (
                         <Row key={domain} label={domain} value={count} />
@@ -85,9 +91,9 @@ export const PerfScreen = () => {
                 )}
             </Section>
 
-            <Section title="Renders">
+            <Section title={strings.renders.title}>
                 {Object.keys(metrics.renders).length === 0 ? (
-                    <p className="text-xs text-muted-foreground">렌더 보고가 없습니다</p>
+                    <p className="text-xs text-muted-foreground">{strings.renders.empty}</p>
                 ) : (
                     Object.entries(metrics.renders).map(([label, count]) => (
                         <Row key={label} label={label} value={count} />
@@ -95,32 +101,35 @@ export const PerfScreen = () => {
                 )}
             </Section>
 
-            <Section title="Connection quality">
-                <Row label="state" value={socketState.state} />
-                <Row label="connects" value={metrics.socketConnects} />
-                <Row label="disconnects" value={metrics.socketDisconnects} />
-                <Row label="in state for" value={sinceSec != null ? `${sinceSec}s` : null} />
+            <Section title={strings.connection.title}>
+                <Row label={strings.connection.state} value={socketState.state} />
+                <Row label={strings.connection.connects} value={metrics.socketConnects} />
+                <Row label={strings.connection.disconnects} value={metrics.socketDisconnects} />
+                <Row label={strings.connection.inStateFor} value={sinceSec != null ? `${sinceSec}s` : null} />
             </Section>
 
-            <Section title="Main thread (long tasks >50ms)">
+            <Section title={strings.longTasks.title}>
                 {isLongTaskSupported() ? (
                     <>
-                        <Row label="count" value={longTasks.count} />
-                        <Row label="total blocked" value={`${longTasks.totalMs} ms`} />
-                        <Row label="max task" value={`${longTasks.maxMs} ms`} />
+                        <Row label={strings.longTasks.count} value={longTasks.count} />
+                        <Row label={strings.longTasks.totalBlocked} value={`${longTasks.totalMs} ms`} />
+                        <Row label={strings.longTasks.maxTask} value={`${longTasks.maxMs} ms`} />
                     </>
                 ) : (
-                    <p className="text-xs text-muted-foreground">이 엔진은 Long Tasks API를 지원하지 않습니다</p>
+                    <p className="text-xs text-muted-foreground">{strings.longTasks.unsupported}</p>
                 )}
             </Section>
 
-            <Section title="Responsiveness / Memory">
+            <Section title={strings.responsiveness.title}>
                 <Row
                     label="INP"
                     value={vitals.INP ? `${Math.round(vitals.INP.value)} ms (${vitals.INP.rating})` : null}
                 />
                 <Row label="CLS" value={vitals.CLS ? `${vitals.CLS.value.toFixed(3)} (${vitals.CLS.rating})` : null} />
-                <Row label="JS heap" value={usedHeapMb != null ? `${usedHeapMb} MB` : 'n/a (WKWebView)'} />
+                <Row
+                    label={strings.responsiveness.jsHeap}
+                    value={usedHeapMb != null ? `${usedHeapMb} MB` : strings.responsiveness.jsHeapUnsupported}
+                />
             </Section>
         </div>
     );

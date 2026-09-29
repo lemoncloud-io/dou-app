@@ -398,7 +398,14 @@ export const ChannelMessageRow = ({
                                 // so its raw-body path is unreachable from here. A message with nothing
                                 // drawable never enters this arm — it stays in the bubble as text.
                                 <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
-                                    <BlockKitMessage blocks={drawnBlocks} raw={content} />
+                                    <BlockKitMessage
+                                        blocks={drawnBlocks}
+                                        raw={content}
+                                        labels={{
+                                            expandCode: count => t('chat.room.codeBlock.expand', { count }),
+                                            collapseCode: t('chat.room.codeBlock.collapse'),
+                                        }}
+                                    />
                                 </div>
                             ) : (
                                 <MessageBubble

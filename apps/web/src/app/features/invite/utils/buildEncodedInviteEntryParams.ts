@@ -24,7 +24,7 @@ export const buildEncodedInviteEntryParams = (search: string): URLSearchParams =
     // Handed to the decoder as a relative link: it accepts one, which keeps the origin — something
     // this app has no reason to name — out of the conversion.
     const target = decodeInviteLink(`/i${query}`);
-    if (!target) throw new Error('초대 링크의 t 파라미터를 해석할 수 없습니다.');
+    if (!target) throw new Error("Could not decode the invite link's t parameter.");
 
     const params = new URLSearchParams();
     params.set('code', target.code);

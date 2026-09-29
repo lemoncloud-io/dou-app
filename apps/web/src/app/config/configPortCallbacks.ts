@@ -1,3 +1,5 @@
+import * as i18next from 'i18next';
+
 import { logger } from '@chatic/bridges';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -30,12 +32,19 @@ export const onDuplicateKey = (key: string): void => {
  *
  * The imperative `toast`, not the hook: this runs from `config.set`, which has no React context.
  * The toaster is mounted app-wide and this is the shadcn escape hatch for reaching it.
+ *
+ * Translated the same way: `i18next.t` directly, not `useTranslation`'s `t`. This imports the
+ * `i18next` package itself rather than this app's `../../i18n` bootstrap, which reads
+ * `import.meta.env` at module scope and would reintroduce the CommonJS-test problem this file was
+ * split out to avoid. It's the same singleton either way — `../../i18n` calls `.init()` on this
+ * same package's default export — and by the time a shell write can fail, `app.tsx` has already
+ * initialized it.
  */
 export const onShellWriteFailed = (key: string, error: unknown): void => {
     logger.error('CONFIG', `Shell write failed after retry: ${key}`, error as Error);
     toast({
         variant: 'destructive',
-        title: '설정을 저장하지 못했습니다',
-        description: `앱에 쓰기가 실패했습니다 (${key}). 다시 시도해 주세요.`,
+        title: i18next.t('settings.saveFailedTitle'),
+        description: i18next.t('settings.saveFailedDescription', { key }),
     });
 };

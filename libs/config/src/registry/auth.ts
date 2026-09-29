@@ -12,8 +12,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const authModule: ConfigRegistryModule = {
     'auth.sdk.refreshRatio': {
-        title: '인증 갱신 시점 비율',
-        description: '자격증명 수명의 이 비율이 지나면 갱신을 시작한다.',
+        title: 'Auth refresh ratio',
+        description: "Starts refreshing once this fraction of the credential's lifetime has passed.",
         type: 'number',
         defaultValue: 0.8,
         surface: 'dev',
@@ -22,8 +22,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'reconnect',
     },
     'auth.sdk.maxFailures': {
-        title: '인증 갱신 연속 실패 한도',
-        description: '이 횟수를 넘겨 실패하면 세션을 만료로 판정한다.',
+        title: 'Auth refresh failure limit',
+        description: 'Marks the session expired after this many consecutive refresh failures.',
         type: 'number',
         defaultValue: 3,
         surface: 'dev',
@@ -32,8 +32,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'reconnect',
     },
     'auth.sdk.refreshIntervalMs': {
-        title: '인증 갱신 주기',
-        description: '자격증명을 다시 확인하는 주기.',
+        title: 'Auth refresh interval',
+        description: 'How often credentials are re-checked.',
         type: 'number',
         defaultValue: 300_000,
         surface: 'dev',
@@ -42,8 +42,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'reconnect',
     },
     'auth.verify.timeoutMs': {
-        title: '인증 확인 타임아웃',
-        description: '소켓 인증 확인 요청이 이만큼 지나면 실패로 처리한다.',
+        title: 'Auth verify timeout',
+        description: "How long a socket auth verification request waits before it's treated as failed.",
         type: 'number',
         defaultValue: 10_000,
         surface: 'dev',
@@ -52,8 +52,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'auth.staleness.checkIntervalMs': {
-        title: '세션 신선도 점검 주기',
-        description: '세션이 여전히 유효한지 확인하는 주기.',
+        title: 'Session staleness check interval',
+        description: 'How often the session is checked for continued validity.',
         type: 'number',
         defaultValue: 30_000,
         surface: 'dev',
@@ -62,8 +62,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'auth.staleness.forceRefreshCooldownMs': {
-        title: '강제 갱신 최소 간격',
-        description: '연속된 강제 갱신 사이에 두는 최소 간격. 갱신 폭주를 막는다.',
+        title: 'Forced refresh minimum interval',
+        description: 'The minimum gap kept between consecutive forced refreshes, to prevent a refresh storm.',
         type: 'number',
         defaultValue: 60_000,
         surface: 'dev',
@@ -72,8 +72,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'auth.init.maxRetries': {
-        title: '세션 초기화 재시도 횟수',
-        description: '부팅 시 세션 초기화가 실패했을 때 다시 시도하는 최대 횟수.',
+        title: 'Session init retry count',
+        description: 'The maximum number of retries when session init fails at boot.',
         type: 'number',
         defaultValue: 3,
         surface: 'dev',
@@ -82,8 +82,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'auth.init.retryDelayMs': {
-        title: '세션 초기화 재시도 간격',
-        description: '세션 초기화 재시도 사이의 대기 시간.',
+        title: 'Session init retry interval',
+        description: 'The wait time between session init retries.',
         type: 'number',
         defaultValue: 2_000,
         surface: 'dev',
@@ -92,8 +92,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'auth.keepAlive.retryFloorMs': {
-        title: '세션 유지 재시도 최소 간격',
-        description: '게스트 로그인 재시도 사이에 두는 최소 간격.',
+        title: 'Session keep-alive retry floor',
+        description: 'The minimum gap kept between guest login retries.',
         type: 'number',
         defaultValue: 5_000,
         surface: 'dev',
@@ -102,8 +102,8 @@ export const authModule: ConfigRegistryModule = {
         appliesAt: 'live',
     },
     'auth.credential.retrySleepMs': {
-        title: '자격증명 재발급 대기 시간',
-        description: '클라우드 자격증명 재발급 실패 후 다시 시도하기까지 대기 시간.',
+        title: 'Credential reissue retry delay',
+        description: 'How long to wait before retrying after a cloud credential reissue fails.',
         type: 'number',
         defaultValue: 60_000,
         surface: 'dev',

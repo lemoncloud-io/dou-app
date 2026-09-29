@@ -66,7 +66,7 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
         return (
             <aside className="hidden w-[26rem] shrink-0 flex-col border-l border-border bg-card xl:flex">
                 <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-                    행을 선택하면 상세가 여기에 열립니다.
+                    Select a row to open its detail here.
                 </p>
             </aside>
         );
@@ -77,21 +77,21 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
     return (
         <aside
             className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[26rem] flex-col overflow-y-auto border-l border-border bg-card shadow-2xl xl:static xl:z-auto xl:w-[26rem] xl:shrink-0 xl:shadow-none"
-            aria-label="멤버십 상세"
+            aria-label="Membership detail"
         >
             <header className="flex items-center gap-2 border-b border-border px-5 py-3">
-                <span className="font-mono text-sm text-foreground">{userId || '(userId 없음)'}</span>
+                <span className="font-mono text-sm text-foreground">{userId || '(no userId)'}</span>
                 <span className="flex-1" />
                 <button
                     type="button"
                     onClick={onClose}
                     className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                    닫기
+                    Close
                 </button>
             </header>
 
-            <Section title="현재 상태">
+            <Section title="Current status">
                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
                     <span className="rounded border border-border px-1.5 py-0.5">
                         status: {membership.status ?? '-'}
@@ -105,43 +105,46 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
                     >
                         isValid: {String(membership.isValid ?? '-')}
                     </span>
-                    <span className="rounded border border-border px-1.5 py-0.5">오버라이드: {badge.label}</span>
+                    <span className="rounded border border-border px-1.5 py-0.5">Override: {badge.label}</span>
                 </div>
                 {hasDerivationMismatch(membership) && (
                     <p className="text-[11px] leading-snug text-amber-400">
-                        저장된 status 와 실시간 isValid 가 어긋납니다. 서버에는 부여 만료를 되돌리는 배치가 없어, 기간이
-                        끝난 오버라이드가 이렇게 보입니다.
+                        The stored status and the live isValid disagree. The server has no batch that reverts an expired
+                        grant, so an override past its term still shows this way.
                     </p>
                 )}
             </Section>
 
-            <Section title="멤버십">
-                <Field label="등급" value={describeGrade(membership, now)} />
-                <Field label="유효기간" value={membership.validUntil ? formatDate(membership.validUntil) : '-'} />
-                <Field label="플랫폼" value={membership.platform ?? '-'} />
-                <Field label="자동갱신" value={String(membership.autoRenewing ?? '-')} />
-                <Field label="취소일" value={membership.canceledAt ? formatDate(membership.canceledAt) : '-'} />
-                <Field label="영수증" value={membership.receiptId ?? '-'} />
+            <Section title="Membership">
+                <Field label="Grade" value={describeGrade(membership, now)} />
+                <Field label="Valid until" value={membership.validUntil ? formatDate(membership.validUntil) : '-'} />
+                <Field label="Platform" value={membership.platform ?? '-'} />
+                <Field label="Auto-renew" value={String(membership.autoRenewing ?? '-')} />
+                <Field label="Canceled at" value={membership.canceledAt ? formatDate(membership.canceledAt) : '-'} />
+                <Field label="Receipt" value={membership.receiptId ?? '-'} />
             </Section>
 
-            <Section title="관리자 오버라이드">
-                <Field label="상태" value={membership.adminStatus || '(없음)'} />
-                <Field label="만료" value={membership.adminUntil ? formatDate(membership.adminUntil) : '무기한/없음'} />
-                <Field label="등급" value={membership.adminProductId || '-'} />
-                <Field label="최근 조작" value={membership.adminAt ? formatDate(membership.adminAt) : '-'} />
-                <Field label="조작자" value={membership.adminBy || '-'} />
-                <Field label="사유" value={membership.adminReason || '-'} />
+            <Section title="Admin override">
+                <Field label="Status" value={membership.adminStatus || '(none)'} />
+                <Field
+                    label="Expires"
+                    value={membership.adminUntil ? formatDate(membership.adminUntil) : 'Indefinite/none'}
+                />
+                <Field label="Grade" value={membership.adminProductId || '-'} />
+                <Field label="Last action" value={membership.adminAt ? formatDate(membership.adminAt) : '-'} />
+                <Field label="Actor" value={membership.adminBy || '-'} />
+                <Field label="Reason" value={membership.adminReason || '-'} />
                 {/* The relay keeps only the most recent operation; everything before it went to Slack. */}
                 <p className="text-[11px] text-muted-foreground">
-                    서버는 최근 1건만 남깁니다. 이전 이력은 슬랙 리포트에 있습니다.
+                    The server keeps only the latest entry. Earlier history is in the Slack report.
                 </p>
             </Section>
 
-            <Section title="보유 클라우드">
+            <Section title="Owned clouds">
                 <CloudPanel clouds={clouds?.list} aggr={clouds?.aggr} isLoading={cloudsLoading} />
             </Section>
 
-            <Section title="오버라이드 변경">
+            <Section title="Change override">
                 <OverridePanel key={`${userId}@${stage}`} membership={membership} onDone={onUpdated} stage={stage} />
             </Section>
         </aside>

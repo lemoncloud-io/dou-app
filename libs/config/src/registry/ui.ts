@@ -14,8 +14,8 @@ import type { ConfigRegistryModule } from '../types';
  */
 export const uiModule: ConfigRegistryModule = {
     'ui.theme': {
-        title: '테마',
-        description: '화면을 밝게·어둡게 표시한다.',
+        title: 'Theme',
+        description: 'Shows the screen in light or dark.',
         type: 'enum',
         values: ['light', 'dark', 'system'],
         defaultValue: 'light',
@@ -24,8 +24,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'ui.language': {
-        title: '언어',
-        description: '앱 표시 언어.',
+        title: 'Language',
+        description: "The app's display language.",
         type: 'string',
         defaultValue: 'ko',
         surface: 'user',
@@ -33,8 +33,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'ui.blurLastMessage': {
-        title: '마지막 메시지 미리보기 가리기',
-        description: '채널 목록에서 마지막 메시지 내용을 흐리게 보여준다.',
+        title: 'Blur last message preview',
+        description: 'Blurs the last message content shown in the channel list.',
         type: 'boolean',
         defaultValue: false,
         surface: 'user',
@@ -42,8 +42,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'ui.onboardingCompleted': {
-        title: '온보딩 완료',
-        description: '첫 실행 안내를 다시 보여줄지 결정한다.',
+        title: 'Onboarding completed',
+        description: 'Decides whether to show the first-run guide again.',
         type: 'boolean',
         defaultValue: false,
         surface: 'internal',
@@ -51,8 +51,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'shell',
     },
     'ui.pushMuted': {
-        title: '푸시 알림 음소거',
-        description: '기기 전체의 푸시 알림을 끈다.',
+        title: 'Mute push notifications',
+        description: 'Turns off push notifications for the whole device.',
         type: 'boolean',
         defaultValue: false,
         surface: 'user',
@@ -60,8 +60,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.channelSort': {
-        title: '채널 정렬 방식',
-        description: '장소별 채널 목록 정렬 방식을 저장한다.',
+        title: 'Channel sort order',
+        description: 'Stores the channel list sort order, per place.',
         type: 'json',
         defaultValue: {},
         surface: 'internal',
@@ -69,8 +69,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.pinnedChannels': {
-        title: '고정된 채널',
-        description: '장소별로 상단에 고정한 채널 목록.',
+        title: 'Pinned channels',
+        description: 'The list of channels pinned to the top, per place.',
         type: 'json',
         defaultValue: {},
         surface: 'internal',
@@ -78,8 +78,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.channelOrder': {
-        title: '채널 표시 순서',
-        description: '장소별 사이드바 채널·DM 표시 순서 (드래그로 변경).',
+        title: 'Channel display order',
+        description: "The sidebar's channel/DM display order per place (changed by dragging).",
         type: 'json',
         defaultValue: {},
         surface: 'internal',
@@ -87,8 +87,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.homeSectionsCollapsed': {
-        title: '홈 섹션 접힘 상태',
-        description: '홈 화면에서 접어 둔 섹션(플레이스·채팅방·1:1) 목록.',
+        title: 'Home sections collapsed',
+        description: 'The list of sections (places, chat rooms, self chat) collapsed on the home screen.',
         type: 'json',
         defaultValue: {},
         surface: 'internal',
@@ -96,8 +96,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.recentSearches': {
-        title: '최근 검색어',
-        description: '통합검색에서 최근 입력한 검색어 목록.',
+        title: 'Recent searches',
+        description: 'The list of recently entered search terms in unified search.',
         type: 'json',
         defaultValue: [],
         surface: 'internal',
@@ -105,8 +105,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.cloudPromoDismissedAt': {
-        title: '클라우드 홍보 닫은 시각',
-        description: '클라우드 추가 안내 배너를 마지막으로 닫은 시각.',
+        title: 'Cloud promo dismissed at',
+        description: 'When the add-a-cloud promo banner was last dismissed.',
         type: 'number',
         defaultValue: 0,
         surface: 'internal',
@@ -114,8 +114,8 @@ export const uiModule: ConfigRegistryModule = {
         persist: 'local',
     },
     'ui.dismissedUpdateVersion': {
-        title: '업데이트 알림 닫은 버전',
-        description: '업데이트 안내를 닫은 마지막 버전. 그 버전까지는 다시 뜨지 않는다.',
+        title: 'Update notice dismissed version',
+        description: "The last version whose update notice was dismissed. It won't reappear until a newer version.",
         type: 'string',
         defaultValue: '',
         surface: 'internal',

@@ -20,13 +20,13 @@ export const countUnreadMembers = (
 // Debug-oriented label for the testbed system bubble. Unlike the web app (which localizes via
 // i18n), the testbed surfaces the raw subType code alongside a readable sentence to aid testing.
 export const formatSystemChatLabel = (subType: ChatSubType | undefined, name: string): string => {
-    const who = name || '알 수 없음';
+    const who = name || 'Unknown';
     switch (subType) {
         case 'join':
-            return `${who}님이 입장했습니다`;
+            return `${who} joined`;
         case 'leave':
-            return `${who}님이 퇴장했습니다`;
+            return `${who} left`;
         default:
-            return `${who} 시스템 메시지`;
+            return `${who} system message`;
     }
 };

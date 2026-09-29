@@ -52,16 +52,16 @@ interface OverridePanelProps {
 
 /** Spans an operator reaches for; the picker stays for anything else. */
 const UNTIL_PRESETS: { label: string; days: number }[] = [
-    { label: '7일', days: 7 },
-    { label: '30일', days: 30 },
-    { label: '90일', days: 90 },
-    { label: '1년', days: 365 },
+    { label: '7d', days: 7 },
+    { label: '30d', days: 30 },
+    { label: '90d', days: 90 },
+    { label: '1y', days: 365 },
 ];
 
 const MODE_LABEL: Record<OverrideMode, string> = {
-    grant: '부여',
-    block: '차단',
-    release: '해제',
+    grant: 'Grant',
+    block: 'Block',
+    release: 'Release',
 };
 
 export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps): JSX.Element => {
@@ -97,7 +97,7 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
             onDone(updated);
         } catch (error) {
             logger.error('GLOBAL', '[OverridePanel] admin override failed', { error, userId });
-            setFailure(error instanceof Error ? error.message : '요청이 실패했습니다.');
+            setFailure(error instanceof Error ? error.message : 'The request failed.');
         }
     };
 
@@ -118,7 +118,7 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
 
             {form.mode === 'block' && (
                 <div className="space-y-1.5">
-                    <Label>차단 상태</Label>
+                    <Label>Block status</Label>
                     <div className="flex gap-1.5">
                         {(['expired', 'canceled'] as BlockStatus[]).map(status => (
                             <Button
@@ -136,7 +136,7 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
 
             {form.mode !== 'release' && (
                 <div className="space-y-1.5">
-                    <Label htmlFor="override-until">만료일</Label>
+                    <Label htmlFor="override-until">Expires on</Label>
                     <Input
                         id="override-until"
                         type="date"
@@ -166,30 +166,30 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                             variant={form.until ? 'outline' : 'secondary'}
                             onClick={() => patch({ until: '' })}
                         >
-                            무기한
+                            Indefinite
                         </Button>
                     </div>
                     <p className="text-muted-foreground text-xs">
                         {untilPreview
-                            ? `${untilPreview} 끝까지 유효합니다.`
-                            : '무기한입니다. 해제하기 전까지 유지됩니다.'}
+                            ? `Valid through ${untilPreview}.`
+                            : 'Indefinite. Stays in effect until released.'}
                     </p>
                 </div>
             )}
 
             {form.mode === 'grant' && (
                 <div className="space-y-1.5">
-                    <Label htmlFor="override-product">등급</Label>
+                    <Label htmlFor="override-product">Grade</Label>
                     <select
                         id="override-product"
                         className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                         value={form.productId}
                         onChange={event => patch({ productId: event.target.value })}
                     >
-                        <option value="">바꾸지 않음</option>
+                        <option value="">Leave unchanged</option>
                         {(plans?.list ?? []).map(plan => (
                             <option key={plan.id} value={plan.id}>
-                                {plan.id} {plan.maxClouds ? `(최대 ${plan.maxClouds}개)` : ''}
+                                {plan.id} {plan.maxClouds ? `(max ${plan.maxClouds})` : ''}
                             </option>
                         ))}
                     </select>
@@ -199,20 +199,22 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
             {form.mode === 'grant' && (
                 <div className="flex items-center justify-between rounded-md border px-3 py-2">
                     <div>
-                        <Label htmlFor="override-auto">즉시 Cloud 생성 (auto)</Label>
-                        <p className="text-muted-foreground text-xs">늘어난 한도만큼 생성 요청을 큐에 넣습니다.</p>
+                        <Label htmlFor="override-auto">Create Cloud immediately (auto)</Label>
+                        <p className="text-muted-foreground text-xs">
+                            Queues creation requests for the increased limit.
+                        </p>
                     </div>
                     <Switch id="override-auto" checked={form.auto} onCheckedChange={auto => patch({ auto })} />
                 </div>
             )}
 
             <div className="space-y-1.5">
-                <Label htmlFor="override-reason">사유 (필수)</Label>
+                <Label htmlFor="override-reason">Reason (required)</Label>
                 <Textarea
                     id="override-reason"
                     value={form.reason}
                     onChange={event => patch({ reason: event.target.value })}
-                    placeholder="왜 이 조작을 하는지 적어 주세요"
+                    placeholder="Explain why you're making this change"
                 />
             </div>
 
@@ -233,7 +235,7 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                 disabled={errors.length > 0 || isPending || !userId}
                 onClick={() => setConfirming(true)}
             >
-                {isPending ? '적용 중…' : `${MODE_LABEL[form.mode]} 실행`}
+                {isPending ? 'Applying…' : `Run ${MODE_LABEL[form.mode]}`}
             </Button>
 
             <AlertDialog open={confirming} onOpenChange={setConfirming}>
@@ -250,18 +252,18 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                                 {/* The console is not deployed, so whichever relay the local .env
                                     names is the one being written to. Say which, here as well. */}
                                 <div className="flex items-center gap-1.5 pt-1">
-                                    <span className="text-xs">대상 서버</span>
+                                    <span className="text-xs">Target server</span>
                                     <Badge variant={target.isProd ? 'destructive' : 'outline'}>{target.label}</Badge>
                                     <span className="text-muted-foreground font-mono text-xs">{target.endpoint}</span>
                                 </div>
                                 {failure && (
-                                    <p className="text-destructive pt-1 text-xs">요청이 실패했습니다 — {failure}</p>
+                                    <p className="text-destructive pt-1 text-xs">The request failed — {failure}</p>
                                 )}
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isPending}>취소</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             disabled={isPending}
                             onClick={event => {
@@ -269,7 +271,7 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                                 void submit();
                             }}
                         >
-                            {isPending ? '적용 중…' : '실행'}
+                            {isPending ? 'Applying…' : 'Run'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

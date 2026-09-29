@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import { PushScreen } from './PushScreen';
 import { resetUnsupportedCommands } from '../../hooks';
+import { setDebugLanguageForTests } from '../../i18n';
 
 const deleteFcmToken = jest.fn();
 const requestPermission = jest.fn();
@@ -42,26 +43,31 @@ jest.mock('../overlayStore', () => ({ debugOverlayActions: { selectScreen: jest.
 const click = (name: string) => userEvent.click(screen.getByRole('button', { name }));
 
 describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
+    let restoreLanguage: () => void;
+
     beforeEach(() => {
         jest.clearAllMocks();
         resetUnsupportedCommands();
+        restoreLanguage = setDebugLanguageForTests('en');
     });
+
+    afterEach(() => restoreLanguage());
 
     it('토큰 삭제는 앱에 명령을 보내고 결과를 적는다', async () => {
         deleteFcmToken.mockResolvedValue({ data: { success: true } });
         render(<PushScreen />);
 
-        await click('토큰 삭제');
+        await click('Delete token');
 
         expect(deleteFcmToken).toHaveBeenCalledTimes(1);
-        expect(await screen.findByText(/토큰 삭제 →/)).toBeInTheDocument();
+        expect(await screen.findByText(/Delete token →/)).toBeInTheDocument();
     });
 
     it('알림 권한은 계약의 토큰으로 요청한다', async () => {
         requestPermission.mockResolvedValue({ data: { permission: 'NOTIFICATIONS', status: 'GRANTED' } });
         render(<PushScreen />);
 
-        await click('알림 권한 요청');
+        await click('Request notification permission');
 
         expect(requestPermission).toHaveBeenCalledWith('NOTIFICATIONS');
     });
@@ -70,7 +76,7 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         showNotification.mockResolvedValue({ data: { success: true } });
         render(<PushScreen />);
 
-        await click('로컬 알림 띄우기');
+        await click('Show local notification');
 
         // It has to be this build's scheme. Getting 'chatic://…' would be that bug where a dev device opens the prod app.
         expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ deeplink: 'chatic-dev://chats' }));
@@ -81,25 +87,25 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         deleteFcmToken.mockRejectedValue(new Error('NOT_FOUND'));
         render(<PushScreen />);
 
-        await click('토큰 삭제');
+        await click('Delete token');
 
-        expect(await screen.findByText(/실패: NOT_FOUND/)).toBeInTheDocument();
+        expect(await screen.findByText(/failed: NOT_FOUND/)).toBeInTheDocument();
     });
 
     // Post-based, so there's no confirmation reply — pretending it was acknowledged would violate decision 10.
     it('확인 응답이 없는 조작은 "확인 없음"이라고 밝힌다', async () => {
         render(<PushScreen />);
 
-        await click('뱃지 0으로');
+        await click('Badge to 0');
 
         expect(setBadgeCount).toHaveBeenCalledWith(0);
-        expect(await screen.findByText(/확인 없음/)).toBeInTheDocument();
+        expect(await screen.findByText(/no confirmation/)).toBeInTheDocument();
     });
 
     it('푸시 탭 재현은 이 빌드의 스킴을 열어 OS 왕복을 만든다', async () => {
         render(<PushScreen />);
 
-        await click('푸시 탭 재현');
+        await click('Reproduce push tap');
 
         expect(openURL).toHaveBeenCalledWith('chatic-dev://chats');
     });
@@ -111,8 +117,8 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         deleteFcmToken.mockRejectedValue({ code: 'NOT_FOUND' });
         render(<PushScreen />);
 
-        await click('토큰 삭제');
+        await click('Delete token');
 
-        expect(await screen.findByText(/이 앱 버전이 지원하지 않습니다/)).toBeInTheDocument();
+        expect(await screen.findByText(/not supported by this app version/)).toBeInTheDocument();
     });
 });

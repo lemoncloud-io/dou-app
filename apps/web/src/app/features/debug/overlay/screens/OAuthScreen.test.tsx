@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { OAuthScreen } from './OAuthScreen';
+import { setDebugLanguageForTests } from '../../i18n';
 
 const oAuthLogin = jest.fn();
 const oAuthLogout = jest.fn();
@@ -15,18 +16,24 @@ jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn()
 const rowButton = (provider: string, name: string) =>
     screen
         .getByText(provider)
-        .parentElement!.querySelector<HTMLButtonElement>(`button:nth-of-type(${name === '로그인' ? 1 : 2})`)!;
+        .parentElement!.querySelector<HTMLButtonElement>(`button:nth-of-type(${name === 'login' ? 1 : 2})`)!;
 
 describe('OAuthScreen', () => {
-    beforeEach(() => jest.clearAllMocks());
+    let restoreLanguage: () => void;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        restoreLanguage = setDebugLanguageForTests('en');
+    });
+    afterEach(() => restoreLanguage());
 
     it('제공자별로 로그인과 로그아웃을 따로 부른다', async () => {
         oAuthLogin.mockResolvedValue({ data: { token: 'x' } });
         oAuthLogout.mockResolvedValue({ data: { success: true } });
         render(<OAuthScreen />);
 
-        await userEvent.click(rowButton('google', '로그인'));
-        await userEvent.click(rowButton('apple', '로그아웃'));
+        await userEvent.click(rowButton('google', 'login'));
+        await userEvent.click(rowButton('apple', 'logout'));
 
         expect(oAuthLogin).toHaveBeenCalledWith('google');
         expect(oAuthLogout).toHaveBeenCalledWith('apple');
@@ -37,8 +44,8 @@ describe('OAuthScreen', () => {
         oAuthLogin.mockRejectedValue(new Error('UNSUPPORTED'));
         render(<OAuthScreen />);
 
-        await userEvent.click(rowButton('apple', '로그인'));
+        await userEvent.click(rowButton('apple', 'login'));
 
-        expect(await screen.findByText(/실패: UNSUPPORTED/)).toBeInTheDocument();
+        expect(await screen.findByText(/failed: UNSUPPORTED/)).toBeInTheDocument();
     });
 });
