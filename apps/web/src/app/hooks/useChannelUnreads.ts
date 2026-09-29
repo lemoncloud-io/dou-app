@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
-import { countUnread, readCursorOf } from '../utils/countUnread';
+import { unreadOf } from '../utils/countUnread';
 
 /** Per-channel unread message counts keyed by channel id, plus per-site and aggregate totals. */
 export interface ChannelUnreads {
@@ -16,14 +16,14 @@ export interface ChannelUnreads {
 
 /**
  * Derives per-channel unread counts for the current user from the channel head plus MY read
- * cursor, sourced from the subscribed join list (see {@link useMyJoins}) — NOT the channel-embedded
- * `$join`, which lags the live read state.
+ * cursor: the subscribed join row (see {@link useMyJoins}) or the channel-embedded `$join`,
+ * whichever is further along. The join row leads right after I read here; `$join` is the only one
+ * a read on another device moves while its cloud is off screen (see {@link unreadOf}).
  *
  * The formula itself (head and cursor both netted against their own `metaNo` snapshot — ADR-0048)
  * lives in {@link countUnread}, shared with the search results and the cross-cloud unread hint.
  *
- * A channel with no join row yet (cursor unknown) counts 0 rather than flashing a full count; the
- * per-channel join sync in {@link useMyJoins} fills the cursor in shortly after mount.
+ * A channel with neither (cursor unknown) counts 0 rather than flashing a full count.
  */
 export const useChannelUnreads = (
     channels: DomainChannel[],
@@ -34,15 +34,8 @@ export const useChannelUnreads = (
         const byPlace: Record<string, number> = {};
         let total = 0;
         for (const ch of channels) {
-            // Read cursor from the subscribed join list. No row yet → no read boundary → no badge.
-            // The formula itself lives in countUnread, shared with the search results.
-            const join = joinByChannel?.get(ch.id);
-            const unread = countUnread({
-                headChatNo: ch.chatNo,
-                headMetaNo: ch.metaNo,
-                readNo: readCursorOf(join),
-                readMetaNo: join?.metaNo,
-            });
+            // The formula and the cursor choice live in unreadOf, shared with the search results.
+            const unread = unreadOf(ch, joinByChannel?.get(ch.id));
 
             byChannel[ch.id] = unread;
             total += unread;

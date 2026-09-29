@@ -15,11 +15,12 @@ a target's, and it is described under [Background receive](#background-receive).
 ## Layout
 
 ```text
-socket/sync/                          9 source files, 8 tests
+socket/sync/                          10 source files, 9 tests
 ├── SyncManager.ts          436 lines  the class — 10 public methods
 ├── plans.ts                257 lines  createSyncPlans — the five app-domain plans
-├── BackgroundReceiver.ts   270 lines  the receive loop of every bound slot that is not the active one
-├── types.ts                           SyncWatchEntry · SyncTargetListing · SyncRegisterOptions · SyncRuntimeOptions · SyncManagerDeps · ISyncManager · BackgroundReceiverDeps · BackgroundReceiveRepositories · BackgroundReceiveTrigger
+├── BackgroundReceiver.ts   285 lines  the receive loop of every bound slot that is not the active one
+├── backgroundDeltas.ts                subscribeBackgroundDeltas — who hears that a background delta came back
+├── types.ts                           SyncWatchEntry · SyncTargetListing · SyncRegisterOptions · SyncRuntimeOptions · SyncManagerDeps · ISyncManager · BackgroundReceiverDeps · BackgroundReceiveRepositories · BackgroundReceiveTrigger · BackgroundDelta
 ├── constants.ts                       UNREGISTER_GRACE_MS · BACKGROUND_RECEIVE_INTERVAL_MS · BACKGROUND_RECEIVE_DEBOUNCE_MS · BACKGROUND_PLACE_REFRESH_MS
 ├── refusedChannels.ts                 what the server refused, for a room to read
 ├── runtime.ts                         getSyncManager — the one creation point · startBackgroundReceive · refreshBackgroundClouds
@@ -31,7 +32,8 @@ socket/sync/                          9 source files, 8 tests
 runtime; it is the one test that shows a target staying with its cloud end to end.
 `backgroundReceiveScenario.test.ts` does the same for background receive, with the real socket
 manager and the real data manager on IndexedDB: a burst of pushes on a cloud off screen becomes one
-delta written into that cloud's partition, and entering it continues from the cursor the loop left.
+delta written into that cloud's partition, entering it continues from the cursor the loop left, and
+a delta asked for by name is announced once the rows an unread count reads are in that partition.
 
 `runtime.ts` is a separate file from `socket/runtime.ts` for one reason: `socket → socket/sync` was
 an import edge, and it closed a cycle that ran back through the data layer.
@@ -188,6 +190,7 @@ has asked for.
 | A `chat.sync` push on that slot, debounced 300 ms | the server announcing a message; a burst of them is one delta                                                                                                                                                                                                                                     |
 | The slot stops being the active one               | after the 300 ms debounce, if it was never on screen since its slot bound and has not received for a full interval — the relay a cloud boots over, say; otherwise on the next tick. Debounced because the binder moves the pointer off a cloud and tears down a slot it does not keep in one pass |
 | `refreshBackgroundClouds()`                       | the app's foreground signal: timers froze while the app was suspended, and pushes went nowhere                                                                                                                                                                                                    |
+| `refreshBackgroundClouds(cid)`                    | the app heard of a message for that one cloud another way — a push — which its socket was not sent (see below). Debounced like a push, and it re-reads the place list too; the others are not asked                                                                                               |
 
 One delta runs at a time per cloud. A trigger that lands while one is in flight asks for exactly one
 more once it finishes, so a push that arrives mid-request is not lost and a storm of them is not a
@@ -201,10 +204,36 @@ once and asks for its delta and its place list together: up to a dozen requests 
 A loop whose slot is rebuilt mid-request drops that request's result instead of racing the new
 loop's.
 
-`refreshBackgroundClouds` is the one app-facing piece. apps/web calls it from its foreground wake
-kick, beside `recoverUnverifiedSockets`, inside the same throttle. desktop-web does not: its own
+`refreshBackgroundClouds` and `subscribeBackgroundDeltas` are the app-facing pieces. apps/web calls
+the first from its foreground wake kick, beside `recoverUnverifiedSockets`, inside the same throttle,
+and with a cloud id when a push names a cloud off screen. desktop-web does neither yet: its own
 background sync has no foreground trigger either, and a desktop window is not suspended the way a
 WebView is.
+
+### Hearing that a delta came back
+
+`subscribeBackgroundDeltas(listener)` hears every background delta that was answered, as
+`{ cid, requestedAt }`. It exists for one kind of consumer: something that learned of a message
+before that cloud's cache did, and holds a mark only the cache can retire. apps/web's cross-cloud
+push mark is that consumer — a push arrives, the mark goes on, the app asks that cloud now, and the
+mark comes off with the first delta that can be relied on to carry the message.
+
+`requestedAt` is when the answered request was **sent**, not when it came back, because that is the
+only moment that answers "can this delta hold the message?": a request sent before the push landed
+may have been answered without it. A request folded into one already in flight (see above) goes
+out afterwards with its own time, so a kick is never answered by the earlier request's reply.
+
+An announcement is made under the same condition as the cursor write — the loop still owns its slot
+and the account in that cloud has not changed. A failed delta announces nothing.
+
+A delta asked for by name (`'kick'`) also re-reads the cloud's place list, outside its ten-minute
+turn, and is announced only once **both** have answered — a failed place read means no
+announcement. The reason is the consumer: a list filters out rooms whose place it does not know,
+so a message into a place the cache has not learned yet would be in storage and on no screen, and
+the mark waiting on the announcement would come off with nothing to show for it. A kick folded into
+a run already in flight, or into a pending push debounce, keeps its kind. The listener set
+lives outside the receiver, so a subscriber keeps hearing across the connection host restarting the
+receiver, and a listener that throws is logged rather than reported as a failed delta.
 
 ### Handing a cloud over
 

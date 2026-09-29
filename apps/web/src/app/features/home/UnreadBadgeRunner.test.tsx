@@ -29,7 +29,6 @@ const setBadge = appBridge.setBadgeCount as jest.Mock;
 const useBg = useOnBackgroundStatusChanged as jest.Mock;
 const unreadsMock = useActiveCloudUnreads as jest.Mock;
 const otherMock = useOtherCloudUnread as jest.Mock;
-const refreshOther = jest.fn();
 const fetchBadge = nativeBadgeReader.read as jest.Mock;
 const badgeDivergence = divergenceReporter.badge as jest.Mock;
 
@@ -40,7 +39,7 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         unreadsMock.mockReturnValue({ total: 3 });
-        otherMock.mockReturnValue({ byCloud: { cloud_2: 2 }, total: 2, refresh: refreshOther });
+        otherMock.mockReturnValue({ byCloud: { cloud_2: 2 }, total: 2 });
     });
 
     it('활성 클라우드(관측) + 비활성 클라우드(캐시)를 더해 네이티브 뱃지로 push한다', () => {
@@ -52,7 +51,7 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
     // everything still left that value behind. Now it's recomputed from the cache, so when that's
     // 0, only the active value remains.
     it('비활성 클라우드에 안읽음이 없으면 활성 클라우드 값만 남는다', () => {
-        otherMock.mockReturnValue({ byCloud: {}, total: 0, refresh: refreshOther });
+        otherMock.mockReturnValue({ byCloud: {}, total: 0 });
 
         render(<UnreadBadgeRunner />);
 
@@ -61,34 +60,31 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
 
     it('전부 읽으면 뱃지가 0이 된다', () => {
         unreadsMock.mockReturnValue({ total: 0 });
-        otherMock.mockReturnValue({ byCloud: {}, total: 0, refresh: refreshOther });
+        otherMock.mockReturnValue({ byCloud: {}, total: 0 });
 
         render(<UnreadBadgeRunner />);
 
         expect(setBadge).toHaveBeenCalledWith(0);
     });
 
-    // The active cloud's count moving is the app's only hint that the cache changed. If the
-    // inactive side isn't re-read on that same beat, a cloud that synced in the background stays
-    // invisible until the user switches to it.
-    it('활성 클라우드 수치가 바뀌면 비활성 클라우드를 다시 읽는다', () => {
+    // Another cloud's count moves on its own — its background delta landed — with nothing changing
+    // in the active cloud, and the icon has to follow it.
+    it("pushes again when another cloud's count moves while the active one stays put", () => {
         const { rerender } = render(<UnreadBadgeRunner />);
-        refreshOther.mockClear();
+        setBadge.mockClear();
 
-        unreadsMock.mockReturnValue({ total: 1 });
+        otherMock.mockReturnValue({ byCloud: { cloud_2: 4 }, total: 4 });
         rerender(<UnreadBadgeRunner />);
 
-        expect(refreshOther).toHaveBeenCalled();
+        expect(setBadge).toHaveBeenCalledWith(7);
     });
 
     it('포그라운드 복귀 시 total이 그대로여도 다시 읽고 뱃지를 push해 네이티브 드리프트를 정정한다', () => {
         render(<UnreadBadgeRunner />);
         setBadge.mockClear();
-        refreshOther.mockClear();
 
         latestForegroundHandler()({ data: { isForeground: true } });
 
-        expect(refreshOther).toHaveBeenCalled();
         expect(setBadge).toHaveBeenCalledWith(5);
     });
 
@@ -108,7 +104,7 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         it('첫 push 전에 아이콘 값을 읽어 곧 쓸 총합과 대조한다', async () => {
             fetchBadge.mockResolvedValue(2);
             unreadsMock.mockReturnValue({ total: 0 });
-            otherMock.mockReturnValue({ byCloud: {}, total: 0, refresh: refreshOther });
+            otherMock.mockReturnValue({ byCloud: {}, total: 0 });
 
             await act(async () => {
                 render(<UnreadBadgeRunner />);
