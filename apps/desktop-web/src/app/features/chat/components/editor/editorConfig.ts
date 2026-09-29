@@ -1,6 +1,7 @@
 // code-core (not @lexical/code): same nodes without the eager prismjs grammars
 // we never run — the composer does no syntax highlighting.
 import { CodeHighlightNode, CodeNode } from '@lexical/code-core';
+import { AutoLinkNode } from '@lexical/link';
 import { QuoteNode } from '@lexical/rich-text';
 import { BOLD_STAR, CODE, INLINE_CODE, ITALIC_STAR, QUOTE, STRIKETHROUGH, type Transformer } from '@lexical/markdown';
 import type { Klass, LexicalNode } from 'lexical';
@@ -16,13 +17,16 @@ import { MentionNode } from './MentionNode';
  */
 export const COMPOSER_TRANSFORMERS: Transformer[] = [CODE, QUOTE, BOLD_STAR, ITALIC_STAR, STRIKETHROUGH, INLINE_CODE];
 
-export const COMPOSER_NODES: Klass<LexicalNode>[] = [CodeNode, CodeHighlightNode, QuoteNode, MentionNode];
+// AutoLinkNode is display-only: markdown export writes its text back out as the
+// bare URL, which is exactly what RichText links on the reader's side.
+export const COMPOSER_NODES: Klass<LexicalNode>[] = [CodeNode, CodeHighlightNode, QuoteNode, MentionNode, AutoLinkNode];
 
 // RichText's own classes, so what you type is what readers see.
 export const COMPOSER_THEME = {
     paragraph: 'm-0',
     quote: MSG_QUOTE_CLASS,
     code: MSG_CODE_BLOCK_CLASS,
+    link: 'composer-link',
     text: {
         bold: MSG_BOLD_CLASS,
         italic: 'italic',

@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Bug Fixes
+
+- (web/home) keep home under an invited room, not replace it with the room
+
+## [2026-09-29] - root@0.70.0, @chatic/desktop-web@0.15.0
+
+### Features
+
+- (desktop-web) open a composer link in a new window on click
+- (desktop-web) show a typed URL as a link in the composer
+
 ## [2026-09-29] - root@0.69.0, @chatic/desktop-web@0.14.0
 
 ### Features

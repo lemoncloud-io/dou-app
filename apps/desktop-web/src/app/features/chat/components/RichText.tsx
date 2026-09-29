@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE, UserProfilePopover } from '../../../shared';
+import { GROUP_MENTIONS, LINK_URL_SOURCE, MENTION_TOKEN_SOURCE, UserProfilePopover } from '../../../shared';
 
 // The message styles live in `@chatic/block-kit`: the block renderer needs them
 // and that renderer is what got shared.
@@ -19,7 +19,7 @@ export type MentionResolver = (name: string) => { userId: string; name: string }
 // One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
 const INLINE = new RegExp(
-    `(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(https?:\\/\\/[^\\s]+)|(@${MENTION_TOKEN_SOURCE}+)`,
+    `(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(${LINK_URL_SOURCE})|(@${MENTION_TOKEN_SOURCE}+)`,
     'gu'
 );
 

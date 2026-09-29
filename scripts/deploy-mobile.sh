@@ -56,6 +56,14 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# react-native-config reads /tmp/envfile before the per-configuration ENVFILE, so a file left by
+# the old scheme pre-actions would silently put that env into the iOS build.
+if { [ "$PLATFORM" = "ios" ] || [ "$PLATFORM" = "all" ]; } && [ -e /tmp/envfile ]; then
+    echo -e "${RED}/tmp/envfile exists and would override the build configuration's ENVFILE.${NC}"
+    echo "Remove it first: rm /tmp/envfile"
+    exit 1
+fi
+
 # Prompt for release notes when not passed via -m; they must not be empty.
 while [ -z "$(echo "$RELEASE_NOTES" | tr -d '[:space:]')" ]; do
     echo -e "${BLUE}Enter release notes (TestFlight 'What to Test' / Play release notes):${NC}"

@@ -7,14 +7,15 @@ rather than a manual env edit and a native rebuild.
 
 ## Layout
 
-| Path                                                                                                                         | Role                                     |
-| ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `apps/mobile/.env`, `.env.dev`, `.env.prod`                                                                                  | local / dev-build / prod-build env files |
-| `apps/mobile/.env.example`                                                                                                   | template for `.env`                      |
-| [`src/app/utils/stage.ts`](../../src/app/utils/stage.ts)                                                                     | `Config.VITE_ENV` → `Env` conversion     |
-| [`src/app/services/deeplinks/deeplinkUtils.ts`](../../src/app/services/deeplinks/deeplinkUtils.ts)                           | `getAppScheme()`                         |
-| [`android/app/src/main/res/xml/network_security_config.xml`](../../android/app/src/main/res/xml/network_security_config.xml) | Android cleartext allowlist              |
-| root `package.json`                                                                                                          | every `mobile:*` script                  |
+| Path                                                                                                                         | Role                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `apps/mobile/.env`, `.env.dev`, `.env.prod`                                                                                  | local / dev-build / prod-build env files                   |
+| `apps/mobile/.env.example`                                                                                                   | template for `.env`                                        |
+| [`src/app/utils/stage.ts`](../../src/app/utils/stage.ts)                                                                     | `Config.VITE_ENV` → `Env` conversion                       |
+| [`src/app/services/deeplinks/deeplinkUtils.ts`](../../src/app/services/deeplinks/deeplinkUtils.ts)                           | `getAppScheme()`                                           |
+| [`android/app/src/main/res/xml/network_security_config.xml`](../../android/app/src/main/res/xml/network_security_config.xml) | Android cleartext allowlist                                |
+| [`ios/Podfile`](../../ios/Podfile)                                                                                           | copies `ENVFILE` onto the `react-native-config` Pod target |
+| root `package.json`                                                                                                          | every `mobile:*` script                                    |
 
 ## Responsibilities
 
@@ -48,6 +49,17 @@ see it — a GUI build has no shell environment for a script to override.
 
 `ENVFILE` sits beside `APP_URL_SCHEME` deliberately: scheme registration and env selection move
 together, and `getAppScheme()` below depends on that pairing staying in sync.
+
+**On iOS the app target's setting is not the one that is read.** `react-native-config` generates
+`Config` in a script phase on its own Pod target, and that script sees only the Pod target's build
+settings. The [`Podfile`](../../ios/Podfile)'s `post_install` therefore copies the app target's
+per-configuration `ENVFILE` onto the `react-native-config` target, and `pod install` fails if a
+configuration has none. `project.pbxproj` stays the one place the mapping is defined; a command-line
+`ENVFILE=...` build setting (the local override) applies to every target and still wins; a shell
+variable does not. Without the copy the script silently falls back to `.env`, so a prod build ships
+local or dev values beside the prod `GoogleService-Info.plist` — Google Sign-In then fails with
+`invalid_audience`, because the local/dev web client ID and the prod iOS client ID belong to
+different Google Cloud projects. After changing a mapping, run `pod install` again.
 
 **The WebView address is fixed at build time, on purpose.** There is no runtime switcher — the
 capability was removed because it let the web page redirect the shell to a different origin over

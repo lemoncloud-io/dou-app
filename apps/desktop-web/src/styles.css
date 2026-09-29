@@ -339,6 +339,29 @@
     .tactile:active {
         transform: scale(0.97);
     }
+
+    /* A URL in the composer, Slack-style: link colour on a faint tint with a chain
+       glyph in front. The glyph is a pseudo-element, so it is never part of the
+       editor's text and never reaches the sent message. */
+    .composer-link {
+        color: hsl(var(--link));
+        background-color: hsl(var(--link) / 0.1);
+        border-radius: 3px;
+        padding: 0 2px;
+        cursor: pointer;
+    }
+    .composer-link::before {
+        content: '';
+        display: inline-block;
+        width: 0.9em;
+        height: 0.9em;
+        margin-right: 0.2em;
+        vertical-align: -0.1em;
+        background-color: currentColor;
+        -webkit-mask: var(--composer-link-icon) center / contain no-repeat;
+        mask: var(--composer-link-icon) center / contain no-repeat;
+        --composer-link-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/%3E%3Cpath d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/%3E%3C/svg%3E");
+    }
 }
 
 /* Honor prefers-reduced-motion globally (PRODUCT.md commitment). Neutralizes the

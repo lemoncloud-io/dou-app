@@ -24,6 +24,7 @@ import {
     COMPOSER_THEME,
     COMPOSER_TRANSFORMERS,
     ChannelDraftPlugin,
+    ComposerAutoLinkPlugin,
     ComposerActions,
     ComposerToolbar,
     FormatShortcutsPlugin,
@@ -236,6 +237,7 @@ const ComposerInner = ({
             <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
             <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />
             <MentionsPlugin mentionables={mentionables} />
+            <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={submit} />
             <FormatShortcutsPlugin />
             <ChannelDraftPlugin channelId={channelId} />

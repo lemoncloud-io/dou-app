@@ -179,9 +179,19 @@ invited clouds, or subscribe.
 ## When an invite lands
 
 Home does not draw the accept screen. When an invite deep link has been resolved elsewhere and a
-channel is pending, `HomePage` navigates straight into that room with `replace`. There is no
-place-profile gate in front of it — an invitee with no profile goes to the room and fills it in
-later. The screen itself belongs to [invite](../invite/README.md).
+channel is pending, `HomePage` navigates straight into that room. There is no place-profile gate in
+front of it — an invitee with no profile goes to the room and fills it in later. The screen itself
+belongs to [invite](../invite/README.md).
+
+How the room goes on the stack depends on where home sits in it:
+
+- **Home at the bottom of the stack — push.** This is where a cold start leaves the reader. The shell
+  loads home before the invite arrives, so the accept screen sits above it, and the cloud lane leaves
+  by rewinding onto that home. Home is then the only entry, and replacing it with the room would leave
+  the room alone on the stack with nowhere for back to go.
+- **Home above the bottom — replace.** That home is a transit entry: the relay lane leaves by
+  replacing its accept screen with home, on top of whatever was there before. Pushing onto it would
+  stack a second home under the room, and the second back press would look like it did nothing.
 
 ## Documents
 

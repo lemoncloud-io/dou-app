@@ -1,6 +1,6 @@
 {
   "name": "@chatic/source",
-  "version": "0.69.0",
+  "version": "0.70.0",
   "license": "Apache-2.0",
   "scripts": {
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
@@ -134,6 +134,7 @@
     "@lemoncloud/lemon-web-core": "^1.5.0",
     "@lemoncloud/react-page-transition": "1.0.0",
     "@lexical/code-core": "^0.45.0",
+    "@lexical/link": "^0.45.0",
     "@lexical/markdown": "^0.45.0",
     "@lexical/react": "^0.45.0",
     "@lexical/rich-text": "^0.45.0",

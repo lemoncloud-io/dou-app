@@ -25,6 +25,23 @@ assembled in `useBaseBridge.ts`.
 grep -rln "from '.*core/bridge'" apps/mobile/src
 ```
 
+## Trust boundary
+
+Only the web the WebView was pointed at may reach native features. `useBaseBridge`'s `onMessage` drops
+a message — with a `BRIDGE` warning in the log and no reply — unless its page URL is on the origin of
+the resolved base URL (release web, debug override, or custom-zip server) or on one of the app's own
+web hosts (`DEEP_LINK_DOMAINS`). A new web host the base URL redirects to has to be added there, or the
+bridge goes silent. The check lives in `webview/utils/urlTrust.ts` and parses origins by hand, because
+React Native's `URL.origin` keeps userinfo, query and fragment while Jest's does not.
+
+`OpenURL` opens only `http`, `https`, `mailto`, `tel`, `sms` and the app schemes (`chatic`,
+`chatic-dev`); anything else answers `LINK_NOT_ALLOWED` without reaching the OS.
+
+The page is always served over http(s), so file-URL pages get no extra reach
+(`allowFileAccessFromFileURLs` / `allowUniversalAccessFromFileURLs` are off). `originWhitelist`,
+navigation and `mixedContentMode` are still open: narrowing them needs a device pass over sign-in,
+payment and the http-served images.
+
 ## Structure
 
 ```mermaid
