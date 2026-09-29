@@ -54,7 +54,14 @@ switcher's index and the landing of a notification or saved-item open all call i
 - **The New message picker** follows automatically: its pool is read from the open place's list, so
   a 1:1 started from it is always listed in the place it was started in.
 
-### 4. Desktop only
+### 4. The rest of the place is listed too
+
+Filing 1:1s by place left a place's Direct messages section empty wherever none of its people had a
+1:1 with me, which read as a place with nobody in it. So after the 1:1s the section lists the place's
+other members, by the same group-channel membership, and clicking one starts the 1:1. They have no
+room yet, so they cannot be reordered or starred, and a person whose name has not loaded is not drawn.
+
+### 5. Desktop only
 
 Mobile keeps ADR-0113's single cloud-scoped section for 1:1s, which never showed the same room
 under several places, so the problem this record fixes does not arise there.
@@ -77,7 +84,8 @@ and a notification for it would land on a list that lacks it.
 
 **What is gained**
 
-- A place's Direct messages section only shows people who are in that place.
+- A place's Direct messages section shows the people who are in that place: their 1:1s first, then
+  everyone else in it.
 - The list, the unread dots, the quick switcher and notification landing agree about where a 1:1
   lives.
 
