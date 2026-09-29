@@ -127,6 +127,13 @@ as a blank message; with text they sit under it. A pending slot draws from its `
 carries an error, or has no address stays as a broken tile, so the count still matches what was sent.
 The tiles are fixed-size: the server embeds no dimensions.
 
+The addresses are signed when the message is read and expire a couple of hours later, and a cached row
+keeps them. An image that fails to load draws as a placeholder and the message is read again from its
+own cloud (`useImageAddressRefresh`), which writes fresh addresses to the cache; the row redraws with
+them. Each dead address is re-read once, so an address that fails again stays a placeholder rather than
+looping, and a later expiry — a different address — gets its own re-read. The viewer holds the tapped
+index rather than the address, so a refresh reaches it while open. Local previews are never re-read.
+
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
 state, and the send lets a retry in only after it has marked the row failed. A row whose files are gone

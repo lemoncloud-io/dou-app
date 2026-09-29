@@ -30,4 +30,13 @@ describe('ImageViewer', () => {
         fireEvent.click(screen.getByRole('dialog'));
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it('reports an image that failed to load', () => {
+        const onError = jest.fn();
+        render(<ImageViewer src="https://example.com/a.jpg" onClose={jest.fn()} onError={onError} />);
+
+        fireEvent.error(screen.getByRole('dialog').querySelector('img') as HTMLImageElement);
+
+        expect(onError).toHaveBeenCalledTimes(1);
+    });
 });

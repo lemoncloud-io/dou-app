@@ -22,6 +22,11 @@ export interface MessageImageTilesProps {
     onOpen?: (index: number) => void;
     /** Accessible name for a tile; receives the 1-based position. */
     tileLabel?: (position: number) => string;
+    /**
+     * Fired with the index of an image that failed to load. Signed addresses expire, so the host can
+     * fetch fresh ones; the tile itself only reports it.
+     */
+    onImageError?: (index: number) => void;
     className?: string;
 }
 
@@ -48,6 +53,7 @@ export const MessageImageTiles = ({
     items,
     onOpen,
     tileLabel = position => `Photo ${position}`,
+    onImageError,
     className,
 }: MessageImageTilesProps) => {
     const all = items.slice(0, MESSAGE_IMAGE_RENDER_MAX);
@@ -64,7 +70,13 @@ export const MessageImageTiles = ({
                 const content = (
                     <>
                         {item.src && item.state !== 'broken' ? (
-                            <img src={item.src} alt="" className="size-full object-cover" draggable={false} />
+                            <img
+                                src={item.src}
+                                alt=""
+                                className="size-full object-cover"
+                                draggable={false}
+                                onError={() => onImageError?.(index)}
+                            />
                         ) : (
                             <span className="flex size-full items-center justify-center bg-muted">
                                 <IconImage className="size-6 text-description" />

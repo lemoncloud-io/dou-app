@@ -9,6 +9,8 @@ export interface ImageViewerProps {
     /** Accessible name of the viewer. Not drawn. */
     title?: string;
     closeLabel?: string;
+    /** Fired when the image fails to load — a signed address may have expired. */
+    onError?: () => void;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface ImageViewerProps {
  * card with padding and its own close mark, and a full-bleed viewer would spend its whole className
  * undoing it. Focus, escape and the portal are what is wanted from the primitive.
  */
-export const ImageViewer = ({ src, onClose, title = 'Photo', closeLabel = 'Close' }: ImageViewerProps) => (
+export const ImageViewer = ({ src, onClose, title = 'Photo', closeLabel = 'Close', onError }: ImageViewerProps) => (
     <Dialog.Root open={src !== null} onOpenChange={open => !open && onClose()}>
         <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 z-50 bg-black" />
@@ -32,7 +34,15 @@ export const ImageViewer = ({ src, onClose, title = 'Photo', closeLabel = 'Close
                 className="fixed inset-0 z-50 flex items-center justify-center outline-none"
             >
                 <Dialog.Title className="sr-only">{title}</Dialog.Title>
-                {src && <img src={src} alt="" className="max-h-full max-w-full object-contain" draggable={false} />}
+                {src && (
+                    <img
+                        src={src}
+                        alt=""
+                        className="max-h-full max-w-full object-contain"
+                        draggable={false}
+                        onError={onError}
+                    />
+                )}
                 <Dialog.Close
                     aria-label={closeLabel}
                     className="absolute right-4 top-[calc(var(--safe-top,0px)+12px)] flex size-9 items-center justify-center rounded-full bg-white/20"

@@ -370,71 +370,76 @@ export const ChannelMessageRow = ({
                             </span>
                         )}
                         {imageOnly ? (
-                            <MessageImages uploads={message.upload$$} align={mine ? 'end' : 'start'} />
+                            <MessageImages
+                                uploads={message.upload$$}
+                                chatId={message.id}
+                                cid={message.cid}
+                                align={mine ? 'end' : 'start'}
+                            />
                         ) : (
-                        <span
-                            // `min-w-0`: as a flex item this span defaults to `min-width: auto`
-                            // (= its min-content width), and min-width beats max-width — a long
-                            // unbroken message would push it past `max-w-full` and out of the row.
-                            // `select-none` (and the WebKit callout suppression) replaces what the old
-                            // `preventDefault()` on pointerdown did — without taking the scroll gesture
-                            // down with it. See `handlePointerDown`.
-                            className={cn(
-                                'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
-                                drawnBlocks && 'w-full'
-                            )}
-                            onPointerDown={handlePointerDown}
-                            onPointerMove={handlePointerMove}
-                            onPointerUp={clearTimer}
-                            onPointerLeave={clearTimer}
-                            onPointerCancel={clearTimer}
-                            onContextMenu={handleContextMenu}
-                        >
-                            {drawnBlocks ? (
-                                // A card, not a bubble. A webhook send is not someone speaking, and
-                                // giving it the same ground as a person's message blurs who said what.
-                                // Block Kit also brings its own headings, rules and field grid, none of
-                                // which read as speech inside a speech bubble.
-                                //
-                                // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
-                                // itself, so a surface-filled card has no fill at all. What the fill has
-                                // to separate is this from the bubble beside it, and `--card` does that
-                                // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
-                                // Against the page it reads as a card only in dark; in light the border
-                                // carries it, which is how this app draws every other card.
-                                //
-                                // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
-                                // so its raw-body path is unreachable from here. A message with nothing
-                                // drawable never enters this arm — it stays in the bubble as text.
-                                <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
-                                    <BlockKitMessage
-                                        blocks={drawnBlocks}
-                                        raw={content}
-                                        labels={{
-                                            expandCode: count => t('chat.room.codeBlock.expand', { count }),
-                                            collapseCode: t('chat.room.codeBlock.collapse'),
-                                        }}
-                                    />
-                                </div>
-                            ) : (
-                                <MessageBubble
-                                    variant={mine ? 'mine' : 'other'}
-                                    className={cn(
-                                        message.isFailed &&
-                                            'border border-destructive/30 bg-destructive/10 text-destructive'
-                                    )}
-                                    onExpand={isLong ? onExpand : undefined}
-                                    expandLabel={t('chat.room.viewAll')}
-                                >
-                                    {isDeleted ? (
-                                        // Italic muted, the same treatment desktop gives it: the row is
-                                        // still a message-shaped hole in the conversation, not a message.
-                                        <span className="italic text-muted-foreground">
-                                            {t('chat.room.deletedMessage')}
-                                        </span>
-                                    ) : (
-                                        <>
-                                            {/* The ellipsis stays outside MessageText so it can't be swallowed
+                            <span
+                                // `min-w-0`: as a flex item this span defaults to `min-width: auto`
+                                // (= its min-content width), and min-width beats max-width — a long
+                                // unbroken message would push it past `max-w-full` and out of the row.
+                                // `select-none` (and the WebKit callout suppression) replaces what the old
+                                // `preventDefault()` on pointerdown did — without taking the scroll gesture
+                                // down with it. See `handlePointerDown`.
+                                className={cn(
+                                    'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
+                                    drawnBlocks && 'w-full'
+                                )}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={clearTimer}
+                                onPointerLeave={clearTimer}
+                                onPointerCancel={clearTimer}
+                                onContextMenu={handleContextMenu}
+                            >
+                                {drawnBlocks ? (
+                                    // A card, not a bubble. A webhook send is not someone speaking, and
+                                    // giving it the same ground as a person's message blurs who said what.
+                                    // Block Kit also brings its own headings, rules and field grid, none of
+                                    // which read as speech inside a speech bubble.
+                                    //
+                                    // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
+                                    // itself, so a surface-filled card has no fill at all. What the fill has
+                                    // to separate is this from the bubble beside it, and `--card` does that
+                                    // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
+                                    // Against the page it reads as a card only in dark; in light the border
+                                    // carries it, which is how this app draws every other card.
+                                    //
+                                    // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
+                                    // so its raw-body path is unreachable from here. A message with nothing
+                                    // drawable never enters this arm — it stays in the bubble as text.
+                                    <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
+                                        <BlockKitMessage
+                                            blocks={drawnBlocks}
+                                            raw={content}
+                                            labels={{
+                                                expandCode: count => t('chat.room.codeBlock.expand', { count }),
+                                                collapseCode: t('chat.room.codeBlock.collapse'),
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <MessageBubble
+                                        variant={mine ? 'mine' : 'other'}
+                                        className={cn(
+                                            message.isFailed &&
+                                                'border border-destructive/30 bg-destructive/10 text-destructive'
+                                        )}
+                                        onExpand={isLong ? onExpand : undefined}
+                                        expandLabel={t('chat.room.viewAll')}
+                                    >
+                                        {isDeleted ? (
+                                            // Italic muted, the same treatment desktop gives it: the row is
+                                            // still a message-shaped hole in the conversation, not a message.
+                                            <span className="italic text-muted-foreground">
+                                                {t('chat.room.deletedMessage')}
+                                            </span>
+                                        ) : (
+                                            <>
+                                                {/* The ellipsis stays outside MessageText so it can't be swallowed
                                     into a URL at the cut. `truncated` also stops a URL that runs
                                     to the cut from being linked at all — it may be a fragment, and
                                     makes a fence left open at the cut render as a block anyway. */}
@@ -468,7 +473,14 @@ export const ChannelMessageRow = ({
             {/* Before the unfurl card: `attach$` IS the sender's structured body, while the unfurl
                 is something we derived from a URL we found in the text. */}
             {/* Images that came with text sit under the bubble, as their own row in the column. */}
-            {hasImages && !imageOnly && <MessageImages uploads={message.upload$$} align={mine ? 'end' : 'start'} />}
+            {hasImages && !imageOnly && (
+                <MessageImages
+                    uploads={message.upload$$}
+                    chatId={message.id}
+                    cid={message.cid}
+                    align={mine ? 'end' : 'start'}
+                />
+            )}
             <MessageAttachment attach={message.attach$} />
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (

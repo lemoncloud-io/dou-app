@@ -68,4 +68,14 @@ describe('MessageImageTiles', () => {
         expect(container.querySelector('.animate-spin')).not.toBeInTheDocument();
         expect(container.querySelector('img')).toBeInTheDocument();
     });
+
+    // Signed addresses expire; the host fetches fresh ones, so the tile has to say which one failed.
+    it('reports which image failed to load', () => {
+        const onImageError = jest.fn();
+        const { container } = render(<MessageImageTiles items={tiles(3)} onImageError={onImageError} />);
+
+        fireEvent.error(container.querySelectorAll('img')[1]);
+
+        expect(onImageError).toHaveBeenCalledWith(1);
+    });
 });
