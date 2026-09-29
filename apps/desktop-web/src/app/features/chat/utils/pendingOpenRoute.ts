@@ -4,10 +4,11 @@
  *
  * - `switch-cloud` / `switch-place`: the channel lives elsewhere; switch first and land on it once
  *   that scope's channels load.
- * - `wait`: it is in this place but not in the list yet — a room the server just created is
- *   written to the cache before the call returns, and the list hears about it only on the next
- *   emit. Selecting an id the list lacks makes the home screen fall back to the remembered
- *   channel, so the target is held until the room is listed.
+ * - `wait`: it is in this place but not in the list yet — a room the server just created reaches
+ *   the list only with a later cache emit (a new 1:1 even waits for the next channel sync, since
+ *   its first answer names no place to cache it under). Selecting an id the list lacks makes the
+ *   home screen fall back to the remembered channel, so the target is held until the room is
+ *   listed, for as long as the home screen keeps a pending landing; past that it is dropped.
  * - `select`: it is listed here; open it now.
  */
 export type PendingOpenRoute = 'switch-cloud' | 'switch-place' | 'wait' | 'select';

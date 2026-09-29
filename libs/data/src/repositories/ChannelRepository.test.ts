@@ -371,6 +371,19 @@ describe('ChannelRepository', () => {
         expect(result.id).toBe('dm-1');
     });
 
+    // Measured on the dev server: the answer for a room the call has just created carries no site,
+    // and the local write requires one. Failing there turned a room the server had opened into an
+    // error for the caller.
+    it('startDm returns a new room without a site and leaves its row to the next sync', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.startDm.mockResolvedValue({ id: 'dm-new', sid: '', stereo: 'dm' });
+
+        await expect(repository.startDm({ peerId: 'u2' } as any)).resolves.toEqual(
+            expect.objectContaining({ id: 'dm-new' })
+        );
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
     it('startDm takes no site — unlike createChannel it cannot be told one', async () => {
         const { repository, channelSocketDataSource } = createRepository();
         channelSocketDataSource.startDm.mockResolvedValue({ id: 'dm-1', sid: '' });

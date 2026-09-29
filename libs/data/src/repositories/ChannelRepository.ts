@@ -304,8 +304,11 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const normalizedContext = this.getNormalizedContext(requestContext);
         const domain = await this.channelSocketDataSource.startDm(payload, normalizedContext);
         // The caller is owed the room either way; only the cache write depends on which cloud
-        // answered.
-        if (this.acceptsAnswer(requestContext, 'channel-start-dm')) {
+        // answered, and on the answer naming a place. The answer for a room this call has just
+        // created comes back without one (later reads carry it), and the context holds none by
+        // design, so the write would throw and fail a call the server already honoured. The row is
+        // left to the next channel sync, which brings it with its place.
+        if (domain.sid && this.acceptsAnswer(requestContext, 'channel-start-dm')) {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
