@@ -37,7 +37,7 @@ makes no difference.
 
 **In** — domain models and mappers, local data sources and the stream engine, the `CacheStorage` port,
 socket and HTTP gateway types (`Pick<>`) and their data sources, 13 repository facades, the
-`DataContext` contract, and the image send sequence (`uploads/`) with its ports and response mirror.
+`DataContext` contract, and the image send sequence (`uploads/`) with its ports and answer guard.
 
 **Out** — the socket transport runtime (`@lemoncloud/chatic-sockets-lib`), storage engine
 implementations (`@chatic/db`'s `IndexedDBAdapter`, `NativeDBAdapter`, `ChatQueryExecutor`), the HTTP
@@ -115,7 +115,7 @@ libs/data/src/
 │   ├── socket-data-sources/  12 sources + factory
 │   └── http-data-sources/    5 sources + factory
 ├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards
-└── uploads/          sendImageMessage + its ports, the upload response mirror and its guard
+└── uploads/          sendImageMessage + its ports, the upload answers' guard
 ```
 
 Two file names hide what they hold: `BaseRepository` and `DataContext` live in
@@ -249,7 +249,7 @@ consumer side.
 | [docs/remote/http.md](./docs/remote/http.md)                   | The HTTP axis. 5 gateway Picks, why it holds no cache, the admin console surface, the report lane                 |
 | [docs/repositories/](./docs/repositories/README.md)            | The data facade. Three contracts, context and scope, wiring, cache clear rules, leaving and rejoining             |
 | [docs/repositories/domains.md](./docs/repositories/domains.md) | The 13-domain method catalogue (a document you look things up in)                                                 |
-| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the response mirror, pending image rows      |
+| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the answer guard, pending image rows         |
 
 ## How to verify
 

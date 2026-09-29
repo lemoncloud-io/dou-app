@@ -181,8 +181,9 @@ class CloudStore implements ICloudStore {
     }
 
     setCloudIdentity(cloudId: string, identity: CloudIdentity): void {
-        // No signal: nothing derives from this map yet, and a uid moves only with a new account,
-        // which announces itself through the relay token.
+        // No signal: a uid moves only with a new account, which announces itself through the relay
+        // token. Readers of `getUidInCloud` that must follow a cloud being issued its first tokens
+        // listen to the background store, which the issuer invalidates.
         const map = this.identities.read() ?? {};
         if (map[cloudId]?.uid === identity.uid) return;
         map[cloudId] = identity;

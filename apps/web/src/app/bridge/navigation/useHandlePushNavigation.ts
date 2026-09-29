@@ -37,7 +37,8 @@ export const useHandlePushNavigation = (): void => {
             // wait ended. An older app build sends no trace, and the web starts its own here.
             const roomChannelId = channelIdOfRoomPath(resolvePushNavigation(path).target);
             if (roomChannelId) {
-                roomOpenTrace.begin(roomChannelId, perfTrace?.entry ?? 'navigate', perfTrace).mark('handler');
+                roomOpenTrace.begin(roomChannelId, perfTrace?.entry ?? 'navigate', perfTrace);
+                roomOpenTrace.mark(roomChannelId, 'handler');
             }
             await navigateToPush(path);
         },

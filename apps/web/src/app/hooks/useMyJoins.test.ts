@@ -14,10 +14,10 @@ jest.mock('@chatic/app-runtime', () => ({
             useRuntimeRepositories: jest.fn(),
         },
         connection: {
-            useRuntimeSocketState: jest.fn(),
+            useCloudVerified: jest.fn(),
         },
         session: {
-            useGlobalSession: jest.fn(),
+            useUidInCloud: jest.fn(),
             useSessionSelection: jest.fn(),
         },
     },
@@ -40,8 +40,11 @@ const emitJoins = (byChannel: Record<string, DomainJoin[]>) => {
 beforeEach(() => {
     jest.clearAllMocks();
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList: observeListMock } });
-    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
-    (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId: 'u1' } });
+    (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
+    // Every cloud gives the account its own uid; 'u1' is mine in cloud-a.
+    (runtime.session.useUidInCloud as jest.Mock).mockImplementation((cid: string) =>
+        cid === 'cloud-a' ? 'u1' : cid === 'cloud-b' ? 'u9' : null
+    );
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
     (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerJoin: registerJoinMock });
     registerJoinMock.mockReturnValue(jest.fn());
@@ -68,12 +71,12 @@ describe('useMyJoins — 구독 join 목록', () => {
 
         renderHook(() => useMyJoins([channel('c1'), channel('c2')]));
 
-        expect(registerJoinMock).toHaveBeenCalledWith('c1@u1');
-        expect(registerJoinMock).toHaveBeenCalledWith('c2@u1');
+        expect(registerJoinMock).toHaveBeenCalledWith('c1@u1', undefined, { cid: 'cloud-a' });
+        expect(registerJoinMock).toHaveBeenCalledWith('c2@u1', undefined, { cid: 'cloud-a' });
     });
 
     it('미인증(isVerified=false)이면 join 동기화를 등록하지 않는다', () => {
-        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(false);
         emitJoins({});
 
         renderHook(() => useMyJoins([channel('c1')]));
@@ -100,6 +103,66 @@ describe('useMyJoins — 구독 join 목록', () => {
             cid: 'cloud-a',
             sid: undefined,
             uid: 'u1',
+        });
+    });
+
+    it("waits for the selected cloud's own slot, not the active one", () => {
+        emitJoins({});
+
+        renderHook(() => useMyJoins([channel('c1')]));
+
+        expect(runtime.connection.useCloudVerified).toHaveBeenCalledWith('cloud-a');
+    });
+
+    it('re-registers under the next cloud with the uid the account has there', () => {
+        emitJoins({});
+        const dispose = jest.fn();
+        registerJoinMock.mockReturnValue(dispose);
+        const { rerender } = renderHook(() => useMyJoins([channel('c1')]));
+
+        (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-b' });
+        rerender();
+
+        expect(dispose).toHaveBeenCalledTimes(1);
+        expect(registerJoinMock).toHaveBeenLastCalledWith('c1@u9', undefined, { cid: 'cloud-b' });
+    });
+
+    it('re-registers when the uid in the same cloud changes (an account change)', () => {
+        emitJoins({});
+        const { rerender } = renderHook(() => useMyJoins([channel('c1')]));
+
+        (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('u2');
+        rerender();
+
+        expect(registerJoinMock).toHaveBeenCalledTimes(2);
+        expect(registerJoinMock).toHaveBeenLastCalledWith('c1@u2', undefined, { cid: 'cloud-a' });
+    });
+
+    it('registers nothing while the account has no uid in the selected cloud', () => {
+        (runtime.session.useUidInCloud as jest.Mock).mockReturnValue(null);
+        emitJoins({});
+
+        renderHook(() => useMyJoins([channel('c1')]));
+
+        expect(registerJoinMock).not.toHaveBeenCalled();
+    });
+
+    it("picks my row by my uid in the selected cloud, not another cloud's uid", () => {
+        (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-b' });
+        emitJoins({
+            c1: [
+                join({ userId: 'u1', channelId: 'c1', chatNo: 3 }),
+                join({ userId: 'u9', channelId: 'c1', chatNo: 8 }),
+            ],
+        });
+
+        const { result } = renderHook(() => useMyJoins([channel('c1')], { sync: false }));
+
+        expect(result.current.get('c1')?.chatNo).toBe(8);
+        expect(observeListMock).toHaveBeenCalledWith({ channelId: 'c1' }, expect.any(Function), {
+            cid: 'cloud-b',
+            sid: undefined,
+            uid: 'u9',
         });
     });
 });

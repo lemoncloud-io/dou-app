@@ -1,6 +1,6 @@
 # remote/socket — the socket axis
 
-> Status: Live · Last updated: 2026-09-28 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
+> Status: Live · Last updated: 2026-09-29 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
 
 The remote axis that uses socket transport. It has 12 domains. For the HTTP axis see [http.md](./http.md).
 
@@ -60,10 +60,10 @@ Two things differ from every other data source here:
 - **It maps nothing and caches nothing.** A ticket holds signed URLs, which must not be stored, and
   the message row — not the upload — is what a screen renders. `ChatRepository.startUploads` /
   `completeUploads` pass it straight through.
-- **It checks the answer's shape.** The SDK's upload response types resolve to `any` under the
-  current `lemon-model` pin, so `UploadSocketDataSource` runs each answer through the guard in
-  `uploads/types.ts`. A malformed answer rejects the operation — see
-  [the response mirror](../uploads/README.md#the-response-mirror).
+- **It checks the answer's shape.** The answers are typed by the upload contract the SDK re-exports,
+  but the gateway returns them unchecked, so `UploadSocketDataSource` runs each answer through the
+  guard in `uploads/types.ts`. An answer that breaks the contract rejects the operation — see
+  [the answer guard](../uploads/README.md#the-answer-guard).
 
 ### Where absence is the contract
 

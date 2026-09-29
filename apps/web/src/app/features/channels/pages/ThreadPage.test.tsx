@@ -11,6 +11,7 @@ let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' }
 let mockMyJoin: { joinedNo?: number } | null = null;
 let mockChatParams: unknown = null;
 let mockHasMore = false;
+const mockSendMessage = jest.fn();
 
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: '7' }),
@@ -29,7 +30,9 @@ jest.mock('@chatic/shared', () => ({
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
-            useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionIdentity: () => ({ userId: 'session-uid' }),
+            // "Me" is the uid in the thread's cloud; the session uid above is another cloud's.
+            useUidInCloud: (cid: string) => (cid === 'default' || cid === 'cloud-a' ? 'me' : null),
             // Only a cloud-wide room reads this (`profilePlaceOf`); these channels are read in a place.
             useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
         },
@@ -43,9 +46,10 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder, disabled }: any) => (
+    MessageInput: ({ placeholder, disabled, onSend }: any) => (
         <div data-testid="composer" data-disabled={String(!!disabled)}>
             {placeholder}
+            <button data-testid="send" onClick={() => onSend?.('hello')} />
         </div>
     ),
     ImageAvatar: ({ src }: any) => <img data-testid="root-avatar" src={src} alt="" />,
@@ -56,7 +60,7 @@ jest.mock('../components/ChannelMessageRow', () => ({
     // The real row shows the "전체보기" affordance only on a truncated message; here every row
     // carries it, so a test can drive `onExpand` without composing a 200-character body.
     ChannelMessageRow: ({ message, onExpand }: any) => (
-        <div data-testid={`row-${message.id}`}>
+        <div data-testid={`row-${message.id}`} data-owner={String(!!message.isOwner)}>
             {message.content}
             <button data-testid={`expand-${message.id}`} onClick={onExpand} />
         </div>
@@ -73,9 +77,9 @@ jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () 
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 // The image send and the attach flow have their own tests; here only what the thread hands them.
 const mockAttachInputs: { disabled?: boolean }[] = [];
-const mockSendImagesInputs: { channelId: string; parentId?: string }[] = [];
+const mockSendImagesInputs: { cid: string; channelId: string; parentId?: string }[] = [];
 jest.mock('../hooks/useSendImages', () => ({
-    useSendImages: (input: { channelId: string; parentId?: string }) => {
+    useSendImages: (input: { cid: string; channelId: string; parentId?: string }) => {
         mockSendImagesInputs.push(input);
         return { sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() };
     },
@@ -108,7 +112,7 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => ({ members: [] }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => '개발 모임방',
-    useChatMutations: () => ({ sendMessage: jest.fn(), readMessage: jest.fn() }),
+    useChatMutations: () => ({ sendMessage: mockSendMessage, readMessage: jest.fn() }),
     useChats: (params: unknown) => {
         mockChatParams = params;
         return {
@@ -159,6 +163,7 @@ beforeEach(() => {
     mockMyJoin = null;
     mockChatParams = null;
     mockHasMore = false;
+    mockSendMessage.mockReset().mockResolvedValue({});
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {
@@ -372,7 +377,67 @@ describe('ThreadPage — 사진 첨부', () => {
 
         render(<ThreadPage />);
 
-        expect(mockSendImagesInputs.at(-1)).toEqual({ channelId: expect.any(String), parentId: 'ch1:7' });
+        expect(mockSendImagesInputs.at(-1)).toEqual({
+            cid: expect.any(String),
+            channelId: expect.any(String),
+            parentId: 'ch1:7',
+        });
         expect(mockAttachInputs.at(-1)?.disabled).toBe(false);
+    });
+
+    // Same rule as a text reply: the root's cloud, not the channel's.
+    it("sends photos to the root's cloud", () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-b' })];
+
+        render(<ThreadPage />);
+
+        expect(mockSendImagesInputs.at(-1)?.cid).toBe('cloud-b');
+    });
+});
+
+describe('ThreadPage — reply send', () => {
+    it("sends the reply to the root's cloud", () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-b' })];
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', {
+            channelId: 'ch1',
+            content: 'hello',
+            parentId: 'ch1:7',
+        });
+    });
+
+    it("falls back to the channel's cloud, then to the relay when nothing names one", () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-c' };
+        mockChats = [chat({ cid: '' })];
+        const { unmount } = render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('send'));
+        expect(mockSendMessage).toHaveBeenLastCalledWith('cloud-c', expect.anything());
+        unmount();
+
+        mockChannel = { id: 'ch1', stereo: 'group' };
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('send'));
+        expect(mockSendMessage).toHaveBeenLastCalledWith('default', expect.anything());
+    });
+});
+
+describe('ThreadPage — who "me" is', () => {
+    it("reads my replies by the uid I have in the thread's cloud, not the session's", () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [
+            chat(),
+            chat({ id: 'ch1:8', chatNo: 8, content: 'mine', parentId: 'ch1:7', ownerId: 'me' }),
+            chat({ id: 'ch1:9', chatNo: 9, content: 'not mine', parentId: 'ch1:7', ownerId: 'session-uid' }),
+        ];
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('row-ch1:8').dataset.owner).toBe('true');
+        expect(screen.getByTestId('row-ch1:9').dataset.owner).toBe('false');
     });
 });

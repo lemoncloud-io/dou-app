@@ -125,7 +125,23 @@ describe('ChatRepository', () => {
             [expect.objectContaining({ id: 'm1', channelId: 'ch-1' })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-        expect(result).toEqual({ fetchedCount: 1, cursorNo: 2, readNo: 3, total: 1 });
+        expect(result).toEqual({ fetchedCount: 1, latestNo: 3, cursorNo: 2, readNo: 3, total: 1 });
+    });
+
+    it('reports the highest chatNo of the page written, and 0 for an empty page', async () => {
+        const { repository, chatSocketDataSource } = createRepository();
+        chatSocketDataSource.fetchChat.mockResolvedValue({
+            list: [
+                { id: 'm7', channelId: 'ch-1', chatNo: 7 },
+                { id: 'm9', channelId: 'ch-1', chatNo: 9 },
+                { id: 'm8', channelId: 'ch-1', chatNo: 8 },
+            ],
+            total: 3,
+        });
+        expect((await repository.refreshList({ channelId: 'ch-1' } as any)).latestNo).toBe(9);
+
+        chatSocketDataSource.fetchChat.mockResolvedValue({ list: [], total: 0 });
+        expect((await repository.refreshList({ channelId: 'ch-1' } as any)).latestNo).toBe(0);
     });
 
     it('hydrates local cache when getChat resolves from remote', async () => {

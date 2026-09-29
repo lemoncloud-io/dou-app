@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
@@ -18,12 +19,20 @@ import type { ReadCursor } from '../utils';
  * Returns the cursor keyed by channelId; a channel with no join row yet is absent (→ no badge).
  * `registerJoin` refcounts by key, so the same channel observed by both the sidebar and the place
  * aggregate dedups to one sync target.
+ *
+ * The join ids are `<channel>@<uid>`, and the uid is the one this account has in the channels'
+ * own cloud — every cloud gives it a different one, and the session uid is only right once that
+ * cloud is committed — with the targets registered for that cloud by name.
  */
 export const useChannelReadCursors = (channels: DomainChannel[]): Record<string, ReadCursor> => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
-    const { userId } = runtime.session.useSessionIdentity();
     const { selectedSiteId } = runtime.session.useSessionSelection();
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    // The list is one partition's read (useChannels observes a single cloud), so its first row
+    // names the cloud of all of them.
+    const cid = channels[0]?.cid || RELAY_CLOUD_ID;
+    const userId = runtime.session.useUidInCloud(cid);
+    // That cloud's slot, which is the one its targets run on — not whichever slot is active.
+    const isVerified = runtime.connection.useCloudVerified(cid);
 
     const [cursorByChannel, setCursorByChannel] = useState<Record<string, ReadCursor>>({});
 
@@ -37,7 +46,7 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
         const disposers = channels.flatMap(channel => {
             const channelId = channel.id;
             if (!channelId) return [];
-            const unregJoin = sync.registerJoin(`${channelId}@${userId}`);
+            const unregJoin = sync.registerJoin(`${channelId}@${userId}`, undefined, { cid });
             const unsubObserve = joinRepository.observeList({ channelId }, result => {
                 const mine = (result?.list ?? []).find(j => j.userId === userId && j.channelId === channelId);
                 if (!mine) return;
@@ -55,7 +64,9 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
         return () => disposers.forEach(dispose => dispose());
         // selectedSiteId re-scopes the join observers on a place switch — the channel set
         // now spans all places (stable across switches), so channelKey alone won't re-run.
-    }, [joinRepository, userId, isVerified, channelKey, selectedSiteId]);
+        // userId is the uid in `cid`: a target only runs while it matches the uid it was
+        // registered under, so an account change there has to re-register it.
+    }, [joinRepository, cid, userId, isVerified, channelKey, selectedSiteId]);
 
     return cursorByChannel;
 };

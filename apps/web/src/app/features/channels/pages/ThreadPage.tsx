@@ -39,6 +39,7 @@ import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
+import { toCloudId } from '../../../hooks/useCloudScope';
 
 const MAX_INPUT_LENGTH = 5000;
 
@@ -78,10 +79,13 @@ export const ThreadPage = () => {
     const listRef = useRef<HTMLDivElement>(null);
     const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
 
-    const { userId } = runtime.session.useSessionIdentity();
     // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
-    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const { channel } = useChannel(channelId || null);
+    // "Me" is the uid this account has in the thread's own cloud, as in the room: every comparison
+    // below is against ids that cloud minted, and during a switch the session uid is another cloud's.
+    const threadCid = toCloudId(channel?.cid || selectedCloudId);
+    const userId = runtime.session.useUidInCloud(threadCid);
     // One join subscription for the screen — the roster rows and the active-member set are two
     // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
     // they compose the same way. `myJoin` is read for its `joinedNo` only — the title it used to
@@ -139,7 +143,12 @@ export const ThreadPage = () => {
     const thread = useMemo(() => buildThread(rawChats, rootNo ?? ''), [rawChats, rootNo]);
     // Photos reply to the root like text does — by its full id. Until the root is loaded there is no
     // id to reply to, and a send without one would land in the main feed, so the button stays locked.
-    const imageSend = useSendImages({ channelId: stableChannelId, parentId: thread.root?.id });
+    // Photos reply to the root's cloud first, like a text reply does (see handleSend).
+    const imageSend = useSendImages({
+        cid: toCloudId(thread.root?.cid || threadCid),
+        channelId: stableChannelId,
+        parentId: thread.root?.id,
+    });
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
         disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
@@ -215,7 +224,9 @@ export const ThreadPage = () => {
         if (!trimmed || !stableChannelId || !thread.root?.id) return;
 
         setContent('');
-        sendMessage({ channelId: stableChannelId, content: trimmed, parentId: thread.root.id })
+        // The reply belongs to the root's cloud, read at the press — see the room's handleSend.
+        const cid = toCloudId(thread.root.cid || threadCid);
+        sendMessage(cid, { channelId: stableChannelId, content: trimmed, parentId: thread.root.id })
             .then(newChat => {
                 // Replies consume channel chatNos; advance the read cursor like a room send.
                 if (newChat?.chatNo) void readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo });
@@ -223,7 +234,7 @@ export const ThreadPage = () => {
             .catch(error => {
                 logger.error('CHAT', 'Failed to send thread reply', {
                     error,
-                    data: { channelId: stableChannelId, rootNo },
+                    data: { channelId: stableChannelId, rootNo, cid },
                 });
                 toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
             });

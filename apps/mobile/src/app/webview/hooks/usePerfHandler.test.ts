@@ -125,19 +125,30 @@ describe('usePerfHandler — perf traces', () => {
         expect(response).toEqual({ type: 'OnStopPerfTrace', success: true, data: {} });
     });
 
-    it('ignores a trace name outside the known set', async () => {
+    it('ignores a trace name Firebase would reject', async () => {
         const { result } = renderHook(() => usePerfHandler());
 
         await result.current.handleStartPerfTrace({
             type: 'StartPerfTrace',
-            data: { id: 't-1', name: 'made_up' },
+            data: { id: 't-1', name: '_reserved' },
         } as never);
         await result.current.handleStopPerfTrace({
             type: 'StopPerfTrace',
-            data: { id: 't-1', name: 'made_up', attributes: {}, metrics: {} },
+            data: { id: 't-1', name: 'has space', attributes: {}, metrics: {} },
         } as never);
 
         expect(perfTraceBackend.start).not.toHaveBeenCalled();
         expect(perfTraceBackend.stop).not.toHaveBeenCalled();
+    });
+
+    it('accepts a well-formed name this build does not know yet, since the web deploys first', async () => {
+        const { result } = renderHook(() => usePerfHandler());
+
+        await result.current.handleStartPerfTrace({
+            type: 'StartPerfTrace',
+            data: { id: 't-2', name: 'added_later' },
+        } as never);
+
+        expect(perfTraceBackend.start).toHaveBeenCalledWith({ id: 't-2', name: 'added_later' });
     });
 });

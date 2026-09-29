@@ -34,23 +34,36 @@ export interface BackgroundCloudInputs {
     recent: readonly string[];
     /** The committed cloud — it has its own slot, so it is never a background one. */
     committed: string | null;
+    /**
+     * Clouds a write in flight is addressed to (`backgroundClouds.hold`) whose slot is bound. They
+     * are kept whatever the cap and the joined list say, because tearing their slot down would end
+     * the write.
+     */
+    held?: readonly string[];
     max?: number;
 }
 
 /**
  * The clouds that get a background slot: every joined cloud except the relay and the committed one,
- * most recently entered first, then in the app's order, capped. Deterministic for the same inputs,
- * which is what keeps a re-render from reshuffling which clouds hold a socket.
+ * most recently entered first, then in the app's order, capped — and after them every held cloud the
+ * cap left out. Deterministic for the same inputs, which is what keeps a re-render from reshuffling
+ * which clouds hold a socket.
+ *
+ * A held cloud sits outside the cap rather than taking a place inside it: a hold lasts one write, and
+ * letting it displace a joined cloud would tear that cloud's slot down for the length of a send.
  */
 export const selectBackgroundClouds = ({
     joined,
     recent,
     committed,
+    held = [],
     max = MAX_BACKGROUND_CLOUDS,
 }: BackgroundCloudInputs): string[] => {
-    const eligible = new Set(joined.filter(cid => !!cid && cid !== RELAY_CLOUD_ID && cid !== committed));
+    const isBackground = (cid: string): boolean => !!cid && cid !== RELAY_CLOUD_ID && cid !== committed;
+    const eligible = new Set(joined.filter(isBackground));
     const ordered = [...recent.filter(cid => eligible.has(cid)), ...eligible];
-    return [...new Set(ordered)].slice(0, Math.max(0, max));
+    const capped = [...new Set(ordered)].slice(0, Math.max(0, max));
+    return [...new Set([...capped, ...held.filter(isBackground)])];
 };
 
 /**
@@ -80,6 +93,9 @@ type Listener = () => void;
 let joined: readonly string[] = [];
 let version = 0;
 const expired = new Set<string>();
+// Reference counts, not a set: two sends to the same cloud overlap, and the first to settle must not
+// release the slot the second is still waiting on.
+const holds = new Map<string, number>();
 const listeners = new Set<Listener>();
 
 const notify = (): void => {
@@ -120,6 +136,33 @@ export const backgroundClouds = {
         expired.add(cid);
         notify();
     },
+    /**
+     * Keeps `cid`'s slot bound until the returned release is called — for a write addressed to that
+     * cloud, so a switch away from it, or its falling past the cap, cannot end the write in flight.
+     * It keeps a slot that is bound and opens none (see `currentBackgroundSelection`). Released as
+     * soon as the write settles: its ack is all that needs the socket, and a second write takes its
+     * own hold. Calling the release twice releases once.
+     */
+    hold(cid: string): () => void {
+        holds.set(cid, (holds.get(cid) ?? 0) + 1);
+        if (holds.get(cid) === 1) notify();
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            const count = (holds.get(cid) ?? 1) - 1;
+            if (count > 0) {
+                holds.set(cid, count);
+                return;
+            }
+            holds.delete(cid);
+            notify();
+        };
+    },
+    /** The clouds held right now, in the order they were first held. */
+    getHeld(): readonly string[] {
+        return [...holds.keys()];
+    },
     /** Whether `cid` expired since the last ask; answering clears it. */
     takeExpired(cid: string): boolean {
         return expired.delete(cid);
@@ -141,5 +184,6 @@ export const resetBackgroundClouds = (): void => {
     joined = [];
     version = 0;
     expired.clear();
+    holds.clear();
     listeners.clear();
 };

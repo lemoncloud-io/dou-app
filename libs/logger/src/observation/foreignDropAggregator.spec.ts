@@ -6,7 +6,7 @@ jest.mock('../runtime', () => ({
 }));
 
 const warn = logger.warn as jest.Mock;
-const drop = (source: 'sync-frame' | 'channel-refresh' = 'sync-frame', cid = 'cloud_b', socketCid = 'cloud_a') =>
+const drop = (source: 'channel-sync' | 'channel-refresh' = 'channel-sync', cid = 'cloud_b', socketCid = 'cloud_a') =>
     foreignDropAggregator.record({ source, cid, socketCid });
 
 beforeEach(() => {
@@ -41,7 +41,7 @@ describe('foreignDropAggregator — 외래 클라우드 드롭 집계', () => {
         expect(warn.mock.calls[0][0]).toBe('CACHE');
         expect(warn.mock.calls[0][2]).toEqual({
             observation: 'foreign-drop',
-            source: 'sync-frame',
+            source: 'channel-sync',
             cid: 'cloud_b',
             socketCid: 'cloud_a',
             count: 3,
@@ -49,9 +49,9 @@ describe('foreignDropAggregator — 외래 클라우드 드롭 집계', () => {
     });
 
     it('지점·클라우드 조합이 다르면 따로 센다', () => {
-        drop('sync-frame');
+        drop('channel-sync');
         drop('channel-refresh');
-        drop('sync-frame');
+        drop('channel-sync');
 
         jest.advanceTimersByTime(5_000);
 
@@ -59,7 +59,7 @@ describe('foreignDropAggregator — 외래 클라우드 드롭 집계', () => {
         const counts = warn.mock.calls.map(call => [call[2].source, call[2].count]);
         expect(counts).toEqual(
             expect.arrayContaining([
-                ['sync-frame', 2],
+                ['channel-sync', 2],
                 ['channel-refresh', 1],
             ])
         );

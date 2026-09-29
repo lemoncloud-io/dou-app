@@ -55,6 +55,7 @@ import {
     useReactions,
     useReadMarker,
     useRoomOpenTrace,
+    useRoomSyncTrace,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -66,6 +67,7 @@ import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
+import { toCloudId } from '../../../hooks/useCloudScope';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
@@ -109,10 +111,9 @@ export const ChannelRoomPage = () => {
     // via padding measured off their actual rendered height.
     const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
 
-    const { userId } = runtime.session.useSessionIdentity();
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
     // The place this reader is standing in. Only a cloud-wide room needs it — see `profilePlaceOf`.
-    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // --- Data-fetching hooks ---
@@ -134,6 +135,18 @@ export const ChannelRoomPage = () => {
         isError: isChannelError,
         isForbidden: isChannelForbidden,
     } = useChannel(stableChannelIdForChannelHook, { seed: seedChannel });
+
+    // The cloud this room belongs to: the row's own, or the selection until the row is here. A send
+    // and the join targets below are addressed to it by name, so a cloud switch landing mid-write
+    // cannot carry them into the other cloud.
+    const roomCid = toCloudId(channel?.cid || selectedCloudId);
+    // Who "I" am in this room — the uid this account has in the room's cloud. Every cloud gives the
+    // account a different uid, and the session's is only the committed cloud's, so during a switch
+    // the two disagree. Every use below compares it against ids the room's cloud minted — the roster,
+    // join rows, owner ids, profile keys, reaction owners — or builds a sync id out of it
+    // (`<channelId>@<uid>`), so none of them can take the session's uid: a mismatch there registers
+    // somebody else's cursor, or reads me as a stranger in my own room and bounces me out of it.
+    const userId = runtime.session.useUidInCloud(roomCid);
 
     // ONE join-cache subscription for this screen. My row (nick / notify / the read baseline), every
     // member's read cursor and the active-membership set are all readings of the same rows, and each
@@ -215,6 +228,7 @@ export const ChannelRoomPage = () => {
     const isMember = isChannelMember(channel, myJoin, userId);
 
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(
+        roomCid,
         stableChannelIdForChannelHook,
         activeMemberIds,
         allMemberIds,
@@ -348,13 +362,16 @@ export const ChannelRoomPage = () => {
         messageCount: messages.length,
         atThreadStart: hasThreadStart,
     });
+    // Closes the `chat_room_sync` trace begun alongside it: the room showing its synced, latest page.
+    useRoomSyncTrace({ channelId, rawChats });
 
-    const { sendMessage, readMessage, deleteMessage } = useChatMutations();
+    const { sendMessage, retryMessage, readMessage, deleteMessage } = useChatMutations();
     const editing = useMessageEditing(stableChannelId);
     // The composer's lock, shared by the text field and the attach button: a photo sent into an
     // empty 1:1 would strand the same unread badge a text would.
     const composerLocked = isPeerGone || editing.isEditing;
-    const imageSend = useSendImages({ channelId: stableChannelId });
+    // Photos go to the room's own cloud, the same one a text sent from here goes to.
+    const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
     const attach = useChatImageAttach({ sendImages: imageSend.sendImages, disabled: composerLocked, inputRef });
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
@@ -546,30 +563,35 @@ export const ChannelRoomPage = () => {
 
         setContent('');
 
-        sendMessage({ channelId: stableChannelId, content: trimmed })
+        // Read now, at the press: the cloud the user was looking at when they sent is the one the
+        // message is for, whatever the selection does while it is in flight.
+        const cid = roomCid;
+        sendMessage(cid, { channelId: stableChannelId, content: trimmed })
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
                     markSent(newChat.chatNo);
                 }
             })
             .catch(error => {
-                logger.error('CHAT', 'Failed to send message', { error, data: { channelId: stableChannelId } });
+                logger.error('CHAT', 'Failed to send message', { error, data: { channelId: stableChannelId, cid } });
                 toast({ title: t('chat.room.sendFailed'), variant: 'destructive' });
             });
     };
 
-    const handleDeleteMessage = async (messageId?: string) => {
-        if (!stableChannelId || !messageId) return;
+    // An unsent row lives in the partition of the cloud it was sent to, which is the row's own `cid`.
+    const handleDeleteMessage = async (message: ClientChatView) => {
+        if (!message.id) return;
         // An image row's picked files are held for a retry; deleting the row lets them go. A no-op
         // for any other row.
-        imageSend.discard(messageId);
-        await deleteMessage(messageId, stableChannelId);
+        imageSend.discard(message.id);
+        await deleteMessage(message.cid, message.id);
     };
 
+    // Resent to the row's own cloud, with its thread target and content type intact (see retryMessage).
     const handleRetryMessage = async (message: ClientChatView) => {
-        if (!stableChannelId || !message.id) return;
+        if (!message.id) return;
         // An image row goes back through the image send, on the same row with the same files. The
-        // text path below would delete it and send its empty `content` — a blank message.
+        // text path below would resend its empty `content` — a blank message.
         //
         // Asked at the tap, not while drawing: whether the files are still held is not React state,
         // and the send marks the row failed a moment before it lets a retry in, so a render-time read
@@ -580,8 +602,7 @@ export const ChannelRoomPage = () => {
             else toast({ title: t('chat.attach.cannotRetry') });
             return;
         }
-        handleDeleteMessage(message.id)
-            .then(() => sendMessage({ channelId: stableChannelId, content: message.content ?? '' }))
+        retryMessage(message)
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
                     markSent(newChat.chatNo);
@@ -590,7 +611,7 @@ export const ChannelRoomPage = () => {
             .catch(error => {
                 logger.error('CHAT', 'Failed to retry message', {
                     error,
-                    data: { channelId: stableChannelId, messageId: message.id },
+                    data: { channelId: message.channelId, cid: message.cid, messageId: message.id },
                 });
             });
     };
@@ -1111,7 +1132,7 @@ export const ChannelRoomPage = () => {
                                                                 })
                                                             }
                                                             onRetry={() => handleRetryMessage(message)}
-                                                            onDelete={() => handleDeleteMessage(message.id)}
+                                                            onDelete={() => handleDeleteMessage(message)}
                                                             reactions={
                                                                 message.id ? reactions.get(message.id) : undefined
                                                             }

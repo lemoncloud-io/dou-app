@@ -21,10 +21,22 @@ const RESERVED_ATTRIBUTE_PREFIXES = ['firebase_', 'google_', 'ga_'];
 /** Same shape as an attribute key, with the SDK's longer 100-character cap. */
 const METRIC_NAME = /^[A-Za-z][A-Za-z0-9_]{0,99}$/;
 
+/** The same shape again for a trace name: no leading underscore (reserved), 100 characters. */
+const TRACE_NAME = /^[A-Za-z][A-Za-z0-9_]{0,99}$/;
+
 export const isValidPerfAttributeKey = (key: string): boolean =>
     ATTRIBUTE_KEY.test(key) && !RESERVED_ATTRIBUTE_PREFIXES.some(prefix => key.startsWith(prefix));
 
 export const isValidPerfMetricName = (name: string): boolean => METRIC_NAME.test(name);
+
+/**
+ * Whether a trace name that crossed the bridge as a plain string is one Firebase would accept.
+ *
+ * A shape check, not membership in `PerfTraceName`. The web deploys ahead of the app, so an app
+ * build checking against its own copy of the list would silently drop every trace added after it
+ * shipped. The sender is this repo's web either way; what the check stops is malformed input.
+ */
+export const isValidPerfTraceName = (name: string): boolean => TRACE_NAME.test(name);
 
 /**
  * Trims and caps an attribute value, or returns `null` for one that is empty once trimmed.

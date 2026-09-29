@@ -121,4 +121,17 @@ describe('logoutCloudSession', () => {
 
         expect(cloudLogout).not.toHaveBeenCalled();
     });
+
+    it('does not log out of a cloud a send is still in flight to, even one no longer joined', async () => {
+        // Not joined: without the hold this is the "sign off here" case.
+        const release = backgroundClouds.hold('cloud-1');
+        const cloudLogout = jest.fn().mockResolvedValue(undefined);
+        mockedGetManager.mockReturnValue(managerWith({ cloud: { logout: cloudLogout } }));
+
+        await logoutCloudSession();
+
+        expect(cloudLogout).not.toHaveBeenCalled();
+        expect(mockedLogoutCloud).toHaveBeenCalledTimes(1);
+        release();
+    });
 });

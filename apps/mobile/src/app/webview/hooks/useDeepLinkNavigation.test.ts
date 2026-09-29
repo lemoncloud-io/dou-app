@@ -118,8 +118,10 @@ describe('useDeepLinkNavigation', () => {
             });
 
             expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'chat_room_open' }));
+            expect(backend.start).toHaveBeenCalledWith(expect.objectContaining({ name: 'chat_room_sync' }));
             const { perfTrace } = bridge.pushEvent.mock.calls[0][0].data;
             expect(perfTrace.id).toBe(backend.start.mock.calls[0][0].id);
+            expect(perfTrace.syncId).toBe(backend.start.mock.calls[1][0].id);
             expect(perfTrace.startedAt).toBeGreaterThanOrEqual(before);
             // The web stops it, not the tap.
             expect(backend.stop).not.toHaveBeenCalled();

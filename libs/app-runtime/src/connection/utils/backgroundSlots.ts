@@ -19,6 +19,10 @@ export const currentBackgroundSelection = (): string[] =>
         joined: backgroundClouds.getJoined(),
         recent: cloudStore.getRecentClouds(),
         committed: getCommittedCloudId(),
+        // A hold keeps a slot, it does not open one: the write that took it goes out at once, so a
+        // slot booted for it would arrive after that write had already failed, and be torn down again
+        // as the hold ended.
+        held: backgroundClouds.getHeld().filter(liveBackgroundReadiness.isSlotBound),
     });
 
 export const liveBackgroundReadiness = {

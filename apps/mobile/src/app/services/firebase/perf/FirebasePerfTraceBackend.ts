@@ -17,8 +17,8 @@ const createFirebaseTrace = (name: string): NativePerfTrace => newFirebaseTrace(
  *
  * Firebase times a trace from its start call to its stop call, so this backend holds each open
  * trace by id until its stop arrives. Most starts and stops come from the WebView over the bridge
- * (`StartPerfTrace` / `StopPerfTrace`); the rest are native — boot, and the room-open trace a
- * notification tap begins here and the WebView ends.
+ * (`StartPerfTrace` / `StopPerfTrace`); the rest are native — boot, and the two room traces
+ * (`chat_room_open`, `chat_room_sync`) a notification tap begins here and the WebView ends.
  *
  * The attributes and metrics arrive only with the stop. The SDK sends them with the stop anyway,
  * and batching them there keeps a trace to two bridge messages however many phases it marks.

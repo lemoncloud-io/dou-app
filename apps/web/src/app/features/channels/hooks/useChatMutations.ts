@@ -11,12 +11,32 @@ interface SendMessageInput {
      * resolves it and 404s on a bare chatNo (ADR-0008/0045). Omit for a top-level send.
      */
     parentId?: string;
+    /** Only a resend sets this: it carries the failed row's own content type across. */
+    contentType?: DomainChat['contentType'];
 }
 
 interface ReadMessageInput {
     channelId: string;
     chatNo: number;
 }
+
+/**
+ * The send payload that recreates a failed row. Everything the user sent is carried across — a reply
+ * that came back as a top-level message, or a card that came back as plain text, is a different
+ * message from the one they pressed send on.
+ *
+ * Rows stranded by the old chatNo-send bug hold a bare chatNo in `parentId`, and the server 404s it,
+ * so those are rebuilt into the full `<channelId>:<chatNo>` id.
+ */
+export const toResendPayload = (row: DomainChat): SendMessageInput => {
+    const parentId = row.parentId && !row.parentId.includes(':') ? `${row.channelId}:${row.parentId}` : row.parentId;
+    return {
+        channelId: row.channelId,
+        content: row.content ?? '',
+        ...(row.contentType ? { contentType: row.contentType } : {}),
+        ...(parentId ? { parentId } : {}),
+    };
+};
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 
@@ -27,8 +47,15 @@ const withoutId = (ids: ReadonlySet<string>, id: string): ReadonlySet<string> =>
 };
 
 /**
- * Chat writes for the room: send (optimistic insert + socket dispatch via the engine), advance the
- * read cursor, edit a message, and two different removals.
+ * Chat writes for the room: send (optimistic insert + socket dispatch via the engine), resend a
+ * failed row, advance the read cursor, edit a message, and two different removals.
+ *
+ * A send and the unsent-row removal name their cloud, and nothing else here does. A send spans an
+ * optimistic cache write and a socket request, and the app graph resolves each of those from the
+ * selection at the moment it happens — so a cloud switch landing in between put the row in one cloud
+ * and the message on another's socket. The caller passes the cloud it read when the user pressed
+ * send, and the whole write is that cloud's. A failed row lives in the partition of the cloud it was
+ * sent to, so removing it has to name that cloud too.
  *
  * The two removals are not variants of one thing. `deleteMessage` drops an unsent row from my own
  * cache — the ✕ beside a failed send, which the server never heard about. `deleteServerMessage`
@@ -44,29 +71,43 @@ export const useChatMutations = () => {
     const [editingIds, setEditingIds] = useState<ReadonlySet<string>>(EMPTY_IDS);
     const [deletingIds, setDeletingIds] = useState<ReadonlySet<string>>(EMPTY_IDS);
 
-    const sendMessage = useCallback(
-        (payload: SendMessageInput): Promise<DomainChat> => {
-            if (!payload.channelId || !payload.content) {
-                return Promise.reject(new Error('channelId and content are required'));
-            }
-            setIsSending(true);
-            return chatRepository.sendChat(payload).finally(() => setIsSending(false));
-        },
-        [chatRepository]
-    );
+    /** Sends to `cid` — the cloud the user was in when they pressed send, captured by the caller then. */
+    const sendMessage = useCallback((cid: string, payload: SendMessageInput): Promise<DomainChat> => {
+        if (!payload.channelId || !payload.content) {
+            return Promise.reject(new Error('channelId and content are required'));
+        }
+        setIsSending(true);
+        return runtime.data.sendChatInCloud(cid, payload).finally(() => setIsSending(false));
+    }, []);
 
     const readMessage = useCallback(
         (payload: ReadMessageInput): Promise<DomainJoin> => joinRepository.readChat(payload),
         [joinRepository]
     );
 
-    /** Removes an unsent (pending/failed) row from MY cache only. Not a server delete. */
-    const deleteMessage = useCallback(
-        (messageId: string, _channelId: string): Promise<void> => {
-            if (!messageId) return Promise.resolve();
-            return chatRepository.cacheDelete(messageId);
+    /** Removes an unsent (pending/failed) row from MY cache in `cid` only. Not a server delete. */
+    const deleteMessage = useCallback((cid: string, messageId: string): Promise<void> => {
+        if (!messageId) return Promise.resolve();
+        return runtime.data.getCloudRepositories(cid).chat.cacheDelete(messageId);
+    }, []);
+
+    /**
+     * Resends a failed row to the cloud it was first sent to (`row.cid`), not to whichever cloud is
+     * selected now: the row sits in that cloud's partition and names that cloud's channel. The stale
+     * row goes first so the retry does not leave two copies on screen.
+     */
+    const retryMessage = useCallback(
+        (row: DomainChat): Promise<DomainChat> => {
+            if (!row.id) return Promise.reject(new Error('message id is required'));
+            const payload = toResendPayload(row);
+            // Checked before the delete: a row the send would refuse must not be removed first, or the
+            // message is gone and nothing replaces it.
+            if (!payload.channelId || !payload.content) {
+                return Promise.reject(new Error('channelId and content are required'));
+            }
+            return deleteMessage(row.cid, row.id).then(() => sendMessage(row.cid, payload));
         },
-        [chatRepository]
+        [deleteMessage, sendMessage]
     );
 
     /**
@@ -106,6 +147,7 @@ export const useChatMutations = () => {
     return {
         isPending: { send: isSending, edit: editingIds, deleteServer: deletingIds },
         sendMessage,
+        retryMessage,
         readMessage,
         deleteMessage,
         editMessage,

@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 
 import type { WebMessageData } from '@chatic/app-messages';
-import { isPerfTraceName } from '@chatic/perf';
+import { isValidPerfTraceName } from '@chatic/perf';
+import type { PerfTraceName } from '@chatic/perf';
 
 import { bootMetricsService, logger, perfTraceBackend } from '../../services';
 import { useDebugSettingsStore } from '../../stores';
@@ -87,15 +88,18 @@ export const usePerfHandler = () => {
     const handleStartPerfTrace = useCallback(async (message: WebMessageData<'StartPerfTrace'>) => {
         const { id, name } = message.data;
         // The name is a plain string on the wire so the contracts package does not depend on
-        // `@chatic/perf`. Checked here, so no sender can open a trace row nobody configured.
-        if (isPerfTraceName(name)) perfTraceBackend.start({ id, name });
+        // `@chatic/perf`. Only its shape is checked: a newer web may send a trace this build has
+        // never heard of, and that is the web deploying first, not an error.
+        if (isValidPerfTraceName(name)) perfTraceBackend.start({ id, name: name as PerfTraceName });
         return { type: 'OnStartPerfTrace' as const, success: true, data: {} };
     }, []);
 
     const handleStopPerfTrace = useCallback(async (message: WebMessageData<'StopPerfTrace'>) => {
         const { id, name, attributes, metrics } = message.data;
         // `durationMs` is the web's own measurement; Firebase timed this trace itself.
-        if (isPerfTraceName(name)) perfTraceBackend.stop({ id, name, durationMs: 0, attributes, metrics });
+        if (isValidPerfTraceName(name)) {
+            perfTraceBackend.stop({ id, name: name as PerfTraceName, durationMs: 0, attributes, metrics });
+        }
         return { type: 'OnStopPerfTrace' as const, success: true, data: {} };
     }, []);
 

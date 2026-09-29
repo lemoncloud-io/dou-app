@@ -58,7 +58,13 @@ type NavigationMessage = {
     data: {
         path: string;
         replace?: boolean;
-        perfTrace?: { id: string; startedAt: number; entry: 'push_tap' | 'deeplink'; coldStart: boolean };
+        perfTrace?: {
+            id: string;
+            syncId?: string;
+            startedAt: number;
+            entry: 'push_tap' | 'deeplink';
+            coldStart: boolean;
+        };
     };
 };
 let captured: ((message: NavigationMessage) => Promise<void>) | undefined;
@@ -570,7 +576,13 @@ describe('useHandlePushNavigation', () => {
             await captured!({
                 data: {
                     path: '/channels/roomA/room',
-                    perfTrace: { id: 'native-1', startedAt: Date.now() - 500, entry: 'push_tap', coldStart: true },
+                    perfTrace: {
+                        id: 'native-1',
+                        syncId: 'native-sync-1',
+                        startedAt: Date.now() - 500,
+                        entry: 'push_tap',
+                        coldStart: true,
+                    },
                 },
             });
 
@@ -586,7 +598,8 @@ describe('useHandlePushNavigation', () => {
 
             await invoke('/channels/roomA/room');
 
-            expect(backend.start).toHaveBeenCalledTimes(1);
+            // The open and the sync trace, both started by the web.
+            expect(backend.start).toHaveBeenCalledTimes(2);
             expect(finish()).toMatchObject({ attributes: { entry: 'navigate' } });
         });
 

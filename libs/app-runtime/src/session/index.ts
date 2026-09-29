@@ -21,6 +21,10 @@ export {
     getGlobalSessionContext,
     getIdentityContext,
     getRelaySessionUser,
+    // The uid the account has in a named cloud. Every cloud gives it a different one, and the session
+    // identity only answers for the committed cloud, so a write or a sync target addressed to another
+    // cloud names its uid with this.
+    getUidInCloud,
     // The account-profile read/write pair. Kept public because the local cache does not answer this
     // question — its physical key is `${type}:${cid}:${uid}:${id}` and the repositories read it under
     // the live scope, so while a cloud is active the relay `user` row is out of their reach
@@ -70,6 +74,7 @@ export {
     useSessionSelection,
     useSiteSwitch,
     useSwitchCloudSession,
+    useUidInCloud,
 } from './hooks/session';
 
 // --- session actions · profile (live in other folders but belong to the session group) -----------------------------------------

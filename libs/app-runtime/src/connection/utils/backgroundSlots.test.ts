@@ -42,6 +42,23 @@ describe('currentBackgroundSelection', () => {
 
         expect(currentBackgroundSelection()).toEqual(['c', 'b']);
     });
+
+    it('keeps a held cloud the app does not list, while its slot is bound', () => {
+        backgroundClouds.setJoined(['a']);
+        bound = ['h'];
+        const release = backgroundClouds.hold('h');
+
+        expect(currentBackgroundSelection()).toEqual(['a', 'h']);
+        release();
+        expect(currentBackgroundSelection()).toEqual(['a']);
+    });
+
+    it('does not open a slot for a held cloud that has none', () => {
+        backgroundClouds.setJoined(['a']);
+        backgroundClouds.hold('h');
+
+        expect(currentBackgroundSelection()).toEqual(['a']);
+    });
 });
 
 describe('readyBackgroundConfigs', () => {
