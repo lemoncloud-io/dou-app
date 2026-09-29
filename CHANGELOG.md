@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Bug Fixes
+
+- (desktop,desktop-web) save images without a dialog on download all
+
+### Documentation
+
+- (adr) record desktop silent image saves as ADR-0137
+
 ## [2026-09-29] - root@0.72.2, @chatic/desktop-web@0.16.1
 
 ### Bug Fixes
