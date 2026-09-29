@@ -4,6 +4,18 @@ import * as React from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { IconBack, IconChevronRight, IconClose } from '../../resources/icons';
+import {
+    clampZoom,
+    doubleTapZoom,
+    IDENTITY_ZOOM,
+    isZoomed,
+    pinchZoom,
+    settleZoom,
+    type Pinch,
+    type Point,
+    type Size,
+    type Zoom,
+} from './imageZoom';
 
 export interface ImageViewerProps {
     /**
@@ -39,6 +51,12 @@ const FLICK_MAX_MS = 300;
 const FLICK_MIN_PX = 24;
 /** Past the first or last image the strip gives only a little, to show there is nothing more. */
 const EDGE_RESISTANCE = 0.3;
+/**
+ * Two taps closer together than this, in time and in place, are a double tap. On the generous side:
+ * a single tap on the photo does nothing, so a longer window delays nothing.
+ */
+const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_SLOP_PX = 30;
 
 interface Press {
     x: number;
@@ -54,15 +72,20 @@ interface Press {
  * a strip: a horizontal drag moves the strip under the finger, and on release it slides on to the
  * next image or back to the same one. The arrow buttons at the sides and the arrow keys slide it the
  * same way, and a count says where it is ("2 / 3"). It stops at the ends rather than wrapping: a count
- * that jumps from the last back to "1" reads as a different message. Zoom, save and share are not
- * here yet.
+ * that jumps from the last back to "1" reads as a different message. Save and share are not here yet.
+ *
+ * The showing image zooms: a pinch scales it around the point between the fingers (up to four times),
+ * and a double tap on it zooms in on that point or back out. While it is zoomed a one-finger drag
+ * pans it — kept from pulling its edge off the page — instead of turning the page, and a tap beside
+ * it does not close the viewer. Turning the page or closing resets the zoom. The browser's own pinch
+ * cannot do this: the app fixes the page scale, and it would zoom the whole screen, not the photo.
  *
  * Only the showing image and its neighbours are drawn, so ten originals are not loaded at once and a
  * neighbour is ready by the time it slides in. An original can be several megabytes, so while one is
  * on its way its `placeholder` — the small copy the tile drew — stands in for it instead of black.
  *
  * Stateless: the index belongs to the host, which is also what lets a refreshed address reach an
- * image that is already open. The drag offset is the only thing held here.
+ * image that is already open. The drag offset and the zoom are the only things held here.
  *
  * On `@radix-ui/react-dialog` directly rather than `ui-kit`'s styled `dialog`: that wrapper centres a
  * card with padding and its own close mark, and a full-bleed viewer would spend its whole className
@@ -105,10 +128,65 @@ export const ImageViewer = ({
     const [dragX, setDragX] = React.useState(0);
     const [dragging, setDragging] = React.useState(false);
     const pressRef = React.useRef<Press | null>(null);
-    // Whether the last press turned into a swipe. A swipe that ends on the backdrop is followed by a
-    // click there, which must not read as "tap outside to close".
+    // Whether the last press turned into a swipe, a pan, a pinch or a double tap. Any of them that ends
+    // on the backdrop is followed by a click there, which must not read as "tap outside to close".
     const swipedRef = React.useRef(false);
     const stripRef = React.useRef<HTMLDivElement>(null);
+    const contentRef = React.useRef<HTMLDivElement>(null);
+    const imageRef = React.useRef<HTMLImageElement | null>(null);
+
+    // The showing image's zoom. Mirrored in a ref so a pointer event reads the value the last event
+    // set, not the one from the last render.
+    const [zoom, setZoomState] = React.useState<Zoom>(IDENTITY_ZOOM);
+    const zoomRef = React.useRef<Zoom>(IDENTITY_ZOOM);
+    const setZoom = (next: Zoom) => {
+        zoomRef.current = next;
+        setZoomState(next);
+    };
+    // While fingers move the image it follows them exactly; otherwise a change eases in.
+    const [gesturing, setGesturing] = React.useState(false);
+    // Every finger down, measured from the centre of the page.
+    const pointersRef = React.useRef(new Map<number, Point>());
+    const pinchRef = React.useRef<Pinch | null>(null);
+    const panRef = React.useRef<{ from: Zoom; start: Point } | null>(null);
+    // Where the single finger went down, to tell a tap from a drag whether or not the strip moves.
+    const tapStartRef = React.useRef<Point | null>(null);
+    const lastTapRef = React.useRef<{ at: number; point: Point } | null>(null);
+
+    // Another page, or the viewer closing, starts from the image fitting the page.
+    React.useEffect(() => {
+        zoomRef.current = IDENTITY_ZOOM;
+        setZoomState(IDENTITY_ZOOM);
+        pinchRef.current = null;
+        panRef.current = null;
+        lastTapRef.current = null;
+        pointersRef.current.clear();
+    }, [current, open]);
+
+    const toPage = (event: React.PointerEvent): Point => {
+        const rect = contentRef.current?.getBoundingClientRect();
+        if (!rect) return { x: event.clientX, y: event.clientY };
+        return { x: event.clientX - (rect.left + rect.width / 2), y: event.clientY - (rect.top + rect.height / 2) };
+    };
+    const pageSize = (): Size => ({
+        width: contentRef.current?.clientWidth ?? 0,
+        height: contentRef.current?.clientHeight ?? 0,
+    });
+    // The image as laid out at scale 1. Before the original has loaded there is nothing to measure,
+    // and the placeholder fills the page.
+    const contentSize = (): Size => {
+        const image = imageRef.current;
+        return image && image.offsetWidth > 0 ? { width: image.offsetWidth, height: image.offsetHeight } : pageSize();
+    };
+
+    const capture = (event: React.PointerEvent) => {
+        // Keep the moves coming when the finger leaves the image or the screen edge.
+        try {
+            (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+        } catch {
+            // A synthetic or already-released pointer — the moves still arrive while inside.
+        }
+    };
 
     const endDrag = () => {
         pressRef.current = null;
@@ -117,11 +195,65 @@ export const ImageViewer = ({
     };
 
     const onPointerDown = (event: React.PointerEvent) => {
+        const point = toPage(event);
+        const pointers = pointersRef.current;
+        pointers.set(event.pointerId, point);
+
+        if (pointers.size === 2) {
+            // A second finger turns whatever the first was doing into a pinch.
+            const [a, b] = [...pointers.values()] as [Point, Point];
+            pinchRef.current = { from: zoomRef.current, start: [a, b] };
+            panRef.current = null;
+            tapStartRef.current = null;
+            swipedRef.current = true;
+            endDrag();
+            setGesturing(true);
+            capture(event);
+            return;
+        }
+        if (pointers.size > 2) return;
+
         swipedRef.current = false;
+        tapStartRef.current = point;
+        if (isZoomed(zoomRef.current)) {
+            panRef.current = { from: zoomRef.current, start: point };
+            pressRef.current = null;
+            return;
+        }
         pressRef.current = many ? { x: event.clientX, y: event.clientY, at: Date.now(), axis: null } : null;
     };
 
     const onPointerMove = (event: React.PointerEvent) => {
+        const pointers = pointersRef.current;
+        if (!pointers.has(event.pointerId)) return;
+        const point = toPage(event);
+        pointers.set(event.pointerId, point);
+
+        const pinch = pinchRef.current;
+        if (pinch) {
+            if (pointers.size < 2) return;
+            const [a, b] = [...pointers.values()] as [Point, Point];
+            // Not clamped while the fingers are down, so the image stays under them; the release does.
+            setZoom(pinchZoom(pinch, [a, b]));
+            return;
+        }
+
+        const tapStart = tapStartRef.current;
+        if (tapStart && Math.hypot(point.x - tapStart.x, point.y - tapStart.y) >= DRAG_SLOP_PX) {
+            tapStartRef.current = null;
+        }
+
+        const pan = panRef.current;
+        if (pan) {
+            if (tapStartRef.current) return;
+            swipedRef.current = true;
+            setGesturing(true);
+            capture(event);
+            const moved = { ...pan.from, x: pan.from.x + point.x - pan.start.x, y: pan.from.y + point.y - pan.start.y };
+            setZoom(clampZoom(moved, contentSize(), pageSize()));
+            return;
+        }
+
         const press = pressRef.current;
         if (!press) return;
         const dx = event.clientX - press.x;
@@ -131,12 +263,7 @@ export const ImageViewer = ({
             press.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
             if (press.axis === 'x') {
                 setDragging(true);
-                // Keep the moves coming when the finger leaves the image or the screen edge.
-                try {
-                    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
-                } catch {
-                    // A synthetic or already-released pointer — the moves still arrive while inside.
-                }
+                capture(event);
             }
         }
         if (press.axis !== 'x') return;
@@ -144,10 +271,57 @@ export const ImageViewer = ({
         setDragX(pastEdge ? dx * EDGE_RESISTANCE : dx);
     };
 
+    /** A tap that did not move: the second of two close together zooms. */
+    const onTap = (event: React.PointerEvent, point: Point) => {
+        const onImage = (event.target as HTMLElement).dataset?.current !== undefined;
+        const last = lastTapRef.current;
+        const now = Date.now();
+        const second =
+            last &&
+            now - last.at <= DOUBLE_TAP_MS &&
+            Math.hypot(point.x - last.point.x, point.y - last.point.y) <= DOUBLE_TAP_SLOP_PX;
+        // Zooming in starts on the photo; zooming back out works anywhere, since the photo may fill it.
+        if (second && (onImage || isZoomed(zoomRef.current))) {
+            lastTapRef.current = null;
+            swipedRef.current = true;
+            setZoom(clampZoom(doubleTapZoom(zoomRef.current, point), contentSize(), pageSize()));
+            return;
+        }
+        lastTapRef.current = { at: now, point };
+    };
+
     const onPointerUp = (event: React.PointerEvent) => {
+        const pointers = pointersRef.current;
+        if (!pointers.has(event.pointerId)) return;
+        const point = toPage(event);
+        pointers.delete(event.pointerId);
+
+        if (pinchRef.current) {
+            if (pointers.size >= 2) return;
+            pinchRef.current = null;
+            const settled = settleZoom(clampZoom(zoomRef.current, contentSize(), pageSize()));
+            setZoom(settled);
+            setGesturing(false);
+            // One finger still down carries on as a pan from where it is.
+            const [left] = [...pointers.values()];
+            panRef.current = left && isZoomed(settled) ? { from: settled, start: left } : null;
+            tapStartRef.current = null;
+            return;
+        }
+
+        const wasTap = tapStartRef.current !== null;
+        tapStartRef.current = null;
+        if (panRef.current) {
+            panRef.current = null;
+            setGesturing(false);
+            if (wasTap) onTap(event, point);
+            return;
+        }
+
         const press = pressRef.current;
         if (!press || press.axis !== 'x') {
             pressRef.current = null;
+            if (wasTap) onTap(event, point);
             return;
         }
         swipedRef.current = true;
@@ -158,6 +332,18 @@ export const ImageViewer = ({
         // Dropping the offset and moving the index in the same render lets the strip slide on from
         // wherever the finger left it.
         if (far || flick) go(dx < 0 ? 1 : -1);
+        endDrag();
+    };
+
+    const onPointerCancel = (event: React.PointerEvent) => {
+        pointersRef.current.delete(event.pointerId);
+        if (pinchRef.current && pointersRef.current.size < 2) {
+            pinchRef.current = null;
+            setZoom(settleZoom(clampZoom(zoomRef.current, contentSize(), pageSize())));
+        }
+        panRef.current = null;
+        tapStartRef.current = null;
+        setGesturing(false);
         endDrag();
     };
 
@@ -175,11 +361,12 @@ export const ImageViewer = ({
             <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-50 bg-black" />
                 <Dialog.Content
+                    ref={contentRef}
                     aria-describedby={undefined}
                     onPointerDown={onPointerDown}
                     onPointerMove={onPointerMove}
                     onPointerUp={onPointerUp}
-                    onPointerCancel={endDrag}
+                    onPointerCancel={onPointerCancel}
                     onKeyDown={event => {
                         if (event.key === 'ArrowLeft') go(-1);
                         if (event.key === 'ArrowRight') go(1);
@@ -189,6 +376,8 @@ export const ImageViewer = ({
                             swipedRef.current = false;
                             return;
                         }
+                        // A zoomed photo may fill the page; a tap beside it is too easy to make by accident.
+                        if (isZoomed(zoomRef.current)) return;
                         const target = event.target as HTMLElement;
                         if (target === event.currentTarget || target.dataset.backdrop !== undefined) onClose();
                     }}
@@ -208,36 +397,59 @@ export const ImageViewer = ({
                         {images.map((src, i) => {
                             const drawn = open && Math.abs(i - current) <= 1;
                             const placeholder = placeholders?.[i];
+                            const showing = i === current;
                             return (
                                 <div
                                     key={i}
                                     data-backdrop=""
-                                    aria-hidden={i !== current || undefined}
-                                    className="relative flex h-full w-full shrink-0 items-center justify-center"
+                                    data-page=""
+                                    aria-hidden={!showing || undefined}
+                                    className="relative h-full w-full shrink-0"
                                 >
-                                    {/* Stretched to the page and letterboxed, where the original will land.
-                                        It lets taps through, so a tap beside the photo still closes. */}
-                                    {drawn && placeholder && !(src && loaded.has(src)) && (
-                                        <img
-                                            src={placeholder}
-                                            alt=""
-                                            aria-hidden
-                                            data-placeholder=""
-                                            className="pointer-events-none absolute inset-0 size-full select-none object-contain"
-                                            draggable={false}
-                                        />
-                                    )}
-                                    {drawn && src && (
-                                        <img
-                                            src={src}
-                                            alt=""
-                                            data-current={i === current || undefined}
-                                            className="relative max-h-full max-w-full select-none object-contain"
-                                            draggable={false}
-                                            onLoad={() => markLoaded(src)}
-                                            onError={() => onError?.(i)}
-                                        />
-                                    )}
+                                    {/* What zooms: the photo and its placeholder together, around the
+                                        centre of the page. */}
+                                    <div
+                                        data-backdrop=""
+                                        data-zoom-layer={showing || undefined}
+                                        className={cn(
+                                            'absolute inset-0 flex items-center justify-center',
+                                            !gesturing &&
+                                                'transition-transform duration-200 ease-out motion-reduce:transition-none'
+                                        )}
+                                        style={
+                                            showing
+                                                ? {
+                                                      transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
+                                                  }
+                                                : undefined
+                                        }
+                                    >
+                                        {/* Stretched to the page and letterboxed, where the original will
+                                            land. It lets taps through, so a tap beside the photo still
+                                            closes. */}
+                                        {drawn && placeholder && !(src && loaded.has(src)) && (
+                                            <img
+                                                src={placeholder}
+                                                alt=""
+                                                aria-hidden
+                                                data-placeholder=""
+                                                className="pointer-events-none absolute inset-0 size-full select-none object-contain"
+                                                draggable={false}
+                                            />
+                                        )}
+                                        {drawn && src && (
+                                            <img
+                                                ref={showing ? imageRef : undefined}
+                                                src={src}
+                                                alt=""
+                                                data-current={showing || undefined}
+                                                className="relative max-h-full max-w-full select-none object-contain"
+                                                draggable={false}
+                                                onLoad={() => markLoaded(src)}
+                                                onError={() => onError?.(i)}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}

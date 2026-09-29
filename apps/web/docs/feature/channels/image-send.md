@@ -97,6 +97,14 @@ tile drew it — until the original has arrived, so a large original opens on a 
 black. The viewer reaches the images behind the "+n" tile too, and skips
 broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
+The showing image zooms, in the kit's `ImageViewer` with its arithmetic in `imageZoom.ts`. A pinch
+scales it around the point between the fingers, up to four times. A double tap on it zooms to 2.5
+times at that point, or back out. While it is zoomed, a one-finger drag pans it instead of turning
+the page, and the photo's edge cannot be pulled off the page. A tap beside a zoomed photo does not
+close the viewer. Turning the page or closing starts the next image fitted again, and a pinch that
+ends barely zoomed snaps back. The browser's own pinch is not used: the app fixes the page scale
+(`user-scalable=no`), and the browser would zoom the whole screen rather than the photo.
+
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
 state, and the send lets a retry in only after it has marked the row failed. A row whose files are gone
@@ -149,7 +157,7 @@ The trade-offs, and the server-side fix that would make the address itself cache
 ## Not done here
 
 - **Progress, cancel, a hash.** None are shown or sent.
-- **Zoom, save, share in the viewer.** It shows the original and steps between images only.
+- **Save and share in the viewer.** It shows, zooms and steps between the originals only.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 - **A cacheable address.** Making the signed address stable across reads, and giving the objects a

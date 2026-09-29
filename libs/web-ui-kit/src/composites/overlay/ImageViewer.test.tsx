@@ -7,9 +7,9 @@ const shown = () => screen.getByRole('dialog').querySelector('img[data-current]'
 const strip = () => screen.getByRole('dialog').querySelector('.flex') as HTMLElement;
 
 // jsdom's PointerEvent drops clientX/Y from the init, so the coordinates are hung on the event.
-const pointer = (type: string, [x, y]: [number, number]) => {
+const pointer = (type: string, [x, y]: [number, number], pointerId = 1) => {
     const event = new Event(type, { bubbles: true });
-    Object.assign(event, { clientX: x, clientY: y, pointerId: 1 });
+    Object.assign(event, { clientX: x, clientY: y, pointerId });
     return event;
 };
 const press = (target: Element, from: [number, number], to: [number, number]) => {
@@ -179,7 +179,7 @@ describe('ImageViewer', () => {
         const thumbs = ['https://example.com/a-t.jpg', 'https://example.com/b-t.jpg', 'https://example.com/c-t.jpg'];
         // The showing page is the one without aria-hidden.
         const placeholder = () =>
-            screen.getByRole('dialog').querySelector('div:not([aria-hidden]) > img[data-placeholder]');
+            screen.getByRole('dialog').querySelector('[data-page]:not([aria-hidden]) img[data-placeholder]');
 
         // An original can take seconds; the small copy stands in until it has arrived.
         it('draws the placeholder under the original until the original loads', () => {
@@ -252,5 +252,124 @@ describe('ImageViewer', () => {
         fireEvent.error(shown());
 
         expect(onError).toHaveBeenCalledWith(2);
+    });
+    describe('zoom', () => {
+        // jsdom lays nothing out: give the page and the photo sizes so a pan has somewhere to go.
+        // The page's centre is the origin, since jsdom's bounding rect is all zeros.
+        beforeEach(() => {
+            jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+            jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
+            jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+            jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
+        });
+        afterEach(() => jest.restoreAllMocks());
+
+        const layer = () => screen.getByRole('dialog').querySelector('[data-zoom-layer]') as HTMLElement;
+        const content = () => screen.getByRole('dialog');
+        const pinch = (from: [[number, number], [number, number]], to: [[number, number], [number, number]]) => {
+            fireEvent(content(), pointer('pointerdown', from[0], 1));
+            fireEvent(content(), pointer('pointerdown', from[1], 2));
+            fireEvent(content(), pointer('pointermove', to[0], 1));
+            fireEvent(content(), pointer('pointermove', to[1], 2));
+            fireEvent(content(), pointer('pointerup', to[0], 1));
+            fireEvent(content(), pointer('pointerup', to[1], 2));
+        };
+        const tap = (target: Element, at: [number, number]) => {
+            fireEvent(target, pointer('pointerdown', at));
+            fireEvent(target, pointer('pointerup', at));
+        };
+        const zoomIn = () =>
+            pinch(
+                [
+                    [-50, 0],
+                    [50, 0],
+                ],
+                [
+                    [-100, 0],
+                    [100, 0],
+                ]
+            );
+
+        it('scales the showing photo with a pinch', () => {
+            render(<ImageViewer images={images} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            zoomIn();
+
+            expect(layer().style.transform).toContain('scale(2)');
+        });
+
+        it('lets a pinch that ends barely zoomed fit the page again', () => {
+            render(<ImageViewer images={images} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            pinch(
+                [
+                    [-50, 0],
+                    [50, 0],
+                ],
+                [
+                    [-51, 0],
+                    [51, 0],
+                ]
+            );
+
+            expect(layer().style.transform).toContain('scale(1)');
+        });
+
+        // Zoomed, a drag moves the photo; it does not turn the page.
+        it('pans a zoomed photo instead of turning the page, up to its edge', () => {
+            const onIndexChange = jest.fn();
+            render(<ImageViewer images={images} index={1} onIndexChange={onIndexChange} onClose={jest.fn()} />);
+            zoomIn();
+
+            drag(content(), [0, 0], [-300, 0]);
+
+            expect(onIndexChange).not.toHaveBeenCalled();
+            // 2x of a 400-wide photo on a 400-wide page leaves 200 of travel each way.
+            expect(layer().style.transform).toContain('translate3d(-200px, 0px, 0)');
+        });
+
+        it('zooms in on a double tap on the photo, and back out on the next', () => {
+            render(<ImageViewer images={images} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            tap(shown(), [0, 0]);
+            tap(shown(), [0, 0]);
+            expect(layer().style.transform).toContain('scale(2.5)');
+
+            tap(shown(), [0, 0]);
+            tap(shown(), [0, 0]);
+            expect(layer().style.transform).toContain('scale(1)');
+        });
+
+        it('does not zoom on two taps far apart in time', () => {
+            const now = jest.spyOn(Date, 'now').mockReturnValue(1000);
+            render(<ImageViewer images={images} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            tap(shown(), [0, 0]);
+            now.mockReturnValue(1500);
+            tap(shown(), [0, 0]);
+
+            expect(layer().style.transform).toContain('scale(1)');
+        });
+
+        it('does not close on a tap beside a zoomed photo', () => {
+            const onClose = jest.fn();
+            render(<ImageViewer images={images} index={1} onIndexChange={jest.fn()} onClose={onClose} />);
+            zoomIn();
+
+            fireEvent.click(layer());
+
+            expect(onClose).not.toHaveBeenCalled();
+        });
+
+        it('starts the next page fitted', () => {
+            const { rerender } = render(
+                <ImageViewer images={images} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />
+            );
+            zoomIn();
+
+            rerender(<ImageViewer images={images} index={2} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            expect(layer().style.transform).toContain('scale(1)');
+        });
     });
 });
