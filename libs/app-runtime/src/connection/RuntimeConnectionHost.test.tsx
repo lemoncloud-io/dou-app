@@ -5,6 +5,7 @@ import { getSocketManager } from '../socket/runtime';
 import { bootstrapSocketConnection } from '../socket';
 import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
 import { getSocketSlotContext } from '../session/store';
+import { useBackgroundReceive } from './hooks/useBackgroundReceive';
 
 // The boot gate now comes from its concrete module (the session barrel stopped selling it), so it
 // gets its own mock — gate returns ready so children render.
@@ -52,6 +53,8 @@ jest.mock('../socket/runtime', () => {
 jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 // Background clouds' token preparation has its own tests; the host's job here is only the sockets.
 jest.mock('./hooks/useBackgroundCloudTokens', () => ({ useBackgroundCloudTokens: jest.fn() }));
+// The receive loops have their own tests too; here only whether the host turns them on.
+jest.mock('./hooks/useBackgroundReceive', () => ({ useBackgroundReceive: jest.fn() }));
 
 // SPREAD the real module: `useRelaySessionKeepAlive` (mounted by this host, from its concrete path)
 // reaches `useSessionAuth` → `subscribeSessionSignal` + `getSessionAuthSnapshot`, which live here. A
@@ -189,5 +192,14 @@ describe('RuntimeConnectionHost', () => {
                 })
             );
         });
+    });
+
+    it('receives for the background clouds of the slots it derives, and not for slots handed in', () => {
+        const { unmount } = render(<RuntimeConnectionHost />);
+        expect(useBackgroundReceive).toHaveBeenLastCalledWith(true);
+        unmount();
+
+        render(<RuntimeConnectionHost slots={cloudSlots} />);
+        expect(useBackgroundReceive).toHaveBeenLastCalledWith(false);
     });
 });
