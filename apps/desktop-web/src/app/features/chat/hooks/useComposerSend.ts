@@ -5,7 +5,10 @@ import { runtime } from '@chatic/app-runtime';
 import { xhrPut } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import type { DomainChat } from '@chatic/data';
+
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
+import { isUnsentImageMessage } from '../utils';
 
 export interface ComposerSendTarget {
     /** The room's own cloud — the channel row's `cid` (the relay's for a relay channel). */
@@ -25,12 +28,20 @@ export interface ComposerSendTarget {
  *
  * Both are addressed to the room as it was at the press, whichever room is on screen when they land.
  * The desktop shell has no native transfer, so the bytes go through the page's own PUT.
+ *
+ * Retry, Delete and whether Retry is offered also start here, because a failed picture message is
+ * not a failed text message: it is retried with the pictures this page still holds, on the same
+ * row, and its row's files are let go when it is deleted.
  */
 export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget) => {
     const { t } = useTranslation();
-    const { sendMessage } = useChatMutations();
-    const images = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: xhrPut });
-    const { sendImages } = images;
+    const { sendMessage, retryMessage, discardMessage } = useChatMutations();
+    const {
+        sendImages,
+        retry: retryImages,
+        canRetry: canRetryImages,
+        discard: discardImages,
+    } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: xhrPut });
 
     const send = useCallback(
         (content: string, files: readonly File[]) => {
@@ -45,5 +56,36 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         [cid, channelId, parentId, sendImages, sendMessage, t]
     );
 
-    return { send, images };
+    const retry = useCallback(
+        (message: DomainChat) => {
+            const failed = () => toast({ variant: 'destructive', description: t('toast.messageFailed') });
+            if (!isUnsentImageMessage(message)) {
+                void retryMessage(message).catch(failed);
+                return;
+            }
+            // The pictures are gone only when there was nothing to retry with to begin with. A false
+            // answer otherwise means a send already running, or a row deleted meanwhile: nothing to say.
+            const filesGone = !canRetryImages(message.id);
+            void retryImages(message.id).then(retried => {
+                if (!retried && filesGone) toast({ variant: 'destructive', description: t('chat.image.retryGone') });
+            }, failed);
+        },
+        [canRetryImages, retryImages, retryMessage, t]
+    );
+
+    // A new function whenever the runtime's does, so a memoised row re-renders its Retry.
+    const canRetry = useCallback(
+        (message: DomainChat) => !isUnsentImageMessage(message) || canRetryImages(message.id),
+        [canRetryImages]
+    );
+
+    const discard = useCallback(
+        (message: DomainChat) => {
+            if (isUnsentImageMessage(message)) discardImages(message.id);
+            void discardMessage(message);
+        },
+        [discardImages, discardMessage]
+    );
+
+    return { send, retry, canRetry, discard };
 };

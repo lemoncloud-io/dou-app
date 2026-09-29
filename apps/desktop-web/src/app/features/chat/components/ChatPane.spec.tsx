@@ -20,7 +20,6 @@ vi.mock('@chatic/app-runtime', () => ({
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
     useChats: () => ({ messages: [], isLoading: false, loadOlder: vi.fn(), hasMore: false, isLoadingOlder: false }),
-    useChatMutations: () => ({ sendMessage: vi.fn(), retryMessage: vi.fn(), discardMessage: vi.fn() }),
     useAuthorNames: () => new Map(),
     useReadReceipts: () => undefined,
 }));

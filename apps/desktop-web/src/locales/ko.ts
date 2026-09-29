@@ -96,6 +96,7 @@ export const ko: EnTranslation = {
     'chat.image.copied': '이미지 복사됨',
     'chat.image.copyFailed': '이미지를 복사하지 못했어요',
     'chat.image.downloadFailed': '이미지를 저장하지 못했어요',
+    'chat.image.retryGone': '다시 보낼 사진이 남아 있지 않아요. 메시지를 삭제하고 다시 보내 주세요.',
     'chat.image.delete': '파일 삭제',
     'chat.image.deleteConfirm.title': '이 파일을 삭제할까요?',
     'chat.image.download': '이미지 저장',

@@ -1,16 +1,15 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 
 import {
     Hint,
     lastChatNoOf,
     useAuthorNames,
-    useChatMutations,
     useChats,
     ResizablePanel,
     PANE_HEADER,
@@ -61,10 +60,6 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const closeThread = useThreadStore(s => s.close);
     // Freshness bridge: new replies land via the channel record's chatNo (see useChats).
     const { messages } = useChats(channelId, lastChatNoOf(channel));
-    const { retryMessage, discardMessage } = useChatMutations();
-    // Stable identity — MessageRow is memo'd; an inline closure would re-render
-    // every visible thread row on each panel render.
-    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -146,8 +141,9 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         names={names}
                         membersLoading={membersLoading}
                         threadReplyCount={replyCount}
-                        onRetry={retryMessage}
-                        onDiscard={handleDiscard}
+                        onRetry={composer.retry}
+                        canRetry={composer.canRetry}
+                        onDiscard={composer.discard}
                         readCountOf={readCountOf}
                     />
                 ) : (

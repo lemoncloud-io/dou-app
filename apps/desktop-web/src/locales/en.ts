@@ -85,6 +85,7 @@ export const en = {
     'chat.image.copied': 'Image copied',
     'chat.image.copyFailed': "Couldn't copy the image",
     'chat.image.downloadFailed': "Couldn't save the image",
+    'chat.image.retryGone': 'These pictures are no longer here to resend. Delete the message and send them again.',
     'chat.image.delete': 'Delete file',
     'chat.image.deleteConfirm.title': 'Delete this file?',
     'chat.image.download': 'Save image',

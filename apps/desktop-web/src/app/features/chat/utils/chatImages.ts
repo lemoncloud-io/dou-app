@@ -21,6 +21,14 @@ export interface ChatImage {
     isFailed?: boolean;
 }
 
+/** An unsent image message: its `upload$$` still holds local slots, sending or failed. */
+export const isUnsentImageMessage = (message: Pick<DomainChat, 'upload$$'>): boolean =>
+    !!message.upload$$?.some(isPendingUploadSlot);
+
+/** An image message whose upload is still running — a long one is not stuck, however long it takes. */
+export const isSendingImages = (message: Pick<DomainChat, 'upload$$'>): boolean =>
+    !!message.upload$$?.some(slot => isPendingUploadSlot(slot) && slot.localStatus === 'sending');
+
 /**
  * A message's images from its `upload$$`. The server keeps no file name (the tiles are a fixed size),
  * so each image is named by its place in the message.

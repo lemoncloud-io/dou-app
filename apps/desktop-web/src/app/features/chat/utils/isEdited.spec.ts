@@ -5,7 +5,15 @@ import type { DomainChat } from '@chatic/data';
 import { isEdited } from './isEdited';
 
 const chat = (over: Partial<DomainChat> = {}): DomainChat =>
-    ({ id: 'C1:1', channelId: 'C1', chatNo: 1, content: 'hi', createdAt: 1_000, updatedAt: 1_000, ...over }) as DomainChat;
+    ({
+        id: 'C1:1',
+        channelId: 'C1',
+        chatNo: 1,
+        content: 'hi',
+        createdAt: 1_000,
+        updatedAt: 1_000,
+        ...over,
+    }) as DomainChat;
 
 describe('isEdited', () => {
     it('says nothing about a message that has not been touched since it was sent', () => {

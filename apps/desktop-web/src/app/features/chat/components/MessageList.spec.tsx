@@ -303,4 +303,80 @@ describe('MessageList', () => {
         // one is the tally.
         expect(screen.getByLabelText('👍 · Me, Ada')).toBeDefined();
     });
+
+    describe('an unsent picture message', () => {
+        const OLD = 1_700_000_000_000;
+        const pictures = (localStatus: 'sending' | 'failed', fields: Partial<DomainChat> = {}): DomainChat =>
+            ({
+                id: 'optimistic-chat-images-1',
+                channelId: 'C1',
+                chatNo: 0,
+                ownerId: 'me',
+                content: '',
+                isPending: localStatus === 'sending',
+                isFailed: localStatus === 'failed',
+                createdAt: OLD,
+                upload$$: [{ localStatus, localThumbUrl: 'blob:1' }],
+                ...fields,
+            }) as DomainChat;
+
+        it('is still sending after a minute, not stuck: a large upload takes its time', () => {
+            render(
+                <MessageList
+                    messages={[pictures('sending')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    onRetry={vi.fn()}
+                    onDiscard={vi.fn()}
+                />,
+                { wrapper }
+            );
+
+            expect(screen.queryByText('Not delivered')).toBeNull();
+            // Drawn, and drawn as a send in flight: its tile spins.
+            expect(screen.getByRole('button', { name: 'Open image-1' }).hasAttribute('disabled')).toBe(true);
+        });
+
+        it('offers Retry and Delete once it has failed and its pictures are still here', () => {
+            const onRetry = vi.fn();
+            const row = pictures('failed');
+            render(
+                <MessageList
+                    messages={[row]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    onRetry={onRetry}
+                    onDiscard={vi.fn()}
+                    canRetry={() => true}
+                />,
+                { wrapper }
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+            expect(onRetry).toHaveBeenCalledWith(row);
+            expect(screen.getByRole('button', { name: 'Delete' })).toBeDefined();
+        });
+
+        it('offers Delete only when its pictures are gone (a reload)', () => {
+            render(
+                <MessageList
+                    messages={[pictures('failed')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    onRetry={vi.fn()}
+                    onDiscard={vi.fn()}
+                    canRetry={() => false}
+                />,
+                { wrapper }
+            );
+
+            expect(screen.getByText('Not delivered')).toBeDefined();
+            expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+            expect(screen.getByRole('button', { name: 'Delete' })).toBeDefined();
+        });
+    });
 });

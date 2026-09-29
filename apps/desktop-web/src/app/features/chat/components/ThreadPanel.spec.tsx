@@ -23,9 +23,6 @@ vi.mock('@chatic/app-runtime', () => ({
 
 let messages: DomainChat[] = [];
 vi.mock('../../../shared/hooks/useChats', () => ({ useChats: () => ({ messages }) }));
-vi.mock('../../../shared/hooks/useChatMutations', () => ({
-    useChatMutations: () => ({ sendMessage: vi.fn(), retryMessage: vi.fn(), discardMessage: vi.fn() }),
-}));
 const composerSend = vi.fn();
 const useComposerSend = vi.fn((_target: unknown) => ({ send: composerSend }));
 const clearTray = vi.fn();

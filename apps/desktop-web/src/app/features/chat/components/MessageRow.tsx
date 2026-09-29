@@ -35,6 +35,7 @@ import {
     canModifyMessage,
     hasMyReaction,
     isEdited,
+    isSendingImages,
     threadRootId,
     type MessageGroup,
     type ReactionTally,
@@ -87,6 +88,8 @@ export interface ThreadMetaView {
 interface MessageRowProps {
     group: MessageGroup;
     onRetry?: (message: DomainChat) => void;
+    /** Whether Retry is offered on a failed message. Absent: always (a text message can always be resent). */
+    canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
     /** Folded reactions for the whole feed, keyed by message id. */
@@ -207,6 +210,7 @@ export const MessageRow = memo(
     ({
         group,
         onRetry,
+        canRetry,
         onDiscard,
         reactions,
         reactorName,
@@ -372,9 +376,12 @@ export const MessageRow = memo(
                     <div className="flex flex-col gap-0.5">
                         {group.messages.map((message, i) => {
                             // A long-pending row is an unsent artifact, not an in-flight
-                            // send — treat it as failed so Retry/Delete are offered.
+                            // send — treat it as failed so Retry/Delete are offered. Pictures
+                            // still uploading are in flight however long they take; a picture
+                            // row a reload left behind is failed by the send's own sweep.
                             const isStuck =
                                 !!message.isPending &&
+                                !isSendingImages(message) &&
                                 Date.now() - (message.createdAt ?? message.createdAtMs ?? 0) > STUCK_PENDING_MS;
                             const isPending = message.isPending && !isStuck;
                             const isFailed = message.isFailed || isStuck;
@@ -879,7 +886,7 @@ export const MessageRow = memo(
                                     {isFailed && (
                                         <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
                                             {t('chat.failed')}
-                                            {onRetry && (
+                                            {onRetry && (canRetry?.(message) ?? true) && (
                                                 <button
                                                     type="button"
                                                     onClick={() => onRetry(message)}

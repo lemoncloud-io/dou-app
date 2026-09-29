@@ -7,7 +7,7 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -20,7 +20,6 @@ import {
     isSelfChannel,
     lastChatNoOf,
     useAuthorNames,
-    useChatMutations,
     useChats,
     useMessageJumpStore,
     useOpenAtBottomStore,
@@ -93,10 +92,6 @@ export const ChatPane = ({
         channelId,
         channel ? lastChatNoOf(channel) : undefined
     );
-    const { retryMessage, discardMessage } = useChatMutations();
-    // Stable identities: MessageRow is memo'd, and an inline closure here would
-    // re-render every visible row on each ChatPane render.
-    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
@@ -352,8 +347,9 @@ export const ChatPane = ({
                     names={memberNames}
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
-                    onRetry={retryMessage}
-                    onDiscard={handleDiscard}
+                    onRetry={composer.retry}
+                    canRetry={composer.canRetry}
+                    onDiscard={composer.discard}
                     onLoadOlder={handleLoadOlder}
                     hasMore={hasMore}
                     isLoadingOlder={isLoadingOlder}
