@@ -51,7 +51,10 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * bound to the previous cloud's partition and streaming its channels forever. Re-key on
  * uid too. Mirrors apps/web useHomeChannels (57a58278).
  */
-export const useChannels = (placeId: string | undefined) => {
+export const useChannels = (
+    placeId: string | undefined,
+    { cloudWideOnly = false }: { cloudWideOnly?: boolean } = {}
+) => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
@@ -71,7 +74,10 @@ export const useChannels = (placeId: string | undefined) => {
     }
 
     useEffect(() => {
-        if (!placeId) {
+        // No place: nothing, unless the caller knows the cloud has no place at all — then its 1:1s
+        // are all there is to list. A place merely not selected yet (loading, or the site cleared
+        // mid-switch) must stay empty, or the home screen would auto-select a 1:1 in that window.
+        if (!placeId && !cloudWideOnly) {
             setRawChannels([]);
             setRawLoading(false);
             return;
@@ -84,7 +90,9 @@ export const useChannels = (placeId: string | undefined) => {
         let cancelled = false;
         const unsubscribe = channelRepository.observeList({ sid: '' }, result => {
             if (cancelled) return;
-            const list = (result?.list ?? []).filter(c => isInPlaceList(c, placeId) || isCloudWideChannel(c));
+            const list = (result?.list ?? []).filter(
+                c => (!!placeId && isInPlaceList(c, placeId)) || isCloudWideChannel(c)
+            );
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });
@@ -92,7 +100,7 @@ export const useChannels = (placeId: string | undefined) => {
             cancelled = true;
             unsubscribe();
         };
-    }, [channelRepository, placeId, myUid]);
+    }, [channelRepository, placeId, myUid, cloudWideOnly]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).

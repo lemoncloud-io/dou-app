@@ -117,7 +117,10 @@ export const HomePage = () => {
     // Scope the list by the session's site id, not by `selectedPlaceId`: the Default Cloud spans
     // several sites (the relay's own site holds the Self Channel), and its 'default' sentinel
     // would match no record. Mirrors apps/web useHomeChannels.
-    const { channels, isLoading } = useChannels(selectedSiteId ?? undefined);
+    // A subscription cloud with no place at all still lists its 1:1s. Only once the places are known
+    // to be empty — while they load or a switch is in flight, "no place" just means "not yet".
+    const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
+    const { channels, isLoading } = useChannels(selectedSiteId ?? undefined, { cloudWideOnly: hasNoPlace });
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);

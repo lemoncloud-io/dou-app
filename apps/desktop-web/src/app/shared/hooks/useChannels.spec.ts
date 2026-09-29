@@ -93,10 +93,25 @@ describe('useChannels', () => {
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['group-b']));
     });
 
+    // A place not selected yet (loading, or the site cleared mid cloud switch) lists nothing: a 1:1
+    // listed in that window would be auto-selected by the home screen before the place lands.
     it('lists nothing and does not subscribe without a place', () => {
         const { result } = renderHook(() => useChannels(undefined));
 
         expect(result.current.channels).toEqual([]);
         expect(observeList).not.toHaveBeenCalled();
+    });
+
+    // A subscription cloud with no place at all still owns its 1:1s.
+    it('lists only the cloud 1:1s for a cloud known to have no place', async () => {
+        cacheRows = [
+            { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a' },
+            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },
+            { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
+        ];
+
+        const { result } = renderHook(() => useChannels(undefined, { cloudWideOnly: true }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1']));
     });
 });
