@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-29] - No version updates
+
+### Bug Fixes
+
+- (web/home) keep home under an invited room, not replace it with the room
+
 ## [2026-09-29] - root@0.70.0, @chatic/desktop-web@0.15.0
 
 ### Features
