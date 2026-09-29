@@ -152,8 +152,8 @@ they are the message's actual words.
 ## Typography
 
 **Pretendard**, weights 400 / 500 / 600 / 700 / 800, with the system stack as fallback.
-Desktop loads it from jsDelivr (the upstream release, Unicode-range subset). `apps/web` still
-imports it from Google Fonts, which does not serve Pretendard, so web renders the fallback. Antialiased. Every app sets it on `html`.
+Desktop loads it from jsDelivr (the upstream release, full files — not the Unicode-range
+subset, which lacks the U+200B glyph the composer needs). `apps/web` still imports it from Google Fonts, which does not serve Pretendard, so web renders the fallback. Antialiased. Every app sets it on `html`.
 
 ### Desktop scale (`apps/desktop-web/tailwind.config.js`)
 

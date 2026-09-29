@@ -1,7 +1,8 @@
 /* Google Fonts does not serve Pretendard (that request answers 400), so the app
-   ran on the system fallback. jsDelivr carries the upstream release, subset by
-   Unicode range so a Latin-only screen fetches no Hangul. */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css');
+   ran on the system fallback. jsDelivr carries the upstream release — the full files,
+   not the Unicode-range subset: the subset has no U+200B glyph, which Lexical inserts
+   while an IME composes, and without it the caret lands inside the composing syllable. */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
 @tailwind base;
 @tailwind components;
