@@ -1,13 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Hash, Search } from 'lucide-react';
+import { Hash, Search, User } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { formatShortDate, messagePlainText, useListboxNav } from '../../../shared';
+import {
+    channelKind,
+    channelRef,
+    formatShortDate,
+    messagePlainText,
+    useChannelLabels,
+    useListboxNav,
+} from '../../../shared';
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
 
@@ -52,6 +59,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
     const { results, isSearching, isTruncated } = useMessageSearch(open ? query : '', channels);
+    const labelOf = useChannelLabels(channels);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -160,7 +168,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                         // picking it opens the channel. Say so, or a screen
                                         // reader hears a heading that answers Enter.
                                         aria-label={t('search.openChannel', {
-                                            name: result.channel.name ?? channelId,
+                                            name: channelRef(channelKind(result.channel), labelOf(result.channel)),
                                         })}
                                         onMouseEnter={() => nav.setActiveIndex(headerIndex)}
                                         onClick={() => pick(options[headerIndex])}
@@ -169,8 +177,12 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                                             headerIndex === nav.activeIndex ? 'bg-accent' : 'hover:bg-accent/60'
                                         )}
                                     >
-                                        <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
-                                        <span className="truncate">{result.channel.name ?? result.channel.id}</span>
+                                        {channelKind(result.channel) === 'channel' ? (
+                                            <Hash size={12} className="shrink-0 text-muted-foreground" aria-hidden />
+                                        ) : (
+                                            <User size={12} className="shrink-0 text-muted-foreground" aria-hidden />
+                                        )}
+                                        <span className="truncate">{labelOf(result.channel)}</span>
                                         <span className="ml-auto shrink-0 font-normal tabular-nums text-muted-foreground">
                                             {t('search.matchCount', { count: result.matchCount })}
                                         </span>

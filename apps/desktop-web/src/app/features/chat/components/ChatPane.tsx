@@ -15,6 +15,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     Hint,
     MOD_KEY,
+    channelKind,
     dmCounterpartId,
     displayName,
     isDmChannel,
@@ -22,6 +23,7 @@ import {
     lastChatNoOf,
     resolveDisplay,
     useAuthorNames,
+    useChannelLabels,
     useChatMutations,
     useChats,
     useMessageJumpStore,
@@ -60,7 +62,7 @@ interface ChatPaneProps {
      * Where a jump brought the reader from, and how to go back. Supplied by the
      * host, which owns both the channel list (for the name) and the jump itself.
      */
-    jumpReturn?: { originName: string; onReturn: () => void; onDismiss: () => void };
+    jumpReturn?: { originName?: string; onReturn: () => void; onDismiss: () => void };
     /**
      * What the pane offers with no channel open. `pick` when the sidebar has
      * channels, `create` when this place has none, `join` on the Default Cloud,
@@ -108,6 +110,8 @@ export const ChatPane = ({
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(pinScope);
     const isFavorite = channelId ? pinnedIds.includes(channelId) : false;
     const openThread = useThreadStore(s => s.open);
+    const labeled = useMemo(() => (channel ? [channel] : []), [channel]);
+    const labelOf = useChannelLabels(labeled);
     // Saved-item / search jump: forward a target to MessageList only when it
     // belongs to the open channel; clear it once the list has consumed it.
     const jumpRequest = useMessageJumpStore(s => s.target);
@@ -115,9 +119,17 @@ export const ChatPane = ({
     const jumpTarget = useMemo(
         () =>
             jumpRequest && jumpRequest.channelId === channelId
-                ? { chatNo: jumpRequest.chatNo, nonce: jumpRequest.nonce }
+                ? { chatNo: jumpRequest.chatNo, nonce: jumpRequest.nonce, restore: jumpRequest.restore }
                 : undefined,
         [jumpRequest, channelId]
+    );
+    // The feed reports what the reader is looking at, so a jump can record it as the way back.
+    const setReadingPosition = useMessageJumpStore(s => s.setPosition);
+    const reportPosition = useCallback(
+        (chatNo: number | null) => {
+            if (channelId) setReadingPosition({ channelId, chatNo });
+        },
+        [channelId, setReadingPosition]
     );
     // Thread replies belong to the panel (ADR 0008) and reaction events are chips, not
     // rows — `isFeedVisible` owns both rules. Deleted messages stay and render as a
@@ -225,13 +237,13 @@ export const ChatPane = ({
     const memberCount = channel.memberIds?.length ?? channel.memberNo ?? 0;
     const desc = channel.desc?.trim();
     // DM headers carry the other party, resolved like the sidebar row: this place's profile first
-    // (nick and photo), then the roster record already loaded here. The self channel reads as "You".
-    let headerName = channel.name ?? channelId;
+    // (nick and photo), then the roster record already loaded here, then the shared label (the
+    // user cache). The self channel reads as "You"; a channel, as its name without `#`.
+    const introKind = channelKind(channel);
+    let headerName = labelOf(channel);
     let dmAvatar: string | undefined;
     const counterpartId = isDmChannel(channel) ? dmCounterpartId(channel, viewer.uid, viewer.cloudUid) : undefined;
-    if (isSelfChannel(channel)) {
-        headerName = t('dm.you');
-    } else if (isDmChannel(channel)) {
+    if (introKind === 'dm') {
         const counterpart = members.find(m => m.id === counterpartId);
         const display = resolveDisplay(
             counterpartId ? placeProfiles[counterpartId] : undefined,
@@ -241,7 +253,12 @@ export const ChatPane = ({
         headerName = display.name;
         dmAvatar = display.thumbnail;
     }
-    const introKind = isSelfChannel(channel) ? 'self' : isDmChannel(channel) ? 'dm' : 'channel';
+    const composerPlaceholder =
+        introKind === 'self'
+            ? t('chat.composer.placeholderSelf')
+            : introKind === 'dm'
+              ? t('chat.composer.placeholderDm', { name: headerName })
+              : t('chat.composer.placeholderChannel', { name: headerName });
     const intro = (
         <ChannelIntro
             kind={introKind}
@@ -365,13 +382,14 @@ export const ChatPane = ({
                     onOpenThread={openThread}
                     jumpTarget={jumpTarget}
                     onJumpConsumed={clearJump}
+                    onReadingPosition={reportPosition}
                     readCountOf={readCountOf}
                     intro={intro}
                 />
                 <Composer
                     onSend={handleSend}
                     channelId={channelId}
-                    placeholder={t('chat.composer.placeholderChannel', { name: headerName })}
+                    placeholder={composerPlaceholder}
                     mentionables={mentionables}
                     attachments={tray.attachments}
                     onAddFiles={tray.addFiles}

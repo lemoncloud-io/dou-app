@@ -35,7 +35,11 @@ import {
     useSelectedChannelStore,
     useSiteProfiles,
     useStartDm,
+    channelKind,
+    channelRef,
     isSelfChannel,
+    useChannelLabels,
+    type MessageJumpOrigin,
     useUnreadStore,
 } from '../../../shared';
 import {
@@ -53,6 +57,7 @@ import {
 import { useMessageViewer, usePendingLanding, useReadCounts } from '../hooks';
 import { landingTarget, pendingOpenRoute } from '../utils';
 import { useThreadStore } from '../stores';
+import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -169,17 +174,33 @@ export const HomePage = () => {
         openThread(rootId);
     };
 
+    const here: ReaderLocation = {
+        cloudId: activeCloudId ?? 'default',
+        placeId: selectedPlaceId ?? null,
+        channelId: selectedChannelId,
+    };
+    const labelOf = useChannelLabels(channels);
+    // Record where the reader stands BEFORE anything moves: the message they were
+    // reading and the thread beside it, not only the channel. A jump inside the
+    // open channel records too, because it moves them just as far.
+    const recordOrigin = (targetChannelId: string) => {
+        const current = channels.find(channel => channel.id === selectedChannelId);
+        setJumpOrigin(
+            current
+                ? originFor(here, targetChannelId, {
+                      label: channelRef(channelKind(current), labelOf(current)),
+                      position: useMessageJumpStore.getState().position,
+                      threadRootId: openThreadRootId ?? null,
+                  })
+                : null
+        );
+    };
+
     // Open a saved item: when it lives in another place, switch place first and
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
     const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => {
-        // Record the return point BEFORE anything moves. A jump inside the open
-        // channel is not a departure, so it records nothing.
-        setJumpOrigin(
-            selectedChannelId && selectedChannelId !== channelId
-                ? { placeId: selectedPlaceId ?? null, channelId: selectedChannelId }
-                : null
-        );
+        recordOrigin(channelId);
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
             // A thread reply opens the thread panel once its channel loads; a
@@ -208,6 +229,9 @@ export const HomePage = () => {
         if (!pendingOpen?.channelId) return;
         const { cloudId, placeId, channelId, rootId } = pendingOpen;
         const activeCloud = activeCloudId ?? 'default';
+        // A notification is a detour like any other jump, the open channel included:
+        // it moves the reader to the latest or swaps the thread beside it.
+        recordOrigin(channelId);
         // A reply opens the thread panel, a top-level message lands at the bottom of the feed.
         // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
         pendingThreadRef.current = rootId ? { channelId, rootId } : null;
@@ -386,7 +410,7 @@ export const HomePage = () => {
             const jump = pendingJumpRef.current;
             if (jump && jump.channelId === pending) {
                 pendingJumpRef.current = null;
-                requestMessageJump(pending, jump.chatNo);
+                requestMessageJump(pending, jump.chatNo, { restore: jump.restore });
             }
         }
     }, [
@@ -456,8 +480,10 @@ export const HomePage = () => {
 
     // Picking one of those is the same move as jumping to a saved message in
     // another place: switch place, then land on the channel once it loads.
+    // Like a pick from the list, it is a deliberate move and leaves no return point.
     const selectElsewhere = useCallback((channelId: string, placeId: string) => {
         jumpToSavedRef.current(channelId, undefined, placeId);
+        useMessageJumpStore.getState().clearOrigin();
     }, []);
 
     // jumpToSaved closes over render state; the ref keeps the handler identity fixed
@@ -496,29 +522,53 @@ export const HomePage = () => {
         []
     );
 
-    // The return leg of a jump. Offered only while the reader is somewhere other
-    // than where they started, and only while that channel is still in the list —
-    // a channel they were removed from is not somewhere to send them back to.
+    // The return leg of a jump: the same cloud, place and channel, the message that was
+    // at the top of the feed and the thread that was open. It used to reopen the channel
+    // alone, at its latest message with the thread shut, which is not where anyone was.
     const jumpOrigin = useMessageJumpStore(s => s.origin);
     const clearJumpOrigin = useMessageJumpStore(s => s.clearOrigin);
-    const originChannel =
-        jumpOrigin && jumpOrigin.channelId !== selectedChannelId
-            ? channels.find(channel => channel.id === jumpOrigin.channelId)
-            : undefined;
-    const jumpReturn =
-        jumpOrigin && originChannel
-            ? {
-                  originName: originChannel.name ?? originChannel.id ?? '',
-                  onReturn: () => {
-                      jumpToSaved(jumpOrigin.channelId, undefined, jumpOrigin.placeId ?? undefined);
-                      // After, not before: jumpToSaved records the channel being left
-                      // as a new origin, and going back is the end of a detour, not
-                      // the start of one. Both of its paths record synchronously.
-                      clearJumpOrigin();
-                  },
-                  onDismiss: clearJumpOrigin,
-              }
-            : undefined;
+    const returnToOrigin = (origin: MessageJumpOrigin) => {
+        // Going back ends the detour; it is not the start of a new one.
+        clearJumpOrigin();
+        const { channelId, anchorChatNo, threadRootId } = origin;
+        const route = returnRoute(origin, here);
+        if (route !== 'select') {
+            pendingChannelRef.current = channelId;
+            pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
+            pendingJumpRef.current = anchorChatNo != null ? { channelId, chatNo: anchorChatNo, restore: true } : null;
+            pendingOpenAtBottomRef.current = anchorChatNo == null ? channelId : null;
+            armPendingExpiry();
+            if (route === 'switch-cloud') {
+                if (origin.placeId && origin.placeId !== 'default') pendingPlaceRef.current = origin.placeId;
+                void switchAfterHandshake(() => switchCloud(origin.cloudId));
+            } else if (origin.placeId) {
+                switchPlace(origin.placeId);
+            }
+            return;
+        }
+        selectChannel(channelId);
+        if (anchorChatNo != null) {
+            requestMessageJump(channelId, anchorChatNo, { restore: true });
+        } else if (channelId !== selectedChannelId) {
+            requestOpenAtBottom(channelId);
+        } else {
+            // Same channel, where the feed stays mounted: ask it for the latest directly.
+            // The channel's last chatNo can be a reply or a reaction, which has no row.
+            requestMessageJump(channelId, null, { restore: true });
+        }
+        if (threadRootId) openThreadNowOrDefer(channelId, threadRootId);
+        // A jump inside the channel may have opened a thread the reader did not have.
+        else if (channelId === selectedChannelId) closeThread();
+    };
+    const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
+    const jumpReturn = shouldOfferReturn(jumpOrigin, here, listedChannelIds)
+        ? {
+              // Back in the channel after a jump inside it: its name would say "you are here".
+              originName: jumpOrigin.channelId === selectedChannelId ? undefined : jumpOrigin.label,
+              onReturn: () => returnToOrigin(jumpOrigin),
+              onDismiss: clearJumpOrigin,
+          }
+        : undefined;
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
@@ -568,7 +618,12 @@ export const HomePage = () => {
                         activeCloudId={activeCloudId}
                         hasUnread={cloudHasUnread}
                         badgedClouds={badgedClouds}
-                        onSelectCloud={cloudId => void switchCloud(cloudId)}
+                        // Switching from the rail is a deliberate move, like picking a
+                        // channel from the list, so it retires any return point.
+                        onSelectCloud={cloudId => {
+                            clearJumpOrigin();
+                            void switchCloud(cloudId);
+                        }}
                         isSwitching={railLocked}
                     />
                 }
@@ -579,7 +634,10 @@ export const HomePage = () => {
                         unreadByPlace={unreadByPlace}
                         isDefaultMode={isDefaultMode}
                         isSwitching={isSwitching}
-                        onSelectPlace={placeId => switchPlace(placeId)}
+                        onSelectPlace={placeId => {
+                            clearJumpOrigin();
+                            switchPlace(placeId);
+                        }}
                     />
                 }
                 sidebar={

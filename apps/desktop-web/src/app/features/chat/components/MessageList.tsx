@@ -10,6 +10,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { Hint, Skeleton, resolveDisplay, useReducedMotion, useSiteProfileMap } from '../../../shared';
 import {
     buildMessageRows,
+    firstVisibleChatNo,
     isOwnMessage,
     isViewerId,
     type MessageViewer,
@@ -51,10 +52,15 @@ interface MessageListProps {
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open a thread; wired only for the main channel feed (not the thread panel). */
     onOpenThread?: (rootId: string) => void;
-    /** Scroll a specific message into view + flash it (saved-item / search jump). */
-    jumpTarget?: { chatNo: number; nonce: number };
+    /**
+     * Scroll a specific message into view + flash it (saved-item / search jump).
+     * `restore` puts it back at the top of the view without the flash (a return trip).
+     */
+    jumpTarget?: { chatNo: number | null; nonce: number; restore?: boolean };
     /** Called once a jump is consumed (landed or abandoned) so the store can clear. */
     onJumpConsumed?: () => void;
+    /** The first message in view as the reader scrolls; null at the latest. */
+    onReadingPosition?: (chatNo: number | null) => void;
     /** Read/unread counts per message (see `useReadCounts`); absent shows no receipts. */
     readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
     /**
@@ -101,6 +107,7 @@ export const MessageList = ({
     onOpenThread,
     jumpTarget,
     onJumpConsumed,
+    onReadingPosition,
     readCountOf,
     intro,
 }: MessageListProps) => {
@@ -379,6 +386,12 @@ export const MessageList = ({
         return () => cancelAnimationFrame(pinRafRef.current);
     }, [scrollSignal]);
 
+    // The "New messages" divider clears only when the reader actively scrolls
+    // DOWN into the bottom (a not-near-bottom → near-bottom transition). Focus,
+    // channel-open auto-scroll, and live-follow all land at the bottom too but
+    // must NOT dismiss an unseen divider — track the previous state for the edge.
+    const wasNearBottomRef = useRef(true);
+
     // Drive a jump request: center the target message's DOM node and flash it.
     // If it isn't loaded (older than the live page), page older — bounded — and
     // the `messages` dependency re-runs this as each page lands.
@@ -393,12 +406,34 @@ export const MessageList = ({
         // Already handled (landed or abandoned) — don't re-scroll on live-tail ticks
         // that re-run this effect before the store clears the target.
         if (jumpRef.current.done) return;
+        // A return point is the reading position, not a message to find. Back to the
+        // latest, or to an anchor that is gone, both end at the bottom, where the feed
+        // opens; paging back for it and reporting "not found" would strand the reader.
+        const restoreToBottom = () => {
+            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: true };
+            setAtBottom(true);
+            wasNearBottomRef.current = true;
+            pinToBottom();
+            onJumpConsumed?.();
+        };
+        if (jumpTarget.chatNo == null) {
+            restoreToBottom();
+            return;
+        }
         const node = el.querySelector<HTMLElement>(`[data-chat-no="${jumpTarget.chatNo}"]`);
         if (node) {
-            node.scrollIntoView({ block: 'center' });
-            setHighlightChatNo(jumpTarget.chatNo);
-            if (highlightTimer.current) clearTimeout(highlightTimer.current);
-            highlightTimer.current = setTimeout(() => setHighlightChatNo(null), 1600);
+            node.scrollIntoView({ block: jumpTarget.restore ? 'start' : 'center' });
+            if (!jumpTarget.restore) {
+                setHighlightChatNo(jumpTarget.chatNo);
+                if (highlightTimer.current) clearTimeout(highlightTimer.current);
+                highlightTimer.current = setTimeout(() => setHighlightChatNo(null), 1600);
+            }
+            // Settle the pin state now. It used to wait for the scroll frame, so a page
+            // landing in between still saw "at the bottom", followed the tail, and carried
+            // the reader past the message they jumped to.
+            const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+            setAtBottom(nearBottom);
+            wasNearBottomRef.current = nearBottom;
             jumpRef.current.done = true;
             onJumpConsumed?.();
             return;
@@ -413,6 +448,10 @@ export const MessageList = ({
         // Say so. Giving up silently left the reader mid-history, paged back up to
         // eight pages, with no highlight and no hint that the target was not found.
         if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
+            if (jumpTarget.restore) {
+                restoreToBottom();
+                return;
+            }
             jumpRef.current.done = true;
             toast({ variant: 'info', description: t('chat.jump.notFound') });
             onJumpConsumed?.();
@@ -441,12 +480,6 @@ export const MessageList = ({
         []
     );
 
-    // The "New messages" divider clears only when the reader actively scrolls
-    // DOWN into the bottom (a not-near-bottom → near-bottom transition). Focus,
-    // channel-open auto-scroll, and live-follow all land at the bottom too but
-    // must NOT dismiss an unseen divider — track the previous state for the edge.
-    const wasNearBottomRef = useRef(true);
-
     // Scroll events fire many times per frame; the handler reads three layout
     // properties each time. Coalesce to one pass per animation frame.
     const scrollRafRef = useRef(0);
@@ -463,6 +496,7 @@ export const MessageList = ({
         if (!el) return;
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
         setAtBottom(nearBottom);
+        if (onReadingPosition) onReadingPosition(nearBottom ? null : firstVisibleChatNo(el));
         // Clear the divider only on a genuine scroll DOWN into the bottom (was
         // above it, now near it). Opening a channel or an auto-follow also reaches
         // the bottom, but those keep the divider until the reader scrolls past it.
