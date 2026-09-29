@@ -174,4 +174,24 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
         await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(1234);
         expect(warn).not.toHaveBeenCalled();
     });
+
+    it("an override reads and writes the partition it names, not the provider's", async () => {
+        // The provider selects cloud B; a caller that names cloud A must land in A.
+        const metas = createPartitionedMemoryStorage('meta');
+        const provider = { getContext: () => ({ cid: 'cloud-b', uid: 'user-b' }), setContext: () => undefined };
+        const source = new SyncMetaLocalDataSource(provider, metas);
+
+        await source.setSyncedAt('channel-sync:cloud-a', 42, { cid: 'cloud-a', uid: 'user-a' });
+
+        await expect(metas.forScope({ cid: 'cloud-a', uid: 'user-a' }).load('channel-sync:cloud-a')).resolves.toEqual(
+            expect.objectContaining({ cid: 'cloud-a', uid: 'user-a', syncedAt: 42 })
+        );
+        await expect(
+            metas.forScope({ cid: 'cloud-b', uid: 'user-b' }).load('channel-sync:cloud-a')
+        ).resolves.toBeNull();
+
+        const load = jest.spyOn(metas.forScope({ cid: 'cloud-a', uid: 'user-a' }), 'load');
+        await source.getSyncedAt('channel-sync:cloud-a', { cid: 'cloud-a', uid: 'user-a' });
+        expect(load).toHaveBeenCalledWith('channel-sync:cloud-a');
+    });
 });

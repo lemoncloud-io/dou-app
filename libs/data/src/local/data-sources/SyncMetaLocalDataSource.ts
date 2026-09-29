@@ -1,13 +1,14 @@
 import type { CacheMetaView } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories/types';
+import type { LocalDataSourceContextOverride } from './types';
 import { logger, type ObservationData } from '@chatic/bridges';
 import type { ScopedCacheStorage } from '../ports';
 import { resolveTtlMs } from '../ports/policy';
 import { BaseLocalDataSource } from './types';
 
 export interface ISyncMetaLocalDataSource {
-    getSyncedAt(kind: string): Promise<number>;
-    setSyncedAt(kind: string, syncedAt: number): Promise<void>;
+    getSyncedAt(kind: string, contextOverride?: LocalDataSourceContextOverride): Promise<number>;
+    setSyncedAt(kind: string, syncedAt: number, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 }
 
 /**
@@ -43,8 +44,8 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> impleme
         super(contextProvider, storages);
     }
 
-    public async getSyncedAt(kind: string): Promise<number> {
-        const row = await this.storage().load(kind);
+    public async getSyncedAt(kind: string, contextOverride?: LocalDataSourceContextOverride): Promise<number> {
+        const row = await this.storage(contextOverride).load(kind);
         // No row at all is a first sync, not a retirement — the common cold-start path stays silent.
         if (!row) return 0;
         // A cursor written before this stamp existed has no `routing` and cannot be shown to
@@ -88,14 +89,20 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> impleme
         } satisfies ObservationData);
     }
 
-    public async setSyncedAt(kind: string, syncedAt: number): Promise<void> {
+    public async setSyncedAt(
+        kind: string,
+        syncedAt: number,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<void> {
+        // One context for the row's stamp and the partition it is saved in.
+        const context = this.resolveContext(contextOverride);
         const view: CacheMetaView = {
             id: kind,
-            cid: this.getCid(),
-            uid: this.getUid(),
+            cid: this.getCid(context),
+            uid: this.getUid(context),
             syncedAt,
             ...(this.routingFingerprint ? { routing: this.routingFingerprint } : {}),
         };
-        await this.storage().save(kind, view);
+        await this.storage(context).save(kind, view);
     }
 }
