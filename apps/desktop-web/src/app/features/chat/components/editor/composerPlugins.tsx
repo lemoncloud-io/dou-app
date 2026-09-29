@@ -1,22 +1,28 @@
 import { useEffect, useRef } from 'react';
 
 import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
+import { $isAutoLinkNode, createLinkMatcherWithRegExp } from '@lexical/link';
 import { $convertFromMarkdownString } from '@lexical/markdown';
+import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $setBlocksType } from '@lexical/selection';
+import { $findMatchingParent, mergeRegister } from '@lexical/utils';
 import {
     $createParagraphNode,
     $getRoot,
+    $getNearestNodeFromDOMNode,
     $getSelection,
     $isRangeSelection,
+    $isTextNode,
     COMMAND_PRIORITY_LOW,
     FORMAT_TEXT_COMMAND,
     KEY_DOWN_COMMAND,
     KEY_ENTER_COMMAND,
     type LexicalEditor,
+    TextNode,
 } from 'lexical';
 
-import { useComposerDraftStore } from '../../../../shared';
+import { LINK_URL_SOURCE, useComposerDraftStore } from '../../../../shared';
 import { COMPOSER_TRANSFORMERS } from './editorConfig';
 
 /** Toggle the selection's block between code block and paragraph. */
@@ -28,6 +34,63 @@ export const toggleCodeBlock = (editor: LexicalEditor): void => {
         if ($isCodeNode(top)) $setBlocksType(selection, () => $createParagraphNode());
         else $setBlocksType(selection, () => $createCodeNode());
     });
+};
+
+// Module-level: AutoLinkPlugin re-registers whenever these arrays change identity.
+const URL_MATCHERS = [createLinkMatcherWithRegExp(new RegExp(LINK_URL_SOURCE))];
+const NOT_IN_CODE_BLOCK = [$isCodeNode];
+
+/**
+ * Marks a typed or pasted URL as a link while it is still in the composer,
+ * Slack-style. Uses the same URL pattern RichText links, so the composer does not
+ * show a link that arrives as plain text. Code is left alone because RichText
+ * does not link inside it: code blocks are excluded as parents, and a URL in
+ * inline code is kept as an unlinked AutoLinkNode (a plain span). Lexical's
+ * matcher only sees text, not its format, so it cannot skip inline code itself.
+ *
+ * Clicking a link opens it in a new window, as in Slack — in the desktop shell
+ * that hands it to the system browser. Lexical's ClickableLinkPlugin would also
+ * open the unlinked inline-code ones (they are still link nodes), hence the
+ * listener here. A click that ends a drag-selection only selects.
+ */
+export const ComposerAutoLinkPlugin = () => {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+        const openLink = (event: MouseEvent) => {
+            if (!(event.target instanceof Node)) return;
+            const target = event.target;
+            // `{ editor }` lets the DOM-to-node lookup run outside an update callback.
+            const url = editor.getEditorState().read(
+                () => {
+                    const selection = $getSelection();
+                    if ($isRangeSelection(selection) && !selection.isCollapsed()) return null;
+                    const node = $getNearestNodeFromDOMNode(target);
+                    const link = node && $findMatchingParent(node, $isAutoLinkNode);
+                    return link && !link.getIsUnlinked() ? link.getURL() : null;
+                },
+                { editor }
+            );
+            if (!url) return;
+            event.preventDefault();
+            window.open(url, '_blank', 'noopener,noreferrer');
+        };
+
+        return mergeRegister(
+            editor.registerNodeTransform(TextNode, text => {
+                const link = text.getParent();
+                if (!$isAutoLinkNode(link)) return;
+                const inCode = link.getChildren().some(child => $isTextNode(child) && child.hasFormat('code'));
+                if (link.getIsUnlinked() !== inCode) link.setIsUnlinked(inCode);
+            }),
+            editor.registerRootListener((root, prevRoot) => {
+                prevRoot?.removeEventListener('click', openLink);
+                root?.addEventListener('click', openLink);
+            })
+        );
+    }, [editor]);
+
+    return <AutoLinkPlugin matchers={URL_MATCHERS} excludeParents={NOT_IN_CODE_BLOCK} />;
 };
 
 /**
