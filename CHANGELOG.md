@@ -2,6 +2,16 @@
 
 ## [2026-09-29] - No version updates
 
+### Features
+
+- (web/channels) let a photo take reactions and threads on long press, like text (ADR-0136)
+
+### Bug Fixes
+
+- (web/channels) draw a deleted thread root as a tombstone, not its surviving text
+
+## [2026-09-29] - No version updates
+
 ### Bug Fixes
 
 - (desktop,desktop-web) save images without a dialog on download all
