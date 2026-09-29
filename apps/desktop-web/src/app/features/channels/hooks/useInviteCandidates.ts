@@ -18,11 +18,11 @@ interface InviteCandidatesOptions {
     enabled?: boolean;
 }
 
-// The label a candidate's "via" context shows for a channel, or null for none. A 1:1 or a
+// The label a candidate's "via" context shows for a channel, or '' for none. A 1:1 or a
 // notes-to-self room usually has no name, and its fallback would be a raw channel id; the
 // person is still offered, just without that room as context.
-const viaLabelOf = (channel: DomainChannel): string | null =>
-    isDmChannel(channel) || isSelfChannel(channel) ? null : (channel.name ?? channel.id ?? '');
+const viaLabelOf = (channel: DomainChannel): string =>
+    isDmChannel(channel) || isSelfChannel(channel) ? '' : (channel.name ?? channel.id ?? '');
 
 /**
  * People I can add to `targetChannelId`: every member of my *other* channels in the
@@ -61,7 +61,7 @@ export const useInviteCandidates = (
     const channelKey = channels.map(c => c.id ?? '').join(',');
     // Names are keyed separately: renaming a channel leaves the id set untouched, so keying the
     // name map on channelKey alone would keep showing the old name under every candidate.
-    const channelNameKey = channels.map(c => `${c.id ?? ''}\u0000${viaLabelOf(c) ?? ''}`).join(',');
+    const channelNameKey = channels.map(c => `${c.id ?? ''}\u0000${viaLabelOf(c)}`).join(',');
     const targetMemberKey = (channels.find(c => c.id === targetChannelId)?.memberIds ?? []).join(',');
 
     const myChannelIds = useMemo(() => channelKey.split(',').filter(Boolean), [channelKey]);
@@ -113,7 +113,7 @@ export const useInviteCandidates = (
                 if (channelId === targetChannelId) continue;
                 for (const user of users) {
                     if (!user.id || user.id === myUid || excluded.has(user.id)) continue;
-                    const label = channelNameById.has(channelId) ? channelNameById.get(channelId) : channelId;
+                    const label = channelNameById.get(channelId) ?? channelId;
                     const via = label ? [label] : [];
                     const existing = byId.get(user.id);
                     if (existing) existing.viaChannels.push(...via);

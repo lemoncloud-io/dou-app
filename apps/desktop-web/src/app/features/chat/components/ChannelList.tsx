@@ -205,6 +205,20 @@ const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
+/** A section header's "+" — the Channels and Direct messages sections share it. */
+const SectionAddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
+    <Hint label={label}>
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={label}
+            className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
+        >
+            <Plus size={16} aria-hidden />
+        </button>
+    </Hint>
+);
+
 export const ChannelList = ({
     channels,
     isLoading,
@@ -568,16 +582,7 @@ export const ChannelList = ({
                             // Default Cloud (Self Channel only) does not support channel creation.
                             !isDefaultMode &&
                             onCreateChannel && (
-                                <Hint label={t('rail.addChannel')}>
-                                    <button
-                                        type="button"
-                                        onClick={onCreateChannel}
-                                        aria-label={t('rail.addChannel')}
-                                        className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
-                                    >
-                                        <Plus size={16} aria-hidden />
-                                    </button>
-                                </Hint>
+                                <SectionAddButton label={t('rail.addChannel')} onClick={onCreateChannel} />
                             )
                         }
                     />
@@ -591,20 +596,7 @@ export const ChannelList = ({
                     items={visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm'))}
                     dragDisabled={isFiltering}
                     onReorder={makeSectionReorder('dm')}
-                    action={
-                        onCreateDm && (
-                            <Hint label={t('dm.new.open')}>
-                                <button
-                                    type="button"
-                                    onClick={onCreateDm}
-                                    aria-label={t('dm.new.open')}
-                                    className="focus-ring tactile hit-target flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors ease-tactile hover:bg-accent"
-                                >
-                                    <Plus size={16} aria-hidden />
-                                </button>
-                            </Hint>
-                        )
-                    }
+                    action={onCreateDm && <SectionAddButton label={t('dm.new.open')} onClick={onCreateDm} />}
                 />
             )}
             {/* The row menus' dialog stack renders ONCE here, keyed to the last

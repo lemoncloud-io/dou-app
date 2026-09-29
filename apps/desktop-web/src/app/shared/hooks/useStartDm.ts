@@ -13,12 +13,10 @@ import { usePendingOpenStore } from '../stores';
  * points share: the sidebar's "New message" picker and another person's profile card.
  *
  * The server resolves the pair to a single room, so there is no "already have one?" branch here:
- * asking again returns the room that exists. The room is then opened through the pending-open
- * target rather than selected directly. The call writes the room to the cache before it returns,
- * but the sidebar list only hears about it on the cache's next emit; selecting an id the list
- * does not have yet makes the home screen fall back to the remembered channel. The pending-open
- * path waits for the room to be listed, and it also works from a surface outside the home screen.
- * Its empty place means "stay in this place": a cloud 1:1 is listed in every place of its cloud.
+ * asking again returns the room that exists. The room is opened through the pending-open target,
+ * not selected directly: that path waits until the sidebar lists the new room (see
+ * pendingOpenRoute) and works from surfaces outside the home screen. Its empty place means "stay in
+ * this place", since a cloud 1:1 is listed in every place of its cloud.
  *
  * Only a subscription cloud offers it. On the default (relay) cloud a 1:1 is reached by inviting a
  * phone number, which is a mobile flow, so `isAvailable` is false there and each entry point hides.
