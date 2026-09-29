@@ -50,8 +50,8 @@ import {
     MentionsPanel,
     ThreadPanel,
 } from '../components';
-import { useMessageViewer, useReadCounts } from '../hooks';
-import { pendingOpenRoute } from '../utils';
+import { useMessageViewer, usePendingLanding, useReadCounts } from '../hooks';
+import { landingTarget, pendingOpenRoute } from '../utils';
 import { useThreadStore } from '../stores';
 
 const isWindowActive = (): boolean =>
@@ -59,13 +59,6 @@ const isWindowActive = (): boolean =>
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/place switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
-
-/**
- * How long a deferred landing (channel / place / jump / thread) stays armed.
- * Comfortably past the handshake wait plus a switch; after it, the landing is
- * dropped rather than left to fire on some later, unrelated navigation.
- */
-const PENDING_LANDING_TTL_MS = 30_000;
 
 // A cloud/place switch re-issues tokens against the active server, so firing it over a
 // half-open socket (cold start / just-refocused window) races the connection, fails, and
@@ -151,47 +144,16 @@ export const HomePage = () => {
     const myUid = runtime.session.useSessionIdentity().userId;
 
     const [query, setQuery] = useState('');
-    // A channel to open once its place's channels have loaded (notification click
-    // across places: switchPlace resets selection, so we re-apply it here).
-    const pendingChannelRef = useRef<string | null>(null);
-    // A place to land once a cross-cloud notification switch loads the new cloud's
-    // places — the auto-select-first effect honors this instead of the first place.
-    const pendingPlaceRef = useRef<string | null>(null);
-    // A message to scroll to once a cross-place jump's channel has loaded (paired
-    // with pendingChannelRef when the saved item lives in another place).
-    const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
-    // Set when the deferred open is a NOTIFICATION click (not a saved jump): the
-    // channel should land at its latest message once it loads (requestOpenAtBottom).
-    const pendingOpenAtBottomRef = useRef<string | null>(null);
+    // Deferred landings, and the timer that drops them — see usePendingLanding.
+    const {
+        pendingChannelRef,
+        pendingPlaceRef,
+        pendingJumpRef,
+        pendingOpenAtBottomRef,
+        pendingThreadRef,
+        armPendingExpiry,
+    } = usePendingLanding();
     const requestOpenAtBottom = useOpenAtBottomStore(s => s.request);
-    // A thread to open once its channel is selected + loaded. Deferred (not opened
-    // inline) because selecting a different channel runs closeThread() on its way
-    // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
-    const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
-
-    // The refs above arm on intent and clear on success — with no failure branch.
-    // When a cross-place or cross-cloud switch rolls back, nothing consumes them,
-    // and they used to stay armed until any later load happened to match. Every
-    // cross-switch arming now starts this timer; when it fires, whatever is still
-    // pending is abandoned.
-    const pendingExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const armPendingExpiry = () => {
-        if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
-        pendingExpiryRef.current = setTimeout(() => {
-            pendingExpiryRef.current = null;
-            pendingChannelRef.current = null;
-            pendingPlaceRef.current = null;
-            pendingJumpRef.current = null;
-            pendingThreadRef.current = null;
-            pendingOpenAtBottomRef.current = null;
-        }, PENDING_LANDING_TTL_MS);
-    };
-    useEffect(
-        () => () => {
-            if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
-        },
-        []
-    );
 
     // Open a thread on a channel that is being selected right now — the one rule every entry
     // point (saved item, mention, notification click) needs. Already the selected channel →
@@ -401,11 +363,20 @@ export const HomePage = () => {
     }, [activeCloudId, closeSaved, closeActivity]);
 
     useEffect(() => {
-        // Honor a pending notification / saved-jump target once its channel loads.
-        const pending = pendingChannelRef.current;
-        if (pending && channels.some(channel => channel.id === pending)) {
+        // Honor a pending notification / saved-jump target once its channel loads; otherwise keep a
+        // selection that is still listed (a HomePage remount after profile/settings and back), or
+        // restore the channel last opened in THIS cloud+place.
+        const scope = `${activeCloudId ?? 'default'}:${selectedPlaceId ?? ''}`;
+        const landing = landingTarget(channels, {
+            pendingChannelId: pendingChannelRef.current,
+            selectedChannelId,
+            rememberedChannelId: useLastChannelStore.getState().byScope[scope],
+        });
+        if (!landing) return;
+        selectChannel(landing.channelId);
+        if (landing.kind === 'pending') {
+            const pending = landing.channelId;
             pendingChannelRef.current = null;
-            selectChannel(pending);
             // A deferred notification open lands at the latest message.
             if (pendingOpenAtBottomRef.current === pending) {
                 pendingOpenAtBottomRef.current = null;
@@ -417,25 +388,6 @@ export const HomePage = () => {
                 pendingJumpRef.current = null;
                 requestMessageJump(pending, jump.chatNo);
             }
-            return;
-        }
-        // Keep the current selection if it still exists in the loaded list (survives
-        // a HomePage remount after navigating to profile/settings and back). Otherwise
-        // restore the channel last opened in THIS cloud+place (so switching away and back
-        // returns to it), falling back to the first channel only when there is none —
-        // initial load, or a place with no prior selection.
-        const stillValid = !!selectedChannelId && channels.some(channel => channel.id === selectedChannelId);
-        if (!stillValid && channels.length > 0) {
-            const scope = `${activeCloudId ?? 'default'}:${selectedPlaceId ?? ''}`;
-            const remembered = useLastChannelStore.getState().byScope[scope];
-            // A place badged "1" used to open on whatever was first (or last read),
-            // which was routinely a channel with nothing new — the badge led
-            // nowhere. With no remembered channel, land on the first unread one and
-            // the badge resolves to the thing it was pointing at.
-            const firstUnread = channels.find(channel => (channel.unreadCount ?? 0) > 0)?.id;
-            const target =
-                remembered && channels.some(c => c.id === remembered) ? remembered : (firstUnread ?? channels[0]?.id);
-            if (target) selectChannel(target);
         }
     }, [
         channels,

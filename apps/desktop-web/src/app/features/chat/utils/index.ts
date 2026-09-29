@@ -15,3 +15,4 @@ export * from './chatImages';
 export * from './imageActions';
 export * from './keyboard';
 export * from './pendingOpenRoute';
+export * from './landingTarget';
