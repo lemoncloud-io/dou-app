@@ -298,6 +298,8 @@ export const ko: EnTranslation = {
     'channels.create.creating': '만드는 중...',
     'channels.create.cancel': '취소',
     'channels.create.failed': '채널을 만들지 못했어요. 다시 시도해 주세요.',
+    'channels.create.failed.limit': '이 플레이스에는 채널을 더 만들 수 없어요.',
+    'channels.create.failed.denied': '이 플레이스에서는 채널을 만들 수 없어요.',
     'channels.settings.notifications': '알림',
     'channels.settings.danger': '나가기 및 삭제',
     'channels.settings.notify.all': '모든 메시지',

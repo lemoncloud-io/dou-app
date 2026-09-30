@@ -294,6 +294,8 @@ export const en = {
     'channels.create.creating': 'Creating...',
     'channels.create.cancel': 'Cancel',
     'channels.create.failed': 'Could not create the channel. Try again.',
+    'channels.create.failed.limit': 'This place has no room for another channel.',
+    'channels.create.failed.denied': "You can't create channels in this place.",
     'channels.settings.notifications': 'Notifications',
     'channels.settings.danger': 'Leaving and deleting',
     'channels.settings.notify.all': 'All messages',

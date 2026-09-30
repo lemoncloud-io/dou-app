@@ -12,12 +12,20 @@ import {
     DialogFooter,
 } from '@chatic/ui-kit/components/ui/dialog';
 
-import { useDesktopChannelMutations } from '../../../shared';
+import { MobileAppPointer, useDesktopChannelMutations } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
-import { isValidChannelName } from '../utils';
+import { createChannelFailure, isValidChannelName, type CreateChannelFailure } from '../utils';
 import { ChannelNameField } from './ChannelNameField';
 
 type Visibility = 'public' | 'private';
+
+// Only the failures a second try can fix say "try again"; a full place or a refusal says what it is.
+const FAILURE_KEY: Record<CreateChannelFailure, string> = {
+    limit: 'channels.create.failed.limit',
+    denied: 'channels.create.failed.denied',
+    network: 'errors.network',
+    other: 'channels.create.failed',
+};
 
 interface CreateChannelDialogProps {
     /**
@@ -35,13 +43,13 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
 
     const [name, setName] = useState('');
     const [visibility, setVisibility] = useState<Visibility>('public');
-    const [isError, setIsError] = useState(false);
+    const [failure, setFailure] = useState<CreateChannelFailure | null>(null);
     const [showInvalid, setShowInvalid] = useState(false);
 
     const reset = () => {
         setName('');
         setVisibility('public');
-        setIsError(false);
+        setFailure(null);
         setShowInvalid(false);
     };
 
@@ -59,15 +67,15 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
             setShowInvalid(true);
             return;
         }
-        setIsError(false);
+        setFailure(null);
         try {
             const channel = await createChannel({ stereo: visibility, name: trimmed });
             if (channel.id) onCreated(channel.id);
             reset();
             close();
             toast({ description: t('toast.channelCreated') });
-        } catch {
-            setIsError(true);
+        } catch (error) {
+            setFailure(createChannelFailure(error));
         }
     };
 
@@ -118,10 +126,11 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                         </div>
                     </div>
 
-                    {isError && (
-                        <p role="alert" className="text-callout text-destructive">
-                            {t('channels.create.failed')}
-                        </p>
+                    {failure && (
+                        <div role="alert" className="flex flex-col gap-1">
+                            <p className="text-callout text-destructive">{t(FAILURE_KEY[failure])}</p>
+                            {failure === 'limit' && <MobileAppPointer />}
+                        </div>
                     )}
 
                     <DialogFooter className="gap-2 pt-2 sm:space-x-0">
