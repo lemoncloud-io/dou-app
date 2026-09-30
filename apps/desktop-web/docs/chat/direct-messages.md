@@ -4,7 +4,7 @@ A 1:1 opened inside a subscription cloud belongs to the **cloud**, not to a plac
 the room with whichever place its creator happened to be standing in (`sid`), but that value names
 no one's home for the room and is not used to file it. The decision and its reasoning for all
 clients are in ADR-0113. Desktop then files each 1:1 under the places its peer shares with me
-(ADR-0140). This document is how desktop applies both.
+(ADR-0141). This document is how desktop applies both.
 
 On the default (relay) cloud a 1:1 is reached by inviting a phone number, which is a mobile flow.
 Desktop offers no way to start one there, and every entry point below hides.
