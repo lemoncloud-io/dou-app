@@ -97,6 +97,19 @@ describe('chatAttachmentSummary', () => {
         expect(chatAttachmentSummary({ upload$$: slots('audio') })).toEqual({ kind: 'mixed', count: 1 });
     });
 
+    // Its kind is only in the type the slot kept; read as an image, a PDF being sent was a "Photo".
+    it('names a video or document still being sent by the type its slot kept', () => {
+        const sending = [
+            {
+                localStatus: 'sending',
+                localThumbUrl: 'blob:x',
+                localName: 'a.pdf',
+                localContentType: 'application/pdf',
+            },
+        ] as never;
+        expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'file', count: 1 });
+    });
+
     it('calls kinds that differ mixed', () => {
         expect(chatAttachmentSummary({ upload$$: slots('image', 'video') })).toEqual({ kind: 'mixed', count: 2 });
     });

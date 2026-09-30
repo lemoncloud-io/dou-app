@@ -223,15 +223,14 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
     public async createPendingImageChat(input: PendingImageChatInput): Promise<string> {
         this.assertRequiredString(input.channelId, 'channelId');
-        const slotsWith = (details: (PendingFileDetails | null | undefined)[]) =>
-            input.localThumbUrls.map((localThumbUrl, index) => {
-                const file = details[index];
-                return {
-                    localStatus: 'sending' as const,
-                    localThumbUrl,
-                    ...(file ? { localName: file.name, localContentType: file.contentType, localSize: file.size } : {}),
-                };
-            });
+        const detailsOf = (file: PendingFileDetails | null | undefined) =>
+            file ? { localName: file.name, localContentType: file.contentType, localSize: file.size } : {};
+        const slotsWith = (details: (object | undefined)[]) =>
+            input.localThumbUrls.map((localThumbUrl, index) => ({
+                localStatus: 'sending' as const,
+                localThumbUrl,
+                ...details[index],
+            }));
 
         if (input.pendingId) {
             const requestContext = this.pendingImageScope(input.pendingId);
@@ -240,13 +239,14 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             if (!existing) {
                 throw new Error(`[ChatRepository] pending image chat ${input.pendingId} is gone`);
             }
-            // A retry or a switch to thumbnails passes previews only; the files are the same ones.
-            const kept = (existing.upload$$ ?? []).map(slot =>
-                isPendingUploadSlot(slot) && slot.localContentType
-                    ? { name: slot.localName ?? '', contentType: slot.localContentType, size: slot.localSize ?? 0 }
-                    : null
-            );
-            const slots = slotsWith(input.localFiles ?? kept);
+            // A retry or a switch to thumbnails passes previews only; the files, and their details, are
+            // the same ones.
+            const kept = (existing.upload$$ ?? []).map(slot => {
+                if (!isPendingUploadSlot(slot) || !slot.localContentType) return {};
+                const { localName, localContentType, localSize } = slot;
+                return { localName, localContentType, localSize };
+            });
+            const slots = slotsWith(input.localFiles ? input.localFiles.map(detailsOf) : kept);
             await this.chatLocalDataSource.cacheWrite(
                 { id: input.pendingId, isPending: true, isFailed: false, upload$$: slots, updatedAtMs: Date.now() },
                 requestContext
@@ -254,7 +254,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             return input.pendingId;
         }
 
-        const slots = slotsWith(input.localFiles ?? []);
+        const slots = slotsWith((input.localFiles ?? []).map(detailsOf));
         const requestContext = this.getRequestContext();
         // Random suffix: two sends in one millisecond (a double tap) must not share a row.
         const id = `optimistic-chat-images-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -69,6 +69,13 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'photo.jpeg', type: 'image/png' })?.name).toBe('photo.jpeg');
     });
 
+    // Only a type that says nothing is read from the name; a real type the server refuses stays refused.
+    it('refuses a file typed as an unsupported format whatever its name says', () => {
+        expect(chatAttachmentFormat({ name: 'x.png', type: 'image/heic' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'x.png', type: 'image/svg+xml' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'x.pdf', type: 'application/zip' })).toBeNull();
+    });
+
     it('refuses what the server does not take', () => {
         expect(chatAttachmentFormat({ name: 'a.heic', type: 'image/heic' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.zip', type: 'application/zip' })).toBeNull();

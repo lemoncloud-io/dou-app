@@ -138,8 +138,10 @@ for a PDF too, because the server now stores videos and documents as well.
 
 The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
 or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
-`audio` or `file`). A slot still being sent has no `stereo`, and neither does a head that only
-has `uploadIds`; both count as images, so a photo on its way never reads as an attachment. Kinds
+`audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video or
+document is read from the content type its slot kept, and an image slot, which keeps none, counts as
+an image, so a photo on its way never reads as an attachment. A head that only has `uploadIds`
+counts as images too. Kinds
 that differ, and `audio`, read as attachments (a single one as "Attachment"). The rule is meant
 to match how the server picks a push's body key, so a row and its push agree.
 

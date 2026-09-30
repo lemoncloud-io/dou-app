@@ -1,4 +1,6 @@
-import { CHAT_IMAGE_MAX_BYTES } from './chatImages';
+import { isPendingUploadSlot } from '../uploads/types';
+
+import type { DomainChat } from './models';
 
 /**
  * The formats a chat message may carry, as the server takes them: which files may be sent, under
@@ -62,7 +64,7 @@ export const chatAttachmentExtension = (type: string): string | undefined =>
 
 /** Per-file ceiling for each kind, the same as the server's. */
 export const CHAT_ATTACHMENT_MAX_BYTES: Readonly<Record<ChatUploadKind, number>> = {
-    image: CHAT_IMAGE_MAX_BYTES,
+    image: 20 * 1024 * 1024,
     video: 300 * 1024 * 1024,
     file: 50 * 1024 * 1024,
 };
@@ -82,10 +84,14 @@ const extensionOf = (name: string): string | null => {
     return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toLowerCase() : null;
 };
 
+// The types that say nothing about the bytes. Any other type is taken at its word, so an HEIC named
+// `x.png` is refused rather than sent as a PNG.
+const UNTYPED: ReadonlySet<string> = new Set(['', 'application/octet-stream']);
+
 /**
  * What a picked file will be sent as, or `null` when the server would refuse it.
  *
- * The declared type decides when it is one of ours. Otherwise the extension does: a browser hands a
+ * The declared type decides. Only an empty or generic one is read from the extension: a browser hands a
  * file its system does not know (HWP, often) over with an empty type. A video or document must end in
  * its format's extension, because the receiver saves it under that name — another format's extension
  * is refused, anything else gets the right one added. An image name is left alone; the server does not check it.
@@ -93,9 +99,9 @@ const extensionOf = (name: string): string | null => {
 export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAttachmentFormat | null => {
     const declared = ALIASES[file.type] ?? file.type;
     const extension = extensionOf(file.name);
-    const format =
-        FORMATS.find(candidate => candidate.type === declared) ??
-        FORMATS.find(candidate => extension !== null && candidate.extensions.includes(extension));
+    const format = UNTYPED.has(declared)
+        ? FORMATS.find(candidate => extension !== null && candidate.extensions.includes(extension))
+        : FORMATS.find(candidate => candidate.type === declared);
     if (!format) return null;
     const { type, kind } = format;
     if (kind === 'image') return { type, kind, name: file.name };
@@ -105,4 +111,17 @@ export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAtt
     // No extension, or a tail that is not one ("v1.2", "run.js"): the format's own goes after it, so
     // the receiver never saves a document under a name that would run as something else.
     return { type, kind, name: `${file.name}.${format.extensions[0]}` };
+};
+
+/**
+ * What one slot of a message's `upload$$` holds. A server upload says so in its `stereo`; a slot still
+ * being sent, by the type it kept. A pending slot with none, and an upload with no `stereo`, is an
+ * image: every one was, before other kinds could be sent. `audio` is passed through for the caller.
+ */
+export const uploadSlotKind = (slot: NonNullable<DomainChat['upload$$']>[number]): ChatUploadKind | 'audio' => {
+    if (isPendingUploadSlot(slot)) {
+        if (!slot.localContentType) return 'image';
+        return chatAttachmentFormat({ name: slot.localName ?? '', type: slot.localContentType })?.kind ?? 'file';
+    }
+    return slot.stereo || 'image';
 };

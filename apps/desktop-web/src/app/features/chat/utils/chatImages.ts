@@ -1,4 +1,10 @@
-import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormat, isPendingUploadSlot, type DomainChat } from '@chatic/data';
+import {
+    CHAT_ATTACHMENT_MAX_BYTES,
+    chatAttachmentFormat,
+    isPendingUploadSlot,
+    uploadSlotKind,
+    type DomainChat,
+} from '@chatic/data';
 
 /**
  * One image on a message or in the composer tray.
@@ -52,19 +58,10 @@ export interface ChatFile {
 
 type Slot = NonNullable<DomainChat['upload$$']>[number];
 
-/**
- * What a slot holds. A server upload says so in its `stereo`; a pending one by the type it kept, and a
- * pending slot with none, or an upload with no `stereo`, is an image — every one was, before other
- * kinds could be sent. `audio` is not sent from here, and is saved like a document.
- */
+// `audio` is not sent from here; it is saved like a document.
 const slotKind = (slot: Slot): 'image' | 'video' | 'file' => {
-    if (isPendingUploadSlot(slot)) {
-        if (!slot.localContentType) return 'image';
-        const kind = chatAttachmentFormat({ name: slot.localName ?? '', type: slot.localContentType })?.kind;
-        return kind ?? 'file';
-    }
-    if (!slot.stereo || slot.stereo === 'image') return 'image';
-    return slot.stereo === 'video' ? 'video' : 'file';
+    const kind = uploadSlotKind(slot);
+    return kind === 'audio' ? 'file' : kind;
 };
 
 /** Where a video or document may be loaded from: a signed storage address only. */
