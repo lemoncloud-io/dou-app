@@ -59,8 +59,9 @@ so the web sender, the native sender and the old-app fallback cannot come to dif
 The page's own sender lives here too: `xhrPut` (`uploads/xhrPut.ts`) PUTs from the page with
 `XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It sets no progress
 listener, because one on `upload` turns every cross-origin PUT into a preflighted one; it skips the
-headers the browser owns (`content-length`, `host`); and it bounds the whole PUT at five minutes. The
-native sender stays in `apps/web`, since it talks through that shell's bridge.
+headers the browser owns (`content-length`, `host`); and it bounds the whole PUT at five minutes, or
+at the time a 1 Mbps uplink needs for the file when that is longer (about 42 minutes for a 300MB
+video). The native sender stays in `apps/web`, since it talks through that shell's bridge.
 
 ## The answer guard
 
