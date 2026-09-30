@@ -194,6 +194,15 @@ module.exports = {
                     '0%': { opacity: '1' },
                     '100%': { opacity: '0' },
                 },
+                // A short drop with a fade: sliding a full toast height, it crossed the header.
+                'toast-in': {
+                    '0%': { opacity: '0', transform: 'translateY(-8px) scale(0.98)' },
+                    '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                },
+                'toast-out': {
+                    '0%': { opacity: '1', transform: 'translateY(0)' },
+                    '100%': { opacity: '0', transform: 'translateY(-6px)' },
+                },
                 'cloud-bounce': {
                     '0%': { transform: 'scale(1) rotate(0deg)' },
                     '20%': { transform: 'scale(1.2) rotate(-10deg)' },
@@ -210,6 +219,8 @@ module.exports = {
                 'slide-out-to-top': 'slide-out-to-top 0.3s ease-in',
                 'fade-in': 'fade-in 0.2s ease-out',
                 'fade-out': 'fade-out 0.2s ease-in',
+                'toast-in': 'toast-in 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+                'toast-out': 'toast-out 0.16s ease-in forwards',
                 'cloud-bounce': 'cloud-bounce 600ms ease-out',
             },
             width: {

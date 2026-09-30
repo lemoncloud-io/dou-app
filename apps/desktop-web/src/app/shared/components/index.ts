@@ -6,6 +6,7 @@ export * from './PanelResizeHandle';
 export * from './ResizablePanel';
 export * from './Hint';
 export * from './ConnectionBanner';
+export * from './AppToaster';
 export * from './VersionInfo';
 export * from './UpdateBanner';
 export * from './AppErrorBoundary';

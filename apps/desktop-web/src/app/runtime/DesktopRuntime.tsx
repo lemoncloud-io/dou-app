@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import { AppRouter } from '../routes';
 import {
+    AppToaster,
     ConnectionBanner,
     UpdateBanner,
     useClouds,
@@ -185,11 +185,11 @@ export const DesktopRuntime = () => {
                     </div>
                     <div className="relative min-h-0 flex-1">
                         <AppRouter />
+                        {/* Inside the area under the banners, so a banner pushes toasts down
+                            with the header rather than covering them. */}
+                        <AppToaster />
                     </div>
                 </div>
-                {/* Below the 56px conversation header, so a toast never covers the title
-                    or the header actions it may be reporting on. */}
-                <Toaster viewportClassName="top-14" />
             </TooltipProvider>
         </runtime.connection.RuntimeAuthHost>
     );
