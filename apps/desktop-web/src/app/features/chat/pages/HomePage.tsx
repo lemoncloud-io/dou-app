@@ -814,7 +814,12 @@ export const HomePage = () => {
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}
-            <OnboardingDialog enabled showChannelStatus={isDefaultMode} isChannelReady={channels.some(isSelfChannel)} />
+            <OnboardingDialog
+                enabled
+                showChannelStatus={isDefaultMode}
+                isChannelReady={channels.some(isSelfChannel)}
+                hasWorkspaces={clouds.some(cloud => cloud.kind !== 'home')}
+            />
         </>
     );
 };

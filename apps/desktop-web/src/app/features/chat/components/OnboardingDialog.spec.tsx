@@ -1,11 +1,16 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const syncChannels = vi.fn(() => Promise.resolve({ syncedAt: 0, removedCount: 0 }));
 const repositories = { channel: { syncChannels } };
+// Every cloud gives the account its own uid; the relay's is the one it keeps everywhere.
+const ids = { session: 'u1', relay: 'u1' as string | null };
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        session: { useSessionIdentity: () => ({ userId: 'u1' }) },
+        session: {
+            useSessionIdentity: () => ({ userId: ids.session }),
+            useUidInCloud: (cid: string) => (cid === 'default' ? ids.relay : null),
+        },
         data: { useRuntimeRepositories: () => repositories },
     },
 }));
@@ -16,12 +21,64 @@ import { OnboardingDialog, SELF_CHANNEL_WAIT_MS } from './OnboardingDialog';
 // Initialises i18next so the dialog copy resolves.
 import '../../../../i18n';
 
-const mount = () => render(<OnboardingDialog enabled showChannelStatus={false} isChannelReady={false} />);
+const mount = ({ hasWorkspaces = true } = {}) =>
+    render(<OnboardingDialog enabled showChannelStatus={false} isChannelReady={false} hasWorkspaces={hasWorkspaces} />);
 
 describe('OnboardingDialog', () => {
     afterEach(() => {
+        // A dialog left mounted re-runs its first-run check when the store resets below.
+        cleanup();
         localStorage.clear();
         useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
+        ids.session = 'u1';
+        ids.relay = 'u1';
+    });
+
+    // The flag was keyed by the session uid, which is a different one in every cloud, so the tips
+    // opened again on the first visit to each workspace.
+    it('stays closed in another cloud once the account has closed it', () => {
+        const first = mount();
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+        first.unmount();
+
+        // The switch commits: the session now answers with this cloud's uid, the relay's is unchanged.
+        ids.session = 'uid-in-cloud-1';
+        useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
+        mount();
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('opens for another account on the same device', () => {
+        const first = mount();
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+        first.unmount();
+
+        ids.session = 'u2';
+        ids.relay = 'u2';
+        mount();
+
+        expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+
+    // A guest on Home has no workspace or place to pick, so explaining those columns taught nothing;
+    // how to join one is what helps.
+    it('tells an account with Home alone how to join a workspace', () => {
+        mount({ hasWorkspaces: false });
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+        expect(
+            screen.getByText('Have an invite? Choose “Join with invite” in your profile menu to join a workspace.')
+        ).toBeTruthy();
+        expect(screen.queryByText(/Pick a workspace/)).toBeNull();
+    });
+
+    it('explains the workspace and place columns to an account that has a workspace', () => {
+        mount({ hasWorkspaces: true });
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+        expect(screen.getByText('Pick a workspace at the far left, then one of its places beside it.')).toBeTruthy();
+        expect(screen.queryByText(/Have an invite/)).toBeNull();
     });
 
     // The home screen remounts on every return from Profile; closed tips came back each time.
@@ -108,7 +165,7 @@ describe('OnboardingDialog after a reload', () => {
 // for as long as anyone watched, with nothing to do about it.
 describe('OnboardingDialog Self Channel row', () => {
     const mountHome = (isChannelReady: boolean) => (
-        <OnboardingDialog enabled showChannelStatus isChannelReady={isChannelReady} />
+        <OnboardingDialog enabled showChannelStatus isChannelReady={isChannelReady} hasWorkspaces={false} />
     );
 
     beforeEach(() => {

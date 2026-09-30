@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, Check } from 'lucide-react';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -23,6 +24,11 @@ interface OnboardingDialogProps {
     showChannelStatus: boolean;
     /** The Self Channel itself is in the list — flips the row to ready. */
     isChannelReady: boolean;
+    /**
+     * The account has a workspace beyond Home. Only then are the workspace and place columns worth
+     * explaining; without one, the tip that helps is how to join one.
+     */
+    hasWorkspaces: boolean;
 }
 
 /**
@@ -46,9 +52,18 @@ export const SELF_CHANNEL_WAIT_MS = 15_000;
  * back to a person who had already closed it. Losing them for good is no longer
  * the risk it was: Settings reopens them on demand.
  */
-export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }: OnboardingDialogProps) => {
+export const OnboardingDialog = ({
+    enabled,
+    showChannelStatus,
+    isChannelReady,
+    hasWorkspaces,
+}: OnboardingDialogProps) => {
     const { t } = useTranslation();
-    const userId = runtime.session.useSessionIdentity().userId;
+    // The account, not the session: every cloud gives the account its own uid, so the session's
+    // opened the tips again on the first visit to each workspace. The relay uid is the one the
+    // account keeps everywhere; the session's stands in only while no relay token is on hand.
+    const sessionUid = runtime.session.useSessionIdentity().userId;
+    const userId = runtime.session.useUidInCloud(RELAY_CLOUD_ID) ?? sessionUid;
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState<1 | 2>(1);
@@ -161,9 +176,14 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                         <DialogDescription>{t('onboarding.tips.body')}</DialogDescription>
                         <ul className="flex flex-col gap-2 pt-2 text-callout text-foreground">
                             <li>{t('onboarding.tips.send')}</li>
-                            {/* What the rail and the switcher are for: the two things a
-                                new member cannot guess from looking at the screen. */}
-                            <li>{t('onboarding.tips.places')}</li>
+                            {/* What the workspace and place columns are for, which a new member
+                                cannot guess from the screen. An account with Home alone has
+                                neither, so it learns how to join one instead. */}
+                            <li>
+                                {hasWorkspaces
+                                    ? t('onboarding.tips.places')
+                                    : t('onboarding.tips.invite', { action: t('rail.menu.join') })}
+                            </li>
                             <li>{t('onboarding.tips.switcher')}</li>
                             <li>{t('onboarding.tips.shortcuts')}</li>
                         </ul>
