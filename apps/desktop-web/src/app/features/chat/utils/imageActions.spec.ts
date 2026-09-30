@@ -59,7 +59,16 @@ describe('downloadImage', () => {
 
         await downloadImage({ url: 'https://storage.example/o', name: 'image-1' });
 
-        expect(fetch).toHaveBeenCalledWith('https://storage.example/o', { credentials: 'omit' });
+        expect(fetch).toHaveBeenCalledWith('https://storage.example/o', expect.objectContaining({ credentials: 'omit' }));
+    });
+
+    it('fetches past the HTTP cache, where the tile or viewer left a copy the save cannot read', async () => {
+        const fetch = vi.fn(async () => ({ ok: true, blob: async () => new Blob(['x'], { type: 'image/png' }) }));
+        vi.stubGlobal('fetch', fetch);
+
+        await downloadImage({ url: 'https://storage.example/o', name: 'image-1' });
+
+        expect(fetch).toHaveBeenCalledWith('https://storage.example/o', expect.objectContaining({ cache: 'no-store' }));
     });
 
     it('refuses an address an image cannot come from, fetching nothing', async () => {

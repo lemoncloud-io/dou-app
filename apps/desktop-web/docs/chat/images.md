@@ -73,6 +73,15 @@ images opened six dialogs. Only a PNG, JPEG, GIF or WebP whose name has the matc
 the dialog; any other file still asks, so a script in the page cannot drop an executable unseen. In
 a browser, Chrome may ask once whether the site may download several files.
 
+Save and copy fetch the image's bytes (`fetchImage`) rather than pointing an anchor at its address:
+a sent image lives on another origin, where Chromium ignores `download` and navigates instead. That
+fetch skips the HTTP cache on purpose. The viewer, and a tile with no thumbnail, has usually drawn
+the same signed address already — both read it from the same message the save does — through an
+`<img>` that sends no `Origin`, and storage answers such a request without CORS headers or
+`Vary: Origin`. The answer carries no `Cache-Control`, so Chromium keeps it for a while by
+heuristic, and a CORS fetch that reuses it fails with "No 'Access-Control-Allow-Origin' header"
+until the copy goes stale.
+
 ## The viewer
 
 `ImageViewer` is a modal dialog over a plain scrim. Previously the app was frosted behind it.
