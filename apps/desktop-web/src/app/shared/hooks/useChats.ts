@@ -11,6 +11,13 @@ const PAGE_SIZE = 50;
 // only the newest `limit` rows (chat_no-descending cursor paging), so revealing
 // older history means growing the window to re-include the freshly cached page.
 const LOAD_MORE_SIZE = 50;
+// The prime reports its first page written once the cache write resolves, but the list observer
+// re-reads after that — so an empty list is only trusted after this settle window, the same one the
+// sidebar gives its channel list.
+const EMPTY_SETTLE_MS = 600;
+// A socket wedged after a sleep/wake never verifies, so the prime never runs. Past this the feed
+// stops waiting and offers a retry instead of a skeleton that spins for good.
+const UNVERIFIED_CEILING_MS = 4000;
 
 /**
  * Session-scoped, in-memory memo of each channel's expanded observe window and
@@ -41,6 +48,11 @@ const sortByChatNo = (messages: DomainChat[]): DomainChat[] => [...messages].sor
  * no-op, and its `onConnected` catch-up never fires for a target registered
  * while already connected. The channel record, by contrast, is kept live by the
  * channel plan's poll — so when it runs ahead of the cache, fetch the newest page.
+ *
+ * `isLoading` holds over an empty cache until the room's prime settles: a cold room reads empty
+ * before its first page lands, and taking that at its word showed the "write the first message"
+ * intro over a room that had messages. `loadFailed` is that first page failing (or never starting,
+ * on a socket that does not verify), with `retryLoad` to try again.
  */
 export const useChats = (channelId: string | null, latestChatNo?: number) => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
@@ -48,7 +60,8 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
     // collide across clouds, so uid is what keeps the feed bound to the right partition.
     const { userId: myUid } = runtime.session.useSessionIdentity();
 
-    runtime.sync.useChatSync(channelId ?? undefined);
+    const { prime, retryPrime } = runtime.sync.useChatSync(channelId ?? undefined);
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // Memo/reset key, not just the channel id: the same id names different channels in
     // different clouds, and uid is what separates their cache partitions.
@@ -136,6 +149,34 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
 
     const messages = useMemo(() => sortByChatNo(chats), [chats]);
 
+    // How an empty room settled: trusted as empty, or given up on. Keyed by scope so the next room
+    // starts unsettled. A populated list never reads it.
+    const [emptySettled, setEmptySettled] = useState<{ scope: string; as: 'empty' | 'failed' } | null>(null);
+    const coldWait = !!scopeKey && !isLoading && chats.length === 0 && prime !== 'failed';
+    const waitsOnSocket = prime === 'pending' && !isVerified;
+    useEffect(() => {
+        // A verified socket's pending prime is a fetch in flight: it settles by itself, no timer.
+        if (!coldWait || !scopeKey || (prime === 'pending' && !waitsOnSocket)) return;
+        const as = prime === 'ready' ? 'empty' : 'failed';
+        const timer = setTimeout(
+            () => setEmptySettled({ scope: scopeKey, as }),
+            as === 'empty' ? EMPTY_SETTLE_MS : UNVERIFIED_CEILING_MS
+        );
+        return () => clearTimeout(timer);
+    }, [coldWait, scopeKey, prime, waitsOnSocket]);
+    const settledAs = emptySettled?.scope === scopeKey ? emptySettled.as : null;
+    const loadFailed =
+        !!scopeKey &&
+        !isLoading &&
+        chats.length === 0 &&
+        (prime === 'failed' || (prime === 'pending' && settledAs === 'failed'));
+    const feedLoading = isLoading || (coldWait && !loadFailed && !(prime === 'ready' && settledAs === 'empty'));
+
+    const retryLoad = useCallback(() => {
+        setEmptySettled(null);
+        retryPrime();
+    }, [retryPrime]);
+
     const loadOlder = useCallback(async () => {
         if (!channelId || isLoadingOlder || !hasMore) return;
         // Read the oldest cached row from the ref so the cursor reflects the live
@@ -173,7 +214,9 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
 
     return {
         messages,
-        isLoading,
+        isLoading: feedLoading,
+        loadFailed,
+        retryLoad,
         loadOlder,
         hasMore,
         isLoadingOlder,

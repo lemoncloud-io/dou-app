@@ -227,6 +227,71 @@ describe('useChatSync — prime', () => {
     });
 });
 
+describe('useChatSync — prime status', () => {
+    beforeEach(() => {
+        mockSelectedCloudId = 'default';
+        verifiedSlots = new Set(['default']);
+        mockCacheReadList.mockClear().mockResolvedValue({ list: [] });
+        mockRefreshList.mockClear().mockResolvedValue({ fetchedCount: 0 });
+    });
+
+    // A cold room reads empty until its first page lands; that read is not "this room is empty".
+    it('stays pending while a cold room fetches its first page, then is ready', async () => {
+        let finishFetch: (value: { fetchedCount: number }) => void = () => undefined;
+        mockRefreshList.mockReturnValue(new Promise(resolve => (finishFetch = resolve)));
+        const { result } = renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(mockRefreshList).toHaveBeenCalled());
+        expect(result.current.prime).toBe('pending');
+
+        await act(async () => finishFetch({ fetchedCount: 3 }));
+        expect(result.current.prime).toBe('ready');
+    });
+
+    it('is ready without a fetch when the cache already holds the room', async () => {
+        mockCacheReadList.mockResolvedValue({ list: [{ chatNo: 4 }] });
+        const { result } = renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(result.current.prime).toBe('ready'));
+        expect(mockRefreshList).not.toHaveBeenCalled();
+    });
+
+    it('stays pending while the slot is not verified', async () => {
+        verifiedSlots = new Set();
+        const { result } = renderHook(() => useChatSync('ch-1'));
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(result.current.prime).toBe('pending');
+    });
+
+    it('reports a failed first page, and fetches it again on retry', async () => {
+        mockRefreshList.mockRejectedValueOnce(new Error('timeout'));
+        const { result } = renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(result.current.prime).toBe('failed'));
+
+        act(() => result.current.retryPrime());
+        expect(result.current.prime).toBe('pending');
+        await waitFor(() => expect(result.current.prime).toBe('ready'));
+        expect(mockRefreshList).toHaveBeenCalledTimes(2);
+    });
+
+    // The status is one room's: the next room must not inherit "ready" from the last.
+    it('starts over at pending when another room is opened', async () => {
+        const { result, rerender } = renderHook(({ id }: { id: string }) => useChatSync(id), {
+            initialProps: { id: 'ch-1' },
+        });
+        await waitFor(() => expect(result.current.prime).toBe('ready'));
+
+        mockRefreshList.mockReturnValue(new Promise(() => undefined));
+        rerender({ id: 'ch-2' });
+
+        expect(result.current.prime).toBe('pending');
+    });
+});
+
 describe('useChatSync — chat_room_sync phases', () => {
     const backend = { start: jest.fn(), stop: jest.fn() };
 

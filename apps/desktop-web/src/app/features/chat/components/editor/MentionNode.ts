@@ -1,4 +1,4 @@
-import { $applyNodeReplacement, TextNode, type EditorConfig, type SerializedTextNode } from 'lexical';
+import { $applyNodeReplacement, TextNode, type EditorConfig, type LexicalNode, type SerializedTextNode } from 'lexical';
 
 import { MSG_MENTION_CLASS } from '@chatic/block-kit';
 
@@ -46,3 +46,6 @@ export class MentionNode extends TextNode {
 
 export const $createMentionNode = (text: string): MentionNode =>
     $applyNodeReplacement(new MentionNode(text).setMode('segmented').toggleDirectionless());
+
+export const $isMentionNode = (node: LexicalNode | null | undefined): node is MentionNode =>
+    node instanceof MentionNode;

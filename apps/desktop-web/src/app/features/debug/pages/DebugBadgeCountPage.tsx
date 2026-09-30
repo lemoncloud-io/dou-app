@@ -39,7 +39,7 @@ export const DebugBadgeCountPage = () => {
                     value={count}
                     onChange={e => setCount(e.target.value)}
                     inputMode="numeric"
-                    className="h-10 w-24 rounded-lg border border-input bg-background px-3 text-callout outline-none focus:border-focus-border"
+                    className="h-10 w-24 rounded-lg border border-control-border bg-background px-3 text-callout outline-none focus:border-focus-border"
                 />
                 <Button size="sm" onClick={() => void setBadge(Math.max(0, Number(count) || 0))}>
                     Set badge

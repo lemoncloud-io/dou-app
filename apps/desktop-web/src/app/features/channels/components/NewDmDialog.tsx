@@ -68,10 +68,11 @@ export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={next => !isStarting && onOpenChange(next)}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
+            {/* A flex column, as in AddMembersDialog: in a short window the list gives way first. */}
+            <DialogContent closeLabel={t('common.close')} className="flex flex-col sm:max-w-md">
                 <DialogTitle>{t('dm.new.title')}</DialogTitle>
                 <DialogDescription>{t('dm.new.description')}</DialogDescription>
-                <div className="flex flex-col gap-3 pt-2">
+                <div className="flex min-h-0 flex-col gap-3 pt-2">
                     <div className="relative">
                         <Search
                             size={14}

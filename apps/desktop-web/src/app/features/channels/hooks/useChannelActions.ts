@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useDesktopChannelMutations } from '../../../shared';
+import { useComposerFocusStore, useDesktopChannelMutations } from '../../../shared';
 import { channelActionErrorKey } from '../utils';
 
 export type ChannelDialogKind = 'rename' | 'add-members' | 'delete' | 'leave' | 'kick' | null;
@@ -31,6 +31,8 @@ export const useChannelActions = (
 ) => {
     const { t } = useTranslation();
     const { deleteChannel, leaveChannel, inviteChannel, isMutating } = useDesktopChannelMutations();
+    // Whatever held focus went with the removed room or its menu; the room shown next picks it up.
+    const requestComposerFocus = useComposerFocusStore(s => s.request);
 
     const [dialog, setDialog] = useState<ChannelDialogKind>(null);
     const [kickTarget, setKickTarget] = useState<string | null>(null);
@@ -52,26 +54,28 @@ export const useChannelActions = (
         try {
             await deleteChannel({ channelId });
             closeDialog();
+            requestComposerFocus(channelId);
             onRemoved?.();
             toast({ description: t('toast.channelDeleted') });
         } catch (e) {
             closeDialog();
             toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         }
-    }, [channelId, deleteChannel, closeDialog, onRemoved, t]);
+    }, [channelId, deleteChannel, closeDialog, requestComposerFocus, onRemoved, t]);
 
     const onLeave = useCallback(async () => {
         if (!channelId) return;
         try {
             await leaveChannel({ channelId });
             closeDialog();
+            requestComposerFocus(channelId);
             onRemoved?.();
             toast({ description: t('toast.channelLeft') });
         } catch (e) {
             closeDialog();
             toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         }
-    }, [channelId, leaveChannel, closeDialog, onRemoved, t]);
+    }, [channelId, leaveChannel, closeDialog, requestComposerFocus, onRemoved, t]);
 
     const onKick = useCallback(async () => {
         if (!channelId || !kickTarget) return;

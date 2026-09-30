@@ -19,6 +19,9 @@ import {
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
 
+/** Channels offered by name when no message matched; a short list, not a second switcher. */
+const MAX_CHANNEL_OFFERS = 3;
+
 const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
@@ -72,7 +75,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     const setOpen = useSearchDialogStore(s => s.setOpen);
     const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
-    const { results, isSearching, isTruncated } = useMessageSearch(open ? query : '', channels);
+    const { results, isSearching, isTruncated, scannedCount } = useMessageSearch(open ? query : '', channels);
     const labelOf = useChannelLabels(channels);
     // Rows were the snippet and a date only, so two hits from different people read
     // as the same line twice.
@@ -96,24 +99,35 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
 
     const trimmed = query.trim();
     const showEmpty = trimmed.length >= 2 && !isSearching && results.length === 0;
+    // Nothing cached to search (a cold start) is a different answer from "no match", and only
+    // opening a channel changes it.
+    const nothingLoaded = showEmpty && scannedCount === 0;
+    // With no message to show, a channel whose name has the words may be what the reader wanted.
+    const channelOffers = showEmpty
+        ? channels
+              .filter(channel => channel.id && labelOf(channel).toLowerCase().includes(trimmed.toLowerCase()))
+              .slice(0, MAX_CHANNEL_OFFERS)
+        : [];
 
     // One flat option list — each channel header, then its matches — so the
     // arrows walk every result in the order it is drawn.
     type Option = { key: string; channelId: string; chatNo?: number; threadRootId?: string };
-    const options: Option[] = results.flatMap(result => {
-        const channelId = result.channel.id ?? '';
-        return [
-            { key: `ch:${channelId}`, channelId },
-            ...result.matches.map(chat => ({
-                key: `m:${channelId}:${chat.id ?? chat.tempId ?? chat.chatNo}`,
-                channelId,
-                chatNo: chat.chatNo,
-                // A reply lives in its thread panel; the main feed never renders it,
-                // so scrolling the feed for it could only fail.
-                threadRootId: chat.parentId || undefined,
-            })),
-        ];
-    });
+    const options: Option[] = showEmpty
+        ? channelOffers.map(channel => ({ key: `offer:${channel.id}`, channelId: channel.id ?? '' }))
+        : results.flatMap(result => {
+              const channelId = result.channel.id ?? '';
+              return [
+                  { key: `ch:${channelId}`, channelId },
+                  ...result.matches.map(chat => ({
+                      key: `m:${channelId}:${chat.id ?? chat.tempId ?? chat.chatNo}`,
+                      channelId,
+                      chatNo: chat.chatNo,
+                      // A reply lives in its thread panel; the main feed never renders it,
+                      // so scrolling the feed for it could only fail.
+                      threadRootId: chat.parentId || undefined,
+                  })),
+              ];
+          });
 
     // A channel header opens the channel; a match row carries its own chatNo, so
     // it scrolls to the matched message rather than the channel's latest one.
@@ -162,9 +176,64 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 {trimmed.length < 2 ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.hint')}</p>
                 ) : showEmpty ? (
-                    // The footer below already states the cache-only scope; saying it here
-                    // too made the same caveat the loudest thing in the dialog.
-                    <p className="px-3 py-4 text-center text-caption text-foreground">{t('search.noResults')}</p>
+                    // The empty result names the cache-only scope itself, so the footer below
+                    // stays quiet here rather than say the same caveat twice.
+                    <div className="flex flex-col gap-1">
+                        <p className="px-3 py-4 text-center text-caption text-foreground">
+                            {t(nothingLoaded ? 'search.nothingLoaded' : 'search.noResults')}
+                        </p>
+                        {channelOffers.length > 0 && (
+                            <>
+                                <p
+                                    id={`${nav.listboxId}-label`}
+                                    className="px-3 text-micro font-medium text-muted-foreground"
+                                >
+                                    {t('search.channelOffers')}
+                                </p>
+                                <div
+                                    id={nav.listboxId}
+                                    role="listbox"
+                                    aria-labelledby={`${nav.listboxId}-label`}
+                                    className="flex flex-col"
+                                >
+                                    {channelOffers.map((channel, index) => (
+                                        <button
+                                            key={channel.id}
+                                            id={nav.optionId(index)}
+                                            type="button"
+                                            role="option"
+                                            tabIndex={-1}
+                                            aria-selected={index === nav.activeIndex}
+                                            aria-label={t('search.openChannel', {
+                                                name: channelRef(channelKind(channel), labelOf(channel)),
+                                            })}
+                                            onMouseEnter={() => nav.setActiveIndex(index)}
+                                            onClick={() => pick(options[index])}
+                                            className={cn(
+                                                'tactile flex items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-callout text-foreground transition-colors ease-tactile',
+                                                index === nav.activeIndex ? 'bg-accent' : 'hover:bg-accent/60'
+                                            )}
+                                        >
+                                            {channelKind(channel) === 'channel' ? (
+                                                <Hash
+                                                    size={14}
+                                                    className="shrink-0 text-muted-foreground"
+                                                    aria-hidden
+                                                />
+                                            ) : (
+                                                <User
+                                                    size={14}
+                                                    className="shrink-0 text-muted-foreground"
+                                                    aria-hidden
+                                                />
+                                            )}
+                                            <span className="truncate">{labelOf(channel)}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 ) : (
                     <div
                         id={nav.listboxId}
@@ -249,7 +318,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 )}
                 {/* The search is local and bounded; say so rather than let an empty
                     result read as "this was never said". */}
-                {trimmed.length >= 2 && (
+                {trimmed.length >= 2 && (!showEmpty || isTruncated) && (
                     <p className="border-t border-hairline px-3 pt-2 text-micro text-muted-foreground">
                         {isTruncated
                             ? t('search.scopeLimited', { limit: SEARCH_MAX_CHANNELS, total: channels.length })

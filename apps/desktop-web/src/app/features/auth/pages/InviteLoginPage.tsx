@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,34 +8,40 @@ import { runtime } from '@chatic/app-runtime';
 
 import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';
+import { useInviteLoginPageStore } from '../stores';
 import { inviteLoginErrorText } from '../utils';
 
 export const InviteLoginPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { isAuthenticated } = runtime.session.useSessionAuth();
-    const { login, isSubmitting, error } = useInviteLogin();
-    const [code, setCode] = useState('');
+    const { login } = useInviteLogin();
+    // Page state lives in a store: the guest login inside `login` flips the router to its
+    // signed-in branch, which can remount this page before the code exchange settles.
+    const { code, isSubmitting, error, done, setCode, start, finish, release } = useInviteLoginPageStore();
 
     // Authenticated (in-app /join) → back to chat; unauthenticated (/auth/login)
     // → back to the welcome landing. Explicit targets stay correct even with no
     // history (refresh / deep link), unlike navigate(-1).
-    const handleBack = () => navigate(isAuthenticated ? '/' : '/auth/welcome');
+    const handleBack = () => {
+        release();
+        navigate(isAuthenticated ? '/' : '/auth/welcome');
+    };
 
-    // Set once login resolves; the navigate waits for the session to actually
+    // `done` is set once login resolves; the navigate waits for the session to actually
     // flip. Navigating on the promise alone raced the flip, and the router's
     // unauthenticated catch-all then bounced a successful login back to Welcome.
-    const [loggedIn, setLoggedIn] = useState(false);
     useEffect(() => {
-        if (loggedIn && isAuthenticated) navigate('/');
-    }, [loggedIn, isAuthenticated, navigate]);
+        if (!done || !isAuthenticated) return;
+        release();
+        navigate('/');
+    }, [done, isAuthenticated, release, navigate]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
-        void login(code).then(ok => {
-            if (ok) setLoggedIn(true);
-        });
+        start();
+        void login(code).then(finish);
     };
 
     return (
@@ -56,7 +62,7 @@ export const InviteLoginPage = () => {
                     aria-describedby={error ? 'invite-code-error' : undefined}
                     className={cn(
                         'focus-ring h-11 rounded-lg border bg-background px-3 text-callout text-foreground outline-none transition-colors',
-                        'border-input focus:border-focus-border disabled:opacity-50'
+                        'border-control-border focus:border-focus-border disabled:opacity-50'
                     )}
                 />
                 {/* role="alert" so a rejected code is announced, not just drawn. */}

@@ -36,7 +36,7 @@ export function App() {
     return (
         <I18nextProvider i18n={i18n}>
             <QueryClientProvider client={queryClient}>
-                <ThemeProvider>
+                <ThemeProvider defaultTheme="system">
                     <AppErrorBoundary>
                         <Suspense fallback={bootFallback}>
                             <DesktopRuntime />

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check } from 'lucide-react';
+import { AlertCircle, Check } from 'lucide-react';
 
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { focusComposerIfDropped } from '../../../shared';
 import { hasSeenOnboarding, markOnboardingSeen, useOnboardingStore } from '../stores';
 
 interface OnboardingDialogProps {
@@ -22,7 +24,20 @@ interface OnboardingDialogProps {
     showChannelStatus: boolean;
     /** The Self Channel itself is in the list — flips the row to ready. */
     isChannelReady: boolean;
+    /**
+     * The account has a workspace beyond Home. Only then are the workspace and place columns worth
+     * explaining; without one, the tip that helps is how to join one.
+     */
+    hasWorkspaces: boolean;
 }
+
+/**
+ * How long the Self Channel row waits before it says the channel did not arrive. The channel comes
+ * with the channel sync a verified socket runs, a round trip well inside this; past it the spinner no
+ * longer means "almost there". Without a limit, a new account whose list dropped the channel watched
+ * it spin for as long as it stayed on the screen.
+ */
+export const SELF_CHANNEL_WAIT_MS = 15_000;
 
 /**
  * First-run onboarding (2 cards): a welcome, then the handful of things worth
@@ -37,9 +52,19 @@ interface OnboardingDialogProps {
  * back to a person who had already closed it. Losing them for good is no longer
  * the risk it was: Settings reopens them on demand.
  */
-export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }: OnboardingDialogProps) => {
+export const OnboardingDialog = ({
+    enabled,
+    showChannelStatus,
+    isChannelReady,
+    hasWorkspaces,
+}: OnboardingDialogProps) => {
     const { t } = useTranslation();
-    const userId = runtime.session.useSessionIdentity().userId;
+    // The account, not the session: every cloud gives the account its own uid, so the session's
+    // opened the tips again on the first visit to each workspace. The relay uid is the one the
+    // account keeps everywhere; the session's stands in only while no relay token is on hand.
+    const sessionUid = runtime.session.useSessionIdentity().userId;
+    const userId = runtime.session.useUidInCloud(RELAY_CLOUD_ID) ?? sessionUid;
+    const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState<1 | 2>(1);
     // Checked once per account per session, as soon as the account is known: a
@@ -61,6 +86,23 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
         setOpen(true);
     }, [reopenRequested, consumeReopen]);
 
+    // The row's wait: restarted by a retry, cleared the moment the channel shows up.
+    const [attempt, setAttempt] = useState(0);
+    const [timedOut, setTimedOut] = useState(false);
+    const isWaiting = open && showChannelStatus && !isChannelReady;
+    useEffect(() => {
+        setTimedOut(false);
+        if (!isWaiting) return;
+        const timer = setTimeout(() => setTimedOut(true), SELF_CHANNEL_WAIT_MS);
+        return () => clearTimeout(timer);
+    }, [isWaiting, attempt]);
+    // A full channel sync, not a wait alone: the channel reaches the list through that sync, and a
+    // retry that asked nothing again could only time out again. Its cursor is left as it was.
+    const retry = () => {
+        setAttempt(n => n + 1);
+        void channelRepository.syncChannels(0).catch(() => undefined);
+    };
+
     if (!enabled && !open) return null;
 
     // Both close paths write the flag, so a dismissal survives the next reload.
@@ -76,7 +118,13 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
 
     return (
         <Dialog open={open} onOpenChange={isOpen => !isOpen && close()}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-sm">
+            {/* Opened from state, so there is no opener to go back to: the room's message box is
+                where the tips point next. */}
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="sm:max-w-sm"
+                onCloseAutoFocus={focusComposerIfDropped}
+            >
                 {step === 1 ? (
                     <>
                         {stepLabel}
@@ -90,13 +138,27 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                         {showChannelStatus && (
                             <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-callout text-muted-foreground">
                                 {isChannelReady ? (
-                                    <Check size={16} className="shrink-0 text-primary-ink" />
+                                    <Check size={16} className="shrink-0 text-primary-ink" aria-hidden />
+                                ) : timedOut ? (
+                                    <AlertCircle size={16} className="shrink-0 text-destructive" aria-hidden />
                                 ) : (
                                     <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary motion-reduce:animate-none" />
                                 )}
-                                <span>
-                                    {t(isChannelReady ? 'onboarding.welcome.ready' : 'onboarding.welcome.preparing')}
+                                {/* Announced as it changes; the retry sits outside the live region. */}
+                                <span role="status" className="flex-1">
+                                    {t(
+                                        isChannelReady
+                                            ? 'onboarding.welcome.ready'
+                                            : timedOut
+                                              ? 'onboarding.welcome.failed'
+                                              : 'onboarding.welcome.preparing'
+                                    )}
                                 </span>
+                                {!isChannelReady && timedOut && (
+                                    <Button type="button" variant="ghost" size="sm" className="-my-1" onClick={retry}>
+                                        {t('onboarding.welcome.retry')}
+                                    </Button>
+                                )}
                             </div>
                         )}
                         <div className="flex justify-end pt-2">
@@ -114,9 +176,14 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
                         <DialogDescription>{t('onboarding.tips.body')}</DialogDescription>
                         <ul className="flex flex-col gap-2 pt-2 text-callout text-foreground">
                             <li>{t('onboarding.tips.send')}</li>
-                            {/* What the rail and the switcher are for: the two things a
-                                new member cannot guess from looking at the screen. */}
-                            <li>{t('onboarding.tips.places')}</li>
+                            {/* What the workspace and place columns are for, which a new member
+                                cannot guess from the screen. An account with Home alone has
+                                neither, so it learns how to join one instead. */}
+                            <li>
+                                {hasWorkspaces
+                                    ? t('onboarding.tips.places')
+                                    : t('onboarding.tips.invite', { action: t('rail.menu.join') })}
+                            </li>
                             <li>{t('onboarding.tips.switcher')}</li>
                             <li>{t('onboarding.tips.shortcuts')}</li>
                         </ul>

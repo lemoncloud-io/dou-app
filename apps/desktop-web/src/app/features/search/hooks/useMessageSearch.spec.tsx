@@ -13,7 +13,7 @@ const cached: DomainChat[] = [
 ];
 
 const repositories = {
-    chat: { cacheReadList: vi.fn(async () => ({ list: cached })) },
+    chat: { cacheReadList: vi.fn(async (): Promise<{ list: DomainChat[] }> => ({ list: cached })) },
 };
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -29,5 +29,20 @@ describe('useMessageSearch', () => {
         await waitFor(() => expect(result.current.results).toHaveLength(1));
         expect(result.current.results[0]?.matches.map(chat => chat.id)).toEqual(['reply', 'top']);
         expect(result.current.results[0]?.matchCount).toBe(2);
+    });
+
+    it('counts every cached row it read, matching or not', async () => {
+        const { result } = renderHook(() => useMessageSearch('nothing like this', channels));
+
+        await waitFor(() => expect(result.current.scannedCount).toBe(cached.length));
+        expect(result.current.results).toEqual([]);
+    });
+
+    // A cold start has nothing cached, and that empty result must be told apart from "no match".
+    it('reports zero read when the device has nothing loaded', async () => {
+        repositories.chat.cacheReadList.mockResolvedValueOnce({ list: [] });
+        const { result } = renderHook(() => useMessageSearch('budget', channels));
+
+        await waitFor(() => expect(result.current.scannedCount).toBe(0));
     });
 });

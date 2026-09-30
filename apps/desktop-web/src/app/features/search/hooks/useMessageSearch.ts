@@ -39,11 +39,15 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [results, setResults] = useState<ChannelSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    // Cached rows the last search read, matching or not. Zero means the device has nothing loaded
+    // for these channels yet (a cold start), which is a different empty result from "no match".
+    const [scannedCount, setScannedCount] = useState<number | null>(null);
 
     useEffect(() => {
         const q = query.trim().toLowerCase();
         if (q.length < MIN_QUERY_LENGTH) {
             setResults([]);
+            setScannedCount(null);
             setIsSearching(false);
             return;
         }
@@ -52,24 +56,27 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
         const timer = setTimeout(() => {
             void Promise.all(
                 channels.slice(0, SEARCH_MAX_CHANNELS).map(async channel => {
-                    if (!channel.id) return null;
+                    if (!channel.id) return { scanned: 0, result: null };
                     const page = await chatRepository
                         .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
                         .catch(() => null);
-                    const all = (page?.list ?? []).filter(isSearchable(q));
-                    if (all.length === 0) return null;
+                    const rows = page?.list ?? [];
+                    const all = rows.filter(isSearchable(q));
+                    if (all.length === 0) return { scanned: rows.length, result: null };
                     const matches = [...all]
                         .sort((a, b) => (b.chatNo ?? 0) - (a.chatNo ?? 0))
                         .slice(0, MAX_MATCHES_PER_CHANNEL);
-                    return { channel, matches, matchCount: all.length };
+                    return { scanned: rows.length, result: { channel, matches, matchCount: all.length } };
                 })
             ).then(found => {
                 if (!active) return;
                 setResults(
                     found
+                        .map(entry => entry.result)
                         .filter((r): r is ChannelSearchResult => r !== null)
                         .sort((a, b) => b.matchCount - a.matchCount)
                 );
+                setScannedCount(found.reduce((sum, entry) => sum + entry.scanned, 0));
                 setIsSearching(false);
             });
         }, DEBOUNCE_MS);
@@ -83,5 +90,5 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
     // the empty state never said so. Callers state the scope when it binds.
     const isTruncated = channels.length > SEARCH_MAX_CHANNELS;
 
-    return { results, isSearching, isTruncated };
+    return { results, isSearching, isTruncated, scannedCount };
 };

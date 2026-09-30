@@ -76,4 +76,32 @@ describe('DesktopLayout trailing panel', () => {
         expect(document.activeElement).toBe(opener);
         opener.remove();
     });
+
+    // A thread shown again under a closed profile records the profile's close button as its
+    // opener. Once that is gone, closing the thread left focus on <body>.
+    it('puts focus in the message box when what opened it has left the page', async () => {
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+        const opener = document.createElement('button');
+        document.body.appendChild(opener);
+        opener.focus();
+        const layout = (panel: boolean) => (
+            <DesktopLayout
+                rail={<span />}
+                sidebar={<span />}
+                main={<div data-composer-input tabIndex={0} aria-label="Message" />}
+                panel={
+                    panel ? (
+                        <ResizablePanel storageKey="test.panel" resizeLabel="Resize" onClose={vi.fn()}>
+                            <p>panel</p>
+                        </ResizablePanel>
+                    ) : undefined
+                }
+            />
+        );
+        const { rerender } = render(layout(true), { wrapper });
+        opener.remove();
+        rerender(layout(false));
+        await Promise.resolve();
+        expect(document.activeElement).toBe(screen.getByLabelText('Message'));
+    });
 });

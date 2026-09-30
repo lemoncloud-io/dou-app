@@ -19,6 +19,10 @@ const initialState: ThemeProviderState = {
     setTheme: () => null,
 };
 
+const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+
+const prefersDark = () => window.matchMedia(DARK_SCHEME_QUERY).matches;
+
 export const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
@@ -28,22 +32,29 @@ export function ThemeProvider({
     ...props
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
+    const [systemIsDark, setSystemIsDark] = useState(prefersDark);
     const isOnMobileApp = isNative();
+
+    // While the choice is 'system', follow the OS as it changes, not only as it was at launch.
+    // The read on subscribe catches a change made while another choice was active.
+    useEffect(() => {
+        if (theme !== 'system') return;
+
+        const media = window.matchMedia(DARK_SCHEME_QUERY);
+        const onChange = () => setSystemIsDark(media.matches);
+        onChange();
+        media.addEventListener('change', onChange);
+        return () => media.removeEventListener('change', onChange);
+    }, [theme]);
+
+    const resolvedTheme = theme === 'system' ? (systemIsDark ? 'dark' : 'light') : theme;
 
     useEffect(() => {
         const root = window.document.documentElement;
 
         root.classList.remove('light', 'dark');
-
-        if (theme === 'system') {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-
-            root.classList.add(systemTheme);
-            return;
-        }
-
-        root.classList.add(theme);
-    }, [theme]);
+        root.classList.add(resolvedTheme);
+    }, [resolvedTheme]);
 
     // Sync theme preference to native storage.
     useEffect(() => {

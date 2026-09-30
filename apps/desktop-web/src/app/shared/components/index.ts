@@ -12,3 +12,4 @@ export * from './UpdateBanner';
 export * from './AppErrorBoundary';
 export * from './paneHeader';
 export * from './ScrollHint';
+export * from './MobileAppPointer';

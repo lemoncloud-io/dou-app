@@ -272,6 +272,64 @@ describe('MessageList', () => {
         expect(screen.getByText('Unseen by 1')).toBeDefined();
     });
 
+    // A receipt under each of my blocks was the loudest repeated line in a busy channel. The
+    // latest block keeps it; an earlier one shows it only while its message is hovered or has
+    // focus, and focus is how the arrow keys move through the feed.
+    it('shows the receipt outright only on the latest block that has one', () => {
+        render(
+            <MessageList
+                messages={[
+                    message(1, 'me', 'mine, older'),
+                    message(2, 'ada', 'reply'),
+                    message(3, 'me', 'mine, latest'),
+                ]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                readCountOf={(chatNo, senderId) => (senderId === 'me' ? { readCount: chatNo, unreadCount: 0 } : null)}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getAllByText(/^Seen by /).map(node => node.textContent)).toEqual(['Seen by 3']);
+
+        const older = screen.getByText('mine, older').closest('[role="article"]') as HTMLElement;
+        fireEvent.mouseEnter(older);
+        expect(screen.getByText('Seen by 1')).toBeDefined();
+        fireEvent.mouseLeave(older);
+        expect(screen.queryByText('Seen by 1')).toBeNull();
+
+        fireEvent.focus(older);
+        expect(screen.getByText('Seen by 1')).toBeDefined();
+    });
+
+    // In the thread panel the column is about 270px and the toolbar about 210px, so a toolbar
+    // over the author line hid the author's name. There it hangs under the header on a block's
+    // first message; the rest keep their place above their own message. jsdom lays nothing out,
+    // so this pins the placement class; the overlap itself needs a browser.
+    it('hangs the first toolbar under the author line in a thread, not over it', () => {
+        const toolbarTops = (threadReplyCount?: number) => {
+            const { container, unmount } = render(
+                <MessageList
+                    messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map([['ada', 'Ada']])}
+                    threadReplyCount={threadReplyCount}
+                />,
+                { wrapper }
+            );
+            const tops = [...container.querySelectorAll('[data-row-actions]')].map(node =>
+                node.className.includes('-top-1.5') ? 'under-header' : 'above'
+            );
+            unmount();
+            return tops;
+        };
+
+        expect(toolbarTops(1)).toEqual(['under-header', 'above']);
+        expect(toolbarTops()).toEqual(['above', 'above']);
+    });
+
     // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
     // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
     // false rather than staying quiet.
@@ -505,5 +563,31 @@ describe('MessageList failed send', () => {
         );
         expect(screen.getByRole('status').textContent).toContain('Not delivered');
         expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
+    });
+});
+
+describe('MessageList first page failed', () => {
+    afterEach(cleanup);
+
+    // An empty list after a failed load is not an empty room: the intro would invite a first
+    // message into a room that has history.
+    it('says the messages did not load and retries, instead of the intro', () => {
+        const onRetryLoad = vi.fn();
+        render(
+            <MessageList
+                messages={[]}
+                isLoading={false}
+                viewer={VIEWER}
+                intro={<p>Write the first message</p>}
+                loadFailed
+                onRetryLoad={onRetryLoad}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByRole('alert').textContent).toContain('Could not load messages.');
+        expect(screen.queryByText('Write the first message')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onRetryLoad).toHaveBeenCalledTimes(1);
     });
 });

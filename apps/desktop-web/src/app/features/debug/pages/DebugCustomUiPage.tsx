@@ -90,7 +90,7 @@ export const DebugCustomUiPage = () => {
                     value={zipUrl}
                     onChange={e => setZipUrl(e.target.value)}
                     placeholder="https://example.com/custom-web.zip"
-                    className="h-10 rounded-lg border border-input bg-background px-3 text-callout text-foreground outline-none focus:border-focus-border"
+                    className="h-10 rounded-lg border border-control-border bg-background px-3 text-callout text-foreground outline-none focus:border-focus-border"
                 />
             </label>
 

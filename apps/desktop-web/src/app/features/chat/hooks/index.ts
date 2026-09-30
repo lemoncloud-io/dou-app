@@ -11,3 +11,4 @@ export * from './useHydrateDmPeers';
 export * from './usePendingLanding';
 export * from './useNextUnreadShortcut';
 export * from './useComposerSend';
+export * from './useTrailingPanelOwners';

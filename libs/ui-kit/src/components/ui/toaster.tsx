@@ -6,14 +6,19 @@ import { useToast } from './use-toast';
 /**
  * How long a toast stays. 1.5s was under the time it takes to read one sentence, so a
  * confirmation ("Channel created", or "Member removed" with its Undo) was gone before
- * anyone could act on it, or even notice it had fired. A swipe or the close button
- * still dismisses it early.
+ * anyone could act on it, or even notice it had fired. A swipe still dismisses it early.
  */
 export const TOAST_DURATION_MS = 5000;
 
 interface ToasterProps {
     /** Extra classes for the viewport, e.g. to keep toasts clear of an app header. */
     viewportClassName?: string;
+    /**
+     * The toast region's accessible name, in the host's language. Radix's default is the
+     * English "Notifications ({hotkey})"; `{hotkey}` is replaced with the shortcut that
+     * moves focus into the region.
+     */
+    label: string;
 }
 
 const ICONS = {
@@ -24,7 +29,7 @@ const ICONS = {
     info: <Info className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />,
 };
 
-export const Toaster = ({ viewportClassName }: ToasterProps) => {
+export const Toaster = ({ viewportClassName, label }: ToasterProps) => {
     const { toasts } = useToast();
 
     return (
@@ -41,7 +46,7 @@ export const Toaster = ({ viewportClassName }: ToasterProps) => {
                     </Toast>
                 );
             })}
-            <ToastViewport className={viewportClassName} />
+            <ToastViewport className={viewportClassName} label={label} />
         </ToastProvider>
     );
 };

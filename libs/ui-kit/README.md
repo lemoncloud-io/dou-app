@@ -12,8 +12,11 @@ between the two is [the first thing to get right](#the-boundary-with-libsweb-ui-
 ## Purpose
 
 This lib decides **behaviour** — focus trap, portal, dismiss, ARIA wiring, keyboard nav — and leaves
-**appearance** to whoever renders it. It owns no state, no data and no copy: string literals are
-English defaults (`Close`, `Previous`, `More pages`) that a caller overrides, and open/selected state
+**appearance** to whoever renders it. It owns no state, no data and no copy. The strings a user
+hears on every screen are required from the caller — the dialog and sheet close button's
+`closeLabel` and the `Toaster` region's `label` — because an English default there was the one
+English word a Korean screen reader still read out. The English literals left (`Previous`, `More pages`,
+`Command`) sit in primitives nothing here renders yet, and open/selected state
 belongs to the host.
 
 Unlike every other lib here, **consumers do not import a barrel.** `src/index.ts` is one line
@@ -66,7 +69,7 @@ portalled to `document.body` is the one thing a call site cannot correct.
 ## Design principles
 
 1. **Regenerable by default.** A file under `components/ui/` is the generator's output and stays
-   that way unless there is a reason it cannot. 21 of the 30 modules have not been touched since
+   that way unless there is a reason it cannot. 19 of the 30 modules have not been touched since
    `shadcn add` wrote them.
 2. **A local edit carries the reason in a comment.** The three overlay files that read `--app-width`
    each explain, in place, why a `fixed` element portalled to `document.body` has to re-declare the
@@ -80,7 +83,9 @@ portalled to `document.body` is the one thing a call site cannot correct.
 5. **One `cn`, and it is not just `clsx`.** `src/utils/index.ts` extends `tailwind-merge` with the
    repo's own `font-size` scale. Without that registration `twMerge` reads `text-callout` as a text
    _colour_ and drops it whenever a span also carries `text-foreground`, collapsing the type scale to
-   the 16px browser default. Import `cn` from `@chatic/lib/utils`; never call `twMerge` directly.
+   the 16px browser default. desktop-web's named `z-*` scale is registered the same way, or
+   `z-toast` would not override the toast viewport's `z-[100]`. Import `cn` from `@chatic/lib/utils`;
+   never call `twMerge` directly.
 6. **English only.** A Korean literal in a primitive is a bug — this lib is rendered by an admin
    console that does not load the app's i18n catalogue.
 
@@ -139,7 +144,7 @@ Those five counts are files reaching a `components/ui/` path — 154 in all. Nin
 ```text
 libs/ui-kit/src/
 ├── index.ts            public barrel — one line, and it exports `cn` only
-├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size scale
+├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size and z-index scales
 ├── utils/openerFocus.tsx  focus back to whatever opened a dialog (dialog, alert-dialog)
 └── components/ui/      29 primitives, one file each, plus use-toast.ts
 ```
@@ -147,7 +152,8 @@ libs/ui-kit/src/
 Three files hold something the name does not give away:
 
 - `use-toast.ts` is not a component. It is the toast store — a reducer, a module-level listener list
-  and `TOAST_LIMIT = 1` — and it is the single most imported module here, at 79 files.
+  and a toast limit of 1 that an app can raise with `setToastLimit` — and it is the single most
+  imported module here, at 79 files.
 - `toaster.tsx` is the mount point, rendered once per app in `AppRuntime` / `DesktopRuntime`. It is
   fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
   sets the dismiss timer for every app at once (5s): long enough to read a sentence and press an
@@ -171,38 +177,38 @@ grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.t
     | grep -v node_modules | grep -v '^libs/ui-kit/'
 ```
 
-| Module          | Importers | Where                                             | Local edits                                       |
-| --------------- | --------: | ------------------------------------------------- | ------------------------------------------------- |
-| `use-toast`     |        79 | web 68 · desktop-web 11                           | `TOAST_REMOVE_DELAY` cut to 1s                    |
-| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | —                                                 |
-| `dialog`        |        24 | web 13 · desktop-web 10 · admin-v2 1              | variants · `hideClose` · width cap · focus return |
-| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3              | —                                                 |
-| `avatar`        |        13 | desktop-web 13                                    | —                                                 |
-| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin-v2 1 · web-ui-kit 1 | width cap · focus on open and return              |
-| `input`         |         9 | desktop-web 6 · admin-v2 2 · web 1                | restyled to DoU tokens                            |
-| `tooltip`       |         7 | desktop-web 6 · web 1                             | —                                                 |
-| `label`         |         5 | desktop-web 3 · admin-v2 2                        | —                                                 |
-| `sheet`         |         5 | web 4 · web-ui-kit 1                              | `hideClose` · width cap on bottom                 |
-| `popover`       |         4 | desktop-web 4                                     | —                                                 |
-| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | —                                                 |
-| `table`         |         3 | admin-v2 3                                        | —                                                 |
-| `badge`         |         2 | admin-v2 2                                        | —                                                 |
-| `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten                                         |
-| `card`          |         1 | web 1                                             | —                                                 |
-| `context-menu`  |         1 | desktop-web 1                                     | icon sizing on items                              |
-| `skeleton`      |         1 | admin-v2 1                                        | —                                                 |
-| `textarea`      |         1 | admin-v2 1                                        | —                                                 |
-| `toast`         |         0 | rendered by `toaster`                             | restyled · viewport moved to top                  |
-| `command`       |         0 | —                                                 | `sr-only` name for the dialog                     |
-| `accordion`     |         0 | —                                                 | —                                                 |
-| `alert`         |         0 | —                                                 | —                                                 |
-| `breadcrumb`    |         0 | —                                                 | —                                                 |
-| `checkbox`      |         0 | —                                                 | —                                                 |
-| `pagination`    |         0 | —                                                 | —                                                 |
-| `scroll-area`   |         0 | —                                                 | —                                                 |
-| `select`        |         0 | —                                                 | —                                                 |
-| `separator`     |         0 | —                                                 | —                                                 |
-| `tabs`          |         0 | —                                                 | —                                                 |
+| Module          | Importers | Where                                             | Local edits                                                                   |
+| --------------- | --------: | ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `use-toast`     |        79 | web 68 · desktop-web 11                           | `TOAST_REMOVE_DELAY` cut to 1s                                                |
+| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | `link` in ink, underlined · 2px focus ring with gap                           |
+| `dialog`        |        24 | web 13 · desktop-web 10 · admin-v2 1              | variants · required `closeLabel` · width cap · focus return · `overlay` scrim |
+| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3              | —                                                                             |
+| `avatar`        |        13 | desktop-web 13                                    | —                                                                             |
+| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin-v2 1 · web-ui-kit 1 | width cap · focus on open and return · `overlay` scrim                        |
+| `input`         |         9 | desktop-web 6 · admin-v2 2 · web 1                | restyled to DoU tokens                                                        |
+| `tooltip`       |         7 | desktop-web 6 · web 1                             | —                                                                             |
+| `label`         |         5 | desktop-web 3 · admin-v2 2                        | —                                                                             |
+| `sheet`         |         5 | web 4 · web-ui-kit 1                              | required `closeLabel` · width cap on bottom · `overlay` scrim                 |
+| `popover`       |         4 | desktop-web 4                                     | —                                                                             |
+| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | 3:1 track, ink edge and thumb when on                                         |
+| `table`         |         3 | admin-v2 3                                        | —                                                                             |
+| `badge`         |         2 | admin-v2 2                                        | —                                                                             |
+| `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten · required region `label`                                           |
+| `card`          |         1 | web 1                                             | —                                                                             |
+| `context-menu`  |         1 | desktop-web 1                                     | icon sizing on items                                                          |
+| `skeleton`      |         1 | admin-v2 1                                        | —                                                                             |
+| `textarea`      |         1 | admin-v2 1                                        | —                                                                             |
+| `toast`         |         0 | rendered by `toaster`                             | restyled · viewport moved to top                                              |
+| `command`       |         0 | —                                                 | `sr-only` name for the dialog · `closeLabel` passed through                   |
+| `accordion`     |         0 | —                                                 | —                                                                             |
+| `alert`         |         0 | —                                                 | —                                                                             |
+| `breadcrumb`    |         0 | —                                                 | —                                                                             |
+| `checkbox`      |         0 | —                                                 | —                                                                             |
+| `pagination`    |         0 | —                                                 | —                                                                             |
+| `scroll-area`   |         0 | —                                                 | —                                                                             |
+| `select`        |         0 | —                                                 | —                                                                             |
+| `separator`     |         0 | —                                                 | —                                                                             |
+| `tabs`          |         0 | —                                                 | —                                                                             |
 
 **Ten primitives are imported by nothing at all** — `accordion`, `alert`, `breadcrumb`, `checkbox`,
 `command`, `pagination`, `scroll-area`, `select`, `separator`, `tabs`. That is not dead code in the
@@ -229,7 +235,7 @@ npx shadcn@latest add <component>
 lands here and imports `cn` through the repo's own alias. The style is `new-york`, base colour
 `stone`, icon library `lucide`.
 
-**Nine of the 30 modules carry edits made after the generator wrote them, and re-running the command
+**Eleven of the 30 modules carry edits made after the generator wrote them, and re-running the command
 on one of those overwrites the edit.** The list is not a claim to be trusted — it is a query:
 
 ```bash
@@ -239,17 +245,19 @@ for f in libs/ui-kit/src/components/ui/*.tsx libs/ui-kit/src/components/ui/*.ts;
 done
 ```
 
-| File               | What a regenerate would destroy                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap, `default`'s own `--dialog-width`, the safe-area padding, the return of focus to the opener (`utils/openerFocus.tsx`), and `grid-cols-[minmax(0,1fr)]` — without that column the grid's implicit `auto` track takes a `truncate` line's unwrapped width, and the content spills past the panel |
-| `toast.tsx`        | The whole surface: `bg-toast` tokens, left accent border, viewport pinned to the top under `pt-safe-top`, custom enter/exit animations                                                                                                                                                                                                                                                                                   |
-| `sheet.tsx`        | `hideClose`, and `mx-auto max-w-[var(--app-width,100%)]` on the `bottom` side                                                                                                                                                                                                                                                                                                                                            |
-| `toaster.tsx`      | Status icons, `duration={1500}`, `swipeDirection="up"`, and the two-column body layout                                                                                                                                                                                                                                                                                                                                   |
-| `alert-dialog.tsx` | The same `--dialog-width` rule as `DialogContent`'s `default` variant, the return of focus to the opener, focus on the first control when there is no Cancel, and the same `grid-cols-[minmax(0,1fr)]`                                                                                                                                                                                                                   |
-| `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm`                                                                                                                                                                                                                         |
-| `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                                                                                                                                                                                                                                          |
-| `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires                                                                                                                                                                                                                                                                                                                   |
-| `context-menu.tsx` | `gap-2` and `[&>svg]:size-4` on items, so icons match `dropdown-menu`                                                                                                                                                                                                                                                                                                                                                    |
+| File               | What a regenerate would destroy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap, `default`'s own `--dialog-width` and its viewport height cap (`VIEWPORT_HEIGHT_CAP`: `max-h-[calc(100dvh-2rem)]`, scrolling the panel; a full-height caller passes `max-h-none`), the safe-area padding, the return of focus to the opener (`utils/openerFocus.tsx`), and `grid-cols-[minmax(0,1fr)]` — without that column the grid's implicit `auto` track takes a `truncate` line's unwrapped width, and the content spills past the panel, the `CloseButtonProps` contract (a rendered close button requires the caller's `closeLabel`; the generator hard-codes `Close`), and `bg-overlay/80` where the generator writes `bg-black/80` |
+| `toast.tsx`        | The whole surface: `bg-toast` tokens, left accent border, viewport pinned to the top under `pt-safe-top`, custom enter/exit animations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `sheet.tsx`        | `hideClose`, and `mx-auto max-w-[var(--app-width,100%)]` on the `bottom` side, the same `CloseButtonProps` contract and `bg-overlay/80` scrim as `dialog.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `toaster.tsx`      | Status icons, `duration={1500}`, `swipeDirection="up"`, and the two-column body layout, and the required `label` naming the toast region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `alert-dialog.tsx` | The same `--dialog-width` rule and viewport height cap as `DialogContent`'s `default` variant, the return of focus to the opener, focus on the first control when there is no Cancel, and the same `grid-cols-[minmax(0,1fr)]`, and the `bg-overlay/80` scrim                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires, and the `closeLabel` prop `CommandDialog` passes to its `DialogContent`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `button.tsx`       | The `link` variant's `text-primary-ink underline`; the generator writes `text-primary`, the fill colour, which as text on a light ground can fall under 1.5:1; and the focus ring, `ring-2` behind a 2px `ring-offset-background` gap where the generator writes a 1px `ring-1`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `switch.tsx`       | `bg-control-border` for the off track, and the `primary-ink` edge and `primary-foreground` thumb on the checked state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `context-menu.tsx` | `gap-2` and `[&>svg]:size-4` on items, so icons match `dropdown-menu`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 An untouched file is not the same thing as a file identical to today's registry — upstream moves.
 `tabs.tsx` here is `h-10 rounded-md` where the registry now writes `h-9 rounded-lg`, and
@@ -291,20 +299,36 @@ Nothing is assembled here. A host supplies three things, in this order:
 
 ### Tokens the host must declare
 
-Two primitives resolve tokens that are not part of shadcn's default palette, so a host that renders
+Five primitive families resolve tokens that are not part of shadcn's default palette, so a host that renders
 them and has not declared the tokens gets a transparent, unstyled element and no error:
 
-| Primitive         | Requires                                                 |
-| ----------------- | -------------------------------------------------------- |
-| `Input`           | `surface`, `input-border`, `placeholder`, `focus-border` |
-| `Toast`/`Toaster` | `toast` (with `foreground` and `muted`), `main-accent`   |
+| Primitive                      | Requires                                                 |
+| ------------------------------ | -------------------------------------------------------- |
+| `Input`                        | `surface`, `input-border`, `placeholder`, `focus-border` |
+| `Toast`/`Toaster`              | `toast` (with `foreground` and `muted`), `main-accent`   |
+| `Switch`                       | `control-border`, `primary-ink`                          |
+| `Dialog`/`AlertDialog`/`Sheet` | `overlay` (the scrim, drawn at 80%)                      |
+| `Button` (`link` only)         | `primary-ink`                                            |
 
-`apps/web`, `apps/desktop-web` and `apps/block-kit-builder` declare all of them. `apps/admin-v2`
-declares the four `Input` needs and not the toast pair — which is consistent today, because it does
-not mount `Toaster`, and is the thing to fix first if it ever does.
+`Switch` is held to WCAG 1.4.11's 3:1 for a control's state: its off track is the host's
+`control-border` (the edge it gives interactive controls), and its on state keeps the `primary`
+fill but adds a `primary-ink` edge and a `primary-foreground` thumb. The `link` variant is text, so
+it takes `primary-ink` — the accent as text — rather than the fill. The host picks values that
+clear those floors on its own ground; `apps/desktop-web` asserts its pairs in
+`src/tokenContrast.spec.ts`.
+
+`apps/web`, `apps/desktop-web` and `apps/block-kit-builder` declare the `Input` and toast tokens;
+`apps/desktop-web` also declares `control-border`, and `apps/web` has `primary-ink` but no
+`control-border` — consistent while it renders no `Switch`. `apps/admin-v2` declares the four
+`Input` needs and aliases `control-border` and `primary-ink` onto its own `--input` and
+`--primary`; it does not declare the toast pair — consistent today, because it does not mount
+`Toaster`, and the thing to fix first if it ever does. `overlay` is declared by every host that
+renders a kit overlay: `apps/web` and `apps/desktop-web` had it, `apps/admin-v2` declares it black
+(the scrim it had before the kit read a token), and `libs/web-ui-kit`'s Storybook `tokens.css`
+mirrors `apps/web`'s values.
 
 ```bash
-grep -rn "surface:\|input-border\|main-accent\|toast:" apps/*/tailwind.config.js
+grep -rn "surface:\|input-border\|main-accent\|toast:\|control-border\|ink:\|overlay:" apps/*/tailwind.config.js
 ```
 
 `--app-width` is the other host-owned value, and it is a CSS variable rather than a Tailwind token on
@@ -351,10 +375,12 @@ editing the primitive.
 
 ### 4. Raising a toast
 
-Call `useToast()` from anywhere; the store is module-level, so no provider is needed. `TOAST_LIMIT`
-is 1 — a second toast replaces the first rather than stacking. `duration` comes from the
-`ToastProvider` in `toaster.tsx` (1500ms), not from the call. An app that never mounts `<Toaster />`
-swallows every toast silently.
+Call `useToast()` from anywhere; the store is module-level, so no provider is needed. One toast
+shows at a time unless the app calls `setToastLimit` — a new one then drops the oldest. `duration`
+comes from the `ToastProvider` in `toaster.tsx` (`TOAST_DURATION_MS`, 5s) unless the call passes one.
+Desktop's own `AppToaster` keeps a `destructive` toast until it is closed and raises the limit to 3;
+the kit leaves both to the app, because the mobile web app shares this store. An app that never
+mounts `<Toaster />` swallows every toast silently.
 
 ### 5. Deciding between the two kits
 

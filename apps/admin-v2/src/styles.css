@@ -27,6 +27,9 @@
         --input: 220 13% 91%;
         --ring: 221 83% 53%;
         --radius: 0.5rem;
+        /* ui-kit's overlay scrim, drawn at 80%. Black in both themes, as it was before the
+           kit read a token for it, so .dark does not redefine it. */
+        --overlay: 0 0% 0%;
     }
 
     .dark {

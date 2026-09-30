@@ -7,7 +7,11 @@ clients are in ADR-0113. Desktop then files each 1:1 under the places its peer s
 (ADR-0141). This document is how desktop applies both.
 
 On the default (relay) cloud a 1:1 is reached by inviting a phone number, which is a mobile flow.
-Desktop offers no way to start one there, and every entry point below hides.
+Desktop offers no way to start one there, and every entry point below hides. The sidebar's 1:1
+section stays, though: while it has no 1:1 in it, it says that a 1:1 on Home starts from a phone
+number in the DoU mobile app, with the App Store and Google Play links (`MobileAppPointer`). It
+used to vanish without a word, which read as a missing feature rather than one that lives
+elsewhere.
 
 ## Where a 1:1 is listed
 
@@ -36,9 +40,13 @@ Desktop offers no way to start one there, and every entry point below hides.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.
-- **A cloud with no place at all** still lists its 1:1s (`cloudWideOnly`). HomePage asks for that only
-  once places have loaded, are empty and no switch is in flight. "No place selected yet" during a
-  cloud switch must list nothing, or the home screen auto-selects a 1:1 in the gap.
+- **A cloud with no place at all** still lists its 1:1s (`whenNoPlace: 'cloudDms'`). HomePage asks for
+  that only once places have loaded, are empty and no switch is in flight. "No place selected yet"
+  during a cloud switch must list nothing, or the home screen auto-selects a 1:1 in the gap.
+- **The Default Cloud (Home)** is not that case. Nothing but an invite join selects a site on it, so
+  it usually has no place, and its 1:1s are not cloud-wide (they live in the relay's one place):
+  the cloud-1:1 rule would list nothing, the Self Channel included, and onboarding would wait on it
+  forever. With no site, Home lists every relay row (`whenNoPlace: 'relay'`).
 - **The quick switcher** (`useKnownChannelsStore`) files a 1:1 under each place that lists it, with
   its person (`peerId`), so ⌘K offers a 1:1 listed only in other places as "in another place",
   named after the person rather than the server-set room name (`elsewhereChannels`) — the room name
@@ -122,3 +130,16 @@ has no cached name. The sidebar loads the members of each listed 1:1 whose peer 
 nick nor a cached name (`useHydrateDmPeers`): once per room per mount, after the socket is verified,
 and only after a cache read finds nothing, so a warm cache costs no request. A failed load is logged
 and retried on the next list change.
+
+**Waiting for names.** On a cloud with nothing cached those loads took 5-10s, and the rows used to
+show each peer's raw id (with its first digit as the avatar) until they landed. A 1:1 row is never
+drawn under an id now:
+
+- Until every 1:1 in the place has a name, the whole Direct messages section is placeholder rows.
+  The 1:1s are ordered by the names they show, so drawing them one by one would re-sort the list
+  under the pointer as each name arrived; holding the section sorts it once.
+- After that first settle, a 1:1 that appears later (a new room) holds only its own row.
+- The wait gives up after `DM_NAME_WAIT_MS` (10s) and the row falls back to the room name, so a
+  person whose record never arrives cannot hold the section for good.
+
+People with no 1:1 yet do not hold the section: they are left out until named anyway.

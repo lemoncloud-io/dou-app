@@ -27,7 +27,8 @@ The version gap that arises when a remotely-loaded Web client and its Shell are 
 
 **Cloud**:
 An isolated tenant boundary. A user's identity, places, and channels are scoped to a Cloud; switching Cloud re-scopes the whole session.
-_Avoid_: tenant, org, server
+In UI copy it is "클라우드" in Korean and "cloud" in English, on every client — the word the mobile app's screens and plans already use. It is not called a workspace in the UI: one object under two names reads as two objects.
+_Avoid_: tenant, org, server, workspace (in UI copy)
 
 **Default Cloud**:
 The broker-hosted relay tenant (`id: 'default'`) that exists before any subscription. A user reaches it through a Guest Session — no Invite Code, no email, no Place to join — and it hosts their Self Channel from first launch. Distinct from a subscribed Cloud, which is a dedicated per-email deployment with its own URL.

@@ -108,10 +108,11 @@ vi.mock('./QuickSwitcher', async () => {
 vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
+import i18next from 'i18next';
 
 import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
-import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
+import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList, DM_NAME_WAIT_MS } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -792,6 +793,71 @@ describe('ChannelList 1:1 names', () => {
     });
 });
 
+describe('ChannelList 1:1 names on a cold cloud', () => {
+    // Room names sort the other way round from the people's names, so a sort by room name shows.
+    const dmZed = { id: 'D1', stereo: 'dm', name: 'a-room', memberIds: ['me', '1000007'] } as DomainChannel;
+    const dmAmy = { id: 'D2', stereo: 'dm', name: 'z-room', memberIds: ['me', '1000192'] } as DomainChannel;
+    const listOf = (channels: DomainChannel[]) => (
+        <ChannelList
+            channels={channels}
+            isLoading={false}
+            selectedChannelId={null}
+            query=""
+            onSelect={vi.fn()}
+            isDefaultMode={false}
+        />
+    );
+    const dmRowNames = () =>
+        Array.from(document.querySelectorAll<HTMLElement>('[data-channel-row]')).map(el => el.textContent);
+
+    afterEach(() => {
+        vi.useRealTimers();
+        hydrate.cloud = new Map();
+    });
+
+    it('draws placeholder rows, never the ids, until every name arrives, then sorts once by name', () => {
+        hydrate.cloud = new Map([['1000007', { name: 'Zed' }]]);
+        const { rerender } = render(listOf([dmZed, dmAmy]), { wrapper });
+
+        expect(screen.queryByText(/1000192|1000007/)).toBeNull();
+        expect(dmRowNames()).toEqual([]);
+        expect(screen.getByRole('status', { name: 'Loading channels' })).toBeTruthy();
+
+        hydrate.cloud = new Map([
+            ['1000007', { name: 'Zed' }],
+            ['1000192', { name: 'Amy' }],
+        ]);
+        rerender(listOf([dmZed, dmAmy]));
+
+        expect(dmRowNames()).toEqual(['AAmy', 'ZZed']);
+    });
+
+    it('falls back to the room name once the wait runs out', () => {
+        vi.useFakeTimers();
+        render(listOf([dmZed]), { wrapper });
+        expect(dmRowNames()).toEqual([]);
+
+        act(() => {
+            vi.advanceTimersByTime(DM_NAME_WAIT_MS);
+        });
+
+        expect(dmRowNames()).toEqual(['Aa-room']);
+    });
+
+    // Once the section has settled, a new 1:1 must not fold every row back into placeholders.
+    it('holds only the new row when a 1:1 arrives after the names settled', () => {
+        hydrate.cloud = new Map([['1000007', { name: 'Zed' }]]);
+        const { rerender } = render(listOf([dmZed]), { wrapper });
+        expect(dmRowNames()).toEqual(['ZZed']);
+
+        rerender(listOf([dmZed, dmAmy]));
+
+        expect(dmRowNames()).toEqual(['ZZed']);
+        expect(screen.queryByText(/1000192/)).toBeNull();
+        expect(screen.queryByRole('status', { name: 'Loading channels' })).toBeNull();
+    });
+});
+
 describe('ChannelList drawing order', () => {
     afterEach(() => {
         cleanup();
@@ -893,5 +959,62 @@ describe('ChannelList place members without a 1:1', () => {
         renderWith({});
 
         expect(screen.queryByText('Alice')).toBeNull();
+    });
+});
+
+describe('ChannelList empty state', () => {
+    // The Home cloud's hint promised messages under "No channels yet": the wrong noun for a
+    // list of channels.
+    it('says where channels come from when the Home cloud has none', () => {
+        render(
+            <ChannelList
+                channels={[]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('No channels yet')).toBeTruthy();
+        expect(screen.getByText("Channels you're invited to will appear here.")).toBeTruthy();
+        expect(screen.queryByText(/messages/i)).toBeNull();
+    });
+});
+
+describe('ChannelList on Home', () => {
+    const homeList = (props: { isDefaultMode: boolean; query?: string }) => (
+        <ChannelList
+            channels={[CHANNEL]}
+            isLoading={false}
+            selectedChannelId={null}
+            query={props.query ?? ''}
+            onSelect={vi.fn()}
+            isDefaultMode={props.isDefaultMode}
+        />
+    );
+    const pointer = () => screen.queryByText(i18next.t('mobileApp.homeDm'), { exact: false });
+
+    beforeEach(() => useSidebarSectionsStore.setState({ collapsed: {} }));
+
+    // Home offers no way to start a 1:1, and the section used to vanish without a word.
+    it('says a 1:1 on Home starts in the mobile app', () => {
+        render(homeList({ isDefaultMode: true }), { wrapper });
+        expect(screen.getByRole('heading', { name: i18next.t('sidebar.dms') })).toBeTruthy();
+        expect(pointer()).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Google Play' }).getAttribute('href')).toMatch(/play\.google\.com/);
+    });
+
+    it('says nothing in a cloud, where the section has its own way in', () => {
+        render(homeList({ isDefaultMode: false }), { wrapper });
+        expect(pointer()).toBeNull();
+    });
+
+    it('folds away with its section', () => {
+        useSidebarSectionsStore.setState({ collapsed: { dm: true } });
+        render(homeList({ isDefaultMode: true }), { wrapper });
+        expect(pointer()).toBeNull();
     });
 });

@@ -17,6 +17,7 @@ import {
     dmCounterpartId,
     isSelfChannel,
     lastChatNoOf,
+    MobileAppPointer,
     resolveDisplay,
     messagePreview,
     useCloudProfiles,
@@ -205,6 +206,54 @@ const ChannelRow = memo(function ChannelRow({
     );
 });
 
+/**
+ * How long the Direct messages section waits for its people's names. A cold cloud has none cached,
+ * and `useHydrateDmPeers` has to reach the server first, which took 5-10s when this was measured.
+ * Past this the rows fall back to the room name: a person whose record never arrives (a deleted
+ * account) must not hold the section forever.
+ */
+export const DM_NAME_WAIT_MS = 10_000;
+
+/**
+ * Whether the Direct messages section is still waiting for names, per place (`scope`).
+ *
+ * - `holdSection` — the place's first names have not all arrived. The whole section is drawn as
+ *   placeholder rows, so it is sorted once, by name, instead of re-sorting under the pointer as each
+ *   name lands.
+ * - `waitForName` — an unnamed row is drawn as a placeholder rather than as the raw id. After the
+ *   first settle this is per row: a 1:1 that appears later waits on its own name without folding the
+ *   whole section back.
+ *
+ * Both give up after `DM_NAME_WAIT_MS`. The wait restarts only once every name has arrived, so a
+ * person who never resolves does not hold every later row too.
+ */
+const useDmNameWait = (hasUnnamedPeer: boolean, scope: string) => {
+    const [settledScope, setSettledScope] = useState<string | null>(null);
+    const [gaveUpScope, setGaveUpScope] = useState<string | null>(null);
+    useEffect(() => {
+        if (!hasUnnamedPeer) {
+            setSettledScope(scope);
+            setGaveUpScope(null);
+            return;
+        }
+        const timer = setTimeout(() => {
+            setSettledScope(scope);
+            setGaveUpScope(scope);
+        }, DM_NAME_WAIT_MS);
+        return () => clearTimeout(timer);
+    }, [hasUnnamedPeer, scope]);
+    const waitForName = hasUnnamedPeer && gaveUpScope !== scope;
+    return { holdSection: waitForName && settledScope !== scope, waitForName };
+};
+
+/** A Direct messages row whose person has no name yet: the row's shape, never the raw id. */
+const PendingPersonRow = () => (
+    <div aria-hidden className="flex h-9 items-center gap-2 p-2">
+        <Skeleton className="h-6 w-6 shrink-0 rounded-full bg-muted animate-pulse" />
+        <Skeleton className="h-3 w-24 bg-muted animate-pulse" />
+    </div>
+);
+
 /** Module-level so its identity is stable and the memo'd rows can skip re-rendering. */
 const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
@@ -275,6 +324,8 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
+    // A folded 1:1 section hides the Home pointer with its rows.
+    const isDmCollapsed = useSidebarSectionsStore(s => !!s.collapsed.dm);
     const placeProfiles = useSiteProfileMap();
     // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
     // scoped to the active place — `pinnedIds` array order is the Favorites display order.
@@ -362,9 +413,18 @@ export const ChannelList = ({
         [dms, myUid, members, placeProfiles]
     );
     useHydrateDmPeers(unnamedPeers);
+    // A person is named once this place's profile or their cloud profile gives a name.
+    const isNamed = (peerId: string): boolean =>
+        !!placeProfiles[peerId]?.nick?.trim() || !!counterpartProfiles.get(peerId)?.name;
+    // Only the 1:1s' people count: a person with no 1:1 yet is left out until named anyway.
+    const hasUnnamedDmPeer = dms.some(c => {
+        const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
+        return !!peerId && !isSelfChannel(c) && !isNamed(peerId);
+    });
+    const { holdSection: holdDmSection, waitForName } = useDmNameWait(hasUnnamedDmPeer, pinScope ?? '');
 
     /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
-    const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode } => {
+    const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode; pending: boolean } => {
         if (isSelfChannel(channel)) {
             return {
                 label: t('dm.you'),
@@ -375,6 +435,7 @@ export const ChannelList = ({
                         </AvatarFallback>
                     </Avatar>
                 ),
+                pending: false,
             };
         }
         const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
@@ -386,6 +447,7 @@ export const ChannelList = ({
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),
             icon: personAvatar(counterpartId, display),
+            pending: waitForName && !!counterpartId && !isNamed(counterpartId),
         };
     };
 
@@ -448,7 +510,10 @@ export const ChannelList = ({
     // Filter AFTER identity resolution so a DM matches its display name too, then apply the
     // stored order BY ID (applyChannelOrder takes ids — review-03 P0): stored ids first (in
     // stored order), unknown/new ids in name order behind. Map back to rows right after.
-    const dmRows = dms.map(channel => ({ channel, identity: dmIdentity(channel) }));
+    // 1:1s go in the order of the names they show, not of the server-set room names they carry.
+    const dmRows = dms
+        .map(channel => ({ channel, identity: dmIdentity(channel) }))
+        .sort((a, b) => a.identity.label.localeCompare(b.identity.label));
     const dmById = new Map(dmRows.map(dm => [dm.channel.id ?? '', dm]));
     const chById = new Map(regular.map(c => [c.id ?? '', c]));
     const orderedChannelIds = applyChannelOrder(
@@ -456,7 +521,7 @@ export const ChannelList = ({
         pinScope ? storedChannelOrder : undefined
     );
     const orderedDmIds = applyChannelOrder(
-        dms.filter(c => matchesQuery(c, dmById.get(c.id ?? '')?.identity.label ?? '')).map(c => c.id ?? ''),
+        dmRows.filter(dm => matchesQuery(dm.channel, dm.identity.label)).map(dm => dm.channel.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
     const visibleRegular = orderedChannelIds.flatMap(id => {
@@ -487,7 +552,11 @@ export const ChannelList = ({
     const isFiltering = query.trim().length > 0;
     // An empty section still has to hold its "+", or the first 1:1 has nowhere to start from. A
     // filter that matches no 1:1 hides it, like every other section.
-    const showDmSection = visibleDms.length > 0 || memberRows.length > 0 || (!!onCreateDm && !isFiltering);
+    const showDmSection =
+        visibleDms.length > 0 || memberRows.length > 0 || ((!!onCreateDm || isDefaultMode) && !isFiltering);
+    // Home has no "+": a 1:1 there starts from a phone number, which only the mobile app does. An
+    // empty section says so rather than leaving a heading with nothing under it and no way in.
+    const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
 
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
@@ -574,10 +643,20 @@ export const ChannelList = ({
         label: string,
         icon: ReactNode,
         section: string,
-        isFavorite?: boolean
+        isFavorite?: boolean,
+        pending?: boolean
     ): SectionItem => {
         const id = channel.id ?? '';
         const isActive = id === selectedChannelId;
+        // A row still waiting for its person's name has no label to show, to open or to drag.
+        if (pending) {
+            return {
+                key: `${section}:${id}`,
+                keepWhenCollapsed: false,
+                dragDisabled: true,
+                node: <PendingPersonRow />,
+            };
+        }
         return {
             key: `${section}:${id}`,
             keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
@@ -608,7 +687,10 @@ export const ChannelList = ({
     // Favorites repeat their row in its own section (Figma), so a starred channel stays
     // reachable from the top while keeping its place in Channels / DM. Display order IS the
     // stored pin order; ids not in the current list are skipped.
-    const favoriteById = new Map<string, { channel: DomainChannel; label: string; icon: ReactNode }>();
+    const favoriteById = new Map<
+        string,
+        { channel: DomainChannel; label: string; icon: ReactNode; pending?: boolean }
+    >();
     for (const c of visibleRegular) {
         favoriteById.set(c.id ?? '', {
             channel: c,
@@ -627,10 +709,46 @@ export const ChannelList = ({
         pinScope ? storedChannelOrder : undefined
     );
     const allDmIds = applyChannelOrder(
-        dms.map(c => c.id ?? ''),
+        dmRows.map(dm => dm.channel.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
     displayOrderRef.current = [...new Set([...pinnedIds, ...allChannelIds, ...allDmIds])].filter(Boolean);
+
+    // While the first names are loading the section is one block of placeholder rows: drawn row by
+    // row, it would re-sort as each name arrived.
+    const dmSectionItems: SectionItem[] = holdDmSection
+        ? [
+              {
+                  key: 'dm-pending',
+                  keepWhenCollapsed: false,
+                  dragDisabled: true,
+                  node: (
+                      <div role="status" aria-label={t('chat.loadingChannels')}>
+                          {Array.from({ length: Math.min(Math.max(visibleDms.length, 1), 6) }).map((_, i) => (
+                              <PendingPersonRow key={i} />
+                          ))}
+                      </div>
+                  ),
+              },
+          ]
+        : [
+              ...visibleDms.map(dm =>
+                  row(dm.channel, dm.identity.label, dm.identity.icon, 'dm', false, dm.identity.pending)
+              ),
+              ...memberRows.map(({ peerId, display }) => ({
+                  key: `member:${peerId}`,
+                  keepWhenCollapsed: false,
+                  dragDisabled: true,
+                  node: (
+                      <MemberRow
+                          peerId={peerId}
+                          label={display.name}
+                          icon={personAvatar(peerId, display)}
+                          onStart={peerId => onStartDm?.(peerId)}
+                      />
+                  ),
+              })),
+          ];
 
     return (
         // The switcher lives here (not HomePage) because this is where the
@@ -643,7 +761,7 @@ export const ChannelList = ({
                     <SortableSection
                         id="fav"
                         title={t('sidebar.favorites')}
-                        items={favoriteRows.map(fav => row(fav.channel, fav.label, fav.icon, 'fav', true))}
+                        items={favoriteRows.map(fav => row(fav.channel, fav.label, fav.icon, 'fav', true, fav.pending))}
                         dragDisabled={isFiltering}
                         onReorder={onReorderFavorites}
                     />
@@ -675,26 +793,14 @@ export const ChannelList = ({
                 <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
-                    items={[
-                        ...visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, 'dm')),
-                        ...memberRows.map(({ peerId, display }) => ({
-                            key: `member:${peerId}`,
-                            keepWhenCollapsed: false,
-                            dragDisabled: true,
-                            node: (
-                                <MemberRow
-                                    peerId={peerId}
-                                    label={display.name}
-                                    icon={personAvatar(peerId, display)}
-                                    onStart={peerId => onStartDm?.(peerId)}
-                                />
-                            ),
-                        })),
-                    ]}
-                    dragDisabled={isFiltering}
+                    items={dmSectionItems}
+                    dragDisabled={isFiltering || holdDmSection}
                     onReorder={makeSectionReorder('dm')}
                     action={onCreateDm && <SectionAddButton label={t('dm.new.open')} onClick={onCreateDm} />}
                 />
+            )}
+            {showDmSection && showHomeDmPointer && (
+                <MobileAppPointer messageKey="mobileApp.homeDm" className="px-2 pb-2" />
             )}
             {/* The row menus' dialog stack renders ONCE here, keyed to the last
             right-clicked row; the menu items themselves only open it. */}

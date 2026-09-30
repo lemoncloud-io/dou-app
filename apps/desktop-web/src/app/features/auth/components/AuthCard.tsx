@@ -7,6 +7,7 @@ import { cn } from '@chatic/lib/utils';
 
 import douMark from '../../../../assets/dou-mark.png';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
+import { radioGroupOptions } from '../../../shared';
 
 interface AuthCardProps {
     title: string;
@@ -14,6 +15,12 @@ interface AuthCardProps {
     children: ReactNode;
     /** When set, renders a back button in the card's top-left corner. */
     onBack?: () => void;
+    /**
+     * For a screen whose title and subtitle ARE its state (an OAuth hand-off moving from "signing
+     * in" to "open the app" or "failed"): they become a polite live region, so the change is read
+     * out instead of happening silently under a screen reader's focus.
+     */
+    live?: boolean;
 }
 
 /**
@@ -31,12 +38,17 @@ interface AuthCardProps {
  * Settings exists: someone whose system language is not the one they read had
  * no way to change it until after signing in.
  */
-export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) => {
+export const AuthCard = ({ title, subtitle, children, onBack, live }: AuthCardProps) => {
     const { t, i18n } = useTranslation();
+    const languageProps = radioGroupOptions(SUPPORTED_LANGUAGES, i18n.language, setLanguage);
 
     return (
-        <main className="flex h-full items-center justify-center overflow-hidden bg-background">
-            <div className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-raised">
+        // The page scrolls rather than clips: at the minimum window, zoomed, or with an error line the
+        // card is taller than the window. It is centred with `my-auto`, not `justify-center` —
+        // centring overflows both ways and puts the card's top above the scroll origin, where no
+        // scrolling reaches it; an auto margin just drops to 0 once the card no longer fits.
+        <main className="flex h-full flex-col items-center overflow-y-auto bg-background px-4 py-6">
+            <div className="my-auto flex w-full max-w-sm shrink-0 flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-raised">
                 <div
                     role="radiogroup"
                     aria-label={t('settings.language')}
@@ -46,9 +58,7 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
                         <button
                             key={lng}
                             type="button"
-                            role="radio"
-                            aria-checked={i18n.language === lng}
-                            onClick={() => setLanguage(lng)}
+                            {...languageProps(lng)}
                             className={cn(
                                 'focus-ring rounded-md px-2 py-1 transition-colors',
                                 i18n.language === lng
@@ -72,7 +82,11 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
                 )}
                 <div className="flex flex-col gap-3">
                     <img src={douMark} alt="" width={48} height={48} className="h-12 w-12 rounded-xl" />
-                    <div className="flex flex-col gap-1">
+                    <div
+                        className="flex flex-col gap-1"
+                        aria-live={live ? 'polite' : undefined}
+                        aria-atomic={live || undefined}
+                    >
                         <h1 className="text-headline font-bold tracking-tight text-foreground">{title}</h1>
                         <p className="text-callout text-muted-foreground">{subtitle}</p>
                     </div>

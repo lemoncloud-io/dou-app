@@ -24,7 +24,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     Hint,
     ScrollHint,
-    isPlaceholderName,
+    useAccountName,
     useAccountResetOnLogout,
     useDebugModeStore,
     useDisplayProfile,
@@ -136,7 +136,8 @@ export const PlaceRail = ({
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const { userId } = runtime.session.useSessionIdentity();
-    const { userName, photo } = runtime.session.useRuntimeProfile();
+    const { photo } = runtime.session.useRuntimeProfile();
+    const accountName = useAccountName();
     const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
     // A guest account lives on this device and nothing can sign back into it, so
@@ -147,8 +148,7 @@ export const PlaceRail = ({
     const runLogout = () => void resetAccount().finally(() => logout());
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
-    const globalName = isPlaceholderName(userName) ? '' : userName;
-    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', globalName, photo);
+    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', accountName, photo);
     const userInitial = selfName.charAt(0).toUpperCase();
 
     // Hidden gesture: tap the rail divider 7× (within 1.5s between taps) to toggle

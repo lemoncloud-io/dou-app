@@ -6,7 +6,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useDebugLogin } from '../../auth/hooks';
 
 const inputClass = cn(
-    'h-10 w-full rounded-lg border border-input bg-background px-3 text-callout text-foreground outline-none',
+    'h-10 w-full rounded-lg border border-control-border bg-background px-3 text-callout text-foreground outline-none',
     'transition-colors focus:border-focus-border disabled:opacity-50'
 );
 

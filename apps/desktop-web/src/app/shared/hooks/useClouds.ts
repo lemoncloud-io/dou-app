@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainCloud } from '@chatic/data';
@@ -17,9 +18,17 @@ export interface RailCloud {
 }
 
 /**
+ * A cloud its subscription no longer keeps open: the membership lapsed or was blocked, and the
+ * server suspends or expires the cloud. Switching into one cannot succeed, and the only way back
+ * is a subscription, which is bought in the mobile app.
+ */
+export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
+    cloud.status === 'suspended' || cloud.status === 'expired';
+
+/**
  * Cloud list + currently-active cloud id for the cloud rail. The active id is derived from the
  * global session (`cloud.cloudId`); when the relay catalog has settled empty it falls back to
- * 'default' so the synthesized Home workspace highlights in relay mode.
+ * 'default' so the synthesized Home cloud highlights in relay mode.
  *
  * Invited clouds are absent from the relay catalog by design (there is no server-side list for
  * them), so their durable record is the local `invitecloud` cache row written by the invite-accept
@@ -29,12 +38,13 @@ export interface RailCloud {
  * the one the session was inside (.claude/20260804/DEBUG-14-50-00.md).
  */
 export const useClouds = () => {
+    const { t } = useTranslation();
     const { clouds: rawClouds, isFetchingClouds } = useCloudSessionCatalog();
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const joinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
     const session = runtime.session.useGlobalSession();
     const [cachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
-    // Fall back to 'default' so the synthesized Home workspace highlights in relay mode —
+    // Fall back to 'default' so the synthesized Home cloud highlights in relay mode —
     // but only once the fetch settled, to avoid briefly highlighting it then un-highlighting.
     const activeCloudId = session.cloud.cloudId || (!isFetchingClouds && rawClouds.length === 0 ? 'default' : null);
 
@@ -76,11 +86,12 @@ export const useClouds = () => {
         if (activeCloudId && activeCloudId !== 'default' && !byId.has(activeCloudId)) {
             byId.set(activeCloudId, invitedTile(activeCloudId));
         }
-        // The Default Cloud ('Home') is always the first rail entry — it's the Guest
-        // Session's Self Channel and the return path from any joined cloud.
-        const home: RailCloud = { id: 'default', name: 'Home', status: 'active', kind: 'home' };
+        // The Default Cloud (Home) is always the first rail entry — it's the Guest
+        // Session's Self Channel and the return path from any joined cloud. Its name is
+        // the UI's, so it follows the language; a literal 'Home' sat in the Korean rail.
+        const home: RailCloud = { id: 'default', name: t('cloud.home'), status: 'active', kind: 'home' };
         return [home, ...byId.values()];
-    }, [rawClouds, cachedClouds, joinedClouds, activeCloudId]);
+    }, [rawClouds, cachedClouds, joinedClouds, activeCloudId, t]);
 
     return { clouds, activeCloudId, isFetchingClouds };
 };

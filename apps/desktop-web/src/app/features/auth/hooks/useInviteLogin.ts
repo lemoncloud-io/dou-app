@@ -5,12 +5,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
+import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 
 import { toError, useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
-import { extractServerErrorMessage, parseInviteInput } from '../utils';
+import { extractServerErrorMessage, isTrustedInviteBackend, parseInviteInput } from '../utils';
 import type { InviteLoginError } from '../utils';
+
+/** Backends this build talks to; read per call because `config` answers undefined before boot. */
+const configuredBackends = (): string[] => [
+    config.get<string>('net.relay.backend') ?? '',
+    config.get<string>('net.admin.backend') ?? '',
+];
 
 /**
  * Invite-code auth flow — mirrors apps/web's invite acceptance (useInviteAccept +
@@ -37,14 +44,23 @@ export const useInviteLogin = () => {
     const [error, setError] = useState<InviteLoginError | null>(null);
 
     const login = useCallback(
-        async (input: string): Promise<boolean> => {
+        /** Resolves to the failure, or null once the invited cloud is entered. */
+        async (input: string): Promise<InviteLoginError | null> => {
             const parsed = parseInviteInput(input);
             if (!parsed) {
                 // Unparseable paste — previously failed silently; tell the user why.
-                setError({ kind: 'format' });
-                return false;
+                const failure: InviteLoginError = { kind: 'format' };
+                setError(failure);
+                return failure;
             }
             const { code, backend } = parsed;
+            // Checked before the guest login below, so a rejected link creates no session either.
+            if (backend && !isTrustedInviteBackend(backend, configuredBackends())) {
+                logger.warn('AUTH', '[useInviteLogin] invite link names an untrusted backend', { backend });
+                const failure: InviteLoginError = { kind: 'backend' };
+                setError(failure);
+                return failure;
+            }
 
             setIsSubmitting(true);
             setError(null);
@@ -114,12 +130,13 @@ export const useInviteLogin = () => {
                 // The broker cloud list is eventually consistent — refetch so the
                 // just-joined cloud appears in the rail alongside the Default Cloud.
                 void queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
-                return true;
+                return null;
             } catch (error) {
                 const err = toError(error);
                 logger.error('AUTH', '[useInviteLogin] login failed', { error: err });
-                setError({ kind: 'server', message: extractServerErrorMessage(err) });
-                return false;
+                const failure: InviteLoginError = { kind: 'server', message: extractServerErrorMessage(err) };
+                setError(failure);
+                return failure;
             } finally {
                 setIsSubmitting(false);
             }

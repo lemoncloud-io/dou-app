@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { ACCOUNT_CHANNEL_SID } from '@chatic/data';
+
 type Row = { id: string; name?: string; cid: string; sid: string; stereo?: string; memberIds?: string[] };
 
 let cacheRows: Row[] = [];
@@ -155,8 +157,52 @@ describe('useChannels', () => {
             { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
         ];
 
-        const { result } = renderHook(() => useChannels(undefined, { cloudWideOnly: true }));
+        const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'cloudDms' }));
 
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1']));
+    });
+
+    // Home has no place for most accounts: nothing selects a site on the relay but an invite join.
+    // Listing only cloud-wide rows there listed nothing, and onboarding waited on the Self Channel
+    // forever.
+    it('lists the Self Channel on Home, which has no place', async () => {
+        placesState = { placeIds: [], isLoading: false };
+        cacheRows = [{ id: 'U:me', cid: 'default', sid: 'relay-place', stereo: 'self', memberIds: ['me'] }];
+
+        const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'relay' }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me']));
+        expect(result.current.isLoading).toBe(false);
+    });
+
+    it('lists every relay row on Home, but no row of another cloud', async () => {
+        placesState = { placeIds: [], isLoading: false };
+        cacheRows = [
+            { id: 'U:me', cid: 'default', sid: 'relay-place', stereo: 'self' },
+            { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
+            { id: 'relay-group', name: 'lobby', cid: 'default', sid: 'relay-place' },
+            // A late row of the cloud just left must not land in Home.
+            { id: 'cloud-dm', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },
+            { id: 'cloud-group', name: 'general', cid: 'cloud-1', sid: 'place-a' },
+        ];
+
+        const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'relay' }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me', 'relay-dm', 'relay-group']));
+    });
+
+    // The relay sends the Self Channel with no place, and the cache keeps it under the account. With
+    // a place selected (after an invite join) it has to stay listed, or the onboarding waits forever.
+    it('lists the account-scoped Self Channel inside a place too', async () => {
+        placesState = { placeIds: ['relay-place'], isLoading: false };
+        cacheRows = [
+            { id: 'U:me', cid: 'default', sid: ACCOUNT_CHANNEL_SID, stereo: 'self' },
+            { id: 'relay-group', name: 'lobby', cid: 'default', sid: 'relay-place' },
+            { id: 'other-group', name: 'other', cid: 'default', sid: 'other-place' },
+        ];
+
+        const { result } = renderHook(() => useChannels('relay-place', { whenNoPlace: 'relay' }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me', 'relay-group']));
     });
 });

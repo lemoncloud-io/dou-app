@@ -79,7 +79,11 @@ export const ProfileCardContent = ({
     const nick = user?.nick && user.nick !== name ? user.nick : undefined;
     const initial = name.charAt(0).toUpperCase() || '?';
     const seed = colorSeed || userId || name;
-    const channelCount = user?.channelIds?.length ?? 0;
+    // `channelIds` gathers the channels where this device has seen the person in a member list,
+    // and a member list is only ever loaded for my own channels: these are the channels we share,
+    // as far as this device knows (the list is a union, so a channel one of us left can linger).
+    // On my own card that is just "my channels", which the card has no reason to count.
+    const sharedChannelCount = isMine ? 0 : (user?.channelIds?.length ?? 0);
 
     return (
         <div>
@@ -103,9 +107,9 @@ export const ProfileCardContent = ({
                     )}
                 </div>
                 {nick && <span className="block truncate text-callout text-muted-foreground">@{nick}</span>}
-                {channelCount > 0 && (
+                {sharedChannelCount > 0 && (
                     <span className="mt-0.5 block text-micro text-muted-foreground">
-                        {t('profile.channelCount', { count: channelCount })}
+                        {t('profile.sharedChannelCount', { count: sharedChannelCount })}
                     </span>
                 )}
 

@@ -25,7 +25,9 @@
         "confirm": "OK",
         "save": "Save Changes",
         "saving": "Saving...",
-        "back": "Back"
+        "back": "Back",
+        "toastRegion": "Notifications ({hotkey})",
+        "loading": "Loading"
     },
     "nav": {
         "authTest": "Auth Test",

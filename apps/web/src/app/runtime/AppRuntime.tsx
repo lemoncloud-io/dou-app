@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Toaster as SonnerToaster } from 'sonner';
 
 // Top-positioned toasts (in-app push banner) must clear the device notch/status bar.
@@ -37,6 +38,7 @@ import { useSocketWakeRecovery } from './useSocketWakeRecovery';
  * until the profile is ready so it never renders profile-less.
  */
 export const AppRuntime = () => {
+    const { t } = useTranslation();
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     // Global focus-scroll for all text fields (touch only; excludes [data-no-autoscroll]).
@@ -88,7 +90,7 @@ export const AppRuntime = () => {
                     <Router />
                     <GlobalLoader />
                     <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
-                    <Toaster />
+                    <Toaster label={t('common.toastRegion')} />
                 </OtherCloudUnreadProvider>
             </ActiveCloudDataProvider>
         </runtime.connection.RuntimeConnectionHost>
