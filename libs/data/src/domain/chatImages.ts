@@ -72,14 +72,10 @@ export type ChatAttachmentKind = 'image' | 'video' | 'file' | 'mixed';
 
 const NAMED_KINDS: readonly string[] = ['image', 'video', 'file'];
 
-// Read as a plain string: the server names documents `file` and sound `audio`, while the installed
-// contract types still say `docs` and `sound`, so a typed comparison would never match live data.
-const slotKind = (slot: object): string => {
-    const stereo = 'stereo' in slot ? (slot.stereo as string | undefined) : undefined;
-    // A slot still being sent has no stereo, and a message sent before the server took other kinds
-    // was an image message — both count as images.
-    return stereo || 'image';
-};
+// A slot still being sent has no stereo, and a message sent before the server took other kinds was
+// an image message — both count as images.
+const slotKind = (slot: NonNullable<DomainChat['upload$$']>[number]): string =>
+    ('stereo' in slot && slot.stereo) || 'image';
 
 /**
  * What a chat carries, for a preview: one kind when every attachment is the same image, video or

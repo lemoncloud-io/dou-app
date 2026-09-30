@@ -3492,12 +3492,12 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-socials-api@^0.26.902":
-  version "0.26.902"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.902.tgz#f3f724c9473427177391caea2abd848d2356c13b"
-  integrity sha512-nE9mKA9exyTX1GgM28LFWJ46pDoXu8NmQj/K+SLid+CmxwfAUxPB7xZ/HzpvwPZwu2tn02etFOJl9adFACf05g==
+"@lemoncloud/chatic-socials-api@^0.26.903":
+  version "0.26.903"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.903.tgz#49e0d831b380a6eda1d91a5dd8a18ccf620507fe"
+  integrity sha512-szF6JWcYwfLJXS/XXa5cGm5RrBdZtoBxpOwQY/DbEtryKlhfr9WsQjy5fyggaR1EvmmIzBf9I9vU8mtKiuYitA==
   dependencies:
-    lemon-model "^1.5.0"
+    lemon-model "^1.5.1"
 
 "@lemoncloud/chatic-sockets-api@*":
   version "0.26.127"
@@ -15131,10 +15131,10 @@ lazy-val@^1.0.5:
   resolved "https://registry.yarnpkg.com/lazy-val/-/lazy-val-1.0.5.tgz#6cf3b9f5bc31cee7ee3e369c0832b7583dcd923d"
   integrity sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==
 
-lemon-model@1.5.0, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.2.2, lemon-model@^1.5.0:
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.5.0.tgz#e14ee0d003df1d42ab0bde3e037444b642565e31"
-  integrity sha512-N0FxcwpoFWTyXkBQDBFhFSTImH9KEtSXl4oiNa7t5nwGO7t1q6UE0xZmEtbVmWdHmIOFtC0b6imNg6HBTZgalA==
+lemon-model@1.5.1, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.2.2, lemon-model@^1.5.1:
+  version "1.5.1"
+  resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.5.1.tgz#de4f8c5c41ceacf3345268ea545ebec2ee169253"
+  integrity sha512-Ie3y3PooWk/Sj1HOAuhzYi5bd1Yr30YDkKU8UYl/tuVOiDTCEw2D6cK6P1p1zLTjMKqCirdWoYdDwQ+ufbHKgg==
 
 leven@^3.1.0:
   version "3.1.0"

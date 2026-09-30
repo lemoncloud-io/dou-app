@@ -92,8 +92,7 @@ describe('chatAttachmentSummary', () => {
         expect(chatAttachmentSummary({ upload$$: slots('file', 'file', 'file') })).toEqual({ kind: 'file', count: 3 });
     });
 
-    // The server names documents `file` and sound `audio`, newer than the installed contract types.
-    it('reads the stereo the server sends, not only the installed type names', () => {
+    it('names a file, and calls a lone audio mixed', () => {
         expect(chatAttachmentSummary({ upload$$: slots('file') })).toEqual({ kind: 'file', count: 1 });
         expect(chatAttachmentSummary({ upload$$: slots('audio') })).toEqual({ kind: 'mixed', count: 1 });
     });

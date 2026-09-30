@@ -106,9 +106,8 @@ leave a blank line, and the banner read "Raine:" with nothing after it; after th
 for a PDF too, because the server now stores videos and documents as well.
 
 The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
-or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo`, read as a plain
-string because the server names documents `file` and sound `audio`, which the installed contract
-types do not know yet. A slot still being sent has no `stereo`, and neither does a head that only
+or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
+`audio` or `file`). A slot still being sent has no `stereo`, and neither does a head that only
 has `uploadIds`; both count as images, so a photo on its way never reads as an attachment. Kinds
 that differ, and `audio`, read as attachments (a single one as "Attachment"). The rule is meant
 to match how the server picks a push's body key, so a row and its push agree.

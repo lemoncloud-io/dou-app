@@ -128,7 +128,7 @@
     "@lemoncloud/chatic-backend-api": "^0.26.810",
     "@lemoncloud/chatic-iap-api": "^1.26.121",
     "@lemoncloud/chatic-pushes-api": "^0.26.124",
-    "@lemoncloud/chatic-socials-api": "^0.26.902",
+    "@lemoncloud/chatic-socials-api": "^0.26.903",
     "@lemoncloud/chatic-sockets-api": "0.26.813",
     "@lemoncloud/chatic-sockets-lib": "0.5.4",
     "@lemoncloud/lemon-web-core": "^1.5.0",
@@ -321,7 +321,7 @@
     "vitest": "^4.0.0"
   },
   "resolutions": {
-    "lemon-model": "1.5.0"
+    "lemon-model": "1.5.1"
   },
   "workspaces": [
     "apps/*",
