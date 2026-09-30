@@ -533,10 +533,14 @@ export const ChannelList = ({
         const c = chById.get(id);
         return c ? [c] : [];
     });
-    const visibleDms = orderedDmIds.flatMap(id => {
-        const dm = dmById.get(id);
-        return dm ? [dm] : [];
-    });
+    // My notes-to-self room is pinned above the 1:1s: no stored order or name sort moves it, and
+    // it cannot be dragged or moved by keyboard (see makeSectionReorder / moveSelectedByKeyboard).
+    const visibleDms = orderedDmIds
+        .flatMap(id => {
+            const dm = dmById.get(id);
+            return dm ? [dm] : [];
+        })
+        .sort((a, b) => Number(isSelfChannel(b.channel)) - Number(isSelfChannel(a.channel)));
 
     // A person with no 1:1 yet is never drawn as a raw id: the row waits for a name to load.
     const q = query.trim().toLowerCase();
@@ -563,13 +567,18 @@ export const ChannelList = ({
     // empty section says so rather than leaving a heading with nothing under it and no way in.
     const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
 
+    const selfIds = new Set(dms.filter(isSelfChannel).map(c => c.id ?? ''));
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
     };
     // A move rewrites only the moved section's slice; the other section keeps its stored order.
     const makeSectionReorder = (section: 'ch' | 'dm') => (keys: string[]) => {
         // A person without a 1:1 has no room to order; their rows stay behind the 1:1s by name.
-        const orderedIds = keys.filter(key => !key.startsWith('member:')).map(key => key.replace(/^(ch|dm):/, ''));
+        // Nor does my notes-to-self room, which is always drawn first.
+        const orderedIds = keys
+            .filter(key => !key.startsWith('member:'))
+            .map(key => key.replace(/^(ch|dm):/, ''))
+            .filter(id => !selfIds.has(id));
         const dmIds = new Set(dms.map(c => c.id ?? ''));
         const chIds = new Set(regular.map(c => c.id ?? ''));
         if (section === 'ch') {
@@ -594,8 +603,8 @@ export const ChannelList = ({
             return;
         }
         if (dmById.has(id)) {
-            if (collapsed.dm) return;
-            const ids = visibleDms.map(dm => dm.channel.id ?? '');
+            if (collapsed.dm || selfIds.has(id)) return;
+            const ids = visibleDms.map(dm => dm.channel.id ?? '').filter(dmId => !selfIds.has(dmId));
             const from = ids.indexOf(id);
             if (from < 0) return;
             makeSectionReorder('dm')(moveChannel(ids, id, from + delta, ids).map(orderedId => `dm:${orderedId}`));
@@ -665,6 +674,8 @@ export const ChannelList = ({
         return {
             key: `${section}:${id}`,
             keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
+            // My notes-to-self room holds the top of Direct messages.
+            dragDisabled: section === 'dm' && isSelfChannel(channel),
             node: (
                 <ChannelRowMenu
                     channel={channel}
@@ -713,10 +724,11 @@ export const ChannelList = ({
         regular.map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
+    // Self-first, as the section draws it.
     const allDmIds = applyChannelOrder(
         dmRows.map(dm => dm.channel.id ?? ''),
         pinScope ? storedChannelOrder : undefined
-    );
+    ).sort((a, b) => Number(selfIds.has(b)) - Number(selfIds.has(a)));
     displayOrderRef.current = [...new Set([...pinnedIds, ...allChannelIds, ...allDmIds])].filter(Boolean);
 
     // While the first names are loading the section is one block of placeholder rows: drawn row by

@@ -861,6 +861,91 @@ describe('ChannelList notes-to-self row', () => {
     });
 });
 
+describe('ChannelList notes-to-self row stays first', () => {
+    const self = { id: 'S1', stereo: 'self', memberIds: ['me'] } as DomainChannel;
+    const aiden = { id: 'D1', stereo: 'dm', memberIds: ['me', 'u-a'] } as DomainChannel;
+    const zed = { id: 'D2', stereo: 'dm', memberIds: ['me', 'u-z'] } as DomainChannel;
+
+    beforeEach(() => {
+        hydrate.cloud = new Map([
+            ['u-a', { name: 'Aiden' }],
+            ['u-z', { name: 'Zed' }],
+        ]);
+        storedOrder.ids = [];
+        storedOrder.set.mockReset();
+    });
+    afterEach(() => {
+        hydrate.cloud = new Map();
+        storedOrder.ids = [];
+    });
+
+    const renderDms = (selectedChannelId: string | null = null) =>
+        render(
+            <ChannelList
+                channels={[zed, self, aiden]}
+                isLoading={false}
+                selectedChannelId={selectedChannelId}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+    const dmLabels = () =>
+        screen
+            .getAllByRole('button')
+            .map(b => b.textContent ?? '')
+            .filter(text => /^(Y|A|Z)?(You|Aiden|Zed)$/.test(text))
+            .map(text => text.replace(/^[YAZ]/, ''));
+
+    it('draws it above every 1:1, whatever the names sort to', () => {
+        renderDms();
+
+        expect(dmLabels()).toEqual(['You', 'Aiden', 'Zed']);
+    });
+
+    it('keeps it first when a stored order puts it later', () => {
+        storedOrder.ids = ['D2', 'D1', 'S1'];
+        renderDms();
+
+        expect(dmLabels()).toEqual(['You', 'Zed', 'Aiden']);
+    });
+
+    it('does not move it by keyboard', () => {
+        renderDms('S1');
+
+        act(() => {
+            fireEvent.keyDown(screen.getByRole('navigation'), { key: 'ArrowDown', altKey: true, shiftKey: true });
+        });
+
+        expect(storedOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('does not let a 1:1 move above it', () => {
+        storedOrder.ids = ['D1', 'D2'];
+        renderDms('D1');
+
+        act(() => {
+            fireEvent.keyDown(screen.getByRole('navigation'), { key: 'ArrowUp', altKey: true, shiftKey: true });
+        });
+
+        // The top 1:1 is clamped where it is; the write, if any, leaves the order unchanged.
+        for (const [ids] of storedOrder.set.mock.calls) expect(ids).toEqual(['D1', 'D2']);
+        expect(dmLabels()[0]).toBe('You');
+    });
+
+    it('leaves it out of the order a 1:1 move writes', () => {
+        storedOrder.ids = ['D1', 'D2'];
+        renderDms('D1');
+
+        act(() => {
+            fireEvent.keyDown(screen.getByRole('navigation'), { key: 'ArrowDown', altKey: true, shiftKey: true });
+        });
+
+        expect(storedOrder.set).toHaveBeenCalledWith(['D2', 'D1']);
+    });
+});
+
 describe('ChannelList 1:1 names on a cold cloud', () => {
     // Room names sort the other way round from the people's names, so a sort by room name shows.
     const dmZed = { id: 'D1', stereo: 'dm', name: 'a-room', memberIds: ['me', '1000007'] } as DomainChannel;

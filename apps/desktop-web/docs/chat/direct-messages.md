@@ -101,6 +101,9 @@ returns the same room, like a 1:1.
 - **Its sidebar row wears my photo**, as the picker's "me" row does: my place profile's, else my
   cloud profile's, looked up by my id in the cloud (the room's own join row), not the session id.
   The label stays "You".
+- **It holds the top of Direct messages.** It is drawn above every 1:1 whatever the stored order or
+  the names say, cannot be dragged or moved with Alt+Shift+↑/↓, and a 1:1 cannot be moved above it.
+  It is left out of the order a move writes.
 
 ## Opening a room that is not listed yet
 
