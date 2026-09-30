@@ -13,8 +13,8 @@ const clickSave = (href: string, name: string): void => {
 };
 
 /**
- * A sent image is named by its place in the message, and a document sent before the server kept
- * names is "file"; give the saved file the extension its bytes have.
+ * An image sent before the server kept names is named by its place in the message, and such a
+ * document is "file"; give the saved file the extension its bytes have.
  */
 const withExtension = (name: string, type: string): string => {
     const extension = chatAttachmentExtension(type);

@@ -102,7 +102,8 @@ export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): C
 
 /**
  * A message's images from its `upload$$` — its videos and documents are `toChatFiles`'. Each image is
- * named by its place in the message: the tiles are a fixed size and show no name of their own.
+ * named by the name the server kept for it; one sent before names were kept, or still being sent, by
+ * its place in the message.
  *
  * A pending slot shows its local preview, spinning while it is sent. A server upload shows its
  * thumbnail and opens its original; one the server marks failed or reports with an error has nothing
@@ -117,19 +118,19 @@ export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): 
     return images;
 };
 
-/** `index` is the slot's place in `upload$$` (its id); `position` its place among the images (its name). */
+/** `index` is the slot's place in `upload$$` (its id); `position` its place among the images (its fallback name). */
 const toChatImage = (messageId: string, slot: Slot, index: number, position: number): ChatImage => {
-    const name = `image-${position}`;
     if (isPendingUploadSlot(slot)) {
         return {
             id: `${messageId}:${index}`,
-            name,
+            name: `image-${position}`,
             url: slot.localThumbUrl,
             isUploading: slot.localStatus === 'sending',
             isFailed: slot.localStatus === 'failed',
         };
     }
     const id = slot.id ?? `${messageId}:${index}`;
+    const name = slot.name || `image-${position}`;
     if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
     if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
     if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };

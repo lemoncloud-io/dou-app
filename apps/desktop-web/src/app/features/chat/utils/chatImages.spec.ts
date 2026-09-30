@@ -124,13 +124,13 @@ describe('toChatImages and toChatFiles', () => {
             orgUrl: 'https://s/o2',
         },
         { id: 'up-3', status: 'stored', stereo: 'video', name: 'clip.mp4', orgUrl: 'https://s/o3' },
-    ] as DomainChat['upload$$'];
+    ] as NonNullable<DomainChat['upload$$']>;
 
     // A PDF drawn by <img> is a broken tile; only images go to the grid and the viewer.
     it('gives the grid only the images, and the rest to the file list', () => {
         expect(toChatImages('row-1', mixed).map(image => image.id)).toEqual(['up-1']);
         // Numbered among the images, so a photo after a document is still "image-1".
-        expect(toChatImages('row-1', [mixed![1], mixed![0]]).map(image => image.name)).toEqual(['image-1']);
+        expect(toChatImages('row-1', [mixed[1], mixed[0]]).map(image => image.name)).toEqual(['image-1']);
         expect(toChatFiles('row-1', mixed)).toEqual([
             { id: 'up-2', kind: 'file', name: 'report.pdf', size: 2048, url: 'https://s/o2' },
             { id: 'up-3', kind: 'video', name: 'clip.mp4', url: 'https://s/o3' },
@@ -193,6 +193,16 @@ describe('toChatImages', () => {
         expect(
             toChatImages('row-1', [{ id: 'up-1', status: 'stored', orgUrl: 'https://s/o', thumbUrl: 'https://s/t' }])
         ).toEqual([{ id: 'up-1', name: 'image-1', url: 'https://s/o', thumbUrl: 'https://s/t' }]);
+    });
+
+    // An upload sent before the server kept names has none; its place in the message stands in.
+    it('names a stored image by the name it was sent under, when the server kept one', () => {
+        expect(
+            toChatImages('row-1', [
+                { id: 'up-1', status: 'stored', name: 'orange.png', orgUrl: 'https://s/o' },
+                { id: 'up-2', status: 'stored', orgUrl: 'https://s/o2' },
+            ]).map(image => image.name)
+        ).toEqual(['orange.png', 'image-2']);
     });
 
     it('falls back to the original when the upload has no thumbnail', () => {

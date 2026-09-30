@@ -95,8 +95,10 @@ until the copy goes stale.
 
 `toChatFiles` takes a message's videos and documents from its `upload$$`, and `toChatImages` takes
 only the images, so the grid, "Download all" and the viewer never see a PDF. The kind is the
-upload's `stereo`; a slot being sent reads it from the content type it kept. `MessageFiles` lists
-them under the images:
+upload's `stereo`; a slot being sent reads it from the content type it kept. An image is named by
+the upload's `name` — the one-image caption, the viewer and the saved file — and one with no name
+(sent before the server kept names, or still being sent) by its place: `image-1`. `MessageFiles`
+lists them under the images:
 
 - **A video** plays in place (`<video controls preload="metadata">`). The original is signed for
   inline viewing, and Chromium plays an H.264 MP4 itself. There is no poster: the app sends none.
