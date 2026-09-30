@@ -112,8 +112,8 @@ lists keys is copyable.
 
 | Axis            | Counts                                                                                                                      |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `writableBy`    | `['local','server']` 32 · `[]` 21 · `['local']` 18 · `['shell','local']` 8 · `['shell']` 6 · `['shell','local','server']` 1 |
-| `persist`       | `session` 41 · `none` 25 · `local` 12 · `shell` 8                                                                           |
+| `writableBy`    | `['local','server']` 32 · `[]` 21 · `['local']` 17 · `['shell','local']` 9 · `['shell']` 6 · `['shell','local','server']` 1 |
+| `persist`       | `session` 41 · `none` 25 · `local` 11 · `shell` 9                                                                           |
 | `appliesAt`     | absent 54 · `live` 24 · `restart` 5 · `reconnect` 3                                                                         |
 | Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 17                                                                      |
 | Server-writable | 33 of 86                                                                                                                    |

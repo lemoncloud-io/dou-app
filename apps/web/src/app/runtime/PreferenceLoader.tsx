@@ -15,9 +15,11 @@ interface ManagedKey {
     decode: (value: unknown) => unknown;
 }
 
-// Only these three ever had a native-bridge-backed answer worth fetching — `ui.language` is
-// `local`-only (the shell derives its own language from the device), and every other `ui.*`/`debug.*` key is either `local`-only (nothing for native to
-// answer) or has no legacy bridge counterpart at all (see legacyPreferenceMigration.ts).
+// Only these three ever had a native-bridge-backed answer worth fetching. `ui.language` is left out
+// on purpose: the shell's legacy language store starts at the device language and nothing wrote a
+// choice into it before, so reading it back would turn a device default into a pin. Every other
+// `ui.*`/`debug.*` key is either `local`-only (nothing for native to answer) or has no legacy bridge
+// counterpart at all (see legacyPreferenceMigration.ts).
 const MANAGED_KEYS: readonly ManagedKey[] = [
     {
         configKey: 'ui.blurLastMessage',

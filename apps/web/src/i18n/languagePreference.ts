@@ -18,20 +18,47 @@ const isSupported = (value: string): value is SupportedLanguage =>
 export const toLanguagePreference = (value: unknown): LanguagePreference =>
     typeof value === 'string' && isSupported(value) ? value : 'system';
 
+export interface StoredLanguageSources {
+    /** The native shell's boot envelope (`CHATIC_APP_CONFIG_BAG`) — config key → JSON-encoded value. */
+    bag?: Readonly<Record<string, unknown>>;
+    /** The local mirror `@chatic/config` keeps of every shell-persisted key. */
+    storage?: Pick<Storage, 'getItem'>;
+}
+
+const decodePreference = (raw: unknown): LanguagePreference | undefined => {
+    if (typeof raw !== 'string') return undefined;
+    try {
+        const value: unknown = JSON.parse(raw);
+        return typeof value === 'string' && (value === 'system' || isSupported(value)) ? value : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 /**
- * The stored choice, read straight from `@chatic/config`'s local lane.
+ * The stored choice, read the way `@chatic/config` would resolve `ui.language`: the shell's boot
+ * envelope first, then the local mirror.
  *
  * i18n resolves its language while its module is being imported, which is before `main.tsx` has run
- * `config.init()`, so `config.get` would answer `undefined` here. `ui.language` is `persist: 'local'`
- * precisely so that this one early read has a single place to look. Anything unreadable is `system`.
+ * `config.init()`, so `config.get` would answer `undefined` here — the same reason the theme has a
+ * pre-paint read of its own. The shell copy wins because it is the one that survives the OS clearing
+ * WebView storage; the mirror is the only copy in a plain browser. Anything unreadable is `system`.
  */
-export const readStoredLanguagePreference = (storage: Pick<Storage, 'getItem'> | undefined): LanguagePreference => {
+export const readStoredLanguagePreference = ({ bag, storage }: StoredLanguageSources): LanguagePreference => {
+    const fromShell = decodePreference(bag?.[LANGUAGE_PREFERENCE_KEY]);
+    if (fromShell) return fromShell;
     try {
-        const raw = storage?.getItem(storageKeyFor(LANGUAGE_PREFERENCE_KEY));
-        return raw ? toLanguagePreference(JSON.parse(raw)) : 'system';
+        return decodePreference(storage?.getItem(storageKeyFor(LANGUAGE_PREFERENCE_KEY))) ?? 'system';
     } catch {
         return 'system';
     }
+};
+
+/** The boot envelope as the shell injected it, or nothing outside a shell. */
+export const readShellConfigBag = (): Readonly<Record<string, unknown>> | undefined => {
+    if (typeof window === 'undefined') return undefined;
+    const bag = (window as { CHATIC_APP_CONFIG_BAG?: unknown }).CHATIC_APP_CONFIG_BAG;
+    return bag && typeof bag === 'object' ? (bag as Record<string, unknown>) : undefined;
 };
 
 /**

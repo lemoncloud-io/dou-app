@@ -11,6 +11,7 @@ import {
     FALLBACK_LANGUAGE,
     SUPPORTED_LANGUAGES,
     deviceLanguageCandidates,
+    readShellConfigBag,
     readStoredLanguagePreference,
     resolveLanguage,
 } from './languagePreference';
@@ -79,7 +80,10 @@ i18n.on('languageChanged', language => {
 i18n.use(ChainedBackend)
     .use(initReactI18next)
     .init({
-        lng: resolveLanguage(readStoredLanguagePreference(safeLocalStorage()), deviceLanguageCandidates()),
+        lng: resolveLanguage(
+            readStoredLanguagePreference({ bag: readShellConfigBag(), storage: safeLocalStorage() }),
+            deviceLanguageCandidates()
+        ),
         fallbackLng: FALLBACK_LANGUAGE,
         supportedLngs: [...SUPPORTED_LANGUAGES],
         interpolation: {

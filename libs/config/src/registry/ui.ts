@@ -23,10 +23,9 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['shell', 'local'],
         persist: 'shell',
     },
-    // `local`, not `shell`: apps/web resolves the language while its i18n module is imported, before
-    // `config.init()` has run, so it reads this key's persisted value straight out of localStorage.
-    // A shell-lane value would sit in the boot envelope where that early read does not look, and
-    // nothing native reads the choice anyway — the shell derives its own language from the device.
+    // `shell`, like the theme, so the choice reaches the native app and survives a WebView storage
+    // wipe. apps/web resolves the language while its i18n module is imported, before `config.init()`,
+    // so it reads the boot envelope and the local mirror itself, in the resolver's order.
     'ui.language': {
         title: 'Language',
         description: "The app's display language. 'system' follows the device language.",
@@ -34,8 +33,8 @@ export const uiModule: ConfigRegistryModule = {
         values: ['system', 'ko', 'en'],
         defaultValue: 'system',
         surface: 'user',
-        writableBy: ['local'],
-        persist: 'local',
+        writableBy: ['shell', 'local'],
+        persist: 'shell',
     },
     'ui.blurLastMessage': {
         title: 'Blur last message preview',

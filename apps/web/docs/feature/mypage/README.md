@@ -118,8 +118,8 @@ meaning even when they show the same language, and the tick has to say which one
 `useLanguagePreference` writes the choice and switches the screen at once; the row's trailing label
 reads `mypage.language.<choice>`.
 
-How `system` becomes a language, and why the choice is `persist: 'local'` when the other user
-preferences go to the shell, is in [state/stores.md](../../state/stores.md#the-language-choice--uilanguage).
+How `system` becomes a language, and how the choice reaches the native shell the way the theme does,
+is in [state/stores.md](../../state/stores.md#the-language-choice--uilanguage).
 
 ### Clear cache keeps what the server cannot give back
 

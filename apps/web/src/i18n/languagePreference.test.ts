@@ -1,4 +1,9 @@
-import { deviceLanguageCandidates, readStoredLanguagePreference, resolveLanguage } from './languagePreference';
+import {
+    deviceLanguageCandidates,
+    readShellConfigBag,
+    readStoredLanguagePreference,
+    resolveLanguage,
+} from './languagePreference';
 
 jest.mock('@chatic/config', () => ({ storageKeyFor: (key: string) => `@chatic/config.${key}` }));
 
@@ -26,18 +31,36 @@ describe('resolveLanguage', () => {
 });
 
 describe('readStoredLanguagePreference', () => {
-    it("reads the choice from @chatic/config's local lane", () => {
+    it("reads the choice from @chatic/config's local mirror when there is no shell", () => {
         const storage = storageWith('"ko"');
 
-        expect(readStoredLanguagePreference(storage)).toBe('ko');
+        expect(readStoredLanguagePreference({ storage })).toBe('ko');
         expect(storage.getItem).toHaveBeenCalledWith('@chatic/config.ui.language');
     });
 
+    // The shell copy is the one that survives the OS clearing WebView storage, and the resolver ranks
+    // the shell lane above the mirror — the early read has to agree with what config.get says later.
+    it("prefers the shell's boot envelope over the local mirror", () => {
+        expect(readStoredLanguagePreference({ bag: { 'ui.language': '"en"' }, storage: storageWith('"ko"') })).toBe(
+            'en'
+        );
+        expect(readStoredLanguagePreference({ bag: { 'ui.language': '"system"' }, storage: storageWith('"ko"') })).toBe(
+            'system'
+        );
+    });
+
+    it('falls back to the mirror when the envelope has nothing usable', () => {
+        expect(readStoredLanguagePreference({ bag: {}, storage: storageWith('"ko"') })).toBe('ko');
+        expect(readStoredLanguagePreference({ bag: { 'ui.language': '"ja"' }, storage: storageWith('"ko"') })).toBe(
+            'ko'
+        );
+    });
+
     it('treats a missing, unknown or corrupt value as system', () => {
-        expect(readStoredLanguagePreference(storageWith(null))).toBe('system');
-        expect(readStoredLanguagePreference(storageWith('"ja"'))).toBe('system');
-        expect(readStoredLanguagePreference(storageWith('{not json'))).toBe('system');
-        expect(readStoredLanguagePreference(undefined)).toBe('system');
+        expect(readStoredLanguagePreference({ storage: storageWith(null) })).toBe('system');
+        expect(readStoredLanguagePreference({ storage: storageWith('"ja"') })).toBe('system');
+        expect(readStoredLanguagePreference({ storage: storageWith('{not json') })).toBe('system');
+        expect(readStoredLanguagePreference({})).toBe('system');
     });
 
     it('treats a storage that throws as system', () => {
@@ -46,7 +69,21 @@ describe('readStoredLanguagePreference', () => {
                 throw new Error('blocked');
             },
         };
-        expect(readStoredLanguagePreference(storage)).toBe('system');
+        expect(readStoredLanguagePreference({ storage })).toBe('system');
+    });
+});
+
+describe('readShellConfigBag', () => {
+    afterEach(() => {
+        delete (window as { CHATIC_APP_CONFIG_BAG?: unknown }).CHATIC_APP_CONFIG_BAG;
+    });
+
+    it('returns the injected envelope, and nothing outside a shell', () => {
+        expect(readShellConfigBag()).toBeUndefined();
+
+        (window as { CHATIC_APP_CONFIG_BAG?: unknown }).CHATIC_APP_CONFIG_BAG = { 'ui.language': '"ko"' };
+
+        expect(readShellConfigBag()).toEqual({ 'ui.language': '"ko"' });
     });
 });
 

@@ -6,13 +6,13 @@ import { appBridge } from '../bridge';
 /**
  * Registry keys absorbed from the legacy `PREFERENCES` bridge (see `libs/config/src/registry/ui.ts`)
  * that still have an old-shell equivalent — an app build that predates `SaveConfigValue`/
- * `ClearConfigValue` can still persist these three through the bridge it already understands.
- * `ui.language` used to be the fourth; it became `persist: 'local'` and never reaches this adapter.
+ * `ClearConfigValue` can still persist these four through the bridge it already understands.
  * `debugSettings`, the 5th legacy key, has no config-key equivalent: the one capability it carried
  * (`webviewBaseUrlOverride`) was deleted outright rather than migrated.
  */
 const LEGACY_PREFERENCE_KEY: Readonly<Partial<Record<string, PreferenceKey>>> = {
     'ui.theme': 'theme',
+    'ui.language': 'language',
     'ui.blurLastMessage': 'blurLastMessage',
     'ui.onboardingCompleted': 'isFirstRun',
 };
@@ -47,7 +47,7 @@ export const resetConfigKvSupport = (): void => {
  *
  * `write`/`clear` degrade to the legacy `SavePreference`/`DeletePreference` bridge on a `NOT_FOUND`
  * from an app build that predates this one (the web deploys before the installed app updates), but only
- * for the three registry keys with a legacy equivalent (`LEGACY_PREFERENCE_KEY`). A key with no legacy
+ * for the four registry keys with a legacy equivalent (`LEGACY_PREFERENCE_KEY`). A key with no legacy
  * equivalent has nothing to fall back to, so `ConfigFacade`'s own confirmed-write retry — and,
  * failing that, `onShellWriteFailed` — is the correct outcome for those.
  */

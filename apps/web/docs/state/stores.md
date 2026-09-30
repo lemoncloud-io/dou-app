@@ -70,7 +70,7 @@ this folder — because desktop-web needs to read the exact same record apps/web
 
 Every hook reads with `useConfigValue('ui.x')` (`@chatic/config/react`) and writes with
 `config.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The
-three keys with `persist: 'shell'` (`theme`, `blurLastMessage`, `onboardingCompleted`) must write
+four keys with `persist: 'shell'` (`theme`, `language`, `blurLastMessage`, `onboardingCompleted`) must write
 with `{ lane: 'shell' }`: a `local` write lands in a lower-priority row than a native-hydrated
 `shell` value and is silently shadowed (`ConfigLanePolicy`'s row order, in the
 [`@chatic/config` README](../../../../libs/config/README.md)). Every other key here is
@@ -133,15 +133,28 @@ mobile zustand-persist JSON envelope, which `parseThemeBridgeValue` normalizes.
 
 ## The language choice — `ui.language`
 
-Settings' language sheet writes `ui.language` with `{ lane: 'local' }` through `useLanguagePreference`
-(`features/mypage/hooks/`), which also calls `i18n.changeLanguage` so the screen follows at once.
+It is stored the way the theme is. Settings' language sheet goes through `useLanguagePreference`
+(`features/mypage/hooks/`), which makes three writes:
 
-It is the one user preference that is `persist: 'local'` rather than `'shell'`, and the reason is
-timing. `src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx`
-has run `config.init()` — so it cannot ask `config.get`. It reads the key's persisted value straight
-out of localStorage (`readStoredLanguagePreference`), and a single local key is the only place that
-read has to look. Nothing native reads the choice: the shell works out its own language from the
-device.
+1. `config.set('ui.language', choice, { lane: 'shell' })` — the shell's config store, read back as
+   the boot envelope (`CHATIC_APP_CONFIG_BAG`) on the next launch, and mirrored into
+   `@chatic/config.ui.language` for a browser with no shell;
+2. `SavePreference('language', choice)`, confirmed with one retry — the shell's own `languageStore`,
+   which is what the shell's surfaces would follow. The choice goes over as is, `system` included;
+3. `i18n.changeLanguage(...)`, so the screen follows at once.
+
+**The shell does not read its store yet.** Its alert copy and the push banners its notification
+services build all read the device locale directly, so today a pinned language changes the web and
+nothing native. Making the shell follow is a shell change, and the value it needs is already there.
+
+`src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx` has run
+`config.init()` — so it cannot ask `config.get`. `readStoredLanguagePreference` reads the same two
+places the resolver would, in the same order: the boot envelope, then the local mirror. The theme
+has a pre-paint read for the same reason.
+
+`PreferenceLoader`'s legacy `FetchPreference` fallback does **not** cover `ui.language`: the shell's
+`languageStore` starts at the device language and nothing wrote a choice into it before, so reading
+it back would turn a device default into a pin.
 
 `system` is resolved on every boot, from the device languages in order — the shell's injected
 `CHATIC_APP_CURRENT_LANGUAGE` first, then `navigator.languages`. The shell's value has to come first

@@ -35,11 +35,14 @@ consumer.
 3. **The detector is retired from apps/web.** i18n is initialised with an explicit `lng`. The
    `i18nextLng` key is still written with the language in effect, because lemon-web-core's
    `x-lemon-language` header is pointed at that name — nothing reads it back as a choice.
-4. **`ui.language` is `persist: 'local'`, not `'shell'`** — unlike the other user preferences the shell
-   mirrors. The i18n module picks the boot language while it is being imported, which is before
-   `main.tsx` runs `config.init()`, so it cannot ask the resolver and reads the persisted value straight
-   out of localStorage. A local key is one place to look; a shell value would sit in the boot envelope
-   as well. Nothing native reads the choice: the shell derives its own language from the device.
+4. **`ui.language` is stored the way `ui.theme` is.** It is `persist: 'shell'`, written on the shell
+   lane (mirrored locally for a browser with no shell), and the choice is also sent to the shell's own
+   `languageStore` with `SavePreference('language')`, `system` included. The native app does not read
+   that store yet — its alerts and push banners still follow the device locale — but the language is
+   now carried the same way as the theme, so making the shell follow a pin needs no further web
+   change. The i18n module picks the boot language while it is being imported, before `main.tsx`
+   runs `config.init()`, so it reads the boot envelope and then the local mirror itself, in the
+   resolver's order.
 5. **Every existing install starts on `system`.** The detector's stored value is not migrated.
 
 ## Alternatives
@@ -49,11 +52,10 @@ diff. Rejected: the order is exactly what made a manual choice survive a reload,
 either keeps the pinned-forever bug or drops every choice on the next boot, and it still never reads
 the shell's value — iOS would keep answering `en-US`.
 
-**`persist: 'shell'`, read from the boot envelope and localStorage at import time.** Consistent with
-`ui.theme`. Rejected: the early read would have to reimplement the resolver's lane precedence for one
-key, and it buys durability against a WebView storage wipe that the session itself survives only
-because it lives in the same localStorage. A lost choice falls back to `system`, which is the default
-anyway.
+**`persist: 'local'`, read from the mirror alone.** The early read would have a single place to look,
+and nothing native reads the choice today. Rejected: it takes the language off the path the theme
+already uses to reach the shell, so the native app could never follow a pin without the web changing
+again. The early read's cost — checking the envelope before the mirror — is two lookups.
 
 **Migrate the detector's stored value into `ui.language`.** Keeps every existing manual choice.
 Rejected, because a detected value and a chosen one cannot be told apart. On iOS the stored `en` is
@@ -67,6 +69,10 @@ values that differ from the device language would still pin the iOS users this e
 - **Someone who had picked a language different from their device's loses that pick once.** On
   Android and in a browser the old sheet's choice was stored in the same key as the detector's guess,
   and it is dropped with it. One tap in Settings restores it, and from then on it is kept.
+- A pinned language changes the web only, until the shell reads its `languageStore`. The shell's
+  alerts and the push banners built by its notification services (iOS extension, Android messaging
+  service) read the device locale directly; the banners run in their own process and would need the
+  choice in shared storage as well.
 - The language is resolved once per boot. A device language changed while the app stays open is
   picked up on the next launch, not live.
 - On iOS only the device's first locale reaches the web (`languageCode` of `getLocales()[0]`). A device

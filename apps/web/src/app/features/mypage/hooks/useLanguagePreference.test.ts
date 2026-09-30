@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useLanguagePreference } from './useLanguagePreference';
 
@@ -15,6 +15,13 @@ jest.mock('@chatic/config', () => ({
 }));
 jest.mock('@chatic/config/react', () => ({ useConfigValue: () => stored }));
 
+let native = false;
+jest.mock('@chatic/bridges', () => ({ isNative: () => native }));
+const savePreferenceConfirmed = jest.fn();
+jest.mock('../../../bridge', () => ({
+    appBridge: { savePreferenceConfirmed: (data: unknown) => savePreferenceConfirmed(data) },
+}));
+
 const setDeviceLanguage = (injected: string | undefined, languages: string[]) => {
     (window as { CHATIC_APP_CURRENT_LANGUAGE?: string }).CHATIC_APP_CURRENT_LANGUAGE = injected;
     Object.defineProperty(window.navigator, 'languages', { value: languages, configurable: true });
@@ -24,6 +31,8 @@ const setDeviceLanguage = (injected: string | undefined, languages: string[]) =>
 beforeEach(() => {
     jest.clearAllMocks();
     stored = undefined;
+    native = false;
+    savePreferenceConfirmed.mockResolvedValue({ success: true });
     setDeviceLanguage(undefined, ['en-US']);
 });
 
@@ -44,8 +53,35 @@ describe('useLanguagePreference', () => {
 
         act(() => result.current.setPreference('ko'));
 
-        expect(setConfig).toHaveBeenCalledWith('ui.language', 'ko', { lane: 'local' });
+        expect(setConfig).toHaveBeenCalledWith('ui.language', 'ko', { lane: 'shell' });
         expect(changeLanguage).toHaveBeenCalledWith('ko');
+    });
+
+    it("tells the native shell's own language store the choice, system included", async () => {
+        native = true;
+        const { result } = renderHook(() => useLanguagePreference());
+
+        act(() => result.current.setPreference('system'));
+
+        await waitFor(() => expect(savePreferenceConfirmed).toHaveBeenCalledWith({ key: 'language', value: 'system' }));
+    });
+
+    it('retries the native write once, like the theme', async () => {
+        native = true;
+        savePreferenceConfirmed.mockRejectedValueOnce(new Error('dropped'));
+        const { result } = renderHook(() => useLanguagePreference());
+
+        act(() => result.current.setPreference('ko'));
+
+        await waitFor(() => expect(savePreferenceConfirmed).toHaveBeenCalledTimes(2));
+    });
+
+    it('sends nothing over the bridge outside a shell', () => {
+        const { result } = renderHook(() => useLanguagePreference());
+
+        act(() => result.current.setPreference('ko'));
+
+        expect(savePreferenceConfirmed).not.toHaveBeenCalled();
     });
 
     it('choosing system switches to the device language the shell reports', () => {
@@ -55,7 +91,7 @@ describe('useLanguagePreference', () => {
 
         act(() => result.current.setPreference('system'));
 
-        expect(setConfig).toHaveBeenCalledWith('ui.language', 'system', { lane: 'local' });
+        expect(setConfig).toHaveBeenCalledWith('ui.language', 'system', { lane: 'shell' });
         expect(changeLanguage).toHaveBeenCalledWith('ko');
     });
 });
