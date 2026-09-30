@@ -249,6 +249,7 @@ export const ko: EnTranslation = {
     'cloud.delete.deleting': '삭제 중...',
     'cloud.delete.cancel': '취소',
     'mobileApp.planAndCloud': '구독과 클라우드 만들기는 DoU 모바일 앱에서 할 수 있어요.',
+    'mobileApp.invite': '새로운 사람은 DoU 모바일 앱에서 초대할 수 있어요.',
     'mobileApp.homeDm': '홈의 1:1 대화는 DoU 모바일 앱에서 전화번호로 시작할 수 있어요.',
     'mobileApp.appStore': 'App Store',
     'mobileApp.googlePlay': 'Google Play',
@@ -436,7 +437,8 @@ export const ko: EnTranslation = {
     'channels.addMembers.searchPlaceholder': '이름 또는 사용자 ID로 검색',
     'channels.addMembers.loading': '사람 목록 불러오는 중…',
     'channels.addMembers.loadFailed': '다른 채널의 사람 목록을 불러오지 못했어요.',
-    'channels.addMembers.empty': '다른 채널의 사람들은 모두 이미 여기에 있어요.',
+    'channels.addMembers.empty':
+        '아직 추가할 수 있는 사람이 없어요. 이 플레이스의 다른 채널에 있는 사람만 여기에 추가할 수 있어요.',
     'channels.addMembers.noMatches': '검색과 일치하는 사람이 없어요.',
     'channels.addMembers.selected_one': '{{count}}명 선택',
     'channels.addMembers.selected_other': '{{count}}명 선택',

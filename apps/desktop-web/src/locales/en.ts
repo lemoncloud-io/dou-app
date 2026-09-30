@@ -241,6 +241,7 @@ export const en = {
     'cloud.delete.deleting': 'Deleting...',
     'cloud.delete.cancel': 'Cancel',
     'mobileApp.planAndCloud': 'Subscriptions and new clouds are in the DoU mobile app.',
+    'mobileApp.invite': 'To invite someone new, use the DoU mobile app.',
     'mobileApp.homeDm': 'Start a 1:1 on Home from the DoU mobile app, with a phone number.',
     'mobileApp.appStore': 'App Store',
     'mobileApp.googlePlay': 'Google Play',
@@ -440,7 +441,8 @@ export const en = {
     'channels.addMembers.searchPlaceholder': 'Search by name or user ID',
     'channels.addMembers.loading': 'Loading people…',
     'channels.addMembers.loadFailed': "Couldn't load people from your other channels.",
-    'channels.addMembers.empty': 'Everyone from your other channels is already here.',
+    'channels.addMembers.empty':
+        'No one to add yet. Only people from your other channels in this place can be added here.',
     'channels.addMembers.noMatches': 'No one matches that search.',
     'channels.addMembers.selected_one': '{{count}} selected',
     'channels.addMembers.selected_other': '{{count}} selected',

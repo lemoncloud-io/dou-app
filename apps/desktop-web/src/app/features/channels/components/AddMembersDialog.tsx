@@ -10,7 +10,13 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { avatarStyle, displayName, extractErrorMessage, focusComposerIfDropped } from '../../../shared';
+import {
+    MobileAppPointer,
+    avatarStyle,
+    displayName,
+    extractErrorMessage,
+    focusComposerIfDropped,
+} from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
 import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 
@@ -151,12 +157,19 @@ const CandidateList = ({
     if (error) {
         return <p className="px-2 py-2 text-callout text-destructive">{t('channels.addMembers.loadFailed')}</p>;
     }
-    if (candidates.length === 0) {
+    // An empty pool cannot tell "everyone is already here" from "there is nobody yet", and the old
+    // line said the first to an owner who had nobody. It now says who can be added here, and that
+    // someone new is invited from the mobile app, which is true either way.
+    if (hasNoCandidates) {
         return (
-            <p className="px-2 py-2 text-callout text-muted-foreground">
-                {t(hasNoCandidates ? 'channels.addMembers.empty' : 'channels.addMembers.noMatches')}
-            </p>
+            <div className="flex flex-col gap-1 px-2 py-2">
+                <p className="text-callout text-muted-foreground">{t('channels.addMembers.empty')}</p>
+                <MobileAppPointer messageKey="mobileApp.invite" />
+            </div>
         );
+    }
+    if (candidates.length === 0) {
+        return <p className="px-2 py-2 text-callout text-muted-foreground">{t('channels.addMembers.noMatches')}</p>;
     }
 
     return (
