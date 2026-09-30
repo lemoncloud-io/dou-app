@@ -5,6 +5,7 @@ import { BaseRepository, type DisposableRepository } from './types';
 export interface ISyncMetaRepository extends DisposableRepository {
     getSyncedAt(kind: string): Promise<number>;
     setSyncedAt(kind: string, syncedAt: number): Promise<void>;
+    cacheClear(): Promise<void>;
 }
 
 /**
@@ -29,6 +30,10 @@ export class SyncMetaRepository extends BaseRepository implements ISyncMetaRepos
 
     public setSyncedAt(kind: string, syncedAt: number): Promise<void> {
         return this.syncMetaLocalDataSource.setSyncedAt(kind, syncedAt, this.getScope());
+    }
+
+    public cacheClear(): Promise<void> {
+        return this.syncMetaLocalDataSource.cacheClear(this.getScope());
     }
 
     /** The partition half of the context only: a cursor is keyed by cloud and account, nothing else. */

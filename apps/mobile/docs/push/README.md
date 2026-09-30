@@ -17,19 +17,21 @@ suspended then), and the web re-aggregates the true count on the next foreground
 
 ## Files
 
-| File                                                               | Role                                                                                                                                                              |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/App.tsx`                                                  | creates the Android notification channels at mount                                                                                                                |
-| `src/app/services/notification/NotificationService.ts`             | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                                 |
-| `src/app/services/notification/PushEventManager.ts`                | in-memory foreground-event broker between OS/native events and the WebView bridge                                                                                 |
-| `src/app/webview/hooks/useFcmHandler.ts`                           | WebView bridge handler for token, badge and push-mark requests, and the foreground push relay (`OnReceiveNotification`)                                           |
-| `src/app/webview/hooks/useDeepLinkNavigation.ts`                   | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `resolvePushTapPath` / `resolveDeepLink` in `deeplinkUtils`) |
-| `src/app/bridge/BadgeSyncBridge.ts`                                | Android-only mirror of the web's true badge total, so a background push increments from it                                                                        |
-| `src/app/bridge/PushMarksBridge.ts`                                | drains the cross-cloud push-mark records a background push wrote natively                                                                                         |
-| `android/.../push/ChaticFirebaseMessagingService.kt`               | Android FCM receiver: localizes copy, emits the foreground event, writes the badge/push-mark, merges `cid`/`sid` into the tap link                                |
-| `android/.../push/BadgeStore.kt`, `PushMarkStore.kt`               | the shared-preferences badge counter and the push-mark ring buffer (cap 100), same file                                                                           |
-| `ios/Chatic/AppDelegate.swift`                                     | wires APNs callbacks to `RNCPushNotificationIOS`; suppresses the foreground system banner; hands the badge base to the App Group before backgrounding             |
-| `ios/ChaticNotificationServiceExtension/NotificationService.swift` | localizes background/killed banners from `assets/locales/{lang}.json`; increments the shared badge and appends a push-mark record while the app is backgrounded   |
+| File                                                               | Role                                                                                                                                                                                                 |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/App.tsx`                                                  | creates the Android notification channels at mount                                                                                                                                                   |
+| `src/app/services/notification/NotificationService.ts`             | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                                                                    |
+| `src/app/services/notification/PushEventManager.ts`                | in-memory foreground-event broker between OS/native events and the WebView bridge                                                                                                                    |
+| `src/app/webview/hooks/useFcmHandler.ts`                           | WebView bridge handler for token, badge and push-mark requests, and the foreground push relay (`OnReceiveNotification`)                                                                              |
+| `src/app/webview/hooks/useDeepLinkNavigation.ts`                   | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `resolvePushTapPath` / `resolveDeepLink` in `deeplinkUtils`)                                    |
+| `src/app/bridge/BadgeSyncBridge.ts`                                | Android-only mirror of the web's true badge total, so a background push increments from it                                                                                                           |
+| `src/app/bridge/PushMarksBridge.ts`                                | drains the cross-cloud push-mark records a background push wrote natively                                                                                                                            |
+| `src/app/bridge/SharedLanguageBridge.ts`                           | copies the web's language choice to where the two push services read it — see [../system/language.md](../system/language.md)                                                                         |
+| `android/.../push/ChaticFirebaseMessagingService.kt`               | Android FCM receiver: localizes copy in the pinned language else the device's, emits the foreground event, writes the badge/push-mark, merges `cid`/`sid` into the tap link                          |
+| `android/.../push/BadgeStore.kt`, `PushMarkStore.kt`               | the shared-preferences badge counter and the push-mark ring buffer (cap 100), same file                                                                                                              |
+| `android/.../push/LanguagePreferenceStore.kt`                      | the language choice the messaging service reads (its own `chatic_language` file)                                                                                                                     |
+| `ios/Chatic/AppDelegate.swift`                                     | wires APNs callbacks to `RNCPushNotificationIOS`; suppresses the foreground system banner; hands the badge base to the App Group before backgrounding                                                |
+| `ios/ChaticNotificationServiceExtension/NotificationService.swift` | localizes background/killed banners from `assets/locales/{lang}.json` (pinned language, else the device's); increments the shared badge and appends a push-mark record while the app is backgrounded |
 
 There is no native push diagnostics screen any more — `NotificationTestScreen.tsx` was removed with
 the rest of the native debug UI (ADR-0080); the equivalent is the web debug panel's `Push` screen
@@ -129,7 +131,9 @@ tap on iOS is silently lost and never reaches `OnNavigate`. A cold-start tap ins
 A background/killed non-silent push (sent with `mutable-content: 1`) is intercepted before the banner
 is shown by the **Notification Service Extension**
 (`ChaticNotificationServiceExtension/NotificationService.swift`). It reads `title_loc_key`/`loc_key`
-and `title_loc_args`/`loc_args`, resolves the template from `assets/locales/{lang}.json`, and
+and `title_loc_args`/`loc_args`, resolves the template from `assets/locales/{lang}.json` — `lang` being the
+language pinned in Settings if there is one, read from the App Group, else the device's
+([../system/language.md](../system/language.md)) — and
 substitutes `{0}`-style placeholders into the banner title/body (`dou_chat_muted`/`dou_marketing` also
 mute the sound). A silent push never runs the extension.
 
@@ -319,7 +323,8 @@ title alone says which cloud (hence no body).
 - JS background push handling does not go back into `main.tsx` unless the native Android/iOS lifecycle
   design changes.
 - Android localized notification text comes from `ChaticFirebaseMessagingService` reading
-  `assets/locales/{lang}.json`, falling back to English when missing.
+  `assets/locales/{lang}.json`, falling back to English when missing. On both platforms `lang` is the
+  language pinned in the web's Settings, copied to shared storage by the app, else the device's.
 - iOS background/killed banner text is localized by the Notification Service Extension from
   `assets/locales/{lang}.json` (English fallback); `loc_args`/`title_loc_args` accept both the native
   JSON array (APNs) and a JSON string. `assets/locales/*.json` must be bundled into **both** the app

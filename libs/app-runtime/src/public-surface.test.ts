@@ -81,6 +81,7 @@ const GROUPS: Record<string, readonly string[]> = {
     ],
     // Repository · cache tier · outbox.
     data: [
+        'clearLocalCaches',
         'cloudsKeys',
         'createChatOutbox',
         'getCacheMetricsSource',

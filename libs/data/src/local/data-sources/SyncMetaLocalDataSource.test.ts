@@ -127,6 +127,54 @@ describe('SyncMetaLocalDataSource — a cursor whose routing changed', () => {
     });
 });
 
+// A sync already in flight when the cache was cleared can land after the clear and write a fresh
+// cursor over the emptied store. The clear moves `cursorsValidAfter` forward, and anything saved
+// before it has to drop to 0 however recent it is.
+describe('SyncMetaLocalDataSource — a cursor from before a cache clear', () => {
+    const warn = logger.warn as jest.Mock;
+    const savedAt = (lastSyncedAt: number) => ({
+        syncedAt: 1234,
+        __cacheMeta: { lastSyncedAt, expiresAt: lastSyncedAt + TTL_MS },
+    });
+    const sourceWith = (row: ReturnType<typeof savedAt>, validAfter: () => number) => {
+        const metas = createPartitionedMemoryStorage('meta');
+        jest.spyOn(metas.forScope(CONTEXT), 'load').mockResolvedValue(row as never);
+        const provider = { getContext: () => CONTEXT, setContext: () => undefined };
+        return new SyncMetaLocalDataSource(provider, metas, undefined, validAfter);
+    };
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('a cursor saved before the watermark drops to 0 and says why', async () => {
+        const now = Date.now();
+        const source = sourceWith(savedAt(now - 1_000), () => now);
+
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
+        expect(warn).toHaveBeenCalledWith('SYNC', expect.any(String), {
+            observation: 'sync-cursor-retired',
+            cursorKind: 'channel-sync:cloud-a',
+            reason: 'cache-cleared',
+        });
+    });
+
+    it('a cursor saved after the watermark is kept', async () => {
+        const now = Date.now();
+        const source = sourceWith(savedAt(now), () => now - 1_000);
+
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(1234);
+    });
+
+    it('reads the watermark on every call, so a later clear retires a cursor trusted earlier', async () => {
+        const now = Date.now();
+        let validAfter = 0;
+        const source = sourceWith(savedAt(now - 1_000), () => validAfter);
+
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(1234);
+        validAfter = now;
+        await expect(source.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
+    });
+});
+
 describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', () => {
     const ROUTING = 'chat:native,channel:native';
     const warn = logger.warn as jest.Mock;
@@ -193,5 +241,22 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
         const load = jest.spyOn(metas.forScope({ cid: 'cloud-a', uid: 'user-a' }), 'load');
         await source.getSyncedAt('channel-sync:cloud-a', { cid: 'cloud-a', uid: 'user-a' });
         expect(load).toHaveBeenCalledWith('channel-sync:cloud-a');
+    });
+
+    it('cacheClear empties the partition it names and leaves every other one alone', async () => {
+        const metas = createPartitionedMemoryStorage('meta');
+        const provider = { getContext: () => ({ cid: 'cloud-b', uid: 'user-b' }), setContext: () => undefined };
+        const source = new SyncMetaLocalDataSource(provider, metas);
+        await source.setSyncedAt('channel-sync:cloud-a', 42, { cid: 'cloud-a', uid: 'user-a' });
+        await source.setSyncedAt('channel-sync:cloud-b', 7);
+
+        await source.cacheClear({ cid: 'cloud-a', uid: 'user-a' });
+
+        await expect(
+            metas.forScope({ cid: 'cloud-a', uid: 'user-a' }).load('channel-sync:cloud-a')
+        ).resolves.toBeNull();
+        await expect(metas.forScope({ cid: 'cloud-b', uid: 'user-b' }).load('channel-sync:cloud-b')).resolves.toEqual(
+            expect.objectContaining({ syncedAt: 7 })
+        );
     });
 });

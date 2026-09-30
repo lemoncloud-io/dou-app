@@ -14,7 +14,7 @@ describe('SyncMetaRepository', () => {
     let repository: SyncMetaRepository;
 
     beforeEach(() => {
-        localDataSource = { getSyncedAt: jest.fn(), setSyncedAt: jest.fn() };
+        localDataSource = { getSyncedAt: jest.fn(), setSyncedAt: jest.fn(), cacheClear: jest.fn() };
         repository = new SyncMetaRepository(localDataSource, new DataContextHolder({ cid: 'cloud-a', uid: 'user-1' }));
     });
 
@@ -88,6 +88,14 @@ describe('SyncMetaRepository', () => {
         } as never);
         await expect(graphA.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(42);
         await expect(graphB.getSyncedAt('channel-sync:cloud-a')).resolves.toBe(0);
+    });
+
+    it("cacheClear — clears its own graph's partition, not the selected one", async () => {
+        localDataSource.cacheClear.mockResolvedValue(undefined);
+
+        await repository.cacheClear();
+
+        expect(localDataSource.cacheClear).toHaveBeenCalledWith({ cid: 'cloud-a', uid: 'user-1' });
     });
 
     it('lets a cache failure surface — a swallowed read would claim "already synced"', async () => {

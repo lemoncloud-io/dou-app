@@ -3,7 +3,8 @@ import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import type { PreferenceKey } from '@chatic/app-messages';
 
-import { appBridge } from '../bridge';
+import { appBridge, syncLanguageChoiceToShell } from '../bridge';
+import { toLanguagePreference } from '../../i18n/languagePreference';
 import { parseThemeBridgeValue } from '../stores/preferenceParsers';
 
 interface ManagedKey {
@@ -15,9 +16,11 @@ interface ManagedKey {
     decode: (value: unknown) => unknown;
 }
 
-// Only these three ever had a native-bridge-backed answer worth fetching — `language` is owned by
-// i18next, and every other `ui.*`/`debug.*` key is either `local`-only (nothing for native to
-// answer) or has no legacy bridge counterpart at all (see legacyPreferenceMigration.ts).
+// Only these three ever had a native-bridge-backed answer worth fetching. `ui.language` is left out
+// on purpose: an older shell's language store holds the device default or the language in effect at
+// the time — a guess and a pick in one value — so reading it back could pin a guess. Every other
+// `ui.*`/`debug.*` key is either `local`-only (nothing for native to answer) or has no legacy bridge
+// counterpart at all (see legacyPreferenceMigration.ts).
 const MANAGED_KEYS: readonly ManagedKey[] = [
     {
         configKey: 'ui.blurLastMessage',
@@ -59,6 +62,17 @@ export const PreferenceLoader = (): null => {
                 if (decoded != null) config.set(configKey, decoded, { lane: 'shell' });
             });
         });
+    }, []);
+
+    // The other direction, for one key: the web's language choice is resent to the shell once per
+    // native boot. A choice made while an older shell was installed sits in the config bag, but that
+    // shell kept its own copy in a format the current shell discards — and the Settings sheet only
+    // sends on change, so without this the shell would stay on the device language for good.
+    useEffect(() => {
+        if (!isNative()) return;
+        const snapshot = config.snapshot('ui.language');
+        if (!snapshot?.isOverridden) return; // nothing chosen — the shell already follows the device
+        void syncLanguageChoiceToShell(toLanguagePreference(snapshot.value));
     }, []);
 
     return null;

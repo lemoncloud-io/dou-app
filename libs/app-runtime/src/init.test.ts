@@ -73,6 +73,19 @@ describe('initAppRuntime', () => {
         expect(configureDataRuntime).not.toHaveBeenCalled();
     });
 
+    it('turns a pending cache-clear request into the cursor watermark before the data runtime exists', async () => {
+        localStorage.setItem('chatic.syncCursors.resetPending', '1');
+        const { initAppRuntime } = await load();
+        const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
+        const before = Date.now();
+
+        initAppRuntime();
+
+        expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
+        expect(localStorage.getItem('chatic.syncCursors.resetPending')).toBeNull();
+        localStorage.clear();
+    });
+
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 

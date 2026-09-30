@@ -4,6 +4,7 @@ import { useLanguageStore, useThemeStore } from '../../stores';
 // Imported past the barrel on purpose: themeMode is provider-free, so this stays
 // testable against the parser that actually ships.
 import { parseThemeMode } from '../../stores/themeMode';
+import { isLanguagePreference } from '../../stores/languagePreference';
 import { useServices } from '../../hooks';
 
 // SavePreference bridge messages originate from untrusted WebView page JS. Only
@@ -11,11 +12,8 @@ import { useServices } from '../../hooks';
 // all 'debugSettings', which carries webviewBaseUrlOverride and therefore decides
 // the WebView origin on next launch — must NEVER be writable from the web, or a
 // single crafted bridge message could silently hijack the app origin (persistent
-// MITM). theme/language are handled by their own cases below; every other key
-// falls through to this allowlist.
-// NOTE: 'theme' validates its value below; 'language' does NOT yet — it still trusts the
-// web's value verbatim, which lets a page write an arbitrary blob into native storage under
-// that key. Tracked separately; do not read the two cases as equally guarded.
+// MITM). theme/language are handled by their own cases below, and both validate the value
+// before it reaches native storage; every other key falls through to this allowlist.
 // 'pushRegistration' carries app-runtime's push-token registration record (ADR-0077). It is inert
 // data — an opaque JSON blob the web writes and reads back — and decides nothing on the native side,
 // so it does not widen the origin-hijack surface the way a system key would. It lives here rather
@@ -65,9 +63,23 @@ export const usePreferenceCacheHandler = () => {
                         useThemeStore.getState().setTheme(theme);
                         break;
                     }
-                    case 'language':
-                        useLanguageStore.getState().setLanguage(value as any);
+                    case 'language': {
+                        // The value is copied into the push services' shared storage and decides
+                        // which locale file they open, so only the three known choices get through.
+                        if (!isLanguagePreference(value)) {
+                            logService.warn('CACHE', `SavePreference rejected invalid language: ${String(value)}`);
+                            return {
+                                type: 'OnSavePreference' as const,
+                                success: false,
+                                error: {
+                                    code: 'PREF_INVALID_VALUE',
+                                    message: `Invalid language value: ${String(value)}`,
+                                },
+                            };
+                        }
+                        useLanguageStore.getState().setPreference(value);
                         break;
+                    }
                     default:
                         if (!BRIDGE_WRITABLE_PREFERENCE_KEYS.includes(key)) {
                             logService.warn('CACHE', `SavePreference rejected non-writable key: ${key}`);

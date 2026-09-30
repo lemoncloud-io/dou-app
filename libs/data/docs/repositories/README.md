@@ -213,6 +213,8 @@ baseline for the latest sync.
 - `cacheClear()` clears within the current repository scope (it is not a global clear).
 - `ChatRepository` additionally provides `cacheClearByChannelId(channelId)`.
 - Logout, cloud switch and test setup each have to decide their clear scope explicitly.
+- **Clearing a domain's rows means clearing the partition's sync cursors after them** (`syncMeta.cacheClear()`). A cursor that outlives its data still claims "synced up to T", so the next sync asks only for the delta after T and the gap never fills. A whole-partition clear of `chat` counts as refillable despite the bullet below, because `join` goes with it and the rows the server will not return were hidden by the join window anyway — what is lost is unsent messages.
+- Two domains hold data the server cannot give back, and a clear meant to be refilled from the server must skip them: `cloud` (the `invitecloud` slot — there is no list API for invited clouds) and `invite` (its `dismissedAt` is written only on this device). The whole-device sweep that follows these rules is `clearLocalCaches` in `libs/app-runtime`.
 - **Deleting chat cannot be undone.** Other domains can be refilled by the server if wrongly cleared, but the message feed is windowed by `join.joinedNo`, and the server will not hand back anything before it. So chat deletion is attached to explicit signals only, never to inference → below.
 
 How storage carries that request out is in

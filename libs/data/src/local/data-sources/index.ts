@@ -43,6 +43,8 @@ export const createLocalDataSources = (
          * knows this — it is the layer that resolved the routing in the first place.
          */
         routingFingerprint?: string;
+        /** The instant before which a sync cursor is not trusted — moved forward by a cache clear. */
+        cursorsValidAfter?: () => number;
     }
 ): LocalDataSources => ({
     channel: new ChannelLocalDataSource(contextProvider, storages.channel),
@@ -53,5 +55,10 @@ export const createLocalDataSources = (
     profile: new ProfileLocalDataSource(contextProvider, storages.profile),
     place: new PlaceLocalDataSource(contextProvider, storages.site),
     user: new UserLocalDataSource(contextProvider, storages.user),
-    syncMeta: new SyncMetaLocalDataSource(contextProvider, storages.meta, options?.routingFingerprint),
+    syncMeta: new SyncMetaLocalDataSource(
+        contextProvider,
+        storages.meta,
+        options?.routingFingerprint,
+        options?.cursorsValidAfter
+    ),
 });

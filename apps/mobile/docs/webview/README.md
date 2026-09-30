@@ -94,11 +94,12 @@ instead of a silent void. `useBaseBridge.ts` passes an `onAppReady` callback int
 routed message — `useAppStateHandler` answers it like any other handler — that fires when the web's
 own repaint animation after a resume has finished, and is what actually hides `ResumeOverlay`.
 
-| Message                       | What it does                                                                                                                |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `WebAppReady`                 | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it                          |
-| `DismissResumeOverlay`        | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                                    |
-| `SavePreference` with `theme` | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md) |
+| Message                          | What it does                                                                                                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WebAppReady`                    | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it                                                             |
+| `DismissResumeOverlay`           | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                                                                       |
+| `SavePreference` with `theme`    | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md)                                    |
+| `SavePreference` with `language` | Routed handler (`usePreferenceCacheHandler`); validates `system`/`ko`/`en` and updates the language store — see [../system/language.md](../system/language.md) |
 
 ## Injection
 

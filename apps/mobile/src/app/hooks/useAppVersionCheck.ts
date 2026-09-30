@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 
-import { getAppLanguage, t } from '../utils';
+import { getEffectiveLanguage, t } from '../utils';
 import { versionService } from '../services';
 import { STORE_URLS } from '@chatic/shared';
 
@@ -50,7 +50,7 @@ export const useAppVersionCheck = (checkOnMount = true) => {
     const hasCheckedRef = useRef(false);
 
     const showUpdateAlert = useCallback((): void => {
-        const language = getAppLanguage();
+        const language = getEffectiveLanguage();
         const storeUrl = Platform.OS === 'ios' ? STORE_URLS.ios : STORE_URLS.android;
 
         Alert.alert(

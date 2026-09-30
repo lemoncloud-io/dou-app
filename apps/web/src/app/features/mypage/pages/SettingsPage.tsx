@@ -9,8 +9,8 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
 
-import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
-import { useAppIcon } from '../hooks';
+import { AppIconSelectSheet, ClearCacheDialog, LanguageSelectSheet, LogoutDialog } from '../components';
+import { useAppIcon, useClearLocalCaches, useLanguagePreference } from '../hooks';
 import { useOnboarding, useTheme } from '../../../hooks';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { PageHeader } from '../../../ui/components';
@@ -24,7 +24,7 @@ const Chevron = () => <IconChevronRight className="size-[18px] text-description"
  */
 export const SettingsPage = () => {
     const navigate = useNavigateWithTransition();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { isGuest } = runtime.session.useRuntimeProfile();
 
     const { setTheme, isDarkTheme } = useTheme();
@@ -42,8 +42,11 @@ export const SettingsPage = () => {
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
+    const [isClearCacheDialogOpen, setIsClearCacheDialogOpen] = useState(false);
 
-    const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
+    const { preference: languagePreference } = useLanguagePreference();
+    const currentLanguageLabel = t(`mypage.language.${languagePreference}`);
+    const { clearLocalCaches, isClearing } = useClearLocalCaches();
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
     // iOS only: Android has no live-version source yet (see ADR-0033), so a status label there would
@@ -55,6 +58,12 @@ export const SettingsPage = () => {
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
         navigate(ROUTES.auth.logout);
+    };
+
+    // Success reloads the page, so closing only matters when the clear failed and a toast is showing.
+    const handleClearCache = async () => {
+        await clearLocalCaches();
+        setIsClearCacheDialogOpen(false);
     };
 
     const handleThemeToggle = () => {
@@ -127,6 +136,12 @@ export const SettingsPage = () => {
                             onClick={() => setIsAppIconSheetOpen(true)}
                         />
                     )}
+                    <ListRow
+                        title={t('mypage.clearCache.title')}
+                        subtitle={t('mypage.clearCache.hint')}
+                        trailing={<Chevron />}
+                        onClick={() => setIsClearCacheDialogOpen(true)}
+                    />
                     <ListRow
                         title={t('mypage.viewOnboarding')}
                         trailing={<Chevron />}
@@ -201,6 +216,13 @@ export const SettingsPage = () => {
                 isOpen={isLogoutDialogOpen}
                 onClose={() => setIsLogoutDialogOpen(false)}
                 onConfirm={handleLogout}
+            />
+
+            <ClearCacheDialog
+                isOpen={isClearCacheDialogOpen}
+                isPending={isClearing}
+                onClose={() => setIsClearCacheDialogOpen(false)}
+                onConfirm={() => void handleClearCache()}
             />
 
             <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />

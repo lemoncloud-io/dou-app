@@ -121,6 +121,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             // Tying them together is the point: the web relays `debug` if and
             // only if something over here will print it.
             consoleEnabled: __DEV__,
+            // The device's language, never the choice: the web resolves its own `system` from this,
+            // and already knows the choice from its settings.
             appLanguage: getAppLanguage(),
             firebaseInstallId,
             latestVersion: versionCheck?.latestVersion ?? '',

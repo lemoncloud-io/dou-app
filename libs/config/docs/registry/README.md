@@ -131,9 +131,7 @@ Two more keys are writable in principle and have no writer in practice. `net.rel
 `net.relay.wss` are `writableBy: ['local']`, and the only code that touches them is the logout path,
 which **clears** them. The `?_backend` query parameter that shares their purpose is consumed by the
 invite flow and never lands in the registry, so today the debug panel is the only thing that can set
-either. `ui.language` is the third of this kind: declared `surface: 'user'`, and its one appearance
-outside the registry is the legacy shell-key map — i18next manages the language under a key of its
-own.
+either.
 
 ### The enforced invariants
 

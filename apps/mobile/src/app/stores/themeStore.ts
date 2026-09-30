@@ -16,7 +16,7 @@ interface ThemeStore {
  * so the first frames would render against the initial value instead of the stored
  * one — visible as a wrong-colored status bar and a background flash right after the
  * splash. The theme is a first-paint value, so it is read synchronously here instead.
- * Language has no such constraint and keeps using `persist`.
+ * `languageStore` reads synchronously for the same reason: `t()` cannot wait for a rehydrate.
  */
 export const useThemeStore = create<ThemeStore>()(set => ({
     theme: readThemeMode(),
