@@ -69,6 +69,10 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
   close. See [`../shell/trailing-panels.md`](../shell/trailing-panels.md).
 - **The thread's reply box** takes focus when a thread opens, unless the reader is typing somewhere
   else. A thread can open seconds after the click, once its channel has loaded.
+- **A returned focus does not open a hint.** `Hint` skips a focus that came from no element on the
+  page, which is what a dialog or menu handing focus back after it has gone looks like (and a window
+  regaining focus). Without this, "Search messages" stayed up over the header button after the
+  search closed. Tab always comes from an element, so a keyboard user still gets the hint.
 
 ## Next unread
 

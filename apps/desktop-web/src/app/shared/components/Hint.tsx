@@ -22,9 +22,23 @@ interface HintProps extends Omit<ComponentPropsWithoutRef<typeof TooltipTrigger>
  * (`<DropdownMenuTrigger asChild><Hint label=…><button/></Hint></DropdownMenuTrigger>`).
  */
 export const Hint = forwardRef<ElementRef<typeof TooltipTrigger>, HintProps>(
-    ({ label, children, side = 'top', delayDuration, ...triggerProps }, ref) => (
+    ({ label, children, side = 'top', delayDuration, onFocus, ...triggerProps }, ref) => (
         <Tooltip delayDuration={delayDuration}>
-            <TooltipTrigger ref={ref} asChild {...triggerProps}>
+            <TooltipTrigger
+                ref={ref}
+                asChild
+                {...triggerProps}
+                // Focus that came from no element on the page is a hand-back, not someone
+                // arriving: a dialog or menu returning focus to its opener once it has gone, or
+                // the window being focused again. The hint opened on it and stayed up over the
+                // control just used ("Search messages" after the search closed). Tab always
+                // comes from an element, so keyboard users still get the hint.
+                onFocus={event => {
+                    onFocus?.(event);
+                    // Radix skips its own open when the composed handler prevented the event.
+                    if (!event.relatedTarget) event.preventDefault();
+                }}
+            >
                 {children}
             </TooltipTrigger>
             {/* Ink, not the kit's lime: a hint on every icon button spent the accent on
