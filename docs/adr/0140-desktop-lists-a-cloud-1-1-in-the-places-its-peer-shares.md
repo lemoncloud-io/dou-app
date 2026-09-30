@@ -1,4 +1,4 @@
-# ADR-0136: Desktop lists a cloud 1:1 in the places its peer shares with me
+# ADR-0140: Desktop lists a cloud 1:1 in the places its peer shares with me
 
 > Status: Accepted · Decided: 2026-09-29
 > · Scope: `apps/desktop-web/src/app/shared/utils/cloudDmPlaces.ts` · `apps/desktop-web/src/app/shared/hooks/useChannels.ts`
