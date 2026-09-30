@@ -28,8 +28,9 @@ const wrapper =
         );
 
 describe('useCloudDmChannels', () => {
-    // Every 1:1 in this cloud, whatever place it carries — `sid` does not scope this read.
-    it('keeps the cloud 1:1 rooms, place tag and all', () => {
+    // Every 1:1 in this cloud, whatever place it carries — `sid` does not scope this read. The
+    // notes-to-self room belongs to the account, not a place, so it is listed here too.
+    it('keeps the cloud 1:1 rooms, place tag and all, and the notes-to-self room', () => {
         const { result } = renderHook(() => useCloudDmChannels(), {
             wrapper: wrapper([
                 channel('cloud-dm', 'dm', '1000001', 'S:creator-was-here'),
@@ -39,15 +40,15 @@ describe('useCloudDmChannels', () => {
             ]),
         });
 
-        expect(result.current.channels.map(c => c.id)).toEqual(['cloud-dm']);
+        expect(result.current.channels.map(c => c.id)).toEqual(['cloud-dm', 'self']);
         expect(result.current.isLoading).toBe(false);
     });
 
     // The section exists because these rooms are in no place list. If it also took the relay's
     // 1:1s — which DO live in a place and are already listed — they would appear twice.
-    it('leaves a relay 1:1 to the place list it already appears in', () => {
+    it('leaves a relay 1:1 and the relay notes-to-self room to the place list', () => {
         const { result } = renderHook(() => useCloudDmChannels(), {
-            wrapper: wrapper([channel('relay-dm', 'dm', 'default')]),
+            wrapper: wrapper([channel('relay-dm', 'dm', 'default'), channel('relay-self', 'self', 'default')]),
         });
 
         expect(result.current.channels).toEqual([]);
