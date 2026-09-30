@@ -45,6 +45,7 @@ export const EditPlaceProfileDialog = () => {
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
     const [isError, setIsError] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+    const nickRef = useRef<HTMLInputElement>(null);
     // Whether an active place override already exists — gates the "use account
     // profile" reset (there's nothing to revert until one is set).
     const hasActiveProfile = useSiteProfilesStore(s => (myUid ? !!s.profiles[myUid] : false));
@@ -65,6 +66,13 @@ export const EditPlaceProfileDialog = () => {
             setThumbnail(profile?.thumbnail || cached?.thumbnail || globalPhoto || undefined);
         });
     }, [isOpen, load, myUid, globalName, globalPhoto]);
+
+    // A save disables the field and the buttons, so whichever held focus went dead and focus fell
+    // to the page. After a failure, hand it to the field the person is about to correct — once
+    // the form is enabled again, since a disabled input cannot take focus.
+    useEffect(() => {
+        if (isError && !busy) nickRef.current?.focus();
+    }, [isError, busy]);
 
     const handleOpenChange = (next: boolean) => {
         if (next) return;
@@ -158,6 +166,7 @@ export const EditPlaceProfileDialog = () => {
                         <Label htmlFor="place-nick">{t('profile.place.nick')}</Label>
                         <Input
                             id="place-nick"
+                            ref={nickRef}
                             autoFocus
                             value={nick}
                             onChange={e => setNick(e.target.value)}
