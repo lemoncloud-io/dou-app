@@ -13,6 +13,8 @@ export interface KnownChannel {
     name: string;
     /** A cloud 1:1's other person; the switcher names the row after them, not the room. */
     peerId?: string;
+    /** My notes-to-self room, which — like a 1:1 — is one room filed under every place listing it. */
+    self?: true;
     /** When it was last listed, so a stale place drops out of the index first. */
     seenAt: number;
 }
@@ -68,11 +70,19 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                         const isDm = isCloudWideChannel(channel);
                         const peerId = isDm ? dmCounterpartId(channel, myUid, channel.$join?.userId) : undefined;
                         if (isDm && !peerId) continue;
+                        const self = channel.stereo === 'self';
                         const name = channel.name ?? '';
                         const key = `${placeId}:${channelId}`;
                         const prev = next[key];
-                        if (prev && prev.name === name && prev.peerId === peerId) continue;
-                        next[key] = { channelId, placeId, name, seenAt, ...(peerId ? { peerId } : {}) };
+                        if (prev && prev.name === name && prev.peerId === peerId && !!prev.self === self) continue;
+                        next[key] = {
+                            channelId,
+                            placeId,
+                            name,
+                            seenAt,
+                            ...(peerId ? { peerId } : {}),
+                            ...(self ? { self: true as const } : {}),
+                        };
                         changed = true;
                     }
                     // A channel that left this place (deleted, or left) stays in the

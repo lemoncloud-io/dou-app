@@ -1,6 +1,6 @@
 import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 
-import { dmCounterpartId } from './dmDisplay';
+import { dmCounterpartId, isSelfChannel } from './dmDisplay';
 
 /**
  * The places that list each 1:1 of a subscription cloud, keyed by channel id.
@@ -14,6 +14,12 @@ import { dmCounterpartId } from './dmDisplay';
  *
  * A peer found in no place still has to be reachable: the room falls back to its stamped place when
  * that place is one of mine, and to every place otherwise.
+ *
+ * My notes-to-self room is filed here too, under every place: it belongs to the account, and the
+ * server returns it for any place, so filing it by the place its row names would hide it everywhere
+ * else — and would leave the unread counts and the quick switcher disagreeing with the sidebar,
+ * which lists it everywhere. It is left unfiled while my places are unknown, and keeps its own place
+ * until then.
  *
  * `channels` is the whole cloud's list, group channels of every place included. Order follows
  * `placeIds`.
@@ -35,6 +41,7 @@ export const cloudDmPlaces = (
 
     const listing = new Map<string, string[]>();
     for (const channel of channels) {
+        if (channel.id && isSelfChannel(channel) && placeIds.length > 0) listing.set(channel.id, [...placeIds]);
         if (!channel.id || !isCloudWideChannel(channel)) continue;
         // My cloud-side id can differ from the session id, and the join row names it.
         const peerId = dmCounterpartId(channel, myUid, channel.$join?.userId);
@@ -48,10 +55,15 @@ export const cloudDmPlaces = (
 
 /**
  * The places whose list holds a channel: a group channel its own place, a cloud 1:1 the places
- * `cloudDmPlaces` gave it (none while my places are unknown).
+ * `cloudDmPlaces` gave it (none while my places are unknown), and my notes-to-self room the places it
+ * was filed under — its own place before my places load.
  */
 export const listingPlaces = (
     channel: DomainChannel,
     dmPlaces: ReadonlyMap<string, readonly string[]>
-): readonly string[] =>
-    isCloudWideChannel(channel) ? (dmPlaces.get(channel.id ?? '') ?? []) : channel.sid ? [channel.sid] : [];
+): readonly string[] => {
+    const filed = dmPlaces.get(channel.id ?? '');
+    if (isCloudWideChannel(channel)) return filed ?? [];
+    if (isSelfChannel(channel) && filed) return filed;
+    return channel.sid ? [channel.sid] : [];
+};

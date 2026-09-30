@@ -37,6 +37,14 @@ elsewhere.
   whose name has not loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the
   members of a group channel they are in. Without them, a place where no one has a 1:1 with me
   showed an empty section.
+- **My notes-to-self room is listed in every place,** relay included. It belongs to the account and
+  the server returns it whichever place is asked about. Two rules carry that: the sidebar lists a
+  row stored under the account (`ACCOUNT_CHANNEL_SID`, a room that arrived with no place), and
+  `cloudDmPlaces` files a room that does name a place — as one opened by `channel.get-self` does —
+  under all of mine rather than that one. The second is what the unread counts and the quick
+  switcher read, so they agree with the sidebar. Its unread count therefore shows in every place,
+  the same trade a 1:1 listed in several places makes, and the quick switcher treats it like a 1:1
+  (`self` on its index entry): never offered "in another place", since the open place lists it.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.
@@ -69,6 +77,22 @@ that exists — there is no "already have one?" branch.
   this place lists, minus me, so a 1:1 started from it is always listed in this place. There is no
   user directory to search. 1:1 and self rooms are read from the cache only, not fetched per room.
   With no place, the "+" hides, since the pool could only be empty.
+
+### Notes to self
+
+The same hook opens my own notes-to-self room (`openSelf`), from a row pinned above the picker's
+people and from the action my own profile card or panel shows in place of "Message". It cannot go
+through `channel.start-dm`: the server answers 400 when the peer is me. The room comes from
+`channel.get-self` instead, which gets or creates it — one per person per cloud, so asking again
+returns the same room, like a 1:1.
+
+- **It shares the one flight** with `startDm`, and the same cloud-switch guard and failure toast.
+- **It needs an open place.** The answer carries no place of its own, so the repository tags the row
+  with the one it is handed (`getSelfChannel(payload, siteId)`), and with no place there is nothing
+  to hand it. The row hides there (`canOpenSelf`).
+- **The row does not wait for the pool.** It is drawn apart from the people list, so it shows while
+  that list loads, fails or is empty. A search filters it like any row — by my place nick, my account
+  name, my id, its "You" tag or its "Notes to self" line.
 
 ## Opening a room that is not listed yet
 

@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 let canStartDm = true;
 let isStarting = false;
 let user: { channelIds?: string[] } | null = null;
+let canOpenSelf = true;
 const startDm = vi.fn();
+const openSelf = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -19,7 +21,7 @@ vi.mock('../hooks', () => ({
     useUser: () => user,
     useDisplayProfile: (_id: string, name: string, thumbnail?: string) => ({ name, thumbnail }),
     useCopyToClipboard: () => [false, vi.fn()],
-    useStartDm: () => ({ startDm, isStarting, isAvailable: canStartDm }),
+    useStartDm: () => ({ startDm, openSelf, isStarting, isAvailable: canStartDm, canOpenSelf }),
 }));
 
 import { ProfileCardContent } from './ProfileCard';
@@ -31,7 +33,9 @@ describe('ProfileCardContent "Message"', () => {
     beforeEach(() => {
         canStartDm = true;
         isStarting = false;
+        canOpenSelf = true;
         startDm.mockReset();
+        openSelf.mockReset();
     });
 
     it('opens the 1:1 with the person on the card, then closes the card', async () => {
@@ -102,5 +106,65 @@ describe('ProfileCardContent shared channels', () => {
         render(<ProfileCardContent userId="me-cloud" fallbackName="Me" />);
 
         expect(screen.queryByText(/in common/)).toBeNull();
+    });
+});
+
+describe('ProfileCardContent "Notes to self"', () => {
+    beforeEach(() => {
+        canStartDm = true;
+        isStarting = false;
+        canOpenSelf = true;
+        startDm.mockReset();
+        openSelf.mockReset();
+    });
+
+    it.each([
+        ['a host marks it as mine', { userId: 'u-1', isMe: true }],
+        ['it carries my account id', { userId: 'me-account' }],
+        ['it carries my id in this cloud', { userId: 'me-cloud' }],
+    ])('opens my notes-to-self room from my own card when %s, then closes it', async (_case, props) => {
+        openSelf.mockResolvedValue({ id: 'U:me-cloud' });
+        const onClose = vi.fn();
+        render(<ProfileCardContent fallbackName="Me" onClose={onClose} {...props} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Notes to self' }));
+        });
+
+        expect(openSelf).toHaveBeenCalledTimes(1);
+        expect(startDm).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps my card open when the room could not be opened', async () => {
+        openSelf.mockResolvedValue(null);
+        const onClose = vi.fn();
+        render(<ProfileCardContent userId="me-cloud" fallbackName="Me" onClose={onClose} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Notes to self' }));
+        });
+
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("is absent on someone else's card", () => {
+        render(<ProfileCardContent userId="u-1" fallbackName="Aiden" />);
+
+        expect(screen.queryByRole('button', { name: 'Notes to self' })).toBeNull();
+    });
+
+    it('is absent where my room cannot be opened', () => {
+        canOpenSelf = false;
+        render(<ProfileCardContent userId="me-cloud" fallbackName="Me" />);
+
+        expect(screen.queryByRole('button', { name: 'Notes to self' })).toBeNull();
+    });
+
+    it('is disabled while a room is being opened', () => {
+        isStarting = true;
+        render(<ProfileCardContent userId="me-cloud" fallbackName="Me" />);
+
+        expect((screen.getByRole('button', { name: 'Notes to self' }) as HTMLButtonElement).disabled).toBe(true);
     });
 });
