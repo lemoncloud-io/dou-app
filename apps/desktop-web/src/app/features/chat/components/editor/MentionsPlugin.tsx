@@ -261,6 +261,9 @@ const useMentionSpaceDedupe = (editor: LexicalEditor): void => {
             editor.registerCommand(
                 KEY_SPACE_COMMAND,
                 event => {
+                    // A space that commits a Korean (IME) composition is part of that input, not a
+                    // second separator.
+                    if (event.isComposing) return false;
                     const selection = $getSelection();
                     if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
                     const { anchor } = selection;
