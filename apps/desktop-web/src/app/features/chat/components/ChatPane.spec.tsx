@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
@@ -49,14 +49,18 @@ vi.mock('./DesktopLayout', () => ({ useShellSidebar: () => ({ isDrawer: false, o
 vi.mock('./MessageList', () => ({ MessageList: () => null }));
 vi.mock('./ChannelHeaderMenu', () => ({ ChannelHeaderMenu: () => null }));
 let composerOnSend: ((content: string, files: File[]) => void) | undefined;
+/** Every `autoFocus` the composer was rendered with — the real one focuses itself on `true`. */
+const composerAutoFocus: (boolean | undefined)[] = [];
 vi.mock('./Composer', () => ({
-    Composer: ({ onSend }: { onSend: (content: string, files: File[]) => void }) => {
+    Composer: ({ onSend, autoFocus }: { onSend: (content: string, files: File[]) => void; autoFocus?: boolean }) => {
         composerOnSend = onSend;
+        composerAutoFocus.push(autoFocus);
         return null;
     },
 }));
 
 import '../../../../i18n';
+import { useComposerFocusStore } from '../../../shared';
 import { ChatPane } from './ChatPane';
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
@@ -64,7 +68,11 @@ const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{chi
 beforeEach(() => {
     vi.clearAllMocks();
     composerOnSend = undefined;
+    composerAutoFocus.length = 0;
+    useComposerFocusStore.setState({ removedId: null });
 });
+
+const room = (id: string) => ({ id, name: id, cid: 'cloud-a' }) as DomainChannel;
 
 describe('ChatPane', () => {
     it("sends the composer's text and pictures to the channel in its own cloud, and empties the tray", () => {
@@ -84,5 +92,60 @@ describe('ChatPane', () => {
         render(<ChatPane channel={undefined} members={[]} />, { wrapper });
 
         expect(useComposerSend).toHaveBeenLastCalledWith({ cid: '', channelId: '' });
+    });
+});
+
+// Deleting or leaving the open room takes the focused header with it; the room shown next
+// has to pick focus up, and only that one.
+describe('ChatPane focus after a channel was removed', () => {
+    it('does not focus the composer on a plain open', () => {
+        render(<ChatPane channel={room('C2')} members={[]} />, { wrapper });
+
+        expect(composerAutoFocus).not.toContain(true);
+    });
+
+    it('waits while the removed room is still the one shown', () => {
+        useComposerFocusStore.getState().request('C1');
+        render(<ChatPane channel={room('C1')} members={[]} />, { wrapper });
+
+        expect(composerAutoFocus).not.toContain(true);
+        expect(useComposerFocusStore.getState().removedId).toBe('C1');
+    });
+
+    it('focuses the composer of the room the pane switches to, once', () => {
+        useComposerFocusStore.getState().request('C1');
+        const { rerender } = render(<ChatPane channel={undefined} members={[]} />, { wrapper });
+        // Channels are still listed, so the pane is between rooms, not out of them.
+        expect(useComposerFocusStore.getState().removedId).toBe('C1');
+
+        rerender(<ChatPane channel={room('C2')} members={[]} />);
+        expect(composerAutoFocus).toContain(true);
+        expect(useComposerFocusStore.getState().removedId).toBeNull();
+
+        composerAutoFocus.length = 0;
+        rerender(<ChatPane channel={room('C3')} members={[]} />);
+        expect(composerAutoFocus).not.toContain(true);
+    });
+
+    it('focuses the open room when the removed channel was another one', () => {
+        useComposerFocusStore.getState().request('C1');
+        render(<ChatPane channel={room('C2')} members={[]} />, { wrapper });
+
+        expect(composerAutoFocus).toContain(true);
+        expect(useComposerFocusStore.getState().removedId).toBeNull();
+    });
+
+    it("focuses the empty state's action when no room is left, and spends the request", () => {
+        useComposerFocusStore.getState().request('C1');
+        const { rerender } = render(
+            <ChatPane channel={undefined} members={[]} emptyState={{ mode: 'create', onAction: vi.fn() }} />,
+            { wrapper }
+        );
+
+        expect(document.activeElement).toBe(screen.getByRole('button'));
+        expect(useComposerFocusStore.getState().removedId).toBeNull();
+
+        rerender(<ChatPane channel={room('C3')} members={[]} />);
+        expect(composerAutoFocus).not.toContain(true);
     });
 });

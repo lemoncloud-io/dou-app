@@ -24,6 +24,7 @@ import {
     useAuthorNames,
     useChannelLabels,
     useChats,
+    useComposerFocusStore,
     useMessageJumpStore,
     useOpenAtBottomStore,
     useReadCursorStore,
@@ -194,7 +195,21 @@ export const ChatPane = ({
         if (openAtBottom) clearOpenAtBottom();
     }, [openAtBottom, clearOpenAtBottom]);
 
-    if (!channelId || !channel) {
+    // After a delete or leave, focus goes to the first room shown that is not the removed one, or
+    // to the empty state's action when none is left. `pick` means rooms are listed and one is about
+    // to be selected, so the request waits for it.
+    const focusRemovedId = useComposerFocusStore(s => s.removedId);
+    const consumeComposerFocus = useComposerFocusStore(s => s.consume);
+    const hasRoom = !!channelId && !!channel;
+    const refocusComposer = focusRemovedId !== null && hasRoom && channelId !== focusRemovedId;
+    const refocusEmptyState = focusRemovedId !== null && !hasRoom && emptyState.mode !== 'pick';
+    const emptyActionRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        if (refocusEmptyState) emptyActionRef.current?.focus();
+        if (refocusComposer || refocusEmptyState) consumeComposerFocus();
+    }, [refocusComposer, refocusEmptyState, consumeComposerFocus]);
+
+    if (!hasRoom) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-display font-semibold text-primary-ink">
@@ -205,7 +220,11 @@ export const ChatPane = ({
                     {t(`chat.empty.${emptyState.mode}.hint`, { mod: MOD_KEY })}
                 </p>
                 {emptyState.mode !== 'pick' && emptyState.onAction && (
-                    <Button className="focus-ring tactile mt-1 transition-colors" onClick={emptyState.onAction}>
+                    <Button
+                        ref={emptyActionRef}
+                        className="focus-ring tactile mt-1 transition-colors"
+                        onClick={emptyState.onAction}
+                    >
                         {emptyState.mode === 'create' ? (
                             <Plus size={16} aria-hidden />
                         ) : (
@@ -392,6 +411,7 @@ export const ChatPane = ({
                     onAddFiles={tray.addFiles}
                     onRemoveAttachment={tray.remove}
                     capturesTyping
+                    autoFocus={refocusComposer}
                 />
                 {isDragging && <AttachmentDropOverlay />}
             </div>

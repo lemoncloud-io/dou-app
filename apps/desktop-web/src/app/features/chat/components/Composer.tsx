@@ -50,7 +50,11 @@ interface ComposerProps {
      * One composer per window should claim this — the channel's, not the thread's.
      */
     capturesTyping?: boolean;
-    /** Take focus on mount: the thread panel's reply box, since opening a thread is to reply. */
+    /**
+     * Take focus on mount or when this turns true: the thread panel's reply box, since opening a
+     * thread is to reply; and the room's box after a channel was deleted or left, since focus went
+     * with the removed room.
+     */
     autoFocus?: boolean;
 }
 
