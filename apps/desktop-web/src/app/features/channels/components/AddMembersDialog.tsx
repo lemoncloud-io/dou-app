@@ -10,14 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import {
-    MobileAppPointer,
-    avatarStyle,
-    displayName,
-    extractErrorMessage,
-    focusComposerIfDropped,
-} from '../../../shared';
+import { MobileAppPointer, avatarStyle, displayName, focusComposerIfDropped } from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
+import { channelActionErrorKey } from '../utils';
 import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 
 interface AddMembersDialogProps {
@@ -60,7 +55,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
             toast({ description: t('channels.addMembers.added', { count: selected.length }) });
             onOpenChange(false);
         } catch (e) {
-            toast({ variant: 'destructive', description: extractErrorMessage(e) });
+            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         }
     };
 

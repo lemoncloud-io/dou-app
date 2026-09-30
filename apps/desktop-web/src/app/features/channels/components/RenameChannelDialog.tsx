@@ -59,8 +59,8 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
             await updateChannel({ channelId, name: trimmed });
             onOpenChange(false);
         } catch (e) {
-            // Surface the real backend message (socket or HTTP), e.g.
-            // "403 NOT ALLOWED - action[update] is invalid @doPut(channels/U:1001095)".
+            // A sentence the person can act on; the wire text (e.g. "403 NOT ALLOWED -
+            // action[update] is invalid …") goes to the console only.
             setErrorMsg(t(channelActionErrorKey(e)));
         }
     };

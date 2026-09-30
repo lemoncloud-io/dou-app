@@ -13,6 +13,8 @@ vi.mock('../hooks', () => ({
     }),
 }));
 
+import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
+
 import '../../../../i18n';
 import { AddMembersDialog } from './AddMembersDialog';
 
@@ -83,5 +85,24 @@ describe('AddMembersDialog focus after adding', () => {
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open' })));
         expect(document.activeElement).not.toBe(composer);
+    });
+});
+
+// A rejected add used to toast the server's wire text (`403 NOT ALLOWED - …`) verbatim.
+describe('AddMembersDialog when adding fails', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    it('toasts a sentence the person can act on, not the wire text', async () => {
+        addMembers.mockRejectedValue(new Error('403 NOT ALLOWED - action[invite] is invalid @doPost(channels/C1)'));
+        render(
+            <>
+                <Host keepOpener />
+                <Toaster />
+            </>
+        );
+        addBob();
+
+        expect(await screen.findByText("You don't have permission to do that.")).toBeTruthy();
+        expect(screen.queryByText(/NOT ALLOWED/)).toBeNull();
     });
 });
