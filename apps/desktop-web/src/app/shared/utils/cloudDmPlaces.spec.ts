@@ -1,7 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 import { describe, expect, it } from 'vitest';
 
-import { cloudDmPlaces } from './cloudDmPlaces';
+import { cloudDmPlaces, listingPlaces } from './cloudDmPlaces';
 
 const ME = 'me';
 const PLACES = ['busy', 'hi', 'again', 'rrrm'];
@@ -77,12 +77,58 @@ describe('cloudDmPlaces', () => {
         expect(listing.get('dm-1')).toEqual(['busy']);
     });
 
-    it('leaves relay 1:1s and self channels out', () => {
+    it('leaves relay 1:1s out', () => {
         const channels = [
             { id: 'relay-dm', cid: 'default', sid: 'busy', stereo: 'dm', memberIds: [ME, 'p1'] },
-            { id: 'self', cid: 'cloud-1', sid: 'busy', stereo: 'self', memberIds: [ME] },
         ] as DomainChannel[];
 
         expect(cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }).size).toBe(0);
+    });
+
+    // The server keeps one notes-to-self room per person and returns it for every place, whichever
+    // place it was created in.
+    it('lists my notes-to-self room in every place', () => {
+        const channels = [
+            { id: 'U:me', cid: 'cloud-1', sid: 'busy', stereo: 'self', memberIds: [ME] },
+        ] as DomainChannel[];
+
+        expect(cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }).get('U:me')).toEqual(PLACES);
+    });
+
+    it('leaves the relay notes-to-self room to its own place', () => {
+        const channels = [
+            { id: 'U:me', cid: 'default', sid: 'busy', stereo: 'self', memberIds: [ME] },
+        ] as DomainChannel[];
+
+        expect(cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }).has('U:me')).toBe(false);
+    });
+
+    it('leaves my notes-to-self room unfiled while my places are unknown', () => {
+        const channels = [
+            { id: 'U:me', cid: 'cloud-1', sid: 'busy', stereo: 'self', memberIds: [ME] },
+        ] as DomainChannel[];
+
+        expect(cloudDmPlaces(channels, { myUid: ME, placeIds: [] }).has('U:me')).toBe(false);
+    });
+});
+
+describe('listingPlaces', () => {
+    const self = { id: 'U:me', cid: 'cloud-1', sid: 'busy', stereo: 'self', memberIds: [ME] } as DomainChannel;
+
+    it('lists my notes-to-self room where cloudDmPlaces filed it', () => {
+        expect(listingPlaces(self, new Map([['U:me', PLACES]]))).toEqual(PLACES);
+    });
+
+    // Unfiled — the relay's, or any before my places load — it keeps the place it is stamped with.
+    it('falls back to its own place for a notes-to-self room that was not filed', () => {
+        expect(listingPlaces(self, new Map())).toEqual(['busy']);
+    });
+
+    it('lists a cloud 1:1 nowhere until it is filed', () => {
+        expect(listingPlaces(dm('dm-1', 'p1'), new Map())).toEqual([]);
+    });
+
+    it('lists a group channel in its own place only, whatever the filing says', () => {
+        expect(listingPlaces(group('g', 'hi', [ME]), new Map([['g', PLACES]]))).toEqual(['hi']);
     });
 });

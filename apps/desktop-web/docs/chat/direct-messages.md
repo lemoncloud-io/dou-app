@@ -37,6 +37,11 @@ elsewhere.
   whose name has not loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the
   members of a group channel they are in. Without them, a place where no one has a 1:1 with me
   showed an empty section.
+- **My notes-to-self room is listed in every place.** The server keeps one per person and returns
+  it whichever place is asked about, so `cloudDmPlaces` files it under all of mine rather than the
+  place it was created in (its `sid`). Until my places are known it keeps that one place. Its unread
+  count therefore shows in every place, the same trade a 1:1 listed in several places makes. The
+  relay's self room is not filed and stays in its own place, as before.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.
