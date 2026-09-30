@@ -90,7 +90,7 @@ export const AppRuntime = () => {
                     <Router />
                     <GlobalLoader />
                     <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
-                    <Toaster label={t('common.toastRegion')} closeLabel={t('common.close')} />
+                    <Toaster label={t('common.toastRegion')} />
                 </OtherCloudUnreadProvider>
             </ActiveCloudDataProvider>
         </runtime.connection.RuntimeConnectionHost>

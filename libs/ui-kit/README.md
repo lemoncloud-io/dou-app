@@ -152,16 +152,14 @@ libs/ui-kit/src/
 Three files hold something the name does not give away:
 
 - `use-toast.ts` is not a component. It is the toast store — a reducer, a module-level listener list
-  and `TOAST_LIMIT = 3` — and it is the single most imported module here, at 79 files. It also
-  gives every `destructive` toast an unlimited `duration` unless the call passes one, so an error
-  stays until it is closed.
+  and a toast limit of 1 that an app can raise with `setToastLimit` — and it is the single most
+  imported module here, at 79 files.
 - `toaster.tsx` is the mount point, rendered once per app in `AppRuntime` / `DesktopRuntime`. It is
   fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
   sets the dismiss timer for every app at once (5s): long enough to read a sentence and press an
   Undo, which the earlier 1.5s was not. A toast is `default` (success check), `destructive`, or
-  `info` (a notice that is neither, which must not wear the check). A `destructive` toast renders a
-  close button, named by `closeLabel`. `viewportClassName` lets an app hold toasts clear of its own
-  header.
+  `info` (a notice that is neither, which must not wear the check). `viewportClassName` lets an app
+  hold toasts clear of its own header.
 - `utils/index.ts` is where the `font-size` class group is registered with `tailwind-merge`, which
   is the reason `cn` is a wrapper rather than a re-export.
 
@@ -377,11 +375,12 @@ editing the primitive.
 
 ### 4. Raising a toast
 
-Call `useToast()` from anywhere; the store is module-level, so no provider is needed. `TOAST_LIMIT`
-is 3 — a fourth toast drops the oldest. `duration` comes from the `ToastProvider` in `toaster.tsx`
-(`TOAST_DURATION_MS`, 5s) unless the call passes one, except that a `destructive` toast has none and
-stays until it is closed: an error is the toast someone may need to read twice or act on. An app
-that never mounts `<Toaster />` swallows every toast silently.
+Call `useToast()` from anywhere; the store is module-level, so no provider is needed. One toast
+shows at a time unless the app calls `setToastLimit` — a new one then drops the oldest. `duration`
+comes from the `ToastProvider` in `toaster.tsx` (`TOAST_DURATION_MS`, 5s) unless the call passes one.
+Desktop's own `AppToaster` keeps a `destructive` toast until it is closed and raises the limit to 3;
+the kit leaves both to the app, because the mobile web app shares this store. An app that never
+mounts `<Toaster />` swallows every toast silently.
 
 ### 5. Deciding between the two kits
 

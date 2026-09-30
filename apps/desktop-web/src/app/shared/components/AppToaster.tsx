@@ -11,7 +11,7 @@ import {
     ToastViewport,
 } from '@chatic/ui-kit/components/ui/toast';
 import { TOAST_DURATION_MS } from '@chatic/ui-kit/components/ui/toaster';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { setToastLimit, useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 // The icon alone carries the tone. The kit's 3px accent bar is dropped: under a 16px radius
 // it clipped into a curved sliver down the left edge instead of reading as a bar.
@@ -32,8 +32,12 @@ const ICONS = {
  * against that element and a connection or update banner pushes toasts down with the
  * header instead of covering them.
  *
- * An error toast has no timer (the kit store sets that), so it carries the close button.
+ * An error toast has no timer, so it carries the close button, and up to three toasts show at
+ * once so a second toast does not evict an error unread. Both are desktop choices: the kit store
+ * is shared with the mobile web app, which keeps its one timed toast.
  */
+setToastLimit(3);
+
 export const AppToaster = () => {
     const { t } = useTranslation();
     const { toasts } = useToast();
@@ -51,6 +55,7 @@ export const AppToaster = () => {
                         className
                     )}
                     {...props}
+                    duration={props.duration ?? (variant === 'destructive' ? Infinity : undefined)}
                 >
                     {ICONS[variant ?? 'default']}
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">

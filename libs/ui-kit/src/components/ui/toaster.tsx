@@ -1,13 +1,12 @@
-import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
-import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from './toast';
+import { Toast, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from './toast';
 import { useToast } from './use-toast';
 
 /**
  * How long a toast stays. 1.5s was under the time it takes to read one sentence, so a
  * confirmation ("Channel created", or "Member removed" with its Undo) was gone before
  * anyone could act on it, or even notice it had fired. A swipe still dismisses it early.
- * An error has no timer at all (see `toast` in use-toast.ts) and carries a close button.
  */
 export const TOAST_DURATION_MS = 5000;
 
@@ -20,8 +19,6 @@ interface ToasterProps {
      * moves focus into the region.
      */
     label: string;
-    /** Accessible name of an error toast's close button. The kit has no strings of its own. */
-    closeLabel: string;
 }
 
 const ICONS = {
@@ -32,7 +29,7 @@ const ICONS = {
     info: <Info className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />,
 };
 
-export const Toaster = ({ viewportClassName, label, closeLabel }: ToasterProps) => {
+export const Toaster = ({ viewportClassName, label }: ToasterProps) => {
     const { toasts } = useToast();
 
     return (
@@ -46,14 +43,6 @@ export const Toaster = ({ viewportClassName, label, closeLabel }: ToasterProps) 
                             {description && <ToastDescription>{description}</ToastDescription>}
                         </div>
                         {action}
-                        {variant === 'destructive' && (
-                            <ToastClose
-                                aria-label={closeLabel}
-                                className="-mr-1 rounded-sm p-0.5 text-toast-muted transition-colors hover:text-toast-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                                <X className="size-4" aria-hidden />
-                            </ToastClose>
-                        )}
                     </Toast>
                 );
             })}
