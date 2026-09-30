@@ -55,7 +55,14 @@ import {
     MentionsPanel,
     ThreadPanel,
 } from '../components';
-import { useHydrateDmPeers, useMessageViewer, useNextUnreadShortcut, usePendingLanding, useReadCounts } from '../hooks';
+import {
+    useHydrateDmPeers,
+    useMessageViewer,
+    useNextUnreadShortcut,
+    usePendingLanding,
+    useReadCounts,
+    useTrailingPanelOwners,
+} from '../hooks';
 import {
     elsewhereChannels as elsewhereChannelRows,
     landingTarget,
@@ -139,17 +146,19 @@ export const HomePage = () => {
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
     const { isAvailable: canStartDm, startDm } = useStartDm();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
-    const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
+    const {
+        threadRootId: openThreadRootId,
+        settingsChannelId,
+        profileTarget,
+        savedOpen,
+        activityOpen,
+    } = useTrailingPanelOwners();
     const closeSettings = useChannelSettingsStore(s => s.close);
-    const openThreadRootId = useThreadStore(s => s.openRootId);
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
-    const profileTarget = useProfilePanelStore(s => s.target);
     const closeProfile = useProfilePanelStore(s => s.close);
-    const savedOpen = useSavedPanelStore(s => s.isOpen);
     const closeSaved = useSavedPanelStore(s => s.close);
     const openSaved = useSavedPanelStore(s => s.open);
-    const activityOpen = useMentionsPanelStore(s => s.isOpen);
     const closeActivity = useMentionsPanelStore(s => s.close);
     const openActivity = useMentionsPanelStore(s => s.open);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
@@ -372,50 +381,6 @@ export const HomePage = () => {
         closeThread();
         closeProfile();
     }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
-
-    // The one trailing pane has five possible owners (thread, settings, profile,
-    // saved, activity) — opening any closes the others so the pane never has two
-    // owners (each effect fires on its own opener only, so the last one opened wins).
-    useEffect(() => {
-        if (openThreadRootId) {
-            closeSettings();
-            closeProfile();
-            closeSaved();
-            closeActivity();
-        }
-    }, [openThreadRootId, closeSettings, closeProfile, closeSaved, closeActivity]);
-    useEffect(() => {
-        if (settingsChannelId) {
-            closeThread();
-            closeProfile();
-            closeSaved();
-            closeActivity();
-        }
-    }, [settingsChannelId, closeThread, closeProfile, closeSaved, closeActivity]);
-    useEffect(() => {
-        if (profileTarget) {
-            closeThread();
-            closeSettings();
-            closeSaved();
-            closeActivity();
-        }
-    }, [profileTarget, closeThread, closeSettings, closeSaved, closeActivity]);
-    useEffect(() => {
-        if (savedOpen) {
-            closeThread();
-            closeSettings();
-            closeProfile();
-            closeActivity();
-        }
-    }, [savedOpen, closeThread, closeSettings, closeProfile, closeActivity]);
-    useEffect(() => {
-        if (activityOpen) {
-            closeThread();
-            closeSettings();
-            closeProfile();
-            closeSaved();
-        }
-    }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved]);
 
     // The saved + activity panes group their rows by place, current place first, so a
     // place switch leaves them valid — and closing them there made the same row click
@@ -772,6 +737,9 @@ export const HomePage = () => {
                 panel={
                     showDebugPanel ? (
                         <DebugPanel />
+                    ) : profileTarget ? (
+                        // Stacked on whichever panel it opened from; closing it shows that panel again.
+                        <ProfilePanel />
                     ) : openThreadRootId && selectedChannel ? (
                         <ThreadPanel
                             channel={selectedChannel}
@@ -788,8 +756,6 @@ export const HomePage = () => {
                             membersLoading={membersLoading}
                             membersError={membersError}
                         />
-                    ) : profileTarget ? (
-                        <ProfilePanel />
                     ) : savedOpen ? (
                         <SavedPanel
                             channels={channels}

@@ -4,6 +4,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { useEscapeClose } from '../hooks/useEscapeClose';
 import { usePanelWidth } from '../hooks/usePanelWidth';
+import { focusComposerIfDropped } from '../utils/composerFocus';
 import { PanelResizeHandle } from './PanelResizeHandle';
 
 /** Below this window width a trailing panel lays over the chat instead of docking (Tailwind `xl`). */
@@ -65,12 +66,16 @@ export const ResizablePanel = ({ storageKey, resizeLabel, className, onClose, ch
     // during the first render: every effect below and in the panel's content (the
     // thread's reply box, the settings member list) may move focus first, and an
     // effect-time read recorded the panel itself, which is gone by the time it closes.
+    // An opener that has left the page hands focus to the room's message box instead: a panel
+    // shown again under a closed profile recorded the profile's close button, and the popover
+    // that opened the profile went with the panel under it.
     const [opener] = useState(() =>
         typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
     );
     useEffect(
         () => () => {
             if (opener?.isConnected) opener.focus();
+            else focusComposerIfDropped();
         },
         [opener]
     );
