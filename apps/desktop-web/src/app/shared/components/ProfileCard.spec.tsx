@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let canStartDm = true;
 let isStarting = false;
+let user: { channelIds?: string[] } | null = null;
 const startDm = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -15,7 +16,7 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 vi.mock('../hooks', () => ({
-    useUser: () => null,
+    useUser: () => user,
     useDisplayProfile: (_id: string, name: string, thumbnail?: string) => ({ name, thumbnail }),
     useCopyToClipboard: () => [false, vi.fn()],
     useStartDm: () => ({ startDm, isStarting, isAvailable: canStartDm }),
@@ -80,5 +81,26 @@ describe('ProfileCardContent "Message"', () => {
         render(<ProfileCardContent userId="u-1" fallbackName="Aiden" />);
 
         expect((screen.getByRole('button', { name: 'Message' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+});
+
+describe('ProfileCardContent shared channels', () => {
+    beforeEach(() => {
+        user = null;
+    });
+
+    // It read "2 channels" with no subject: whose channels, counted how?
+    it('counts the channels I share with the person', () => {
+        user = { channelIds: ['c1', 'c2'] };
+        render(<ProfileCardContent userId="u-1" fallbackName="Aiden" />);
+
+        expect(screen.getByText('2 channels in common')).toBeTruthy();
+    });
+
+    it('says nothing on my own card', () => {
+        user = { channelIds: ['c1', 'c2'] };
+        render(<ProfileCardContent userId="me-cloud" fallbackName="Me" />);
+
+        expect(screen.queryByText(/in common/)).toBeNull();
     });
 });
