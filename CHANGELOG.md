@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-09-30] - root@0.76.0, @chatic/desktop-web@0.18.0
+
+### Features
+
+- (desktop-web) pin the notes-to-self row to the top of DMs
+
+### Bug Fixes
+
+- (desktop-web) create the notes-to-self room on entering a cloud
+- (desktop-web) draw my photo on the notes-to-self sidebar row
+
 ## [2026-09-30] - root@0.75.0, @chatic/desktop-web@0.17.0
 
 ### Features
