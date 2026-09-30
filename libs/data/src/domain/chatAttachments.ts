@@ -47,6 +47,19 @@ const ALIASES: Readonly<Record<string, string>> = {
     'application/haansofthwpx': 'application/hwp+zip',
 };
 
+/**
+ * The `accept` of a file input for chat attachments: every type and every extension. A picker that
+ * does not know a type (HWP, on most systems) only lets the file through by its extension.
+ */
+export const CHAT_ATTACHMENT_ACCEPT = [
+    ...FORMATS.map(format => format.type),
+    ...FORMATS.flatMap(format => format.extensions.map(extension => `.${extension}`)),
+].join(',');
+
+/** The extension a saved file of this type should carry, or `undefined` for a type we do not send. */
+export const chatAttachmentExtension = (type: string): string | undefined =>
+    FORMATS.find(format => format.type === type)?.extensions[0];
+
 /** Per-file ceiling for each kind, the same as the server's. */
 export const CHAT_ATTACHMENT_MAX_BYTES: Readonly<Record<ChatUploadKind, number>> = {
     image: CHAT_IMAGE_MAX_BYTES,

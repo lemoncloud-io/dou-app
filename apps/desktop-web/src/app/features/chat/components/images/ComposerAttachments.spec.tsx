@@ -50,7 +50,16 @@ describe('ComposerAttachments', () => {
         expect(screen.getByRole('status').textContent).toBe('a.png removed');
     });
 
-    it('says how many images joined the tray', () => {
+    // A document has no picture to show, so its tile names it instead of drawing a broken image.
+    it('shows a video or document as its name and size, not an image', () => {
+        const pdf = { id: 'p', name: 'report.pdf', url: '', kind: 'file', size: 1536 } as ComposerAttachment;
+        render(<ComposerAttachments attachments={[pdf]} onRemove={vi.fn()} />, { wrapper });
+        expect(screen.queryByRole('img')).toBeNull();
+        expect(screen.getByText('report.pdf')).toBeTruthy();
+        expect(screen.getByText('1.5 KB')).toBeTruthy();
+    });
+
+    it('says how many files joined the tray', () => {
         const { rerender } = render(<ComposerAttachments attachments={[attachment('a.png')]} onRemove={vi.fn()} />, {
             wrapper,
         });
@@ -60,6 +69,6 @@ describe('ComposerAttachments', () => {
                 onRemove={vi.fn()}
             />
         );
-        expect(screen.getByRole('status').textContent).toBe('2 images added');
+        expect(screen.getByRole('status').textContent).toBe('2 files added');
     });
 });

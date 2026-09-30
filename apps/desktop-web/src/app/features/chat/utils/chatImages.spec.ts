@@ -19,10 +19,34 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({});
     });
 
-    it('refuses a type the viewer cannot draw, keeping the rest', () => {
-        const result = validateAttachments([], [file('doc.pdf', 'application/pdf'), file('a.png')]);
+    it('refuses a format the server does not take, keeping the rest', () => {
+        const result = validateAttachments([], [file('a.zip', 'application/zip'), file('a.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ unsupported: 1 });
+    });
+
+    it('takes videos and documents beside images, an untyped HWP included', () => {
+        const result = validateAttachments(
+            [],
+            [file('clip.mp4', 'video/mp4'), file('a.pdf', 'application/pdf'), file('보고서.hwp', '')]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['clip.mp4', 'a.pdf', '보고서.hwp']);
+        expect(result.rejected).toEqual({});
+    });
+
+    // The server refuses these with a 413 after the whole transfer; the tray says so before it starts.
+    it('refuses a file over its kind’s limit', () => {
+        const MiB = 1024 * 1024;
+        const result = validateAttachments(
+            [],
+            [
+                file('big.png', 'image/png', 21 * MiB),
+                file('long.mp4', 'video/mp4', 290 * MiB),
+                file('big.pdf', 'application/pdf', 51 * MiB),
+            ]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['long.mp4']);
+        expect(result.rejected).toEqual({ 'too-large': 2 });
     });
 
     // A re-pick of a file already in the tray, and the same file twice in one drop.
@@ -39,6 +63,19 @@ describe('validateAttachments', () => {
         const result = validateAttachments(existing, [file('a.png'), file('b.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ limit: 1 });
+    });
+
+    it('keeps the first ten of a mixed pick of twelve, whatever their kinds, and counts the rest', () => {
+        const kinds = [
+            ['a.png', 'image/png'],
+            ['b.mp4', 'video/mp4'],
+            ['c.pdf', 'application/pdf'],
+            ['d.hwp', ''],
+        ];
+        const picked = Array.from({ length: 12 }, (_, i) => file(`${i}-${kinds[i % 4][0]}`, kinds[i % 4][1]));
+        const result = validateAttachments([], picked);
+        expect(result.accepted.map(f => f.name)).toEqual(picked.slice(0, 10).map(f => f.name));
+        expect(result.rejected).toEqual({ limit: 2 });
     });
 
     // Only the first refusal used to be reported, so a mixed drop hid the rest of what it left out.

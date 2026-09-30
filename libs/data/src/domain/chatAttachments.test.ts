@@ -1,4 +1,9 @@
-import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormat } from './chatAttachments';
+import {
+    CHAT_ATTACHMENT_ACCEPT,
+    CHAT_ATTACHMENT_MAX_BYTES,
+    chatAttachmentExtension,
+    chatAttachmentFormat,
+} from './chatAttachments';
 
 const MiB = 1024 * 1024;
 
@@ -75,5 +80,24 @@ describe('chatAttachmentFormat', () => {
 describe('CHAT_ATTACHMENT_MAX_BYTES', () => {
     it('caps each kind the way the server does', () => {
         expect(CHAT_ATTACHMENT_MAX_BYTES).toEqual({ image: 20 * MiB, video: 300 * MiB, file: 50 * MiB });
+    });
+});
+
+describe('CHAT_ATTACHMENT_ACCEPT', () => {
+    // An OS picker filters by what `accept` names; HWP has no type it knows, so only `.hwp` lets it through.
+    it('names every type and every extension, for a picker that knows only one of them', () => {
+        const accept = CHAT_ATTACHMENT_ACCEPT.split(',');
+        expect(accept).toEqual(
+            expect.arrayContaining(['image/png', 'video/mp4', 'application/x-hwp', '.hwp', '.hwpx', '.jpeg'])
+        );
+        expect(accept).toHaveLength(12 + 13);
+    });
+});
+
+describe('chatAttachmentExtension', () => {
+    it('gives the extension a saved file of a type should carry', () => {
+        expect(chatAttachmentExtension('application/pdf')).toBe('pdf');
+        expect(chatAttachmentExtension('image/jpeg')).toBe('jpg');
+        expect(chatAttachmentExtension('application/zip')).toBeUndefined();
     });
 });

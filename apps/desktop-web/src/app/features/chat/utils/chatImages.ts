@@ -1,4 +1,4 @@
-import { isPendingUploadSlot, type DomainChat } from '@chatic/data';
+import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormat, isPendingUploadSlot, type DomainChat } from '@chatic/data';
 
 /**
  * One image on a message or in the composer tray.
@@ -72,11 +72,18 @@ export const MAX_ATTACHMENTS = 10;
 /** Tiles a message draws before the last one turns into a "+n" counter. */
 export const MAX_VISIBLE_TILES = 4;
 
-/** Raster types every Chromium build decodes. HEIC and friends are refused rather than shown broken. */
-export const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
-
-export const isSupportedImage = (file: Pick<File, 'type'>): boolean =>
-    (SUPPORTED_IMAGE_TYPES as readonly string[]).includes(file.type);
+/** A size as a person reads it: "820 B", "1.5 KB", "12.3 MB". */
+export const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB', 'MB', 'GB'];
+    let value = bytes / 1024;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+    return `${Number(value.toFixed(1))} ${units[unit]}`;
+};
 
 /**
  * Identity for "the same file twice". Name + size + mtime is what the OS picker hands
@@ -86,7 +93,7 @@ export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>
     `${file.name}:${file.size}:${file.lastModified}`;
 
 /** Why a file in a drop or pick was refused. */
-export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported';
+export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported' | 'too-large';
 
 /** How many files each reason refused; a reason that refused nothing is absent. */
 export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
@@ -103,9 +110,10 @@ export interface AttachmentValidation<T> {
 /**
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
- * An unsupported type is refused outright, a file already in the tray (or twice in
- * this batch) is a duplicate, and whatever would push the tray past `MAX_ATTACHMENTS`
- * is over the limit. Accepted files keep their incoming order up to the limit, so a
+ * A format the server does not take is refused outright, and so is a file over its
+ * kind's size limit (the server would refuse it only after the whole transfer). A file
+ * already in the tray (or twice in this batch) is a duplicate, and whatever would push
+ * the tray past `MAX_ATTACHMENTS` is over the limit. Accepted files keep their incoming order up to the limit, so a
  * drop of twelve keeps the first ten.
  */
 export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
@@ -119,8 +127,13 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
         rejected[reason] = (rejected[reason] ?? 0) + 1;
     };
     for (const file of incoming) {
-        if (!isSupportedImage(file)) {
+        const format = chatAttachmentFormat(file);
+        if (!format) {
             reject('unsupported');
+            continue;
+        }
+        if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) {
+            reject('too-large');
             continue;
         }
         const key = attachmentKey(file);

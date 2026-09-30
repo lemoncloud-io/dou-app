@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Plus } from 'lucide-react';
 
-import { SUPPORTED_IMAGE_TYPES } from '../../utils';
+import { CHAT_ATTACHMENT_ACCEPT } from '@chatic/data';
 import { Hint } from '../../../../shared';
 
 interface AttachButtonProps {
@@ -11,7 +11,7 @@ interface AttachButtonProps {
 }
 
 /**
- * The composer's "+": opens the OS picker for images. Unsupported picks still go
+ * The composer's "+": opens the OS picker for images, videos and documents. Unsupported picks still go
  * through the tray's validation, so they are reported the same way a drop is.
  *
  * It opened a menu first, with one entry ("Upload from your computer") that did the
@@ -39,7 +39,7 @@ export const AttachButton = ({ onFiles }: AttachButtonProps) => {
                 ref={inputRef}
                 type="file"
                 multiple
-                accept={SUPPORTED_IMAGE_TYPES.join(',')}
+                accept={CHAT_ATTACHMENT_ACCEPT}
                 tabIndex={-1}
                 aria-hidden
                 className="hidden"
