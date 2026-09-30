@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-30] - root@0.73.4, @chatic/web@0.56.1
+
+### Bug Fixes
+
+- (web) stop swiped-past photos from stalling the one on screen in the viewer
+
 ## [2026-09-30] - root@0.73.3, @chatic/desktop-web@0.16.4
 
 ### Bug Fixes
