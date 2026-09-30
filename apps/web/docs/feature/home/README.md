@@ -52,8 +52,9 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the Place section; the Chat
-section with its previews, unread badges and creation popover; the cloud-switcher sheet; the place
-and cloud unread marks; the three app-global runners that home exports.
+section with its previews, unread badges and creation popover; pull-to-refresh on the body; the
+cloud-switcher sheet; the place and cloud unread marks; the three app-global runners that home
+exports.
 
 **Out** — search itself (the header button only navigates to `/search`), the subscribe and IAP flow
 ([subscription](../subscription/README.md)), the profile form ([place](../place/README.md)), invite
@@ -199,6 +200,39 @@ cloud is a **footer**, so it survives collapsing. A provisioning row is not sele
 sheet is open and any row is provisioning, a 30-second poll refetches and a ready cloud raises a
 toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
 invited clouds, or subscribe.
+
+## Pull to refresh
+
+The scrolling body under the header is the kit's `PullToRefresh`: from the top of the list, a drag
+down reveals a spinner, and a release past 64px (after the pull's resistance halves finger travel)
+refreshes. It is touch-only — a mouse drag does nothing — and a pull that starts below the top, or
+moves sideways or up first, is an ordinary scroll. The first 6px of travel decide which it is, since
+iOS reports one-pixel moves and the first alone is jitter. A second finger drops the pull.
+The release is heard on the element the finger landed on, not on the list, so a skeleton row that
+gives way to real rows mid-pull still lets the list go back.
+
+A pull adds **no fetch of its own**. It asks, sooner, for what the screen would get anyway:
+
+- `requestBackgroundRefresh()` — one pass of the global background sync, the same one that runs on
+  the verified edge: place snapshot, channel delta (which carries the cloud 1:1s as well), my
+  profile, profile delta (skipped with no place), sent relay invites (relay only, and never for a
+  guest), and the relay self channel. That sync is mounted once under `AppRuntime`, not by home, so
+  the request goes through a registered handler rather than a second copy of the hook. A pull made
+  while an earlier one is still running joins it.
+- `refetchClouds()` and `refetchMembership()` — the two queries behind the header's cloud name and
+  tier pill, which the background sync does not own. The catalog is asked only with a session,
+  because its query is disabled without one and `refetch` does not honour that.
+
+The spinner stays up until all three have settled, or 10 seconds at most, and every part is
+best-effort: a failure ends the pull just as a success does, with whatever the cache already held
+left in place. The cap is for a socket that is dead but not yet known to be — right after a return
+from the background — where a request would otherwise hold the spinner for its full 30-second
+timeout. It stops the waiting, not the work. On a socket that is
+not verified, or mid-switch, the background pass sends nothing and settles at once — it would be
+answered by the wrong session — so the spinner only covers the two queries there.
+
+A pull re-reads lists; it does not re-read message history. Rows' previews follow from the chat
+sync home already registers, which catches a row up whenever the channel delta moves its head.
 
 ## When an invite lands
 

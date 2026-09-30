@@ -9,7 +9,14 @@ import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 
-import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge, SubscriptionBadgeSkeleton } from '@chatic/web-ui-kit';
+import {
+    AppHeader,
+    EmptyState,
+    ProfileAvatar,
+    PullToRefresh,
+    SubscriptionBadge,
+    SubscriptionBadgeSkeleton,
+} from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -47,6 +54,7 @@ import {
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
+import { requestBackgroundRefresh } from '../../../runtime/backgroundRefresh';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { useAddCloudFlow, useHomePlaces, useHomeSections, useSwitchPlace } from '../hooks';
 import {
@@ -99,7 +107,7 @@ export const HomePage = () => {
     // (it lives in invitedClouds), so look there too — matched by id or cid. Invited clouds may lack
     // name/email (and even id), so fall back name → id → cid so both the header label and its
     // initials avatar always have something to show instead of a blank "?".
-    const { clouds, isPendingClouds, hasCloudCatalog } = useCloudSessionCatalog();
+    const { clouds, isPendingClouds, hasCloudCatalog, refetchClouds } = useCloudSessionCatalog();
     const activeOwnedCloud = clouds.find(cloud => cloud.id === selectedCloudId);
     const activeInvitedCloud = invitedClouds.find(
         cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
@@ -147,7 +155,7 @@ export const HomePage = () => {
     // cloud catalog still being pending keeps the tier open too: otherwise a membership that comes
     // back invalid first prints FREE until the catalog reveals an active cloud. PRO, by contrast,
     // is final the moment either source says so.
-    const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
+    const { data: membership, isLoading: isMembershipLoading, refetch: refetchMembership } = useMembershipInfo();
     const hasActiveCloud = clouds.some(cloud => cloud.status === 'active');
     const isPro = !!membership?.isValid || hasActiveCloud;
     const isTierUndecided = !isGuest && !isPro && (isMembershipLoading || isPendingClouds);
@@ -237,6 +245,22 @@ export const HomePage = () => {
     // against a still-loading (short) list.
     const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelSectionLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
+
+    // Pull-to-refresh re-asks everything this screen draws: the background sync's lists (places,
+    // channel delta — which carries the cloud 1:1s too — profiles, sent invites, the relay self
+    // channel) in one pass, and the two queries behind the header, the cloud catalog and membership.
+    // Nothing is fetched by a new path; a pull only runs sooner what the edges and the poll would run
+    // anyway. The spinner waits for all of it, and every part is best-effort, so a failure ends the
+    // pull like a success does.
+    // The catalog query is disabled without a session, and `refetch` ignores that — so it is asked
+    // only when the query itself would be.
+    const { isAuthenticated } = runtime.session.useSessionAuth();
+    const handleRefresh = () =>
+        Promise.allSettled([
+            requestBackgroundRefresh(),
+            isAuthenticated ? refetchClouds() : undefined,
+            refetchMembership(),
+        ]);
 
     // Header identity is the PLACE (site) profile only — HomePage never uses the account/user
     // record. On every cloud (relay included) the header shows the place profile nick/thumbnail;
@@ -453,10 +477,13 @@ export const HomePage = () => {
             {/* Place + Chat scroll together under the fixed header (accordion sections). Trailing
                 clearance for the floating nav comes from BottomNavSpacer at the end of the content,
                 not from padding on this container — see BottomNavSpacer for why. */}
-            <div
+            <PullToRefresh
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2"
+                onRefresh={handleRefresh}
+                refreshingLabel={t('homePage.refreshing')}
+                className="min-h-0 flex-1 overflow-y-auto pt-2"
+                contentClassName="flex flex-col"
             >
                 {/* Relay: no Place section — the single relay place is auto-connected, so the list
                     carries no information. Its slot goes to the cloud upsell instead. The banner
@@ -565,7 +592,7 @@ export const HomePage = () => {
                 )}
 
                 <BottomNavSpacer />
-            </div>
+            </PullToRefresh>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />

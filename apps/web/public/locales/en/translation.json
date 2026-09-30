@@ -481,6 +481,7 @@
         "noPlaceTitle": "No place connected",
         "noPlaceDescription": "Connect to a place to start chatting",
         "loadingCloud": "Loading cloud",
+        "refreshing": "Refreshing",
         "selectPlaceFirst": "Select a place first"
     },
     "cloudSessionSheet": {

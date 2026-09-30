@@ -4,6 +4,7 @@ import { useIsMutating } from '@tanstack/react-query';
 import { runtime } from '@chatic/app-runtime';
 
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
+import { requestBackgroundRefresh } from './backgroundRefresh';
 import { syncStreakReporter } from './logging/syncStreakReporter';
 import { useBackgroundSync } from './useBackgroundSync';
 
@@ -632,5 +633,92 @@ describe('useBackgroundSync — first channel delta per cloud (useChannelSyncMar
 
         expect(refreshList).toHaveBeenCalled();
         expect(Object.keys(useChannelSyncMarkStore.getState().synced)).toEqual(['cloud-A:u9']);
+    });
+});
+
+describe('useBackgroundSync — on request (pull-to-refresh)', () => {
+    /** Mounts verified, lets the rising edge run, and clears it so only the request is counted. */
+    const mountSettled = async () => {
+        setVerified(true);
+        const view = renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+        jest.clearAllMocks();
+        return view;
+    };
+
+    it('runs the full pass, self channel included', async () => {
+        await mountSettled();
+
+        await act(async () => requestBackgroundRefresh());
+
+        expect(refreshList).toHaveBeenCalledTimes(1);
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(syncProfiles).toHaveBeenCalledTimes(1);
+        expect(getMyProfile).toHaveBeenCalledTimes(1);
+        expect(getSelfChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it('settles only once the place snapshot has answered too', async () => {
+        await mountSettled();
+        let answerPlaces!: () => void;
+        refreshList.mockReturnValue(new Promise<void>(resolve => (answerPlaces = resolve)));
+
+        let settled = false;
+        await act(async () => {
+            void requestBackgroundRefresh().then(() => (settled = true));
+        });
+        expect(settled).toBe(false);
+
+        await act(async () => answerPlaces());
+        expect(settled).toBe(true);
+    });
+
+    it('joins a request still running instead of starting a second pass', async () => {
+        await mountSettled();
+        let answerPlaces!: () => void;
+        refreshList.mockReturnValue(new Promise<void>(resolve => (answerPlaces = resolve)));
+
+        let first!: Promise<void>;
+        let second!: Promise<void>;
+        await act(async () => {
+            first = requestBackgroundRefresh();
+            second = requestBackgroundRefresh();
+        });
+        expect(second).toBe(first);
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+
+        await act(async () => answerPlaces());
+        // Once settled, the next request is a fresh pass.
+        await act(async () => requestBackgroundRefresh());
+        expect(syncChannels).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks nothing while the socket is unverified, and still settles', async () => {
+        setVerified(false);
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+
+        await act(async () => requestBackgroundRefresh());
+
+        expect(refreshList).not.toHaveBeenCalled();
+        expect(syncChannels).not.toHaveBeenCalled();
+    });
+
+    it('asks nothing mid-switch — the socket may answer for the wrong session', async () => {
+        const { rerender } = await mountSettled();
+        setSwitching(true);
+        rerender();
+
+        await act(async () => requestBackgroundRefresh());
+
+        expect(syncChannels).not.toHaveBeenCalled();
+    });
+
+    it('settles at once with no runner mounted', async () => {
+        const { unmount } = await mountSettled();
+        unmount();
+
+        await expect(requestBackgroundRefresh()).resolves.toBeUndefined();
+        expect(syncChannels).not.toHaveBeenCalled();
     });
 });

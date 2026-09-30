@@ -6,6 +6,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useAppForeground } from '../bridge';
 import { INVITE_LIST_LIMIT } from '../hooks/useRelayInvites';
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
+import { registerBackgroundRefresh } from './backgroundRefresh';
 import { syncStreakReporter } from './logging/syncStreakReporter';
 
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
@@ -23,6 +24,8 @@ const BACKGROUND_SYNC_POLL_MS = 60_000;
  *     re-authenticates (auth.switch / reconnect re-auth), so the rising edge fires exactly when
  *     the new session is verified — never against the stale pre-switch session.
  *  2. Periodic timer while verified — skipped during an in-flight switch.
+ *  3. App foreground return, 4. active site change, 5. an explicit request (pull-to-refresh) —
+ *     each described at its effect below.
  *
  * The periodic tick passes `{ periodic: true }` so a domain can opt out of it while staying on the
  * edges. Only invites use that today: see the block for why polling on behalf of a user with no
@@ -79,20 +82,22 @@ export const useBackgroundSync = (): void => {
     // returned syncedAt is persisted back.
     const refreshActiveLists = useCallback(
         async ({ periodic = false }: { periodic?: boolean } = {}) => {
-            // These are four INDEPENDENT socket domains (user profile, channel delta, profile delta,
-            // sent invites) plus the fire-and-forget place snapshot — they share no data dependency,
-            // so run them concurrently.
+            // These are five INDEPENDENT socket domains (place snapshot, user profile, channel delta,
+            // profile delta, sent invites) — they share no data dependency, so run them concurrently.
             // Awaiting them serially cost ~3 sequential socket round trips on every switch / 60s poll /
             // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
             // getSyncedAt → sync → setSyncedAt watermark ordering internally.
-            void repos.place
-                .refreshList()
-                .then(() => syncStreakReporter.succeed('place-refresh'))
-                // Still best-effort — the retry policy is unchanged and the next tick re-asks. What
-                // changes is that a run of failures now says so once instead of never (ADR-0099).
-                .catch(error => syncStreakReporter.fail('place-refresh', error));
-
+            // The automatic triggers fire and forget, so awaiting all five changes nothing for them.
+            // It is for the pull-to-refresh caller, whose spinner should stay up until the place
+            // rail has been re-asked too, not only the channel list.
             await Promise.all([
+                repos.place
+                    .refreshList()
+                    .then(() => syncStreakReporter.succeed('place-refresh'))
+                    // Still best-effort — the retry policy is unchanged and the next tick re-asks. What
+                    // changes is that a run of failures now says so once instead of never.
+                    .catch(error => syncStreakReporter.fail('place-refresh', error)),
+
                 // Refresh the current-session user profile (User domain); the repository caches the embedded
                 // $site into the place store. Keeps the account profile + active site fresh.
                 repos.user
@@ -268,4 +273,28 @@ export const useBackgroundSync = (): void => {
         if (!isVerified || isSwitching) return;
         void refreshActiveLists();
     });
+
+    // Trigger 5 — on request, from home's pull-to-refresh. The same pass the edges run, self channel
+    // included since a pull is a user asking for the place to be re-read, and under the same guards
+    // as the foreground signal: an unverified or mid-switch socket would answer for the wrong
+    // session, so the request settles at once and the spinner goes away instead of lying.
+    // Registered once; the ref keeps the handler reading this render's guards and callbacks.
+    // A request made while one is still running joins it rather than starting a second pass: two
+    // passes read the same delta watermark, and whichever answers last writes it back.
+    const manualRefreshRef = useRef<() => Promise<void>>(() => Promise.resolve());
+    const manualInFlightRef = useRef<Promise<void> | null>(null);
+    useEffect(() => {
+        manualRefreshRef.current = () => {
+            if (!isVerified || isSwitching) return Promise.resolve();
+            if (manualInFlightRef.current) return manualInFlightRef.current;
+            const pass = Promise.all([refreshActiveLists(), loadSelfChannel()])
+                .then(() => undefined)
+                .finally(() => {
+                    manualInFlightRef.current = null;
+                });
+            manualInFlightRef.current = pass;
+            return pass;
+        };
+    });
+    useEffect(() => registerBackgroundRefresh(() => manualRefreshRef.current()), []);
 };

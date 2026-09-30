@@ -88,7 +88,7 @@ partition it was written under, so a polluted row carries the same `cid` as a le
 is nothing on the row to tell them apart — except for one id, which is §3.
 
 The only production caller is `useBackgroundSync`, on a 60-second poll plus foreground return,
-verification edges and site switches. Pollution left over from before the gate clears on the first
+verification edges, site switches and home's pull-to-refresh. Pollution left over from before the gate clears on the first
 tick after the app loads.
 
 ### 3. The read filter — one reserved id
