@@ -27,6 +27,9 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
         /** The one push type that carries no `link` by contract and whose tap belongs at the root. */
         private const val PUSH_TYPE_CLOUD = "cloud"
+
+        /** Generic body for a push whose template came without the args it names. Never sent by the server. */
+        private const val PUSH_BODY_FALLBACK_KEY = "push_chat_fallback_body"
     }
 
     override fun onNewToken(token: String) {
@@ -67,7 +70,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         val i18nJson = loadI18nJson(this, lang)
 
         val finalTitle = translate(i18nJson, titleLocKey, titleLocArgs)
-        val finalBody = translate(i18nJson, bodyLocKey, bodyLocArgs)
+        val finalBody = translate(i18nJson, bodyLocKey, bodyLocArgs, fallbackKey = PUSH_BODY_FALLBACK_KEY)
 
         // Lengths, never the strings: a push title/body is message content, and `debug` entries
         // still reach the server on non-release builds.
@@ -262,17 +265,19 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         return if (jsonStr != null) JSONObject(jsonStr) else JSONObject()
     }
 
-    private fun translate(i18nJson: JSONObject, key: String, argsJsonStr: String): String {
+    /**
+     * [fallbackKey] names the copy to show when the template needs more args than the payload sent;
+     * without one the unfilled placeholders are dropped instead (see [formatPushTemplate]).
+     */
+    private fun translate(i18nJson: JSONObject, key: String, argsJsonStr: String, fallbackKey: String? = null): String {
         if (key.isEmpty()) return ""
 
+        // A key this build does not know stays on the banner as the key itself. That is the visible
+        // sign a payload outran the installed app, which the server's rollout order is there to
+        // prevent — covering it up here would hide the rollout mistake as well.
         val template = resolveKey(i18nJson, key) ?: return key
-        val args = parseArgs(argsJsonStr)
-
-        var result = template
-        for (i in args.indices) {
-            result = result.replace("{$i}", args[i])
-        }
-        return result
+        val fallback = fallbackKey?.let { resolveKey(i18nJson, it) }
+        return formatPushTemplate(template, parseArgs(argsJsonStr), fallback)
     }
 
     private fun resolveKey(json: JSONObject, path: String): String? {
@@ -298,7 +303,10 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 list.add(array.getString(i))
             }
         } catch (e: Exception) {
-            NativeLogger.log("error", TAG, "Failed to parse loc args array: $jsonArrayStr", e)
+            // Loc args are message content (the chat text, the sender's name), and so is the
+            // exception's message, which quotes the input — the length and the type are all that go
+            // out. The caller then treats the push as having no args.
+            NativeLogger.log("error", TAG, "Failed to parse loc args array: len=${jsonArrayStr.length}, ${e.javaClass.simpleName}")
         }
         return list
     }
@@ -509,4 +517,33 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             notificationManager.createNotificationChannel(channel)
         }
     }
+}
+
+/** A positional placeholder in a push template; the digits are the index of the arg it takes. */
+private val PUSH_PLACEHOLDER = Regex("""\{(\d+)\}""")
+
+/**
+ * Fills a push template's `{n}` placeholders from [args], in order.
+ *
+ * When the template names a placeholder [args] does not reach — a chat push for a message with no
+ * text sends no args for its `{0}` body — the result is not shown as-is: it is [fallback] when there
+ * is one, otherwise the template with those placeholders removed and trimmed. So a body falls back
+ * to generic copy while a title just loses the part it could not fill.
+ *
+ * The hole is judged on the template, not on the substituted result, so an arg that itself contains
+ * `{0}` (a message quoting code) is still shown verbatim. Top-level rather than a member so it runs
+ * under a plain JVM unit test; the same rule lives in the iOS extension and the RN shell.
+ */
+internal fun formatPushTemplate(template: String, args: List<String>, fallback: String?): String {
+    // An index too long for Int is certainly past the args too.
+    fun isHole(m: MatchResult) = (m.groupValues[1].toIntOrNull() ?: Int.MAX_VALUE) >= args.size
+
+    val unfilled = PUSH_PLACEHOLDER.findAll(template).any(::isHole)
+    if (unfilled && fallback != null) return fallback
+
+    var result = if (unfilled) PUSH_PLACEHOLDER.replace(template) { if (isHole(it)) "" else it.value } else template
+    for (i in args.indices) {
+        result = result.replace("{$i}", args[i])
+    }
+    return if (unfilled) result.trim() else result
 }

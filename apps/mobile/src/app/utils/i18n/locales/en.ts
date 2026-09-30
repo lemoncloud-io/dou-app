@@ -42,4 +42,12 @@ export const en = {
     push_chat_message_title: '{0}',
     push_chat_message_body: '{0}',
     push_cloud_activate_title: '{0} is ready',
+    push_chat_image_body: 'Sent a photo',
+    push_chat_images_body: 'Sent {0} photos',
+    push_chat_video_body: 'Sent a video',
+    push_chat_videos_body: 'Sent {0} videos',
+    push_chat_file_body: 'Sent a file',
+    push_chat_files_body: 'Sent {0} files',
+    push_chat_attachments_body: 'Sent {0} attachments',
+    push_chat_fallback_body: 'New message',
 } as const;
