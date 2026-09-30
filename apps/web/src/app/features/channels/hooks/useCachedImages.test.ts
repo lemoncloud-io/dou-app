@@ -95,6 +95,83 @@ describe('useCachedImages', () => {
         expect(fetch).toHaveBeenCalledTimes(1);
     });
 
+    describe('with a lead', () => {
+        // A fetch that answers only when the test says so.
+        const held = () => {
+            const answers = new Map<string, () => void>();
+            fetch.mockImplementation(
+                (url: string) => new Promise<Response>(resolve => answers.set(url, () => resolve(answer())))
+            );
+            return (key: string) => act(async () => answers.get(`https://s3/${key}?sig=1`)?.());
+        };
+
+        it('fetches the others only once the lead is in', async () => {
+            const settle = held();
+            const { result } = renderHook(() => useCachedImages([request('a'), request('b'), request('c')], 1));
+
+            await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+            expect(fetch.mock.calls[0][0]).toBe('https://s3/b?sig=1');
+            expect(result.current.images.map(image => image?.status)).toEqual(['pending', 'pending', 'pending']);
+
+            await settle('b');
+
+            await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+            expect(result.current.images[1]).toEqual({ status: 'cached', src: 'blob:1' });
+        });
+
+        // A photo sliding out of the viewer must not blink down to its thumbnail.
+        it('draws a held-back image that memory already has', async () => {
+            const room = renderHook(() => useCachedImages([request('a')]));
+            await waitFor(() => expect(room.result.current.images[0]?.status).toBe('cached'));
+            held();
+
+            const { result } = renderHook(() => useCachedImages([request('a'), request('b')], 1));
+
+            expect(result.current.images[0]).toEqual({ status: 'cached', src: 'blob:1' });
+            expect(result.current.images[1]).toEqual({ status: 'pending' });
+        });
+
+        // Swiped on while the photo left behind was still downloading: it must not keep splitting the
+        // bandwidth with the photo now on screen.
+        it('lets a held-back download be cancelled', async () => {
+            jest.useFakeTimers();
+            try {
+                const signals = new Map<string, AbortSignal>();
+                fetch.mockImplementation(
+                    (url: string, signal: AbortSignal) =>
+                        new Promise<Response>(() => {
+                            signals.set(url, signal);
+                        })
+                );
+                const { rerender } = renderHook(({ lead }) => useCachedImages([request('a'), request('b')], lead), {
+                    initialProps: { lead: 0 },
+                });
+                await act(async () => {
+                    await jest.advanceTimersByTimeAsync(0);
+                });
+
+                rerender({ lead: 1 });
+                await act(async () => {
+                    await jest.advanceTimersByTimeAsync(1000);
+                });
+
+                expect(signals.get('https://s3/a?sig=1')?.aborted).toBe(true);
+                expect(signals.get('https://s3/b?sig=1')?.aborted).toBe(false);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        // Drawn from its address, the lead is on its way; nothing is gained by holding the rest.
+        it('lets the others go when the lead falls back to its address', async () => {
+            fetch.mockResolvedValueOnce(answer(false));
+            const { result } = renderHook(() => useCachedImages([request('a'), request('b')], 0));
+
+            await waitFor(() => expect(result.current.images[0]?.status).toBe('direct'));
+            await waitFor(() => expect(result.current.images[1]).toEqual({ status: 'cached', src: 'blob:1' }));
+        });
+    });
+
     describe('with memory under pressure', () => {
         // The budget is zero, so whatever nobody holds is revoked at the next sweep.
         const sweep = () =>

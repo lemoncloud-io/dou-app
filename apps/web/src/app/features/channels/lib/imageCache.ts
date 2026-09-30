@@ -13,6 +13,11 @@
  * fetch cannot be made — no CORS on the bucket, offline, an expired address — `load` answers `null`
  * and the caller draws the signed address directly, as it did before this cache. A failed fetch still
  * costs that image its wait, so after one that got no answer at all, loads stop fetching for a minute.
+ *
+ * A download nobody draws any more is cancelled. The bucket speaks HTTP/1.1, so the page gets about six
+ * connections to it, and an original is several megabytes: swiping through a message's photos on a
+ * slow network left the originals already swiped past holding every connection, and the photo on
+ * screen — its thumbnail included — waited behind them on black.
  */
 
 export type ImageVariant = 'thumb' | 'org';
@@ -41,7 +46,8 @@ export interface ImageCacheStore {
 export interface ImageCacheDeps {
     /** `null` where no persistent store can be opened; the memory layer still works. */
     store: ImageCacheStore | null;
-    fetch: (url: string) => Promise<Response>;
+    /** `signal` aborts a download nobody draws any more; the body read must honour it too. */
+    fetch: (url: string, signal: AbortSignal) => Promise<Response>;
     createObjectURL: (blob: Blob) => string;
     revokeObjectURL: (url: string) => void;
     now?: () => number;
@@ -97,10 +103,17 @@ interface MemoryEntry {
 
 export class ImageCache {
     private readonly memory = new Map<string, MemoryEntry>();
-    private readonly inflight = new Map<string, { url: string; loading: Promise<string | null> }>();
+    private readonly inflight = new Map<
+        string,
+        { url: string; loading: Promise<string | null>; controller: AbortController }
+    >();
     // Kept apart from `memory` so an entry can come and go — loaded late, invalidated — without
     // losing count of who is drawing it.
     private readonly refs = new Map<string, number>();
+    // Keys whose last holder let go since the last sweep. A download still running for one of them is
+    // cancelled at the sweep, unless it was taken again by then — a redraw lets go and takes back in
+    // one commit. Only a key that was held counts: a load nobody ever retained is not abandoned.
+    private readonly abandoned = new Set<string>();
     // Object URLs taken out of `memory` while something may still draw them, revoked at the next sweep.
     private readonly retired: string[] = [];
     private readonly listeners = new Set<() => void>();
@@ -129,13 +142,17 @@ export class ImageCache {
      */
     retain(key: string): void {
         this.refs.set(key, (this.refs.get(key) ?? 0) + 1);
+        this.abandoned.delete(key);
         this.markUsed(key);
     }
 
     release(key: string): void {
         const count = (this.refs.get(key) ?? 0) - 1;
         if (count > 0) this.refs.set(key, count);
-        else this.refs.delete(key);
+        else {
+            this.refs.delete(key);
+            this.abandoned.add(key);
+        }
         // Drawn until now, so it goes to the back of the eviction order rather than by its load time.
         this.markUsed(key);
         this.scheduleSweep();
@@ -149,8 +166,8 @@ export class ImageCache {
 
     /**
      * An object URL for the image, from memory, the store, or one fetch of `url` — in that order.
-     * `null` when it could not be fetched; the caller then draws `url` itself. Concurrent loads of one
-     * key share a single fetch.
+     * `null` when it could not be fetched, or was cancelled because nobody draws it any more; the caller
+     * then draws `url` itself. Concurrent loads of one key share a single fetch.
      */
     load(key: string, variant: ImageVariant, url: string): Promise<string | null> {
         const entry = this.memory.get(key);
@@ -159,18 +176,27 @@ export class ImageCache {
             return Promise.resolve(entry.url);
         }
         const running = this.inflight.get(key);
-        if (running) {
+        // A cancelled download is nobody's any more: a load arriving before it settles starts its own
+        // instead of inheriting the cancellation.
+        if (running && !running.controller.signal.aborted) {
             // Joined onto a fetch of an older address: if that one had expired, this address still
-            // deserves its own try.
+            // deserves its own try — but not once it was cancelled, which means nobody holds the key,
+            // and the retry would be a download no sweep could reach.
             return running.url === url
                 ? running.loading
-                : running.loading.then(src => src ?? this.load(key, variant, url));
+                : running.loading.then(
+                      src => src ?? (running.controller.signal.aborted ? null : this.load(key, variant, url))
+                  );
         }
 
-        const loading = this.resolve(key, variant, url)
+        const controller = new AbortController();
+        const loading: Promise<string | null> = this.resolve(key, variant, url, controller.signal)
             .catch(() => null)
-            .finally(() => this.inflight.delete(key));
-        this.inflight.set(key, { url, loading });
+            .finally(() => {
+                // A cancelled download may have been replaced already by a fresh one for the same key.
+                if (this.inflight.get(key)?.loading === loading) this.inflight.delete(key);
+            });
+        this.inflight.set(key, { url, loading, controller });
         return loading;
     }
 
@@ -190,7 +216,12 @@ export class ImageCache {
         void this.deps.store?.delete(key).catch(() => undefined);
     }
 
-    private async resolve(key: string, variant: ImageVariant, url: string): Promise<string | null> {
+    private async resolve(
+        key: string,
+        variant: ImageVariant,
+        url: string,
+        signal: AbortSignal
+    ): Promise<string | null> {
         const stored = await this.readStore(key);
         if (stored) {
             if (this.now() - stored.usedAt > TOUCH_INTERVAL_MS) {
@@ -199,14 +230,14 @@ export class ImageCache {
             return this.remember(key, new Blob([stored.bytes], { type: stored.type }));
         }
 
-        if (this.now() < this.fetchBlockedUntil) return null;
+        if (signal.aborted || this.now() < this.fetchBlockedUntil) return null;
         let response: Response;
         try {
-            response = await this.deps.fetch(url);
+            response = await this.deps.fetch(url, signal);
         } catch (error) {
             // Not an answer but no answer at all: CORS or the network. Back off instead of making every
-            // image wait for the same failure.
-            this.fetchBlockedUntil = this.now() + FETCH_BACKOFF_MS;
+            // image wait for the same failure. A cancellation says nothing about the bucket.
+            if (!signal.aborted) this.fetchBlockedUntil = this.now() + FETCH_BACKOFF_MS;
             throw error;
         }
         // An expired or foreign address answers 403 with an XML body; that is not an image to keep.
@@ -268,10 +299,14 @@ export class ImageCache {
     }
 
     /**
-     * Revokes what `invalidate` retired, then the least recently used object URLs no one is drawing,
-     * until memory is under budget.
+     * Cancels the downloads nobody draws any more, revokes what `invalidate` retired, then the least
+     * recently used object URLs no one is drawing, until memory is under budget.
      */
     private sweep(): void {
+        for (const key of this.abandoned) {
+            if (!this.refs.has(key)) this.inflight.get(key)?.controller.abort();
+        }
+        this.abandoned.clear();
         this.retired.splice(0).forEach(url => this.deps.revokeObjectURL(url));
 
         let total = 0;

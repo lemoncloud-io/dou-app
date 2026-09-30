@@ -20,9 +20,11 @@ type Request = { key: string; variant: string; url: string } | undefined;
 const cachedKeys = new Map<string, string | 'pending'>();
 const rejected: string[] = [];
 const requested: Request[][] = [];
+const leads: (number | undefined)[] = [];
 jest.mock('../hooks/useCachedImages', () => ({
-    useCachedImages: (requests: Request[]) => {
+    useCachedImages: (requests: Request[], lead?: number) => {
         requested.push(requests);
+        leads.push(lead);
         return {
             images: requests.map(request => {
                 if (!request) return undefined;
@@ -49,6 +51,7 @@ beforeEach(() => {
     cachedKeys.clear();
     rejected.length = 0;
     requested.length = 0;
+    leads.length = 0;
 });
 
 describe('MessageImages', () => {
@@ -220,6 +223,21 @@ describe('MessageImages', () => {
             expect(thumbs[5]?.key).toBe('c/u5/thumb');
             expect(viewer().querySelector('img[data-current]')).toHaveAttribute('src', 'blob:o4');
             expect(viewer().querySelector('img[data-placeholder][src="blob:t5"]')).toBeInTheDocument();
+        });
+
+        // Three originals fetched side by side split a slow network three ways, and the one being looked
+        // at is the one that matters.
+        it('leads with the open original, ahead of its neighbours', () => {
+            render(<MessageImages uploads={many(6)} chatId="ch1:5" cid="c" align="start" />);
+            expect(leads.at(-1)).toBeUndefined();
+
+            fireEvent.click(screen.getByRole('button', { name: 'chat.attach.tile:4' }));
+            fireEvent.click(screen.getByRole('button', { name: 'chat.attach.viewerNext' }));
+
+            const originals = requested.at(-1) ?? [];
+            expect(originals[leads.at(-1) as number]?.key).toBe('c/u4/org');
+            // The thumbnails have no lead: a row's tiles are all on screen at once.
+            expect(leads.at(-2)).toBeUndefined();
         });
 
         it('never asks the cache for a local preview', () => {

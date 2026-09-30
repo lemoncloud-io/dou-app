@@ -25,7 +25,7 @@ const createCache = (): ImageCache =>
         store: typeof indexedDB === 'undefined' ? null : new IndexedDbImageCacheStore(indexedDB),
         // No credentials: the signature is the whole authorization, and a credentialed request would
         // need the bucket to name this origin instead of answering `*`.
-        fetch: url => fetch(url, { mode: 'cors', credentials: 'omit' }),
+        fetch: (url, signal) => fetch(url, { mode: 'cors', credentials: 'omit', signal }),
         createObjectURL: blob => URL.createObjectURL(blob),
         revokeObjectURL: url => URL.revokeObjectURL(url),
     });
@@ -53,9 +53,14 @@ const idOf = (request: CachedImageRequest) => `${request.key}\u0000${request.url
  *
  * `reject(index)` is for an `<img>` that failed on a cached source: the entry is dropped and that image
  * falls back to its signed address.
+ *
+ * `lead` names the request that goes first: until it is kept or drawn from its address, the others are
+ * held but not fetched, and draw only what memory already has. The viewer leads with the photo on
+ * screen, so on a slow network its original does not share the bandwidth with its neighbours'.
  */
 export const useCachedImages = (
-    requests: readonly (CachedImageRequest | undefined)[]
+    requests: readonly (CachedImageRequest | undefined)[],
+    lead?: number
 ): { images: (CachedImage | undefined)[]; reject: (index: number) => boolean } => {
     const cache = getImageCache();
     // A ref, not state: the effect below must see a reject made in the same tick, before the render.
@@ -65,6 +70,9 @@ export const useCachedImages = (
     const [evictions, noteEviction] = useReducer((n: number) => n + 1, 0);
     // A dependency on the content rather than the array, which a caller rebuilds every render.
     const signature = requests.map(request => (request ? idOf(request) : '')).join('\u0001');
+    const leadRequest = lead === undefined ? undefined : requests[lead];
+    // Read at render, so the load that settles the lead re-renders and re-runs the effect below.
+    const leadSettled = !leadRequest || !!cache.peek(leadRequest.key) || direct.current.has(idOf(leadRequest));
 
     useEffect(() => cache.subscribe(noteEviction), [cache]);
 
@@ -79,10 +87,15 @@ export const useCachedImages = (
         let alive = true;
         const live = requests.filter((request): request is CachedImageRequest => !!request);
         const current = new Set(live.map(idOf));
-        live.forEach(request => cache.retain(request.key));
+        // A request held back behind the lead is taken only when memory already has it, so the copy it
+        // draws is not revoked. One still downloading is let go, so the cache cancels that download
+        // rather than let it share the bandwidth with the lead.
+        const held = live.filter(request => leadSettled || request === leadRequest || !!cache.peek(request.key));
+        held.forEach(request => cache.retain(request.key));
         live.forEach(request => {
             const id = idOf(request);
             if (cache.peek(request.key) || direct.current.has(id)) return;
+            if (!leadSettled && request !== leadRequest) return;
             void cache.load(request.key, request.variant, request.url).then(src => {
                 if (!alive) return;
                 if (src) rerender();
@@ -91,10 +104,11 @@ export const useCachedImages = (
         });
         return () => {
             alive = false;
-            live.forEach(request => cache.release(request.key));
+            held.forEach(request => cache.release(request.key));
         };
-        // `signature` is the content of `requests`; `markDirect` only touches the ref.
-    }, [cache, signature, evictions]);
+        // `signature` is the content of `requests`, and `lead` picks one of them; `markDirect` only touches
+        // the ref.
+    }, [cache, signature, lead, evictions, leadSettled]);
 
     const images = requests.map((request): CachedImage | undefined => {
         if (!request) return undefined;
