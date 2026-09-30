@@ -1,8 +1,43 @@
-/* Google Fonts does not serve Pretendard (that request answers 400), so the app
-   ran on the system fallback. jsDelivr carries the upstream release — the full files,
-   not the Unicode-range subset: the subset has no U+200B glyph, which Lexical inserts
-   while an IME composes, and without it the caret lands inside the composing syllable. */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+/* Pretendard, declared here rather than pulled in by an @import of the upstream stylesheet:
+   an @import holds the whole UI until that CDN request returns, so a slow network left the first
+   window blank. These rules sit in the bundled CSS; a face downloads only once text needs it, and
+   `swap` paints with the fallback until then. Only the weights the UI uses (400/500/600/700).
+   Google Fonts does not serve Pretendard (that request answers 400), so the files come from
+   jsDelivr's copy of the upstream release — the full files, not the Unicode-range subset: the
+   subset has no U+200B glyph, which Lexical inserts while an IME composes, and without it the
+   caret lands inside the composing syllable. */
+@font-face {
+    font-family: Pretendard;
+    font-weight: 400;
+    font-display: swap;
+    src:
+        local('Pretendard Regular'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: Pretendard;
+    font-weight: 500;
+    font-display: swap;
+    src:
+        local('Pretendard Medium'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Medium.woff2') format('woff2');
+}
+@font-face {
+    font-family: Pretendard;
+    font-weight: 600;
+    font-display: swap;
+    src:
+        local('Pretendard SemiBold'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-SemiBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: Pretendard;
+    font-weight: 700;
+    font-display: swap;
+    src:
+        local('Pretendard Bold'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Bold.woff2') format('woff2');
+}
 
 @tailwind base;
 @tailwind components;
