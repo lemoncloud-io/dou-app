@@ -6,10 +6,10 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
+import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
 
-import { AppIconSelectSheet, ClearCacheDialog, LanguageSelectSheet, LogoutDialog } from '../components';
+import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon, useClearLocalCaches, useLanguagePreference } from '../hooks';
 import { useOnboarding, useTheme } from '../../../hooks';
 import { useAppUpdateStatus } from '../../appUpdate';
@@ -42,7 +42,6 @@ export const SettingsPage = () => {
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
-    const [isClearCacheDialogOpen, setIsClearCacheDialogOpen] = useState(false);
 
     const { preference: languagePreference } = useLanguagePreference();
     const currentLanguageLabel = t(`mypage.language.${languagePreference}`);
@@ -58,12 +57,6 @@ export const SettingsPage = () => {
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
         navigate(ROUTES.auth.logout);
-    };
-
-    // Success reloads the page, so closing only matters when the clear failed and a toast is showing.
-    const handleClearCache = async () => {
-        await clearLocalCaches();
-        setIsClearCacheDialogOpen(false);
     };
 
     const handleThemeToggle = () => {
@@ -136,11 +129,19 @@ export const SettingsPage = () => {
                             onClick={() => setIsAppIconSheetOpen(true)}
                         />
                     )}
+                    {/* No confirm step: the tap clears and reloads. The spinner stands in for the chevron
+                        until the reload, and the row stays disabled so a second tap can't start another sweep. */}
                     <ListRow
                         title={t('mypage.clearCache.title')}
-                        subtitle={t('mypage.clearCache.hint')}
-                        trailing={<Chevron />}
-                        onClick={() => setIsClearCacheDialogOpen(true)}
+                        trailing={
+                            isClearing ? (
+                                <IconSpinner className="size-[18px] animate-spin text-description" />
+                            ) : (
+                                <Chevron />
+                            )
+                        }
+                        onClick={() => void clearLocalCaches()}
+                        disabled={isClearing}
                     />
                     <ListRow
                         title={t('mypage.viewOnboarding')}
@@ -216,13 +217,6 @@ export const SettingsPage = () => {
                 isOpen={isLogoutDialogOpen}
                 onClose={() => setIsLogoutDialogOpen(false)}
                 onConfirm={handleLogout}
-            />
-
-            <ClearCacheDialog
-                isOpen={isClearCacheDialogOpen}
-                isPending={isClearing}
-                onClose={() => setIsClearCacheDialogOpen(false)}
-                onConfirm={() => void handleClearCache()}
             />
 
             <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
