@@ -12,7 +12,7 @@ interface UpdateState {
     version?: string;
     /** 0–100 while downloading. */
     percent: number;
-    /** User chose "Later" for the current status; cleared when the status changes. */
+    /** User chose "Later" for the current status; cleared when the status or the offered version changes. */
     dismissed: boolean;
     set: (next: { status: WireStatus; version?: string; percent?: number }) => void;
     dismiss: () => void;
@@ -30,13 +30,16 @@ export const useUpdateStore = create<UpdateState>(set => ({
     set: ({ status, version, percent }) =>
         set(state => {
             // A status change re-surfaces the banner and resets progress; same-status
-            // ticks (download progress) keep the prior dismiss and percent.
+            // ticks (download progress) keep the prior dismiss and percent. The shell re-checks
+            // often, so the same offer repeats and "Later" holds for it — only a newer version
+            // brings the banner back.
             const isStatusChange = status !== state.status;
+            const isNewVersion = version !== undefined && version !== state.version;
             return {
                 status,
                 version: version ?? state.version,
                 percent: percent ?? (isStatusChange ? 0 : state.percent),
-                dismissed: isStatusChange ? false : state.dismissed,
+                dismissed: isStatusChange || isNewVersion ? false : state.dismissed,
             };
         }),
     dismiss: () => set({ dismissed: true }),

@@ -37,9 +37,10 @@ export const createUpdateCheckGate = ({
 };
 
 /**
- * No check while an update is downloading or ready to install. With `autoDownload` off, a check
- * re-emits `update-available`, and the banner would drop from "downloading" or "restart to update"
- * back to the offer.
+ * An update the user has started: downloading, or ready to install. Two things follow from it.
+ * No check runs then — with `autoDownload` off, a check re-emits `update-available`, and the banner
+ * would drop from "downloading" or "restart to update" back to the offer. And only a failure in
+ * that state is reported; a background check that fails stays silent.
  */
 export const isBusy = (status: OnUpdateStatusPayload['status'] | undefined): boolean =>
     status === 'downloading' || status === 'downloaded';
