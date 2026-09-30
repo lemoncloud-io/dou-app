@@ -142,11 +142,12 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### SyncMeta
 
-`getSyncedAt(kind)` · `setSyncedAt(kind, syncedAt)`
+`getSyncedAt(kind)` · `setSyncedAt(kind, syncedAt)` · `cacheClear()`
 
 - **A local-only repository with no remote data source.** It stores and reads sync cursors (for instance `channel.sync`'s `since`) under the `cid`/`uid` scope.
 - **The scope is its graph's, named on every call.** The local data sources are shared by the app graph and every scoped graph, and on their own they fall back to the selected cloud. A cursor written through cloud A's scoped graph while cloud B is on screen therefore has to carry A's `cid`/`uid` down, or it lands in B's partition — and the next time A is entered, the app graph reads A's partition, finds no cursor, and pulls the whole list again.
 - In other words, this repository is the answer to "where does the next `since` get stored".
 - A cursor points at another domain's data, so when that data moves storage the cursor starts lying that it has "already synced". `routingFingerprint` catches that mismatch (ADR-0053).
+- The same lie follows from clearing that data while the cursor stays. `cacheClear()` exists for the caller that clears a partition's data, and it runs **after** the data, so a sync landing mid-clear cannot leave a fresh cursor over an empty store. A sync that answers after the cursor clear still can, which is what the data source's `cursorsValidAfter` is for: a cursor saved before that instant reads as 0 (reason `cache-cleared`). The assembler supplies it — `libs/app-runtime` moves it to the first boot after a cache clear.
 
 ---

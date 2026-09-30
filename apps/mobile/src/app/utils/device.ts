@@ -32,9 +32,10 @@ export const getUserAgent = async (): Promise<string> => {
 };
 
 /**
- * Fetches the app language
- * - Fetches the language configured on the device
- * - Defaults to 'en'
+ * The device's language — its first locale's language code, 'en' when it reports none.
+ *
+ * Not the language the person chose in Settings: that is `getEffectiveLanguage()` (utils/i18n).
+ * This one is what the web resolves its own `system` from, so it must stay the device's.
  */
 export const getAppLanguage = (): string => {
     const locales = getLocales();

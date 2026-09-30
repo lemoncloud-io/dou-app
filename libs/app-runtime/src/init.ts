@@ -2,6 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime } from './data/runtime';
+import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { credentialRecovery } from './http/credentialRecovery';
 import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
 import { configureSessionStore } from './session/store/configure';
@@ -62,6 +63,11 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     // FIRST, because everything below may end up reading a token, and this is what drops the ones
     // belonging to the account that just signed out.
     logoutStorageSweeper.sweep();
+
+    // A cache clear on the previous page asked for this: every sync cursor saved before now is
+    // retired, including one an in-flight sync wrote after the clear. Before anything can read a
+    // cursor — no repository exists yet, and none may until the lines below have run.
+    applyPendingSyncCursorReset();
 
     // Env → relay endpoint resolvers. Next, because everything below may end up reading the session.
     configureSessionStore();

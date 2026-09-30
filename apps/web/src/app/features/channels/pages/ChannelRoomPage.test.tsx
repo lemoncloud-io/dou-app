@@ -69,10 +69,11 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
 jest.mock('../components/ChannelMessageRow', () => ({
-    ChannelMessageRow: ({ message, onRetry, onDelete }: any) => (
+    ChannelMessageRow: ({ message, onRetry, onDelete, onLongPress }: any) => (
         <div>
             <button data-testid={`retry-${message.id}`} onClick={onRetry} />
             <button data-testid={`delete-${message.id}`} onClick={onDelete} />
+            <button data-testid={`press-${message.id}`} onClick={onLongPress} />
         </div>
     ),
 }));
@@ -80,7 +81,11 @@ jest.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 jest.mock('../components/DmInviteFooter', () => ({ DmInviteFooter: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 jest.mock('../components/MessageDetailDialog', () => ({ MessageDetailDialog: () => null }));
-jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () => null }));
+// Surfaces only whether the sheet opened and whether it was told the message has text.
+jest.mock('../components/MessageActionSheet', () => ({
+    MessageActionSheet: ({ open, hasText }: any) =>
+        open ? <div data-testid="action-sheet" data-has-text={String(hasText)} /> : null,
+}));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/RoomIntro', () => ({ RoomIntro: () => null }));
 jest.mock('../components/RoomSkeleton', () => ({ RoomSkeleton: () => null }));
@@ -305,5 +310,26 @@ describe('ChannelRoomPage — photos', () => {
 
         expect(mockImageRetry).not.toHaveBeenCalled();
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.cannotRetry' });
+    });
+
+    // A photo is a message like a line of text: holding it offers reactions and a thread.
+    it('opens the action sheet on a sent image-only message, telling it there is no text', () => {
+        mockMessages = [
+            failedRow({ id: 'ch1:9', chatNo: 9, isFailed: false, content: '', upload$$: [{ id: 'u1' }] } as never),
+        ];
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('press-ch1:9'));
+
+        expect(screen.getByTestId('action-sheet')).toHaveAttribute('data-has-text', 'false');
+    });
+
+    it('keeps the sheet shut on an image-only row that never landed', () => {
+        mockMessages = [failedImageRow()];
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('press-tmp-1'));
+
+        expect(screen.queryByTestId('action-sheet')).not.toBeInTheDocument();
     });
 });

@@ -11,7 +11,7 @@ is [docs/sync/](../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              18 source files, 10 tests
+data/                              21 source files, 13 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -19,11 +19,14 @@ data/                              18 source files, 10 tests
 ├── nativeCacheSupport.ts         what the installed shell says it can store
 ├── cloudChat.ts                  sendChatInCloud · getCloudRepositories — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
+├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
+├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
 ├── index.ts                      the `data` facade group
 ├── factories/                    socketFactory · localFactory · httpFactory
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
-                                  useInvitedCloudNameSync · useRegisterDeviceTokenMutation · queryKeys
+                                  useInvitedCloudNameSync · useRegisterDeviceTokenMutation · useSendImages ·
+                                  queryKeys
 ```
 
 `factories/localFactoryFallback.test.ts` has no source file of its own: it covers the web-fallback
@@ -204,10 +207,21 @@ nothing to restore it from. Two functions defend it, both best-effort and both i
 - `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list.
 - `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it.
 
-The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, a
-full cache clear) with no push carrying a cid has no recovery path. That is the price of the
+The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, the
+OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the
 single-source rule, which is itself deliberate — a second parallel registry diverges, and then two
 answers exist with no way to tell which is right.
+
+### Clearing the cache
+
+`clearLocalCaches()` is the settings screen's "clear cache". It empties the local cache of every cloud
+this device holds a partition for and leaves sessions and tokens alone — it is not a logout.
+
+- **Which clouds.** The relay, every cloud in the recorded identity map (`getRecordedCloudIds`), and the committed cloud. A partition is keyed by the uid the account has in that cloud, and `recordCloudIdentity` stores one for every cloud a token was ever minted for, so that map reaches clouds that are neither on screen nor in any catalog. Each is cleared through its scoped graph, under its own uid. Rows left by an account the device is no longer signed in to are out of reach: no identity names their uid, so nothing names the partition.
+- **Which domains.** Everything the server refills for what is on screen: `channel`, `chat`, `join`, `place` (`site`), `profile`, `user`. `chat` qualifies although rows before a room's `joinedNo` are never served again, because they were never shown either — the join-window gate hides them — and `join` is cleared and refilled with it. Two are kept because the cache is the only copy — `cloud` (`invitecloud`, above) and `invite`, whose `dismissedAt` only this device writes. Clearing it would bring back every dismissed invite.
+- **Cursors last, and again on the next boot.** `syncMeta` is cleared per cloud once that cloud's data clears have settled: a cursor over an emptied store makes the next sync fetch only the delta and never fill the gap. That still leaves a sync that read its `since` before the clear and answers after it — it saves a fresh cursor over the empty store, and the 60-second poll then keeps that cursor's TTL alive for as long as the app is open. So the sweep also calls `requestSyncCursorReset()`, and the next boot's `initAppRuntime` turns that into a watermark: every cursor saved before that boot reads as 0, a full re-sync (`syncCursorWatermark`). The old page stamps its cursors before it unloads, so the watermark is always later than the one the race writes. It is a watermark rather than a second sweep at boot because a sweep there would build the data runtime before the native shell has reported which cache types it can store, and fix the routing wrongly for the session.
+- **Not kept.** An unsent chat (`chat_no: 0`) lives only in the `chat` slot and goes with it. The dialog says so rather than the sweep picking rows out of a domain.
+- **Failures are counted, not thrown.** One domain's clear failing does not stop the rest; the result carries the count and the caller decides. apps/web reloads on a clean sweep and stays put with an error on a partial one, so a retry can repeat it.
 
 ## Usage
 

@@ -12,7 +12,8 @@ import { isNative } from '@chatic/bridges';
  * whole `@` namespace is the only spelling that does not go stale behind the SDK.
  *
  * Two things share that namespace and are NOT session state, so both are preserved:
- *   - the i18n language key (`@<project>_<env>.i18nextLng`) — a preference, not a credential;
+ *   - the i18n language key (`@<project>_<env>.i18nextLng`) — the language in effect, not a
+ *     credential (the choice itself is `ui.language`, under the config prefix below);
  *   - `@chatic/config`'s own lane (`storageKeyFor`, ADR-0079) — settings survive a logout, and this
  *     one is new: the sweep predates the registry, which moved in under the same prefix.
  *

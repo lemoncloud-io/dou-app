@@ -23,11 +23,15 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['shell', 'local'],
         persist: 'shell',
     },
+    // `shell`, like the theme, so the choice reaches the native app and survives a WebView storage
+    // wipe. apps/web resolves the language while its i18n module is imported, before `config.init()`,
+    // so it reads the boot envelope and the local mirror itself, in the resolver's order.
     'ui.language': {
         title: 'Language',
-        description: "The app's display language.",
-        type: 'string',
-        defaultValue: 'ko',
+        description: "The app's display language. 'system' follows the device language.",
+        type: 'enum',
+        values: ['system', 'ko', 'en'],
+        defaultValue: 'system',
         surface: 'user',
         writableBy: ['shell', 'local'],
         persist: 'shell',

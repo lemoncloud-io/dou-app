@@ -10,7 +10,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                           |
 | ---------------------------- | -------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 7 files |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 8 files |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module` |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                 |
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`             |
@@ -28,7 +28,7 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Seven TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Eight TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature         | TypeScript                 | Android                                                                                        | iOS                                                                                                                                            |
@@ -40,6 +40,7 @@ platform:
 | Back navigation | `BackNavigationBridge.ts`  | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                                          | no-op — same guard, iOS uses the OS swipe-back gesture                                                                                         |
 | Push marks      | `PushMarksBridge.ts`       | `PushMarksModule.kt` (+ `PushMarkStore.kt`)                                                    | `PushMarksModule.m`                                                                                                                            |
 | Badge sync      | `BadgeSyncBridge.ts`       | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                                     | none — base captured natively in `AppDelegate` from the live icon badge, not reachable from JS                                                 |
+| Shared language | `SharedLanguageBridge.ts`  | `SharedLanguageModule.kt`, `push/LanguagePreferenceStore.kt`                                   | `SharedLanguageModule.m` — see [../system/language.md](../system/language.md)                                                                  |
 | Push delivery   | none                       | `push/ChaticFirebaseMessagingService.kt`                                                       | `AppDelegate.swift` forwards APNs callbacks to `RNCPushNotificationIOS`                                                                        |
 
 `PushMarksBridge.drain()` is a read-once call: it reads every pending mark recorded by a background

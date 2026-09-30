@@ -9,6 +9,12 @@ import { BaseLocalDataSource } from './types';
 export interface ISyncMetaLocalDataSource {
     getSyncedAt(kind: string, contextOverride?: LocalDataSourceContextOverride): Promise<number>;
     setSyncedAt(kind: string, syncedAt: number, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    /**
+     * Drops every cursor in the partition. Whoever clears the data a cursor describes has to clear
+     * the cursor with it: a surviving cursor still claims "synced up to T" over an empty store, so the
+     * next sync asks only for the delta after T and the gap never fills.
+     */
+    cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 }
 
 /**
@@ -16,7 +22,7 @@ export interface ISyncMetaLocalDataSource {
  * `meta` cache. `kind` is the metadata id (e.g. 'channel-sync'); absence reads as 0,
  * which callers treat as "sync everything".
  *
- * Two things can retire a cursor, and both land on the same safe answer — 0, a full re-sync:
+ * Three things can retire a cursor, and all land on the same safe answer — 0, a full re-sync:
  *
  * 1. **Age.** Cursors carry the meta TTL: a cursor idle beyond the TTL may point past the server's
  *    delta-history window, so an expired cursor reads as 0. Every successful sync re-saves the
@@ -25,6 +31,10 @@ export interface ISyncMetaLocalDataSource {
  *    store. If that domain moves stores, the cursor survives while the data does not follow, so it
  *    would claim "already synced up to T" over an empty store and only deltas after T would arrive.
  *    Stamping the cursor with the routing in force when it was written turns that into a mismatch.
+ * 3. **A cache clear.** Clearing the data a cursor describes leaves the same lie behind, and a sync
+ *    that was already in flight can write a fresh cursor after the clear removed the old ones. A
+ *    cursor saved before `cursorsValidAfter()` is therefore not trusted — whoever cleared the cache
+ *    moves that instant forward, and every cursor from before it goes.
  */
 export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> implements ISyncMetaLocalDataSource {
     /**
@@ -39,7 +49,12 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> impleme
     constructor(
         contextProvider: DataContextProvider,
         storages: ScopedCacheStorage<'meta'>,
-        private readonly routingFingerprint?: string
+        private readonly routingFingerprint?: string,
+        /**
+         * The instant before which no cursor is trusted, read on every call. Omitted, or 0, means
+         * every cursor is (subject to the two checks above).
+         */
+        private readonly cursorsValidAfter?: () => number
     ) {
         super(contextProvider, storages);
     }
@@ -64,6 +79,10 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> impleme
             this.reportRetired(kind, 'expired');
             return 0;
         }
+        if (this.cursorsValidAfter && savedAt < this.cursorsValidAfter()) {
+            this.reportRetired(kind, 'cache-cleared');
+            return 0;
+        }
         return row.syncedAt ?? 0;
     }
 
@@ -78,7 +97,7 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> impleme
      *
      * A missing row is deliberately NOT reported: that is a first sync, the ordinary cold path.
      */
-    private reportRetired(cursorKind: string, reason: 'routing-changed' | 'expired'): void {
+    private reportRetired(cursorKind: string, reason: 'routing-changed' | 'expired' | 'cache-cleared'): void {
         // `cursorKind`, not `kind`: this value names WHICH cursor (`channel-sync:<cid>`), and a bare
         // `kind` collided with the divergence entries' discriminator, where it named which
         // comparison. The discriminator is now `observation` for every structured entry.
@@ -104,5 +123,9 @@ export class SyncMetaLocalDataSource extends BaseLocalDataSource<'meta'> impleme
             ...(this.routingFingerprint ? { routing: this.routingFingerprint } : {}),
         };
         await this.storage(context).save(kind, view);
+    }
+
+    public async cacheClear(contextOverride?: LocalDataSourceContextOverride): Promise<void> {
+        await this.storage(contextOverride).clearAll();
     }
 }

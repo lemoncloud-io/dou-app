@@ -51,8 +51,6 @@ Two symptoms motivate every rule below:
   user choose it — it is unreachable this release (ADR-0054).
 - New bridge message **types** — injection already covers the boot path, and native has no theme UI
   to trigger a runtime push. The existing `SavePreference` confirmation round trip is in scope.
-- Validating the `'language'` bridge value — only `theme` is validated; the two keys carry different
-  guarantees.
 - `@chatic/theme` and its consumers (`admin`, `desktop-web`, `landing`).
 - Dark splash-asset variants, and the dark-only styling under `features/debug/**` (intentional).
 
@@ -153,16 +151,16 @@ flowchart LR
 
 ### Native — storage and init
 
-| File                                                                                              | Role                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File                                                                                                 | Role                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`stores/themeStore.ts`](../../src/app/stores/themeStore.ts)                                         | `ThemeMode` state, initialized from a synchronous MMKV read. No zustand `persist`.                                                                                                                                                                |
 | [`stores/themeMode.ts`](../../src/app/stores/themeMode.ts)                                           | The pure value model — `ThemeMode`, `DEFAULT_THEME_MODE`, `parseThemeMode`. No storage or provider dependency, so a value-only consumer (the bridge handler) does not have to pull in the services provider to be tested against the real parser. |
 | [`stores/themeStorage.ts`](../../src/app/stores/themeStorage.ts)                                     | Reads/writes the `theme` key, migrates legacy formats, folds envelope `'system'`.                                                                                                                                                                 |
 | [`database/mmkv/MmkvStorage.ts`](../../src/app/database/mmkv/MmkvStorage.ts)                         | `getSync`/`setSync` — MMKV is natively synchronous, so the existing async methods now just wrap these.                                                                                                                                            |
 | [`services/preference/PreferenceService.ts`](../../src/app/services/preference/PreferenceService.ts) | Exposes the sync methods; `themeStore` does not bypass this service layer.                                                                                                                                                                        |
 
-[`languageStore`](../../src/app/stores/languageStore.ts) still uses `persist` + `storageAdapter` — language
-is not a first-paint value, so an async restore is not a problem there.
+[`languageStore`](../../src/app/stores/languageStore.ts) now reads synchronously the same way, because
+`t()` is synchronous — see [language.md](./language.md).
 
 **Storage format.** MMKV values follow `MmkvStorage`'s `JSON.stringify`/`JSON.parse` convention.
 Writes are always a plain mode string (`"light"`); reads accept three shapes:
@@ -177,8 +175,8 @@ An unrecognized value falls back to `'light'`.
 
 ### Native — application
 
-| File                                                                                            | Role                                                                                                                          |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| File                                                                                               | Role                                                                                                                          |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | [`features/core/components/SystemBars.tsx`](../../src/app/features/core/components/SystemBars.tsx) | Status bar and Android system bar application; subscribes to `AppState` and `Dimensions` for idempotent reapplication.        |
 | [`bridge/SystemBarsBridge.ts`](../../src/app/bridge/SystemBarsBridge.ts)                           | Android native module wrapper.                                                                                                |
 | [`hooks/useResolvedTheme.ts`](../../src/app/hooks/useResolvedTheme.ts)                             | `mode` → `resolvedTheme`/`isDark`/`backgroundColor`. `getThemeBackgroundColor` is the single source for the background color. |
@@ -204,8 +202,8 @@ degrade the status bar to light on every subsequent boot with no trace of why.
 
 ### Native → web injection
 
-| File                                                                                | Role                                                                                         |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| File                                                                                   | Role                                                                                         |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | [`webview/utils/injectionScripts.ts`](../../src/app/webview/utils/injectionScripts.ts) | `getThemeScript(mode)` sets `window.CHATIC_APP_THEME`, folded into `getSyncInjectionScript`. |
 | [`webview/AppWebView.tsx`](../../src/app/webview/AppWebView.tsx)                       | Passes `useThemeStore`'s mode as an injection parameter.                                     |
 
@@ -231,8 +229,8 @@ Web owns `ui.theme` as a `@chatic/config` registry key (`persist: 'shell'`, defa
 consuming detail is the [web theme doc](../../../web/docs/shell/theme.md)'s. This document's
 concern is only the second channel that config write does not cover:
 
-| File                                                                             | Role                                                                                                                                                                                                                          |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File                                                                                | Role                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`hooks/useTheme.ts`](../../../web/src/app/hooks/useTheme.ts)                       | `setTheme` writes `config.set('ui.theme', theme, { lane: 'shell' })`, `localStorage['vite-ui-theme']`, **and** `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` — three independent channels for one value |
 | [`index.html`](../../../web/index.html)                                             | Pre-paint script: `localStorage['vite-ui-theme'] \|\| window.CHATIC_APP_THEME \|\| 'light'`, unchanged by the `@chatic/config` migration since it runs before `config.init()`                                                 |
 | [`runtime/ThemeApplier.tsx`](../../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                |
@@ -255,8 +253,8 @@ pre-paint script's write to that variable has any effect.
 
 **Unit tests**
 
-| Covers                                                                                               | Location                                                                                          |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Covers                                                                                               | Location                                                                                             |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Format absorption, script-escape rejection, closed return type                                       | [`themeMode.test.ts`](../../src/app/stores/themeMode.test.ts)                                        |
 | Legacy migration, per-format `'system'` handling, rewrite conditions                                 | [`themeStorage.test.ts`](../../src/app/stores/themeStorage.test.ts)                                  |
 | Synchronous init at module evaluation; init alone does not write                                     | [`themeStore.test.ts`](../../src/app/stores/themeStore.test.ts)                                      |

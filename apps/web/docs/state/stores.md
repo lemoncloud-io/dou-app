@@ -66,10 +66,11 @@ this folder — because desktop-web needs to read the exact same record apps/web
 | `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)                |
 | `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)            |
 | `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)                      |
+| `ui.language`               | — (the legacy field was never used)   | `useLanguagePreference` (`features/mypage/hooks`)            |
 
 Every hook reads with `useConfigValue('ui.x')` (`@chatic/config/react`) and writes with
 `config.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The
-three keys with `persist: 'shell'` (`theme`, `blurLastMessage`, `onboardingCompleted`) must write
+four keys with `persist: 'shell'` (`theme`, `language`, `blurLastMessage`, `onboardingCompleted`) must write
 with `{ lane: 'shell' }`: a `local` write lands in a lower-priority row than a native-hydrated
 `shell` value and is silently shadowed (`ConfigLanePolicy`'s row order, in the
 [`@chatic/config` README](../../../../libs/config/README.md)). Every other key here is
@@ -130,15 +131,60 @@ this fallback.
 in that fallback path — the two fields have opposite polarity. The theme value can arrive in the
 mobile zustand-persist JSON envelope, which `parseThemeBridgeValue` normalizes.
 
+## The language choice — `ui.language`
+
+It is stored the way the theme is. Settings' language sheet goes through `useLanguagePreference`
+(`features/mypage/hooks/`), which makes three writes:
+
+1. `config.set('ui.language', choice, { lane: 'shell' })` — the shell's config store, read back as
+   the boot envelope (`CHATIC_APP_CONFIG_BAG`) on the next launch, and mirrored into
+   `@chatic/config.ui.language` for a browser with no shell;
+2. `SavePreference('language', choice)`, confirmed with one retry (`syncLanguageChoiceToShell`,
+   `app/bridge/`) — the shell's own `languageStore`, which its alerts and push banners follow. The
+   choice goes over as is, `system` included;
+3. `i18n.changeLanguage(...)`, so the screen follows at once.
+
+The shell follows the choice from the release that carries it: its own copy and the push banners
+use the pinned language, else the device's — see
+[`apps/mobile/docs/system/language.md`](../../../mobile/docs/system/language.md). `PreferenceLoader`
+also resends the stored choice once per native boot. The sheet only sends on change, and a choice
+made while an older shell was installed was kept there in a format the current shell discards.
+
+`src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx` has run
+`config.init()` — so it cannot ask `config.get`. `readStoredLanguagePreference` reads the same two
+places the resolver would, in the same order: the boot envelope, then the local mirror. The theme
+has a pre-paint read for the same reason.
+
+`PreferenceLoader`'s legacy `FetchPreference` fallback does **not** read `ui.language` back from the
+shell. An older shell's store holds a zustand envelope with the device default or the language in
+effect at the time — a guess and a pick in one value — and a current shell's choice already reaches
+the web through the boot envelope.
+
+`system` is resolved on every boot, from the device languages in order — the shell's injected
+`CHATIC_APP_CURRENT_LANGUAGE` first, then `navigator.languages`. The shell's value has to come first
+because inside the iOS WebView `navigator.language` is the app bundle's localization, which is
+English only, not the device's. Nothing supported → `en`.
+
+This replaced i18next-browser-languagedetector, which wrote the language in effect into
+`@${PROJECT}_${ENV}.i18nextLng` — the first-launch guess, and every change the old sheet made — and
+read that back first ever after. The device setting was looked at once, and on iOS it answered
+English for everyone. That stored value is not carried over: a guess and a choice sit in the same key
+and cannot be told apart, and on iOS the stored `en` is the bug itself. **Every existing install
+starts on `system`, and someone who had picked a language other than the device's picks it once
+more.** The decision and its alternatives are ADR-0138.
+
+The key is still written with the language in effect, because `relaySession` points lemon-web-core's
+`x-lemon-language` header at `i18nextLng`. The SDK reads that name under its own prefix and storage
+(`@<project>.i18nextLng`), which matches this key only in a native local build — so in deployed builds
+the header is not sent, which was already true before the change.
+
 ## Out of scope (deliberately)
 
 - **`debugSettings`** (`chatic_debug_mode`) — a dead declaration even under `usePreferenceStore`:
   the URL-toggle feature it backed was removed (ADR-0080 decision 13). Never became a config key.
-- **`language`** — nothing in the repo reads or writes `chatic-language`. The actual UI language is
-  owned end-to-end by i18next's `LanguageDetector`, under its own separate key
-  (`@${PROJECT}_${ENV}.i18nextLng`). A `ui.language` registry key is declared in
-  `libs/config/src/registry/ui.ts` but has no consumer yet — folding i18next into `@chatic/config`
-  is a separate, larger piece of work.
+- **`language`** — nothing in the repo reads or writes `chatic-language`, so there was nothing to
+  carry over. The language choice is `ui.language` now (`system` · `ko` · `en`, default `system`),
+  but it did not come through this store — see [above](#the-language-choice--uilanguage).
 - **Mobile's `debugSettingsStore`** (`mockServiceMode`, `overlay*`, …) — apps/web has no screen that
   would use it, so it was never integrated. `logUploadHold`/`debugModeEnabled` already work through
   their own dedicated bridge messages, independent of this store.

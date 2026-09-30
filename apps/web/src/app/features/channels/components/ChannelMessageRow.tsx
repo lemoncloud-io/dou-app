@@ -10,6 +10,7 @@ import { isMessageEdited } from '@chatic/data';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
+import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
 import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 import { MessageAttachment } from './MessageAttachment';
@@ -23,7 +24,6 @@ import { ThreadFooter } from './ThreadFooter';
 
 // A message longer than this is truncated in the bubble with a "view all" affordance.
 const MAX_MESSAGE_LENGTH = 200;
-const LONG_PRESS_DELAY_MS = 450;
 // How far the finger may drift and still count as a hold rather than a scroll — a fingertip's wobble.
 const MOVE_CANCEL_PX = 10;
 // `self-end` so the marker sits on the bubble's last line rather than its vertical middle.
@@ -204,7 +204,18 @@ export const ChannelMessageRow = ({
     const tallies = !isDeleted ? reactions : undefined;
 
     // Long-press (or right-click) opens the action sheet — the timer lives here since
-    // the web-ui-kit bubble is purely presentational.
+    // the web-ui-kit bubble is purely presentational. The images are part of the message as much
+    // as its text is, so an image-only message is pressable too: reacting to a photo or starting a
+    // thread on it is the same act as on a line of text. What the sheet then offers is the page's
+    // call — an image has nothing to copy or edit. Not while this message is being edited: the
+    // bubble is the editor then, and a sheet opened from the images under it would offer Edit
+    // again, which re-seeds the draft and throws away what was typed.
+    const canPress = !isDeleted && !edit && (!!content || hasImages);
+    // React bubbles events out of portals along the component tree, not the DOM, so a press inside
+    // the image viewer — portalled to the body, but a child of the tiles here — would otherwise
+    // reach this gesture and open the sheet over the photo being looked at.
+    const isOwnEvent = (event: { currentTarget: Element; target: EventTarget }) =>
+        event.currentTarget.contains(event.target as Node);
     const timerRef = useRef<number | null>(null);
     // Long-pressing a link should copy, not navigate. The gesture still ends in a `click` on the
     // anchor, so the menu and the browser would both open; this flag swallows that click.
@@ -218,13 +229,14 @@ export const ChannelMessageRow = ({
     // Where the press started, so a drag can be told from a hold (touch only — see below).
     const pressOriginRef = useRef<{ x: number; y: number } | null>(null);
     const handlePointerDown = (event: ReactPointerEvent<HTMLSpanElement>) => {
+        if (!isOwnEvent(event)) return;
         // NOT on touch: preventing the default of a `pointerdown` cancels the browser's own
         // panning for that gesture, so a finger landing on a bubble could not scroll the list —
         // and a thread is mostly bubbles, which is why scrolling died in bands down the screen.
         // The default this was suppressing (drag-select, the iOS selection callout) is handled by
         // the span's `select-none` / `touch-callout-none` instead, which costs the gesture nothing.
         if (event.pointerType === 'mouse') event.preventDefault();
-        if (!content || isDeleted) return;
+        if (!canPress) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         clearTimer();
         longPressFiredRef.current = false;
@@ -249,7 +261,7 @@ export const ChannelMessageRow = ({
         }
     };
     const handleContextMenu = (event: ReactMouseEvent<HTMLSpanElement>) => {
-        if (!content || isDeleted) return;
+        if (!canPress || !isOwnEvent(event)) return;
         event.preventDefault();
         clearTimer();
         longPressFiredRef.current = true;
@@ -258,6 +270,26 @@ export const ChannelMessageRow = ({
     const handleUrlClick = (url: string) => {
         if (longPressFiredRef.current) return;
         openExternalUrl(url);
+    };
+    // The same swallow for the image tiles, whose tap opens the viewer: a hold that opened the
+    // action sheet must not also open the photo behind it. Caught on the way down, before the
+    // tile's own handler.
+    // `detail === 0` is a keyboard activation: no pointer went down, so the flag is a leftover
+    // from an earlier right-click and must not eat the Enter that opens the photo.
+    const handleImageClickCapture = (event: ReactMouseEvent<HTMLSpanElement>) => {
+        if (event.detail === 0 || !longPressFiredRef.current || !isOwnEvent(event)) return;
+        longPressFiredRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+    };
+    // Spread onto every long-press target the row has: the text bubble, and the image tiles.
+    const pressHandlers = {
+        onPointerDown: handlePointerDown,
+        onPointerMove: handlePointerMove,
+        onPointerUp: clearTimer,
+        onPointerLeave: clearTimer,
+        onPointerCancel: clearTimer,
+        onContextMenu: handleContextMenu,
     };
 
     // Avatar slot for `other` rows — the real avatar on the first message of a
@@ -325,6 +357,29 @@ export const ChannelMessageRow = ({
         }
     }
 
+    // The images, in place of the bubble or under it — either way a long-press target, with the
+    // same selection and callout suppression as the bubble (the callout here is iOS's own image
+    // menu). The wrapper takes over the side the tiles hug, since it is now the column's item, and
+    // `min-w-0` lets it shrink as the bare grid did — as a flex item it would otherwise hold the
+    // grid's fixed 240px and overflow the 75% column on a screen narrower than about 350px.
+    const renderImages = () => (
+        <span
+            className={cn(
+                'flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
+                mine ? 'self-end' : 'self-start'
+            )}
+            {...pressHandlers}
+            onClickCapture={handleImageClickCapture}
+        >
+            <MessageImages
+                uploads={message.upload$$}
+                chatId={message.id}
+                cid={message.cid}
+                align={mine ? 'end' : 'start'}
+            />
+        </span>
+    );
+
     return (
         <MessageRow
             variant={mine ? 'mine' : 'other'}
@@ -370,12 +425,7 @@ export const ChannelMessageRow = ({
                             </span>
                         )}
                         {imageOnly ? (
-                            <MessageImages
-                                uploads={message.upload$$}
-                                chatId={message.id}
-                                cid={message.cid}
-                                align={mine ? 'end' : 'start'}
-                            />
+                            renderImages()
                         ) : (
                             <span
                                 // `min-w-0`: as a flex item this span defaults to `min-width: auto`
@@ -388,12 +438,7 @@ export const ChannelMessageRow = ({
                                     'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
                                     drawnBlocks && 'w-full'
                                 )}
-                                onPointerDown={handlePointerDown}
-                                onPointerMove={handlePointerMove}
-                                onPointerUp={clearTimer}
-                                onPointerLeave={clearTimer}
-                                onPointerCancel={clearTimer}
-                                onContextMenu={handleContextMenu}
+                                {...pressHandlers}
                             >
                                 {drawnBlocks ? (
                                     // A card, not a bubble. A webhook send is not someone speaking, and
@@ -472,15 +517,9 @@ export const ChannelMessageRow = ({
                 becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
             {/* Before the unfurl card: `attach$` IS the sender's structured body, while the unfurl
                 is something we derived from a URL we found in the text. */}
-            {/* Images that came with text sit under the bubble, as their own row in the column. */}
-            {hasImages && !imageOnly && (
-                <MessageImages
-                    uploads={message.upload$$}
-                    chatId={message.id}
-                    cid={message.cid}
-                    align={mine ? 'end' : 'start'}
-                />
-            )}
+            {/* Images that came with text sit under the bubble, as their own row in the column —
+                and, unlike the rows below, are pressed like the bubble: they are the message. */}
+            {hasImages && !imageOnly && renderImages()}
             <MessageAttachment attach={message.attach$} />
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (

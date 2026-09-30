@@ -80,7 +80,8 @@ one would land in the main feed.
 as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
 `localStatus`; a server head from `thumbUrl`, falling back to `orgUrl`. A head the server marks failed,
 carries an error, or has no address stays as a broken tile, so the count still matches what was sent.
-The tiles are fixed-size: the server embeds no dimensions.
+The tiles are fixed-size: the server embeds no dimensions. A tap opens the viewer; a hold opens the
+message's action sheet, as on a bubble ([chat-room.md](./chat-room.md#a-message-row)).
 
 The addresses are signed when the message is read and expire a couple of hours later, and a cached row
 keeps them. An image that fails to load draws as a placeholder and the message is read again from its
@@ -157,7 +158,9 @@ The trade-offs, and the server-side fix that would make the address itself cache
 ## Not done here
 
 - **Progress, cancel, a hash.** None are shown or sent.
-- **Save and share in the viewer.** It shows, zooms and steps between the originals only.
+- **Save and share in the viewer.** It shows, zooms and steps between the originals only. A tile
+  cannot save either: a right-click on it opens the message's action sheet, not the browser's
+  image menu (ADR-0136).
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 - **A cacheable address.** Making the signed address stable across reads, and giving the objects a
@@ -171,6 +174,7 @@ The trade-offs, and the server-side fix that would make the address itself cache
 npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hooks/useSendImages \
   apps/web/src/app/runtime/upload apps/web/src/app/bridge/shellUpload \
   apps/web/src/app/features/channels/components/MessageImages \
+  apps/web/src/app/features/channels/components/ChannelMessageRow \
   apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages
 ```
 

@@ -6,7 +6,8 @@
 > `.github/workflows/verify.yml`
 > Related: [ADR-0093](./0093-web-emoji-reaction-and-thread.md) (introduced the long-press action
 > sheet this extends) · [ADR-0047](./0047-web-reaction-and-thread-refinements.md) (the sheet's
-> stable-row-count rule this gives up)
+> stable-row-count rule this gives up) · [ADR-0136](./0136-web-a-photo-is-a-message-under-the-long-press.md)
+> (amends §5: without text a message has no Copy, so the fixed rows narrow to a fixed order)
 
 ## Context
 

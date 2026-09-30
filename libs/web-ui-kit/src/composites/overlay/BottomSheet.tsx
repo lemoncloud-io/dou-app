@@ -5,7 +5,7 @@ import { Sheet as Root, SheetContent, SheetDescription, SheetTitle } from '@chat
 import { cn } from '@chatic/lib/utils';
 
 import { IconClose } from '../../resources/icons';
-import { canStartDrag, clampDragOffset, shouldDismissOnRelease } from './sheetDrag';
+import { canStartDrag, clampDragOffset, isPastDragSlop, shouldDismissOnRelease } from './sheetDrag';
 
 /** How long the panel takes to slide the rest of the way out after a dismissing release. */
 const DISMISS_MS = 220;
@@ -17,12 +17,19 @@ const SETTLE_MS = 180;
  * Who owns the panel's vertical position.
  *
  * `idle` hands it back to Radix, whose enter / exit keyframes write `transform` themselves. The
- * other three are ours, and they are separate states rather than one boolean because each eases
+ * other four are ours, and they are separate states rather than one boolean because each eases
  * differently: a panel under the finger must not ease at all, a released one springs back, and a
  * dismissed one leaves. Collapsing `settling` into `idle` was the first thing tried and it makes
  * the spring-back instant — the transition is removed in the same commit that sets the target.
+ *
+ * `resting` is where a spring-back ends, and it exists because `idle` cannot be gone back to while
+ * the sheet is open. Our phases switch Radix's keyframes off with `animation: none`, and switching
+ * an animation back on does not resume it — it starts it again. The keyframe still attached to an
+ * open panel is the ENTER one, so handing the panel back replayed the slide-in, and the sheet
+ * looked as if it opened a second time after every touch. `resting` keeps the keyframes off for as
+ * long as the sheet stays open; closing is the only point they are wanted again (the exit one).
  */
-type DragPhase = 'idle' | 'dragging' | 'settling' | 'dismissing';
+type DragPhase = 'idle' | 'dragging' | 'settling' | 'resting' | 'dismissing';
 
 export interface BottomSheetProps {
     /** Controls visibility. */
@@ -117,6 +124,12 @@ export const BottomSheet = ({
         lastAt: number;
         travelPx: number;
         elapsedMs: number;
+        /**
+         * Whether this press has cleared the slop and become a drag. On the gesture rather than
+         * read off `phase`, because a release can arrive before the render that set `phase` does,
+         * and a drag mistaken for a tap at that point would leave the panel wherever it was.
+         */
+        dragging: boolean;
     } | null>(null);
 
     const phaseTimer = React.useRef<number | null>(null);
@@ -150,8 +163,10 @@ export const BottomSheet = ({
         // or trackpad reaches the body as scroll rather than as pointer movement.
         if (event.button !== 0) return;
         if (!canStartDrag(bodyRef.current?.scrollTop ?? 0)) return;
+        // A second finger landing mid-drag must not take the gesture over. It would orphan the
+        // first finger's moves and release, and nothing would bring the panel back up.
+        if (gesture.current?.dragging) return;
 
-        clearPhaseTimer();
         gesture.current = {
             pointerId: event.pointerId,
             startY: event.clientY,
@@ -159,6 +174,7 @@ export const BottomSheet = ({
             lastAt: event.timeStamp,
             travelPx: 0,
             elapsedMs: 0,
+            dragging: false,
         };
     };
 
@@ -170,8 +186,10 @@ export const BottomSheet = ({
         // rather than fight whatever is scrolling.
         if (!canStartDrag(bodyRef.current?.scrollTop ?? 0)) {
             gesture.current = null;
-            setPhase('idle');
-            setOffset(0);
+            if (active.dragging) {
+                setPhase('resting');
+                setOffset(0);
+            }
             return;
         }
 
@@ -180,22 +198,30 @@ export const BottomSheet = ({
         active.lastY = event.clientY;
         active.lastAt = event.timeStamp;
 
-        const next = clampDragOffset(event.clientY - active.startY);
-        if (next <= 0 && phase === 'idle') return;
+        const dy = event.clientY - active.startY;
+        // Until the press clears the slop it is still a tap, and a tap must leave the panel alone.
+        if (!active.dragging && !isPastDragSlop(dy)) return;
+        active.dragging = true;
 
         // Capture only once the gesture has actually become a drag. Capturing on the first move
         // would swallow taps on the buttons inside the panel.
-        if (next > 0 && !event.currentTarget.hasPointerCapture(event.pointerId)) {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
             event.currentTarget.setPointerCapture(event.pointerId);
         }
+        // A drag that starts during the previous spring-back takes the panel from there.
+        clearPhaseTimer();
         setPhase('dragging');
-        setOffset(next);
+        setOffset(clampDragOffset(dy));
     };
 
     const onPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
         const active = gesture.current;
         if (!active || active.pointerId !== event.pointerId) return;
         gesture.current = null;
+
+        // A press that never became a drag was a tap, and there is nothing to settle. Settling it
+        // anyway is what used to replay the enter keyframe on every tap inside the sheet.
+        if (!active.dragging) return;
 
         const released = clampDragOffset(event.clientY - active.startY);
         const panelHeight = panelRef.current?.offsetHeight ?? 0;
@@ -223,10 +249,17 @@ export const BottomSheet = ({
 
         setPhase('settling');
         setOffset(0);
-        phaseTimer.current = window.setTimeout(() => setPhase('idle'), SETTLE_MS);
+        phaseTimer.current = window.setTimeout(() => setPhase('resting'), SETTLE_MS);
     };
 
-    const driven = phase !== 'idle';
+    // Eased or finger-driven movement: every phase that is moving the panel.
+    const driven = phase === 'dragging' || phase === 'settling' || phase === 'dismissing';
+    // Radix's keyframes stay off for as long as the panel is ours and the sheet is open. Gated on
+    // `open` because the render that closes the sheet still carries the old phase — the reset
+    // effect runs after it — and the exit keyframe has to be back by then, or Radix finds no
+    // animation to wait for and removes the panel without it. `dismissing` is the exception: that
+    // panel has already left on our own transition, and removing it at once is the point.
+    const keyframesOff = phase === 'dismissing' || (phase !== 'idle' && open);
     const transitionDuration = phase === 'dismissing' ? DISMISS_MS : phase === 'settling' ? SETTLE_MS : 0;
 
     return (
@@ -235,7 +268,7 @@ export const BottomSheet = ({
                 ref={panelRef}
                 side="bottom"
                 hideClose
-                data-drag-phase={driven ? phase : undefined}
+                data-drag-phase={phase === 'idle' ? undefined : phase}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerEnd}
@@ -276,7 +309,8 @@ export const BottomSheet = ({
                     // applied through `data-[state=…]:` variants, which Tailwind emits after every
                     // unprefixed utility, so the plain form loses the cascade and the keyframe keeps
                     // writing `transform` over the drag.
-                    driven && '!animate-none transition-transform ease-out',
+                    keyframesOff && '!animate-none',
+                    driven && 'transition-transform ease-out',
                     className
                 )}
             >

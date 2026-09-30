@@ -27,6 +27,20 @@ export const DISMISS_DISTANCE_RATIO = 0.25;
 export const DISMISS_VELOCITY_PX_PER_MS = 0.5;
 
 /**
+ * How far the pointer has to travel downward before a press becomes a drag, in pixels.
+ *
+ * A finger never lands perfectly still, and a press that moved a pixel or two is a tap. Arming the
+ * drag on the first pixel captured the pointer to the panel, and a captured pointer's click lands on
+ * the panel instead of the button under the finger — so a slightly unsteady tap on an emoji or a
+ * category tab simply did nothing. 8px is the platform touch slop (Android's `touchSlop` is 8dp) and
+ * well under any pull someone means as a dismissal.
+ */
+export const DRAG_SLOP_PX = 8;
+
+/** Whether a press that has moved `dy` from where it went down has become a drag. */
+export const isPastDragSlop = (dy: number): boolean => dy > DRAG_SLOP_PX;
+
+/**
  * Whether a downward drag may take over from scrolling.
  *
  * Only at the very top of the body. Anywhere else the same gesture is the reader scrolling back up
