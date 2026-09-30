@@ -2,8 +2,12 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { logger } from '@chatic/bridges';
 import {
+    chatAttachmentFormat,
+    type ChatUploadKind,
     IMAGE_MESSAGE_SLOT_MAX,
     isPendingUploadSlot,
+    type PendingFileDetails,
+    type PreparedImageMirror,
     sendImageMessage,
     type PutPort,
     type SendImagePorts,
@@ -37,6 +41,41 @@ interface PendingImages {
  * can be open together, and neither may mistake the other's rows for leftovers.
  */
 const pendingImages = new Map<string, PendingImages>();
+
+/**
+ * A picked file as the server takes it: its format's type, and for a video or document a name ending
+ * in its extension. An image let in by its extension arrives untyped (or `image/jpg`), and declared
+ * as-is the server would refuse it. A file no format fits is left as it is.
+ */
+const asSent = (file: File): { file: File; kind: ChatUploadKind | null } => {
+    const format = chatAttachmentFormat(file);
+    if (!format) return { file, kind: null };
+    // Same bytes under the server's type and name; a `File` over a `File` does not copy them.
+    const sent =
+        format.name === file.name && format.type === file.type
+            ? file
+            : new File([file], format.name, { type: format.type, lastModified: file.lastModified });
+    return { file: sent, kind: format.kind };
+};
+
+/** What a video or document's card shows while it is sent. An image draws its preview instead. */
+const pendingFileDetails = (file: File): PendingFileDetails | null => {
+    const sent = asSent(file);
+    return sent.kind && sent.kind !== 'image'
+        ? { name: sent.file.name, contentType: sent.file.type, size: sent.file.size }
+        : null;
+};
+
+/**
+ * An image is resized with a thumbnail beside it. A video or document has nothing to resize and no
+ * thumbnail: it goes up as it is, with no dimensions.
+ */
+const prepareAttachment = async (file: File): Promise<PreparedImageMirror> => {
+    const sent = asSent(file);
+    return sent.kind && sent.kind !== 'image'
+        ? { original: { file: sent.file, width: 0, height: 0 }, thumbnail: null }
+        : prepareChatAttachment(sent.file);
+};
 
 /**
  * Bumped on every change a screen renders from (an entry added, dropped, claimed or settled), so
@@ -155,7 +194,7 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
             const thumbnails: (File | null)[] = [];
             const ports: SendImagePorts = {
                 prepare: async file => {
-                    const prepared = await prepareChatAttachment(file);
+                    const prepared = await prepareAttachment(file);
                     thumbnails.push(prepared.thumbnail?.file ?? null);
                     if (thumbnails.length === entry.files.length) {
                         await switchToThumbnailPreviews(pendingId, thumbnails);
@@ -190,12 +229,15 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
             const files = picked.slice(0, IMAGE_MESSAGE_SLOT_MAX);
             if (files.length === 0) return;
             const urls = files.map(file => URL.createObjectURL(file));
+            // Left out when every file is an image, so an image send writes the row it always has.
+            const localFiles = files.map(pendingFileDetails);
             let pendingId: string;
             try {
                 pendingId = await chatOf(cid).createPendingImageChat({
                     channelId,
                     ...(parentId ? { parentId } : {}),
                     localThumbUrls: urls,
+                    ...(localFiles.some(Boolean) ? { localFiles } : {}),
                 });
             } catch (error) {
                 urls.forEach(url => URL.revokeObjectURL(url));

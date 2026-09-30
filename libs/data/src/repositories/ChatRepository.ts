@@ -68,11 +68,22 @@ export interface IChatRepository extends DisposableRepository {
     cacheClearByChannelId(channelId: string): Promise<void>;
 }
 
+export interface PendingFileDetails {
+    name: string;
+    contentType: string;
+    size: number;
+}
+
 export interface PendingImageChatInput {
     channelId: string;
     parentId?: string;
-    /** One preview per picked image, in picking order. */
+    /** One preview per picked file, in picking order. */
     localThumbUrls: string[];
+    /**
+     * Per slot, a video or document's name, type and size (`null` for an image). Left out on a
+     * rewrite of the same row, which keeps what the row already holds.
+     */
+    localFiles?: (PendingFileDetails | null)[];
     /** Re-arm this row (a retry) rather than create one. */
     pendingId?: string;
 }
@@ -212,14 +223,30 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
     public async createPendingImageChat(input: PendingImageChatInput): Promise<string> {
         this.assertRequiredString(input.channelId, 'channelId');
-        const slots = input.localThumbUrls.map(localThumbUrl => ({ localStatus: 'sending' as const, localThumbUrl }));
+        const slotsWith = (details: (PendingFileDetails | null | undefined)[]) =>
+            input.localThumbUrls.map((localThumbUrl, index) => {
+                const file = details[index];
+                return {
+                    localStatus: 'sending' as const,
+                    localThumbUrl,
+                    ...(file ? { localName: file.name, localContentType: file.contentType, localSize: file.size } : {}),
+                };
+            });
 
         if (input.pendingId) {
             const requestContext = this.pendingImageScope(input.pendingId);
+            const existing = await this.chatLocalDataSource.cacheRead(input.pendingId, requestContext);
             // A merge into a row that was deleted would recreate it with no channel: refuse instead.
-            if (!(await this.chatLocalDataSource.cacheRead(input.pendingId, requestContext))) {
+            if (!existing) {
                 throw new Error(`[ChatRepository] pending image chat ${input.pendingId} is gone`);
             }
+            // A retry or a switch to thumbnails passes previews only; the files are the same ones.
+            const kept = (existing.upload$$ ?? []).map(slot =>
+                isPendingUploadSlot(slot) && slot.localContentType
+                    ? { name: slot.localName ?? '', contentType: slot.localContentType, size: slot.localSize ?? 0 }
+                    : null
+            );
+            const slots = slotsWith(input.localFiles ?? kept);
             await this.chatLocalDataSource.cacheWrite(
                 { id: input.pendingId, isPending: true, isFailed: false, upload$$: slots, updatedAtMs: Date.now() },
                 requestContext
@@ -227,6 +254,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             return input.pendingId;
         }
 
+        const slots = slotsWith(input.localFiles ?? []);
         const requestContext = this.getRequestContext();
         // Random suffix: two sends in one millisecond (a double tap) must not share a row.
         const id = `optimistic-chat-images-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
