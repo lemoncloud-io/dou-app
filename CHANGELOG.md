@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-30] - root@0.74.1, @chatic/desktop-web@0.16.5
+
+### Bug Fixes
+
+- (desktop-web) open the profile of a member mentioned by place nick
+
 ## [2026-09-30] - root@0.74.0, @chatic/web@0.57.0
 
 ### Features
