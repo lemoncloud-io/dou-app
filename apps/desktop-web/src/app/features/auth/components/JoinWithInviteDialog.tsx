@@ -31,7 +31,9 @@ export const JoinWithInviteDialog = () => {
     const reset = () => setCode('');
 
     const handleOpenChange = (next: boolean) => {
-        if (next) return;
+        // Escape, the X and the backdrop are ignored while the invite is being redeemed, as in
+        // Rename and AddMembers: a closed dialog has nowhere to show the failure.
+        if (next || isSubmitting) return;
         reset();
         close();
     };

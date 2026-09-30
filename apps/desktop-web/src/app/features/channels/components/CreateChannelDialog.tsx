@@ -52,7 +52,9 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
     };
 
     const handleOpenChange = (next: boolean) => {
-        if (next) return;
+        // Escape, the X and the backdrop are ignored while the channel is being created, as in
+        // Rename and AddMembers: closing then would drop a failure message with nobody to read it.
+        if (next || isMutating) return;
         reset();
         close();
     };

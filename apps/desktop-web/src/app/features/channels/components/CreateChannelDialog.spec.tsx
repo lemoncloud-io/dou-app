@@ -6,9 +6,10 @@ import i18next from 'i18next';
 import type * as SharedModule from '../../../shared';
 
 const createChannel = vi.hoisted(() => vi.fn());
+const mutation = vi.hoisted(() => ({ isMutating: false }));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
-    useDesktopChannelMutations: () => ({ createChannel, isMutating: false }),
+    useDesktopChannelMutations: () => ({ createChannel, isMutating: mutation.isMutating }),
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
@@ -26,6 +27,7 @@ const submitWith = async (error: Error) => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mutation.isMutating = false;
     useCreateChannelDialogStore.setState({ isOpen: true });
 });
 
@@ -61,5 +63,23 @@ describe('CreateChannelDialog visibility', () => {
         expect(privateOption.getAttribute('aria-checked')).toBe('true');
         expect(publicOption.getAttribute('aria-checked')).toBe('false');
         expect(publicOption.tabIndex).toBe(-1);
+    });
+
+    it('ignores Escape while the channel is being created', () => {
+        mutation.isMutating = true;
+        render(<CreateChannelDialog onCreated={vi.fn()} />);
+
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+        expect(useCreateChannelDialogStore.getState().isOpen).toBe(true);
+        expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+
+    it('closes on Escape when nothing is in flight', () => {
+        render(<CreateChannelDialog onCreated={vi.fn()} />);
+
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+        expect(useCreateChannelDialogStore.getState().isOpen).toBe(false);
     });
 });
