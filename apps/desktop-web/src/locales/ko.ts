@@ -7,27 +7,27 @@ import type { EnTranslation } from './en';
  * does not have.
  *
  * One Korean term per English term, held across the whole file:
- * cloud `클라우드` · place `플레이스` · channel `채널` · workspace `워크스페이스` ·
+ * cloud `클라우드` · place `플레이스` · channel `채널` ·
  * thread `스레드` · reply `답글` · saved items `저장한 항목` · mentions `멘션` ·
  * unread `안 읽음` · mention `멘션` · reaction `반응` · invite `초대` · guest `게스트` ·
  * member `멤버` · favorites `즐겨찾기` · quiet hours `방해 금지 시간` · rail `레일`.
- * Product nouns, keys and tokens stay verbatim: DoU, Google, DM, Enter,
- * Esc, invt:, OS, ⌘/⇧. 'Travel & places' is the emoji category, not the product
+ * A cloud is `클라우드` everywhere, as in the mobile app; `워크스페이스` is not a
+ * second name for it. Product nouns, keys and tokens stay verbatim: DoU,
+ * Google, DM, Enter, Esc, OS, ⌘/⇧. 'Travel & places' is the emoji category, not the product
  * noun, so it is `여행과 장소` rather than `플레이스`.
  */
 export const ko: EnTranslation = {
-    'auth.invite.title': 'DoU에 오신 것을 환영해요',
+    'auth.invite.title': '초대로 참여',
     'auth.invite.subtitle': '초대 링크나 코드를 입력하면 참여할 수 있어요.',
-    'auth.join.title': '워크스페이스 참여',
-    'auth.join.subtitle': '초대 링크나 코드를 붙여넣으면 워크스페이스에 참여할 수 있어요.',
-    'auth.invite.placeholder': '초대 링크 또는 invt:… 코드 붙여넣기',
-    'auth.invite.submit': '워크스페이스 참여',
+    'auth.join.title': '초대로 참여',
+    'auth.join.subtitle': '초대 링크나 코드를 붙여넣으면 그 클라우드에 참여할 수 있어요.',
+    'auth.invite.placeholder': '초대 링크나 코드 붙여넣기',
+    'auth.invite.submit': '참여하기',
     'auth.invite.preparing': '준비 중...',
-    'auth.invite.failed.format':
-        '초대 정보가 아닌 것 같아요. https://app.chatic.io/s?code=… 링크 전체나 invt:… 코드를 붙여넣어 주세요.',
+    'auth.invite.failed.format': '초대 링크나 코드가 아닌 것 같아요. 받은 그대로 붙여넣어 주세요.',
     'auth.invite.failed.notFound': '유효한 초대 코드가 아니에요. 초대한 사람에게 새 링크를 받아 주세요.',
     'auth.invite.failed.expired': '초대가 만료됐어요. 새 링크를 받아 주세요.',
-    'auth.invite.failed.already': '이미 이 워크스페이스에 참여해 있어요. 왼쪽 레일에서 선택해 주세요.',
+    'auth.invite.failed.already': '이미 참여한 클라우드예요. 맨 왼쪽 목록에서 골라 주세요.',
     'auth.invite.failed.denied': '이 계정으로는 쓸 수 없는 초대예요. 초대를 받은 계정으로 로그인해 주세요.',
     'auth.invite.failed.network': '서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
     'auth.invite.failed.generic': '이 코드로 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요.',
@@ -56,7 +56,7 @@ export const ko: EnTranslation = {
     'profile.signInGoogle': 'Google로 로그인',
     'profile.signInGoogleHint': '여러 기기에서 같은 계정을 쓸 수 있어요. 지금의 게스트 세션은 대체돼요.',
     'welcome.title': 'DoU에 오신 것을 환영해요',
-    'welcome.subtitle': '바로 대화를 시작하거나, 초대로 워크스페이스에 참여해요.',
+    'welcome.subtitle': '바로 대화를 시작하거나, 초대받은 클라우드에 참여해요.',
     'welcome.start': '대화 시작',
     'welcome.starting': '준비 중…',
     'welcome.retry': '다시 시도',
@@ -214,7 +214,7 @@ export const ko: EnTranslation = {
     'chat.empty.create.hint': '첫 채널을 만들고 사람들을 초대해 보세요.',
     'chat.empty.create.action': '채널 만들기',
     'chat.empty.join.title': '아직 읽을 대화가 없어요',
-    'chat.empty.join.hint': '공유받은 초대 코드로 워크스페이스에 참여하세요.',
+    'chat.empty.join.hint': '공유받은 초대 코드로 클라우드에 참여하세요.',
     'chat.empty.join.action': '초대 코드로 참여',
     'chat.noChannels': '아직 채널이 없어요',
     'chat.noChannelsHint': '채널을 만들어 시작해 보세요.',
@@ -222,7 +222,9 @@ export const ko: EnTranslation = {
     'chat.loading': '불러오는 중...',
     'chat.today': '오늘',
     'chat.yesterday': '어제',
+    'cloud.home': '홈',
     'cloud.untitled': '이름 없는 클라우드',
+    'cloud.untitledNumbered': '이름 없는 클라우드 {{number}}',
     'cloud.setupFailedLabel': '{{name}} (설정 실패)',
     'cloud.empty': '클라우드 없음',
     'cloud.switching': '클라우드 전환 중...',
@@ -232,12 +234,12 @@ export const ko: EnTranslation = {
     'cloud.switchCause.notFound': '이 클라우드는 더 이상 없어요.',
     'cloud.switchCause.other': '클라우드가 전환을 받아들이지 않았어요.',
     'cloud.switchRetry': '다시 시도',
-    'cloud.remove.action': '워크스페이스 제거',
-    'cloud.remove.title': '레일에서 제거할까요?',
-    'cloud.remove.description': '워크스페이스가 레일에서 숨겨져요. 나중에 초대 링크로 다시 참여할 수 있어요.',
+    'cloud.remove.action': '클라우드 제거',
+    'cloud.remove.title': '이 클라우드를 목록에서 제거할까요?',
+    'cloud.remove.description': '맨 왼쪽 목록에서 숨겨져요. 나중에 초대 링크로 다시 참여할 수 있어요.',
     'cloud.remove.confirm': '제거',
     'cloud.delete.title': '클라우드를 삭제할까요?',
-    'cloud.delete.description': '모든 사람의 워크스페이스와 데이터가 영구히 삭제돼요.',
+    'cloud.delete.description': '모든 사람에게서 이 클라우드와 데이터가 영구히 삭제돼요.',
     'cloud.delete.confirm': '삭제',
     'cloud.delete.deleting': '삭제 중...',
     'cloud.delete.cancel': '취소',
@@ -277,7 +279,7 @@ export const ko: EnTranslation = {
     'debug.badge': 'OS 배지 →',
     'channels.create.title': '새 채널',
     'channels.create.nameLabel': '채널 이름',
-    'channels.create.namePlaceholder': '예: marketing',
+    'channels.create.namePlaceholder': '예: 공지사항',
     'channels.create.visibility': '공개 범위',
     'channels.create.public': '공개',
     'channels.create.public.hint': '이 플레이스의 누구나 찾아서 참여할 수 있어요.',
@@ -403,7 +405,7 @@ export const ko: EnTranslation = {
     'channels.settings.delete': '채널 삭제',
     'channels.rename.title': '채널 이름 변경',
     'channels.rename.nameLabel': '채널 이름',
-    'channels.rename.namePlaceholder': '예: marketing',
+    'channels.rename.namePlaceholder': '예: 공지사항',
     'channels.rename.cancel': '취소',
     'channels.rename.submit': '이름 저장',
     'channels.rename.saving': '저장 중...',

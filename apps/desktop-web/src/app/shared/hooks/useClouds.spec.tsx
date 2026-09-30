@@ -41,6 +41,7 @@ vi.mock('../stores', () => ({
         selector({ joinedClouds }),
 }));
 
+import i18n from '../../../i18n';
 import { useClouds } from './useClouds';
 
 describe('useClouds', () => {
@@ -87,5 +88,13 @@ describe('useClouds', () => {
 
         expect(result.current.clouds.map(c => c.id)).toEqual(['default', '1000001']);
         expect(result.current.activeCloudId).toBe('1000001');
+    });
+
+    // The tile read "Home" in a Korean UI: the name was a literal, not a string of the UI.
+    it('names the Home tile in the UI language', async () => {
+        await i18n.changeLanguage('ko');
+        const { result } = renderHook(() => useClouds());
+        expect(result.current.clouds[0]).toMatchObject({ id: 'default', name: '홈', kind: 'home' });
+        await i18n.changeLanguage('en');
     });
 });

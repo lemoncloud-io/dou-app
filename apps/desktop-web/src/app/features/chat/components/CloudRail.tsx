@@ -22,15 +22,7 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import {
-    Hint,
-    ScrollHint,
-    cloudLabel,
-    distinctInitials,
-    useScrollOverflow,
-    type RailCloud,
-    useRemoveCloud,
-} from '../../../shared';
+import { Hint, ScrollHint, cloudTiles, useScrollOverflow, type RailCloud, useRemoveCloud } from '../../../shared';
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -46,7 +38,7 @@ interface CloudRailProps {
 }
 
 /**
- * Leftmost workspace rail. Each icon is a cloud (a distinct server with its own
+ * Leftmost rail. Each icon is a cloud (a distinct server with its own
  * front/API URL); selecting one runs the cloud switch pipeline. The signed-in
  * user's menu is pinned to the bottom.
  */
@@ -80,9 +72,11 @@ export const CloudRail = ({
     };
 
     const scroll = useScrollOverflow<HTMLDivElement>();
-    // An id on a tile reads as noise; a cloud without a real name is "Untitled".
-    const labels = clouds.map(cloud => cloudLabel(cloud, t('cloud.untitled')));
-    const initials = distinctInitials(labels);
+    // An id on a tile reads as noise; a cloud without a real name is "Untitled", numbered when
+    // there are several so neither the tiles nor their labels read the same.
+    const tiles = cloudTiles(clouds, ordinal =>
+        ordinal ? t('cloud.untitledNumbered', { number: ordinal }) : t('cloud.untitled')
+    );
 
     return (
         <div className="flex h-full w-full flex-col items-center">
@@ -101,16 +95,14 @@ export const CloudRail = ({
                         </span>
                     )}
                     {clouds.map((cloud, index) => {
-                        const initial = initials[index] ?? '#';
+                        const { label, initial } = tiles[index];
                         const isActive = cloud.id === activeCloudId;
                         const isInactive = cloud.status && cloud.status !== 'active';
                         // Home/Default can't be removed; owned + invited clouds can.
                         const removable = cloud.kind !== 'home';
                         // A cloud whose setup failed cannot be opened; say why before the click fails.
                         const tileLabel =
-                            cloud.status === 'error'
-                                ? t('cloud.setupFailedLabel', { name: labels[index] })
-                                : labels[index];
+                            cloud.status === 'error' ? t('cloud.setupFailedLabel', { name: label }) : label;
                         return (
                             <ContextMenu key={cloud.id}>
                                 <ContextMenuTrigger asChild>

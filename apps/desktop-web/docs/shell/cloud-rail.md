@@ -8,7 +8,15 @@ lime ring and a lime initial.
 
 A tile is named with `cloudLabel` (see [`../chat/room-names.md`](../chat/room-names.md)). A cloud with
 no name, or with the server's generated setup name (`#cloud/<n>/<n>`), reads "Untitled cloud". A
-cloud whose setup failed says "(setup failed)" in its label, before a click on it fails.
+cloud whose setup failed says "(setup failed)" in its label, before a click on it fails. The Home
+tile's name is a UI string (`cloud.home`), so it reads "홈" in Korean rather than a literal "Home".
+
+`cloudTiles` (`shared/utils/tileInitials.ts`) turns the names into tile text. A tile shows one
+letter, and only tiles that would read the same take more: first the name's trailing number, then
+its second letter, so "test-lemon" and "test-lemon2" read "Te" and "T2", and "Team" and "Tokyo" read
+"Te" and "To". An untitled cloud has no letters of its own and reads "?"; when there are several,
+they are numbered in both the tile ("?1", "?2") and the label ("Untitled cloud 2"). Before this,
+two untitled tiles both read the fallback label's first two syllables.
 
 ## Unread
 
