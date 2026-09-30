@@ -668,6 +668,12 @@ export const MessageList = ({
                             }
                             const last = row.group.messages[row.group.messages.length - 1];
                             const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
+                            // Only the block holding the target gets it: handed to every row, a
+                            // jump re-rendered the whole feed twice (on the flash and on its clear).
+                            const highlight =
+                                highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
+                                    ? highlightChatNo
+                                    : undefined;
                             return (
                                 <MessageRow
                                     key={row.group.key}
@@ -679,7 +685,7 @@ export const MessageList = ({
                                     onOpenThread={onOpenThread}
                                     selfNames={selfNames}
                                     resolveMention={resolveMention}
-                                    highlightChatNo={highlightChatNo ?? undefined}
+                                    highlightChatNo={highlight}
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}
                                     reactorName={reactorName}
