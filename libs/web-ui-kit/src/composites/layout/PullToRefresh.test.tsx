@@ -232,6 +232,57 @@ describe('PullToRefresh', () => {
         jest.useRealTimers();
     });
 
+    it('reports the arm once when a pull crosses the threshold, not again while it stays past it', () => {
+        const onArm = jest.fn();
+        render(
+            <PullToRefresh data-testid="list" onRefresh={() => new Promise(() => undefined)} onArm={onArm}>
+                row
+            </PullToRefresh>
+        );
+        const node = screen.getByTestId('list');
+
+        act(() => {
+            fireEvent.touchStart(node, touch(0));
+            fireEvent.touchMove(node, touch(PULL_TO_REFRESH_THRESHOLD));
+            fireEvent.touchMove(node, touch(PAST_THRESHOLD));
+            fireEvent.touchMove(node, touch(PAST_THRESHOLD + 40));
+        });
+
+        expect(onArm).toHaveBeenCalledTimes(1);
+    });
+
+    it('arms again after the pull goes back above the threshold and down past it', () => {
+        const onArm = jest.fn();
+        render(
+            <PullToRefresh data-testid="list" onRefresh={jest.fn()} onArm={onArm}>
+                row
+            </PullToRefresh>
+        );
+        const node = screen.getByTestId('list');
+
+        act(() => {
+            fireEvent.touchStart(node, touch(0));
+            fireEvent.touchMove(node, touch(PAST_THRESHOLD));
+            fireEvent.touchMove(node, touch(PULL_TO_REFRESH_THRESHOLD));
+            fireEvent.touchMove(node, touch(PAST_THRESHOLD));
+        });
+
+        expect(onArm).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not arm on a pull that stays short of the threshold', () => {
+        const onArm = jest.fn();
+        render(
+            <PullToRefresh data-testid="list" onRefresh={jest.fn()} onArm={onArm}>
+                row
+            </PullToRefresh>
+        );
+
+        act(() => pull(screen.getByTestId('list'), PULL_TO_REFRESH_THRESHOLD));
+
+        expect(onArm).not.toHaveBeenCalled();
+    });
+
     it('forwards the ref to the scroll container', () => {
         const ref = { current: null as HTMLDivElement | null };
         render(

@@ -2,8 +2,6 @@ import * as React from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { IconSpinner } from '../../resources/icons';
-
 /** Pull distance, after resistance, at which a release starts a refresh. */
 export const PULL_TO_REFRESH_THRESHOLD = 64;
 /** How far the content can be dragged at most, so a long pull does not drag the list off screen. */
@@ -15,10 +13,21 @@ const REFRESHING_OFFSET = 56;
 /**
  * Finger travel before a touch is judged a pull or a scroll. iOS reports moves of a pixel, so the
  * first one alone is jitter — often `dy === 0` or a sideways twitch on what is plainly a pull.
+ *
+ * Exported because `SwipeActionRow` must decide on the very same move. The pull claims a touch
+ * leaning down (`dy > |dx|`) and the swipe one leaning sideways (`|dx| > |dy|`); judged at the same
+ * distance those can never both pass, where two different distances let one claim the touch first
+ * and the other claim it again a move later.
  */
-const DIRECTION_SLOP = 6;
+export const TOUCH_DIRECTION_SLOP = 6;
+const DIRECTION_SLOP = TOUCH_DIRECTION_SLOP;
 /** Default for `maxRefreshMs`. */
 const DEFAULT_MAX_REFRESH_MS = 10_000;
+/** The indicator's ring, in its 24-unit viewBox. */
+const RING_RADIUS = 9;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+/** How much of the ring the running arc leaves open. */
+const RUNNING_ARC_GAP = 0.72;
 
 /**
  * Finger travel → how far the content moves. Upward travel is no pull at all, and the result is
@@ -41,6 +50,12 @@ export interface PullToRefreshProps extends Omit<React.HTMLAttributes<HTMLDivEle
     maxRefreshMs?: number;
     /** Turns the gesture off; the container still scrolls. */
     disabled?: boolean;
+    /**
+     * Fires when a pull crosses the threshold on the way down — the moment letting go would refresh.
+     * Once per crossing: pulling back above it and down again fires again. The host's hook for
+     * feedback, such as a haptic tick; the kit has no way to make one itself.
+     */
+    onArm?: () => void;
     /** Accessible name of the running-refresh status. */
     refreshingLabel?: string;
     /**
@@ -81,6 +96,7 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
         {
             onRefresh,
             maxRefreshMs = DEFAULT_MAX_REFRESH_MS,
+            onArm,
             disabled = false,
             refreshingLabel = 'Refreshing',
             className,
@@ -103,6 +119,8 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
         onRefreshRef.current = onRefresh;
         const maxRefreshMsRef = React.useRef(maxRefreshMs);
         maxRefreshMsRef.current = maxRefreshMs;
+        const onArmRef = React.useRef(onArm);
+        onArmRef.current = onArm;
 
         const setRefs = React.useCallback(
             (node: HTMLDivElement | null) => {
@@ -124,6 +142,13 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
             const updatePull = (value: number) => {
                 pullRef.current = value;
                 setPull(value);
+            };
+
+            // Only a finger's pull arms; the list settling at the refreshing offset or back to 0 does not.
+            const followFinger = (value: number) => {
+                const wasArmed = pullRef.current >= PULL_TO_REFRESH_THRESHOLD;
+                updatePull(value);
+                if (!wasArmed && value >= PULL_TO_REFRESH_THRESHOLD) onArmRef.current?.();
             };
 
             const findTouch = (list: TouchList, id: number): Touch | null => {
@@ -204,7 +229,7 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                     setIsDragging(true);
                 }
                 if (event.cancelable) event.preventDefault();
-                updatePull(resolvePullDistance(deltaY));
+                followFinger(resolvePullDistance(deltaY));
             };
 
             const handleEnd = (event: TouchEvent) => {
@@ -257,6 +282,7 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
         }, [disabled]);
 
         const progress = Math.min(pull / PULL_TO_REFRESH_THRESHOLD, 1);
+        const armed = isDragging && pull >= PULL_TO_REFRESH_THRESHOLD;
 
         return (
             <div ref={setRefs} className={cn('relative overscroll-y-contain', className)} {...rest}>
@@ -271,15 +297,7 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                     )}
                     style={{ height: pull }}
                 >
-                    <IconSpinner
-                        aria-hidden
-                        className={cn('mb-4 size-6 text-description', isRefreshing && 'animate-spin')}
-                        // While dragging the glyph turns with the pull and fades in toward the
-                        // threshold, so the user can see how far a release still has to go.
-                        style={
-                            isRefreshing ? undefined : { opacity: progress, transform: `rotate(${progress * 270}deg)` }
-                        }
-                    />
+                    <RefreshIndicator progress={progress} armed={armed} refreshing={isRefreshing} />
                 </div>
                 <div
                     className={cn(!isDragging && 'transition-transform duration-200 ease-out', contentClassName)}
@@ -292,3 +310,60 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
     }
 );
 PullToRefresh.displayName = 'PullToRefresh';
+
+/**
+ * A small raised disc with a ring in it. While the finger pulls, the ring fills with the distance
+ * still to go and the disc grows into place; at the threshold the ring completes in the accent colour
+ * and the disc overshoots a little, so "let go now" is visible as well as felt. While the refresh
+ * runs, the ring becomes an open arc that turns. On the way out the disc rides up with the collapsing
+ * slot, so the end needs no separate animation.
+ */
+const RefreshIndicator = ({
+    progress,
+    armed,
+    refreshing,
+}: {
+    progress: number;
+    armed: boolean;
+    refreshing: boolean;
+}) => {
+    const scale = refreshing ? 1 : armed ? 1.08 : 0.6 + 0.4 * progress;
+    const accent = armed || refreshing;
+    return (
+        <span
+            data-armed={armed || undefined}
+            className="mb-3 flex size-8 items-center justify-center rounded-full border-[0.5px] border-input-border/70 bg-surface shadow-[0_2px_12px_0_rgba(0,0,0,0.08)] transition-transform duration-200"
+            // The overshooting curve is what makes the threshold read as a snap rather than a fade.
+            style={{
+                opacity: refreshing ? 1 : progress,
+                transform: `scale(${scale})`,
+                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+        >
+            <svg viewBox="0 0 24 24" aria-hidden className={cn('size-5', refreshing && 'animate-spin')}>
+                <circle
+                    cx="12"
+                    cy="12"
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className="text-muted"
+                />
+                <circle
+                    cx="12"
+                    cy="12"
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray={RING_CIRCUMFERENCE}
+                    strokeDashoffset={RING_CIRCUMFERENCE * (refreshing ? RUNNING_ARC_GAP : 1 - progress)}
+                    transform="rotate(-90 12 12)"
+                    className={cn('transition-colors duration-150', accent ? 'text-main-accent' : 'text-description')}
+                />
+            </svg>
+        </span>
+    );
+};

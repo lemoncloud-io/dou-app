@@ -1,5 +1,7 @@
 import {
     ArrowUp,
+    Bell,
+    BellOff,
     Check,
     CircleAlert,
     ChevronDown,
@@ -11,6 +13,7 @@ import {
     Image as ImageGlyph,
     Link2,
     Loader2,
+    LogOut,
     MessageCircle,
     type LucideIcon,
     type LucideProps,
@@ -19,6 +22,7 @@ import {
     Search,
     Settings,
     Sparkles,
+    Trash2,
     User,
     Users,
     X,
@@ -60,6 +64,13 @@ export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;
 /** Two stacked sheets — the message action sheet's copy message row (Figma Code Connect: `IconCopy`). */
 export const IconCopy: LucideIcon = Copy;
+/** Room notifications on / off — the home row's mute swipe action and its muted-state glyph. */
+export const IconBell: LucideIcon = Bell;
+export const IconBellOff: LucideIcon = BellOff;
+/** Leave a room — the member's destructive swipe action. */
+export const IconLeave: LucideIcon = LogOut;
+/** Delete a room — the owner's destructive swipe action. */
+export const IconTrash: LucideIcon = Trash2;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
