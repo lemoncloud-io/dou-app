@@ -107,7 +107,12 @@ Before the WebView loads, `injectionScripts.ts` assembles one script (`getSyncIn
 sets these globals, guarded so a runtime failure reports itself through `SendLog` (tag `INJECTION`)
 instead of surfacing as an opaque "Script error.":
 
-- safe-area insets and keyboard height, as CSS variables
+- safe-area insets and keyboard height, as CSS variables — and `AppWebView` injects them again
+  whenever either changes, which is how a keyboard opening reaches the web. `--keyboard-height` is
+  how far the keyboard reaches up from the WebView's bottom edge, which is the screen edge on both
+  platforms (Android runs edge-to-edge). Android's `Keyboard` event reports the height with the navigation bar subtracted,
+  so `useKeyboardHeight` adds the safe-area bottom back there — without it, anything padded by the
+  variable (the chat composer) sits behind the keyboard by exactly the navigation bar.
 - device info: run id, platform, stage, app/OS version, build number, language, device model
 - `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
   The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log
