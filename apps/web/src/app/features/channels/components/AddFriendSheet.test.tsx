@@ -2,49 +2,61 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-const navigate = jest.fn();
 const toast = jest.fn();
-const requestInviteLink = jest.fn().mockResolvedValue('https://dou.chatic.io/s?code=abc');
+const requestLink = jest.fn();
+const onLinkReady = jest.fn();
+const onOpenChange = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/app-runtime', () => ({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/ui-kit/components/ui/sheet', () => ({
     Sheet: ({ open, children }: any) => (open ? <div>{children}</div> : null),
     SheetContent: ({ children }: any) => <div>{children}</div>,
 }));
-jest.mock('../hooks', () => ({
-    useCreateInviteBatch: () => ({ requestInviteLink, isPending: false }),
-}));
 
 import { AddFriendSheet } from './AddFriendSheet';
 
+const fill = () => {
+    fireEvent.change(screen.getByPlaceholderText('addFriend.namePlaceholder'), { target: { value: '홍길동' } });
+    fireEvent.change(screen.getByPlaceholderText('addFriend.phonePlaceholder'), {
+        target: { value: '010-1234-5678' },
+    });
+};
+
 describe('AddFriendSheet', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => {
+        jest.clearAllMocks();
+        requestLink.mockResolvedValue('https://dou.chatic.io/s?code=abc');
+    });
 
-    it('requests an invite link and navigates to the invite-link page with it in state', async () => {
-        render(<AddFriendSheet open onOpenChange={jest.fn()} channelId="ch1" />);
+    it('asks the host for a link, closes, then hands the link back', async () => {
+        render(<AddFriendSheet open onOpenChange={onOpenChange} requestLink={requestLink} onLinkReady={onLinkReady} />);
+        fill();
+        fireEvent.click(screen.getByText('addFriend.share'));
 
-        fireEvent.change(screen.getByPlaceholderText('addFriend.namePlaceholder'), { target: { value: '홍길동' } });
-        fireEvent.change(screen.getByPlaceholderText('addFriend.phonePlaceholder'), {
-            target: { value: '010-1234-5678' },
-        });
+        await waitFor(() => expect(requestLink).toHaveBeenCalledWith({ name: '홍길동', phone: '01012345678' }));
+        await waitFor(() => expect(onLinkReady).toHaveBeenCalledWith('https://dou.chatic.io/s?code=abc'));
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
 
+    it('stays open and says why when issuing fails', async () => {
+        requestLink.mockRejectedValue(new Error('placeInvite.placeChanged'));
+        render(<AddFriendSheet open onOpenChange={onOpenChange} requestLink={requestLink} onLinkReady={onLinkReady} />);
+        fill();
         fireEvent.click(screen.getByText('addFriend.share'));
 
         await waitFor(() =>
-            expect(requestInviteLink).toHaveBeenCalledWith({
-                channelId: 'ch1',
-                name: '홍길동',
-                phone: '01012345678',
-            })
+            expect(toast).toHaveBeenCalledWith({ title: 'placeInvite.placeChanged', variant: 'destructive' })
         );
-        await waitFor(() =>
-            expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite/link', {
-                state: { inviteLink: 'https://dou.chatic.io/s?code=abc', roomDistance: 2 },
-            })
-        );
+        expect(onLinkReady).not.toHaveBeenCalled();
+        expect(onOpenChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps the button disabled while the host has nothing to invite into', () => {
+        render(<AddFriendSheet open onOpenChange={onOpenChange} onLinkReady={onLinkReady} />);
+        fill();
+
+        expect(screen.getByText('addFriend.share').closest('button')).toBeDisabled();
     });
 });
