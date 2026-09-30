@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-09-30] - root@0.73.2, @chatic/desktop-web@0.16.3
+
+### Bug Fixes
+
+- (desktop-web) float toasts at the top as compact capsules
+- (desktop-web) show connection loss in the banner, not the header
+
 ## [2026-09-30] - root@0.73.1, @chatic/desktop-web@0.16.2
 
 ### Features
