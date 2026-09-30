@@ -50,12 +50,12 @@ or left the tray.
 `MessageImages` shows one image as a 180px tile, and several as a two-column grid of up to four. The
 fourth tile counts the rest ("+n"). `ImageTile` states:
 
-| State     | Looks like            | Says (button name)              |
-| --------- | --------------------- | ------------------------------- |
-| sent      | the thumbnail         | "Open {name}"                   |
-| uploading | blurred, with spinner | "Uploading {name}", `aria-busy` |
-| failed    | an image-off glyph    | "This image couldn't be loaded" |
-| overflow  | dimmed, with "+n"     | "n more images"                 |
+| State     | Looks like                                                | Says (button name)              |
+| --------- | --------------------------------------------------------- | ------------------------------- |
+| sent      | the thumbnail, or the original when there is none (a GIF) | "Open {name}"                   |
+| uploading | blurred, with spinner                                     | "Uploading {name}", `aria-busy` |
+| failed    | an image-off glyph                                        | "This image couldn't be loaded" |
+| overflow  | dimmed, with "+n"                                         | "n more images"                 |
 
 An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in the tab order and a
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no

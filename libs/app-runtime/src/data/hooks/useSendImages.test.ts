@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import type { DomainChat, SendImageResult } from '@chatic/data';
 
-import { prepareImage } from '@chatic/shared';
+import { prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
 import { useSendImages, type UseSendImagesInput } from './useSendImages';
@@ -18,7 +18,7 @@ jest.mock('@chatic/data', () => ({
     sendImageMessage: (...args: unknown[]) => mockSendImageMessage(...args),
 }));
 
-jest.mock('@chatic/shared', () => ({ CHAT_ATTACHMENT: {}, prepareImage: jest.fn() }));
+jest.mock('@chatic/shared', () => ({ prepareChatAttachment: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 
 const put = jest.fn();
@@ -467,7 +467,7 @@ describe('useSendImages — previews while sending', () => {
 
     // A phone photo is several megapixels; the feed must not decode ten of them for small tiles.
     it('switches the row to the thumbnails once every image is prepared, before the upload starts', async () => {
-        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
             original: { file },
             thumbnail: { file: thumb(file.name) },
         }));
@@ -487,7 +487,7 @@ describe('useSendImages — previews while sending', () => {
     });
 
     it('keeps the original preview for an image that has no thumbnail', async () => {
-        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
             original: { file },
             thumbnail: file.name === 'a.jpg' ? { file: thumb('a') } : null,
         }));
@@ -503,7 +503,10 @@ describe('useSendImages — previews while sending', () => {
     });
 
     it('does not rewrite the row when no image has a thumbnail', async () => {
-        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({ original: { file }, thumbnail: null }));
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
         runSequence();
         const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
 
@@ -514,7 +517,7 @@ describe('useSendImages — previews while sending', () => {
     });
 
     it('does not switch again on a retry, since the row already shows the thumbnails', async () => {
-        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
             original: { file },
             thumbnail: { file: thumb(file.name) },
         }));
@@ -535,7 +538,7 @@ describe('useSendImages — previews while sending', () => {
     });
 
     it('lets the new previews go when the row was deleted before the switch', async () => {
-        (prepareImage as jest.Mock).mockImplementation(async (file: File) => ({
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
             original: { file },
             thumbnail: { file: thumb(file.name) },
         }));

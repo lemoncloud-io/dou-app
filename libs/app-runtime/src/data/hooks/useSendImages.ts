@@ -8,7 +8,7 @@ import {
     type PutPort,
     type SendImagePorts,
 } from '@chatic/data';
-import { CHAT_ATTACHMENT, prepareImage } from '@chatic/shared';
+import { prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
 
@@ -155,7 +155,7 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
             const thumbnails: (File | null)[] = [];
             const ports: SendImagePorts = {
                 prepare: async file => {
-                    const prepared = await prepareImage(file, CHAT_ATTACHMENT);
+                    const prepared = await prepareChatAttachment(file);
                     thumbnails.push(prepared.thumbnail?.file ?? null);
                     if (thumbnails.length === entry.files.length) {
                         await switchToThumbnailPreviews(pendingId, thumbnails);

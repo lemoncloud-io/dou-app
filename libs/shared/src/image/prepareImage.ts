@@ -1,4 +1,5 @@
 import { decodeImage } from './decode';
+import { CHAT_ATTACHMENT } from './policies';
 import { OUTPUT_STRATEGIES } from './strategies';
 import type { ImageOutputSpec, ImageRequest, ImageResult, PreparedFile } from './types';
 
@@ -55,6 +56,23 @@ export const prepareImage = async <R extends ImageRequest>(file: File, request: 
     );
 
     return Object.fromEntries(entries) as ImageResult<R>;
+};
+
+/**
+ * A photo sent in a chat, prepared by `CHAT_ATTACHMENT` — except a GIF, which goes up without a
+ * thumbnail.
+ *
+ * A thumbnail is drawn on a canvas, and a canvas keeps only a GIF's first frame. The server hands an
+ * upload back with no content type, so a room cannot tell that still frame from a photo's thumbnail
+ * and draws it as the tile: the animation, which is why the GIF was sent, played only in the
+ * full-screen viewer. With no thumbnail the room draws the original, and the original plays. The
+ * cost is that the list downloads the whole GIF, up to the same per-file cap a photo has, rather
+ * than a thumbnail of tens of kilobytes.
+ */
+export const prepareChatAttachment = async (file: File): Promise<ImageResult<typeof CHAT_ATTACHMENT>> => {
+    if (file.type !== 'image/gif') return prepareImage(file, CHAT_ATTACHMENT);
+    const { original } = await prepareImage(file, { original: CHAT_ATTACHMENT.original });
+    return { original, thumbnail: null };
 };
 
 export type { ImageOutputSpec, ImageRequest, ImageResult };
