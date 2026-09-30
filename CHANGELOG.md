@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-09-30] - root@0.73.0, @chatic/web@0.56.0
+
+### Features
+
+- (web) resend the language choice to the shell on every native boot
+- (mobile) follow the web's language choice in the shell and its push banners (ADR-0138)
+- (web,config) carry the language choice to the shell the way the theme is
+- (web,app-runtime,data) clear the local cache from settings, keeping invited clouds
+- (web,config) follow the device language unless one is chosen in settings (ADR-0136)
+
 ## [2026-09-30] - No version updates
 
 ### Bug Fixes
