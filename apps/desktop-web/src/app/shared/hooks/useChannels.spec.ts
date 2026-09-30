@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { ACCOUNT_CHANNEL_SID } from '@chatic/data';
+
 type Row = { id: string; name?: string; cid: string; sid: string; stereo?: string; memberIds?: string[] };
 
 let cacheRows: Row[] = [];
@@ -187,5 +189,20 @@ describe('useChannels', () => {
         const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'relay' }));
 
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me', 'relay-dm', 'relay-group']));
+    });
+
+    // The relay sends the Self Channel with no place, and the cache keeps it under the account. With
+    // a place selected (after an invite join) it has to stay listed, or the onboarding waits forever.
+    it('lists the account-scoped Self Channel inside a place too', async () => {
+        placesState = { placeIds: ['relay-place'], isLoading: false };
+        cacheRows = [
+            { id: 'U:me', cid: 'default', sid: ACCOUNT_CHANNEL_SID, stereo: 'self' },
+            { id: 'relay-group', name: 'lobby', cid: 'default', sid: 'relay-place' },
+            { id: 'other-group', name: 'other', cid: 'default', sid: 'other-place' },
+        ];
+
+        const { result } = renderHook(() => useChannels('relay-place', { whenNoPlace: 'relay' }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me', 'relay-group']));
     });
 });

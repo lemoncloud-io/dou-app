@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { isCloudWideChannel, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, isCloudWideChannel, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { cloudDmPlaces, computeChannelUnread, listingPlaces, placeMemberPeers } from '../utils';
@@ -126,7 +126,9 @@ export const useChannels = (
     );
     const rawChannels = useMemo(() => {
         const listed = cloudRows.filter(c => {
-            if (placeId) return listingPlaces(c, dmPlaces).includes(placeId);
+            // The Self Channel belongs to the account, not a place, so every place of its cloud lists it
+            // (after an invite join the relay has a place selected, and it would otherwise vanish).
+            if (placeId) return c.sid === ACCOUNT_CHANNEL_SID || listingPlaces(c, dmPlaces).includes(placeId);
             // A row with no cid came from the relay (the same fallback every relay read uses). The
             // cid check is what keeps a late row of the cloud just left out of Home's list.
             if (whenNoPlace === 'relay') return (c.cid || RELAY_CLOUD_ID) === RELAY_CLOUD_ID;
