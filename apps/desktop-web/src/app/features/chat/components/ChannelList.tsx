@@ -259,6 +259,12 @@ const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
+/**
+ * My id in a notes-to-self room: its join row names my id in this cloud, which is what place and
+ * cloud profiles are keyed by — the session id can differ from it.
+ */
+const selfIdOf = (channel: DomainChannel): string => channel.$join?.userId ?? channel.memberIds?.[0] ?? '';
+
 /** A person's avatar as the Direct messages rows draw it: their photo, else a colored initial. */
 const personAvatar = (seed: string, display: { name: string; thumbnail?: string }): ReactNode => (
     <Avatar className="h-6 w-6 shrink-0">
@@ -395,7 +401,9 @@ export const ChannelList = ({
     const members = useMemo(() => (canStartDm ? (memberPeers ?? []) : []), [canStartDm, memberPeers]);
     const counterpartIds = useMemo(
         () => [
-            ...dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
+            ...dms
+                .map(c => (isSelfChannel(c) ? selfIdOf(c) : dmCounterpartId(c, myUid, c.$join?.userId)))
+                .filter((id): id is string => !!id),
             ...members.map(member => member.peerId),
         ],
         [dms, myUid, members]
@@ -426,17 +434,14 @@ export const ChannelList = ({
     /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
     const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode; pending: boolean } => {
         if (isSelfChannel(channel)) {
-            return {
-                label: t('dm.you'),
-                icon: (
-                    <Avatar className="h-6 w-6 shrink-0">
-                        <AvatarFallback className="text-nano font-semibold" style={avatarStyle(myUid ?? 'me')}>
-                            {t('dm.you').charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
-                ),
-                pending: false,
-            };
+            // Drawn like the picker's "me" row: my place photo, else my cloud one. The label stays.
+            const selfId = selfIdOf(channel);
+            const display = resolveDisplay(
+                selfId ? placeProfiles[selfId] : undefined,
+                counterpartProfiles.get(selfId)?.name ?? t('dm.you'),
+                counterpartProfiles.get(selfId)?.thumbnail
+            );
+            return { label: t('dm.you'), icon: personAvatar(selfId || (myUid ?? 'me'), display), pending: false };
         }
         const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
         const display = resolveDisplay(
@@ -528,10 +533,14 @@ export const ChannelList = ({
         const c = chById.get(id);
         return c ? [c] : [];
     });
-    const visibleDms = orderedDmIds.flatMap(id => {
-        const dm = dmById.get(id);
-        return dm ? [dm] : [];
-    });
+    // My notes-to-self room is pinned above the 1:1s: no stored order or name sort moves it, and
+    // it cannot be dragged or moved by keyboard (see makeSectionReorder / moveSelectedByKeyboard).
+    const visibleDms = orderedDmIds
+        .flatMap(id => {
+            const dm = dmById.get(id);
+            return dm ? [dm] : [];
+        })
+        .sort((a, b) => Number(isSelfChannel(b.channel)) - Number(isSelfChannel(a.channel)));
 
     // A person with no 1:1 yet is never drawn as a raw id: the row waits for a name to load.
     const q = query.trim().toLowerCase();
@@ -558,13 +567,18 @@ export const ChannelList = ({
     // empty section says so rather than leaving a heading with nothing under it and no way in.
     const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
 
+    const selfIds = new Set(dms.filter(isSelfChannel).map(c => c.id ?? ''));
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
     };
     // A move rewrites only the moved section's slice; the other section keeps its stored order.
     const makeSectionReorder = (section: 'ch' | 'dm') => (keys: string[]) => {
         // A person without a 1:1 has no room to order; their rows stay behind the 1:1s by name.
-        const orderedIds = keys.filter(key => !key.startsWith('member:')).map(key => key.replace(/^(ch|dm):/, ''));
+        // Nor does my notes-to-self room, which is always drawn first.
+        const orderedIds = keys
+            .filter(key => !key.startsWith('member:'))
+            .map(key => key.replace(/^(ch|dm):/, ''))
+            .filter(id => !selfIds.has(id));
         const dmIds = new Set(dms.map(c => c.id ?? ''));
         const chIds = new Set(regular.map(c => c.id ?? ''));
         if (section === 'ch') {
@@ -589,8 +603,8 @@ export const ChannelList = ({
             return;
         }
         if (dmById.has(id)) {
-            if (collapsed.dm) return;
-            const ids = visibleDms.map(dm => dm.channel.id ?? '');
+            if (collapsed.dm || selfIds.has(id)) return;
+            const ids = visibleDms.map(dm => dm.channel.id ?? '').filter(dmId => !selfIds.has(dmId));
             const from = ids.indexOf(id);
             if (from < 0) return;
             makeSectionReorder('dm')(moveChannel(ids, id, from + delta, ids).map(orderedId => `dm:${orderedId}`));
@@ -660,6 +674,8 @@ export const ChannelList = ({
         return {
             key: `${section}:${id}`,
             keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
+            // My notes-to-self room holds the top of Direct messages.
+            dragDisabled: section === 'dm' && isSelfChannel(channel),
             node: (
                 <ChannelRowMenu
                     channel={channel}
@@ -708,10 +724,11 @@ export const ChannelList = ({
         regular.map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
+    // Self-first, as the section draws it.
     const allDmIds = applyChannelOrder(
         dmRows.map(dm => dm.channel.id ?? ''),
         pinScope ? storedChannelOrder : undefined
-    );
+    ).sort((a, b) => Number(selfIds.has(b)) - Number(selfIds.has(a)));
     displayOrderRef.current = [...new Set([...pinnedIds, ...allChannelIds, ...allDmIds])].filter(Boolean);
 
     // While the first names are loading the section is one block of placeholder rows: drawn row by
