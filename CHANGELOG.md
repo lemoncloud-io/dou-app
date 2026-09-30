@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-30] - root@0.73.3, @chatic/desktop-web@0.16.4
+
+### Bug Fixes
+
+- (desktop-web) save and copy images past the HTTP cache, not from it
+
 ## [2026-09-30] - root@0.73.2, @chatic/desktop-web@0.16.3
 
 ### Bug Fixes
