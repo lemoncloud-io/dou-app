@@ -83,9 +83,11 @@ cannot be taken back (the second cost below). It was dropped for the room invite
 included: an owner filling a new place invites the people it is for, and two ways of inviting that
 look different for the same product noun would be the larger cost.
 
-`user.invite-batch` without a room was **not** measured before this decision — only `user.invite`
-was. That it files the batch under the session's site the same way, and what the server's own text
-says, is still to be confirmed.
+`user.invite-batch` without a room was measured afterwards on the dev servers: it files every number
+under the session's site, writes a member role per number at issue, and a clean guest accepting one
+lands in the place alone. It differs from `user.invite` in three ways the app does not control — no
+`channelId` key at all, the phone number as the member's `name`, and a three-day expiry instead of
+one. What the server's own text says could not be seen from the client.
 
 ## Consequences
 

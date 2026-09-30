@@ -39,8 +39,13 @@ What the server does with it was measured on the dev servers:
 - **Accepting needs nothing new.** `auth.switch` into that role succeeds, `user.my-site` lists the
   place with `isOwner: false`, and no place profile is required.
 
-Those were measured on `user.invite`. `user.invite-batch` without a room has not been measured yet —
-that it files the same way, and what its server-sent text says, is an open question.
+`user.invite-batch { to }` with no room was measured the same way. It files every number under the
+session's site too, writes a user and a member role per number at issue, and a clean guest accepting
+one lands in the place alone. Three differences from `user.invite`: a batch row carries **no
+`channelId` key at all** (not `""`, which the accept screen reads the same), its `name` is the phone
+number — the batch has no names, so that is what the new member is called until they set a profile —
+and it expires in **three days**, where a single invite asks for and gets one. What the server's own
+text says is not visible from the client.
 
 ## Who sees the entry, and when it works
 
