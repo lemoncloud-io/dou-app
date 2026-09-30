@@ -3,8 +3,26 @@ import {
     clampDragOffset,
     DISMISS_DISTANCE_RATIO,
     DISMISS_VELOCITY_PX_PER_MS,
+    DRAG_SLOP_PX,
+    isPastDragSlop,
     shouldDismissOnRelease,
 } from './sheetDrag';
+
+describe('isPastDragSlop', () => {
+    it('treats a press that barely moved as a tap', () => {
+        expect(isPastDragSlop(0)).toBe(false);
+        expect(isPastDragSlop(3)).toBe(false);
+        expect(isPastDragSlop(DRAG_SLOP_PX)).toBe(false);
+    });
+
+    it('turns the press into a drag once it travels past the slop', () => {
+        expect(isPastDragSlop(DRAG_SLOP_PX + 1)).toBe(true);
+    });
+
+    it('never arms on upward travel, which cannot move the panel anyway', () => {
+        expect(isPastDragSlop(-40)).toBe(false);
+    });
+});
 
 describe('canStartDrag', () => {
     it('allows a drag at the top of the body', () => {
