@@ -5,7 +5,7 @@ import { BrandMark, Button, IconClose, ProfileAvatar, Text } from '@chatic/web-u
 
 import { InviteGlassSurface } from './InviteGlassSurface';
 import { InvitePlaceCard } from './InvitePlaceCard';
-import { InviteTargetCard } from './InviteTargetCard';
+import { InviteTargetCard, type InviteTargetKind } from './InviteTargetCard';
 import { InviteExpiryCard } from './InviteExpiryCard';
 import type { InviteCountdown } from '../../hooks/useInviteCountdown';
 
@@ -22,7 +22,7 @@ export interface InviteAcceptScreenProps {
      * Which kind of room the invite leads to. Drives the "You" card caption **and** whether the place
      * card exists at all — a 1:1 invite has no place to show (ADR-0037).
      */
-    targetKind?: 'group' | 'oneToOne';
+    targetKind?: InviteTargetKind;
     /** True while the accept pipeline is in flight — disables dismissal and spins the CTA. */
     isAccepting: boolean;
     onAccept: () => void;

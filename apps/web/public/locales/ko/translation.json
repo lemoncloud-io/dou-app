@@ -468,6 +468,7 @@
         "channelLimitReached": "그룹방은 최대 100개까지 만들 수 있어요",
         "profile": "프로필",
         "menuPlaceSettings": "플레이스 설정",
+        "menuPlaceInvite": "플레이스에 초대하기",
         "menuClose": "닫기",
         "search": "검색",
         "switchCloud": "클라우드 전환",
@@ -1361,6 +1362,7 @@
             "you": "You",
             "group": "그룹 대화",
             "oneToOne": "1:1 대화",
+            "place": "플레이스 멤버",
             "roomFriends": "방 친구 {{count}}"
         },
         "expiry": {
@@ -1662,6 +1664,13 @@
         "reinviteAlreadyAccepted": "상대가 이미 초대를 수락했어요",
         "validityHintDays_one": "초대 링크는 발급 후 {{count}}일 동안 유효합니다.",
         "validityHintDays_other": "초대 링크는 발급 후 {{count}}일 동안 유효합니다."
+    },
+    "placeInvite": {
+        "title": "플레이스 초대",
+        "heading": "{{placeName}}에 초대할 분의\n이름과 연락처를 입력해 주세요",
+        "headingNote": "초대받은 분은 채팅방 없이 플레이스에만 참여해요.\n입력한 연락처는 초대 링크 발송에만 사용됩니다.",
+        "smsMessage": "{{senderName}}님이 DoU 플레이스 '{{placeName}}'에 초대했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
+        "placeChanged": "활성 플레이스가 바뀌어 초대를 보내지 않았어요. 홈에서 다시 시도해 주세요"
     },
     "inviteWaiting": {
         "moreOptions": "더보기",

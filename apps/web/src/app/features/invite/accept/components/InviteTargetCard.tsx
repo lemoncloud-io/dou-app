@@ -4,17 +4,28 @@ import { Badge, DefaultAvatar, IconUsersGroup, Text } from '@chatic/web-ui-kit';
 
 import { InviteCard } from './InviteCard';
 
+/**
+ * What accepting the invite joins. A relay invite is always a 1:1; a cloud invite is a group
+ * room, or — when it names no room — the place alone.
+ */
+export type InviteTargetKind = 'group' | 'oneToOne' | 'place';
+
+const CAPTION_KEY: Record<InviteTargetKind, string> = {
+    group: 'inviteAccept.target.group',
+    oneToOne: 'inviteAccept.target.oneToOne',
+    place: 'inviteAccept.target.place',
+};
+
 interface InviteTargetCardProps {
     /** Member count of the target room; when present a group badge is shown. */
     memberCount?: number;
-    /** Which kind of room the invite leads to. Relay invites are always 1:1 (ADR-0089). */
-    kind?: 'group' | 'oneToOne';
+    kind?: InviteTargetKind;
 }
 
 /**
  * Invite accept screen — the "You" block: who is joining. Shows the self avatar and the room-kind
  * caption (Figma 3072-10943 · 3076-11341). Cloud invites are group chats, so that stays the default;
- * the relay 1:1 invite passes `oneToOne`.
+ * the relay 1:1 invite passes `oneToOne`, and a cloud invite with no room passes `place`.
  *
  * The avatar is the `self` variant on purpose: the design uses the Figma "1-Person Profile" solid glyph for
  * **both** kinds rather than the three-person group glyph (ADR-0037 decision 5 — flagged for designer
@@ -35,10 +46,11 @@ export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCa
                     {t('inviteAccept.target.you')}
                 </Text>
                 <Text as="p" className="text-[14px] font-medium leading-[1.4] text-label">
-                    {t(kind === 'oneToOne' ? 'inviteAccept.target.oneToOne' : 'inviteAccept.target.group')}
+                    {t(CAPTION_KEY[kind])}
                 </Text>
             </div>
-            {memberCount != null && memberCount > 0 && (
+            {/* The count is a room's roster, so a place-only invite — which joins no room — has none to show. */}
+            {kind !== 'place' && memberCount != null && memberCount > 0 && (
                 <Badge
                     icon={<IconUsersGroup size={18} />}
                     // Figma 3076-11378: white 20% painted *over* the InviteCard it sits in, so the pill

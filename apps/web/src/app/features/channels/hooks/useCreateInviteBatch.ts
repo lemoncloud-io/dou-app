@@ -12,6 +12,7 @@ import { sendInviteMessage, type InviteMessageChannel } from '../../invite/utils
  * User invite hook — supports both single and batch invites.
  * - createSingleInvite: invite 1 person → **sends the invite text via SMS** (app), or copies it
  *   to the clipboard on web.
+ * - createPlaceInvite: the same, into the active place without a room.
  * - requestInviteLink: invite 1 person → returns only the Location link (doesn't auto-send it).
  *   For displaying/sharing on the invite link screen.
  * - createBatchInvite: batch-invite several people (the server sends the SMS).
@@ -78,6 +79,34 @@ export const useCreateInviteBatch = () => {
     };
 
     /**
+     * Place-only invite — the same single invite with **no `channelId`**, so accepting it joins the
+     * place and no room. There is no site field on the wire: the server stamps the site the session
+     * is sitting on, so the caller must only offer this while the session is on `placeName`'s place.
+     * Delivery and its `channel` report are the same as {@link createSingleInvite}; only the SMS body
+     * differs, because "invited you to a chat" would promise a room the invitee does not get.
+     */
+    const createPlaceInvite = async (params: {
+        name: string;
+        phone: string;
+        placeName: string;
+    }): Promise<{ inviteView: MyInviteView; channel: InviteMessageChannel | false }> => {
+        const inviteView = await requestInvite({ name: params.name, phone: params.phone });
+
+        const location = (inviteView as any).Location as string | undefined;
+        if (!location) {
+            return { inviteView, channel: false };
+        }
+
+        const body = t('placeInvite.smsMessage', {
+            senderName: myProfile?.nick || t('inviteFriends.defaultSenderName'),
+            placeName: params.placeName,
+            deeplink: location,
+        });
+
+        return { inviteView, channel: await sendInviteMessage(params.phone, body) };
+    };
+
+    /**
      * Batch invite — `to` is an array on the wire, so the number list is passed straight through
      * as an array. It used to be joined with commas into a single `alias`, but the server
      * rejected that while trying to parse the string as one number (`@phone[a,b] is invalid format`).
@@ -94,6 +123,7 @@ export const useCreateInviteBatch = () => {
 
     return {
         createSingleInvite,
+        createPlaceInvite,
         requestInviteLink,
         createBatchInvite,
         isPending: isPending['invite'] || isPending['invite-batch'],

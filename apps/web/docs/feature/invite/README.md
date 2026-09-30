@@ -5,6 +5,9 @@ name and a phone number, the app issues a relay invite and hands the deeplink to
 the other person opens that link, proves the number is theirs, and lands in a DM room that did not
 exist a moment earlier.
 
+It also issues the **place invite**: a cloud place's owner brings someone into the place with no
+room ([place-invite.md](./place-invite.md)).
+
 The two ends share almost nothing but the code shape, so each has its own document. This one holds
 what both obey.
 
@@ -20,12 +23,15 @@ what both obey.
   cloud alike.
 - The relay acceptance orchestration: re-read, phone verification, place profile, accept, and the
   three-tier hunt for the room the accept creates.
+- The place invite: `user.invite` with no room, sent from `/invite/place/:placeId`, and the accept
+  screen's `place` target kind.
 
 **Out**
 
 - **Group-room "add a friend"**, which uses a different packet (`user.invite`) and is bound to a
   channel — [channels](../channels/README.md).
-- **The cloud invitation lane.** `/invite/accept` routes it, but the REST accept pipeline behind
+- **The cloud invitation lane**, apart from the place invite's sender form and target card.
+  `/invite/accept` routes it, but the REST accept pipeline behind
   `CloudInviteAccept` — login with the code, then enter cloud, site and channel — is documented
   with the rest of session entry in [auth](../auth/README.md). How it leaves the accept screen is
   shared by both lanes and is below.
@@ -84,8 +90,9 @@ login finishes, and a private path would fall to the `*` catch-all and take the 
 it. No shell means no home data hooks and no bottom nav — but it also means the page mounts
 `useBackHandler` itself, since that normally arrives with the layout.
 
-The sender's two screens are ordinary private routes: the issue form (`/invite/contact`, which route
-state also puts into re-invite mode) and the waiting screen (`/invite/:inviteId/waiting`).
+The sender's screens are ordinary private routes: the issue form (`/invite/contact`, which route
+state also puts into re-invite mode), the waiting screen (`/invite/:inviteId/waiting`), and the place
+invite form (`/invite/place/:placeId`).
 
 ## Leaving the accept screen, and opening the room
 
@@ -124,12 +131,13 @@ kills its web process — easy to cause while the reader is in another app readi
 after that the entries behind the accept screen belong to a document that is gone. The rewind is
 then a full page load, which would take an in-memory id with it.
 
-## The two lanes
+## The documents
 
 | Document                                           | What it covers                                                                                                         |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [relay-invite-sender.md](./relay-invite-sender.md) | The issue form and its three gates, SMS hand-off, re-invite detection, the retire rules, the waiting screen, list rows |
 | [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt          |
+| [place-invite.md](./place-invite.md)               | The cloud place invite: the session-site rule and its gate, what the server does with no room, and what it leaves open |
 
 ## Where the backend still has gaps
 

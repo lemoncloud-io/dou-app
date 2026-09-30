@@ -467,6 +467,7 @@
         "channelLimitReached": "You can create up to 100 group rooms",
         "profile": "Profile",
         "menuPlaceSettings": "Place Settings",
+        "menuPlaceInvite": "Invite to Place",
         "menuClose": "Close",
         "search": "Search",
         "switchCloud": "Switch Cloud",
@@ -1361,6 +1362,7 @@
             "you": "You",
             "group": "Group chat",
             "oneToOne": "1:1 chat",
+            "place": "Place member",
             "roomFriends": "{{count}} members"
         },
         "expiry": {
@@ -1662,6 +1664,13 @@
         "reinviteAlreadyAccepted": "They have already accepted the invite",
         "validityHintDays_one": "The invite link stays valid for {{count}} day after it is issued.",
         "validityHintDays_other": "The invite link stays valid for {{count}} days after it is issued."
+    },
+    "placeInvite": {
+        "title": "Invite to Place",
+        "heading": "Enter the name and number of\nthe person to invite to {{placeName}}",
+        "headingNote": "They join the place without any chat room.\nThe number is used only to send the invite link.",
+        "smsMessage": "{{senderName}} invited you to the DoU place '{{placeName}}'! Tap the link below to join.\n{{deeplink}}",
+        "placeChanged": "The active place changed, so the invite was not sent. Please try again from home"
     },
     "inviteWaiting": {
         "moreOptions": "More options",
