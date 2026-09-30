@@ -95,12 +95,12 @@ describe('cloudDmPlaces', () => {
         expect(cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }).get('U:me')).toEqual(PLACES);
     });
 
-    it('leaves the relay notes-to-self room to its own place', () => {
+    it("lists the relay's notes-to-self room in every place too", () => {
         const channels = [
             { id: 'U:me', cid: 'default', sid: 'busy', stereo: 'self', memberIds: [ME] },
         ] as DomainChannel[];
 
-        expect(cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }).has('U:me')).toBe(false);
+        expect(cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }).get('U:me')).toEqual(PLACES);
     });
 
     it('leaves my notes-to-self room unfiled while my places are unknown', () => {
@@ -119,7 +119,7 @@ describe('listingPlaces', () => {
         expect(listingPlaces(self, new Map([['U:me', PLACES]]))).toEqual(PLACES);
     });
 
-    // Unfiled — the relay's, or any before my places load — it keeps the place it is stamped with.
+    // Unfiled — before my places load — it keeps the place it is stamped with.
     it('falls back to its own place for a notes-to-self room that was not filed', () => {
         expect(listingPlaces(self, new Map())).toEqual(['busy']);
     });

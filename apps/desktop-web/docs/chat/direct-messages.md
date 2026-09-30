@@ -37,13 +37,14 @@ elsewhere.
   whose name has not loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the
   members of a group channel they are in. Without them, a place where no one has a 1:1 with me
   showed an empty section.
-- **My notes-to-self room is listed in every place.** The server keeps one per person and returns
-  it whichever place is asked about, so `cloudDmPlaces` files it under all of mine rather than the
-  place it was created in (its `sid`). Until my places are known it keeps that one place. Its unread
-  count therefore shows in every place, the same trade a 1:1 listed in several places makes. The
-  relay's self room is not filed and stays in its own place, as before. The quick switcher treats
-  it like a 1:1 (`self` on its index entry): never offered "in another place", since the open place
-  lists it.
+- **My notes-to-self room is listed in every place,** relay included. It belongs to the account and
+  the server returns it whichever place is asked about. Two rules carry that: the sidebar lists a
+  row stored under the account (`ACCOUNT_CHANNEL_SID`, a room that arrived with no place), and
+  `cloudDmPlaces` files a room that does name a place — as one opened by `channel.get-self` does —
+  under all of mine rather than that one. The second is what the unread counts and the quick
+  switcher read, so they agree with the sidebar. Its unread count therefore shows in every place,
+  the same trade a 1:1 listed in several places makes, and the quick switcher treats it like a 1:1
+  (`self` on its index entry): never offered "in another place", since the open place lists it.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.
