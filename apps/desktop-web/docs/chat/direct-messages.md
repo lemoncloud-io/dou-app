@@ -93,6 +93,14 @@ returns the same room, like a 1:1.
 - **The row does not wait for the pool.** It is drawn apart from the people list, so it shows while
   that list loads, fails or is empty. A search filters it like any row — by my place nick, my account
   name, my id, its "You" tag or its "Notes to self" line.
+- **The room exists before anyone asks for it.** A subscription cloud does not create it on its own,
+  so a new member had no notes-to-self row until they picked themselves. `useEnsureSelfChannel`
+  (mounted with the background sync) asks `channel.get-self` once per cloud per app session, when the
+  socket is verified, a place is open and no switch is in flight; a failure is logged and asked again
+  the next time those hold (a reconnect, a place change, a switch ending). The relay needs none of this — its sync brings the room.
+- **Its sidebar row wears my photo**, as the picker's "me" row does: my place profile's, else my
+  cloud profile's, looked up by my id in the cloud (the room's own join row), not the session id.
+  The label stays "You".
 
 ## Opening a room that is not listed yet
 

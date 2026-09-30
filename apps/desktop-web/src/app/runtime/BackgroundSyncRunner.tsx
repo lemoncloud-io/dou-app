@@ -1,5 +1,6 @@
 import { useInvitedCloudRecovery } from '../shared';
 import { useBackgroundSync } from './useBackgroundSync';
+import { useEnsureSelfChannel } from './useEnsureSelfChannel';
 
 /**
  * Mounts the global background sync. Renders nothing; placed once under DesktopRuntime so
@@ -10,5 +11,6 @@ export const BackgroundSyncRunner = (): null => {
     // Same lifetime, same job — repair the local record of the cloud we are in, which for an
     // invited cloud is the only thing that keeps it on the rail after we leave it.
     useInvitedCloudRecovery();
+    useEnsureSelfChannel();
     return null;
 };
