@@ -327,7 +327,7 @@ export const ko: EnTranslation = {
     'update.downloading': '업데이트 다운로드 중… {{percent}}%',
     'update.downloaded': '업데이트를 설치할 준비가 됐어요',
     'update.restart': '지금 다시 시작',
-    'update.error': '업데이트 확인 실패',
+    'update.error': '업데이트에 실패했어요',
     'update.dismiss': '닫기',
     'profile.title': '내 프로필',
     'profile.name': '이름',

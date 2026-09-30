@@ -326,7 +326,7 @@ export const en = {
     'update.downloading': 'Downloading update… {{percent}}%',
     'update.downloaded': 'Update ready to install',
     'update.restart': 'Restart now',
-    'update.error': 'Update check failed',
+    'update.error': 'Update failed',
     'update.dismiss': 'Dismiss',
     'profile.title': 'My profile',
     'profile.name': 'Name',

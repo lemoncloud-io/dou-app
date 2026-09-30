@@ -20,7 +20,11 @@ const BannerButton = ({
         onClick={onClick}
         className={cn(
             'rounded px-2 py-0.5 text-caption font-semibold transition-colors',
-            variant === 'solid' ? 'bg-current/20 hover:bg-current/30' : 'underline-offset-2 hover:underline'
+            // Tailwind 3 has no opacity for `current`, so `bg-current/20` generated nothing and the
+            // solid button had no fill. Solid buttons only sit on the primary banner.
+            variant === 'solid'
+                ? 'bg-primary-foreground/15 hover:bg-primary-foreground/25'
+                : 'underline-offset-2 hover:underline'
         )}
     >
         {children}
@@ -53,7 +57,9 @@ export const UpdateBanner = () => {
             aria-live={status === 'downloading' ? 'off' : 'polite'}
             className={cn(
                 'flex items-center justify-center gap-3 px-3 py-1.5 text-caption font-medium',
-                isError ? 'bg-warning text-warning-foreground' : 'bg-primary text-primary-foreground'
+                // The amber text token is made for the /15 tint (as ConnectionBanner uses it); on the
+                // solid amber it was nearly unreadable.
+                isError ? 'bg-warning/15 text-warning-foreground' : 'bg-primary text-primary-foreground'
             )}
         >
             {status === 'available' && (
@@ -68,7 +74,7 @@ export const UpdateBanner = () => {
             {status === 'downloading' && (
                 <>
                     <span>{t('update.downloading', { percent })}</span>
-                    <span className="h-1 w-24 overflow-hidden rounded-full bg-current/20" aria-hidden>
+                    <span className="h-1 w-24 overflow-hidden rounded-full bg-primary-foreground/20" aria-hidden>
                         <span
                             className="block h-full origin-left bg-current transition-transform duration-300"
                             style={{ transform: `scaleX(${percent / 100})` }}
