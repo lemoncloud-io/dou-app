@@ -860,6 +860,28 @@ describe('ChannelList — image message preview', () => {
         renderWith({ content: '', uploadIds: ['u1'], hidden: true, createdAtMs: 1 });
         expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
     });
+
+    // `stereo` as the server stamps each upload; a sent row carries it in `upload$$`.
+    const up = (stereo: string) => ({ id: `u-${stereo}`, status: 'stored', stereo });
+
+    it.each([
+        ['video', [up('video')], 'chat.attach.previewVideo'],
+        ['videos', [up('video'), up('video')], 'chat.attach.previewVideoCount'],
+        ['file', [up('file')], 'chat.attach.previewFile'],
+        ['files', [up('file'), up('file')], 'chat.attach.previewFileCount'],
+        ['photos from upload$$', [up('image'), up('image')], 'chat.attach.previewCount'],
+        ['mixed kinds', [up('image'), up('video')], 'chat.attach.previewMixedCount'],
+        ['a lone audio file', [up('audio')], 'chat.attach.previewMixedCount'],
+    ])('names %s by kind', (_label, uploads, key) => {
+        renderWith({ content: '', upload$$: uploads, createdAtMs: 1 });
+        expect(screen.getByText(key)).toBeInTheDocument();
+    });
+
+    it('keeps the text over a file attachment too', () => {
+        renderWith({ content: '계약서', upload$$: [up('file')], createdAtMs: 1 });
+        expect(screen.getByText('계약서')).toBeInTheDocument();
+        expect(screen.queryByText('chat.attach.previewFile')).not.toBeInTheDocument();
+    });
 });
 
 describe('ChannelList swipe actions', () => {

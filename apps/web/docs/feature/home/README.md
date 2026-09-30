@@ -292,12 +292,12 @@ place-profile gate in front of it: an invitee with no profile goes to the room a
 
 ## Documents
 
-| File                                                 | What it covers                                                                 |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [last-chat.md](./last-chat.md)                       | The message preview and the list order, and why the server's summary is unused |
-| [unread-dot.md](./unread-dot.md)                     | The unread formula, the place and cloud marks, cross-cloud push resolution     |
-| [place-channel-create.md](./place-channel-create.md) | Creating a place or a group room — gating, caps, the two overlays              |
-| [place-profile.md](./place-profile.md)               | Header identity tiers, the setup nudge, the branded place name                 |
+| File                                                 | What it covers                                                                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [last-chat.md](./last-chat.md)                       | The message preview — text, deleted or attachment kind — the list order, and why the server's summary is unused |
+| [unread-dot.md](./unread-dot.md)                     | The unread formula, the place and cloud marks, cross-cloud push resolution                                      |
+| [place-channel-create.md](./place-channel-create.md) | Creating a place or a group room — gating, caps, the two overlays                                               |
+| [place-profile.md](./place-profile.md)               | Header identity tiers, the setup nudge, the branded place name                                                  |
 
 ## How to verify
 

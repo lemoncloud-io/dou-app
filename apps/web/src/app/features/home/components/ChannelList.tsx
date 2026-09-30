@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
-import { chatImageCount, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/data';
+import {
+    chatAttachmentSummary,
+    type ChatAttachmentKind,
+    type DomainChannel,
+    type DomainChat,
+    type DomainJoin,
+} from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -72,6 +78,22 @@ const ChannelSkeleton = ({ delayMs = 0 }: { delayMs?: number }) => (
         </div>
     </div>
 );
+
+// Nouns and counters match the push for the same message ("사진 3장" / "사진 3장을 보냈습니다"),
+// so changing one of them means changing the push copy in the mobile locales too. `mixed` has no
+// one-attachment form: a single attachment is a single kind, except a lone audio file, which the
+// count form covers.
+const ATTACHMENT_PREVIEW_KEYS: Record<ChatAttachmentKind, { one?: string; many: string }> = {
+    image: { one: 'chat.attach.preview', many: 'chat.attach.previewCount' },
+    video: { one: 'chat.attach.previewVideo', many: 'chat.attach.previewVideoCount' },
+    file: { one: 'chat.attach.previewFile', many: 'chat.attach.previewFileCount' },
+    mixed: { many: 'chat.attach.previewMixedCount' },
+};
+
+const attachmentPreviewKey = ({ kind, count }: { kind: ChatAttachmentKind; count: number }): string => {
+    const keys = ATTACHMENT_PREVIEW_KEYS[kind];
+    return count === 1 && keys.one ? keys.one : keys.many;
+};
 
 const ChannelItem = ({
     channel,
@@ -153,16 +175,15 @@ const ChannelItem = ({
     // leaving the backticks in would make the list dirtier than before code was supported. No badge
     // or monospace either — that would complicate the row and tangle with blurLastMessage (ADR-0055).
     //
-    // An image message carries no text, so its row would read as a blank line. It previews as a
-    // photo count instead — counted from `upload$$`, or from the `uploadIds` a list head carries.
+    // An attachment-only message carries no text, so its row would read as a blank line. It
+    // previews as what it carries instead — "Photo", "3 videos", "2 attachments" — using the same
+    // nouns as the push for that message.
     const textPreview = toPlainPreview(messagePlainText(lastChat?.content));
-    const imageCount = chatImageCount(lastChat);
+    const attachments = chatAttachmentSummary(lastChat);
     const preview = lastChat?.hidden
         ? t('chat.room.deletedMessage')
-        : !textPreview && imageCount > 0
-          ? imageCount === 1
-              ? t('chat.attach.preview')
-              : t('chat.attach.previewCount', { count: imageCount })
+        : !textPreview && attachments
+          ? t(attachmentPreviewKey(attachments), { count: attachments.count })
           : textPreview;
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 

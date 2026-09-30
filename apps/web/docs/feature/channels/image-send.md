@@ -114,7 +114,8 @@ Retry of a failed image row goes to `retry(pendingId)`, not the text path (which
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
 state, and the send lets a retry in only after it has marked the row failed. A row whose files are gone
 — a reload left it behind — answers with a notice to delete it. Deleting
-discards the files as well. The home list previews an image-only last message as a photo count.
+discards the files as well. The home list previews an image-only last message as a photo count — the kind rule for every attachment is in
+[home's last-chat.md](../home/last-chat.md#what-the-row-prints).
 
 ### The image cache
 
