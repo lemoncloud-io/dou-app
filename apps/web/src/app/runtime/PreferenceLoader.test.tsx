@@ -2,14 +2,14 @@ import { render } from '@testing-library/react';
 
 import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { appBridge } from '../bridge';
+import { appBridge, syncLanguageChoiceToShell } from '../bridge';
 import { PreferenceLoader } from './PreferenceLoader';
 
 jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
 jest.mock('@chatic/config', () => ({
     config: { snapshot: jest.fn(), set: jest.fn() },
 }));
-jest.mock('../bridge', () => ({ appBridge: { fetchPreference: jest.fn() } }));
+jest.mock('../bridge', () => ({ appBridge: { fetchPreference: jest.fn() }, syncLanguageChoiceToShell: jest.fn() }));
 
 const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
 const mockSnapshot = config.snapshot as jest.Mock;
@@ -104,5 +104,44 @@ describe('PreferenceLoader — 구 셸 브릿지 폴백', () => {
         await flush();
 
         expect(mockSet).not.toHaveBeenCalled();
+    });
+});
+
+describe('PreferenceLoader — resending the language choice to the shell', () => {
+    const mockSync = syncLanguageChoiceToShell as jest.Mock;
+    const snapshotWithLanguage = (language: { isOverridden: boolean; value?: unknown }) =>
+        mockSnapshot.mockImplementation((key: string) => (key === 'ui.language' ? language : { isOverridden: true }));
+
+    // A choice made while an older shell was installed sits in the config bag, but that shell kept
+    // its own copy in a format the current shell discards. Only a resend reaches the new store.
+    it('resends a stored choice once per native boot', async () => {
+        mockIsNative.mockReturnValue(true);
+        snapshotWithLanguage({ isOverridden: true, value: 'en' });
+
+        render(<PreferenceLoader />);
+        await flush();
+
+        expect(mockSync).toHaveBeenCalledTimes(1);
+        expect(mockSync).toHaveBeenCalledWith('en');
+    });
+
+    it('sends nothing when no choice was ever made', async () => {
+        mockIsNative.mockReturnValue(true);
+        snapshotWithLanguage({ isOverridden: false, value: 'system' });
+
+        render(<PreferenceLoader />);
+        await flush();
+
+        expect(mockSync).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing outside a shell', async () => {
+        mockIsNative.mockReturnValue(false);
+        snapshotWithLanguage({ isOverridden: true, value: 'ko' });
+
+        render(<PreferenceLoader />);
+        await flush();
+
+        expect(mockSync).not.toHaveBeenCalled();
     });
 });

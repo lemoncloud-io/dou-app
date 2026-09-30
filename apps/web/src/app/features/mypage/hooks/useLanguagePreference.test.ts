@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import { useLanguagePreference } from './useLanguagePreference';
 
@@ -15,11 +15,9 @@ jest.mock('@chatic/config', () => ({
 }));
 jest.mock('@chatic/config/react', () => ({ useConfigValue: () => stored }));
 
-let native = false;
-jest.mock('@chatic/bridges', () => ({ isNative: () => native }));
-const savePreferenceConfirmed = jest.fn();
+const syncLanguageChoiceToShell = jest.fn();
 jest.mock('../../../bridge', () => ({
-    appBridge: { savePreferenceConfirmed: (data: unknown) => savePreferenceConfirmed(data) },
+    syncLanguageChoiceToShell: (value: unknown) => syncLanguageChoiceToShell(value),
 }));
 
 const setDeviceLanguage = (injected: string | undefined, languages: string[]) => {
@@ -31,8 +29,7 @@ const setDeviceLanguage = (injected: string | undefined, languages: string[]) =>
 beforeEach(() => {
     jest.clearAllMocks();
     stored = undefined;
-    native = false;
-    savePreferenceConfirmed.mockResolvedValue({ success: true });
+    syncLanguageChoiceToShell.mockResolvedValue(undefined);
     setDeviceLanguage(undefined, ['en-US']);
 });
 
@@ -57,31 +54,12 @@ describe('useLanguagePreference', () => {
         expect(changeLanguage).toHaveBeenCalledWith('ko');
     });
 
-    it("tells the native shell's own language store the choice, system included", async () => {
-        native = true;
+    it("hands every choice to the shell's own language store, system included", () => {
         const { result } = renderHook(() => useLanguagePreference());
 
         act(() => result.current.setPreference('system'));
 
-        await waitFor(() => expect(savePreferenceConfirmed).toHaveBeenCalledWith({ key: 'language', value: 'system' }));
-    });
-
-    it('retries the native write once, like the theme', async () => {
-        native = true;
-        savePreferenceConfirmed.mockRejectedValueOnce(new Error('dropped'));
-        const { result } = renderHook(() => useLanguagePreference());
-
-        act(() => result.current.setPreference('ko'));
-
-        await waitFor(() => expect(savePreferenceConfirmed).toHaveBeenCalledTimes(2));
-    });
-
-    it('sends nothing over the bridge outside a shell', () => {
-        const { result } = renderHook(() => useLanguagePreference());
-
-        act(() => result.current.setPreference('ko'));
-
-        expect(savePreferenceConfirmed).not.toHaveBeenCalled();
+        expect(syncLanguageChoiceToShell).toHaveBeenCalledWith('system');
     });
 
     it('choosing system switches to the device language the shell reports', () => {

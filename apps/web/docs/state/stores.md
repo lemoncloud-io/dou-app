@@ -139,22 +139,26 @@ It is stored the way the theme is. Settings' language sheet goes through `useLan
 1. `config.set('ui.language', choice, { lane: 'shell' })` — the shell's config store, read back as
    the boot envelope (`CHATIC_APP_CONFIG_BAG`) on the next launch, and mirrored into
    `@chatic/config.ui.language` for a browser with no shell;
-2. `SavePreference('language', choice)`, confirmed with one retry — the shell's own `languageStore`,
-   which is what the shell's surfaces would follow. The choice goes over as is, `system` included;
+2. `SavePreference('language', choice)`, confirmed with one retry (`syncLanguageChoiceToShell`,
+   `app/bridge/`) — the shell's own `languageStore`, which its alerts and push banners follow. The
+   choice goes over as is, `system` included;
 3. `i18n.changeLanguage(...)`, so the screen follows at once.
 
-**The shell does not read its store yet.** Its alert copy and the push banners its notification
-services build all read the device locale directly, so today a pinned language changes the web and
-nothing native. Making the shell follow is a shell change, and the value it needs is already there.
+The shell follows the choice from the release that carries it: its own copy and the push banners
+use the pinned language, else the device's — see
+[`apps/mobile/docs/system/language.md`](../../../mobile/docs/system/language.md). `PreferenceLoader`
+also resends the stored choice once per native boot. The sheet only sends on change, and a choice
+made while an older shell was installed was kept there in a format the current shell discards.
 
 `src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx` has run
 `config.init()` — so it cannot ask `config.get`. `readStoredLanguagePreference` reads the same two
 places the resolver would, in the same order: the boot envelope, then the local mirror. The theme
 has a pre-paint read for the same reason.
 
-`PreferenceLoader`'s legacy `FetchPreference` fallback does **not** cover `ui.language`: the shell's
-`languageStore` starts at the device language and nothing wrote a choice into it before, so reading
-it back would turn a device default into a pin.
+`PreferenceLoader`'s legacy `FetchPreference` fallback does **not** read `ui.language` back from the
+shell. An older shell's store holds a zustand envelope with the device default or the language in
+effect at the time — a guess and a pick in one value — and a current shell's choice already reaches
+the web through the boot envelope.
 
 `system` is resolved on every boot, from the device languages in order — the shell's injected
 `CHATIC_APP_CURRENT_LANGUAGE` first, then `navigator.languages`. The shell's value has to come first
@@ -167,7 +171,7 @@ read that back first ever after. The device setting was looked at once, and on i
 English for everyone. That stored value is not carried over: a guess and a choice sit in the same key
 and cannot be told apart, and on iOS the stored `en` is the bug itself. **Every existing install
 starts on `system`, and someone who had picked a language other than the device's picks it once
-more.** The decision and its alternatives are ADR-0136.
+more.** The decision and its alternatives are ADR-0138.
 
 The key is still written with the language in effect, because `relaySession` points lemon-web-core's
 `x-lemon-language` header at `i18nextLng`. The SDK reads that name under its own prefix and storage
