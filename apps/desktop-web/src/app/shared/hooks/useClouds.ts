@@ -18,6 +18,14 @@ export interface RailCloud {
 }
 
 /**
+ * A cloud its subscription no longer keeps open: the membership lapsed or was blocked, and the
+ * server suspends or expires the cloud. Switching into one cannot succeed, and the only way back
+ * is a subscription, which is bought in the mobile app.
+ */
+export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
+    cloud.status === 'suspended' || cloud.status === 'expired';
+
+/**
  * Cloud list + currently-active cloud id for the cloud rail. The active id is derived from the
  * global session (`cloud.cloudId`); when the relay catalog has settled empty it falls back to
  * 'default' so the synthesized Home cloud highlights in relay mode.

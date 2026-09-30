@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     ContextMenu,
@@ -22,7 +23,25 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import { Hint, ScrollHint, cloudTiles, useScrollOverflow, type RailCloud, useRemoveCloud } from '../../../shared';
+import {
+    Hint,
+    MobileAppPointer,
+    ScrollHint,
+    cloudTiles,
+    isLapsedCloud,
+    useScrollOverflow,
+    type RailCloud,
+    useRemoveCloud,
+} from '../../../shared';
+
+/** The word a tile adds to its name when its cloud cannot be opened as it is. */
+const STATUS_KEY: Partial<Record<string, string>> = {
+    error: 'cloud.status.error',
+    reserved: 'cloud.status.provisioning',
+    init: 'cloud.status.provisioning',
+    suspended: 'cloud.status.suspended',
+    expired: 'cloud.status.expired',
+};
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -97,21 +116,35 @@ export const CloudRail = ({
                     {clouds.map((cloud, index) => {
                         const { label, initial } = tiles[index];
                         const isActive = cloud.id === activeCloudId;
-                        const isInactive = cloud.status && cloud.status !== 'active';
+                        const isInactive = !!cloud.status && cloud.status !== 'active';
+                        const isLapsed = isLapsedCloud(cloud);
                         // Home/Default can't be removed; owned + invited clouds can.
                         const removable = cloud.kind !== 'home';
-                        // A cloud whose setup failed cannot be opened; say why before the click fails.
-                        const tileLabel =
-                            cloud.status === 'error' ? t('cloud.setupFailedLabel', { name: label }) : label;
+                        // A cloud that cannot be opened as it is says why before the click fails.
+                        const statusKey = cloud.status ? STATUS_KEY[cloud.status] : undefined;
+                        const tileLabel = statusKey
+                            ? t('cloud.statusLabel', { name: label, status: t(statusKey) })
+                            : label;
+                        // Only a subscription reopens a lapsed cloud, and that is bought in the
+                        // mobile app, so the hint and the click both say where to go.
+                        const hintLabel = isLapsed ? `${tileLabel}\n${t('mobileApp.planAndCloud')}` : tileLabel;
+                        const select = () => {
+                            if (!isLapsed) {
+                                onSelectCloud(cloud.id);
+                                return;
+                            }
+                            // A switch here was refused and offered a Try again that could never work.
+                            toast({ title: t('cloud.lapsed.title'), description: <MobileAppPointer /> });
+                        };
                         return (
                             <ContextMenu key={cloud.id}>
                                 <ContextMenuTrigger asChild>
                                     {/* Plain wrapper, as on the channel rows: composing the Radix
                                     trigger onto Hint's own trigger drops onContextMenu. */}
                                     <div className="contents">
-                                        <Hint label={tileLabel}>
+                                        <Hint label={hintLabel}>
                                             <button
-                                                onClick={() => onSelectCloud(cloud.id)}
+                                                onClick={select}
                                                 disabled={isSwitching}
                                                 aria-label={tileLabel}
                                                 aria-current={isActive ? 'true' : undefined}
@@ -124,7 +157,13 @@ export const CloudRail = ({
                                                     isActive
                                                         ? 'border-2 border-primary bg-tile-active text-primary'
                                                         : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
-                                                    isInactive && 'opacity-50',
+                                                    // A cloud that cannot be opened reads as set aside, not
+                                                    // faded out: a dashed edge and muted ink at full opacity
+                                                    // stay legible, where 50% opacity left the initial at
+                                                    // well under text contrast.
+                                                    !isActive &&
+                                                        isInactive &&
+                                                        'border-dashed border-muted-foreground text-muted-foreground',
                                                     // Block a second switch mid-handshake; dim non-active icons for feedback.
                                                     isSwitching && 'cursor-not-allowed',
                                                     isSwitching && !isActive && 'opacity-40'
