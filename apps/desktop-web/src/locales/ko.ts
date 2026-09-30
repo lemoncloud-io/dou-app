@@ -220,7 +220,6 @@ export const ko: EnTranslation = {
     'chat.noChannelsHint': '채널을 만들어 시작해 보세요.',
     'chat.noChannelsHintDefault': '메시지가 여기에 표시돼요.',
     'chat.loading': '불러오는 중...',
-    'chat.connecting': '연결 중…',
     'chat.today': '오늘',
     'chat.yesterday': '어제',
     'cloud.untitled': '이름 없는 클라우드',

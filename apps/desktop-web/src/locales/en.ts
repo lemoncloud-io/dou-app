@@ -213,7 +213,6 @@ export const en = {
     'chat.noChannelsHint': 'Create one to get started.',
     'chat.noChannelsHintDefault': 'Your messages will appear here.',
     'chat.loading': 'Loading...',
-    'chat.connecting': 'Connecting…',
     'chat.today': 'Today',
     'chat.yesterday': 'Yesterday',
     'cloud.untitled': 'Untitled cloud',
