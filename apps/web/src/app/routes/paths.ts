@@ -61,6 +61,9 @@ export const ROUTES = {
         // Sending an invite (Private — Track B).
         contact: '/invite/contact',
         waiting: (inviteId: string) => `/invite/${inviteId}/waiting`,
+        // Inviting someone into a cloud place without a room (Private — home profile menu).
+        place: (placeId: string) => `/invite/place/${placeId}`,
+        placeLink: (placeId: string) => `/invite/place/${placeId}/link`,
     },
 
     // ── Place (Private) ──────────────────────────────────────────

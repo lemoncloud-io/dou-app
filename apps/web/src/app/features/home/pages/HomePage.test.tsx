@@ -78,7 +78,12 @@ jest.mock('@chatic/web-ui-kit', () => ({
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
     DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-    DropdownMenuItem: ({ children }: any) => <div>{children}</div>,
+    // A button, so a menu entry's own `disabled` and `onClick` are what the tests drive.
+    DropdownMenuItem: ({ children, disabled, onClick }: any) => (
+        <button type="button" disabled={disabled} onClick={onClick}>
+            {children}
+        </button>
+    ),
     DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
 }));
 // Stable across renders so a test can assert a branch does NOT toast.
@@ -198,7 +203,7 @@ jest.mock('../components/cloud-session', () => ({ getCloudDisplayName: () => 'Cl
 
 // The two hooks the ADR calls out as load-bearing on relay. Spies so we can assert they still run.
 // `places` is mutable so a test can seed the cloud up to (and past) the place cap.
-let places: { id: string; stereo: string }[] = [{ id: 'site-1', stereo: 'group' }];
+let places: { id: string; stereo: string; isOwner?: boolean }[] = [{ id: 'site-1', stereo: 'group' }];
 // The three inputs that decide what fills the Chat slot: the channel list, the "no place" empty
 // state, or — while none of it is known yet — the loading state.
 let isPlacesLoading = false;
@@ -492,6 +497,54 @@ describe('HomePage — place cap', () => {
 });
 
 // The subscription badge in the profile dropdown (Figma 3108:25868) — DoU Home is always FREE; a cloud reads my actual tier.
+describe('HomePage — invite to place (profile menu)', () => {
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+        places = [{ id: 'site-1', stereo: 'work', isOwner: true }];
+    });
+
+    it('offers the owner an invite into the active place', () => {
+        render(<HomePage />);
+        fireEvent.click(screen.getByText('homePage.menuPlaceInvite'));
+
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.place('site-1'));
+    });
+
+    it('is absent on the relay, whose place has no owner', () => {
+        selectedCloudId = 'default';
+        render(<HomePage />);
+
+        expect(screen.queryByText('homePage.menuPlaceInvite')).not.toBeInTheDocument();
+    });
+
+    it('is absent for a member of a place they do not own', () => {
+        places = [{ id: 'site-1', stereo: 'work', isOwner: false }];
+        render(<HomePage />);
+
+        expect(screen.queryByText('homePage.menuPlaceInvite')).not.toBeInTheDocument();
+    });
+
+    it('is held while a place switch is moving the session', () => {
+        // The server files the invite under the session's site, so mid-switch it could land in the
+        // place being left.
+        isSwitchingPlace = true;
+        render(<HomePage />);
+
+        expect(screen.getByText('homePage.menuPlaceInvite')).toBeDisabled();
+    });
+
+    it('is held while the shown place and the session place disagree', () => {
+        places = [
+            { id: 'site-1', stereo: 'work', isOwner: true },
+            { id: 'site-2', stereo: 'work', isOwner: true },
+        ];
+        selectedPlaceId = 'site-2';
+        render(<HomePage />);
+
+        expect(screen.getByText('homePage.menuPlaceInvite')).toBeDisabled();
+    });
+});
+
 describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     it('두유홈(중계)에선 FREE 뱃지를 보인다', () => {
         selectedCloudId = 'default';

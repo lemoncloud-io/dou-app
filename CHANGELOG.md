@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-09-30] - No version updates
+
+### Bug Fixes
+
+- (ui-kit) keep dialog content inside the panel, not past it
+
+## [2026-09-30] - No version updates
+
+### Bug Fixes
+
+- (shared,app-runtime) send a chat gif without a thumbnail so the room plays it (ADR-0142)
+
 ## [2026-09-30] - root@0.73.4, @chatic/web@0.56.1
 
 ### Bug Fixes

@@ -30,7 +30,9 @@ export const AVATAR_IMAGE = { avatar: { as: 'dataUrl', profile: AVATAR_PROFILE }
 export const REPORT_PHOTO = { photo: { as: 'dataUrl', profile: REPORT_PROFILE } } as const satisfies ImageRequest;
 
 /**
- * A photo sent in a chat: the sender's own bytes, plus a small copy.
+ * A photo sent in a chat: the sender's own bytes, plus a small copy. Chat call sites go through
+ * `prepareChatAttachment`, which runs this for everything but a GIF — a GIF goes up without the small
+ * copy, because a thumbnail is its first frame only and the list would draw it still.
  *
  * `original` has no profile, and that absence is the decision — object storage carries it, and
  * re-encoding would spend quality the sender chose. `thumbnail` is what keeps a list from

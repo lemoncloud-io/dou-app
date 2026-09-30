@@ -10,6 +10,7 @@ import { PlaceProfileCreateDialog } from '../../../../ui/components/PlaceProfile
 import { useActivePlaceName, useSetMyPlaceProfile } from '../../../../hooks';
 import { useSessionLogout } from '../../../../runtime/useSessionLogout';
 import { useInviteAccept } from '../hooks';
+import { resolveCloudInviteTargetKind } from '../lib/resolveCloudInviteTargetKind';
 import { useInviteCountdown } from '../../hooks/useInviteCountdown';
 import type { InviteInfo, InviteParams } from '../types';
 import { useStackNavigate } from '../../../../navigation';
@@ -148,6 +149,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
             placeIntro={info?.site$?.intro}
             placeThumbnail={info?.site$?.thumbnail}
             memberCount={info?.memberCount}
+            targetKind={resolveCloudInviteTargetKind(info)}
             countdown={countdown}
             isAccepting={isAccepting}
             onAccept={accept}

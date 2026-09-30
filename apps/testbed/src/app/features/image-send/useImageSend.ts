@@ -8,7 +8,7 @@ import {
     type DataRepositories,
     type SendImagePorts,
 } from '@chatic/data';
-import { CHAT_ATTACHMENT, prepareImage } from '@chatic/shared';
+import { prepareChatAttachment } from '@chatic/shared';
 
 /** An error as one log-safe line: name, code and message. Socket errors never carry a ticket. */
 const describeError = (error: unknown): string => {
@@ -53,7 +53,7 @@ export const useImageSend = (channelId: string) => {
 
             const ports: SendImagePorts = {
                 prepare: async file => {
-                    const prepared = await prepareImage(file, CHAT_ATTACHMENT);
+                    const prepared = await prepareChatAttachment(file);
                     const { original, thumbnail } = prepared;
                     add(
                         `prepare ${file.name}: original ${describeFile(original.file, original.width, original.height)}` +

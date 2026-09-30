@@ -170,7 +170,7 @@ export interface PreparedFileMirror {
 
 export interface PreparedImageMirror {
     original: PreparedFileMirror;
-    /** `null` when no preview could be made; the original still goes up. */
+    /** `null` when no preview could be made, or none is wanted (a GIF); the original still goes up. */
     thumbnail: PreparedFileMirror | null;
 }
 

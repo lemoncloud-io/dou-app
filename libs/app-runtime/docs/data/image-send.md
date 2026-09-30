@@ -35,7 +35,7 @@ whichever cloud is on screen by the time it ends.
 1. **A pending row goes into the cache first** (`chat.createPendingImageChat`), with an object-URL
    preview per image, so the message is on screen before anything is prepared or uploaded. The list
    is cut to ten first, so the row never shows a slot that will not be sent.
-2. **The sequence runs** on ports the hook binds: `prepare` is `prepareImage(file, CHAT_ATTACHMENT)`,
+2. **The sequence runs** on ports the hook binds: `prepare` is `prepareChatAttachment(file)`,
    `start` / `complete` / `send` are the chat repository's `startUploads` / `completeUploads` /
    `sendPendingImageChat(pendingId, …)`, and `put` is the sender the shell passed in.
 3. **Sent** — the repository has already swapped in the server's row and read it back once for the
