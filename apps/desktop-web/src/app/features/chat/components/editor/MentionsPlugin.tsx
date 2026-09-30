@@ -18,7 +18,9 @@ import {
     $isRangeSelection,
     $isTextNode,
     COMMAND_PRIORITY_CRITICAL,
+    COMMAND_PRIORITY_LOW,
     KEY_ENTER_COMMAND,
+    KEY_SPACE_COMMAND,
     type LexicalEditor,
     type RangeSelection,
     type TextNode,
@@ -26,7 +28,7 @@ import {
 
 import { MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { MentionAutocomplete, type Mentionable } from '../MentionAutocomplete';
-import { $createMentionNode } from './MentionNode';
+import { $createMentionNode, $isMentionNode } from './MentionNode';
 
 // Word-start "@" + token chars up to the caret (same class RichText renders).
 const MENTION_MATCH = new RegExp(`(^|[\\s([{])(@(${MENTION_TOKEN_SOURCE}*))$`, 'u');
@@ -250,6 +252,35 @@ const useMentionKeyboardSelect = (editor: LexicalEditor, args: MentionKeyboardAr
     }, [editor, openRef, menuRef, close]);
 };
 
+// A picked mention arrives with a space after it, so a word can follow straight away. The space
+// most people type next out of habit then doubled it ("@Ada  hello"). This drops a space typed
+// right after that one, while the caret still sits between it and the chip.
+const useMentionSpaceDedupe = (editor: LexicalEditor): void => {
+    useEffect(
+        () =>
+            editor.registerCommand(
+                KEY_SPACE_COMMAND,
+                event => {
+                    const selection = $getSelection();
+                    if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+                    const { anchor } = selection;
+                    const node = anchor.getNode();
+                    const isAfterAutoSpace =
+                        anchor.type === 'text' &&
+                        anchor.offset === 1 &&
+                        $isTextNode(node) &&
+                        node.getTextContent().startsWith(' ') &&
+                        $isMentionNode(node.getPreviousSibling());
+                    if (!isAfterAutoSpace) return false;
+                    event.preventDefault();
+                    return true;
+                },
+                COMMAND_PRIORITY_LOW
+            ),
+        [editor]
+    );
+};
+
 interface MentionsPluginProps {
     mentionables: Mentionable[];
 }
@@ -268,6 +299,7 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
         useMentionTypeahead(editor, mentionables);
 
     useMentionKeyboardSelect(editor, { openRef, itemsRef, indexRef, setActiveIndex, select, close, menuRef });
+    useMentionSpaceDedupe(editor);
 
     if (!open || !caretRect) return null;
     // Anchor a fixed wrapper at the caret; MentionAutocomplete's `bottom-full` floats
