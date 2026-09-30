@@ -68,7 +68,7 @@ describe('OnboardingDialog', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
         expect(
-            screen.getByText('Have an invite? Choose “Join with invite” in your profile menu to join a workspace.')
+            screen.getByText('Have an invite? Choose “Join with invite” in your profile menu to join a cloud.')
         ).toBeTruthy();
         expect(screen.queryByText(/Pick a workspace/)).toBeNull();
     });
@@ -77,7 +77,7 @@ describe('OnboardingDialog', () => {
         mount({ hasWorkspaces: true });
         fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
-        expect(screen.getByText('Pick a workspace at the far left, then one of its places beside it.')).toBeTruthy();
+        expect(screen.getByText('Pick a cloud at the far left, then one of its places beside it.')).toBeTruthy();
         expect(screen.queryByText(/Have an invite/)).toBeNull();
     });
 

@@ -60,7 +60,7 @@ const WAIT = { timeout: 5000 };
 const submitCode = async (code: string) => {
     fireEvent.change(await screen.findByRole('textbox', {}, WAIT), { target: { value: code } });
     await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Join workspace' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Join' }));
     });
 };
 

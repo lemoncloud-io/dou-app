@@ -79,7 +79,9 @@ describe('CloudRail', () => {
     it('says where to renew in the hint of a lapsed tile', () => {
         renderRail();
         const tile = screen.getByRole('button', { name: /Archive/ });
-        fireEvent.focus(tile);
+        // Focus handed back by a closing dialog comes from nowhere and opens no hint; Tab comes from
+        // the element before.
+        fireEvent.focus(tile, { relatedTarget: document.createElement('button') });
         expect(screen.getByRole('tooltip').textContent).toContain(i18next.t('mobileApp.planAndCloud'));
     });
 });

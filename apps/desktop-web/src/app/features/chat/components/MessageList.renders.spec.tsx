@@ -7,6 +7,8 @@ import { act, cleanup, render } from '@testing-library/react';
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+import type * as SharedModule from '../../../shared';
+
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
@@ -25,7 +27,7 @@ vi.mock('@chatic/app-runtime', () => ({
 // counting the calls counts row renders without replacing the row or its memo.
 const rowRenders = vi.hoisted(() => ({ count: 0 }));
 vi.mock('../../../shared', async importOriginal => {
-    const actual = await importOriginal<typeof import('../../../shared')>();
+    const actual = await importOriginal<typeof SharedModule>();
     return {
         ...actual,
         useMediaQuery: (query: string) => {
