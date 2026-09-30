@@ -121,9 +121,9 @@ describe('BottomSheet drag to dismiss', () => {
      * and dismisses every gesture including the ones meant to spring back. The clock has to be an
      * argument here, not something the fake DOM supplies.
      */
-    const pointer = (type: string, el: HTMLElement, clientY: number, at: number) => {
+    const pointer = (type: string, el: HTMLElement, clientY: number, at: number, pointerId = 1) => {
         const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientY });
-        Object.defineProperty(event, 'pointerId', { value: 1 });
+        Object.defineProperty(event, 'pointerId', { value: pointerId });
         Object.defineProperty(event, 'timeStamp', { value: at });
         fireEvent(el, event);
     };
@@ -184,7 +184,7 @@ describe('BottomSheet drag to dismiss', () => {
         expect(onOpenChange).not.toHaveBeenCalled();
     });
 
-    it('keeps the transition in place for the whole spring-back, then hands the panel back', () => {
+    it('keeps the transition in place for the whole spring-back, then drops it', () => {
         const { panel } = openSheet();
 
         drag(panel, { to: 20 });
@@ -195,6 +195,74 @@ describe('BottomSheet drag to dismiss', () => {
 
         act(() => void jest.advanceTimersByTime(100));
         expect(panel).not.toHaveClass('transition-transform');
+    });
+
+    // Switching the keyframes off and back on restarts them, and the one attached to an open panel
+    // is the enter slide-in — so a tap that went through the settle path replayed the opening.
+    it('leaves the keyframes alone on a tap, so the sheet does not slide in again', () => {
+        const { panel } = openSheet();
+
+        pointer('pointerdown', panel, 0, 0);
+        pointer('pointerup', panel, 0, 80);
+
+        expect(panel).not.toHaveClass('!animate-none');
+        expect(panel).not.toHaveAttribute('data-drag-phase');
+    });
+
+    it('treats a press that wobbled inside the slop as a tap, not a drag', () => {
+        const { panel } = openSheet();
+
+        pointer('pointerdown', panel, 0, 0);
+        pointer('pointermove', panel, 5, 40);
+        pointer('pointerup', panel, 5, 80);
+
+        expect(panel.style.getPropertyValue('--sheet-drag-y')).toBe('0px');
+        expect(panel).not.toHaveClass('!animate-none');
+        // Capturing would retarget the click onto the panel and lose the tap on the button beneath.
+        expect(HTMLElement.prototype.setPointerCapture).not.toHaveBeenCalled();
+    });
+
+    it('keeps the keyframes off after a spring-back for as long as the sheet stays open', () => {
+        const { panel } = openSheet();
+
+        drag(panel, { to: 20 });
+        act(() => void jest.advanceTimersByTime(1000));
+
+        expect(panel).toHaveClass('!animate-none');
+        expect(panel).not.toHaveClass('transition-transform');
+    });
+
+    it('lets the first finger finish its drag when a second one lands on the panel', () => {
+        const { panel } = openSheet();
+
+        pointer('pointerdown', panel, 0, 0);
+        pointer('pointermove', panel, 60, 200);
+        pointer('pointerdown', panel, 100, 250, 2);
+        pointer('pointerup', panel, 100, 300, 2);
+
+        // Still the first finger's drag, and its release still springs the panel home.
+        expect(panel.style.getPropertyValue('--sheet-drag-y')).toBe('60px');
+        pointer('pointerup', panel, 60, 400);
+        expect(panel.style.getPropertyValue('--sheet-drag-y')).toBe('0px');
+    });
+
+    it('gives a reopened sheet its enter keyframe back after a spring-back', () => {
+        const { panel, view } = openSheet();
+        drag(panel, { to: 20 });
+        act(() => void jest.advanceTimersByTime(1000));
+
+        view.rerender(
+            <BottomSheet open={false} onOpenChange={jest.fn()} title="신고하기" showHandle>
+                <div>body</div>
+            </BottomSheet>
+        );
+        view.rerender(
+            <BottomSheet open onOpenChange={jest.fn()} title="신고하기" showHandle>
+                <div>body</div>
+            </BottomSheet>
+        );
+
+        expect(screen.getByRole('dialog')).not.toHaveClass('!animate-none');
     });
 
     it('dismisses on a fast flick that never reached the distance threshold', () => {
