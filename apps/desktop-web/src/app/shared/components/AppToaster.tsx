@@ -1,7 +1,16 @@
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
+import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { Toast, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from '@chatic/ui-kit/components/ui/toast';
+import {
+    Toast,
+    ToastClose,
+    ToastDescription,
+    ToastProvider,
+    ToastTitle,
+    ToastViewport,
+} from '@chatic/ui-kit/components/ui/toast';
 import { TOAST_DURATION_MS } from '@chatic/ui-kit/components/ui/toaster';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -23,8 +32,11 @@ const ICONS = {
  * it inside the element that starts right under the banners, so the viewport is positioned
  * against that element and a connection or update banner pushes toasts down with the
  * header instead of covering them.
+ *
+ * An error toast has no timer (the kit store sets that), so it carries the close button.
  */
 export const AppToaster = () => {
+    const { t } = useTranslation();
     const { toasts } = useToast();
 
     return (
@@ -53,6 +65,14 @@ export const AppToaster = () => {
                         )}
                     </div>
                     {action}
+                    {variant === 'destructive' && (
+                        <ToastClose
+                            aria-label={t('common.close')}
+                            className="focus-ring -mr-1 rounded-sm p-0.5 text-toast-muted transition-colors hover:text-toast-foreground"
+                        >
+                            <X className="size-4" aria-hidden />
+                        </ToastClose>
+                    )}
                 </Toast>
             ))}
             {/* The gap lives in `top`, not in padding: the kit's `pt-safe-top` outranks any

@@ -2,7 +2,11 @@ import * as React from 'react';
 
 import type { ToastActionElement, ToastProps } from './toast';
 
-const TOAST_LIMIT = 1;
+/**
+ * How many toasts show at once. An error now stays until it is closed, so with one slot the next
+ * toast of any kind would evict it unread, and two failures in a row showed only the second.
+ */
+const TOAST_LIMIT = 3;
 const TOAST_REMOVE_DELAY = 1000;
 
 type ToasterToast = ToastProps & {
@@ -134,6 +138,10 @@ type Toast = Omit<ToasterToast, 'id'>;
 
 const toast = ({ ...props }: Toast) => {
     const id = genId();
+    // An error stays until it is closed: it is the toast someone may need to read twice or act
+    // on, and a timer that ran out while they looked elsewhere left no trace it had fired. A
+    // caller's own `duration` still wins; every other variant keeps the provider's timer.
+    const duration = props.duration ?? (props.variant === 'destructive' ? Infinity : undefined);
 
     const update = (props: ToasterToast) =>
         dispatch({
@@ -146,6 +154,7 @@ const toast = ({ ...props }: Toast) => {
         type: 'ADD_TOAST',
         toast: {
             ...props,
+            duration,
             id,
             open: true,
             onOpenChange: open => {
