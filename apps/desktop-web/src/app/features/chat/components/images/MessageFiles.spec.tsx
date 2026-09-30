@@ -18,12 +18,16 @@ vi.mock('../../utils', async importOriginal => ({
 }));
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
+const author = { name: 'Ada', colorSeed: 'ada', time: '7:43 PM' };
 const sent = (upload$$: unknown[]) => ({ id: 'row-1', channelId: 'ch-1', upload$$ }) as DomainChat;
 
 describe('MessageFiles', () => {
     it('plays a video in place and names it', () => {
         render(
-            <MessageFiles message={sent([{ id: 'v', stereo: 'video', name: 'clip.mp4', orgUrl: 'https://s/v' }])} />,
+            <MessageFiles
+                author={author}
+                message={sent([{ id: 'v', stereo: 'video', name: 'clip.mp4', orgUrl: 'https://s/v' }])}
+            />,
             {
                 wrapper,
             }
@@ -38,6 +42,7 @@ describe('MessageFiles', () => {
     it('shows a document as its name and size, and saves it under that name', () => {
         render(
             <MessageFiles
+                author={author}
                 message={sent([
                     { id: 'f', stereo: 'file', name: 'report.pdf', contentSize: 1536, orgUrl: 'https://s/f' },
                 ])}
@@ -54,7 +59,9 @@ describe('MessageFiles', () => {
 
     // Uploads from before the server kept names have none; the card still says what it is.
     it('names a document the server kept no name for by its kind', () => {
-        render(<MessageFiles message={sent([{ id: 'f', stereo: 'file', orgUrl: 'https://s/f' }])} />, { wrapper });
+        render(<MessageFiles author={author} message={sent([{ id: 'f', stereo: 'file', orgUrl: 'https://s/f' }])} />, {
+            wrapper,
+        });
         expect(screen.getByText('File')).toBeTruthy();
 
         // Saved as "file", never the reader's label; the save adds the extension the bytes have.
@@ -62,9 +69,26 @@ describe('MessageFiles', () => {
         expect(downloadImage).toHaveBeenCalledWith({ url: 'https://s/f', name: 'file' });
     });
 
+    it('opens a PDF or text file in the viewer from its card, and not an office file', () => {
+        render(
+            <MessageFiles
+                author={author}
+                message={sent([
+                    { id: 't', stereo: 'file', name: 'notes.txt', contentType: 'text/plain', orgUrl: 'https://s/t' },
+                    { id: 'd', stereo: 'file', name: 'a.docx', orgUrl: 'https://s/d' },
+                ])}
+            />,
+            { wrapper }
+        );
+        expect(screen.queryByRole('button', { name: 'Open a.docx' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Open notes.txt' }));
+        expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+
     it('offers nothing to save while a document is being sent', () => {
         render(
             <MessageFiles
+                author={author}
                 message={sent([
                     {
                         localStatus: 'sending',
@@ -84,7 +108,7 @@ describe('MessageFiles', () => {
 
     it('draws nothing for a message with only images', () => {
         const { container } = render(
-            <MessageFiles message={sent([{ id: 'i', stereo: 'image', orgUrl: 'https://s/i' }])} />,
+            <MessageFiles author={author} message={sent([{ id: 'i', stereo: 'image', orgUrl: 'https://s/i' }])} />,
             { wrapper }
         );
         expect(container.innerHTML).toBe('');

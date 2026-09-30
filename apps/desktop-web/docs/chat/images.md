@@ -102,7 +102,8 @@ lists them under the images:
 
 - **A video** plays in place (`<video controls preload="metadata">`). The original is signed for
   inline viewing, and Chromium plays an H.264 MP4 itself. There is no poster: the app sends none.
-- **A document** is a card with a kind icon, its name and size, and a save button.
+- **A document** is a card with a kind icon, its name and size, and a save button. A PDF or text
+  file's name also opens it in the document viewer (below).
 - **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.
@@ -129,6 +130,49 @@ never saved without asking: the shell skips the dialog for images only (above).
   every image as a thumbnail, and "Reply", which continues in the thread.
 
 Closing returns focus to the tile that opened it (ui-kit's dialog focus return, ADR-0131).
+
+## The document viewer
+
+`FileViewer` opens a sent PDF or text file in the app, in the same frame as the image viewer: a
+header with the sender, the time and the file name, a save button and a close button. `canPreview`
+decides which cards open it. Only PDF and TXT do: nothing in the page draws a DOCX, XLSX, PPTX or
+Hancom file without handing it, and its signed address, to a third party, so those stay save cards.
+A video already plays in place.
+
+- **The bytes** are fetched when the viewer opens, the same way a save fetches them
+  (`fetchFileBytes`: `https:` only, no cookies, past the HTTP cache). Closing mid-download aborts the
+  fetch. A fetch that fails — an address older than its two-hour signature, say — or a file that
+  will not parse shows "Couldn't open this file" with the save button, not a blank dialog.
+- **A PDF** is drawn by pdf.js (`utils/pdf.ts`), loaded with a dynamic `import()` on the first open
+  so the feed does not pay for it; the load starts alongside the file's download. It is the legacy build: the modern one calls
+  `Map.prototype.getOrInsertComputed`, which Chromium does not ship yet (not in 142, nor in the
+  shell's 130). The
+  pages are canvases only, with no text or annotation layer, so a file someone else sent has no
+  links or forms to act on; XFA is off and scripts never run. pdf.js also gets its data files — the
+  Adobe CMaps and standard fonts a PDF may name without embedding (common in Korean files), the ICC
+  profiles and the image-decoder wasm. The `pdfjs-assets` plugin in `vite.config.mts` serves them at
+  `/pdfjs/<dir>/` in dev and emits them there in a build, leaving out the script-engine wasm.
+  `PdfPages` lays the pages out in a column with a rail of numbered thumbnails beside it, as Slack
+  does. Only pages near their scroll area hold a canvas, each sized for the screen's pixel ratio up
+  to 16 MP, so a long file does not hold every page in memory. Every page keeps its own shape's
+  height whether drawn or not, so drawing never moves the pages around it. A drawing still running
+  when its page leaves, or when the width changes, is cancelled before the next one starts: pdf.js
+  refuses two drawings on one canvas. A window drag redraws once it settles. The thumbnail of the page most in view is marked, and a
+  thumbnail jumps to its page. Closing destroys the document and its worker, and so does a file
+  that fails to open.
+- **A text file** shows its first 1 MB in a wrapping monospaced block, with a line saying so when
+  the file is longer; the save still writes the whole file. Only that first 1 MB is fetched (a
+  `Range` request; if storage answers with the whole file, reading stops at 1 MB), and the card's
+  size says whether there is more. A UTF-16 byte-order mark picks
+  UTF-16; otherwise it is read as UTF-8, and as EUC-KR when the bytes are not UTF-8 — what Korean
+  Windows usually saves a `.txt` as. One stray byte in a UTF-8 file therefore reads it all as EUC-KR.
+
+The viewer opens with focus on close. Save is the first control, and focusing it opens its tooltip,
+which would take the first Esc for itself.
+
+In the Vite dev server pdf.js reports "Setting up fake worker": the dev server adds its client to the
+worker file, the worker fails to start, and pdf.js parses on the main thread instead. A build emits
+the worker file as it is, and it starts.
 
 ## Previews outside the feed
 

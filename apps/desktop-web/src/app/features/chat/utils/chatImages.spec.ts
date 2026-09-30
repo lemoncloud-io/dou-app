@@ -132,7 +132,14 @@ describe('toChatImages and toChatFiles', () => {
         // Numbered among the images, so a photo after a document is still "image-1".
         expect(toChatImages('row-1', [mixed[1], mixed[0]]).map(image => image.name)).toEqual(['image-1']);
         expect(toChatFiles('row-1', mixed)).toEqual([
-            { id: 'up-2', kind: 'file', name: 'report.pdf', size: 2048, url: 'https://s/o2' },
+            {
+                id: 'up-2',
+                kind: 'file',
+                name: 'report.pdf',
+                size: 2048,
+                contentType: 'application/pdf',
+                url: 'https://s/o2',
+            },
             { id: 'up-3', kind: 'video', name: 'clip.mp4', url: 'https://s/o3' },
         ]);
     });
@@ -156,8 +163,26 @@ describe('toChatImages and toChatFiles', () => {
         ] as DomainChat['upload$$'];
         expect(toChatImages('row-1', slots)).toEqual([]);
         expect(toChatFiles('row-1', slots)).toEqual([
-            { id: 'row-1:0', kind: 'file', name: 'a.hwp', size: 10, url: '', isUploading: true, isFailed: false },
-            { id: 'row-1:1', kind: 'video', name: 'b.mp4', size: 5, url: '', isUploading: false, isFailed: true },
+            {
+                id: 'row-1:0',
+                kind: 'file',
+                name: 'a.hwp',
+                size: 10,
+                contentType: 'application/x-hwp',
+                url: '',
+                isUploading: true,
+                isFailed: false,
+            },
+            {
+                id: 'row-1:1',
+                kind: 'video',
+                name: 'b.mp4',
+                size: 5,
+                contentType: 'video/mp4',
+                url: '',
+                isUploading: false,
+                isFailed: true,
+            },
         ]);
     });
 

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, Download, FileText, Film } from 'lucide-react';
@@ -6,21 +6,25 @@ import { AlertCircle, Download, FileText, Film } from 'lucide-react';
 import type { DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { downloadImage, formatFileSize, toChatFiles, type ChatFile } from '../../utils';
+import { canPreview, downloadImage, formatFileSize, toChatFiles, type ChatFile } from '../../utils';
+import { FileViewer } from './FileViewer';
 import { ImageSpinner } from './ImageSpinner';
+import type { ImageAuthor } from './ImageViewer';
 import { Hint } from '../../../../shared';
 
 interface MessageFilesProps {
     /** The message the files belong to — they are read from its `upload$$`. */
     message: Pick<DomainChat, 'id' | 'upload$$'>;
+    /** The message's sender and time, for the viewer's header. */
+    author: ImageAuthor;
 }
 
 /**
  * A message's videos and documents, under its images. A video plays in place; a document is a card
- * with its name, size and a save button. Neither is drawn as an image tile: a PDF in an `<img>` is a
- * broken picture.
+ * with its name, size and a save button; a PDF or text file also opens in the viewer. Neither is
+ * drawn as an image tile: a PDF in an `<img>` is a broken picture.
  */
-export const MessageFiles = ({ message }: MessageFilesProps) => {
+export const MessageFiles = ({ message, author }: MessageFilesProps) => {
     const { id, upload$$ } = message;
     const files = useMemo(() => (id && upload$$?.length ? toChatFiles(id, upload$$) : []), [id, upload$$]);
     if (files.length === 0) return null;
@@ -28,20 +32,22 @@ export const MessageFiles = ({ message }: MessageFilesProps) => {
         <ul className="mt-2 flex max-w-[368px] flex-col gap-2">
             {files.map(file => (
                 <li key={file.id}>
-                    <FileItem file={file} />
+                    <FileItem file={file} author={author} />
                 </li>
             ))}
         </ul>
     );
 };
 
-const FileItem = ({ file }: { file: ChatFile }) => {
+const FileItem = ({ file, author }: { file: ChatFile; author: ImageAuthor }) => {
     const { t } = useTranslation();
     const name = file.name ?? t(file.kind === 'video' ? 'chat.attach.previewVideo' : 'chat.attach.previewFile');
     // Saved as "file", not the reader's label; the save adds the extension the bytes have.
     const saveName = file.name ?? 'file';
     const KindIcon = file.kind === 'video' ? Film : FileText;
     const canSave = !!file.url;
+    const canOpen = canPreview(file) !== null;
+    const [isViewing, setIsViewing] = useState(false);
     const save = () =>
         void downloadImage({ url: file.url, name: saveName }).catch(() =>
             toast({ variant: 'destructive', description: t('chat.file.saveFailed') })
@@ -61,7 +67,18 @@ const FileItem = ({ file }: { file: ChatFile }) => {
             <div className="flex items-center gap-3 rounded-2xl border border-hairline bg-muted px-3 py-2.5">
                 <KindIcon size={20} aria-hidden className="shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-callout font-medium text-foreground">{name}</p>
+                    {canOpen ? (
+                        <button
+                            type="button"
+                            onClick={() => setIsViewing(true)}
+                            aria-label={t('chat.file.open', { name })}
+                            className="focus-ring block max-w-full truncate rounded-sm text-left text-callout font-medium text-foreground hover:underline"
+                        >
+                            {name}
+                        </button>
+                    ) : (
+                        <p className="truncate text-callout font-medium text-foreground">{name}</p>
+                    )}
                     {file.isFailed ? (
                         <p className="text-caption text-destructive">{t('chat.file.failed')}</p>
                     ) : (
@@ -91,6 +108,7 @@ const FileItem = ({ file }: { file: ChatFile }) => {
                     </Hint>
                 )}
             </div>
+            {isViewing && <FileViewer file={file} author={author} onClose={() => setIsViewing(false)} onSave={save} />}
         </div>
     );
 };

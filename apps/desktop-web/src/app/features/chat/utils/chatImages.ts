@@ -50,6 +50,8 @@ export interface ChatFile {
     /** The name to show and to save under. Absent on an upload sent before the server kept names. */
     name?: string;
     size?: number;
+    /** The content type it was sent as, when known. The viewer reads it to pick how to draw the file. */
+    contentType?: string;
     /** The signed original. Empty while sending, when failed, or when the address is not one to load. */
     url: string;
     isUploading?: boolean;
@@ -82,6 +84,7 @@ export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): C
                     kind,
                     ...(slot.localName ? { name: slot.localName } : {}),
                     ...(slot.localSize !== undefined ? { size: slot.localSize } : {}),
+                    ...(slot.localContentType ? { contentType: slot.localContentType } : {}),
                     url: '',
                     isUploading: slot.localStatus === 'sending',
                     isFailed: slot.localStatus === 'failed',
@@ -93,6 +96,7 @@ export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): C
             kind,
             ...(slot.name ? { name: slot.name } : {}),
             ...(slot.contentSize !== undefined ? { size: slot.contentSize } : {}),
+            ...(slot.contentType ? { contentType: slot.contentType } : {}),
         };
         if (slot.status === 'failed' || slot.error) return [{ ...base, url: '', isFailed: true }];
         if (!slot.orgUrl) return [{ ...base, url: '', isUploading: true }];

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { copyImageToClipboard, downloadImage } from './imageActions';
+import { copyImageToClipboard, downloadImage, fetchFileBytes } from './imageActions';
 
 /** Every anchor the page clicked, as it was at the click. */
 const clicked: { href: string; download: string }[] = [];
@@ -104,6 +104,45 @@ describe('copyImageToClipboard', () => {
             vi.fn(async () => ({ ok: false, blob: async () => new Blob(['<html>']) }))
         );
 
-        await expect(copyImageToClipboard('https://storage.example/o')).rejects.toThrow('image fetch failed');
+        await expect(copyImageToClipboard('https://storage.example/o')).rejects.toThrow('file fetch failed');
+    });
+});
+
+describe('fetchFileBytes', () => {
+    it('asks for only the start when told how much is wanted', async () => {
+        const fetch = vi.fn(async () => ({ ok: true, status: 206, blob: async () => new Blob(['x']) }));
+        vi.stubGlobal('fetch', fetch);
+        await fetchFileBytes('https://storage.example/o', undefined, 1024);
+        expect(fetch).toHaveBeenCalledWith(
+            'https://storage.example/o',
+            expect.objectContaining({ headers: { Range: 'bytes=0-1023' } })
+        );
+    });
+
+    // Storage that ignores the range sends the whole file; only what was asked for is kept.
+    it('stops reading a whole-file answer once it has enough', async () => {
+        const cancel = vi.fn();
+        let sent = 0;
+        const body = new ReadableStream<Uint8Array>({
+            pull: controller => {
+                sent += 1;
+                controller.enqueue(new Uint8Array(600));
+            },
+            cancel,
+        });
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({ ok: true, status: 200, body }))
+        );
+
+        const blob = await fetchFileBytes('https://storage.example/o', undefined, 1000);
+
+        expect(blob.size).toBe(1200);
+        expect(cancel).toHaveBeenCalled();
+        expect(sent).toBeLessThan(5);
+    });
+
+    it('refuses an address that is not https', async () => {
+        await expect(fetchFileBytes('http://storage.example/o')).rejects.toThrow('file address refused');
     });
 });

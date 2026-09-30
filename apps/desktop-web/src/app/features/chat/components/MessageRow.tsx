@@ -407,6 +407,13 @@ export const MessageRow = memo(
                             const firstUrl = plain.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
+                            // The attachments' viewers repeat the message header.
+                            const author = {
+                                name: group.ownerName,
+                                avatar: group.avatar,
+                                colorSeed: group.colorSeed,
+                                time: formatTime(message.createdAt ?? message.createdAtMs ?? group.timestamp),
+                            };
                             // A loaded thread hangs off this message → show a reply footer.
                             // The index is keyed by the root's chatNo string (buildThreadIndex
                             // normalises optimistic full-id parentIds onto it). threadMeta is only
@@ -610,19 +617,14 @@ export const MessageRow = memo(
                                         <MessageImages
                                             message={message}
                                             canDelete={group.isMine}
-                                            author={{
-                                                name: group.ownerName,
-                                                avatar: group.avatar,
-                                                colorSeed: group.colorSeed,
-                                                time: formatTime(
-                                                    message.createdAt ?? message.createdAtMs ?? group.timestamp
-                                                ),
-                                            }}
+                                            author={author}
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
                                     )}
                                     {/* Videos and documents under the images; the grid and viewer take images only. */}
-                                    {message.id && !message.hidden && !isEditing && <MessageFiles message={message} />}
+                                    {message.id && !message.hidden && !isEditing && (
+                                        <MessageFiles message={message} author={author} />
+                                    )}
                                     {/* `failure &&` first: an unsent message has no id, and
                                         `undefined === undefined` drew this line with no failure. */}
                                     {failure && failure.id === message.id && (
