@@ -52,9 +52,9 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the Place section; the Chat
-section with its previews, unread badges and creation popover; pull-to-refresh on the body; the
-cloud-switcher sheet; the place and cloud unread marks; the three app-global runners that home
-exports.
+section with its previews, unread badges and creation popover; the rows' swipe actions (pin, mute,
+leave or delete); pull-to-refresh on the body; the cloud-switcher sheet; the place and cloud unread
+marks; the three app-global runners that home exports.
 
 **Out** — search itself (the header button only navigates to `/search`), the subscribe and IAP flow
 ([subscription](../subscription/README.md)), the profile form ([place](../place/README.md)), invite
@@ -204,9 +204,12 @@ invited clouds, or subscribe.
 ## Pull to refresh
 
 The scrolling body under the header is the kit's `PullToRefresh`: from the top of the list, a drag
-down reveals a spinner, and a release past 64px (after the pull's resistance halves finger travel)
-refreshes. It is touch-only — a mouse drag does nothing — and a pull that starts below the top, or
-moves sideways or up first, is an ordinary scroll. The first 6px of travel decide which it is, since
+down reveals a small disc whose ring fills with the pull, and a release past 64px (after the pull's
+resistance halves finger travel) refreshes. At 64px the ring completes in the accent colour, the
+disc snaps a little larger and the phone gives a light haptic tap — the `impact` kind, see
+[Haptics](#haptics) — so the moment letting go will refresh is both seen and felt. While the refresh
+runs the ring turns as an open arc. It is touch-only — a mouse drag does nothing — and a pull that
+starts below the top, or moves sideways or up first, is an ordinary scroll. The first 6px of travel decide which it is, since
 iOS reports one-pixel moves and the first alone is jitter. A second finger drops the pull.
 The release is heard on the element the finger landed on, not on the list, so a skeleton row that
 gives way to real rows mid-pull still lets the list go back.
@@ -233,6 +236,52 @@ answered by the wrong session — so the spinner only covers the two queries the
 
 A pull re-reads lists; it does not re-read message history. Rows' previews follow from the chat
 sync home already registers, which catches a row up whenever the channel delta moves its head.
+
+## Row swipe actions
+
+Every room row in the Chat section, and in the cloud 1:1 section, slides sideways to reveal actions
+behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing else.
+
+| Swipe | Actions                                                                   |
+| ----- | ------------------------------------------------------------------------- |
+| Right | Pin or unpin                                                              |
+| Left  | Notifications off or on, then Leave — or Delete, for a group room you own |
+
+- **Leave or delete is decided per row** by `removalActionFor`, the rule the room's settings screen
+  and the place's bulk remove already share: a 1:1 always leaves, even for the person who opened it,
+  and a group deletes only for its owner (`channel.ownerId`). Both ask first, with the settings
+  screen's own confirmation and copy — a 1:1 has its own wording — and neither runs until confirmed.
+- **Notifications** write my join row's `notify`, as the settings switch does. The write is
+  optimistic, so the bell-off glyph is the answer; only a failure speaks, as a toast.
+- **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin
+  moves the row, often out from under the finger, so it is confirmed with a toast. The cloud 1:1
+  section has no pin list behind it, so its rows have no right swipe.
+- **A self chat** has a pin and no left side — its settings offer neither notifications nor an exit.
+  Someone else's self chat, which is only ever a row left over from the previous account, has no
+  actions at all. Sent-invite rows do not swipe.
+
+One row is open at a time: `ChannelList` holds which. A tap on an open row's content, a scroll that
+starts on it and a touch anywhere else all close it, and none of them also does what the tap would
+otherwise have done — the row does not open its room, the button elsewhere is not pressed. A drag
+that crosses the point where letting go opens a side gives a `selection` haptic.
+
+The gesture is touch-only, like the pull, and decides at the pull's own 6px (the kit shares the
+constant): the pull claims a touch leaning down, the row one leaning sideways, and judged on the same
+move those cannot both hold, so the two never share a touch. Before that point a sideways-leaning
+move is already held back, so the WebView cannot start scrolling the list under a row that is about
+to slide. There is no keyboard or screen-reader path to these actions on home: the same actions
+stay in each room's settings.
+
+## Haptics
+
+The page cannot make a haptic itself — WebKit implements no `navigator.vibrate` — so home asks the
+shell, through `haptics.play(kind)` in `app/bridge/haptics.ts`. The kinds name a feel, not a gesture:
+`selection` for a row reaching its actions, `impact` for a pull reaching the refresh point.
+
+The web ships ahead of the app, so an installed app older than the message answers `NOT_FOUND`. One
+such answer settles it for the session and nothing more is sent; a browser is never asked. After the
+first answered request every haptic is a one-way post that the shell plays without replying, so a
+gesture never waits on a round trip. The shell honours the device's own touch-feedback setting.
 
 ## When an invite lands
 

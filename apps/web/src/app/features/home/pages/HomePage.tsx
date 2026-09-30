@@ -55,6 +55,7 @@ import {
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import { requestBackgroundRefresh } from '../../../runtime/backgroundRefresh';
+import { haptics } from '../../../bridge/haptics';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { useAddCloudFlow, useHomePlaces, useHomeSections, useSwitchPlace } from '../hooks';
 import {
@@ -313,7 +314,7 @@ export const HomePage = () => {
     const channelSortMethod = (placeScope && channelSortMap[placeScope]) || DEFAULT_CHANNEL_SORT;
     // Pinned channels for the active place (client preference, set from the chat-room management
     // screen or the desktop favorites star). Pinned rows float above the chosen sort order.
-    const { pinnedIds } = usePinnedChannels(placeScope);
+    const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScope);
     const pinnedChannelIds = useMemo(() => new Set(pinnedIds), [pinnedIds]);
     // Which sections are folded. App-wide, unlike sort and pins: it is about how home is used, so
     // it holds across clouds and places, and survives leaving home and relaunching.
@@ -481,6 +482,7 @@ export const HomePage = () => {
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
                 onRefresh={handleRefresh}
+                onArm={() => haptics.play('impact')}
                 refreshingLabel={t('homePage.refreshing')}
                 className="min-h-0 flex-1 overflow-y-auto pt-2"
                 contentClassName="flex flex-col"
@@ -535,6 +537,7 @@ export const HomePage = () => {
                         isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
                         pinnedChannelIds={pinnedChannelIds}
+                        onTogglePin={togglePinned}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
                         // An invited member cannot create rooms here, so the empty body explains

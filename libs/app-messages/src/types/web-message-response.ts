@@ -39,6 +39,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchAppIconList: 'OnFetchAppIconList',
     ChangeAppIcon: 'OnChangeAppIcon',
     CopyToClipboard: 'OnCopyToClipboard',
+    TriggerHaptic: 'OnTriggerHaptic',
     DismissResumeOverlay: 'OnDismissResumeOverlay',
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',

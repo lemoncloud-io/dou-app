@@ -10,7 +10,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                           |
 | ---------------------------- | -------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 8 files |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 9 files |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module` |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                 |
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`             |
@@ -28,7 +28,7 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Eight TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Nine TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature         | TypeScript                 | Android                                                                                        | iOS                                                                                                                                            |
@@ -41,7 +41,16 @@ platform:
 | Push marks      | `PushMarksBridge.ts`       | `PushMarksModule.kt` (+ `PushMarkStore.kt`)                                                    | `PushMarksModule.m`                                                                                                                            |
 | Badge sync      | `BadgeSyncBridge.ts`       | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                                     | none — base captured natively in `AppDelegate` from the live icon badge, not reachable from JS                                                 |
 | Shared language | `SharedLanguageBridge.ts`  | `SharedLanguageModule.kt`, `push/LanguagePreferenceStore.kt`                                   | `SharedLanguageModule.m` — see [../system/language.md](../system/language.md)                                                                  |
+| Haptic          | `HapticBridge.ts`          | `HapticModule.kt` — `performHapticFeedback` on the window, no VIBRATE permission               | `HapticModule.m` — `UISelectionFeedbackGenerator` / light `UIImpactFeedbackGenerator`                                                          |
 | Push delivery   | none                       | `push/ChaticFirebaseMessagingService.kt`                                                       | `AppDelegate.swift` forwards APNs callbacks to `RNCPushNotificationIOS`                                                                        |
+
+`TriggerHaptic` is answered only when it is asked as a request. The web sends its first haptic that
+way, to tell this shell from one built before the message (which answers `NOT_FOUND`), and every
+later one as a post with no `refId`; the handler plays those and returns nothing, so no reply crosses
+back on the UI thread mid-gesture. A kind this build does not know is refused with `INVALID_KIND`
+when a reply is owed and dropped silently otherwise. A build whose JS has the handler but whose
+native side predates the `Haptic` module answers success and plays nothing — `HapticBridge` is
+silent rather than warning, because it is asked on every swipe and pull.
 
 `PushMarksBridge.drain()` is a read-once call: it reads every pending mark recorded by a background
 chat push (Android's FCM service, iOS's Notification Service Extension) and clears native storage in

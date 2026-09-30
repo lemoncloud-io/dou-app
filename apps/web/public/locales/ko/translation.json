@@ -596,7 +596,15 @@
         "emptyInvited": "현재 참여 중인 채팅방이 없어요.\n새로운 채팅방에 초대되면 이곳에 표시됩니다.",
         "emptyInvitedLeaveHint": "이 플레이스를 더 이상 이용하지 않는다면 나갈 수 있어요.",
         "emptyInvitedPlaceInfo": "플레이스 정보 바로가기",
-        "loading": "채팅방을 불러오는 중이에요"
+        "loading": "채팅방을 불러오는 중이에요",
+        "swipe": {
+            "pin": "고정",
+            "unpin": "고정 해제",
+            "mute": "알림 끄기",
+            "unmute": "알림 켜기",
+            "leave": "나가기",
+            "delete": "삭제"
+        }
     },
     "channelManage": {
         "title": "채팅방 관리",

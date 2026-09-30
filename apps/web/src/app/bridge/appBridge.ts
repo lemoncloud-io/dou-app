@@ -1,5 +1,6 @@
 import { webClient } from '@chatic/bridges';
 import type {
+    HapticKind,
     OnFetchPushMarksPayload,
     OnWebAppReadyPayload,
     PushCloudMarkRecord,
@@ -439,6 +440,19 @@ export const appBridge = {
     /** Under iOS limited access, lets the user change which photos are shared. */
     managePhotoSelection(): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
         return webClient.request({ type: 'ManagePhotoSelection', data: {} });
+    },
+
+    /**
+     * Play one short haptic and wait for the shell's answer — the way to learn whether it has the
+     * message at all (an app built before it answers `NOT_FOUND`). Call it through `haptics`.
+     */
+    triggerHaptic(kind: HapticKind): Promise<WebMessageResponse<'TriggerHaptic'>> {
+        return webClient.request({ type: 'TriggerHaptic', data: { kind } });
+    },
+
+    /** Play one short haptic with no answer. Only once `triggerHaptic` has shown the shell has it. */
+    postHaptic(kind: HapticKind): void {
+        webClient.post({ type: 'TriggerHaptic', data: { kind } });
     },
 
     /** Write text to the OS clipboard — the native one, not the browser's. */

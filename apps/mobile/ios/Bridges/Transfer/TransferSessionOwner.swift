@@ -20,6 +20,11 @@ final class TransferSessionOwner: NSObject {
     static let sessionIdentifier = "\(Bundle.main.bundleIdentifier!).transfer"
     static let progressTaskIdentifier = "\(Bundle.main.bundleIdentifier!).transfer.progress"
 
+    /// How long a transfer runs before the system progress UI is asked for. The UI arrives with a
+    /// haptic and a banner, and a chat photo is usually uploaded well inside this — so a quick send
+    /// stays quiet, and only a transfer long enough to be worth watching gets the UI.
+    private static let progressTaskDelay: DispatchTimeInterval = .seconds(3)
+
     /// Enough for an S3 error document; the body is only read for its `<Code>`.
     private static let maxResponseBodyBytes = 4 * 1024
     private static let logTag = "TRANSFER"
@@ -262,11 +267,18 @@ final class TransferSessionOwner: NSObject {
 
     /// The system progress UI may only be requested by the foreground app in response to the user,
     /// which a `start` from the web is.
+    ///
+    /// It is asked for only if something is still running after `progressTaskDelay`. Leaving the
+    /// app within that window loses the UI for this batch, not the transfer — the bytes move through
+    /// the background session either way; the task only keeps the app awake to show progress.
     private func startProgressTaskIfForeground() {
         guard #available(iOS 26.0, *), let progressTask = progressTask as? TransferProgressTask else { return }
-        DispatchQueue.main.async {
-            guard UIApplication.shared.applicationState == .active else { return }
-            self.queue.async { progressTask.userStarted() }
+        queue.asyncAfter(deadline: .now() + Self.progressTaskDelay) {
+            guard self.core.runningCount > 0 else { return }
+            DispatchQueue.main.async {
+                guard UIApplication.shared.applicationState == .active else { return }
+                self.queue.async { progressTask.userStarted() }
+            }
         }
     }
 

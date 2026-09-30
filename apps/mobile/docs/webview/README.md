@@ -13,8 +13,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
 | `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
 | `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; queues and dispatches to 25 handler hooks             |
-| `src/app/webview/hooks/*Handler.ts`            | 25 domain handlers, one per capability group                                  |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; queues and dispatches to 26 handler hooks             |
+| `src/app/webview/hooks/*Handler.ts`            | 26 domain handlers, one per capability group                                  |
 | `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
