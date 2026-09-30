@@ -140,7 +140,16 @@ a redraw with a new address does not blink.
   fetching for a minute and draw addresses directly.
 - **Only what is drawn is asked for:** a message's four visible tiles, and in the viewer the showing
   original and its two neighbours, with their thumbnails. No original is fetched before the viewer
-  opens.
+  opens, and the neighbours' originals only once the showing one is in, or has fallen back to its
+  address: fetched side by side, three originals of several MB split a slow network three ways, and
+  the photo being looked at took three times as long. Until then a neighbour draws only what memory
+  already has (so the photo sliding out does not drop to its thumbnail), and a neighbour still
+  downloading, the photo just swiped away from, is let go and cancelled with the rest below.
+- **A download nobody draws is cancelled** at the next sweep (below), unless something took the image
+  again by then. The bucket answers over HTTP/1.1, so the page gets about six connections to it. Before
+  this, swiping through ten photos on Slow 4G left the originals already swiped past holding all six,
+  and the photo on screen, its thumbnail included, stayed black for over a minute behind them. A
+  cancellation is not a failure: it does not start the one-minute fetch pause.
 - **Budgets:** 50 MB of thumbnails and 150 MB of originals on disk, evicted least recently used first
   and counted apart, so a few opened photos (an original is uploaded as picked, often several MB) cannot
   push every thumbnail out. A hit moves an image's place in that order at most once an hour. In
@@ -157,7 +166,7 @@ The trade-offs, and the server-side fix that would make the address itself cache
 
 ## Not done here
 
-- **Progress, cancel, a hash.** None are shown or sent.
+- **Upload progress, cancel, a hash.** None are shown or sent.
 - **Save and share in the viewer.** It shows, zooms and steps between the originals only. A tile
   cannot save either: a right-click on it opens the message's action sheet, not the browser's
   image menu (ADR-0136).

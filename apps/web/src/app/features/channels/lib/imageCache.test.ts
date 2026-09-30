@@ -326,6 +326,114 @@ describe('ImageCache', () => {
             expect(deps.fetch).toHaveBeenCalledTimes(2);
         });
 
+        // Swiping past photos on a slow network: their originals held every connection to the bucket,
+        // and the photo on screen waited behind them.
+        describe('a download nobody draws', () => {
+            // A fetch that answers only when its signal aborts, as the browser's does.
+            const hanging = () =>
+                jest.fn(
+                    (_url: string, signal: AbortSignal) =>
+                        new Promise<Response>((_, reject) =>
+                            signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+                        )
+                );
+
+            it('is cancelled at the sweep once its last holder lets go', async () => {
+                const fetch = hanging();
+                const { cache } = setup({ store: null, fetch });
+                cache.retain('k');
+                const loading = cache.load('k', 'org', 'u');
+                await jest.advanceTimersByTimeAsync(0);
+                const signal = fetch.mock.calls[0][1];
+
+                cache.release('k');
+                expect(signal.aborted).toBe(false);
+                await sweep();
+
+                expect(signal.aborted).toBe(true);
+                expect(await loading).toBeNull();
+            });
+
+            it('keeps running when taken again before the sweep', async () => {
+                const fetch = hanging();
+                const { cache } = setup({ store: null, fetch });
+                cache.retain('k');
+                void cache.load('k', 'org', 'u');
+                await jest.advanceTimersByTimeAsync(0);
+
+                cache.release('k');
+                cache.retain('k');
+                await sweep();
+
+                expect(fetch.mock.calls[0][1].aborted).toBe(false);
+            });
+
+            it('keeps running while another holder draws it', async () => {
+                const fetch = hanging();
+                const { cache } = setup({ store: null, fetch });
+                cache.retain('k');
+                cache.retain('k');
+                void cache.load('k', 'org', 'u');
+                await jest.advanceTimersByTimeAsync(0);
+
+                cache.release('k');
+                await sweep();
+
+                expect(fetch.mock.calls[0][1].aborted).toBe(false);
+            });
+
+            // The re-read handed the image a new address while its first download was running.
+            it('does not retry a cancelled download for the address that joined it', async () => {
+                const fetch = hanging();
+                const { cache } = setup({ store: null, fetch });
+                cache.retain('k');
+                const first = cache.load('k', 'org', 'old');
+                const joined = cache.load('k', 'org', 'new');
+                await jest.advanceTimersByTimeAsync(0);
+
+                cache.release('k');
+                await sweep();
+
+                expect(await first).toBeNull();
+                expect(await joined).toBeNull();
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            // Swiped away and straight back, before the cancelled download has settled.
+            it('starts a fresh download for a load that arrives after the cancel', async () => {
+                const fetch = hanging();
+                const { cache } = setup({ store: null, fetch });
+                cache.retain('k');
+                const cancelled = cache.load('k', 'org', 'u');
+                await jest.advanceTimersByTimeAsync(0);
+                cache.release('k');
+                await sweep();
+
+                fetch.mockResolvedValueOnce(answer(10));
+                cache.retain('k');
+                const fresh = cache.load('k', 'org', 'u');
+
+                expect(await cancelled).toBeNull();
+                expect(await fresh).toBe('blob:1');
+                expect(fetch).toHaveBeenCalledTimes(2);
+            });
+
+            // A cancellation is not the bucket failing; the next image must still be fetched.
+            it('does not stop the next loads from fetching', async () => {
+                const fetch = hanging();
+                const { cache } = setup({ store: null, fetch, now: () => 0 });
+                cache.retain('a');
+                const cancelled = cache.load('a', 'org', 'u');
+                await jest.advanceTimersByTimeAsync(0);
+                cache.release('a');
+                await sweep();
+                await cancelled;
+
+                fetch.mockResolvedValueOnce(answer(10));
+                expect(await cache.load('b', 'org', 'u')).toBe('blob:1');
+            });
+        });
+
         // The room and its thread draw the same image; one rejecting it must not unhold the other.
         it('keeps other holders counted through an invalidate', async () => {
             const { cache, deps } = small();

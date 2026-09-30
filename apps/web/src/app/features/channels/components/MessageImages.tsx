@@ -28,8 +28,12 @@ interface MessageImagesProps {
  * What is drawn comes through the image cache, keyed by upload rather than by address: a re-read hands
  * the same images new signed addresses, and without the cache every one of them was downloaded again.
  * Only what is drawn is asked for — the tiles in the row, and in the viewer the showing original with
- * its neighbours and their tiles as placeholders. The signed address stays what failure handling
- * reasons about; a cached source that fails to decode is dropped and the tile falls back to it.
+ * its neighbours and their tiles as placeholders. The showing original leads: the neighbours' are
+ * fetched only once it is in, or drawn from its address. An original is several megabytes, and fetched
+ * side by side on a slow network the three of them split the bandwidth, so the photo being looked at
+ * took three times as long. The signed
+ * address stays what failure handling reasons about; a cached source that fails to decode is dropped
+ * and the tile falls back to it.
  *
  * The viewer steps through the message's images — only the ones that can be opened, so a broken
  * tile is skipped rather than shown as a blank page. Its state is kept per row rather than lifted to
@@ -87,7 +91,8 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     const { images: originals, reject: rejectOriginal } = useCachedImages(
         viewable.map((item, at) =>
             nearOpen(at) ? requestFor(item.index, item.src, sentSlot(item.index)?.orgUrl ? 'org' : 'thumb') : undefined
-        )
+        ),
+        openIndex ?? undefined
     );
     // What an image draws: nothing while it is looked up, then the kept copy or its signed address.
     const drawn = (image: CachedImage | undefined, fallback: string | undefined) =>
