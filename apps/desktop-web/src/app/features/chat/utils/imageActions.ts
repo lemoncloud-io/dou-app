@@ -26,10 +26,13 @@ const withExtension = (name: string, type: string): string => {
 /**
  * The bytes of a remote image. Only an address an image may come from, and without this page's
  * cookies — the address is signed, and it came from message data.
+ *
+ * Never from the HTTP cache: the copy an `<img>` left there for this address has no CORS headers
+ * (docs/chat/images.md).
  */
 const fetchImage = async (url: string): Promise<Blob> => {
     if (!isSafeImageUrl(url)) throw new Error('image address refused');
-    const response = await fetch(url, { credentials: 'omit' });
+    const response = await fetch(url, { credentials: 'omit', cache: 'no-store' });
     if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
     return response.blob();
 };
