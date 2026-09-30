@@ -123,17 +123,19 @@ is in [state/stores.md](../../state/stores.md#the-language-choice--uilanguage).
 
 ### Clear cache keeps what the server cannot give back
 
-The **Clear cache** row confirms first, then calls `useClearLocalCaches`, which runs
-`runtime.data.clearLocalCaches()` across every cloud this device holds a partition for. Invited
-clouds and invite dismissals survive — the cache is the only copy of both — and so do the session and
-tokens. Unsent messages do not, which the dialog says. What is swept, and why the sync cursors go
-last, is in [`libs/app-runtime`'s data doc](../../../../../libs/app-runtime/docs/data/README.md#clearing-the-cache).
+The **Clear cache** row has no subtitle and no confirm dialog: the tap itself calls
+`useClearLocalCaches`, which runs `runtime.data.clearLocalCaches()` across every cloud this device
+holds a partition for. Invited clouds and invite dismissals survive — the cache is the only copy of
+both — and so do the session and tokens. Unsent messages do not, and nothing on screen warns about
+that any more; the row is a plain "clear cache" by product choice. What is swept, and why the sync
+cursors go last, is in
+[`libs/app-runtime`'s data doc](../../../../../libs/app-runtime/docs/data/README.md#clearing-the-cache).
 
 A clean sweep **reloads the page**. Screens and react-query still hold what they already read, so
 without the reload the old data would stay on screen until each one happened to refetch. A partial
-failure does not reload: the dialog closes, an error toast stays, and a retry repeats the whole sweep.
-While the sweep runs the dialog keeps its spinner (`closeOnConfirm={false}`) rather than closing on
-the press.
+failure does not reload: an error toast stays, and a retry repeats the whole sweep. While the sweep
+runs the row is disabled and shows a spinner in place of its chevron, so a second tap cannot start
+another sweep.
 
 ### The unlock moved off the version row
 
