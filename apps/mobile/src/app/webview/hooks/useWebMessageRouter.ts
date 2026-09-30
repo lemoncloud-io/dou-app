@@ -5,6 +5,7 @@ import {
     useConfigKvHandler,
     useCrudCacheHandler,
     useClipboardHandler,
+    useHapticHandler,
     useDeviceHandler,
     useSmsHandler,
     useFcmHandler,
@@ -118,6 +119,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleCheckAppUpdate, handleOpenStore } = useAppUpdateHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
+    const { handleTriggerHaptic } = useHapticHandler();
     const {
         handleSendBootMetrics,
         handleSetDebugMode,
@@ -197,6 +199,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchAppIconList,
         handleChangeAppIcon,
         handleCopyToClipboard,
+        handleTriggerHaptic,
         handleSendBootMetrics,
         handleSetDebugMode,
         handleFetchBootRecords,
@@ -279,6 +282,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchAppIconList,
             handleChangeAppIcon,
             handleCopyToClipboard,
+            handleTriggerHaptic,
             handleSendBootMetrics,
             handleSetDebugMode,
             handleFetchBootRecords,
@@ -368,6 +372,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchAppIconList: message => handlersRef.current.handleFetchAppIconList(message),
             ChangeAppIcon: message => handlersRef.current.handleChangeAppIcon(message),
             CopyToClipboard: message => handlersRef.current.handleCopyToClipboard(message),
+            TriggerHaptic: message => handlersRef.current.handleTriggerHaptic(message),
             StartFileTransfer: message => handlersRef.current.handleStartFileTransfer(message),
             CancelFileTransfer: message => handlersRef.current.handleCancelFileTransfer(message),
             ListFileTransfers: () => handlersRef.current.handleListFileTransfers(),

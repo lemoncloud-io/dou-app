@@ -94,6 +94,7 @@ import type {
     OnManagePhotoSelectionPayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
+    OnTriggerHapticPayload,
     OnUpdateStatusPayload,
     OnStartUpdateDownloadPayload,
     OnRestartToUpdatePayload,
@@ -214,6 +215,7 @@ export type AppMessageDataMap = {
     OnFetchPendingReports: OnFetchPendingReportsPayload;
     OnAckPendingReports: OnAckPendingReportsPayload;
     OnCopyToClipboard: OnCopyToClipboardPayload;
+    OnTriggerHaptic: OnTriggerHapticPayload;
     OnSendBootMetrics: OnSendBootMetricsPayload;
     OnSetDebugMode: OnSetDebugModePayload;
     OnStartPerfTrace: OnStartPerfTracePayload;

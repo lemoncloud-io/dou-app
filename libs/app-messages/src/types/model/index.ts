@@ -7,6 +7,7 @@ export * from './common';
 export * from './config';
 export * from './device';
 export * from './file-transfer';
+export * from './haptic';
 export * from './iap';
 export * from './notification';
 export * from './perf';

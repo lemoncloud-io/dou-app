@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 94 web→app request types, 103 app→web message types, the payload
+can cross the WebView boundary — 95 web→app request types, 103 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -77,7 +77,7 @@ that `AppLogInfo` mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessage`,
 `AppSuccessMessage`, `AppFailureMessage`); the native handler signatures (`WebMessageHandler`,
 `WebMessageHandlerResponse`, `WebMessageHandlerMap`); the bridge failure taxonomy (`BridgeErrorCode`,
-`BridgeError`, `BridgeErrorResponse`); and 18 payload files under `model/`.
+`BridgeError`, `BridgeErrorResponse`); and 19 payload files under `model/`.
 
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
@@ -92,9 +92,9 @@ flowchart TD
     classDef map fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Model["model/ × 18<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>94 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>95 message types</i>"]:::map
+    Model["model/ × 19<br/><i>XPayload · OnXPayload</i>"]
+    WM["WebMessagePayloadMap<br/><i>95 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>103 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -156,13 +156,13 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (92) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (105) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (95) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (103) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    18 files — the payloads, grouped by domain
+    └── model/                    19 files — the payloads, grouped by domain
 ```
 
-24 files, 2,987 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+26 files, 3,137 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -187,7 +187,8 @@ The payload files, with what is in each:
 | `config.ts`        | 24    | The shell's opaque KV bridge (ADR-0079)                                                                  |
 | `unfurl.ts`        | 23    | URL metadata lookup                                                                                      |
 | `clipboard.ts`     | 10    | Copy to the native clipboard                                                                             |
-| `index.ts`         | 17    | The barrel for the seventeen above                                                                       |
+| `haptic.ts`        | 17    | `HapticKind` and the one short haptic the web asks the shell to play                                     |
+| `index.ts`         | 19    | The barrel for the nineteen above                                                                        |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
 and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`) while an image message is still on its
@@ -262,7 +263,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 94 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 95 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

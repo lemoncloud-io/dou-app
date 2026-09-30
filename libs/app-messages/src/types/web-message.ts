@@ -86,6 +86,7 @@ import type {
     ClearAppLogBufferPayload,
     FetchAppLogBufferSizePayload,
     CopyToClipboardPayload,
+    TriggerHapticPayload,
     DismissResumeOverlayPayload,
     StartUpdateDownloadPayload,
     RestartToUpdatePayload,
@@ -198,6 +199,7 @@ export type WebMessagePayloadMap = {
     AckPendingReports: AckPendingReportsPayload;
     Ping: PingPayload;
     CopyToClipboard: CopyToClipboardPayload;
+    TriggerHaptic: TriggerHapticPayload;
     DismissResumeOverlay: DismissResumeOverlayPayload;
     SendBootMetrics: SendBootMetricsPayload;
     SetDebugMode: SetDebugModePayload;

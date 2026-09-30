@@ -65,8 +65,8 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 25 handler hooks that answer web messages; the
-19 service domains behind them; the 7 native bridge modules and their Android/Kotlin and iOS/Swift
+**In** — the WebView host and the message router; the 26 handler hooks that answer web messages; the
+19 service domains behind them; the 9 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
 counts and push-tap routing; deep links and universal links; large-file upload; boot metrics; theme
 and system bars; the build, run and store-deploy pipelines.
@@ -91,9 +91,9 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>25 handlers"]
+    Handlers["webview/hooks<br/>26 handlers"]
     Services["services/<br/>19 domains"]
-    BridgeTS["bridge/<br/>7 native modules"]
+    BridgeTS["bridge/<br/>9 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
     Boot --> Screen --> WV
@@ -150,7 +150,7 @@ apps/mobile/
 │   ├── main-web.tsx       the web target's entry point
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check
-│       ├── webview/       62 files: AppWebView, SimpleWebView, the router, 25 handlers, injection
+│       ├── webview/       62 files: AppWebView, SimpleWebView, the router, 26 handlers, injection
 │       ├── services/      97 files across 19 domains, assembled in provider.ts
 │       ├── bridge/        7 modules onto native: app icon, back nav, badge sync, file manager,
 │       │                  push marks, system bars, upload manager
@@ -210,7 +210,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 25 handler hooks → useServices() → provider
+                    └── 26 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first
@@ -270,15 +270,15 @@ the lanes. There are four store apps — iOS and Android, each dev and prod. See
 The detail lives under [`docs/`](./docs/README.md), in seven categories. Each category folder has a
 `README.md` that is either its lead document or a short index.
 
-| Category | What it covers |
-| --- | --- |
+| Category                                  | What it covers                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | [docs/webview/](./docs/webview/README.md) | The message boundary in detail — handlers, the injected runtime, the router, and remote debugging |
-| [docs/boot/](./docs/boot/README.md) | Why the WebView mounts early, what is deferred, and the boot timeline that proves it |
-| [docs/native/](./docs/native/README.md) | The three-way native parity contract, and the execution boundary in `services/` |
-| [docs/push/](./docs/push/README.md) | FCM/APNs registration, notification channels, click routing, and the app icon badge |
-| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload |
-| [docs/system/](./docs/system/README.md) | OS-level state shared with the web — theme sync and deep links |
-| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server |
+| [docs/boot/](./docs/boot/README.md)       | Why the WebView mounts early, what is deferred, and the boot timeline that proves it              |
+| [docs/native/](./docs/native/README.md)   | The three-way native parity contract, and the execution boundary in `services/`                   |
+| [docs/push/](./docs/push/README.md)       | FCM/APNs registration, notification channels, click routing, and the app icon badge               |
+| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload                    |
+| [docs/system/](./docs/system/README.md)   | OS-level state shared with the web — theme sync and deep links                                    |
+| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server            |
 
 Those are the detail, and this README is the map.
 
