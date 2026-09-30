@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
@@ -52,6 +52,15 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null, cid?: string)
     }, [key, targetCid, uid]);
 };
 
+/** Where a room's prime stands — see {@link usePrimeChat}. */
+export type ChatPrimeStatus = 'pending' | 'ready' | 'failed';
+
+export interface ChatSyncState {
+    prime: ChatPrimeStatus;
+    /** Runs the prime again, after a `failed` one. */
+    retryPrime: () => void;
+}
+
 /**
  * Chat plans have a no-op `run`, so registering a chat target loads nothing on its own. Prime the
  * room: align the plan baseline to the durable cache's max chatNo (its cursor) via
@@ -66,13 +75,26 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null, cid?: string)
  * the sync it waits for, so the phases are marked here: slot verified, page requested, page
  * written. The room page ends the trace when that page reaches the screen. A warm room's sync is
  * `useForegroundChatRefresh`'s in the web, which marks the same phases.
+ *
+ * The outcome is returned, because a cold room's cache reads empty until the first page lands: a
+ * screen that took that empty read at its word would show "no messages yet" over a room that has
+ * them, and one whose first page failed would show it for good. `pending` lasts until the cache read
+ * finds rows or the first page is written; `failed` means the read or the fetch threw, and
+ * `retryPrime` runs the prime again. The status belongs to one room in one cloud, so opening another
+ * starts it at `pending` again.
  */
-const usePrimeChat = (channelId: string | undefined, cid: string): void => {
+const usePrimeChat = (channelId: string | undefined, cid: string): ChatSyncState => {
     const isVerified = useSlotVerified(slotKeyOf(cid));
+    const scope = channelId ? `${cid}:${channelId}` : null;
+    const [settled, setSettled] = useState<{ scope: string; status: 'ready' | 'failed' } | null>(null);
+    const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
         if (!isVerified || !channelId) return;
         let cancelled = false;
+        const settle = (status: 'ready' | 'failed') => {
+            if (!cancelled) setSettled({ scope: `${cid}:${channelId}`, status });
+        };
         getActivePerfTrace('chat_room_sync', channelId)?.mark('verified');
 
         void (async () => {
@@ -104,26 +126,35 @@ const usePrimeChat = (channelId: string | undefined, cid: string): void => {
                 // synced as it will get, so the trace ends here.
                 if (trace && result.fetchedCount === 0) endActivePerfTrace('chat_room_sync', channelId, 'synced');
             }
+            settle('ready');
         })().catch(error => {
             endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', {
                 error,
                 data: { channelId, cid },
             });
+            settle('failed');
         });
 
         return () => {
             cancelled = true;
         };
-    }, [isVerified, channelId, cid]);
+    }, [isVerified, channelId, cid, attempt]);
+
+    const retryPrime = useCallback(() => {
+        setSettled(null);
+        setAttempt(n => n + 1);
+    }, []);
+
+    return { prime: settled && settled.scope === scope ? settled.status : 'pending', retryPrime };
 };
 
 // Register the chat target (live push + reconnect catch-up) and prime it (baseline + cold fetch).
 // useSyncTarget's effect runs first, so startSync precedes the prime's updateLocalSnapshot.
-export const useChatSync = (channelId?: string, intervalMs?: number): void => {
+export const useChatSync = (channelId?: string, intervalMs?: number): ChatSyncState => {
     const cid = useSelectedCid();
     useSyncTarget(channelId ? { type: 'chat', id: channelId, ...(intervalMs ? { intervalMs } : {}) } : null, cid);
-    usePrimeChat(channelId, cid);
+    return usePrimeChat(channelId, cid);
 };
 
 export const useChannelSync = (channelId?: string, intervalMs?: number): void =>

@@ -565,3 +565,29 @@ describe('MessageList failed send', () => {
         expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
     });
 });
+
+describe('MessageList first page failed', () => {
+    afterEach(cleanup);
+
+    // An empty list after a failed load is not an empty room: the intro would invite a first
+    // message into a room that has history.
+    it('says the messages did not load and retries, instead of the intro', () => {
+        const onRetryLoad = vi.fn();
+        render(
+            <MessageList
+                messages={[]}
+                isLoading={false}
+                viewer={VIEWER}
+                intro={<p>Write the first message</p>}
+                loadFailed
+                onRetryLoad={onRetryLoad}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByRole('alert').textContent).toContain('Could not load messages.');
+        expect(screen.queryByText('Write the first message')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onRetryLoad).toHaveBeenCalledTimes(1);
+    });
+});

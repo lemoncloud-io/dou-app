@@ -188,6 +188,7 @@ export const ko: EnTranslation = {
     'activity.close': '멘션 닫기',
     'activity.resize': '멘션 패널 크기 조절',
     'chat.failed': '전송 실패',
+    'chat.loadFailed': '메시지를 불러오지 못했어요.',
     'chat.retry': '다시 시도',
     'chat.reaction.add': '반응 추가',
     'chat.reaction.who': '{{emoji}} · {{names}}',

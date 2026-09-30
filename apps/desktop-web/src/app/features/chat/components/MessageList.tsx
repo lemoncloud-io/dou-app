@@ -70,6 +70,10 @@ interface MessageListProps {
      * the empty state): the channel's "this is the start of …" block. Absent in threads.
      */
     intro?: ReactNode;
+    /** The room's first page failed to load: an empty list is not an empty room, so say so. */
+    loadFailed?: boolean;
+    /** Try the first page again, offered beside `loadFailed`. */
+    onRetryLoad?: () => void;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -113,6 +117,8 @@ export const MessageList = ({
     onReadingPosition,
     readCountOf,
     intro,
+    loadFailed,
+    onRetryLoad,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -562,6 +568,23 @@ export const MessageList = ({
                         </div>
                     </div>
                 ))}
+            </div>
+        );
+    }
+
+    if (messages.length === 0 && loadFailed) {
+        return (
+            <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-callout text-foreground">{t('chat.loadFailed')}</p>
+                {onRetryLoad && (
+                    <button
+                        type="button"
+                        onClick={onRetryLoad}
+                        className="focus-ring tactile rounded-lg bg-muted px-3 py-2 text-callout font-medium text-foreground transition-colors hover:bg-accent"
+                    >
+                        {t('chat.retry')}
+                    </button>
+                )}
             </div>
         );
     }

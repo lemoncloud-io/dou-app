@@ -95,7 +95,7 @@ export const ChatPane = ({
     const viewer = useMessageViewer(channel);
     const placeProfiles = useSiteProfileMap();
     // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
-    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(
+    const { messages, isLoading, loadFailed, retryLoad, loadOlder, hasMore, isLoadingOlder } = useChats(
         channelId,
         channel ? lastChatNoOf(channel) : undefined
     );
@@ -405,6 +405,8 @@ export const ChatPane = ({
                     onReadingPosition={reportPosition}
                     readCountOf={readCountOf}
                     intro={intro}
+                    loadFailed={loadFailed}
+                    onRetryLoad={retryLoad}
                 />
                 <Composer
                     onSend={handleSend}

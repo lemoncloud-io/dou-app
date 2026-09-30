@@ -180,6 +180,7 @@ export const en = {
     'activity.close': 'Close mentions',
     'activity.resize': 'Resize mentions panel',
     'chat.failed': 'Not delivered',
+    'chat.loadFailed': 'Could not load messages.',
     'chat.retry': 'Retry',
     'chat.reaction.add': 'Add reaction',
     'chat.reaction.who': '{{emoji}} · {{names}}',
