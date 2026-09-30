@@ -36,6 +36,7 @@ import {
     useUserPermissions,
 } from '../../../hooks';
 import { useCloudDmChannels } from '../../channels/hooks';
+import { isInCloudDmSection } from '../../channels/lib';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { BottomNavSpacer } from '../../../ui/components';
@@ -201,6 +202,9 @@ export const HomePage = () => {
     // isLoading === false. Without folding the switch in, the Chat section would flash its empty
     // state ("채팅방이 없어요") on the way into every place. Skeletons cover the gap instead.
     const isChannelSectionLoading = isChannelsLoading || isSwitching;
+    // The place's own rooms. A subscription cloud's notes-to-self room carries a place too, but it
+    // belongs to the account and is listed with the 1:1s below. `channels` keeps it for the syncs.
+    const placeRooms = useMemo(() => channels.filter(channel => !isInCloudDmSection(channel)), [channels]);
     // Sent relay invites (ADR-0089 Track B) — 1:1 DM invites only make sense on the default
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
@@ -517,7 +521,7 @@ export const HomePage = () => {
 
                 {selectedPlaceId ? (
                     <ChannelList
-                        channels={channels}
+                        channels={placeRooms}
                         joinByChannel={myJoins}
                         sid={selectedPlaceId}
                         isLoading={isChannelSectionLoading}
@@ -582,6 +586,7 @@ export const HomePage = () => {
                 {!isDefaultCloud && (
                     <ChannelList
                         channels={cloudDmChannels}
+                        leadsWithSelf
                         joinByChannel={myJoins}
                         sid={selectedSiteId ?? ''}
                         isLoading={isCloudDmLoading}

@@ -135,9 +135,19 @@ place-scoped read would show the room to one of them and hide it from the other.
 (in `libs/data`) holds both halves: a place list takes rooms whose `sid` matches **and** that are not
 read cloud-wide, or a cloud 1:1 appears twice.
 
-`useCloudDmChannels` reads the cloud-wide observation for the rooms `dmLineageOf` calls `cloud`, and
-the section is `ChannelList` itself — same rows, a different title and source — so the title chain,
-the avatar, unread and the preview cannot drift into a second copy.
+`useCloudDmChannels` reads the cloud-wide observation for the rooms `isInCloudDmSection` names — the
+ones `dmLineageOf` calls `cloud`, plus the cloud's self chat — and the section is `ChannelList`
+itself — same rows, a different title and source — so the title chain, the avatar, unread and the
+preview cannot drift into a second copy.
+
+**The self chat leads the cloud 1:1 section, not the place's rooms.** It belongs to the account
+rather than to a place, so under a place it showed in whichever one it was tagged with and in none of
+the others; desktop already lists it first among its direct messages. `HomePage` drops it from the
+place list with the same rule, keeping it in the place's join and chat sync registration, and the
+section passes `leadsWithSelf` so it sits above every 1:1. On relay nothing moves: its self chat and
+its 1:1s share its one place, which is the only list there. A self chat the cache filed under the
+account (`ACCOUNT_CHANNEL_SID`, when the server named no place) passes the active cloud's
+reachable-place filter, which would otherwise drop it as a row from a place no rail lists.
 
 **The create menu entry is one label over two acts.** On relay a 1:1 is reached by phone number, so
 it goes to the contact form — which carries its own ordered gates: phone verification for a guest or

@@ -290,6 +290,8 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
+    /** The notes-to-self room leads the list, above pins and the sort — the cloud 1:1 section. */
+    leadsWithSelf?: boolean;
     /**
      * Pins or unpins a room in this place. Given, rows offer it as their right-swipe action; left out
      * — the cloud 1:1 section, whose pins nothing stores — they offer no right swipe at all.
@@ -332,6 +334,7 @@ export const ChannelList = ({
     isPro,
     sortMethod = 'recent',
     pinnedChannelIds,
+    leadsWithSelf,
     onTogglePin,
     onCreateOneOnOne,
     onCreateGroup,
@@ -458,8 +461,16 @@ export const ChannelList = ({
     // order is the last message's time, read from the same `lastChats` map the rows render — so the
     // order and the previews can never tell two different stories. See sortChannels (unit-tested).
     const sortedChannels = useMemo(
-        () => sortChannels({ channels, lastChatByChannel: lastChats, unreadByChannel, sortMethod, pinnedChannelIds }),
-        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds]
+        () =>
+            sortChannels({
+                channels,
+                lastChatByChannel: lastChats,
+                unreadByChannel,
+                sortMethod,
+                pinnedChannelIds,
+                leadsWithSelf,
+            }),
+        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
     );
 
     // "그룹 방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for

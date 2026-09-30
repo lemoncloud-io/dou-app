@@ -131,6 +131,15 @@ export const dmLineageOf = (
 };
 
 /**
+ * Whether home lists a room in the cloud 1:1 section rather than under a place: a cloud 1:1, and
+ * the notes-to-self room of a subscription cloud. The self room belongs to the account, not to a
+ * place, so it sits with the 1:1s as it does on desktop. On the relay both stay in its one place,
+ * which is the only list there.
+ */
+export const isInCloudDmSection = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
+    dmLineageOf(channel) === 'cloud' || (channel?.stereo === 'self' && channel.cid !== RELAY_CLOUD_ID);
+
+/**
  * Whether this room's UI may talk about invites — the departure footer, its re-invite CTA, and the
  * `invite.list` poll that feeds them.
  *
