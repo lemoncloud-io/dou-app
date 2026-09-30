@@ -210,7 +210,7 @@ export const en = {
     'chat.empty.join.action': 'Join with invite',
     'chat.noChannels': 'No channels yet',
     'chat.noChannelsHint': 'Create one to get started.',
-    'chat.noChannelsHintDefault': 'Your messages will appear here.',
+    'chat.noChannelsHintDefault': "Channels you're invited to will appear here.",
     'chat.loading': 'Loading...',
     'chat.today': 'Today',
     'chat.yesterday': 'Yesterday',

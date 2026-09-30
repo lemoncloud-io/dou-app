@@ -218,7 +218,7 @@ export const ko: EnTranslation = {
     'chat.empty.join.action': '초대 코드로 참여',
     'chat.noChannels': '아직 채널이 없어요',
     'chat.noChannelsHint': '채널을 만들어 시작해 보세요.',
-    'chat.noChannelsHintDefault': '메시지가 여기에 표시돼요.',
+    'chat.noChannelsHintDefault': '초대받은 채널이 여기에 표시돼요.',
     'chat.loading': '불러오는 중...',
     'chat.today': '오늘',
     'chat.yesterday': '어제',

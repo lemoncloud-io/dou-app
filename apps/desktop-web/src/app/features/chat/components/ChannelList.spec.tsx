@@ -895,3 +895,25 @@ describe('ChannelList place members without a 1:1', () => {
         expect(screen.queryByText('Alice')).toBeNull();
     });
 });
+
+describe('ChannelList empty state', () => {
+    // The Home cloud's hint promised messages under "No channels yet": the wrong noun for a
+    // list of channels.
+    it('says where channels come from when the Home cloud has none', () => {
+        render(
+            <ChannelList
+                channels={[]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('No channels yet')).toBeTruthy();
+        expect(screen.getByText("Channels you're invited to will appear here.")).toBeTruthy();
+        expect(screen.queryByText(/messages/i)).toBeNull();
+    });
+});
