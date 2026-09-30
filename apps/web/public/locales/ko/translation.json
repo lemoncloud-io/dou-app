@@ -26,7 +26,8 @@
         "save": "변경사항 저장",
         "saving": "저장 중...",
         "back": "뒤로",
-        "toastRegion": "알림 ({hotkey})"
+        "toastRegion": "알림 ({hotkey})",
+        "loading": "불러오는 중"
     },
     "nav": {
         "authTest": "인증 테스트",
