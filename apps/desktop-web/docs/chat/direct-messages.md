@@ -36,9 +36,13 @@ Desktop offers no way to start one there, and every entry point below hides.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.
-- **A cloud with no place at all** still lists its 1:1s (`cloudWideOnly`). HomePage asks for that only
-  once places have loaded, are empty and no switch is in flight. "No place selected yet" during a
-  cloud switch must list nothing, or the home screen auto-selects a 1:1 in the gap.
+- **A cloud with no place at all** still lists its 1:1s (`whenNoPlace: 'cloudDms'`). HomePage asks for
+  that only once places have loaded, are empty and no switch is in flight. "No place selected yet"
+  during a cloud switch must list nothing, or the home screen auto-selects a 1:1 in the gap.
+- **The Default Cloud (Home)** is not that case. Nothing but an invite join selects a site on it, so
+  it usually has no place, and its 1:1s are not cloud-wide (they live in the relay's one place):
+  the cloud-1:1 rule would list nothing, the Self Channel included, and onboarding would wait on it
+  forever. With no site, Home lists every relay row (`whenNoPlace: 'relay'`).
 - **The quick switcher** (`useKnownChannelsStore`) files a 1:1 under each place that lists it, with
   its person (`peerId`), so ⌘K offers a 1:1 listed only in other places as "in another place",
   named after the person rather than the server-set room name (`elsewhereChannels`) — the room name

@@ -1,12 +1,17 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const syncChannels = vi.fn(() => Promise.resolve({ syncedAt: 0, removedCount: 0 }));
+const repositories = { channel: { syncChannels } };
 vi.mock('@chatic/app-runtime', () => ({
-    runtime: { session: { useSessionIdentity: () => ({ userId: 'u1' }) } },
+    runtime: {
+        session: { useSessionIdentity: () => ({ userId: 'u1' }) },
+        data: { useRuntimeRepositories: () => repositories },
+    },
 }));
 
 import { useOnboardingStore } from '../stores';
-import { OnboardingDialog } from './OnboardingDialog';
+import { OnboardingDialog, SELF_CHANNEL_WAIT_MS } from './OnboardingDialog';
 
 // Initialises i18next so the dialog copy resolves.
 import '../../../../i18n';
@@ -96,5 +101,65 @@ describe('OnboardingDialog after a reload', () => {
 
         mount();
         expect(screen.queryByRole('dialog')).toBeNull();
+    });
+});
+
+// A new account on Home waits on its Self Channel. When the list dropped that channel the row spun
+// for as long as anyone watched, with nothing to do about it.
+describe('OnboardingDialog Self Channel row', () => {
+    const mountHome = (isChannelReady: boolean) => (
+        <OnboardingDialog enabled showChannelStatus isChannelReady={isChannelReady} />
+    );
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        localStorage.clear();
+        useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
+        syncChannels.mockClear();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('says the channel did not load once the wait runs out, and offers a retry', () => {
+        render(mountHome(false));
+        expect(screen.getByRole('status').textContent).toBe('Setting up your Self Channel…');
+        expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));
+
+        expect(screen.getByRole('status').textContent).toBe("Couldn't load your Self Channel.");
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    });
+
+    it('asks for the channels again on retry and waits afresh', () => {
+        render(mountHome(false));
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+        expect(syncChannels).toHaveBeenCalledWith(0);
+        expect(screen.getByRole('status').textContent).toBe('Setting up your Self Channel…');
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));
+        expect(screen.getByRole('status').textContent).toBe("Couldn't load your Self Channel.");
+    });
+
+    it('turns ready when the channel arrives after the wait ran out', () => {
+        const view = render(mountHome(false));
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));
+
+        view.rerender(mountHome(true));
+
+        expect(screen.getByRole('status').textContent).toBe('Your Self Channel is ready.');
+        expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    });
+
+    it('keeps waiting while the channel arrives within the window', () => {
+        const view = render(mountHome(false));
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS - 1000));
+        view.rerender(mountHome(true));
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));
+
+        expect(screen.getByRole('status').textContent).toBe('Your Self Channel is ready.');
     });
 });

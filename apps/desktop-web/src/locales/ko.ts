@@ -462,6 +462,8 @@ export const ko: EnTranslation = {
         '다른 사람들과 함께 쓰는 워크스페이스예요. 왼쪽에서 채널을 골라 읽어 보거나, 인사를 건네 보세요.',
     'onboarding.welcome.preparing': '셀프 채널을 준비하는 중…',
     'onboarding.welcome.ready': '셀프 채널이 준비됐어요.',
+    'onboarding.welcome.failed': '셀프 채널을 불러오지 못했어요.',
+    'onboarding.welcome.retry': '다시 시도',
     'onboarding.next': '다음',
     'onboarding.tips.title': '알아 두면 좋은 것들',
     'onboarding.tips.body': '첫 메시지를 보내기 전에 알아 두면 좋은 것들이에요.',

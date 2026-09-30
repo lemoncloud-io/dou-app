@@ -155,8 +155,37 @@ describe('useChannels', () => {
             { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
         ];
 
-        const { result } = renderHook(() => useChannels(undefined, { cloudWideOnly: true }));
+        const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'cloudDms' }));
 
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1']));
+    });
+
+    // Home has no place for most accounts: nothing selects a site on the relay but an invite join.
+    // Listing only cloud-wide rows there listed nothing, and onboarding waited on the Self Channel
+    // forever.
+    it('lists the Self Channel on Home, which has no place', async () => {
+        placesState = { placeIds: [], isLoading: false };
+        cacheRows = [{ id: 'U:me', cid: 'default', sid: 'relay-place', stereo: 'self', memberIds: ['me'] }];
+
+        const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'relay' }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me']));
+        expect(result.current.isLoading).toBe(false);
+    });
+
+    it('lists every relay row on Home, but no row of another cloud', async () => {
+        placesState = { placeIds: [], isLoading: false };
+        cacheRows = [
+            { id: 'U:me', cid: 'default', sid: 'relay-place', stereo: 'self' },
+            { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
+            { id: 'relay-group', name: 'lobby', cid: 'default', sid: 'relay-place' },
+            // A late row of the cloud just left must not land in Home.
+            { id: 'cloud-dm', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },
+            { id: 'cloud-group', name: 'general', cid: 'cloud-1', sid: 'place-a' },
+        ];
+
+        const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'relay' }));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me', 'relay-dm', 'relay-group']));
     });
 });

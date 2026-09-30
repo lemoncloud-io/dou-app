@@ -468,6 +468,8 @@ export const en = {
         'You are in a workspace with other people. Pick a channel on the left and read along, or say hello.',
     'onboarding.welcome.preparing': 'Setting up your Self Channel…',
     'onboarding.welcome.ready': 'Your Self Channel is ready.',
+    'onboarding.welcome.failed': "Couldn't load your Self Channel.",
+    'onboarding.welcome.retry': 'Try again',
     'onboarding.next': 'Next',
     'onboarding.tips.title': 'A few tips',
     'onboarding.tips.body': 'A few things worth knowing before your first message.',
