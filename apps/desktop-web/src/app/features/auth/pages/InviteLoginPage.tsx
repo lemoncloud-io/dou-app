@@ -62,7 +62,7 @@ export const InviteLoginPage = () => {
                     aria-describedby={error ? 'invite-code-error' : undefined}
                     className={cn(
                         'focus-ring h-11 rounded-lg border bg-background px-3 text-callout text-foreground outline-none transition-colors',
-                        'border-input focus:border-focus-border disabled:opacity-50'
+                        'border-control-border focus:border-focus-border disabled:opacity-50'
                     )}
                 />
                 {/* role="alert" so a rejected code is announced, not just drawn. */}

@@ -527,7 +527,7 @@ export const MessageRow = memo(
                                                 }}
                                                 aria-label={t('chat.edit')}
                                                 aria-describedby={`${key}-edit-hint`}
-                                                className="focus-ring w-full resize-none rounded-md border border-input bg-background px-2 py-1.5 text-body text-foreground"
+                                                className="focus-ring w-full resize-none rounded-md border border-control-border bg-background px-2 py-1.5 text-body text-foreground"
                                             />
                                             {/* Buttons and shortcuts both, deliberately. The
                                                 shortcuts are faster once known and the buttons are

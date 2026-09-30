@@ -189,7 +189,7 @@ const ComposerInner = ({
         >
             <div
                 className={cn(
-                    'relative flex flex-col overflow-hidden rounded-2xl border border-input bg-background transition-colors ease-tactile',
+                    'relative flex flex-col overflow-hidden rounded-2xl border border-control-border bg-background transition-colors ease-tactile',
                     // Figma "#before sending image": the box turns GR2 lime while you are in it.
                     'focus-within:border-focus-border focus-within:shadow-[0_0_0_0.5px_hsl(var(--focus-border))]'
                 )}

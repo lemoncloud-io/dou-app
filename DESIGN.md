@@ -28,7 +28,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
 | `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
-| `BK_100`                      | `#EAEAEC` | `--border`, `--hairline`, `--input-border`                       |
+| `BK_100`                      | `#EAEAEC` | `--border`, `--hairline`, `--input-border` (web)                 |
 | `BK_300`                      | `#CFD0D3` | `--control-idle`, `--toast-muted`                                |
 | `BK_400`                      | `#BABCC0` | `--placeholder` (web)                                            |
 | `BK_500`                      | `#9FA2A7` | `--placeholder` (desktop), dark `--label` (web)                  |
@@ -73,7 +73,18 @@ White on `#B0EA10` is 1.6:1, so:
 - **On dark surfaces** the fill already reads as text, so `--primary-ink` equals
   `--primary`.
 
-`libs/block-kit` resolves mentions to `primary-ink`, never `primary`.
+`libs/block-kit` resolves mentions to `primary-ink`, never `primary`. The kit's `link`
+button variant is `primary-ink` and underlined at rest; a checked Switch keeps the lime
+fill but takes a `primary-ink` edge and a `primary-foreground` thumb, so its state does
+not rest on the fill's 1.44:1 against white.
+
+### Control edges versus hairlines
+
+A control's boundary is held to 3:1 against its ground (WCAG 1.4.11): a text field, the
+composer box, an unselected option, the Switch's off track all take `border-control-border`
+(`--input-border` points at it for the kit `Input`). A selected option's edge is
+`border-primary-ink`. Dividers and cards carry no state and keep the `--border` hairline;
+making them 3:1 would draw a grid over the whole shell.
 
 **Links are not the accent.** On desktop a URL in message text takes `text-link`
 (`--link`, light `217 72% 38%` at 7.59:1 on white, dark `212 90% 72%` at 6.84:1 on the
@@ -99,6 +110,7 @@ change every message on mobile, which is a separate decision.
 | `--muted-foreground`                   | `218 5% 40%`   | darker than BK_600 (3.6:1); 4.5:1 on hover and composer tints too    |
 | `--border` / `--hairline`              | `240 5% 92%`   | `#EAEAEC`                                                            |
 | `--input`                              | `240 6% 90%`   | `#E5E5E8` composer box                                               |
+| `--control-border` / `--input-border`  | `220 5% 52%`   | edge of a field, an option, the Switch's off track (3.83:1 on white) |
 | `--well`                               | `0 0% 96%`     | search bar, code block ground                                        |
 | `--destructive`                        | `358 80% 44%`  | deeper than Figma `#FF3B30` (3.58:1 as text and as a fill), ADR-0133 |
 | `--warning`                            | `38 92% 50%`   | connecting banner                                                    |
@@ -120,6 +132,7 @@ Warm near-neutral grays, same lime.
 | `--accent` (hover)                                        | `#38393A`                                                                           |
 | `--border` / `--hairline`                                 | `#424540`                                                                           |
 | `--input`                                                 | `#3D3E3C`                                                                           |
+| `--control-border` / `--input-border`                     | `90 2% 55%` control edges (4.10:1 on a card)                                        |
 | `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark; light mode uses the ink lime) |
 | `--link`                                                  | `212 90% 72%` URLs in message text (6.84:1 on `#252624`)                            |
 | `--toast`                                                 | `#F4F5F5` light card, dark text                                                     |

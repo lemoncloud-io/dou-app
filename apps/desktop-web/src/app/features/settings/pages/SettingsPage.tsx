@@ -95,8 +95,8 @@ export const SettingsPage = () => {
                                         className={cn(
                                             'focus-ring tactile flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-callout capitalize transition-colors ease-tactile',
                                             theme === option
-                                                ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                                                : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
+                                                ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
+                                                : 'border-control-border text-muted-foreground hover:bg-accent'
                                         )}
                                     >
                                         <span
@@ -133,8 +133,8 @@ export const SettingsPage = () => {
                                             className={cn(
                                                 'focus-ring tactile rounded-lg border px-4 py-2 text-callout transition-colors ease-tactile',
                                                 i18n.language === lng
-                                                    ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                                                    : 'border-input text-muted-foreground hover:border-border hover:bg-accent'
+                                                    ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
+                                                    : 'border-control-border text-muted-foreground hover:bg-accent'
                                             )}
                                         >
                                             {LANGUAGE_LABELS[lng]}
@@ -231,7 +231,7 @@ export const SettingsPage = () => {
                                         type="time"
                                         value={quietHours.start}
                                         onChange={e => setQuietHours({ start: e.target.value, end: quietHours.end })}
-                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-callout text-foreground"
+                                        className="focus-ring rounded-lg border border-control-border bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
                                 <label className="flex flex-col gap-1.5 text-caption text-muted-foreground">
@@ -242,7 +242,7 @@ export const SettingsPage = () => {
                                         onChange={e => setQuietHours({ start: quietHours.start, end: e.target.value })}
                                         aria-invalid={quietWindow == null ? true : undefined}
                                         aria-describedby="quiet-hours-window"
-                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-callout text-foreground"
+                                        className="focus-ring rounded-lg border border-control-border bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
                             </div>

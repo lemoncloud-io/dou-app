@@ -15,7 +15,10 @@ const buttonVariants = cva(
                 outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
                 secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
                 ghost: 'hover:bg-accent hover:text-accent-foreground',
-                link: 'text-primary underline-offset-4 hover:underline',
+                // Ink, not the fill: the fill colour is a surface, and as text on a light
+                // ground it can measure under 1.5:1. Underlined at rest so the variant reads
+                // as a link without relying on colour alone.
+                link: 'text-primary-ink underline underline-offset-4 hover:decoration-2',
             },
             size: {
                 default: 'h-9 px-4 py-2',

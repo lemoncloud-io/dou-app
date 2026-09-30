@@ -108,6 +108,11 @@
 
         --border: 240 5% 92%; /* #EAEAEC BK_100 */
         --input: 240 6% 90%; /* #E5E5E8 composer box */
+        /* The edge of an interactive control: a text field, an unselected option, the
+           Switch's off track. --border and --input measured 1.21:1 on white, so a field
+           read as bare text; WCAG 1.4.11 holds a control boundary to 3:1 (3.83:1 here).
+           Dividers and cards carry no state and keep the --border hairline. */
+        --control-border: 220 5% 52%;
         /* ui-kit's own focus ring. Pointed at --focus-ring so a kit-rendered
            control and an app-rendered one show the same focus. */
         --ring: var(--focus-ring);
@@ -124,7 +129,7 @@
         --surface: 0 0% 100%;
         /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
         --main-accent: 76 96% 39%;
-        --input-border: 240 5% 92%;
+        --input-border: var(--control-border);
         /* Composer focus. Figma's GR2 lime (#90C304) outlines at 2.1:1 on white, under the
            3:1 a focus indicator needs, so light mode takes the ink lime the focus ring uses. */
         --focus-border: var(--focus-ring);
@@ -231,6 +236,8 @@
 
         --border: 96 4% 26%; /* #424540 */
         --input: 90 2% 24%; /* #3D3E3C composer box */
+        /* 4.10:1 on a card, 4.54:1 on the main pane. */
+        --control-border: 90 2% 55%;
         --ring: var(--focus-ring);
 
         /* Gray scale (dark) */
@@ -239,7 +246,7 @@
         --description: 82 5% 65%; /* #A8ABA3 */
         --surface: 90 3% 15%;
         --main-accent: 76 96% 39%; /* #90C304 */
-        --input-border: 90 2% 24%;
+        --input-border: var(--control-border);
         --focus-border: 76 87% 49%; /* dark composer focus = #B0EA10 (Figma 259:566) */
 
         /* Toast (light card on dark bg) */

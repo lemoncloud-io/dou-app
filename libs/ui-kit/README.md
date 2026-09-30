@@ -66,7 +66,7 @@ portalled to `document.body` is the one thing a call site cannot correct.
 ## Design principles
 
 1. **Regenerable by default.** A file under `components/ui/` is the generator's output and stays
-   that way unless there is a reason it cannot. 21 of the 30 modules have not been touched since
+   that way unless there is a reason it cannot. 19 of the 30 modules have not been touched since
    `shadcn add` wrote them.
 2. **A local edit carries the reason in a comment.** The three overlay files that read `--app-width`
    each explain, in place, why a `fixed` element portalled to `document.body` has to re-declare the
@@ -177,7 +177,7 @@ grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.t
 | Module          | Importers | Where                                             | Local edits                                       |
 | --------------- | --------: | ------------------------------------------------- | ------------------------------------------------- |
 | `use-toast`     |        79 | web 68 · desktop-web 11                           | `TOAST_REMOVE_DELAY` cut to 1s                    |
-| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | —                                                 |
+| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | `link` variant in ink, underlined                 |
 | `dialog`        |        24 | web 13 · desktop-web 10 · admin-v2 1              | variants · `hideClose` · width cap · focus return |
 | `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3              | —                                                 |
 | `avatar`        |        13 | desktop-web 13                                    | —                                                 |
@@ -187,7 +187,7 @@ grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.t
 | `label`         |         5 | desktop-web 3 · admin-v2 2                        | —                                                 |
 | `sheet`         |         5 | web 4 · web-ui-kit 1                              | `hideClose` · width cap on bottom                 |
 | `popover`       |         4 | desktop-web 4                                     | —                                                 |
-| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | —                                                 |
+| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | 3:1 track, ink edge and thumb when on             |
 | `table`         |         3 | admin-v2 3                                        | —                                                 |
 | `badge`         |         2 | admin-v2 2                                        | —                                                 |
 | `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten                                         |
@@ -232,7 +232,7 @@ npx shadcn@latest add <component>
 lands here and imports `cn` through the repo's own alias. The style is `new-york`, base colour
 `stone`, icon library `lucide`.
 
-**Nine of the 30 modules carry edits made after the generator wrote them, and re-running the command
+**Eleven of the 30 modules carry edits made after the generator wrote them, and re-running the command
 on one of those overwrites the edit.** The list is not a claim to be trusted — it is a query:
 
 ```bash
@@ -252,6 +252,8 @@ done
 | `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm`                                                                                                                                                                                                                         |
 | `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                                                                                                                                                                                                                                          |
 | `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires                                                                                                                                                                                                                                                                                                                   |
+| `button.tsx`       | The `link` variant's `text-primary-ink underline`; the generator writes `text-primary`, the fill colour, which as text on a light ground can fall under 1.5:1                                                                                                                                                                                                                                                            |
+| `switch.tsx`       | `bg-control-border` for the off track, and the `primary-ink` edge and `primary-foreground` thumb on the checked state                                                                                                                                                                                                                                                                                                    |
 | `context-menu.tsx` | `gap-2` and `[&>svg]:size-4` on items, so icons match `dropdown-menu`                                                                                                                                                                                                                                                                                                                                                    |
 
 An untouched file is not the same thing as a file identical to today's registry — upstream moves.
@@ -294,20 +296,32 @@ Nothing is assembled here. A host supplies three things, in this order:
 
 ### Tokens the host must declare
 
-Two primitives resolve tokens that are not part of shadcn's default palette, so a host that renders
+Four primitives resolve tokens that are not part of shadcn's default palette, so a host that renders
 them and has not declared the tokens gets a transparent, unstyled element and no error:
 
-| Primitive         | Requires                                                 |
-| ----------------- | -------------------------------------------------------- |
-| `Input`           | `surface`, `input-border`, `placeholder`, `focus-border` |
-| `Toast`/`Toaster` | `toast` (with `foreground` and `muted`), `main-accent`   |
+| Primitive              | Requires                                                 |
+| ---------------------- | -------------------------------------------------------- |
+| `Input`                | `surface`, `input-border`, `placeholder`, `focus-border` |
+| `Toast`/`Toaster`      | `toast` (with `foreground` and `muted`), `main-accent`   |
+| `Switch`               | `control-border`, `primary-ink`                          |
+| `Button` (`link` only) | `primary-ink`                                            |
 
-`apps/web`, `apps/desktop-web` and `apps/block-kit-builder` declare all of them. `apps/admin-v2`
-declares the four `Input` needs and not the toast pair — which is consistent today, because it does
-not mount `Toaster`, and is the thing to fix first if it ever does.
+`Switch` is held to WCAG 1.4.11's 3:1 for a control's state: its off track is the host's
+`control-border` (the edge it gives interactive controls), and its on state keeps the `primary`
+fill but adds a `primary-ink` edge and a `primary-foreground` thumb. The `link` variant is text, so
+it takes `primary-ink` — the accent as text — rather than the fill. The host picks values that
+clear those floors on its own ground; `apps/desktop-web` asserts its pairs in
+`src/tokenContrast.spec.ts`.
+
+`apps/web`, `apps/desktop-web` and `apps/block-kit-builder` declare the `Input` and toast tokens;
+`apps/desktop-web` also declares `control-border`, and `apps/web` has `primary-ink` but no
+`control-border` — consistent while it renders no `Switch`. `apps/admin-v2` declares the four
+`Input` needs and aliases `control-border` and `primary-ink` onto its own `--input` and
+`--primary`; it does not declare the toast pair — consistent today, because it does not mount
+`Toaster`, and the thing to fix first if it ever does.
 
 ```bash
-grep -rn "surface:\|input-border\|main-accent\|toast:" apps/*/tailwind.config.js
+grep -rn "surface:\|input-border\|main-accent\|toast:\|control-border\|ink:" apps/*/tailwind.config.js
 ```
 
 `--app-width` is the other host-owned value, and it is a CSS variable rather than a Tailwind token on

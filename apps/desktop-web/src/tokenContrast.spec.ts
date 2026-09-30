@@ -49,7 +49,10 @@ const ratio = (tokens: Record<string, string>, fg: string, bg: string): number =
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 };
 
-/** [foreground, background, minimum]: 4.5 for text, 3 for a focus indicator. */
+/**
+ * [foreground, background, minimum]: 4.5 for text, 3 for a focus indicator and for the
+ * boundary or state of an interactive control (WCAG 1.4.11).
+ */
 const PAIRS: [string, string, number][] = [
     ['foreground', 'background', 4.5],
     ['muted-foreground', 'background', 4.5],
@@ -71,6 +74,17 @@ const PAIRS: [string, string, number][] = [
     ['background', 'foreground', 4.5],
     ['focus-ring', 'background', 3],
     ['focus-border', 'background', 3],
+    // Control boundaries: a text field (kit Input reads --input-border), an unselected
+    // option, the composer box. Settings controls sit on cards, dialogs on the popover.
+    ['control-border', 'background', 3],
+    ['control-border', 'card', 3],
+    ['control-border', 'popover', 3],
+    ['input-border', 'surface', 3],
+    // Switch off: the background-coloured thumb on the control-border track.
+    ['background', 'control-border', 3],
+    // Switch on: the ink edge against the card it sits on, and the ink thumb on the fill.
+    ['primary-ink', 'card', 3],
+    ['primary-foreground', 'primary', 3],
 ];
 
 describe.each([

@@ -103,6 +103,7 @@ module.exports = {
                 surface: 'hsl(var(--surface))',
                 'main-accent': 'hsl(var(--main-accent))',
                 'input-border': 'hsl(var(--input-border))',
+                'control-border': 'hsl(var(--control-border))',
                 'focus-border': 'hsl(var(--focus-border))',
                 toast: {
                     DEFAULT: 'hsl(var(--toast))',

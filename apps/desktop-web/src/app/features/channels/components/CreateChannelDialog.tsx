@@ -113,8 +113,8 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                                     className={cn(
                                         'focus-ring flex flex-1 flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-callout transition-colors',
                                         visibility === option
-                                            ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                                            : 'border-input text-muted-foreground hover:bg-accent/50'
+                                            ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
+                                            : 'border-control-border text-muted-foreground hover:bg-accent/50'
                                     )}
                                 >
                                     {t(`channels.create.${option}`)}
