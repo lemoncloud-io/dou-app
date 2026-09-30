@@ -35,8 +35,12 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
     const { t, i18n } = useTranslation();
 
     return (
-        <main className="flex h-full items-center justify-center overflow-hidden bg-background">
-            <div className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-raised">
+        // The page scrolls rather than clips: at the minimum window, zoomed, or with an error line the
+        // card is taller than the window. It is centred with `my-auto`, not `justify-center` —
+        // centring overflows both ways and puts the card's top above the scroll origin, where no
+        // scrolling reaches it; an auto margin just drops to 0 once the card no longer fits.
+        <main className="flex h-full flex-col items-center overflow-y-auto bg-background px-4 py-6">
+            <div className="my-auto flex w-full max-w-sm shrink-0 flex-col gap-5 rounded-2xl border border-border bg-card p-8 shadow-raised">
                 <div
                     role="radiogroup"
                     aria-label={t('settings.language')}
