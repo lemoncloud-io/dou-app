@@ -24,6 +24,8 @@ export interface SortChannelsInput {
     sortMethod: ChannelSortMethod;
     /** Channel ids pinned in this place (client-only preference) — floated above everything. */
     pinnedChannelIds?: ReadonlySet<string>;
+    /** The notes-to-self room goes first, above pins too. */
+    leadsWithSelf?: boolean;
 }
 
 /**
@@ -37,7 +39,8 @@ export interface SortChannelsInput {
  *
  * 'unread' then floats channels with unread messages above read ones, keeping the activity order
  * within each group (Array.sort is stable). 'recent' returns the base order. Pinned channels are
- * floated last of all, so a pin always wins over the sort method.
+ * floated after that, so a pin always wins over the sort method. `leadsWithSelf` then puts the
+ * notes-to-self room above everything, pins included.
  */
 export const sortChannels = ({
     channels,
@@ -45,6 +48,7 @@ export const sortChannels = ({
     unreadByChannel,
     sortMethod,
     pinnedChannelIds,
+    leadsWithSelf,
 }: SortChannelsInput): DomainChannel[] => {
     const activityAt = (channel: DomainChannel): number => {
         // A just-sent optimistic row carries `createdAt = now`, so sending floats the channel at once.
@@ -56,7 +60,11 @@ export const sortChannels = ({
         const hasUnread = (channel: DomainChannel): number => ((unreadByChannel[channel.id] ?? 0) > 0 ? 1 : 0);
         byActivity.sort((left, right) => hasUnread(right) - hasUnread(left));
     }
-    if (!pinnedChannelIds?.size) return byActivity;
-    const isPinned = (channel: DomainChannel): number => (pinnedChannelIds.has(channel.id) ? 1 : 0);
-    return byActivity.sort((left, right) => isPinned(right) - isPinned(left));
+    if (pinnedChannelIds?.size) {
+        const isPinned = (channel: DomainChannel): number => (pinnedChannelIds.has(channel.id) ? 1 : 0);
+        byActivity.sort((left, right) => isPinned(right) - isPinned(left));
+    }
+    if (!leadsWithSelf) return byActivity;
+    const isSelf = (channel: DomainChannel): number => (channel.stereo === 'self' ? 1 : 0);
+    return byActivity.sort((left, right) => isSelf(right) - isSelf(left));
 };

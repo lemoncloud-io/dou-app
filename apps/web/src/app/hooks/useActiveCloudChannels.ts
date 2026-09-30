@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
 
 import { useHasChannelSync } from '../stores/useChannelSyncMarkStore';
 import { useColdListWindowElapsed } from './useColdListWindow';
@@ -121,7 +121,8 @@ export const useCloudChannelsSource = ({
 
     const accessible = useMemo(() => {
         if (!accessiblePlaceIds) return inCloud;
-        return inCloud.filter(row => !row.sid || accessiblePlaceIds.has(row.sid));
+        // The notes-to-self room is kept under the account, not a place, when nothing names one.
+        return inCloud.filter(row => !row.sid || row.sid === ACCOUNT_CHANNEL_SID || accessiblePlaceIds.has(row.sid));
     }, [inCloud, accessiblePlaceIds]);
 
     return useMemo(() => ({ channels: accessible, isLoaded }), [accessible, isLoaded]);

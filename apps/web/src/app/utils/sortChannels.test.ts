@@ -186,4 +186,25 @@ describe('sortChannels', () => {
             expect(ids(result)).toEqual(['c3', 'c2', 'c1']);
         });
     });
+
+    describe('leadsWithSelf', () => {
+        const self = { ...channel('self', 50), stereo: 'self' } as DomainChannel;
+
+        // The cloud 1:1 section opens with the notes-to-self room, as desktop's Direct messages do.
+        it('puts the notes-to-self room first, above a pin', () => {
+            const result = sortChannels({
+                channels: [...channels, self],
+                unreadByChannel: {},
+                sortMethod: 'recent',
+                pinnedChannelIds: new Set(['c1']),
+                leadsWithSelf: true,
+            });
+            expect(ids(result)).toEqual(['self', 'c1', 'c3', 'c2']);
+        });
+
+        it('leaves it to its activity without the flag', () => {
+            const result = sortChannels({ channels: [...channels, self], unreadByChannel: {}, sortMethod: 'recent' });
+            expect(ids(result)).toEqual(['c3', 'c2', 'c1', 'self']);
+        });
+    });
 });
