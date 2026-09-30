@@ -206,6 +206,26 @@ describe('ChannelRepository', () => {
         clock.mockRestore();
     });
 
+    it('syncChannels keeps the Self Channel, which has no place, and still drops other place-less rows', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        // The relay sends a new user's Self Channel with an empty `$`: it belongs to the account, not
+        // to a place. Dropping it with the other place-less rows left Home with no channel at all.
+        channelSocketDataSource.syncChannel.mockResolvedValue({
+            list: [
+                { id: 'U:1001', stereo: 'self', $: {} },
+                { id: 'ch-orphan', stereo: 'public', $: {} },
+            ],
+            syncedAt: 1,
+        });
+
+        await repository.syncChannels(0);
+
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'U:1001', stereo: 'self', $: {} }],
+            expect.anything()
+        );
+    });
+
     it('leaveChannel — a successful self-leave empties the chat cache of that channel', async () => {
         const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
         channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });

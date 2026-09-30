@@ -4,6 +4,17 @@ import type { DomainChannel } from './models';
 export const RELAY_CLOUD_ID = 'default';
 
 /**
+ * The `sid` a Self Channel is stored under when nothing names its place.
+ *
+ * The Self Channel belongs to the account, not to a place, and `channel.sync` / `channel.mine` send
+ * it with an empty `$` (measured on dev, 2026-09-30). The cache keys every row by a place, so such a
+ * row was either dropped or refused, and a new desktop user on Home — which has no place — never
+ * saw the channel. It is not `''`: an empty `sid` would read as "place not known yet". A row that
+ * already has a real `sid` (from `channel.get-self`, which the caller tags with its site) keeps it.
+ */
+export const ACCOUNT_CHANNEL_SID = '@account';
+
+/**
  * Whether a channel is read across the whole cloud rather than within one place.
  *
  * **`sid` is not a scope key for a 1:1, and this is where that is written down.**
