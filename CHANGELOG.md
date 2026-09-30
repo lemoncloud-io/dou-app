@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-09-30] - root@0.74.0, @chatic/web@0.57.0
+
+### Features
+
+- (web) invite into a place from contacts, as a room invite does (ADR-0139)
+- (web) let a place owner invite someone into the place, not into a room (ADR-0139)
+
+### Bug Fixes
+
+- (web/invite) report a refused clipboard as a missed hand-off, not a failed invite
+
+### Documentation
+
+- (web/invite) record what a batch place invite does on the server, now that it is measured
+
+### Refactor
+
+- (web/channels) split the room invite's contact tab, link sheet and link view from its pages
+
 ## [2026-09-30] - No version updates
 
 ### Bug Fixes
