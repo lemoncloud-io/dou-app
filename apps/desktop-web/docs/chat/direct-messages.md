@@ -130,3 +130,16 @@ has no cached name. The sidebar loads the members of each listed 1:1 whose peer 
 nick nor a cached name (`useHydrateDmPeers`): once per room per mount, after the socket is verified,
 and only after a cache read finds nothing, so a warm cache costs no request. A failed load is logged
 and retried on the next list change.
+
+**Waiting for names.** On a cloud with nothing cached those loads took 5-10s, and the rows used to
+show each peer's raw id (with its first digit as the avatar) until they landed. A 1:1 row is never
+drawn under an id now:
+
+- Until every 1:1 in the place has a name, the whole Direct messages section is placeholder rows.
+  The 1:1s are ordered by the names they show, so drawing them one by one would re-sort the list
+  under the pointer as each name arrived; holding the section sorts it once.
+- After that first settle, a 1:1 that appears later (a new room) holds only its own row.
+- The wait gives up after `DM_NAME_WAIT_MS` (10s) and the row falls back to the room name, so a
+  person whose record never arrives cannot hold the section for good.
+
+People with no 1:1 yet do not hold the section: they are left out until named anyway.
