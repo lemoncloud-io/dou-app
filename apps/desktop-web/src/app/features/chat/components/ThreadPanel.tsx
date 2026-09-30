@@ -63,7 +63,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
-    const mentionables = useMentionables(members);
+    const mentionables = useMentionables(members, viewer);
     const tray = useImageAttachments(`${channelId}::thread::${rootId}`);
     const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
 

@@ -171,7 +171,7 @@ export const ChatPane = ({
     const cachedNames = useAuthorNames(authorIds);
     const memberNames = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
-    const mentionables = useMentionables(members);
+    const mentionables = useMentionables(members, viewer);
 
     // The image tray belongs to the open channel: switching channels drops it (and its
     // object URLs) the way a thread switch does in ThreadPanel.
