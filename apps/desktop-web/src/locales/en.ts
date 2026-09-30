@@ -241,6 +241,7 @@ export const en = {
     'cloud.delete.deleting': 'Deleting...',
     'cloud.delete.cancel': 'Cancel',
     'mobileApp.planAndCloud': 'Subscriptions and new clouds are in the DoU mobile app.',
+    'mobileApp.homeDm': 'Start a 1:1 on Home from the DoU mobile app, with a phone number.',
     'mobileApp.appStore': 'App Store',
     'mobileApp.googlePlay': 'Google Play',
     'place.none': 'No place',

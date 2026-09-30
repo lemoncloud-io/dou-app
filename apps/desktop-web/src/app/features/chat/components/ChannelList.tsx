@@ -17,6 +17,7 @@ import {
     dmCounterpartId,
     isSelfChannel,
     lastChatNoOf,
+    MobileAppPointer,
     resolveDisplay,
     messagePreview,
     useCloudProfiles,
@@ -275,6 +276,8 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
+    // A folded 1:1 section hides the Home pointer with its rows.
+    const isDmCollapsed = useSidebarSectionsStore(s => !!s.collapsed.dm);
     const placeProfiles = useSiteProfileMap();
     // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
     // scoped to the active place — `pinnedIds` array order is the Favorites display order.
@@ -487,7 +490,11 @@ export const ChannelList = ({
     const isFiltering = query.trim().length > 0;
     // An empty section still has to hold its "+", or the first 1:1 has nowhere to start from. A
     // filter that matches no 1:1 hides it, like every other section.
-    const showDmSection = visibleDms.length > 0 || memberRows.length > 0 || (!!onCreateDm && !isFiltering);
+    const showDmSection =
+        visibleDms.length > 0 || memberRows.length > 0 || ((!!onCreateDm || isDefaultMode) && !isFiltering);
+    // Home has no "+": a 1:1 there starts from a phone number, which only the mobile app does. An
+    // empty section says so rather than leaving a heading with nothing under it and no way in.
+    const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
 
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
@@ -695,6 +702,9 @@ export const ChannelList = ({
                     onReorder={makeSectionReorder('dm')}
                     action={onCreateDm && <SectionAddButton label={t('dm.new.open')} onClick={onCreateDm} />}
                 />
+            )}
+            {showDmSection && showHomeDmPointer && (
+                <MobileAppPointer messageKey="mobileApp.homeDm" className="px-2 pb-2" />
             )}
             {/* The row menus' dialog stack renders ONCE here, keyed to the last
             right-clicked row; the menu items themselves only open it. */}

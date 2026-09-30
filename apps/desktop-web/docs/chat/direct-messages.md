@@ -7,7 +7,11 @@ clients are in ADR-0113. Desktop then files each 1:1 under the places its peer s
 (ADR-0141). This document is how desktop applies both.
 
 On the default (relay) cloud a 1:1 is reached by inviting a phone number, which is a mobile flow.
-Desktop offers no way to start one there, and every entry point below hides.
+Desktop offers no way to start one there, and every entry point below hides. The sidebar's 1:1
+section stays, though: while it has no 1:1 in it, it says that a 1:1 on Home starts from a phone
+number in the DoU mobile app, with the App Store and Google Play links (`MobileAppPointer`). It
+used to vanish without a word, which read as a missing feature rather than one that lives
+elsewhere.
 
 ## Where a 1:1 is listed
 

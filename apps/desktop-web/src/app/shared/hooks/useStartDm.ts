@@ -20,7 +20,8 @@ import { usePendingOpenStore } from '../stores';
  * 1:1s it lists), so the room it opens is one this place lists.
  *
  * Only a subscription cloud offers it. On the default (relay) cloud a 1:1 is reached by inviting a
- * phone number, which is a mobile flow, so `isAvailable` is false there and each entry point hides.
+ * phone number, which is a mobile flow, so `isAvailable` is false there and each entry point hides;
+ * the sidebar's empty 1:1 section on Home points at the mobile app instead.
  *
  * A second call while one is in flight returns null without reaching the server (a double click),
  * and a call whose cloud was switched away from before it answered opens nothing and returns null.

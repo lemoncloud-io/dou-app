@@ -60,6 +60,7 @@ vi.mock('./Composer', () => ({
 }));
 
 import '../../../../i18n';
+import i18next from 'i18next';
 import { useComposerFocusStore } from '../../../shared';
 import { ChatPane } from './ChatPane';
 
@@ -147,5 +148,26 @@ describe('ChatPane focus after a channel was removed', () => {
 
         rerender(<ChatPane channel={room('C3')} members={[]} />);
         expect(composerAutoFocus).not.toContain(true);
+    });
+});
+
+describe('ChatPane empty state', () => {
+    const pointer = () => screen.queryByText(i18next.t('mobileApp.planAndCloud'), { exact: false });
+
+    // Home offered only an invite, and nothing said where a cloud of one's own comes from.
+    it('says where to make a cloud beside the invite on Home', () => {
+        render(<ChatPane channel={undefined} members={[]} emptyState={{ mode: 'join', onAction: vi.fn() }} />, {
+            wrapper,
+        });
+        expect(screen.getByRole('button', { name: i18next.t('chat.empty.join.action') })).toBeTruthy();
+        expect(pointer()).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'App Store' })).toBeTruthy();
+    });
+
+    it('does not repeat it in a cloud with no channels, where the answer is to make one', () => {
+        render(<ChatPane channel={undefined} members={[]} emptyState={{ mode: 'create', onAction: vi.fn() }} />, {
+            wrapper,
+        });
+        expect(pointer()).toBeNull();
     });
 });

@@ -108,6 +108,7 @@ vi.mock('./QuickSwitcher', async () => {
 vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
 import '../../../../i18n';
+import i18next from 'i18next';
 
 import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
@@ -915,5 +916,40 @@ describe('ChannelList empty state', () => {
         expect(screen.getByText('No channels yet')).toBeTruthy();
         expect(screen.getByText("Channels you're invited to will appear here.")).toBeTruthy();
         expect(screen.queryByText(/messages/i)).toBeNull();
+    });
+});
+
+describe('ChannelList on Home', () => {
+    const homeList = (props: { isDefaultMode: boolean; query?: string }) => (
+        <ChannelList
+            channels={[CHANNEL]}
+            isLoading={false}
+            selectedChannelId={null}
+            query={props.query ?? ''}
+            onSelect={vi.fn()}
+            isDefaultMode={props.isDefaultMode}
+        />
+    );
+    const pointer = () => screen.queryByText(i18next.t('mobileApp.homeDm'), { exact: false });
+
+    beforeEach(() => useSidebarSectionsStore.setState({ collapsed: {} }));
+
+    // Home offers no way to start a 1:1, and the section used to vanish without a word.
+    it('says a 1:1 on Home starts in the mobile app', () => {
+        render(homeList({ isDefaultMode: true }), { wrapper });
+        expect(screen.getByRole('heading', { name: i18next.t('sidebar.dms') })).toBeTruthy();
+        expect(pointer()).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Google Play' }).getAttribute('href')).toMatch(/play\.google\.com/);
+    });
+
+    it('says nothing in a cloud, where the section has its own way in', () => {
+        render(homeList({ isDefaultMode: false }), { wrapper });
+        expect(pointer()).toBeNull();
+    });
+
+    it('folds away with its section', () => {
+        useSidebarSectionsStore.setState({ collapsed: { dm: true } });
+        render(homeList({ isDefaultMode: true }), { wrapper });
+        expect(pointer()).toBeNull();
     });
 });

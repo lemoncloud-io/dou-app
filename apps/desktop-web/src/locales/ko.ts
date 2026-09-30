@@ -249,6 +249,7 @@ export const ko: EnTranslation = {
     'cloud.delete.deleting': '삭제 중...',
     'cloud.delete.cancel': '취소',
     'mobileApp.planAndCloud': '구독과 클라우드 만들기는 DoU 모바일 앱에서 할 수 있어요.',
+    'mobileApp.homeDm': '홈의 1:1 대화는 DoU 모바일 앱에서 전화번호로 시작할 수 있어요.',
     'mobileApp.appStore': 'App Store',
     'mobileApp.googlePlay': 'Google Play',
     'place.none': '플레이스 없음',

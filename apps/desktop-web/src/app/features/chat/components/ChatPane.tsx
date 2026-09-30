@@ -20,6 +20,7 @@ import {
     isDmChannel,
     isSelfChannel,
     lastChatNoOf,
+    MobileAppPointer,
     resolveDisplay,
     useAuthorNames,
     useChannelLabels,
@@ -233,6 +234,9 @@ export const ChatPane = ({
                         {t(`chat.empty.${emptyState.mode}.action`)}
                     </Button>
                 )}
+                {/* An invite is one way in; the other is a cloud of one's own, which desktop cannot
+                    make. Without this line Home read as if joining were the only option. */}
+                {emptyState.mode === 'join' && <MobileAppPointer className="mt-2 max-w-xs" />}
                 {/* A drawer hides the list this copy points at. */}
                 {emptyState.mode === 'pick' && shell.isDrawer && (
                     <Button
