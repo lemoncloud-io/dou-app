@@ -5,6 +5,7 @@ import { isNative, webClient } from '@chatic/bridges';
 import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
+import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
@@ -76,6 +77,7 @@ const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ 
 
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
+    const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
 
     return (
         <Router>
@@ -105,6 +107,10 @@ export const AppRouter = () => {
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
+                            {/* A signed-out invite attempt signs in a guest before the code is
+                                exchanged, so the session flips mid-attempt. Keep its page until
+                                it succeeds or is left, or a rejected code is never shown. */}
+                            {inviteAttemptHeld && <Route path="/auth/login" element={<InviteLoginPage />} />}
                             {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />

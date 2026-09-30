@@ -39,8 +39,8 @@ export const JoinWithInviteDialog = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
-        const ok = await login(code);
-        if (ok) {
+        const failure = await login(code);
+        if (!failure) {
             reset();
             close();
         }

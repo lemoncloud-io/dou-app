@@ -37,12 +37,14 @@ export const useInviteLogin = () => {
     const [error, setError] = useState<InviteLoginError | null>(null);
 
     const login = useCallback(
-        async (input: string): Promise<boolean> => {
+        /** Resolves to the failure, or null once the invited cloud is entered. */
+        async (input: string): Promise<InviteLoginError | null> => {
             const parsed = parseInviteInput(input);
             if (!parsed) {
                 // Unparseable paste — previously failed silently; tell the user why.
-                setError({ kind: 'format' });
-                return false;
+                const failure: InviteLoginError = { kind: 'format' };
+                setError(failure);
+                return failure;
             }
             const { code, backend } = parsed;
 
@@ -114,12 +116,13 @@ export const useInviteLogin = () => {
                 // The broker cloud list is eventually consistent — refetch so the
                 // just-joined cloud appears in the rail alongside the Default Cloud.
                 void queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
-                return true;
+                return null;
             } catch (error) {
                 const err = toError(error);
                 logger.error('AUTH', '[useInviteLogin] login failed', { error: err });
-                setError({ kind: 'server', message: extractServerErrorMessage(err) });
-                return false;
+                const failure: InviteLoginError = { kind: 'server', message: extractServerErrorMessage(err) };
+                setError(failure);
+                return failure;
             } finally {
                 setIsSubmitting(false);
             }
