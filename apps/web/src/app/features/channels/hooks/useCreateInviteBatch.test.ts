@@ -103,6 +103,22 @@ describe('useCreateInviteBatch.createPlaceInvite', () => {
     });
 });
 
+describe('useCreateInviteBatch without a room', () => {
+    it('requests a link with no channelId key when no room is named', async () => {
+        requestInviteMock.mockResolvedValue({ Location: 'https://dou.link/abc' });
+        const link = renderHook(() => useCreateInviteBatch()).result.current.requestInviteLink;
+
+        await expect(link({ name: '민수', phone: '01011112222' })).resolves.toBe('https://dou.link/abc');
+        expect(requestInviteMock).toHaveBeenCalledWith({ name: '민수', phone: '01011112222' });
+    });
+
+    it('sends a batch with no channelId key when no room is named', async () => {
+        await batch()({ phones: ['+821011112222', '+821033334444'] });
+
+        expect(requestInviteBatchMock).toHaveBeenCalledWith({ to: ['+821011112222', '+821033334444'] });
+    });
+});
+
 describe('useCreateInviteBatch.createBatchInvite', () => {
     it('번호 목록을 to 배열로 그대로 보낸다 (콤마로 잇지 않는다)', async () => {
         await batch()({ channelId: 'ch-1', phones: ['+821011112222', '+821033334444'] });

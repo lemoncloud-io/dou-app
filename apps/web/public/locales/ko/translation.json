@@ -1667,10 +1667,11 @@
     },
     "placeInvite": {
         "title": "플레이스 초대",
-        "heading": "{{placeName}}에 초대할 분의\n이름과 연락처를 입력해 주세요",
-        "headingNote": "초대받은 분은 채팅방 없이 플레이스에만 참여해요.\n입력한 연락처는 초대 링크 발송에만 사용됩니다.",
         "smsMessage": "{{senderName}}님이 DoU 플레이스 '{{placeName}}'에 초대했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
-        "placeChanged": "활성 플레이스가 바뀌어 초대를 보내지 않았어요. 홈에서 다시 시도해 주세요"
+        "placeChanged": "활성 플레이스가 바뀌어 초대를 보내지 않았어요. 홈에서 다시 시도해 주세요",
+        "webGuideDescription": "이름과 전화번호를 입력하면 초대 링크가 만들어져요. 링크를 공유해 친구를 플레이스에 초대할 수 있어요.",
+        "sheetHeading1": "플레이스에 초대할 친구의",
+        "sheetHeading2": "이름을 입력해 주세요"
     },
     "inviteWaiting": {
         "moreOptions": "더보기",

@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom';
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 
 const navigate = jest.fn();
-const toast = jest.fn();
 const createPlaceInvite = jest.fn();
+const createBatchInvite = jest.fn();
+const requestInviteLink = jest.fn();
 
 type PlaceRow = { id: string; name?: string; isOwner?: boolean } | null;
 /**
@@ -17,14 +18,12 @@ const emitPlace = (row: PlaceRow) => act(() => placeListener?.(row));
 
 let selectedCloudId = 'cloud-1';
 let selectedSiteId: string | null = 'site-1';
-let routePlaceId = 'site-1';
 
-jest.mock('react-i18next', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: Record<string, unknown>) => (options ? `${key}|${JSON.stringify(options)}` : key),
-        i18n: { language: 'ko' },
-    }),
-}));
+/** The props the page handed the shared contact tab and link sheet, captured on each render. */
+let tab: any = null;
+let sheet: any = null;
+
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 // One repository object for the whole suite, as the runtime hands out: a fresh one per render would
 // re-run the page's subscription effect on every render and reset the row it just received.
 const mockRepositories = {
@@ -38,9 +37,7 @@ const mockRepositories = {
 };
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
-        data: {
-            useRuntimeRepositories: () => mockRepositories,
-        },
+        data: { useRuntimeRepositories: () => mockRepositories },
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
@@ -48,21 +45,27 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: routePlaceId }) }));
+jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'site-1' }) }));
 // The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../channels/hooks/useCreateInviteBatch', () => ({
-    useCreateInviteBatch: () => ({ createPlaceInvite }),
+    useCreateInviteBatch: () => ({ createPlaceInvite, createBatchInvite, requestInviteLink }),
+}));
+// The picker and the sheet have their own suites; here only what this page binds them to matters.
+jest.mock('../../channels/components/ContactInviteTab', () => ({
+    ContactInviteTab: (p: any) => {
+        tab = p;
+        return <div data-testid="contact-tab" />;
+    },
+}));
+jest.mock('../../channels/components/AddFriendSheet', () => ({
+    AddFriendSheet: (p: any) => {
+        sheet = p;
+        return null;
+    },
 }));
 
 import { PlaceInvitePage } from './PlaceInvitePage';
-
-const fillForm = (name: string, phone: string) => {
-    fireEvent.change(screen.getByPlaceholderText('contactInvite.namePlaceholder'), { target: { value: name } });
-    fireEvent.change(screen.getByPlaceholderText('contactInvite.phonePlaceholder'), { target: { value: phone } });
-};
-const submit = () => fireEvent.click(screen.getByText('contactInvite.submit'));
 
 describe('PlaceInvitePage', () => {
     beforeEach(() => {
@@ -71,74 +74,63 @@ describe('PlaceInvitePage', () => {
         placeListener = null;
         selectedCloudId = 'cloud-1';
         selectedSiteId = 'site-1';
-        routePlaceId = 'site-1';
+        tab = null;
+        sheet = null;
         createPlaceInvite.mockResolvedValue({ inviteView: {}, channel: 'sms' });
-        // jsdom's `en-US` would open the picker on US and reject the Korean numbers below.
-        localStorage.clear();
-        localStorage.setItem('dou.phoneInput.country.v1', 'KR');
+        createBatchInvite.mockResolvedValue([]);
+        requestInviteLink.mockResolvedValue('https://dou.link/abc');
     });
 
-    it('names the place it invites into', () => {
+    it('is the contact invite, always showing', () => {
         render(<PlaceInvitePage />);
 
-        expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('레몬');
+        expect(screen.getByText('placeInvite.title')).toBeInTheDocument();
+        expect(tab.active).toBe(true);
     });
 
-    it('sends an E.164 place invite, then goes back with the delivery toast', async () => {
+    it('invites one contact into the place, texting the place copy', async () => {
         render(<PlaceInvitePage />);
-        fillForm('홍길동', '01012345678');
-        submit();
 
-        await waitFor(() =>
-            expect(createPlaceInvite).toHaveBeenCalledWith({
-                name: '홍길동',
-                phone: '+821012345678',
-                placeName: '레몬',
-            })
-        );
-        await waitFor(() => expect(navigate).toHaveBeenCalledWith(-1));
-        expect(toast).toHaveBeenCalledWith({ title: 'inviteFriends.sentSms' });
+        await expect(tab.sendSingle({ name: '홍길동', phone: '01012345678' })).resolves.toBe('sms');
+        expect(createPlaceInvite).toHaveBeenCalledWith({ name: '홍길동', phone: '01012345678', placeName: '레몬' });
     });
 
-    it('says so when the invite was issued but the link could not be handed off', async () => {
-        createPlaceInvite.mockResolvedValue({ inviteView: {}, channel: false });
+    it('invites several contacts as a batch that names no room', async () => {
         render(<PlaceInvitePage />);
-        fillForm('홍길동', '01012345678');
-        submit();
+        await tab.sendBatch(['01011112222', '01033334444']);
 
-        await waitFor(() =>
-            expect(toast).toHaveBeenCalledWith({ title: 'inviteFriends.sentFailed', variant: 'destructive' })
-        );
+        expect(createBatchInvite).toHaveBeenCalledWith({ phones: ['01011112222', '01033334444'] });
     });
 
-    it('shows an inline error and sends nothing for an invalid number', () => {
+    it('asks for a link that names no room, and opens the place link page with it', async () => {
         render(<PlaceInvitePage />);
-        fillForm('홍길동', '02012345678');
-        submit();
 
-        expect(screen.getByText('contactInvite.phoneInvalidFormat')).toBeInTheDocument();
-        expect(createPlaceInvite).not.toHaveBeenCalled();
+        await expect(sheet.requestLink({ name: '홍길동', phone: '01012345678' })).resolves.toBe('https://dou.link/abc');
+        expect(requestInviteLink).toHaveBeenCalledWith({ name: '홍길동', phone: '01012345678' });
+
+        sheet.onLinkReady('https://dou.link/abc');
+        expect(navigate).toHaveBeenCalledWith('/invite/place/site-1/link', {
+            state: { inviteLink: 'https://dou.link/abc' },
+        });
     });
 
-    it('does not send once the session has moved to another place — the server would file it there', () => {
+    it('leaves the flow once an invite went out', () => {
+        render(<PlaceInvitePage />);
+        tab.onSent();
+
+        expect(navigate).toHaveBeenCalledWith(-1);
+    });
+
+    it('refuses every send once the session is on another place — the server would file it there', async () => {
         selectedSiteId = 'site-2';
         render(<PlaceInvitePage />);
-        fillForm('홍길동', '01012345678');
 
-        expect(screen.getByText('contactInvite.submit').closest('button')).toBeDisabled();
+        await expect(tab.sendSingle({ name: 'n', phone: 'p' })).rejects.toThrow('placeInvite.placeChanged');
+        await expect(tab.sendBatch(['p'])).rejects.toThrow('placeInvite.placeChanged');
+        await expect(sheet.requestLink({ name: 'n', phone: 'p' })).rejects.toThrow('placeInvite.placeChanged');
         expect(createPlaceInvite).not.toHaveBeenCalled();
-    });
-
-    it('keeps the toast failure path when the server refuses', async () => {
-        createPlaceInvite.mockRejectedValue(new Error('boom'));
-        render(<PlaceInvitePage />);
-        fillForm('홍길동', '01012345678');
-        submit();
-
-        await waitFor(() =>
-            expect(toast).toHaveBeenCalledWith({ title: 'contactInvite.issueFailed', variant: 'destructive' })
-        );
-        expect(navigate).not.toHaveBeenCalled();
+        expect(createBatchInvite).not.toHaveBeenCalled();
+        expect(requestInviteLink).not.toHaveBeenCalled();
     });
 
     it('sends a non-owner who opened the route directly back home', () => {
@@ -155,18 +147,17 @@ describe('PlaceInvitePage', () => {
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
     });
 
-    it('waits for the place row before judging ownership, and holds the submit meanwhile', () => {
+    it('waits for the place row before judging ownership, and refuses to send meanwhile', async () => {
         placeRow = 'pending';
         render(<PlaceInvitePage />);
-        fillForm('홍길동', '01012345678');
 
         // An unloaded row is not a non-owner: bouncing here would throw the owner out on a cold cache.
         expect(navigate).not.toHaveBeenCalled();
-        expect(screen.getByText('contactInvite.submit').closest('button')).toBeDisabled();
+        await expect(tab.sendBatch(['p'])).rejects.toThrow('placeInvite.placeChanged');
 
         emitPlace({ id: 'site-1', name: '레몬', isOwner: true });
 
         expect(navigate).not.toHaveBeenCalled();
-        expect(screen.getByText('contactInvite.submit').closest('button')).toBeEnabled();
+        await expect(tab.sendBatch(['p'])).resolves.toEqual([]);
     });
 });

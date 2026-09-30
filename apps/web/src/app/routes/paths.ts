@@ -63,6 +63,7 @@ export const ROUTES = {
         waiting: (inviteId: string) => `/invite/${inviteId}/waiting`,
         // Inviting someone into a cloud place without a room (Private — home profile menu).
         place: (placeId: string) => `/invite/place/${placeId}`,
+        placeLink: (placeId: string) => `/invite/place/${placeId}/link`,
     },
 
     // ── Place (Private) ──────────────────────────────────────────

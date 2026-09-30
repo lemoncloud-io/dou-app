@@ -1667,10 +1667,11 @@
     },
     "placeInvite": {
         "title": "Invite to Place",
-        "heading": "Enter the name and number of\nthe person to invite to {{placeName}}",
-        "headingNote": "They join the place without any chat room.\nThe number is used only to send the invite link.",
         "smsMessage": "{{senderName}} invited you to the DoU place '{{placeName}}'! Tap the link below to join.\n{{deeplink}}",
-        "placeChanged": "The active place changed, so the invite was not sent. Please try again from home"
+        "placeChanged": "The active place changed, so the invite was not sent. Please try again from home",
+        "webGuideDescription": "Enter a name and phone number to generate an invite link. Share the link to invite friends to the place.",
+        "sheetHeading1": "Enter the name of",
+        "sheetHeading2": "the friend to invite to the place"
     },
     "inviteWaiting": {
         "moreOptions": "More options",

@@ -23,14 +23,14 @@ what both obey.
   cloud alike.
 - The relay acceptance orchestration: re-read, phone verification, place profile, accept, and the
   three-tier hunt for the room the accept creates.
-- The place invite: `user.invite` with no room, sent from `/invite/place/:placeId`, and the accept
-  screen's `place` target kind.
+- The place invite: the room invite's contact invite with no room, at `/invite/place/:placeId`, and
+  the accept screen's `place` target kind.
 
 **Out**
 
 - **Group-room "add a friend"**, which uses a different packet (`user.invite`) and is bound to a
   channel — [channels](../channels/README.md).
-- **The cloud invitation lane**, apart from the place invite's sender form and target card.
+- **The cloud invitation lane**, apart from the place invite's page and target card.
   `/invite/accept` routes it, but the REST accept pipeline behind
   `CloudInviteAccept` — login with the code, then enter cloud, site and channel — is documented
   with the rest of session entry in [auth](../auth/README.md). How it leaves the accept screen is
@@ -92,7 +92,7 @@ it. No shell means no home data hooks and no bottom nav — but it also means th
 
 The sender's screens are ordinary private routes: the issue form (`/invite/contact`, which route
 state also puts into re-invite mode), the waiting screen (`/invite/:inviteId/waiting`), and the place
-invite form (`/invite/place/:placeId`).
+invite with its link screen (`/invite/place/:placeId`, `…/link`).
 
 ## Leaving the accept screen, and opening the room
 

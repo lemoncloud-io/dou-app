@@ -5,15 +5,28 @@ The entry is **"Invite to place"** in the home header's profile dropdown, under 
 opens `/invite/place/:placeId` (`pages/PlaceInvitePage.tsx`). Accepting the invite lands the
 recipient in that place with no room.
 
+## Same screens as the room invite
+
+It is the group room's contact invite, bound to the place instead of a room. The two share their
+parts rather than copies of them — all in `features/channels`, where the room invite lives:
+
+| Part                          | What it is                                                               | Room invite binds it to     | Place invite binds it to      |
+| ----------------------------- | ------------------------------------------------------------------------ | --------------------------- | ----------------------------- |
+| `components/ContactInviteTab` | device-contact picker, its permission states, the web guide, the confirm | its "contacts" tab          | the whole page                |
+| `components/AddFriendSheet`   | name-and-number sheet that issues one invite and hands back its link     | `/channels/:id/invite/link` | `/invite/place/:placeId/link` |
+| `components/InviteLinkView`   | the link card, copy and share                                            | the room's name and picture | the place's name and picture  |
+
+So the flow is the room invite's. On the app: pick contacts; **one** goes out as a text from the SMS
+composer, **several** as `user.invite-batch`, which the server texts itself. On the web, or past the
+list: the link sheet, then the link page. The place differs only in copy — the SMS body
+(`placeInvite.smsMessage`), the sheet heading and the web guide name the place, not a chat room — and
+in that nothing it sends names a room.
+
 ## What goes on the wire
 
-The form sends `user.invite { name, phone }` through `useCreateInviteBatch.createPlaceInvite`.
-`channelId` is **absent**, not `undefined`: the server reads a missing room as "place only". The
-phone is E.164, as on the relay contact form, so one country picker serves both forms. The returned
-`Location` link goes to the SMS composer on the app and to the clipboard on the web
-(`sendInviteMessage`), the same hand-off the room invite uses. The SMS body is
-`placeInvite.smsMessage`, which names the place. The room invite's copy promises a chat the
-recipient will not get.
+Every send goes through `useCreateInviteBatch` — `createPlaceInvite` for one contact,
+`createBatchInvite` for several, `requestInviteLink` for the sheet — with **no `channelId` key**, not
+`channelId: undefined`: the server reads a missing room as "the place alone".
 
 What the server does with it was measured on the dev servers:
 
@@ -26,11 +39,13 @@ What the server does with it was measured on the dev servers:
 - **Accepting needs nothing new.** `auth.switch` into that role succeeds, `user.my-site` lists the
   place with `isOwner: false`, and no place profile is required.
 
+Those were measured on `user.invite`. `user.invite-batch` without a room has not been measured yet —
+that it files the same way, and what its server-sent text says, is an open question.
+
 ## Who sees the entry, and when it works
 
-`app/utils/placeInviteGate.ts` is the one rule, shared by the menu entry and the form — it lives
-outside both features because both read it. The two must never
-disagree about the same place.
+`app/utils/placeInviteGate.ts` is the one rule, shared by the menu entry and the page — it lives
+outside both features because both read it. The two must never disagree about the same place.
 
 | Gate       | When                                                                                                                                                            | Menu entry   |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
@@ -39,14 +54,12 @@ disagree about the same place.
 | `ready`    | the owner, with the session on that place                                                                                                                       | enabled      |
 
 The session decides because the server stamps the session's site on the invite. For the same reason
-the form re-reads the gate **when the user submits**, not only when it renders. Another tab or a push
-can move the session while the form is open. Sending then would invite the person into a place the
-screen never named, so the form refuses with `placeInvite.placeChanged`. A direct visit whose gate
-resolves to `hidden` is sent home, the same backstop the place edit screen keeps for non-owners.
-
-There is one recipient per submission. `user.invite-batch` would also take a missing `channelId`,
-but every issued invite leaves a member row (above) and this lane has no way to cancel one, so the
-surface stays as small as it can be.
+the page re-reads the gate **on every send** — the contact confirm and the link sheet alike — not
+only when it renders. Another tab or a push can move the session while the page is open. Sending then
+would invite people into a place the screen never named, so the send throws
+`placeInvite.placeChanged`, which the contact tab and the sheet toast as they would any failure. A
+direct visit whose gate resolves to `hidden` is sent home, the same backstop the place edit screen
+keeps for non-owners.
 
 ## On the recipient's side
 
@@ -73,12 +86,15 @@ state `ChannelEmptyState variant="invited"` already drew.
 ## How to verify
 
 ```bash
-npx jest --config apps/web/jest.config.js --testPathPatterns "PlaceInvitePage|placeInviteGate|resolveCloudInviteTargetKind|InviteAcceptScreen|useCreateInviteBatch|HomePage"
+npx jest --config apps/web/jest.config.js --testPathPatterns "PlaceInvite|placeInviteGate|resolveCloudInviteTargetKind|InviteAcceptScreen|useCreateInviteBatch|InvitePage|AddFriendSheet|HomePage"
 ```
 
-End to end it needs two sessions that do not share storage. On a local dev server:
+End to end on the web it needs two sessions that do not share storage. On a local dev server:
 
 1. Sign in as the owner of a cloud place at `localhost`, and make that place active.
-2. Send the invite from the profile menu. On the web the link lands on the clipboard.
+2. Open the invite from the profile menu, send a link from the sheet, and land on the link page.
 3. Open the link at `[::1]` (another origin, so another guest) and accept.
 4. Check that home shows the place as invited, with no rooms.
+
+The contact picker and the SMS composer need the app on a device or simulator; the browser only
+reaches the link path.

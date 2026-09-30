@@ -9,7 +9,15 @@ import { useMyProfile } from '../../../hooks/useMyProfile';
 import { sendInviteMessage, type InviteMessageChannel } from '../../invite/utils/sendInviteMessage';
 
 /**
- * User invite hook — supports both single and batch invites.
+ * `channelId` as the packet wants it: present when the invite enters a room, and the key absent —
+ * not `undefined` — when it does not. A place invite names no room, and the server reads the
+ * missing key as "the place alone".
+ */
+const roomOf = (channelId?: string) => (channelId ? { channelId } : {});
+
+/**
+ * User invite hook — supports both single and batch invites. Each takes an optional `channelId`:
+ * with it the invite enters that room, without it only the place the session is on.
  * - createSingleInvite: invite 1 person → **sends the invite text via SMS** (app), or copies it
  *   to the clipboard on web.
  * - createPlaceInvite: the same, into the active place without a room.
@@ -28,9 +36,9 @@ export const useCreateInviteBatch = () => {
      * string without sharing it**. The invite link screen displays this URL, and the screen's
      * own button handles the actual share/copy.
      */
-    const requestInviteLink = async (params: { channelId: string; name: string; phone: string }): Promise<string> => {
+    const requestInviteLink = async (params: { channelId?: string; name: string; phone: string }): Promise<string> => {
         const inviteView = await requestInvite({
-            channelId: params.channelId,
+            ...roomOf(params.channelId),
             name: params.name,
             phone: params.phone,
         });
@@ -114,11 +122,11 @@ export const useCreateInviteBatch = () => {
      * Duplicates are removed here, since the server would send SMS twice to the same target if
      * the same number appeared twice (two contacts can share the same number). Order is preserved.
      */
-    const createBatchInvite = async (params: { channelId: string; phones: string[] }): Promise<MyInviteView[]> => {
+    const createBatchInvite = async (params: { channelId?: string; phones: string[] }): Promise<MyInviteView[]> => {
         const to = [...new Set(params.phones.map(phone => phone.trim()).filter(Boolean))];
         if (to.length === 0) return [];
 
-        return requestInviteBatch({ to, channelId: params.channelId } as UserInviteBatchPayload);
+        return requestInviteBatch({ to, ...roomOf(params.channelId) } as UserInviteBatchPayload);
     };
 
     return {
