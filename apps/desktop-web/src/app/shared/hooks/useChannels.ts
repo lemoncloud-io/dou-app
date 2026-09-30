@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { isCloudWideChannel, isInPlaceList, type DomainChannel } from '@chatic/data';
+import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
-import { computeChannelUnread } from '../utils';
+import { cloudDmPlaces, computeChannelUnread, listingPlaces, placeMemberPeers } from '../utils';
 import { useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
+import { usePlaces } from './usePlaces';
 
 // Fixed alphabetical order (Slack-style) so the list doesn't jump on every new
 // message; unread is surfaced by the row badge, not by reordering.
@@ -35,10 +36,12 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * the same thing as the rows whose `sid` names it. A 1:1 opened inside a
  * subscription cloud belongs to the cloud: the server stamps it with whichever
  * place its creator happened to be in, which says nothing about where either
- * participant reads it. So it is listed in every place of its cloud, and never
- * through the place filter (that half is what keeps it from showing twice in the
- * creator's place). Relay 1:1s really do live in the relay's one place and go
- * through the place filter like any group. A per-place `observeList({ sid })`
+ * participant reads it. So it is listed in the places where its peer shares a
+ * group channel with me (`cloudDmPlaces`, which also holds the fallback for a peer
+ * found nowhere), and never through the place filter (that half is what keeps it
+ * from showing twice in the creator's place). Deciding that needs every place's
+ * group channels, which only the whole-cloud read has. Relay 1:1s really do live
+ * in the relay's one place and go through the place filter like any group. A per-place `observeList({ sid })`
  * could not serve this: outside the relay the cache scopes that read by `sid`,
  * so the 1:1s stamped with another place never reach it. (apps/web keeps its place
  * list and its cloud 1:1 section apart; desktop's sidebar already buckets 1:1s into
@@ -59,7 +62,8 @@ export const useChannels = (
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
     const { isVerified } = runtime.connection.useRuntimeSocketState();
-    const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
+    const { placeIds, isLoading: placesLoading } = usePlaces();
+    const [cloudRows, setCloudRows] = useState<DomainChannel[]>([]);
     const [rawLoading, setRawLoading] = useState(true);
 
     // Render-phase reset on scope switch: drop the old list immediately rather than waiting
@@ -69,7 +73,7 @@ export const useChannels = (
     const [prevScopeKey, setPrevScopeKey] = useState(scopeKey);
     if (scopeKey !== prevScopeKey) {
         setPrevScopeKey(scopeKey);
-        setRawChannels([]);
+        setCloudRows([]);
         setRawLoading(true);
     }
 
@@ -78,7 +82,7 @@ export const useChannels = (
         // are all there is to list. A place merely not selected yet (loading, or the site cleared
         // mid-switch) must stay empty, or the home screen would auto-select a 1:1 in that window.
         if (!placeId && !cloudWideOnly) {
-            setRawChannels([]);
+            setCloudRows([]);
             setRawLoading(false);
             return;
         }
@@ -90,10 +94,7 @@ export const useChannels = (
         let cancelled = false;
         const unsubscribe = channelRepository.observeList({ sid: '' }, result => {
             if (cancelled) return;
-            const list = (result?.list ?? []).filter(
-                c => (!!placeId && isInPlaceList(c, placeId)) || isCloudWideChannel(c)
-            );
-            setRawChannels(sortByName(list));
+            setCloudRows(result?.list ?? []);
             setRawLoading(false);
         });
         return () => {
@@ -101,6 +102,23 @@ export const useChannels = (
             unsubscribe();
         };
     }, [channelRepository, placeId, myUid, cloudWideOnly]);
+
+    const dmPlaces = useMemo(
+        () => cloudDmPlaces(cloudRows, { myUid: myUid ?? null, placeIds }),
+        [cloudRows, myUid, placeIds]
+    );
+    // The open place's people with no 1:1 here yet, which the sidebar lists after the 1:1s.
+    const memberPeers = useMemo(
+        () => (placeId ? placeMemberPeers(cloudRows, { myUid: myUid ?? null, placeId, dmPlaces }) : []),
+        [cloudRows, myUid, placeId, dmPlaces]
+    );
+    const rawChannels = useMemo(() => {
+        // No place is only read for a cloud that has none, where every 1:1 is all there is.
+        const listed = cloudRows.filter(c =>
+            placeId ? listingPlaces(c, dmPlaces).includes(placeId) : isCloudWideChannel(c)
+        );
+        return sortByName(listed);
+    }, [cloudRows, dmPlaces, placeId]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
@@ -135,7 +153,8 @@ export const useChannels = (
         return () => clearTimeout(timer);
     }, [rawLoading, isVerified, rawChannels.length]);
 
-    const isLoading = rawLoading || (rawChannels.length === 0 && !confidentEmpty);
+    // A 1:1 cannot be placed before my places are known, so the list is not final until they are.
+    const isLoading = rawLoading || (!!placeId && placesLoading) || (rawChannels.length === 0 && !confidentEmpty);
 
-    return { channels, isLoading };
+    return { channels, isLoading, dmPlaces, memberPeers };
 };

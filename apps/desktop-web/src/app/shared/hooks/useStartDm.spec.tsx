@@ -87,7 +87,7 @@ describe('useStartDm', () => {
 
         expect(startDm).toHaveBeenCalledWith({ peerId: 'u-1' });
         expect(room).toEqual({ id: 'dm-1', stereo: 'dm' });
-        // An empty place is "stay where you are": a cloud 1:1 is listed in every place.
+        // An empty place is "stay where you are": the peer was picked from this place's list.
         expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: '', channelId: 'dm-1' });
     });
 

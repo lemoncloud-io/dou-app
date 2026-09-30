@@ -16,6 +16,8 @@ export interface SectionItem {
     node: ReactNode;
     /** Stays visible while the section is folded: the open channel, or one with unread. */
     keepWhenCollapsed: boolean;
+    /** A row with no order of its own to keep (a person with no 1:1 yet) is never picked up. */
+    dragDisabled?: boolean;
 }
 
 interface SortableSectionProps {
@@ -142,7 +144,7 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                                 <SortableRow
                                     key={item.key}
                                     itemKey={item.key}
-                                    disabled={rowDragDisabled}
+                                    disabled={rowDragDisabled || !!item.dragDisabled}
                                     justDraggedRef={justDraggedRef}
                                 >
                                     {item.node}

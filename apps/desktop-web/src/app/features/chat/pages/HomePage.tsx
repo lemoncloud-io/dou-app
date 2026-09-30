@@ -41,6 +41,7 @@ import {
     useChannelLabels,
     type MessageJumpOrigin,
     useUnreadStore,
+    useCloudProfiles,
 } from '../../../shared';
 import {
     ChannelList,
@@ -54,8 +55,14 @@ import {
     MentionsPanel,
     ThreadPanel,
 } from '../components';
-import { useMessageViewer, useNextUnreadShortcut, usePendingLanding, useReadCounts } from '../hooks';
-import { landingTarget, pendingOpenRoute } from '../utils';
+import { useHydrateDmPeers, useMessageViewer, useNextUnreadShortcut, usePendingLanding, useReadCounts } from '../hooks';
+import {
+    elsewhereChannels as elsewhereChannelRows,
+    landingTarget,
+    openPlaceFor,
+    pendingOpenRoute,
+    pendingRedirectPlace,
+} from '../utils';
 import { useThreadStore } from '../stores';
 import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
@@ -118,7 +125,9 @@ export const HomePage = () => {
     // A subscription cloud with no place at all still lists its 1:1s. Only once the places are known
     // to be empty — while they load or a switch is in flight, "no place" just means "not yet".
     const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
-    const { channels, isLoading } = useChannels(selectedSiteId ?? undefined, { cloudWideOnly: hasNoPlace });
+    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(selectedSiteId ?? undefined, {
+        cloudWideOnly: hasNoPlace,
+    });
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);
@@ -126,7 +135,7 @@ export const HomePage = () => {
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
-    const { isAvailable: canStartDm } = useStartDm();
+    const { isAvailable: canStartDm, startDm } = useStartDm();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
@@ -158,6 +167,10 @@ export const HomePage = () => {
         pendingThreadRef,
         armPendingExpiry,
     } = usePendingLanding();
+    // The place an open request named, kept for the redirect that settles a held open, and the room
+    // that redirect has already moved once (see the redirect effect below).
+    const pendingNamedPlaceRef = useRef('');
+    const redirectedPendingRef = useRef<string | null>(null);
     const requestOpenAtBottom = useOpenAtBottomStore(s => s.request);
 
     // Open a thread on a channel that is being selected right now — the one rule every entry
@@ -199,10 +212,16 @@ export const HomePage = () => {
     // Open a saved item: when it lives in another place, switch place first and
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
-    const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => {
+    const jumpToSaved = (channelId: string, chatNo?: number, requestedPlaceId?: string, threadRootId?: string) => {
         recordOrigin(channelId);
+        // A 1:1 opens where it is listed, which its recorded place need not be.
+        const placeId = openPlaceFor(
+            { placeId: requestedPlaceId ?? '', channelId },
+            { placeId: selectedPlaceId, dmPlaces }
+        );
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
+            pendingNamedPlaceRef.current = '';
             // A thread reply opens the thread panel once its channel loads; a
             // top-level message scrolls the main feed. Never both.
             pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
@@ -221,14 +240,16 @@ export const HomePage = () => {
 
     // Notification-click target (set by the always-mounted listener in routes, so
     // it works from any route). Apply it: switch place if needed (the channel is
-    // applied once it loads, below), else select directly. Clear once consumed so
-    // returning to home later doesn't re-jump.
+    // applied once it loads, below), else select directly — or, while this cloud's
+    // list is still loading, hold it for the redirect effect to place. Clear once
+    // consumed so returning to home later doesn't re-jump.
     const pendingOpen = usePendingOpenStore(s => s.target);
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { cloudId, placeId, channelId, rootId } = pendingOpen;
+        const { cloudId, channelId, rootId } = pendingOpen;
         const activeCloud = activeCloudId ?? 'default';
+        const sameCloud = !cloudId || cloudId === activeCloud;
         // A notification is a detour like any other jump, the open channel included:
         // it moves the reader to the latest or swaps the thread beside it.
         recordOrigin(channelId);
@@ -236,11 +257,28 @@ export const HomePage = () => {
         // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
         pendingThreadRef.current = rootId ? { channelId, rootId } : null;
         pendingOpenAtBottomRef.current = rootId ? null : channelId;
-        const route = pendingOpenRoute(pendingOpen, {
-            cloudId: activeCloud,
-            placeId: selectedPlaceId,
-            listedIds: new Set(channels.map(channel => channel.id ?? '')),
-        });
+        // A 1:1 opens where it is listed, and the named place is only its stamp — but which places
+        // list it is unknown until the rows load (an open that remounts HomePage arrives before
+        // then). Hold it; the redirect below settles the place once the list is in.
+        pendingNamedPlaceRef.current = pendingOpen.placeId;
+        if (sameCloud && isLoading) {
+            pendingChannelRef.current = channelId;
+            armPendingExpiry();
+            clearPendingOpen();
+            return;
+        }
+        // Another cloud's rooms are not loaded either; that switch lands first and redirects after.
+        const placeId = sameCloud
+            ? openPlaceFor(pendingOpen, { placeId: selectedPlaceId, dmPlaces })
+            : pendingOpen.placeId;
+        const route = pendingOpenRoute(
+            { ...pendingOpen, placeId },
+            {
+                cloudId: activeCloud,
+                placeId: selectedPlaceId,
+                listedIds: new Set(channels.map(channel => channel.id ?? '')),
+            }
+        );
         if (route === 'switch-cloud' && cloudId) {
             // Cross-cloud: switch cloud first. The target place lands via the
             // auto-select effect (pendingPlaceRef), then the channel via the
@@ -314,8 +352,8 @@ export const HomePage = () => {
     const recordKnownChannels = useKnownChannelsStore(s => s.record);
     useEffect(() => {
         if (!activeCloudId || !selectedPlaceId || isDefaultMode || channels.length === 0) return;
-        recordKnownChannels(activeCloudId, selectedPlaceId, channels);
-    }, [activeCloudId, selectedPlaceId, isDefaultMode, channels, recordKnownChannels]);
+        recordKnownChannels(activeCloudId, selectedPlaceId, channels, myUid);
+    }, [activeCloudId, selectedPlaceId, isDefaultMode, channels, recordKnownChannels, myUid]);
 
     // Remember the place you have open in this cloud, for the restore above.
     const rememberPlace = useLastChannelStore(s => s.rememberPlace);
@@ -386,6 +424,31 @@ export const HomePage = () => {
         closeActivity();
     }, [activeCloudId, closeSaved, closeActivity]);
 
+    const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
+
+    // A held or misplaced pending open (one that arrived while the list loaded, or a cross-cloud
+    // open landed in a 1:1's stamped place) moves once to where the room is listed. Not mid-switch,
+    // and not before a place is selected: the auto-select effect settles the place first, and a
+    // redirect in that gap would spend the once-per-room move on the stamp.
+    useEffect(() => {
+        const pendingId = pendingChannelRef.current;
+        if (!pendingId) {
+            redirectedPendingRef.current = null;
+            pendingNamedPlaceRef.current = '';
+        }
+        if (isLoading || isSwitching || pendingPlaceRef.current) return;
+        const placeId = pendingRedirectPlace(pendingId, {
+            placeId: selectedPlaceId,
+            listedIds: listedChannelIds,
+            dmPlaces,
+            redirectedId: redirectedPendingRef.current,
+            namedPlaceId: pendingNamedPlaceRef.current,
+        });
+        if (!placeId) return;
+        redirectedPendingRef.current = pendingId;
+        switchPlace(placeId);
+    }, [listedChannelIds, isLoading, isSwitching, dmPlaces, selectedPlaceId, switchPlace]);
+
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads; otherwise keep a
         // selection that is still listed (a HomePage remount after profile/settings and back), or
@@ -401,6 +464,8 @@ export const HomePage = () => {
         if (landing.kind === 'pending') {
             const pending = landing.channelId;
             pendingChannelRef.current = null;
+            redirectedPendingRef.current = null;
+            pendingNamedPlaceRef.current = '';
             // A deferred notification open lands at the latest message.
             if (pendingOpenAtBottomRef.current === pending) {
                 pendingOpenAtBottomRef.current = null;
@@ -464,20 +529,36 @@ export const HomePage = () => {
     // minus this place, named by the place each channel lives in. A place that is
     // no longer in the rail is dropped rather than shown as an unnamed chip.
     const knownByCloud = useKnownChannelsStore(s => s.byCloud);
+    // A 1:1 elsewhere is named after its person; another place's profiles are not loaded here, so
+    // their cloud profile names them.
+    // Only the 1:1s the switcher would offer: listed elsewhere, in a place still on the rail.
+    const knownPeers = useMemo(() => {
+        const known = activeCloudId ? knownByCloud[activeCloudId] : undefined;
+        const railPlaces = new Set(places.map(place => place.id ?? ''));
+        return Object.values(known ?? {}).flatMap(entry =>
+            entry.peerId &&
+            entry.placeId !== selectedPlaceId &&
+            railPlaces.has(entry.placeId) &&
+            !listedChannelIds.has(entry.channelId)
+                ? [{ channelId: entry.channelId, peerId: entry.peerId }]
+                : []
+        );
+    }, [knownByCloud, activeCloudId, listedChannelIds, places, selectedPlaceId]);
+    const knownPeerProfiles = useCloudProfiles(useMemo(() => knownPeers.map(peer => peer.peerId), [knownPeers]));
+    // Only an opened room loads its members, so a 1:1 filed from a place not visited yet asks for its
+    // person here; until then the row carries the room name.
+    useHydrateDmPeers(knownPeers.filter(peer => !knownPeerProfiles.get(peer.peerId)?.name));
     const elsewhereChannels = useMemo(() => {
         if (!activeCloudId || isDefaultMode) return [];
         const known = knownByCloud[activeCloudId];
         if (!known) return [];
-        const placeName = new Map(places.map(place => [place.id, place.name ?? place.id ?? '']));
-        return Object.values(known)
-            .filter(entry => entry.placeId !== selectedPlaceId && entry.name && placeName.has(entry.placeId))
-            .map(entry => ({
-                channelId: entry.channelId,
-                name: entry.name,
-                placeId: entry.placeId,
-                placeName: placeName.get(entry.placeId) ?? '',
-            }));
-    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places]);
+        return elsewhereChannelRows(known, {
+            placeId: selectedPlaceId,
+            placeName: new Map(places.map(place => [place.id ?? '', place.name ?? place.id ?? ''])),
+            listedIds: listedChannelIds,
+            peerName: peerId => knownPeerProfiles.get(peerId)?.name ?? '',
+        });
+    }, [knownByCloud, activeCloudId, isDefaultMode, selectedPlaceId, places, listedChannelIds, knownPeerProfiles]);
 
     // Picking one of those is the same move as jumping to a saved message in
     // another place: switch place, then land on the channel once it loads.
@@ -502,6 +583,7 @@ export const HomePage = () => {
                 return;
             }
             pendingChannelRef.current = channelId;
+            pendingNamedPlaceRef.current = '';
             armPendingExpiry();
         },
         [selectChannel]
@@ -535,6 +617,7 @@ export const HomePage = () => {
         const route = returnRoute(origin, here);
         if (route !== 'select') {
             pendingChannelRef.current = channelId;
+            pendingNamedPlaceRef.current = '';
             pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
             pendingJumpRef.current = anchorChatNo != null ? { channelId, chatNo: anchorChatNo, restore: true } : null;
             pendingOpenAtBottomRef.current = anchorChatNo == null ? channelId : null;
@@ -561,7 +644,6 @@ export const HomePage = () => {
         // A jump inside the channel may have opened a thread the reader did not have.
         else if (channelId === selectedChannelId) closeThread();
     };
-    const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
     const jumpReturn = shouldOfferReturn(jumpOrigin, here, listedChannelIds)
         ? {
               // Back in the channel after a jump inside it: its name would say "you are here".
@@ -574,8 +656,7 @@ export const HomePage = () => {
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
     const placeName = selectedPlace?.name?.trim() || selectedPlace?.id || '';
-    const totalUnread = Object.values(unreadByPlace).reduce((sum, count) => sum + count, 0);
-    const cloudHasUnread = totalUnread > 0;
+    const cloudHasUnread = useUnreadStore(s => s.total) > 0;
 
     // One member subscription per open channel, shared by the chat pane (author
     // names) and the settings panel (roster/kick) — avoids a duplicate fetch.
@@ -670,6 +751,8 @@ export const HomePage = () => {
                                 // The picker's pool is the people in this place's channels, so a cloud
                                 // with no place would only ever offer no one.
                                 onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
+                                memberPeers={memberPeers}
+                                onStartDm={canStartDm && !hasNoPlace ? peerId => void startDm(peerId) : undefined}
                             />
                         </div>
                     </>

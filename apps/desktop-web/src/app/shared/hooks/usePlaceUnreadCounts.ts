@@ -4,13 +4,15 @@ import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
-import { computeChannelUnread } from '../utils';
+import { channelsByPlace, cloudDmPlaces, placeUnreadCounts } from '../utils';
 import { useKnownChannelsStore, useReadCursorStore } from '../stores';
+import { usePlaces } from './usePlaces';
 
 const REFETCH_DEBOUNCE_MS = 300;
 
 /**
- * Per-place unread counts for the active cloud, keyed by sid.
+ * Per-place unread counts for the active cloud, keyed by place id, and their total. A 1:1 counts
+ * in every place that lists it and once in the total (`placeUnreadCounts`).
  *
  * Fetches every channel of the active cloud into a flat in-memory list (`channel.fetchList`,
  * `hasSite: false`, with detail) and derives unread client-side — the pre-v2 desktop approach. It
@@ -27,15 +29,21 @@ const REFETCH_DEBOUNCE_MS = 300;
  * socket chat frame. The local read cursor re-derives instantly (no refetch) so a badge clears the
  * moment you read.
  */
-export const usePlaceUnreadCounts = (): Record<string, number> => {
+export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total: number } => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const session = runtime.session.useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
+    const { placeIds } = usePlaces();
 
-    const [channels, setChannels] = useState<DomainChannel[]>([]);
+    // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
+    const [fetched, setFetched] = useState<{ cloudId: string | null; list: DomainChannel[] }>({
+        cloudId: null,
+        list: [],
+    });
+    const channels = fetched.list;
     // Drops a late response from a superseded fetch (cloud switch / newer trigger).
     const seqRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -47,18 +55,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
             .fetchList({ hasSite: false, limit: 500 } as DomainChannelListPayload)
             .catch(() => null);
         if (seqRef.current !== seq || !result) return;
-        const list = (result.list ?? []) as DomainChannel[];
-        setChannels(list);
-        // The same list is the whole cloud's channel directory, so it also seeds the
-        // quick switcher's index: without it, Cmd+K only knew places opened by hand.
-        if (cloudId) {
-            const bySite = new Map<string, DomainChannel[]>();
-            for (const channel of list) {
-                if (channel.sid) bySite.set(channel.sid, [...(bySite.get(channel.sid) ?? []), channel]);
-            }
-            const { record } = useKnownChannelsStore.getState();
-            bySite.forEach((channels, sid) => record(cloudId, sid, channels));
-        }
+        setFetched({ cloudId, list: (result.list ?? []) as DomainChannel[] });
     }, [channelRepository, isVerified, cloudId]);
 
     const schedule = useCallback(() => {
@@ -68,7 +65,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
 
     // Reset on cloud change so the previous cloud's badges don't linger mid-switch.
     useEffect(() => {
-        setChannels([]);
+        setFetched({ cloudId, list: [] });
         ++seqRef.current;
     }, [cloudId]);
 
@@ -101,17 +98,22 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
         };
     }, [schedule]);
 
-    return useMemo(() => {
-        const grouped: Record<string, number> = {};
-        for (const ch of channels) {
-            if (!ch.sid) continue;
-            // Read boundary: the channel's own `$join` (chatNo + the metaNo snapshot that nets
-            // system messages out), with the local cursor clearing the badge on read.
-            grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, readCursors[ch.id ?? '']);
-        }
-        for (const sid of Object.keys(grouped)) {
-            if (!grouped[sid]) delete grouped[sid];
-        }
-        return grouped;
-    }, [channels, myUid, readCursors]);
+    const dmPlaces = useMemo(
+        () => cloudDmPlaces(channels, { myUid: myUid ?? null, placeIds }),
+        [channels, myUid, placeIds]
+    );
+    // The same list is the whole cloud's channel directory, so it also seeds the quick switcher's
+    // index: without it, Cmd+K only knew places opened by hand. A 1:1 is filed under the places that
+    // list it, so this runs again when my places arrive; re-filing an unchanged list writes nothing.
+    useEffect(() => {
+        const listCloudId = fetched.cloudId;
+        if (!listCloudId || listCloudId !== cloudId) return;
+        const { record } = useKnownChannelsStore.getState();
+        channelsByPlace(fetched.list, dmPlaces).forEach((list, placeId) => record(listCloudId, placeId, list, myUid));
+    }, [fetched, dmPlaces, cloudId, myUid]);
+
+    return useMemo(
+        () => placeUnreadCounts(channels, { myUid: myUid ?? null, dmPlaces, readCursors }),
+        [channels, myUid, dmPlaces, readCursors]
+    );
 };

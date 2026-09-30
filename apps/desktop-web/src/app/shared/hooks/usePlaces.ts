@@ -45,6 +45,12 @@ export const usePlaces = () => {
     // With a background session per cloud the new cloud's socket is already up, so a place picked
     // from the stale list would reach it at once.
     const cloudPlaces = useMemo(() => places.filter(row => row.cid === cid), [places, cid]);
+    // Keyed on the ids, not the array: the place cache re-emits a fresh array on every write.
+    const placeIdsKey = cloudPlaces
+        .map(place => place.id ?? '')
+        .filter(Boolean)
+        .join('\u0000');
+    const placeIds = useMemo(() => (placeIdsKey ? placeIdsKey.split('\u0000') : []), [placeIdsKey]);
 
-    return { places: cloudPlaces, isLoading };
+    return { places: cloudPlaces, placeIds, isLoading };
 };

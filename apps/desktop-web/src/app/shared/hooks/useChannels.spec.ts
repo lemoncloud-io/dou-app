@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-type Row = { id: string; name?: string; cid: string; sid: string; stereo?: string };
+type Row = { id: string; name?: string; cid: string; sid: string; stereo?: string; memberIds?: string[] };
 
 let cacheRows: Row[] = [];
 let deferEmit = false;
@@ -26,6 +26,9 @@ vi.mock('@chatic/app-runtime', () => ({
 }));
 vi.mock('./useChannelReadCursors', () => ({ useChannelReadCursors: () => ({}) }));
 
+let placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };
+vi.mock('./usePlaces', () => ({ usePlaces: () => placesState }));
+
 import { useChannels } from './useChannels';
 
 const ids = (list: Array<{ id?: string }>) => list.map(c => c.id).sort();
@@ -36,18 +39,60 @@ describe('useChannels', () => {
         cacheRows = [];
         deferEmit = false;
         listeners.length = 0;
+        placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };
     });
 
-    it('lists a cloud 1:1 in every place of its cloud, whichever place its creator stood in', async () => {
+    it('lists a cloud 1:1 in a place where its peer shares a group channel, whichever place its creator stood in', async () => {
         cacheRows = [
-            { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a' },
-            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b' },
-            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },
+            { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a', memberIds: ['me', 'someone'] },
+            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer'] },
+            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
         ];
 
         const { result } = renderHook(() => useChannels('place-b'));
 
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1', 'group-b']));
+        // The whole cloud's placement, not only this place's, for callers that route to another place.
+        expect(result.current.dmPlaces.get('dm-1')).toEqual(['place-b']);
+        // Its only other member already has this 1:1, so no one is left to offer.
+        expect(result.current.memberPeers).toEqual([]);
+    });
+
+    it("lists the open place's members who have no 1:1 here yet", async () => {
+        cacheRows = [
+            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer', 'new'] },
+            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+        ];
+
+        const { result } = renderHook(() => useChannels('place-b'));
+
+        await waitFor(() => expect(result.current.memberPeers).toEqual([{ peerId: 'new', channelId: 'group-b' }]));
+    });
+
+    it('leaves a cloud 1:1 out of a place its peer is not in', async () => {
+        cacheRows = [
+            { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a', memberIds: ['me', 'peer'] },
+            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'someone'] },
+            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+        ];
+
+        const { result } = renderHook(() => useChannels('place-b'));
+
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['group-b']));
+    });
+
+    // Until my places load, no 1:1 can be placed, so the list must not read as final yet.
+    it('stays loading until my places have loaded', async () => {
+        placesState = { placeIds: [], isLoading: true };
+        cacheRows = [
+            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer'] },
+            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+        ];
+
+        const { result } = renderHook(() => useChannels('place-b'));
+
+        await waitFor(() => expect(observeList).toHaveBeenCalled());
+        expect(result.current.isLoading).toBe(true);
     });
 
     it('lists a cloud 1:1 exactly once in the place its sid names', async () => {
