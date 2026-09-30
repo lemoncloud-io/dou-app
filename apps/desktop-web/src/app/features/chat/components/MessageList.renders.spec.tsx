@@ -75,7 +75,8 @@ const NEXT = message(201);
  * update that re-renders every row is the one that makes a long channel feel slow; each case
  * here pins the number to the rows that actually changed.
  */
-describe('MessageList row re-renders', () => {
+// Mounting 200 rows in jsdom takes seconds on a loaded machine; the default 5s timed out in a full run.
+describe('MessageList row re-renders', { timeout: 30_000 }, () => {
     beforeEach(() => {
         rowRenders.count = 0;
     });

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -36,10 +37,9 @@ const ICONS = {
  * once so a second toast does not evict an error unread. Both are desktop choices: the kit store
  * is shared with the mobile web app, which keeps its one timed toast.
  */
-setToastLimit(3);
-
 export const AppToaster = () => {
     const { t } = useTranslation();
+    useEffect(() => setToastLimit(3), []);
     const { toasts } = useToast();
 
     return (
