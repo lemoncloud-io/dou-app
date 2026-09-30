@@ -105,7 +105,7 @@ sequenceDiagram
 ```text
 libs/data/src/
 ├── index.ts          public barrel (9 lines of export *)
-├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images and attachment kind)
+├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind and the attachment formats the server takes)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
 │   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports

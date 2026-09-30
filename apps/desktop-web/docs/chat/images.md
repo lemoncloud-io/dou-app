@@ -1,8 +1,9 @@
-# Images
+# Images, videos and documents
 
-The composer takes images from the "+" button, a drop, or a paste. They wait in a tray, and they go
-out with the message: the text first, then one image message with the pictures. In the feed they are
-tiles that open a full-image viewer.
+The composer takes images, MP4 videos and documents from the "+" button, a drop, or a paste. They
+wait in a tray, and they go out with the message: the text first, then one attachment message with
+the files. In the feed images are tiles that open a full-image viewer; a video plays in place, and a
+document is a card that saves it.
 
 The send itself is the runtime's, shared with apps/web: `data.useSendImages`, documented in
 [`libs/app-runtime/docs/data/image-send.md`](../../../../libs/app-runtime/docs/data/image-send.md).
@@ -12,12 +13,12 @@ depart from the Figma frames.
 Components are in `features/chat/components/images/`, and the tray state is in
 `features/chat/hooks/useImageAttachments.ts`.
 
-## Adding images
+## Adding files
 
 - **"+"** (`AttachButton`) opens the OS picker directly. It used to open a menu whose only entry did
-  the same.
-- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it. It says images,
-  because only images are taken.
+  the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/data`: every type and every
+  extension, because a picker that does not know HWP's type only offers the file by its extension.
+- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it, and says files.
 - **Paste:** pasted files join the tray. A rich copy (Excel, Word: `text/html` or `text/rtf` on the
   clipboard) also carries its text, and that text goes into the message as plain text. A file copied
   in Finder or Explorer carries only its own name as `text/plain`, and that is not inserted.
@@ -25,7 +26,13 @@ Components are in `features/chat/components/images/`, and the tray state is in
 Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.ts`), which counts
 refusals by reason:
 
-- `unsupported`: not PNG, JPEG, GIF or WebP.
+- `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
+  PNG, JPEG, GIF and WebP images, MP4 video, and PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents.
+  An empty or generic type (HWP arrives untyped on most systems) is read from the extension. A
+  video or document whose extension names another format is refused, because the receiver saves it
+  under that name.
+- `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
+  documents 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `duplicate`: the same name, size and modification time as a file already in the tray or in the same
   batch.
 - `limit`: over `MAX_ATTACHMENTS` (10).
@@ -37,8 +44,10 @@ a mixed drop never said what else it left out.
 ## The tray
 
 `ComposerAttachments` is one row of 92px tiles that scrolls sideways, with an `n/10` counter. The
-row used to wrap, and ten images took about 40% of the window. A preview shows a spinner until its
-`<img>` has decoded; the tray tracks that itself rather than decoding each file a second time.
+row used to wrap, and ten images took about 40% of the window. An image's preview shows a spinner
+until its `<img>` has decoded; the tray tracks that itself rather than decoding each file a second
+time. A video or document has no preview and no object URL: its tile shows a kind icon, its name and
+its size.
 
 The remove "×" sits on each tile's top-right corner. It surfaces on hover or focus (see
 [keyboard.md](./keyboard.md#hover-revealed-controls)). Removing a tile moves focus to the tile that
@@ -81,6 +90,28 @@ the same signed address already — both read it from the same message the save 
 `Vary: Origin`. The answer carries no `Cache-Control`, so Chromium keeps it for a while by
 heuristic, and a CORS fetch that reuses it fails with "No 'Access-Control-Allow-Origin' header"
 until the copy goes stale.
+
+## Videos and documents in the feed
+
+`toChatFiles` takes a message's videos and documents from its `upload$$`, and `toChatImages` takes
+only the images, so the grid, "Download all" and the viewer never see a PDF. The kind is the
+upload's `stereo`; a slot being sent reads it from the content type it kept. `MessageFiles` lists
+them under the images:
+
+- **A video** plays in place (`<video controls preload="metadata">`). The original is signed for
+  inline viewing, and Chromium plays an H.264 MP4 itself. There is no poster: the app sends none.
+- **A document** is a card with a kind icon, its name and size, and a save button.
+- **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
+  pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
+  **Failed**, the card says so, and the message's retry resends it with the rest.
+- **An upload from before the server kept names** has none; its card says "File" or "Video".
+
+Saving goes through `downloadImage`, the same fetch-then-save as an image, under the upload's `name`,
+or "file" for an upload with none; the extension comes from the type the bytes arrive with. The
+name is the one the sender's app declared, and the app does not check it against the type again: the
+server refuses, at upload, a video or document whose name ends in another format's extension.
+The address must be `https:`; anything else is treated as nothing to load. A video or document is
+never saved without asking: the shell skips the dialog for images only (above).
 
 ## The viewer
 

@@ -104,13 +104,13 @@ quote the request it failed on.
 
 `ChatRepository` owns the row. The sequence only reports its outcome.
 
-| Method                                                             | What it does                                                                                                                                                    |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createPendingImageChat({ channelId, parentId?, localThumbUrls })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per image                                                                       |
-| `createPendingImageChat({ …, pendingId })`                         | re-arms that same row for a retry: `sending` again, not a second row                                                                                            |
-| `sendPendingImageChat(pendingId, { uploadIds })`                   | sends the message, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails |
-| `failPendingImageChat(pendingId)`                                  | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                |
-| `listPendingImageChats(channelId)`                                 | the channel's unsent rows that hold pending slots                                                                                                               |
+| Method                                                                          | What it does                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createPendingImageChat({ channelId, parentId?, localThumbUrls, localFiles? })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per file; a video or document's slot also keeps `localName` / `localContentType` / `localSize`. A rewrite without `localFiles` keeps what the row holds |
+| `createPendingImageChat({ …, pendingId })`                                      | re-arms that same row for a retry: `sending` again, not a second row                                                                                                                                                                    |
+| `sendPendingImageChat(pendingId, { uploadIds })`                                | sends the message, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails                                                                         |
+| `failPendingImageChat(pendingId)`                                               | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                                                                                        |
+| `listPendingImageChats(channelId)`                                              | the channel's unsent rows that hold pending slots                                                                                                                                                                                       |
 
 - **A pending row keeps the scope it was written in.** A send takes long enough for a cloud switch,
   so the repository remembers each row's scope and reads, fails and sends it there. On a graph that
@@ -126,7 +126,8 @@ quote the request it failed on.
   A failed read-back leaves the send's answer in place, since the message went out regardless, and
   the images appear the next time the room reads its feed. Note that `chat.get` omits an empty
   `content` instead of answering `''`.
-- **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }`, never
+- **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }` (plus
+  `localName` / `localContentType` / `localSize` for a video or document), never
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a
   local `'failed'` can be retried, and a reader that met the same name would take one for the other.
   `isPendingUploadSlot` tells them apart inside one `upload$$` list.

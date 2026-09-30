@@ -331,8 +331,8 @@ is that budget, not a taste call.
 `'storage'` is bytes PUT to object storage, and **the original goes up at full size** — the transport
 carries it, and re-encoding would spend the quality the sender chose. It returns the original, its
 dimensions, and a small thumbnail for lists. "The original" means _not resized_, not _not touched_:
-HEIC is still converted to JPEG and renamed, because the endpoint answers anything outside
-png/jpeg/gif/webp with a 415. An animated GIF is never redrawn. `prepareImage` still gives it a
+HEIC is still converted to JPEG and renamed, because the endpoint takes no HEIC and answers it with
+a 415. An animated GIF is never redrawn. `prepareImage` still gives it a
 thumbnail when asked, but a chat photo goes through `prepareChatAttachment`, which asks for none for a
 GIF: a thumbnail is a canvas drawing, which keeps only the first frame, and the server hands an upload
 back with no content type, so a room could not tell that still from a photo's and drew it as the tile.
