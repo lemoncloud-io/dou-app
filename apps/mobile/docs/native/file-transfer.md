@@ -124,9 +124,13 @@ handles each the same way on either platform, so neither needs a platform branch
   local notification: the file's title for a one-file batch, "2 of 5 uploads failed" otherwise — the
   same once-per-batch rule as Android's summary. Success is not announced. Permission is never
   requested here.
-- **iOS 26 and later** — a continued-processing task shows system progress and a cancel control. All
-  transfers join one task. The OS reports both a user cancellation and its own termination the same
-  way, and the app cannot tell them apart, so an expiration is treated as a cancellation. To keep the
+- **iOS 26 and later** — a continued-processing task shows system progress and a cancel control. It
+  is asked for only when something is still running 3 seconds after a start: the system UI arrives
+  with a haptic and a banner, and a chat photo is usually uploaded well inside that, so a quick send
+  stays quiet. Leaving the app within those 3 seconds loses the UI for that batch, not the transfer —
+  the bytes move through the background session regardless. All transfers join one task. The OS
+  reports both a user cancellation and its own termination the same way, and the app cannot tell
+  them apart, so an expiration is treated as a cancellation. To keep the
   OS from ending a task on its own — it ends tasks that make no progress first — the app closes the
   task itself after 30 seconds without progress, leaving the transfer running; the progress UI then
   stays closed until the next transfer starts.
