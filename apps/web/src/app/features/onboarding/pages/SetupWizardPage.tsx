@@ -18,6 +18,7 @@ import {
 
 import { useCreatePlace, usePickImage, useSetMyPlaceProfile, useUpdateCloudProfile } from '../../../hooks';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
+import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { ROUTES } from '../../../routes/paths';
 import { WizardProgress } from '../components';
 
@@ -61,10 +62,15 @@ export const SetupWizardPage = () => {
     const [step, setStep] = useState(1);
     const [draft, setDraft] = useState<Draft>(EMPTY);
     const [busy, setBusy] = useState(false);
+    // A place step 2 created but has not switched into yet. The two are separate server calls, so a
+    // switch can fail after the create went through; a retry then resumes the switch instead of
+    // creating a second place.
+    const [unswitchedPlaceId, setUnswitchedPlaceId] = useState<string | null>(null);
 
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { mutateAsync: updateCloudName } = useUpdateCloudProfile();
     const { createPlace } = useCreatePlace();
+    const { switchSite } = useSiteSwitch();
     const setMyPlaceProfile = useSetMyPlaceProfile();
 
     const imageError = () => toast({ title: t('setupWizard.imageSizeError'), variant: 'destructive' });
@@ -95,7 +101,20 @@ export const SetupWizardPage = () => {
             return;
         }
         if (step === 2) {
-            await createPlace({ name: draft.placeName.trim(), thumbnail: draft.placeThumbnail || undefined });
+            let placeId = unswitchedPlaceId;
+            if (!placeId) {
+                const created = await createPlace({
+                    name: draft.placeName.trim(),
+                    thumbnail: draft.placeThumbnail || undefined,
+                });
+                placeId = created.id;
+                setUnswitchedPlaceId(placeId);
+            }
+            // Step 3's profile can only be written from inside the new place: the server stores a
+            // profile on the site the session is on, whatever site the request names. Without this
+            // switch the profile overwrote the one on the place that was active before the wizard.
+            await switchSite(placeId);
+            setUnswitchedPlaceId(null);
             return;
         }
         await setMyPlaceProfile({ nick: draft.profileNick.trim(), thumbnail: draft.profileThumbnail || undefined });

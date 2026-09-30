@@ -7,6 +7,10 @@ const mockEnterCloud = jest.fn();
 const mockEnterSite = jest.fn();
 const mockEnterChannel = jest.fn();
 const mockCacheWrite = jest.fn();
+const mockGetMyProfile = jest.fn();
+const mockSyncChannels = jest.fn();
+const mockObserveChannel = jest.fn();
+const mockLoggerWarn = jest.fn();
 const mockToast = jest.fn();
 const mockLoggerError = jest.fn();
 
@@ -14,16 +18,25 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) =>
 jest.mock('@chatic/bridges', () => ({
     logger: {
         error: (...args: unknown[]) => mockLoggerError(...args),
-        warn: jest.fn(),
+        warn: (...args: unknown[]) => mockLoggerWarn(...args),
         info: jest.fn(),
     },
 }));
 
+// The real module opens IndexedDB on import; only the cloud-1:1 rule is needed here.
+jest.mock('@chatic/data', () => ({
+    isCloudWideChannel: (c: { stereo?: string; cid?: string } | null) =>
+        !!c && c.stereo === 'dm' && c.cid !== 'default',
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
-            useRuntimeRepositories: () => ({ cloud: { cacheWrite: mockCacheWrite } }),
+            useRuntimeRepositories: () => ({
+                cloud: { cacheWrite: mockCacheWrite },
+                profile: { getMyProfile: mockGetMyProfile },
+                channel: { syncChannels: mockSyncChannels, observeItem: mockObserveChannel },
+            }),
         },
         session: {
             useInviteFlow: () => ({ runInviteFlow: mockRunInviteFlow, isInviting: false }),
@@ -43,7 +56,11 @@ const { useInviteAccept } = require('./useInviteAccept');
 const ctx = (overrides: Partial<InviteContext> = {}): InviteContext =>
     ({
         params: { code: 'invt:1:abc', backend: 'https://cloud.example' },
-        info: { cloudId: 'cloud-1', $envs: { backend: 'https://cloud.example', wss: 'wss://cloud.example' } },
+        info: {
+            cloudId: 'cloud-1',
+            siteId: 'site-1',
+            $envs: { backend: 'https://cloud.example', wss: 'wss://cloud.example' },
+        },
         ...overrides,
     }) as InviteContext;
 
@@ -164,5 +181,180 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
     it('login-invite 단계의 그 외 서버 오류는 failed 키', async () => {
         mockRunInviteFlow.mockRejectedValue(new Error('500 SERVER ERROR'));
         expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.failed');
+    });
+});
+
+describe('useInviteAccept — place profile step', () => {
+    const withSite = () => ctx({ info: { cloudId: 'cloud-1', siteId: 'site-9' } } as Partial<InviteContext>);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRunInviteFlow.mockResolvedValue({});
+        mockEnterCloud.mockResolvedValue(undefined);
+        mockEnterSite.mockResolvedValue(undefined);
+    });
+
+    it('stops before the room when the invited place has no profile of mine', async () => {
+        // `profile.get-mine` answers even with no real profile; `active: false` is what says so.
+        mockGetMyProfile.mockResolvedValue({ id: 'site-9@me', active: false });
+
+        const result = await runAccept(withSite());
+
+        expect(mockEnterSite).toHaveBeenCalled();
+        expect(result.current.profilePending).toBe(true);
+        expect(mockEnterChannel).not.toHaveBeenCalled();
+        expect(result.current.errorKey).toBeNull();
+    });
+
+    it('continues into the room once the profile step is left', async () => {
+        mockGetMyProfile.mockResolvedValue({ id: 'site-9@me', active: false });
+        const result = await runAccept(withSite());
+
+        act(() => result.current.finishProfile());
+
+        expect(result.current.profilePending).toBe(false);
+        expect(mockEnterChannel).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'site-9' }));
+    });
+
+    it('goes straight into the room when a profile already exists there', async () => {
+        mockGetMyProfile.mockResolvedValue({ id: 'site-9@me', nick: 'Raine', active: true });
+
+        const result = await runAccept(withSite());
+
+        expect(result.current.profilePending).toBe(false);
+        expect(mockEnterChannel).toHaveBeenCalled();
+    });
+
+    it('does not ask when the invite named no place, since the session never moved', async () => {
+        const result = await runAccept(ctx({ info: { cloudId: 'cloud-1' } } as Partial<InviteContext>));
+
+        expect(mockGetMyProfile).not.toHaveBeenCalled();
+        expect(result.current.profilePending).toBe(false);
+        expect(mockEnterChannel).toHaveBeenCalled();
+    });
+
+    it('enters the room when the profile read fails, rather than blocking on it', async () => {
+        mockGetMyProfile.mockRejectedValue(new Error('read failed'));
+
+        const result = await runAccept(withSite());
+
+        expect(result.current.profilePending).toBe(false);
+        expect(mockEnterChannel).toHaveBeenCalled();
+    });
+
+    it('does not ask when switching into the place failed', async () => {
+        mockEnterSite.mockRejectedValue(new Error('403 NOT ALLOWED'));
+
+        const result = await runAccept(withSite());
+
+        expect(mockGetMyProfile).not.toHaveBeenCalled();
+        expect(result.current.profilePending).toBe(false);
+        expect(result.current.errorKey).toBe('inviteAccept.enterFailed');
+    });
+});
+
+describe('useInviteAccept — finding the invited place', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRunInviteFlow.mockResolvedValue({});
+        mockEnterCloud.mockResolvedValue(undefined);
+        mockEnterSite.mockResolvedValue(undefined);
+        mockGetMyProfile.mockResolvedValue({ nick: 'Raine', active: true });
+        mockSyncChannels.mockResolvedValue({ syncedAt: 1, removedCount: 0 });
+    });
+
+    // The cache answers an observer synchronously or later; emitting from inside the call covers the
+    // case where it fires before the subscription handle exists.
+    const roomRowIs = (row: Record<string, unknown>) =>
+        mockObserveChannel.mockImplementation((_id: string, cb: (item: unknown) => void) => {
+            cb(row);
+            return jest.fn();
+        });
+
+    it('uses the invite place card when the invite carries no siteId', async () => {
+        await runAccept(ctx({ info: { cloudId: 'cloud-1', site$: { id: 'site-7' } } } as Partial<InviteContext>));
+
+        expect(mockEnterSite).toHaveBeenCalledWith('site-7');
+        expect(mockSyncChannels).not.toHaveBeenCalled();
+        expect(mockGetMyProfile).toHaveBeenCalled();
+    });
+
+    it('reads the place off the invited room when the invite names none', async () => {
+        roomRowIs({ id: 'ch-1', sid: 'site-8', stereo: 'public', cid: 'cloud-1' });
+
+        await runAccept(ctx({ info: { cloudId: 'cloud-1', channelId: 'ch-1' } } as Partial<InviteContext>));
+
+        expect(mockSyncChannels).toHaveBeenCalledWith(0);
+        expect(mockObserveChannel).toHaveBeenCalledWith('ch-1', expect.any(Function));
+        expect(mockEnterSite).toHaveBeenCalledWith('site-8');
+        expect(mockGetMyProfile).toHaveBeenCalled();
+    });
+
+    it('treats a cloud 1:1 as placeless: no switch, no profile step, but a warning', async () => {
+        roomRowIs({ id: 'ch-1', sid: 'site-8', stereo: 'dm', cid: 'cloud-1' });
+
+        const result = await runAccept(
+            ctx({ info: { cloudId: 'cloud-1', channelId: 'ch-1' } } as Partial<InviteContext>)
+        );
+
+        expect(mockEnterSite).not.toHaveBeenCalled();
+        expect(mockGetMyProfile).not.toHaveBeenCalled();
+        expect(mockLoggerWarn).toHaveBeenCalledWith(
+            'INVITE',
+            expect.stringContaining('names no place'),
+            expect.anything()
+        );
+        expect(mockEnterChannel).toHaveBeenCalled();
+        expect(result.current.errorKey).toBeNull();
+    });
+
+    it('enters without the step, and says so, when the room cannot be read', async () => {
+        mockSyncChannels.mockRejectedValue(new Error('503 SOCKET NOT CONNECTED'));
+
+        const result = await runAccept(
+            ctx({ info: { cloudId: 'cloud-1', channelId: 'ch-1' } } as Partial<InviteContext>)
+        );
+
+        expect(mockEnterSite).not.toHaveBeenCalled();
+        expect(mockLoggerWarn).toHaveBeenCalledWith(
+            'INVITE',
+            expect.stringContaining('names no place'),
+            expect.anything()
+        );
+        expect(mockEnterChannel).toHaveBeenCalled();
+        expect(result.current.errorKey).toBeNull();
+    });
+});
+
+describe('useInviteAccept — one accept at a time', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockEnterCloud.mockResolvedValue(undefined);
+        mockEnterSite.mockResolvedValue(undefined);
+        mockGetMyProfile.mockResolvedValue({ nick: 'Raine', active: true });
+    });
+
+    it('stays busy through the whole pipeline and ignores a second tap while it runs', async () => {
+        let finishLogin: () => void = () => undefined;
+        mockRunInviteFlow.mockReturnValue(new Promise<void>(resolve => (finishLogin = resolve)));
+        const { result } = renderHook(() => useInviteAccept(ctx()));
+
+        let first: Promise<void> = Promise.resolve();
+        act(() => {
+            first = result.current.accept();
+        });
+        expect(result.current.isAccepting).toBe(true);
+
+        await act(async () => {
+            await result.current.accept();
+        });
+        expect(mockRunInviteFlow).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            finishLogin();
+            await first;
+        });
+        expect(result.current.isAccepting).toBe(false);
+        expect(mockEnterChannel).toHaveBeenCalledTimes(1);
     });
 });

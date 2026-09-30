@@ -36,10 +36,16 @@ and `ProfileAvatar` draws its own default glyph when that is empty.
 `kind === 'setup'` renders `homePage.setupProfile` ("프로필을 설정해주세요" / "Set up your profile")
 in place of the name, in the header pill and at the top of the profile dropdown.
 
-That is home's **entire** involvement in profile setup, and deliberately so:
+Outside one flow, that is home's **entire** involvement in profile setup, and deliberately so:
 
-- **Nothing is forced.** Entering a place does not open a setup dialog. A user with no place profile
-  uses the app normally; the nudge sits in a name slot that was empty anyway.
+- **Entering a place forces nothing.** Switching into an existing place does not open a setup dialog.
+  A user with no place profile uses the app normally; the nudge sits in a name slot that was empty
+  anyway. The exception is a place being **created**: home's create overlay ends with a required
+  profile step for it ([place-channel-create](./place-channel-create.md)), as the cloud invite does
+  for the place it enters ([invite](../invite/README.md#cloud-invites-the-profile-comes-after-the-place)).
+- **This label reads the cache.** It shows while my row has not reached the device, too. It is a
+  fallback for an empty name slot, not a verdict — the prompts that act on "no profile" ask the
+  server instead (see channels' room settings).
 - **The nudge never grows a surface of its own.** No banner, no toast. It appears only where a name
   was going to be printed and there is none.
 - **Only my own profile is nudged.** Someone else's missing profile is not something I can fix, so
@@ -51,8 +57,9 @@ route is keyed by a site id and there would be nothing to open. It works on the 
 still supplies a `selectedSiteId`.
 
 The other place a missing profile is announced is my own member row in room settings, which taps
-straight through to the create dialog. That row, its `hasSnapshot` gate and the dialog are owned by
-[channels](../channels/README.md).
+straight through to the create dialog. That row and the dialog are owned by
+[channels](../channels/README.md); it prompts only on the server's answer that I have no profile in
+the active place, never on a local cache that does not hold my row yet.
 
 ## Place display name — never the backend string
 

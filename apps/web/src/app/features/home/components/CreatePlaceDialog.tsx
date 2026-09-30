@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
-import { useCreatePlace } from '../../../hooks';
+import { useCreatePlace, useSetMyPlaceProfile } from '../../../hooks';
+import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
@@ -28,15 +29,21 @@ interface CreatePlaceDialogProps {
 }
 
 /**
- * Full-screen overlay to CREATE a new place (=Site): name + optional photo. On success it creates
- * the site on the cloud server and switches into it, then closes. Built on @chatic/web-ui-kit;
- * mirrors CreateChannelDialog. Owner/limit gating lives in the caller (HomePage).
+ * Full-screen overlay to CREATE a new place (=Site): name + optional photo, then the creator's
+ * profile in it. Creates the site on the cloud server, switches into it, asks for the profile, then
+ * closes. Built on @chatic/web-ui-kit; mirrors CreateChannelDialog. Owner/limit gating lives in the
+ * caller (HomePage).
  *
- * No mandatory profile step follows (ADR-0094 decision 4 tried this and was reverted): the
- * server-side profile row for a brand-new site is not created by `place.create`, and `profile.set`
- * (`updateSiteProfile`) is update-only — so the owner's very first profile write always 404s no
- * matter how long the client waits. The owner picks up their profile later via the existing
- * room-settings nudge (ADR-0040), same as everyone else. See place-channel-create.md.
+ * **The profile step comes after the switch, never before or alongside it.** The server stores a
+ * profile on the site the session is on and ignores the site a request names, so it can only be
+ * written from inside the new place. `place.create` makes no profile row for the creator and
+ * `profile.set` only updates, so the first save there answers 404 — the profile repository recovers
+ * by creating the row with `profile.get-mine` and saving again. The step is required, but its way
+ * out appears once a save has failed: holding the creator on a form the server will not take is
+ * worse than a place without a profile, which the missing-profile prompts pick up later.
+ *
+ * Creating and switching are two server calls. When the create went through and the switch did not,
+ * the retry repeats only the switch, so a second tap never makes a second place.
  */
 /**
  * The screen shows the same "too large" message for a codec failure as for an oversized file, so
@@ -54,6 +61,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { createPlace } = useCreatePlace();
     const { switchSite } = useSiteSwitch();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
 
     const [name, setName] = useState('');
     const [thumbnail, setThumbnail] = useState('');
@@ -63,6 +71,13 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
     // Whether the name field holds focus — i.e. the soft keyboard is up. Drives the compact layout;
     // the rationale sits on the collapsing header below.
     const [editing, setEditing] = useState(false);
+    // A place this dialog created but has not switched into yet — the retry target after a failed
+    // switch, so the create is not repeated. Its name is kept with it: the field may be edited before
+    // the retry, and the profile step must name the place that exists, not the text in the field.
+    const [unswitchedPlace, setUnswitchedPlace] = useState<{ id: string; name: string } | null>(null);
+    // Set once the new place is created AND entered: the dialog then shows the profile step for it.
+    const [profilePlaceName, setProfilePlaceName] = useState<string | null>(null);
+    const [profileSaveFailed, setProfileSaveFailed] = useState(false);
 
     // Reset transient state each time the overlay opens.
     useEffect(() => {
@@ -73,6 +88,9 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
             setAlertOpen(false);
             setNotice(null);
             setEditing(false);
+            setUnswitchedPlace(null);
+            setProfilePlaceName(null);
+            setProfileSaveFailed(false);
         }
     }, [open]);
 
@@ -115,15 +133,46 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
         setSubmitting(true);
         setNotice(null);
         try {
-            const created = await createPlace({ name: trimmed, thumbnail: thumbnail || undefined });
-            await switchSite(created.id);
-            onOpenChange(false);
+            let place = unswitchedPlace;
+            if (!place) {
+                const created = await createPlace({ name: trimmed, thumbnail: thumbnail || undefined });
+                place = { id: created.id, name: created.name || trimmed };
+                setUnswitchedPlace(place);
+            }
+            await switchSite(place.id);
+            setUnswitchedPlace(null);
+            setSubmitting(false);
+            setProfilePlaceName(place.name);
         } catch (error) {
             logger.error('PLACE', 'Failed to create place', { error });
             setNotice({ variant: 'error', message: t('createPlace.saveError') });
             setSubmitting(false);
         }
     };
+
+    const submitProfile = async (value: { nick: string; thumbnail?: string }) => {
+        try {
+            await setMyPlaceProfile(value);
+        } catch (error) {
+            setProfileSaveFailed(true);
+            throw error;
+        }
+    };
+
+    // The place exists and the session is inside it: ask for the creator's profile there. Saved or
+    // skipped (after a failed save), leaving this step closes the whole flow.
+    if (open && profilePlaceName !== null) {
+        return (
+            <PlaceProfileCreateDialog
+                open
+                placeName={profilePlaceName}
+                dismissible={profileSaveFailed}
+                onSubmit={submitProfile}
+                onDone={() => onOpenChange(false)}
+                onExit={() => onOpenChange(false)}
+            />
+        );
+    }
 
     return (
         <Dialog open={open} onOpenChange={next => !next && requestClose()}>

@@ -1035,6 +1035,7 @@
         "exitContinue": "계속 설정"
     },
     "placeProfileEdit": {
+        "loading": "프로필을 불러오는 중...",
         "title": "플레이스 프로필",
         "header": "내 프로필",
         "nameLabel": "이름",

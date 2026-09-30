@@ -5,8 +5,8 @@ it, having proved a phone number and picked a name along the way. Everything bet
 moments is one hook, `useRelayInviteFlow`, and one screen that switches on its phase.
 
 This is the relay half of `/invite/accept`. The route also carries cloud invitations, but that lane
-is a different backend contract — REST, and a room that already exists — and it lives in
-[auth](../auth/README.md). See [README](./README.md) for how a link reaches the route at all.
+is a different backend contract — REST, and a room that already exists — and it is described in
+[README § Cloud invites](./README.md#cloud-invites-the-profile-comes-after-the-place). See [README](./README.md) for how a link reaches the route at all.
 
 ## Responsibilities
 

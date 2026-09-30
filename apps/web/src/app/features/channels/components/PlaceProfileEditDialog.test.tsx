@@ -59,7 +59,8 @@ describe('PlaceProfileEditDialog', () => {
 
     it('프로필이 없으면 빈 값으로 시작한다', () => {
         mockProfile = null;
-        render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
+        // Blank is only right once the server has said there is no profile.
+        render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} profileAbsent />);
         expect(screen.getByRole('textbox')).toHaveValue('');
         expect(done()).toBeDisabled();
     });
@@ -68,5 +69,35 @@ describe('PlaceProfileEditDialog', () => {
         render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
         // Level-1 heading is the visible title (DialogTitle adds an sr-only h2 with the same text).
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('placeProfileEdit.title|북클럽');
+    });
+
+    // Reproduced in the browser: opened before my profile reached the device, the form latched an
+    // empty name and kept it after the profile arrived.
+    it('shows a loading screen, not a blank form, while my profile has not arrived', () => {
+        mockProfile = null;
+        render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
+
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        expect(screen.getByRole('status', { name: 'placeProfileEdit.loading' })).toBeInTheDocument();
+    });
+
+    it('opens seeded with my profile once it arrives', () => {
+        mockProfile = null;
+        const { rerender } = render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
+
+        mockProfile = { nick: 'old-nick', thumbnail: 'data:img' };
+        rerender(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
+
+        expect(screen.getByRole('textbox')).toHaveValue('old-nick');
+    });
+
+    it('can be closed from the loading screen', () => {
+        mockProfile = null;
+        const onClose = jest.fn();
+        render(<PlaceProfileEditDialog open placeName="북클럽" onClose={onClose} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'placeProfileEdit.close' }));
+
+        expect(onClose).toHaveBeenCalled();
     });
 });

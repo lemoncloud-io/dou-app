@@ -20,15 +20,15 @@ what both obey.
   cloud alike.
 - The relay acceptance orchestration: re-read, phone verification, place profile, accept, and the
   three-tier hunt for the room the accept creates.
+- The cloud acceptance pipeline's order and its place-profile step (§ Cloud invites: the profile
+  comes after the place).
 
 **Out**
 
 - **Group-room "add a friend"**, which uses a different packet (`user.invite`) and is bound to a
   channel — [channels](../channels/README.md).
-- **The cloud invitation lane.** `/invite/accept` routes it, but the REST accept pipeline behind
-  `CloudInviteAccept` — login with the code, then enter cloud, site and channel — is documented
-  with the rest of session entry in [auth](../auth/README.md). How it leaves the accept screen is
-  shared by both lanes and is below.
+- **The invite-code login itself** (`runtime.session.useInviteFlow`) — session entry, owned by
+  `@chatic/app-runtime`.
 - **Phone verification and country-aware number input.** The issue form and the accept flow both
   mount screens they do not own — [auth](../auth/README.md).
 - **The 1:1 room itself**, including the "they left" footer that starts a re-invite —
@@ -130,6 +130,37 @@ then a full page load, which would take an in-memory id with it.
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [relay-invite-sender.md](./relay-invite-sender.md) | The issue form and its three gates, SMS hand-off, re-invite detection, the retire rules, the waiting screen, list rows |
 | [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt          |
+
+## Cloud invites: the profile comes after the place
+
+`CloudInviteAccept` runs `useInviteAccept`: log in with the code (which is the accept), enter the
+cloud, switch into the invited site, then open the room. The place profile is asked for **between
+the site switch and the room**, and only once the session is in the invited place.
+
+**Which place.** An invite is issued with nothing but a `channelId`. The server does answer a room
+invite with the room's `siteId` and `site$` (checked against the dev server), but the published
+invite view does not declare `siteId` — only the stored model does — so the pipeline does not rely
+on it alone. It takes, in order: the invite's `siteId`, its place card (`site$.id`), then the room itself —
+one cloud-wide `channel.sync` and the room's row from the cache (`sid`). A cloud 1:1 belongs to no
+place. When none of these names one, the invitee enters without the switch or the profile step and a
+warning is logged; the step used to be skipped silently whenever `siteId` was absent.
+
+**One accept at a time.** The screen shows the accept as in flight for the whole pipeline, profile
+check included, and a second tap while it runs is ignored. The hooks' own pending flags leave gaps
+between steps, and a tap in one of them ran the accept twice.
+
+It cannot move earlier the way the relay lane's precondition does. The server stores a profile on
+the site the session is on and ignores any site the request names, and before the accept the
+invitee is not a member of the place, so the session cannot be there. Right after the switch is the
+first moment the profile can be written, and the last before the invitee is seen in a room.
+
+- **Skipped when a profile exists.** `isPlaceProfileAbsent` decides, and fails open: a read that
+  fails lets the invitee in rather than holding them at the door.
+- **Required, but not a trap.** The form has no way out until a save has failed once. Saved or
+  skipped, leaving it continues into the room.
+- **The accept is already committed.** Someone who quits on the form is a member with no name in
+  that place. This flow does not recover that state; the missing-profile prompts elsewhere do (the
+  room-settings nudge, and home's profile menu).
 
 ## Where the backend still has gaps
 

@@ -197,8 +197,10 @@ invited clouds, or subscribe.
 
 Home draws neither the accept screen nor the room it leads to. An accepted invite opens its room
 from the layout, on whichever screen leaving the accept screen lands — see
-[invite](../invite/README.md#leaving-the-accept-screen-and-opening-the-room). There is no
-place-profile gate in front of it: an invitee with no profile goes to the room and fills it in later.
+[invite](../invite/README.md#leaving-the-accept-screen-and-opening-the-room). Home adds no
+place-profile gate of its own: the cloud accept pipeline asks for the profile between the site switch
+and the room ([invite](../invite/README.md#cloud-invites-the-profile-comes-after-the-place)), and an
+invitee who leaves that form fills it in later.
 
 ## Documents
 

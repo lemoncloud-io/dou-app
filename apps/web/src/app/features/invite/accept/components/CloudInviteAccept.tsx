@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
@@ -6,6 +6,8 @@ import { runtime } from '@chatic/app-runtime';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
 import { InviteAcceptScreen } from './InviteAcceptScreen';
+import { PlaceProfileCreateDialog } from '../../../../ui/components/PlaceProfileCreateDialog';
+import { useActivePlaceName, useSetMyPlaceProfile } from '../../../../hooks';
 import { useSessionLogout } from '../../../../runtime/useSessionLogout';
 import { useInviteAccept } from '../hooks';
 import { useInviteCountdown } from '../../hooks/useInviteCountdown';
@@ -52,7 +54,26 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     // does not yet carry — all optional, so this is the same widening `useInviteAccept` already takes.
     const { data } = runtime.session.useInviteInfo(params.code, params.backend);
     const info: InviteInfo | undefined = data;
-    const { accept, isAccepting, missingDelegator, errorKey } = useInviteAccept({ params, info });
+    const { accept, isAccepting, missingDelegator, errorKey, profilePending, finishProfile } = useInviteAccept({
+        params,
+        info,
+    });
+    const setMyPlaceProfile = useSetMyPlaceProfile();
+    // Read after the site switch, so this is the invited place; the invite's own copy covers the
+    // frame before the place row is cached.
+    const activePlaceName = useActivePlaceName();
+    // The profile step has no way out until a save has failed once. Required, because the invitee
+    // is about to appear in a room under this name; but not a trap — if the server will not take
+    // the save, being held on a form that cannot succeed is worse than entering without a name.
+    const [profileSaveFailed, setProfileSaveFailed] = useState(false);
+    const submitProfile = async (value: { nick: string; thumbnail?: string }) => {
+        try {
+            await setMyPlaceProfile(value);
+        } catch (error) {
+            setProfileSaveFailed(true);
+            throw error;
+        }
+    };
     const countdown = useInviteCountdown(info?.expiredAt);
 
     // Home is the fallback, not the destination — see `useEnterInvitedChannel`. A warm entry
@@ -80,6 +101,21 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
                 description={t('inviteAccept.dialog.missingDelegator.description')}
                 confirmLabel={t('auth.logout')}
                 onConfirm={doLogout}
+            />
+        );
+    }
+
+    // Accepted and inside the invited place, but with no profile there yet (see useInviteAccept).
+    // Both ways out continue into the room: saved, or skipped after a failed save.
+    if (profilePending) {
+        return (
+            <PlaceProfileCreateDialog
+                open
+                placeName={activePlaceName || info?.site$?.name || ''}
+                dismissible={profileSaveFailed}
+                onSubmit={submitProfile}
+                onDone={finishProfile}
+                onExit={finishProfile}
             />
         );
     }

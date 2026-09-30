@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -9,30 +10,37 @@ export interface MyPlaceProfileInput {
 }
 
 /**
- * Saves MY profile for the active place (`profile.setMyProfile`).
+ * Saves MY profile for the place the session is in (`profile.setMyProfile`).
  *
- * Lives here rather than inside the profile dialogs because four screens perform the same write —
- * the room-settings nudge, both invite paths, and the place-profile page — and the form itself must
- * stay free of domain knowledge to live in `ui/components` (directory-structure.md §4-5). Callers
- * pass the returned function straight to the form's `onSubmit`.
+ * Lives here rather than inside the profile dialogs because several screens perform the same write —
+ * the room-settings nudge, both invite paths, the setup wizard — and the form itself must stay free
+ * of domain knowledge to live in `ui/components` (directory-structure.md §4-5). Callers pass the
+ * returned function straight to the form's `onSubmit`.
+ *
+ * **Only the active place, and only once the session is really there.** The server writes
+ * `profile.set` to the site its session is on and ignores the site named in the payload, so there is
+ * no way to set a profile for any other place: a caller that needs one for a new place switches into
+ * it first. For the same reason the write refuses while a site switch is in flight — the switch
+ * pre-applies the selection before `auth.switch` commits, so during that window the selection names
+ * a place the session is not on yet, and the write would land on the previous one.
  */
-export const useSetMyPlaceProfile = (): ((value: MyPlaceProfileInput, siteId?: string) => Promise<void>) => {
+export const useSetMyPlaceProfile = (): ((value: MyPlaceProfileInput) => Promise<void>) => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
     const { selectedSiteId } = runtime.session.useSessionSelection();
+    const queryClient = useQueryClient();
 
     return useCallback(
-        async ({ nick, thumbnail }: MyPlaceProfileInput, siteId?: string) => {
+        async ({ nick, thumbnail }: MyPlaceProfileInput) => {
+            if (!selectedSiteId) throw new Error('[useSetMyPlaceProfile] no active place');
+            // Read at call time, not render time: a switch can start between the render that built
+            // this callback and the tap that runs it.
+            if (queryClient.isMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) > 0) {
+                throw new Error('[useSetMyPlaceProfile] a place switch is in flight');
+            }
             // Discards the saved profile the write resolves to: the form's onSubmit is
             // Promise<void>, and readers observe the profile cache instead of this return value.
-            //
-            // One path. The write names its place — the caller's when it knows one (the place-create
-            // flow does), otherwise the selected place. This used to fork: `setMyProfile` read the
-            // site off the ambient data context, which a site switch only PRE-APPLIES before the
-            // token commits, so a write racing that switch landed on the previous place. The fork
-            // existed to dodge that; now that the site is an argument there is nothing to dodge
-            // (ADR-0085).
-            await profileRepository.setMyProfile({ nick, thumbnail }, siteId ?? selectedSiteId ?? '');
+            await profileRepository.setMyProfile({ nick, thumbnail }, selectedSiteId);
         },
-        [profileRepository, selectedSiteId]
+        [profileRepository, selectedSiteId, queryClient]
     );
 };

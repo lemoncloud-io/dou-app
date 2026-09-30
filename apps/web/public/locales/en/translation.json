@@ -1035,6 +1035,7 @@
         "exitContinue": "Keep setting up"
     },
     "placeProfileEdit": {
+        "loading": "Loading your profile...",
         "title": "Place Profile",
         "header": "My profile",
         "nameLabel": "Name",

@@ -24,6 +24,13 @@ let profilesValue: any;
 // two are separate sources by design (they trade immediacy against safety), so a test that conflates
 // them would hide a real drift.
 let myProfileValue: any;
+// The server's verdict on MY profile in the active place (usePlaceProfileAbsent): `true` only once
+// `profile.get-mine` answered with none, `undefined` while it is out. Separate from `profilesValue`,
+// which is only what the local cache holds.
+let absentValue: { absent: boolean | undefined; markPresent: jest.Mock };
+const markPresent = jest.fn();
+// The session's place. The fixtures' rooms live in `s1`, so they are read in the active place.
+let selectedSiteIdValue = 's1';
 /** Only a main user may issue an invite (ADR-0034), so this gates the friend sheet's re-invite CTA. */
 let mockIsGuest = false;
 /** What `useDmInviteState` reports — the friend sheet's "대화방 나감" line and the re-invite prefill. */
@@ -49,8 +56,9 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
-            // Only a cloud-wide room reads this (`profilePlaceOf`); these channels are read in a place.
-            useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
+            // A cloud-wide room is named from this place (`profilePlaceOf`), and my-row prompts are
+            // offered only when the room's place is this one.
+            useSessionSelection: () => ({ selectedSiteId: selectedSiteIdValue }),
         },
     },
 }));
@@ -64,6 +72,7 @@ jest.mock('../../../hooks', () => ({
     useActivePlaceName: () => 'MyPlace',
     useMyProfile: () => myProfileValue,
     useSetMyPlaceProfile: () => jest.fn(),
+    usePlaceProfileAbsent: () => absentValue,
 }));
 let placeSettingsProps: any;
 let placeCreateProps: any;
@@ -199,7 +208,9 @@ beforeEach(() => {
     dmPeerValue = null;
     profileProps = undefined;
     placeCreateProps = undefined;
-    profilesValue = { profileMap: new Map([['me', { nick: '내멤버프로필' }]]), hasSnapshot: true };
+    profilesValue = { profileMap: new Map([['me', { nick: '내멤버프로필' }]]) };
+    absentValue = { absent: false, markPresent };
+    selectedSiteIdValue = 's1';
     myProfileValue = { profile: { nick: '내프로필' } };
     mockIsGuest = false;
     dmInviteStateValue = { state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: () => ({}) };
@@ -512,9 +523,10 @@ describe('ChannelSettingsPage', () => {
     // would go. It does not fall back to the user record's name (***1234 for a phone signup, or
     // a raw UUID otherwise).
     describe('프로필 미설정 유도 (내 행)', () => {
-        // Settled reading that genuinely holds no profile for me.
+        // The server says I have no profile here, and the cache holds none either.
         const noProfile = () => {
-            profilesValue = { profileMap: new Map(), hasSnapshot: true };
+            profilesValue = { profileMap: new Map() };
+            absentValue = { absent: true, markPresent };
         };
 
         it('내 프로필이 없으면 내 행에 유도 문구를 놓고 user.name을 쓰지 않는다', () => {
@@ -551,7 +563,8 @@ describe('ChannelSettingsPage', () => {
 
         it('공백만 있는 nick도 미설정으로 본다', () => {
             channelValue = OWNER_CHANNEL;
-            profilesValue = { profileMap: new Map([['me', { nick: '   ' }]]), hasSnapshot: true };
+            profilesValue = { profileMap: new Map([['me', { nick: '   ' }]]) };
+            absentValue = { absent: true, markPresent };
             render(<ChannelSettingsPage />);
 
             expect(screen.getByTestId('member-me')).toHaveAttribute('data-needs-profile', 'true');
@@ -583,7 +596,8 @@ describe('ChannelSettingsPage', () => {
         // let an empty-form save overwrite the real nick.
         it('프로필 읽기가 끝나기 전에는 멤버가 도착해 있어도 유도하지 않는다', () => {
             channelValue = OWNER_CHANNEL;
-            profilesValue = { profileMap: new Map(), hasSnapshot: false };
+            profilesValue = { profileMap: new Map() };
+            absentValue = { absent: undefined, markPresent };
             render(<ChannelSettingsPage />);
 
             // The member row does render — it's not hidden behind a loading spinner.
@@ -594,10 +608,64 @@ describe('ChannelSettingsPage', () => {
 
         it('프로필 읽기 전에는 내 행 탭이 생성 다이얼로그를 열지 않는다', () => {
             channelValue = OWNER_CHANNEL;
-            profilesValue = { profileMap: new Map(), hasSnapshot: false };
+            profilesValue = { profileMap: new Map() };
+            absentValue = { absent: undefined, markPresent };
             render(<ChannelSettingsPage />);
 
             fireEvent.click(screen.getByTestId('member-me'));
+            expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'false');
+        });
+
+        // The reported bug, reproduced in the browser: with my row missing from IndexedDB the prompt
+        // showed although the server held my profile, and a tap opened a blank create form.
+        it('does not prompt when the cache lacks my row but the server says I have a profile', () => {
+            channelValue = OWNER_CHANNEL;
+            profilesValue = { profileMap: new Map() };
+            absentValue = { absent: false, markPresent };
+            render(<ChannelSettingsPage />);
+
+            const me = screen.getByTestId('member-me');
+            expect(me).toHaveAttribute('data-needs-profile', 'false');
+            expect(screen.queryByText('chat.settings.profileSetupRequired')).not.toBeInTheDocument();
+
+            fireEvent.click(me);
+            expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'false');
+        });
+
+        it('does not prompt in a room outside the active place, where a save could not land', () => {
+            channelValue = OWNER_CHANNEL;
+            noProfile();
+            selectedSiteIdValue = 'another-place';
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('member-me')).toHaveAttribute('data-needs-profile', 'false');
+        });
+
+        it('hands the server verdict to the edit dialog so it does not open blank before my profile arrives', () => {
+            channelValue = OWNER_CHANNEL;
+            absentValue = { absent: undefined, markPresent };
+            render(<ChannelSettingsPage />);
+
+            expect(placeSettingsProps.profileAbsent).toBeUndefined();
+        });
+
+        it('passes a settled "no profile" verdict through to the edit dialog', () => {
+            channelValue = OWNER_CHANNEL;
+            noProfile();
+            render(<ChannelSettingsPage />);
+
+            expect(placeSettingsProps.profileAbsent).toBe(true);
+        });
+
+        it('records the profile as present once it is created from the prompt', () => {
+            channelValue = OWNER_CHANNEL;
+            noProfile();
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-me'));
+            act(() => placeCreateProps.onDone());
+
+            expect(markPresent).toHaveBeenCalled();
             expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'false');
         });
 

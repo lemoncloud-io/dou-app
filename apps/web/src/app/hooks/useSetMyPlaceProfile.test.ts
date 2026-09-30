@@ -4,6 +4,9 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useSetMyPlaceProfile } from './useSetMyPlaceProfile';
 
+const isMutatingMock = jest.fn();
+
+jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ isMutating: isMutatingMock }) }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
@@ -11,6 +14,7 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useSessionSelection: jest.fn(),
+            SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
         },
     },
 }));
@@ -19,6 +23,7 @@ const setMyProfileMock = jest.fn();
 
 beforeEach(() => {
     jest.clearAllMocks();
+    isMutatingMock.mockReturnValue(0);
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         profile: { setMyProfile: setMyProfileMock },
     });
@@ -26,8 +31,6 @@ beforeEach(() => {
 });
 
 describe('useSetMyPlaceProfile', () => {
-    // The two write paths were folded into one: the site is an argument, never read off the
-    // ambient data context. These cases pin that there is exactly one call shape.
     it('sid 없이 부르면 선택된 플레이스를 실어 저장한다', async () => {
         const { result } = renderHook(() => useSetMyPlaceProfile());
 
@@ -39,20 +42,34 @@ describe('useSetMyPlaceProfile', () => {
         );
     });
 
-    it('siteId를 주면 그 값이 선택된 플레이스를 이긴다 — 전환 중 이전 스코프로 새지 않도록', async () => {
+    it('ignores a site id passed by a caller and still writes to the active place', async () => {
         const { result } = renderHook(() => useSetMyPlaceProfile());
 
-        await result.current({ nick: '레인' }, 'site-1');
+        // The signature no longer takes one; a stale caller passing it must not steer the write.
+        await (result.current as (value: { nick: string }, siteId: string) => Promise<void>)(
+            { nick: 'Raine' },
+            'other-site'
+        );
 
-        expect(setMyProfileMock).toHaveBeenCalledWith({ nick: '레인', thumbnail: undefined }, 'site-1');
+        expect(setMyProfileMock).toHaveBeenCalledWith({ nick: 'Raine', thumbnail: undefined }, 'active-site');
     });
 
-    it('선택된 플레이스가 없으면 빈 문자열로 저장한다', async () => {
+    it('refuses to write while a place switch is in flight', async () => {
+        isMutatingMock.mockReturnValue(1);
+        const { result } = renderHook(() => useSetMyPlaceProfile());
+
+        await expect(result.current({ nick: 'Raine' })).rejects.toThrow(/switch is in flight/);
+
+        expect(isMutatingMock).toHaveBeenCalledWith({ mutationKey: ['session', 'switch-site'] });
+        expect(setMyProfileMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses to write when no place is active', async () => {
         (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId: null });
         const { result } = renderHook(() => useSetMyPlaceProfile());
 
-        await result.current({ nick: '레인' });
+        await expect(result.current({ nick: 'Raine' })).rejects.toThrow(/no active place/);
 
-        expect(setMyProfileMock).toHaveBeenCalledWith({ nick: '레인', thumbnail: undefined }, '');
+        expect(setMyProfileMock).not.toHaveBeenCalled();
     });
 });

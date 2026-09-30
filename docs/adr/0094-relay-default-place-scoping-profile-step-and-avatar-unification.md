@@ -79,8 +79,14 @@ Add `id: placeId` at the `PlaceInfoPage` call site, and to prevent a recurrence 
 `PlaceRepository.updatePlace` when `id` is missing and `sid` is present. The normalization also revives
 the optimistic cache write and rollback path.
 
-### 4. Add profile creation as the last step of the place creation flow — not skippable — ❌ Reverted (2026-08-10)
+### 4. Add profile creation as the last step of the place creation flow — not skippable — ❌ Reverted (2026-08-10) → ↩︎ re-adopted by [ADR-0142](0142-a-place-profile-is-written-from-inside-its-place.md) (2026-09-30)
 
+> **Re-adopted by ADR-0142 (2026-09-30), with the cause fixed.** Measured against the server, the
+> 404 below had two causes this note did not separate: `profile.set` writes to the site the session is
+> on and ignores the payload's site, and it only updates — but `profile.get-mine` creates the row, so
+> the write succeeds after it. The step now runs after the switch, and the repository recovers a 404
+> by sending `get-mine` and retrying once.
+>
 > Reverted after implementation, in real use. `place.create` does not create an owner profile row for
 > the new site, and the backend action `profile.set` routes to (`updateSiteProfile`) is UPDATE-only, so
 > with no existing row it always 404s. It reproduces even after `createPlace` → `switchSite` has already
