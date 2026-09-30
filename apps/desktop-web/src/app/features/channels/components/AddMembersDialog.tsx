@@ -62,15 +62,17 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
     return (
         <Dialog open={open} onOpenChange={next => !isAdding && onOpenChange(next)}>
             {/* The opener can leave the page while this is open — the intro's actions go once the
-                channel has messages, a menu item goes with its menu. */}
+                channel has messages, a menu item goes with its menu. A flex column, not the kit's
+                grid, so that in a short window the candidate list gives way first and the title,
+                search and buttons stay on screen. */}
             <DialogContent
                 closeLabel={t('common.close')}
-                className="sm:max-w-md"
+                className="flex flex-col sm:max-w-md"
                 onCloseAutoFocus={focusComposerIfDropped}
             >
                 <DialogTitle>{t('channels.addMembers.title')}</DialogTitle>
                 <DialogDescription>{t('channels.addMembers.description')}</DialogDescription>
-                <div className="flex flex-col gap-3 pt-2">
+                <div className="flex min-h-0 flex-col gap-3 pt-2">
                     <div className="relative">
                         <Search
                             size={14}
@@ -87,6 +89,8 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                         />
                     </div>
 
+                    {/* 18rem on a roomy window; below that it shrinks with the dialog's height cap,
+                        down to about two rows. */}
                     <div className="scrollbar-thin flex max-h-72 min-h-24 flex-col overflow-y-auto">
                         <CandidateList
                             candidates={filtered}

@@ -125,7 +125,12 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent closeLabel={t('common.close')} className="top-[20%] translate-y-0 gap-2 p-2 sm:max-w-md">
+            {/* Hung from 20% down rather than centred, so the kit's height cap is re-derived from
+                that offset: 80% of the window, less the same 1rem bottom margin. */}
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="top-[20%] max-h-[calc(80dvh-1rem)] translate-y-0 gap-2 p-2 sm:max-w-md"
+            >
                 <DialogTitle className="sr-only">{t('switcher.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('switcher.hint')}</DialogDescription>
                 <div className="flex items-center gap-2 border-b border-hairline px-2 pb-2">
