@@ -57,7 +57,8 @@ const SectionTitle = ({ children }: { children: string }) => (
  * Single profile surface. The "This place" card is how you appear in the current
  * place (per-place nick/photo, edited via the optimistic dialog); the "Account"
  * card is the read-only canonical (global) identity. One door — there is no
- * separate place-profile menu entry.
+ * separate place-profile menu entry. With no place selected (the Default Cloud) there
+ * is nowhere to save a place profile, so the card is not offered at all.
  */
 export const ProfilePage = () => {
     const { t } = useTranslation();
@@ -76,7 +77,7 @@ export const ProfilePage = () => {
     // unmounted here, so without this the optimistic self-edit would not reflect
     // in the "This place" card until navigating back home.
     useSiteProfiles();
-    const { placeName } = useCurrentPlace();
+    const { placeName, placeId } = useCurrentPlace();
     const placeLabel = placeName || t('profile.thisPlaceFallback');
     // Whether I have a per-place override here (vs falling back to the account). The display store
     // (fed by useSiteProfiles, by my account uid) is reset when this page mounts and only gains my
@@ -133,59 +134,61 @@ export const ProfilePage = () => {
                 <h1 className="text-heading text-foreground">{t('profile.title')}</h1>
             </header>
 
-            <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
-                <section className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
-                        {placeName && <PlaceChip name={placeName} />}
-                    </div>
-                    {placeStateKnown ? (
-                        <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
-                            <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                                {displayPhoto && (
-                                    <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
-                                )}
-                                <AvatarFallback
-                                    className="rounded-xl text-title"
-                                    style={avatarStyle(userId || displayName)}
+            <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 space-y-8 overflow-y-auto p-8">
+                {placeId && (
+                    <section className="flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
+                            {placeName && <PlaceChip name={placeName} />}
+                        </div>
+                        {placeStateKnown ? (
+                            <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
+                                <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                                    {displayPhoto && (
+                                        <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
+                                    )}
+                                    <AvatarFallback
+                                        className="rounded-xl text-title"
+                                        style={avatarStyle(userId || displayName)}
+                                    >
+                                        {initial}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                    <span className="truncate text-title tracking-tight text-foreground">
+                                        {displayName}
+                                    </span>
+                                    <span className="text-caption text-muted-foreground">
+                                        {hasPlaceProfile
+                                            ? t('profile.thisPlaceHint', { place: placeLabel })
+                                            : t('profile.usingAccountHere')}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant={hasPlaceProfile ? 'outline' : 'default'}
+                                    size="sm"
+                                    onClick={openEditPlaceProfile}
                                 >
-                                    {initial}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <span className="truncate text-title tracking-tight text-foreground">
-                                    {displayName}
-                                </span>
-                                <span className="text-caption text-muted-foreground">
-                                    {hasPlaceProfile
-                                        ? t('profile.thisPlaceHint', { place: placeLabel })
-                                        : t('profile.usingAccountHere')}
-                                </span>
+                                    {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
+                                </Button>
                             </div>
-                            <Button
-                                variant={hasPlaceProfile ? 'outline' : 'default'}
-                                size="sm"
-                                onClick={openEditPlaceProfile}
+                        ) : (
+                            <div
+                                role="status"
+                                aria-label={t('chat.loading')}
+                                className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
                             >
-                                {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
-                            </Button>
-                        </div>
-                    ) : (
-                        <div
-                            role="status"
-                            aria-label={t('chat.loading')}
-                            className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
-                        >
-                            <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
-                            <div className="flex flex-1 flex-col gap-2">
-                                <Skeleton className="h-5 w-32" />
-                                <Skeleton className="h-3 w-48" />
+                                <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
+                                <div className="flex flex-1 flex-col gap-2">
+                                    <Skeleton className="h-5 w-32" />
+                                    <Skeleton className="h-3 w-48" />
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </section>
+                        )}
+                    </section>
+                )}
 
-                <section className="mt-8 flex flex-col gap-4">
+                <section className="flex flex-col gap-4">
                     <SectionTitle>{t('profile.account')}</SectionTitle>
                     <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
                         <ProfileField label={t('profile.name')} value={name} />
@@ -223,7 +226,7 @@ export const ProfilePage = () => {
                 </section>
             </div>
 
-            <EditPlaceProfileDialog />
+            {placeId && <EditPlaceProfileDialog />}
         </div>
     );
 };

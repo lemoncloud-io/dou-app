@@ -12,6 +12,8 @@ const session = vi.hoisted(() => ({
     profile: { userName: '', photo: null as string | null, isGuest: false },
 }));
 // My place profile read (`useMyProfile().load`). Each test decides when, and with what, it settles.
+// Home has no place; every test here but the section's own runs inside one.
+const currentPlace = vi.hoisted(() => ({ value: { placeName: 'Lemon', placeId: 's1' as string | null } }));
 const placeRead = vi.hoisted(() => ({
     load: vi.fn<() => Promise<{ nick?: string; thumbnail?: string } | null>>(),
 }));
@@ -38,7 +40,7 @@ vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
     useSiteProfiles: () => undefined,
     useMyProfile: () => ({ load: placeRead.load }),
-    useCurrentPlace: () => ({ placeName: 'Lemon' }),
+    useCurrentPlace: () => currentPlace.value,
 }));
 
 import '../../../../i18n';
@@ -121,5 +123,35 @@ describe('ProfilePage "This place" card', () => {
         await screen.findByRole('button', { name: 'Set up' });
 
         expect(screen.getByText('?')).toBeTruthy();
+    });
+});
+
+// A guest on Home has no place, so saving a place profile always failed with "couldn't save".
+describe('ProfilePage place-profile section', () => {
+    beforeEach(() => {
+        session.profile = { userName: 'Kim', photo: null, isGuest: false };
+        useSiteProfilesStore.setState({ profiles: {} });
+        placeRead.load.mockResolvedValue(null);
+    });
+    afterEach(() => {
+        cleanup();
+        currentPlace.value = { placeName: 'Lemon', placeId: 's1' };
+    });
+
+    it('is not offered when no place is selected', async () => {
+        currentPlace.value = { placeName: '', placeId: null };
+        render(<ProfilePage />, { wrapper });
+        await act(async () => undefined);
+
+        expect(screen.queryByRole('heading', { name: 'This place' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Set up' })).toBeNull();
+        expect(screen.getByRole('heading', { name: 'Account' })).toBeTruthy();
+    });
+
+    it('is offered inside a place', async () => {
+        render(<ProfilePage />, { wrapper });
+
+        expect(screen.getByRole('heading', { name: 'This place' })).toBeTruthy();
+        expect(await screen.findByRole('button', { name: 'Set up' })).toBeTruthy();
     });
 });
