@@ -102,10 +102,10 @@ export const useStartDm = () => {
     const canOpenSelf = isAvailable && !!selectedSiteId;
     const openSelf = useCallback(
         (): Promise<DomainChannel | null> =>
-            canOpenSelf && selectedSiteId
+            isAvailable && selectedSiteId
                 ? open('self', () => channelRepository.getSelfChannel(undefined, selectedSiteId))
                 : Promise.resolve(null),
-        [open, channelRepository, canOpenSelf, selectedSiteId]
+        [open, channelRepository, isAvailable, selectedSiteId]
     );
 
     return { startDm, openSelf, isStarting, isAvailable, canOpenSelf };
