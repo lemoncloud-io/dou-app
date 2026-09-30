@@ -495,7 +495,10 @@ export const en = {
     'search.placeholder': 'Search messages in this place…',
     'search.hint': 'Type at least 2 characters.',
     'search.searching': 'Searching…',
-    'search.noResults': 'Nothing here yet.',
+    'search.noResults': 'No match in the messages this device has loaded.',
+    'search.nothingLoaded':
+        "This device hasn't loaded any messages yet. Open a channel to load its messages, then search again.",
+    'search.channelOffers': 'Channels with that name',
     'search.scopeLimited':
         'Searched {{limit}} of your {{total}} channels, and only messages already loaded on this device.',
     'search.openChannel': 'Open {{name}}',
