@@ -15,6 +15,12 @@ interface AuthCardProps {
     children: ReactNode;
     /** When set, renders a back button in the card's top-left corner. */
     onBack?: () => void;
+    /**
+     * For a screen whose title and subtitle ARE its state (an OAuth hand-off moving from "signing
+     * in" to "open the app" or "failed"): they become a polite live region, so the change is read
+     * out instead of happening silently under a screen reader's focus.
+     */
+    live?: boolean;
 }
 
 /**
@@ -32,7 +38,7 @@ interface AuthCardProps {
  * Settings exists: someone whose system language is not the one they read had
  * no way to change it until after signing in.
  */
-export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) => {
+export const AuthCard = ({ title, subtitle, children, onBack, live }: AuthCardProps) => {
     const { t, i18n } = useTranslation();
     const languageProps = radioGroupOptions(SUPPORTED_LANGUAGES, i18n.language, setLanguage);
 
@@ -76,7 +82,11 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
                 )}
                 <div className="flex flex-col gap-3">
                     <img src={douMark} alt="" width={48} height={48} className="h-12 w-12 rounded-xl" />
-                    <div className="flex flex-col gap-1">
+                    <div
+                        className="flex flex-col gap-1"
+                        aria-live={live ? 'polite' : undefined}
+                        aria-atomic={live || undefined}
+                    >
                         <h1 className="text-headline font-bold tracking-tight text-foreground">{title}</h1>
                         <p className="text-callout text-muted-foreground">{subtitle}</p>
                     </div>

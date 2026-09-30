@@ -51,6 +51,7 @@ export const OAuthResponsePage = () => {
 
     return (
         <AuthCard
+            live
             title={failed ? t('auth.social.failedTitle') : t('auth.social.handoffTitle')}
             subtitle={
                 failed ? t('auth.social.failed') : deeplink ? t('auth.social.handoffBody') : t('auth.social.signingIn')
@@ -62,7 +63,7 @@ export const OAuthResponsePage = () => {
                         type="button"
                         onClick={() => navigate('/auth/welcome', { replace: true })}
                         className={cn(
-                            'h-11 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
+                            'focus-ring h-11 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
                             'hover:opacity-90 active:scale-[0.98]'
                         )}
                     >
@@ -74,7 +75,7 @@ export const OAuthResponsePage = () => {
                             <a
                                 href={deeplink}
                                 className={cn(
-                                    'flex h-11 items-center justify-center rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
+                                    'focus-ring flex h-11 items-center justify-center rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
                                     'hover:opacity-90 active:scale-[0.98]'
                                 )}
                             >
