@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-09-30] - root@0.75.0, @chatic/desktop-web@0.17.0
+
+### Features
+
+- (desktop-web) offer notes-to-self on my own profile card
+- (desktop-web) list notes-to-self in every place of a cloud
+- (desktop-web) open notes-to-self from the new message picker
+
+### Bug Fixes
+
+- (desktop-web) file every self room in all places, relay included
+- (desktop-web) offer the notes-to-self room once in quick switcher
+
+### Refactor
+
+- (desktop-web) drop the doubled place check in openSelf
+
 ## [2026-09-30] - root@0.74.2, @chatic/desktop-web@0.16.6
 
 ### Bug Fixes
