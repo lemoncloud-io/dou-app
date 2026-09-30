@@ -24,6 +24,15 @@ export const sendInviteMessage = async (phone: string, body: string): Promise<In
         }
     }
 
-    const copied = await copyMessageToClipboard(body);
-    return copied ? 'clipboard' : false;
+    // The browser path of `copyMessageToClipboard` rejects rather than answering false — a missing
+    // Clipboard API, or a denied write permission (`NotAllowedError`). Caught here because by now the
+    // invite already exists: letting it escape made every caller report an issued invite as a failed
+    // one, inviting a retry that issues a second.
+    try {
+        const copied = await copyMessageToClipboard(body);
+        return copied ? 'clipboard' : false;
+    } catch (error) {
+        logger.error('INVITE', 'Clipboard copy of the invite message failed', { error });
+        return false;
+    }
 };
