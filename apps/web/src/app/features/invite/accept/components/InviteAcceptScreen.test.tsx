@@ -11,6 +11,7 @@ jest.mock('react-i18next', () => ({
                 'inviteAccept.target.you': 'You',
                 'inviteAccept.target.group': '그룹 대화',
                 'inviteAccept.target.oneToOne': '1:1 대화',
+                'inviteAccept.target.place': '플레이스 멤버',
                 'inviteAccept.invitedBy': '님이 DoU에 당신을 초대했어요',
                 'inviteAccept.description': '초대 수락하고 대화를 시작해 보세요.',
                 'inviteAccept.decline': '거절',
@@ -56,7 +57,7 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
         expect(screen.getByText('그룹 대화')).toBeTruthy();
     });
 
-    it('treats an omitted targetKind as a group invite (the cloud flow never passes one)', () => {
+    it('treats an omitted targetKind as a group invite', () => {
         setup({ placeName: '레몬클라우드' });
 
         expect(screen.getByTestId('invite-place-card')).toBeTruthy();
@@ -111,6 +112,20 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
             />
         );
         expect(screen.getByText('방 친구 20')).toBeTruthy();
+    });
+
+    it('captions a place-only invite as a place member, not a group chat', () => {
+        setup({ targetKind: 'place', placeName: '레몬클라우드' });
+
+        expect(screen.getByTestId('invite-place-card')).toBeTruthy();
+        expect(screen.getByText('플레이스 멤버')).toBeTruthy();
+        expect(screen.queryByText('그룹 대화')).toBeNull();
+    });
+
+    it('keeps the room-friends chip off a place-only invite, which joins no room', () => {
+        setup({ targetKind: 'place', placeName: 'P', memberCount: 20 });
+
+        expect(screen.queryByText(/방 친구/)).toBeNull();
     });
 });
 

@@ -33,6 +33,7 @@ beforeEach(() => {
 
 const batch = () => renderHook(() => useCreateInviteBatch()).result.current.createBatchInvite;
 const single = () => renderHook(() => useCreateInviteBatch()).result.current.createSingleInvite;
+const place = () => renderHook(() => useCreateInviteBatch()).result.current.createPlaceInvite;
 
 describe('useCreateInviteBatch.createSingleInvite', () => {
     it('초대 링크를 담은 문구를 대상 번호로 문자 발송한다 (공유 시트가 아니라)', async () => {
@@ -65,6 +66,56 @@ describe('useCreateInviteBatch.createSingleInvite', () => {
 
         expect(sendInviteMessageMock).not.toHaveBeenCalled();
         expect(channel).toBe(false);
+    });
+});
+
+describe('useCreateInviteBatch.createPlaceInvite', () => {
+    it('sends the invite with no channelId, so accepting it joins the place and no room', async () => {
+        requestInviteMock.mockResolvedValue({ Location: 'https://dou.link/abc' });
+
+        await place()({ name: '민수', phone: '+821011112222', placeName: '레몬' });
+
+        // Not even `channelId: undefined`: the server reads the key's absence as "no room".
+        expect(requestInviteMock).toHaveBeenCalledWith({ name: '민수', phone: '+821011112222' });
+    });
+
+    it('texts the place copy — naming the place — rather than the chat-room copy', async () => {
+        requestInviteMock.mockResolvedValue({ Location: 'https://dou.link/abc' });
+
+        const { channel } = await place()({ name: '민수', phone: '+821011112222', placeName: '레몬' });
+
+        const body = sendInviteMessageMock.mock.calls[0][1] as string;
+        expect(sendInviteMessageMock.mock.calls[0][0]).toBe('+821011112222');
+        expect(body.startsWith('placeInvite.smsMessage|')).toBe(true);
+        expect(body).toContain('레몬');
+        expect(body).toContain('보내는이');
+        expect(body).toContain('https://dou.link/abc');
+        expect(channel).toBe('sms');
+    });
+
+    it('reports a failed hand-off without sending when the response has no Location', async () => {
+        requestInviteMock.mockResolvedValue({});
+
+        const { channel } = await place()({ name: '민수', phone: '+821011112222', placeName: '레몬' });
+
+        expect(sendInviteMessageMock).not.toHaveBeenCalled();
+        expect(channel).toBe(false);
+    });
+});
+
+describe('useCreateInviteBatch without a room', () => {
+    it('requests a link with no channelId key when no room is named', async () => {
+        requestInviteMock.mockResolvedValue({ Location: 'https://dou.link/abc' });
+        const link = renderHook(() => useCreateInviteBatch()).result.current.requestInviteLink;
+
+        await expect(link({ name: '민수', phone: '01011112222' })).resolves.toBe('https://dou.link/abc');
+        expect(requestInviteMock).toHaveBeenCalledWith({ name: '민수', phone: '01011112222' });
+    });
+
+    it('sends a batch with no channelId key when no room is named', async () => {
+        await batch()({ phones: ['+821011112222', '+821033334444'] });
+
+        expect(requestInviteBatchMock).toHaveBeenCalledWith({ to: ['+821011112222', '+821033334444'] });
     });
 });
 

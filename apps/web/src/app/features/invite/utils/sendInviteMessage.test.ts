@@ -70,4 +70,13 @@ describe('sendInviteMessage', () => {
 
         expect(result).toBe(false);
     });
+
+    it('answers false instead of rejecting when the browser refuses the clipboard write', async () => {
+        // The web path throws `NotAllowedError` on a denied permission; the invite is already issued
+        // by then, so the caller must hear "not handed off", not "failed".
+        isNativeMock.mockReturnValue(false);
+        copyMessageToClipboardMock.mockRejectedValue(new Error('NotAllowedError: Write permission denied.'));
+
+        await expect(sendInviteMessage('01012345678', 'invite body')).resolves.toBe(false);
+    });
 });

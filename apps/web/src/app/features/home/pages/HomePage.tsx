@@ -63,6 +63,7 @@ import { resolveHeaderProfile } from '../lib';
 import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
 import { useInviteDismissMigration } from '../../invite/hooks/useInviteDismissMigration';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
+import { resolvePlaceInviteGate } from '../../../utils/placeInviteGate';
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -257,6 +258,16 @@ export const HomePage = () => {
     // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
     // is active, since there'd be no place to configure.
     const hasActivePlace = !!selectedSiteId;
+    // "Invite to place" targets the place the session sits on — the server stamps that site, the
+    // packet names none — so it is gated on the session's place, and held while a switch is moving
+    // it. Hidden, not disabled, for anyone who can never invite here (relay, member, guest).
+    const placeInviteGate = resolvePlaceInviteGate({
+        isDefaultCloud,
+        isGuest,
+        place: places.find(place => place.id === selectedSiteId),
+        sessionSiteId: selectedSiteId,
+        isSwitching: isSwitching || selectedPlaceId !== selectedSiteId,
+    });
 
     // Tier readout for the profile menu (Figma 3108:25868). DoU Home is pinned to FREE: what a
     // subscription buys is a cloud of one's OWN, so the relay stays the free home even for a paying
@@ -357,8 +368,9 @@ export const HomePage = () => {
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => navigate(ROUTES.search.root);
 
-    // Right-side profile → dropdown. The header shows my place profile; the only entry navigates to
-    // the place settings hub. Controlled open state so the header's close (X) can dismiss it.
+    // Right-side profile → dropdown. The header shows my place profile; the entries are the place
+    // settings hub and, for the owner of a cloud place, the place invite. Both act on the active
+    // place. Controlled open state so the header's close (X) can dismiss it.
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenu = (
         <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
@@ -395,6 +407,15 @@ export const HomePage = () => {
                 >
                     {t('homePage.menuPlaceSettings')}
                 </DropdownMenuItem>
+                {placeInviteGate !== 'hidden' && (
+                    <DropdownMenuItem
+                        disabled={placeInviteGate === 'disabled'}
+                        onClick={() => selectedSiteId && navigateFromMenu(ROUTES.invite.place(selectedSiteId))}
+                        className="cursor-pointer px-4 py-2 text-base font-semibold"
+                    >
+                        {t('homePage.menuPlaceInvite')}
+                    </DropdownMenuItem>
+                )}
                 {/* A readout, not a control: the header pill is the one place that routes to
                     subscription, so this stays a non-interactive span outside the menu items. */}
                 <div className="flex items-center px-4 py-1.5">

@@ -8,6 +8,7 @@ const getContacts = jest.fn();
 const openSettings = jest.fn();
 const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
+const requestInviteLink = jest.fn().mockResolvedValue('https://dou.link/abc');
 let isNativeValue = true;
 
 jest.mock('react-router-dom', () => ({
@@ -27,7 +28,7 @@ jest.mock('@chatic/app-runtime', () => ({}));
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
 jest.mock('../hooks', () => ({
-    useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite }),
+    useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite, requestInviteLink }),
     useChannel: () => ({ channel: { id: 'ch1', sid: 'site-1' } }),
 }));
 // The place tab has its own separate tests — here only "the tab wires it up" is checked.
@@ -35,7 +36,14 @@ jest.mock('../components/PlaceInviteTab', () => ({
     PlaceInviteTab: (p: any) => <div data-testid="place-tab" data-sid={String(p.sid)} />,
 }));
 jest.mock('../components/AddFriendSheet', () => ({
-    AddFriendSheet: (p: any) => <div data-testid="add-friend-sheet" data-open={String(p.open)} />,
+    // Surfaces the two host callbacks, so the page's own wiring — which room the link is for, and
+    // where the link goes next — is what the tests drive.
+    AddFriendSheet: (p: any) => (
+        <div data-testid="add-friend-sheet" data-open={String(p.open)}>
+            <button data-testid="sheet-request-link" onClick={() => p.requestLink?.({ name: 'n', phone: 'p' })} />
+            <button data-testid="sheet-link-ready" onClick={() => p.onLinkReady('https://dou.link/abc')} />
+        </div>
+    ),
 }));
 jest.mock('../components/PermissionDeniedBanner', () => ({
     PermissionDeniedBanner: () => <div data-testid="permission-banner" />,
@@ -526,5 +534,25 @@ describe('InvitePage — 탭 셸', () => {
 
         expect(screen.getByTestId('place-tab')).toBeInTheDocument();
         expect(getContacts).not.toHaveBeenCalled();
+    });
+});
+
+describe('InvitePage — invite link sheet wiring', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('asks for a link into this room', () => {
+        render(<InvitePage />);
+        fireEvent.click(screen.getByTestId('sheet-request-link'));
+
+        expect(requestInviteLink).toHaveBeenCalledWith({ channelId: 'ch1', name: 'n', phone: 'p' });
+    });
+
+    it("hands the link to this room's link page, one hop further from the room", () => {
+        render(<InvitePage />);
+        fireEvent.click(screen.getByTestId('sheet-link-ready'));
+
+        expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite/link', {
+            state: { inviteLink: 'https://dou.link/abc', roomDistance: 2 },
+        });
     });
 });

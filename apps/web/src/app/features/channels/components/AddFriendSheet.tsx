@@ -3,21 +3,25 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { useFormKeyboardFlow } from '../../../ui/hooks';
-import { ROUTES } from '../../../routes/paths';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreateInviteBatch } from '../hooks';
 import { formatKoreanPhone, isValidKoreanPhone } from '../utils/koreanPhone';
 
 interface AddFriendSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    channelId?: string;
-    /** Hops from the channel room to the screen this sheet is opened on; see roomDistance.ts. */
-    roomDistance?: number;
+    /**
+     * Issues an invite for this name and number and answers its link, without sharing it. The host
+     * decides what the invite is for — a room, or a place — so the sheet never names either.
+     * Absent while the host has nothing to invite into yet; the button stays disabled.
+     */
+    requestLink?: (recipient: { name: string; phone: string }) => Promise<string>;
+    /** Receives the link once the sheet has closed, to hand it to the host's link screen. */
+    onLinkReady: (inviteLink: string) => void;
+    /** The two-line heading; defaults to the room invite's ("the friend to invite to the chat room"). */
+    heading?: [string, string];
 }
 
 interface InputFieldProps {
@@ -52,16 +56,15 @@ const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'te
 const NAME_MAX = 20;
 const PHONE_DIGITS_MAX = 11;
 
-export const AddFriendSheet = ({ open, onOpenChange, channelId, roomDistance = 1 }: AddFriendSheetProps) => {
+export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, heading }: AddFriendSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const navigate = useNavigateWithTransition();
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
     const [phoneError, setPhoneError] = useState('');
     const fieldsRef = useRef<HTMLDivElement>(null);
     useFormKeyboardFlow(fieldsRef);
-    const { requestInviteLink, isPending } = useCreateInviteBatch();
+    const [isPending, setIsPending] = useState(false);
 
     const handlePhoneChange = (value: string) => {
         const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
@@ -87,21 +90,18 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId, roomDistance = 1
     };
 
     const handleShare = async () => {
-        if (!channelId || !name.trim() || !phoneDigits) return;
+        if (!requestLink || isPending || !name.trim() || !phoneDigits) return;
         if (!validatePhone()) return;
 
+        setIsPending(true);
         try {
-            // Obtain the invite link (no auto-share) and hand it to the invite-link page.
-            const inviteLink = await requestInviteLink({
-                channelId,
-                name: name.trim(),
-                phone: phoneDigits,
-            });
+            // Obtain the invite link (no auto-share) and hand it to the host's link page.
+            const inviteLink = await requestLink({ name: name.trim(), phone: phoneDigits });
 
             resetAndClose();
-            navigate(ROUTES.channels.inviteLink(channelId), { state: { inviteLink, roomDistance: roomDistance + 1 } });
+            onLinkReady(inviteLink);
         } catch (error) {
-            logger.error('INVITE', 'Failed to create invite', { error, data: { channelId } });
+            logger.error('INVITE', 'Failed to create invite', { error });
             const message =
                 error instanceof Error
                     ? error.message
@@ -109,10 +109,12 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId, roomDistance = 1
                       ? String(error.message)
                       : t('inviteFriends.batchFailed');
             toast({ title: message, variant: 'destructive' });
+        } finally {
+            setIsPending(false);
         }
     };
 
-    const isDisabled = !name.trim() || !phoneDigits || !channelId || isPending || !!phoneError;
+    const isDisabled = !name.trim() || !phoneDigits || !requestLink || isPending || !!phoneError;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -138,10 +140,10 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId, roomDistance = 1
                     <div ref={fieldsRef} className="flex flex-col gap-[26px] px-4">
                         <div className="flex flex-col gap-[2px]">
                             <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                                {t('addFriend.subtitle1')}
+                                {heading?.[0] ?? t('addFriend.subtitle1')}
                             </span>
                             <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                                {t('addFriend.subtitle2')}
+                                {heading?.[1] ?? t('addFriend.subtitle2')}
                             </span>
                         </div>
 

@@ -20,10 +20,18 @@ with a channel id. What is described here is only the group case.
 
 ## Layout
 
-Two pages (the tab shell with its contact tab, and the link page), three components (the place tab,
-the add-friend sheet, the permission banner), and two pure modules — `deviceContact.ts` for the name
+Two pages (the tab shell and the link page), five components (the place tab, the contact tab
+`ContactInviteTab`, the add-friend sheet, the link view `InviteLinkView`, the permission banner), and
+two pure modules — `deviceContact.ts` for the name
 and phone chains, the second line, the sort order and the search text, `koreanPhone.ts` for the
 sheet's validation. The pickers, the search input and the link card are `@chatic/web-ui-kit`.
+
+**The contact tab, the sheet and the link view are also the place invite's**
+([invite/place-invite.md](../invite/place-invite.md)), which binds them to a place instead of a room.
+So none of the three names a channel: the tab is handed `sendSingle`/`sendBatch`, the sheet
+`requestLink`/`onLinkReady`, and the view a name, a picture and `onClose` — the pages here bind them
+to `channelId` and to `roomDistance`. The contact tab stays mounted while the place tab is showing
+(`active={false}` renders nothing), which is what keeps its contacts and selection across a switch.
 
 ## The tab shell
 
@@ -157,9 +165,9 @@ never showed. The OS settings route stays on the banner.
 ## The invite link
 
 The search bar's link icon (native), the web guide and the permission banner all open
-`AddFriendSheet`: a name and a Korean phone number. Submitting calls `requestInvite` and takes the
-`Location` from the response **without sharing it**, then navigates to `InviteLinkPage` with the
-link in route state.
+`AddFriendSheet`: a name and a Korean phone number. Submitting calls the page's `requestLink` —
+here `requestInvite` for this room — and takes the `Location` from the response **without sharing
+it**; the page's `onLinkReady` then navigates to `InviteLinkPage` with the link in route state.
 
 There is no general "channel invite link" endpoint, which is why a name and a number always come
 first: the link only exists as the answer to an issued invite.
