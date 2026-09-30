@@ -484,7 +484,7 @@ export const en = {
     'onboarding.welcome.body':
         'This is your Self Channel, a private space for notes, links and drafts. Only you can see it.',
     'onboarding.welcome.bodyWorkspace':
-        'You are in a workspace with other people. Pick a channel on the left and read along, or say hello.',
+        'You are in a cloud with other people. Pick a channel on the left and read along, or say hello.',
     'onboarding.welcome.preparing': 'Setting up your Self Channel…',
     'onboarding.welcome.ready': 'Your Self Channel is ready.',
     'onboarding.welcome.failed': "Couldn't load your Self Channel.",
@@ -494,9 +494,9 @@ export const en = {
     'onboarding.tips.body': 'A few things worth knowing before your first message.',
     'onboarding.tips.send': 'Enter to send · Shift+Enter for a new line',
     'onboarding.tips.shortcuts': 'Press ? for keyboard shortcuts',
-    'onboarding.tips.places': 'Pick a workspace at the far left, then one of its places beside it.',
+    'onboarding.tips.places': 'Pick a cloud at the far left, then one of its places beside it.',
     'onboarding.tips.switcher': 'Press ⌘K to jump to any channel by name.',
-    'onboarding.tips.invite': 'Have an invite? Choose “{{action}}” in your profile menu to join a workspace.',
+    'onboarding.tips.invite': 'Have an invite? Choose “{{action}}” in your profile menu to join a cloud.',
     'onboarding.done': 'Start chatting',
     'onboarding.back': 'Back',
     'onboarding.step': 'Step {{step}} of {{total}}',
