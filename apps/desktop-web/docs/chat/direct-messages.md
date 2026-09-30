@@ -41,7 +41,9 @@ elsewhere.
   it whichever place is asked about, so `cloudDmPlaces` files it under all of mine rather than the
   place it was created in (its `sid`). Until my places are known it keeps that one place. Its unread
   count therefore shows in every place, the same trade a 1:1 listed in several places makes. The
-  relay's self room is not filed and stays in its own place, as before.
+  relay's self room is not filed and stays in its own place, as before. The quick switcher treats
+  it like a 1:1 (`self` on its index entry): never offered "in another place", since the open place
+  lists it.
 - **Not before my places load.** A 1:1 cannot be placed until my place list is known, so
   `useChannels` reports loading until it is; listing 1:1s earlier would show each one everywhere for
   a moment through the fallback.
