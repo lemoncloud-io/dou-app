@@ -10,7 +10,7 @@ jest.mock('react-native', () => ({
 }));
 
 jest.mock('../utils', () => ({
-    getAppLanguage: jest.fn(() => 'en'),
+    getEffectiveLanguage: jest.fn(() => 'en'),
     t: (key: string) => key,
 }));
 

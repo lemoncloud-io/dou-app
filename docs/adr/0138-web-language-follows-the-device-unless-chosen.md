@@ -1,10 +1,13 @@
-# ADR-0136: The web app's language follows the device unless one is chosen
+# ADR-0138: The app's language follows the device unless one is chosen
 
 > Status: Accepted · Decided: 2026-09-29 · Implemented: `feat/settings-device-language-and-cache-clear`
 > · Scope: `apps/web/src/i18n/**` · `apps/web/src/app/features/mypage/{components/LanguageSelectSheet.tsx,hooks/useLanguagePreference.ts}`
-> · `libs/config/src/registry/ui.ts` (`ui.language`)
+> · `libs/config/src/registry/ui.ts` (`ui.language`) · `apps/web/src/app/bridge/languageChoice.ts`
+> · `apps/mobile/src/app/{stores/language*.ts,utils/i18n/index.ts,bridge/SharedLanguageBridge.ts}`
+> · the shell's `SharedLanguage` module and push services (`NotificationService.swift`, `ChaticFirebaseMessagingService.kt`)
 > · Builds on [ADR-0079](./0079-config-registry-and-lane-resolver.md) (the registry, its lanes and `persist`)
-> · The module doc is [state/stores.md](../../apps/web/docs/state/stores.md#the-language-choice--uilanguage)
+> · The module docs are [state/stores.md](../../apps/web/docs/state/stores.md#the-language-choice--uilanguage)
+> (web) and [system/language.md](../../apps/mobile/docs/system/language.md) (shell)
 
 ## Context
 
@@ -37,13 +40,24 @@ consumer.
    `x-lemon-language` header is pointed at that name — nothing reads it back as a choice.
 4. **`ui.language` is stored the way `ui.theme` is.** It is `persist: 'shell'`, written on the shell
    lane (mirrored locally for a browser with no shell), and the choice is also sent to the shell's own
-   `languageStore` with `SavePreference('language')`, `system` included. The native app does not read
-   that store yet — its alerts and push banners still follow the device locale — but the language is
-   now carried the same way as the theme, so making the shell follow a pin needs no further web
-   change. The i18n module picks the boot language while it is being imported, before `main.tsx`
+   `languageStore` with `SavePreference('language')`, `system` included — on every change and once per
+   native boot. The i18n module picks the boot language while it is being imported, before `main.tsx`
    runs `config.init()`, so it reads the boot envelope and then the local mirror itself, in the
    resolver's order.
-5. **Every existing install starts on `system`.** The detector's stored value is not migrated.
+5. **The shell follows the choice too.** Its own copy (`t()`: alerts, error screens, Android channel
+   names) uses the pinned language, else the device's. The push banners are built by the iOS
+   Notification Service Extension and the Android messaging service, which run without the app, so
+   the shell copies the choice into App Group defaults / SharedPreferences for them. What the shell
+   injects into the web as `CHATIC_APP_CURRENT_LANGUAGE` stays the device's language — that is what
+   the web resolves `system` from.
+6. **The shell reads the web's config value first.** At boot the shell's `languageStore` takes
+   `ui.language` from its config store (the bag the web writes on the shell lane) before its own key.
+   The web deploys before the installed app updates: a choice made on an older shell reaches the bag,
+   but that shell kept its own copy as a zustand envelope, which the new shell discards. The web's
+   boot resend covers the shells old enough to have no config store.
+7. **Every existing install starts on `system`.** The detector's stored value is not migrated, and
+   neither is the old shell envelope — both held the language in effect, where a guess and a pick
+   cannot be told apart.
 
 ## Alternatives
 
@@ -69,10 +83,10 @@ values that differ from the device language would still pin the iOS users this e
 - **Someone who had picked a language different from their device's loses that pick once.** On
   Android and in a browser the old sheet's choice was stored in the same key as the detector's guess,
   and it is dropped with it. One tap in Settings restores it, and from then on it is kept.
-- A pinned language changes the web only, until the shell reads its `languageStore`. The shell's
-  alerts and the push banners built by its notification services (iOS extension, Android messaging
-  service) read the device locale directly; the banners run in their own process and would need the
-  choice in shared storage as well.
+- The shell only follows a pin from the app release that carries decisions 5 and 6. Until a device
+  updates, the web changes and the shell keeps the device language.
+- The App Group id and key are duplicated between the shell's module and the iOS extension, like the
+  badge and push-mark keys, and have to change together.
 - The language is resolved once per boot. A device language changed while the app stays open is
   picked up on the next launch, not live.
 - On iOS only the device's first locale reaches the web (`languageCode` of `getLocales()[0]`). A device

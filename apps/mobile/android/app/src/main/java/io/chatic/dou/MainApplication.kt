@@ -12,6 +12,7 @@ import io.chatic.dou.bridge.BadgeSyncPackage
 import io.chatic.dou.bridge.FileManagerPackage
 import io.chatic.dou.bridge.NativeLoggerPackage
 import io.chatic.dou.bridge.PushMarksPackage
+import io.chatic.dou.bridge.SharedLanguagePackage
 import io.chatic.dou.bridge.SystemBarsPackage
 import io.chatic.dou.bridge.TransferManagerPackage
 
@@ -28,6 +29,7 @@ class MainApplication : Application(), ReactApplication {
             add(FileManagerPackage())
             add(NativeLoggerPackage())
             add(PushMarksPackage())
+            add(SharedLanguagePackage())
             add(SystemBarsPackage())
             add(TransferManagerPackage())
         },

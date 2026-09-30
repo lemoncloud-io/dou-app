@@ -68,6 +68,9 @@ class NotificationService: UNNotificationServiceExtension {
     private static let badgeCountKey = "badge_count"
     private static let appActiveKey = "app_active"
     private static let pushMarksKey = "push_marks"
+    /// The language chosen in the app's Settings (`system`, `ko` or `en`), written by the app's
+    /// `SharedLanguage` module. Must match `SharedLanguageModule.m`.
+    private static let languagePreferenceKey = "language_preference"
     /// Backstop against unbounded growth if the app build predates the drain bridge and never reads it.
     private static let maxPushMarks = 100
 
@@ -160,7 +163,14 @@ class NotificationService: UNNotificationServiceExtension {
 
     // MARK: - Localization Helpers
     
+    /// A language pinned in the app's Settings wins. `system`, no value (the app has not launched
+    /// since updating) or an unreadable store all fall back to the device language, as before.
     private func resolveLanguage() -> String {
+        if let pinned = UserDefaults(suiteName: NotificationService.appGroupId)?
+            .string(forKey: NotificationService.languagePreferenceKey),
+            pinned == "ko" || pinned == "en" {
+            return pinned
+        }
         let preferredLanguage = Locale.preferredLanguages.first ?? "en"
         let components = preferredLanguage.components(separatedBy: "-")
         let langCode = components.first ?? "en"

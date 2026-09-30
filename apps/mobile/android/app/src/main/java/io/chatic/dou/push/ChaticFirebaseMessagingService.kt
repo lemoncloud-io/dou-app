@@ -222,7 +222,12 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+    /**
+     * A language pinned in the app's Settings wins; otherwise the device language, as before. The
+     * choice is read from [LanguagePreferenceStore] because this service can run with the app closed.
+     */
     private fun resolveLanguage(): String {
+        LanguagePreferenceStore.pinnedLanguage(applicationContext)?.let { return it }
         val defaultLang = Locale.getDefault().language
         return if (defaultLang == "ko") "ko" else "en"
     }

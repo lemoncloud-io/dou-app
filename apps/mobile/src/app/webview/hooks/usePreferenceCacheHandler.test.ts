@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { usePreferenceCacheHandler } from './usePreferenceCacheHandler';
 
 const setTheme = jest.fn();
-const setLanguage = jest.fn();
+const setPreference = jest.fn();
 const preferenceService = {
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue(undefined),
@@ -15,7 +15,7 @@ const logService = { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: 
 // provider-free, so the value validation below runs against the parser that actually ships.
 jest.mock('../../stores', () => ({
     useThemeStore: { getState: () => ({ setTheme }) },
-    useLanguageStore: { getState: () => ({ setLanguage }) },
+    useLanguageStore: { getState: () => ({ setPreference }) },
 }));
 
 jest.mock('../../hooks', () => ({
@@ -118,8 +118,29 @@ describe('handleSavePreference — bridge write allowlist', () => {
     it("'language'는 languageStore로 라우팅된다 (회귀 없음)", async () => {
         const res = await save('language', 'ko');
 
-        expect(setLanguage).toHaveBeenCalledWith('ko');
+        expect(setPreference).toHaveBeenCalledWith('ko');
         expect(preferenceService.set).not.toHaveBeenCalled();
         expect(res.success).toBe(true);
+    });
+
+    it("accepts 'system' as a language choice — it means follow the device", async () => {
+        const res = await save('language', 'system');
+
+        expect(setPreference).toHaveBeenCalledWith('system');
+        expect(res.success).toBe(true);
+    });
+
+    // The value is copied into the push services' shared storage and picks the locale file they
+    // open, so an arbitrary blob from the page must not get that far.
+    it('rejects a language value outside system/ko/en', async () => {
+        const res = await save('language', '../../etc');
+
+        expect(setPreference).not.toHaveBeenCalled();
+        expect(preferenceService.set).not.toHaveBeenCalled();
+        expect(res).toEqual({
+            type: 'OnSavePreference',
+            success: false,
+            error: { code: 'PREF_INVALID_VALUE', message: expect.stringContaining('../../etc') },
+        });
     });
 });
