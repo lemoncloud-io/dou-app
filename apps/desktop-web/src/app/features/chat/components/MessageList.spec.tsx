@@ -303,6 +303,33 @@ describe('MessageList', () => {
         expect(screen.getByText('Seen by 1')).toBeDefined();
     });
 
+    // In the thread panel the column is about 270px and the toolbar about 210px, so a toolbar
+    // over the author line hid the author's name. There it hangs under the header on a block's
+    // first message; the rest keep their place above their own message. jsdom lays nothing out,
+    // so this pins the placement class; the overlap itself needs a browser.
+    it('hangs the first toolbar under the author line in a thread, not over it', () => {
+        const toolbarTops = (threadReplyCount?: number) => {
+            const { container, unmount } = render(
+                <MessageList
+                    messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map([['ada', 'Ada']])}
+                    threadReplyCount={threadReplyCount}
+                />,
+                { wrapper }
+            );
+            const tops = [...container.querySelectorAll('[data-row-actions]')].map(node =>
+                node.className.includes('-top-1.5') ? 'under-header' : 'above'
+            );
+            unmount();
+            return tops;
+        };
+
+        expect(toolbarTops(1)).toEqual(['under-header', 'above']);
+        expect(toolbarTops()).toEqual(['above', 'above']);
+    });
+
     // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
     // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
     // false rather than staying quiet.

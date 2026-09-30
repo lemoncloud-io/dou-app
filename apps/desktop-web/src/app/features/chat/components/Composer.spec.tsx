@@ -149,3 +149,29 @@ describe('Composer send', () => {
         expect(onSend).not.toHaveBeenCalled();
     });
 });
+
+// The thread panel's 360px default left the reply box about 160px with the room's spacing, and
+// its placeholder wrapped to a second line. jsdom lays nothing out, so these pin the classes
+// that decide it; the width itself needs a browser.
+describe('Composer compact', () => {
+    afterEach(cleanup);
+
+    it('keeps the placeholder on one line', () => {
+        render(<Composer onSend={() => undefined} channelId="C9" placeholder="Reply in thread" compact />, {
+            wrapper,
+        });
+
+        expect(screen.getByText('Reply in thread').className).toContain('truncate');
+    });
+
+    it('tightens the spacing only when asked', () => {
+        const { container, unmount } = render(<Composer onSend={() => undefined} channelId="C10" compact />, {
+            wrapper,
+        });
+        expect((container.firstElementChild as HTMLElement).className).toContain('px-3');
+        unmount();
+
+        const { container: room } = render(<Composer onSend={() => undefined} channelId="C11" />, { wrapper });
+        expect((room.firstElementChild as HTMLElement).className).toContain('px-6');
+    });
+});

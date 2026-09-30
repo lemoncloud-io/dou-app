@@ -663,6 +663,7 @@ export const MessageList = ({
                                     receiptRead={receipt?.readCount}
                                     receiptUnread={receipt?.unreadCount}
                                     receiptOnReveal={row.group.key !== latestReceiptKey}
+                                    toolbarUnderHeader={threadReplyCount !== undefined}
                                 />
                             );
                         })}

@@ -166,6 +166,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         onAddFiles={tray.addFiles}
                         onRemoveAttachment={tray.remove}
                         autoFocus
+                        compact
                     />
                 )}
                 {isDragging && root && <AttachmentDropOverlay />}

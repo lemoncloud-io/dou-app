@@ -125,6 +125,12 @@ interface MessageRowProps {
      * but the latest, where a line under each one was the loudest repeated thing in a busy feed.
      */
     receiptOnReveal?: boolean;
+    /**
+     * Hang the first message's toolbar just under the author line instead of over it. The
+     * thread panel sets it: its column is about 270px wide and the toolbar about 210px, so
+     * over the header the toolbar hid the name of the person whose message it acts on.
+     */
+    toolbarUnderHeader?: boolean;
 }
 
 /**
@@ -223,6 +229,7 @@ export const MessageRow = memo(
         receiptRead,
         receiptUnread,
         receiptOnReveal,
+        toolbarUnderHeader,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -673,7 +680,8 @@ export const MessageRow = memo(
                                             data-row-actions=""
                                             inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
                                             className={cn(
-                                                'absolute -top-10 right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                                i === 0 && toolbarUnderHeader ? '-top-1.5' : '-top-10',
+                                                'absolute right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned
                                                     ? 'translate-x-0 opacity-100'
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'

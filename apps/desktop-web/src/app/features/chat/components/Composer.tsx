@@ -56,6 +56,11 @@ interface ComposerProps {
      * with the removed room.
      */
     autoFocus?: boolean;
+    /**
+     * Tighter padding and gaps, for the thread panel. At its 360px default the room's spacing
+     * left the reply box about 160px, and the placeholder wrapped onto a second line.
+     */
+    compact?: boolean;
 }
 
 const ComposerInner = ({
@@ -68,6 +73,7 @@ const ComposerInner = ({
     onRemoveAttachment,
     capturesTyping,
     autoFocus,
+    compact,
 }: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
@@ -157,7 +163,7 @@ const ComposerInner = ({
 
     return (
         <div
-            className="bg-background px-6 pb-5 pt-2"
+            className={cn('bg-background pt-2', compact ? 'px-3 pb-3' : 'px-6 pb-5')}
             // Pasted images join the tray; pasted text still goes to the editor untouched.
             // A copy from Excel or Word carries the text and a picture of it together, and
             // taking the files used to drop the text: it goes in as plain text alongside.
@@ -188,7 +194,7 @@ const ComposerInner = ({
                     'focus-within:border-focus-border focus-within:shadow-[0_0_0_0.5px_hsl(var(--focus-border))]'
                 )}
             >
-                <div className="flex items-center gap-2 px-5 py-3">
+                <div className={cn('flex items-center gap-2 py-3', compact ? 'px-3' : 'px-5')}>
                     {onAddFiles && <AttachButton onFiles={onAddFiles} />}
                     <ComposerToolbar />
                     {/* The newline key is the one thing people get wrong in a chat box; say it
@@ -200,7 +206,7 @@ const ComposerInner = ({
                     )}
                 </div>
                 <div aria-hidden className="h-px w-full bg-input" />
-                <div className="flex items-end gap-6 px-5 py-4">
+                <div className={cn('flex items-end', compact ? 'gap-3 px-3 py-3' : 'gap-6 px-5 py-4')}>
                     <div className="flex min-w-0 flex-1 flex-col gap-4">
                         <div className="relative">
                             <RichTextPlugin
@@ -213,7 +219,9 @@ const ComposerInner = ({
                                     />
                                 }
                                 placeholder={
-                                    <div className="pointer-events-none absolute left-0 top-1.5 text-body text-placeholder">
+                                    // One line, cut short if it has to be: a wrapped placeholder
+                                    // makes an empty box look like it already holds two lines.
+                                    <div className="pointer-events-none absolute inset-x-0 top-1.5 truncate text-body text-placeholder">
                                         {placeholderText}
                                     </div>
                                 }
