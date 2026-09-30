@@ -31,3 +31,4 @@ export * from './channelLabel';
 export * from './messagePreview';
 export * from './hoverReveal';
 export * from './composerFocus';
+export * from './radioGroup';

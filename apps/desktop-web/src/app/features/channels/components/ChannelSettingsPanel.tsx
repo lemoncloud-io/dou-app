@@ -18,6 +18,7 @@ import {
     type ChannelNotifyMode,
     PANE_HEADER,
     PANEL_TITLE,
+    radioGroupOptions,
 } from '../../../shared';
 import type { ChannelMember } from '../hooks';
 import { useChannelActions } from '../hooks';
@@ -28,6 +29,8 @@ import { MemberList } from './MemberList';
 
 /** Below this member count the roster is short enough to scan without a filter. */
 const MEMBER_SEARCH_THRESHOLD = 5;
+
+const NOTIFY_MODES: readonly ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
 interface ChannelSettingsPanelProps {
     /** The channel matching the store's openChannelId, resolved by the host. */
@@ -109,6 +112,7 @@ export const ChannelSettingsPanel = ({
         // pref stands even if this fails.
         if (joinUserId) void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch(() => undefined);
     };
+    const notifyProps = radioGroupOptions(NOTIFY_MODES, notifyMode, onNotifyChange);
 
     return (
         <ResizablePanel
@@ -208,13 +212,11 @@ export const ChannelSettingsPanel = ({
                         aria-label={t('channels.settings.notifications')}
                         className="flex rounded-lg border border-hairline bg-well p-0.5"
                     >
-                        {(['all', 'mention', 'none'] as const).map(mode => (
+                        {NOTIFY_MODES.map(mode => (
                             <button
                                 key={mode}
                                 type="button"
-                                role="radio"
-                                aria-checked={notifyMode === mode}
-                                onClick={() => onNotifyChange(mode)}
+                                {...notifyProps(mode)}
                                 className={cn(
                                     'focus-ring tactile flex-1 rounded-md px-2 py-1.5 text-caption font-medium transition-colors ease-tactile',
                                     notifyMode === mode

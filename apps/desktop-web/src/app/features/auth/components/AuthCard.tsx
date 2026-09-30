@@ -7,6 +7,7 @@ import { cn } from '@chatic/lib/utils';
 
 import douMark from '../../../../assets/dou-mark.png';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
+import { radioGroupOptions } from '../../../shared';
 
 interface AuthCardProps {
     title: string;
@@ -33,6 +34,7 @@ interface AuthCardProps {
  */
 export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) => {
     const { t, i18n } = useTranslation();
+    const languageProps = radioGroupOptions(SUPPORTED_LANGUAGES, i18n.language, setLanguage);
 
     return (
         // The page scrolls rather than clips: at the minimum window, zoomed, or with an error line the
@@ -50,9 +52,7 @@ export const AuthCard = ({ title, subtitle, children, onBack }: AuthCardProps) =
                         <button
                             key={lng}
                             type="button"
-                            role="radio"
-                            aria-checked={i18n.language === lng}
-                            onClick={() => setLanguage(lng)}
+                            {...languageProps(lng)}
                             className={cn(
                                 'focus-ring rounded-md px-2 py-1 transition-colors',
                                 i18n.language === lng

@@ -8,7 +8,7 @@ import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
-import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
+import { radioGroupOptions, useNotificationPrefsStore, VersionInfo } from '../../../shared';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
 import { useDevicePushMute } from '../hooks';
@@ -51,6 +51,8 @@ export const SettingsPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const { theme, setTheme } = useTheme();
+    const themeProps = radioGroupOptions(THEME_OPTIONS, theme, setTheme);
+    const languageProps = radioGroupOptions(LANGUAGE_OPTIONS, i18n.language, setLanguage);
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
@@ -89,9 +91,8 @@ export const SettingsPage = () => {
                                 {THEME_OPTIONS.map(option => (
                                     <button
                                         key={option}
-                                        role="radio"
-                                        aria-checked={theme === option}
-                                        onClick={() => setTheme(option)}
+                                        type="button"
+                                        {...themeProps(option)}
                                         className={cn(
                                             'focus-ring tactile flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-callout capitalize transition-colors ease-tactile',
                                             theme === option
@@ -127,9 +128,8 @@ export const SettingsPage = () => {
                                     {LANGUAGE_OPTIONS.map(lng => (
                                         <button
                                             key={lng}
-                                            role="radio"
-                                            aria-checked={i18n.language === lng}
-                                            onClick={() => setLanguage(lng)}
+                                            type="button"
+                                            {...languageProps(lng)}
                                             className={cn(
                                                 'focus-ring tactile rounded-lg border px-4 py-2 text-callout transition-colors ease-tactile',
                                                 i18n.language === lng

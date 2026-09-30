@@ -48,3 +48,18 @@ describe('CreateChannelDialog failures', () => {
         expect(alert.textContent).toBe(i18next.t('channels.create.failed'));
     });
 });
+
+describe('CreateChannelDialog visibility', () => {
+    it('moves between the visibility options with the arrow keys', () => {
+        render(<CreateChannelDialog onCreated={vi.fn()} />);
+        const [publicOption, privateOption] = screen.getAllByRole('radio');
+        publicOption.focus();
+
+        fireEvent.keyDown(publicOption, { key: 'ArrowRight' });
+
+        expect(document.activeElement).toBe(privateOption);
+        expect(privateOption.getAttribute('aria-checked')).toBe('true');
+        expect(publicOption.getAttribute('aria-checked')).toBe('false');
+        expect(publicOption.tabIndex).toBe(-1);
+    });
+});

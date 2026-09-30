@@ -6,7 +6,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
 
-import { MobileAppPointer, useDesktopChannelMutations } from '../../../shared';
+import { MobileAppPointer, radioGroupOptions, useDesktopChannelMutations } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
 import { createChannelFailure, isValidChannelName, type CreateChannelFailure } from '../utils';
 import { ChannelNameField } from './ChannelNameField';
@@ -20,6 +20,8 @@ const FAILURE_KEY: Record<CreateChannelFailure, string> = {
     network: 'errors.network',
     other: 'channels.create.failed',
 };
+
+const VISIBILITIES: readonly Visibility[] = ['public', 'private'];
 
 interface CreateChannelDialogProps {
     /**
@@ -39,6 +41,8 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
     const [visibility, setVisibility] = useState<Visibility>('public');
     const [failure, setFailure] = useState<CreateChannelFailure | null>(null);
     const [showInvalid, setShowInvalid] = useState(false);
+
+    const visibilityProps = radioGroupOptions(VISIBILITIES, visibility, setVisibility);
 
     const reset = () => {
         setName('');
@@ -99,13 +103,11 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                         {/* A naked Public/Private pair says nothing about what either
                             does, so each option carries its own consequence line. */}
                         <div role="radiogroup" aria-labelledby="create-channel-visibility" className="flex gap-2">
-                            {(['public', 'private'] as const).map(option => (
+                            {VISIBILITIES.map(option => (
                                 <button
                                     key={option}
                                     type="button"
-                                    role="radio"
-                                    aria-checked={visibility === option}
-                                    onClick={() => setVisibility(option)}
+                                    {...visibilityProps(option)}
                                     className={cn(
                                         'focus-ring flex flex-1 flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-callout transition-colors',
                                         visibility === option
