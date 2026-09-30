@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { ChannelList } from './ChannelList';
 import { roomOpenTrace } from '../../../runtime/perf';
@@ -50,7 +50,29 @@ jest.mock('../../../hooks', () => ({
 // The list-level DM peer lookup (one profile subscription for every DM row) is covered by
 // useDmPeers.test.ts; here we inject its result so rows can be driven without the runtime.
 const mockDmPeers = new Map<string, { id: string; profileNick?: string; thumbnail?: string }>();
-jest.mock('../../channels/hooks', () => ({ useDmPeers: () => mockDmPeers }));
+// The swipe actions write through the same mutations the room's settings screen uses.
+const mockUpdateJoin = jest.fn().mockResolvedValue(undefined);
+const mockLeaveChannel = jest.fn().mockResolvedValue(undefined);
+const mockDeleteChannel = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../channels/hooks', () => ({
+    useDmPeers: () => mockDmPeers,
+    useJoinMutations: () => ({ updateJoin: mockUpdateJoin }),
+    useChannelMutations: () => ({
+        leaveChannel: mockLeaveChannel,
+        deleteChannel: mockDeleteChannel,
+        isPending: { leave: false, delete: false },
+    }),
+}));
+jest.mock('../../channels/components/ConfirmDialog', () => ({
+    // Stays mounted when closed, as the real one does while it fades out, so its copy can be read then.
+    ConfirmDialog: ({ open, title, confirmLabel, onConfirm }: any) => (
+        <div role="alertdialog" aria-label={title} hidden={!open}>
+            <button onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+    ),
+}));
+const mockToast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
@@ -71,7 +93,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </section>
     ),
     DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
+    IconBell: () => <i />,
+    IconBellOff: ({ role, 'aria-label': label }: any) => <i role={role} aria-label={label} />,
     IconChatAdd: () => <i />,
+    IconLeave: () => <i />,
+    IconTrash: () => <i />,
     IconPin: ({ role, 'aria-label': label }: any) => <i role={role} aria-label={label} />,
     IconPlus: () => <i />,
     ImageAvatar: ({ src }: any) => <img alt="" src={src} data-testid="image-avatar" />,
@@ -84,6 +110,23 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </div>
     ),
     SubscriptionBadge: ({ tier }: any) => <span data-testid="tier-badge">{tier}</span>,
+    // The gesture is the kit's (SwipeActionRow.test.tsx); here every action is a plain button, so the
+    // list's choice of actions and what each one does can be read and pressed directly.
+    SwipeActionRow: ({ leadingActions = [], trailingActions = [], children }: any) => (
+        <div data-testid="swipe-row">
+            {children}
+            {leadingActions.map((action: any) => (
+                <button key={action.key} data-side="leading" onClick={action.onSelect}>
+                    {action.label}
+                </button>
+            ))}
+            {trailingActions.map((action: any) => (
+                <button key={action.key} data-side="trailing" onClick={action.onSelect}>
+                    {action.label}
+                </button>
+            ))}
+        </div>
+    ),
     StatusBadge: ({ label }: any) => <span data-testid="status-badge">{label}</span>,
     UnreadBadge: ({ count }: any) => <span data-testid="unread">{count}</span>,
 }));
@@ -816,6 +859,161 @@ describe('ChannelList — image message preview', () => {
     it('still says deleted for a deleted image message', () => {
         renderWith({ content: '', uploadIds: ['u1'], hidden: true, createdAtMs: 1 });
         expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
+    });
+});
+
+describe('ChannelList swipe actions', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    const renderList = (channel: any, props: Record<string, unknown> = {}) =>
+        render(<ChannelList channels={[makeChannel(channel)]} isLoading={false} sid="s1" {...(props as any)} />);
+
+    it('offers pin on the right and mute + leave on the left for a room I joined', () => {
+        renderList({ id: 'g1', ownerId: 'someone' }, { onTogglePin: jest.fn() });
+
+        expect(screen.getByRole('button', { name: 'channelList.swipe.pin' })).toHaveAttribute('data-side', 'leading');
+        expect(screen.getByRole('button', { name: 'channelList.swipe.mute' })).toHaveAttribute('data-side', 'trailing');
+        expect(screen.getByRole('button', { name: 'channelList.swipe.leave' })).toHaveAttribute(
+            'data-side',
+            'trailing'
+        );
+        expect(screen.queryByRole('button', { name: 'channelList.swipe.delete' })).not.toBeInTheDocument();
+    });
+
+    it('offers delete instead of leave on a group room I own', () => {
+        renderList({ id: 'g1', ownerId: 'me' });
+
+        expect(screen.getByRole('button', { name: 'channelList.swipe.delete' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'channelList.swipe.leave' })).not.toBeInTheDocument();
+    });
+
+    it('offers leave on a 1:1 even when I opened it', () => {
+        renderList({ id: 'd1', stereo: 'dm', ownerId: 'me', memberNo: 2 });
+
+        expect(screen.getByRole('button', { name: 'channelList.swipe.leave' })).toBeInTheDocument();
+    });
+
+    it('gives my self chat a pin and nothing on the left', () => {
+        renderList({ id: 'U:me', stereo: 'self', ownerId: 'me', memberNo: 1 }, { onTogglePin: jest.fn() });
+
+        expect(screen.getByRole('button', { name: 'channelList.swipe.pin' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'channelList.swipe.mute' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'channelList.swipe.leave' })).not.toBeInTheDocument();
+    });
+
+    it("gives someone else's self chat no actions at all", () => {
+        renderList({ id: 'U:1000030', stereo: 'self', ownerId: '1000030', memberNo: 1 }, { onTogglePin: jest.fn() });
+
+        expect(screen.getByTestId('swipe-row').querySelectorAll('button[data-side]')).toHaveLength(0);
+    });
+
+    it('offers no pin where the host stores no pins', () => {
+        renderList({ id: 'g1' });
+
+        expect(screen.queryByRole('button', { name: 'channelList.swipe.pin' })).not.toBeInTheDocument();
+    });
+
+    it('pins through the host and says so', () => {
+        const onTogglePin = jest.fn();
+        renderList({ id: 'g1' }, { onTogglePin });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.pin' }));
+
+        expect(onTogglePin).toHaveBeenCalledWith('g1');
+        expect(mockToast).toHaveBeenCalledWith({ title: 'channelManage.pinned' });
+    });
+
+    it('offers unpin on a pinned room', () => {
+        renderList({ id: 'g1' }, { onTogglePin: jest.fn(), pinnedChannelIds: new Set(['g1']) });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.unpin' }));
+
+        expect(mockToast).toHaveBeenCalledWith({ title: 'channelManage.unpinned' });
+    });
+
+    it('mutes through my join row', () => {
+        renderList({ id: 'g1' }, { joinByChannel: new Map([['g1', { userId: 'me', notify: 'all' } as any]]) });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.mute' }));
+
+        expect(mockUpdateJoin).toHaveBeenCalledWith({ channelId: 'g1', userId: 'me', notify: 'none' });
+    });
+
+    it('unmutes a muted room', () => {
+        renderList({ id: 'g1' }, { joinByChannel: new Map([['g1', { userId: 'me', notify: 'none' } as any]]) });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.unmute' }));
+
+        expect(mockUpdateJoin).toHaveBeenCalledWith({ channelId: 'g1', userId: 'me', notify: 'all' });
+    });
+
+    it('says so when a mute fails', async () => {
+        mockUpdateJoin.mockRejectedValueOnce(new Error('offline'));
+        renderList({ id: 'g1' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.mute' }));
+
+        await waitFor(() =>
+            expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
+        );
+    });
+
+    it('leaves only after the confirmation', async () => {
+        renderList({ id: 'g1', ownerId: 'someone' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.leave' }));
+        expect(mockLeaveChannel).not.toHaveBeenCalled();
+        const dialog = screen.getByRole('alertdialog', { name: 'chat.settings.leaveDialog.title' });
+        fireEvent.click(within(dialog).getByRole('button'));
+
+        await waitFor(() => expect(mockLeaveChannel).toHaveBeenCalledWith({ channelId: 'g1' }));
+        expect(mockDeleteChannel).not.toHaveBeenCalled();
+        await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoom' }));
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it("asks with the 1:1's own copy before leaving a 1:1", () => {
+        renderList({ id: 'd1', stereo: 'dm', memberNo: 2 });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.leave' }));
+
+        expect(screen.getByRole('alertdialog', { name: 'chat.settings.dmLeaveDialog.title' })).toBeInTheDocument();
+    });
+
+    it('deletes an owned group after the confirmation', async () => {
+        renderList({ id: 'g1', ownerId: 'me' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.delete' }));
+        const dialog = screen.getByRole('alertdialog', { name: 'chat.settings.deleteDialog.title' });
+        fireEvent.click(within(dialog).getByRole('button'));
+
+        await waitFor(() => expect(mockDeleteChannel).toHaveBeenCalledWith({ channelId: 'g1' }));
+        await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.deletedRoom' }));
+    });
+
+    it('keeps the delete copy on the confirmation while it closes', async () => {
+        renderList({ id: 'g1', ownerId: 'me' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.delete' }));
+        fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button'));
+
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(
+            screen.getByRole('button', { hidden: true, name: 'chat.settings.deleteDialog.confirm' })
+        ).toBeInTheDocument();
+    });
+
+    it('says so when leaving fails, and closes the confirmation', async () => {
+        mockLeaveChannel.mockRejectedValueOnce(new Error('offline'));
+        renderList({ id: 'g1', ownerId: 'someone' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'channelList.swipe.leave' }));
+        fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button'));
+
+        await waitFor(() =>
+            expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leaveFailed', variant: 'destructive' })
+        );
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 });
 

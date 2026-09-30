@@ -596,7 +596,15 @@
         "emptyInvited": "You're not in any chat room yet.\nRooms you're invited to will show up here.",
         "emptyInvitedLeaveHint": "You can leave this place if you no longer use it.",
         "emptyInvitedPlaceInfo": "Go to place info",
-        "loading": "Loading chat rooms"
+        "loading": "Loading chat rooms",
+        "swipe": {
+            "pin": "Pin",
+            "unpin": "Unpin",
+            "mute": "Mute",
+            "unmute": "Unmute",
+            "leave": "Leave",
+            "delete": "Delete"
+        }
     },
     "channelManage": {
         "title": "Manage chats",

@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { BellOff } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { chatImageCount, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     DropdownMenu,
@@ -19,12 +18,19 @@ import {
     Badge,
     CollapsibleSection,
     DefaultAvatar,
+    IconBell,
+    IconBellOff,
     IconChatAdd,
+    IconLeave,
     IconPin,
+    IconTrash,
     ImageAvatar,
     ListRow,
     SubscriptionBadge,
+    SwipeActionRow,
     UnreadBadge,
+    type SwipeAction,
+    type SwipeSide,
 } from '@chatic/web-ui-kit';
 
 import { useDmPeers, type DmPeer } from '../../channels/hooks';
@@ -36,13 +42,21 @@ import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../ho
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
 import { roomOpenTrace } from '../../../runtime/perf';
+import { haptics } from '../../../bridge/haptics';
 import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
-import { channelKindOf, resolveChannelAvatar, resolveChannelTitle, showsMemberCount } from '../../channels/lib';
+import {
+    channelKindOf,
+    removalActionFor,
+    resolveChannelAvatar,
+    resolveChannelTitle,
+    showsMemberCount,
+} from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { ChannelEmptyState } from './ChannelEmptyState';
+import { useChannelRowActions } from '../hooks/useChannelRowActions';
 
 /**
  * One placeholder row. The pulse lives on the ROW (not each bar) and is offset per row, so three
@@ -196,9 +210,11 @@ const ChannelItem = ({
                         />
                     )}
                     {muted && (
-                        <BellOff
+                        <IconBellOff
                             role="img"
                             aria-label={t('channelList.muted')}
+                            // The kit's glyphs are decorative by default; this one is announced.
+                            aria-hidden={false}
                             className="size-3.5 shrink-0 text-muted-foreground"
                         />
                     )}
@@ -274,6 +290,11 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
+    /**
+     * Pins or unpins a room in this place. Given, rows offer it as their right-swipe action; left out
+     * — the cloud 1:1 section, whose pins nothing stores — they offer no right swipe at all.
+     */
+    onTogglePin?: (channelId: string) => void;
     /** Start a 1:1 — the host picks the destination by cloud kind. */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
@@ -311,6 +332,7 @@ export const ChannelList = ({
     isPro,
     sortMethod = 'recent',
     pinnedChannelIds,
+    onTogglePin,
     onCreateOneOnOne,
     onCreateGroup,
     isInvitedPlace,
@@ -367,6 +389,70 @@ export const ChannelList = ({
     // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
     // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
+
+    // Which row has its swipe actions out. One at a time: opening a row replaces this, and every
+    // other row reads null and stays closed.
+    const [openRow, setOpenRow] = useState<{ id: string; side: SwipeSide } | null>(null);
+    const rowActions = useChannelRowActions();
+    const { toast } = useToast();
+
+    /**
+     * A row's swipe actions. Right: pin. Left: notifications, then the way out — leave or delete,
+     * decided per row by `removalActionFor`, the rule the room's settings and the place's bulk remove
+     * already share, so a 1:1 always leaves and a group deletes only for its owner.
+     *
+     * A self chat has no left side: its settings offer neither notifications nor an exit. Someone
+     * else's self chat gets nothing — it is only ever a row left over from the previous account.
+     */
+    const swipeActionsFor = (
+        channel: DomainChannel,
+        join: DomainJoin | undefined,
+        pinned: boolean,
+        muted: boolean
+    ): { leading: SwipeAction[]; trailing: SwipeAction[] } => {
+        if (isSomeoneElsesSelfChat(channel, uid ?? undefined)) return { leading: [], trailing: [] };
+        const leading: SwipeAction[] = onTogglePin
+            ? [
+                  {
+                      key: 'pin',
+                      label: t(pinned ? 'channelList.swipe.unpin' : 'channelList.swipe.pin'),
+                      tone: 'accent',
+                      icon: <IconPin size={18} filled={!pinned} />,
+                      onSelect: () => {
+                          onTogglePin(channel.id);
+                          // Said out loud because a pin moves the row, often out from under the finger.
+                          toast({ title: t(pinned ? 'channelManage.unpinned' : 'channelManage.pinned') });
+                      },
+                  },
+              ]
+            : [];
+        const removal = removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid);
+        if (removal === 'none') return { leading, trailing: [] };
+        return {
+            leading,
+            trailing: [
+                {
+                    key: 'mute',
+                    label: t(muted ? 'channelList.swipe.unmute' : 'channelList.swipe.mute'),
+                    tone: 'neutral',
+                    icon: muted ? <IconBell className="size-[18px]" /> : <IconBellOff className="size-[18px]" />,
+                    onSelect: () => rowActions.setMuted(channel, join, !muted),
+                },
+                {
+                    key: 'remove',
+                    label: t(removal === 'delete' ? 'channelList.swipe.delete' : 'channelList.swipe.leave'),
+                    tone: 'destructive',
+                    icon:
+                        removal === 'delete' ? (
+                            <IconTrash className="size-[18px]" />
+                        ) : (
+                            <IconLeave className="size-[18px]" />
+                        ),
+                    onSelect: () => rowActions.requestRemoval(channel, removal),
+                },
+            ],
+        };
+    };
 
     // Order by the place's chosen sort method ('unread' floats unread channels above). The base
     // order is the last message's time, read from the same `lastChats` map the rows render — so the
@@ -471,24 +557,39 @@ export const ChannelList = ({
                     />
                 ))
             ) : (
-                sortedChannels.map(channel => (
-                    <ChannelItem
-                        key={channel.id}
-                        channel={channel}
-                        unread={unreadByChannel[channel.id] ?? 0}
-                        myNick={myNick}
-                        myThumbnail={myThumbnail}
-                        joinNick={joinByChannel?.get(channel.id)?.nick}
-                        uid={uid ?? undefined}
-                        dmPeer={dmPeers.get(channel.id)}
-                        pinned={pinnedChannelIds?.has(channel.id) ?? false}
-                        // The mute state lives on my join row, same source the settings toggle
-                        // writes through (join.update) — not the channel's embedded $join.
-                        muted={joinByChannel?.get(channel.id)?.notify === 'none'}
-                        lastChat={lastChats.get(channel.id)}
-                    />
-                ))
+                sortedChannels.map(channel => {
+                    const join = joinByChannel?.get(channel.id);
+                    const pinned = pinnedChannelIds?.has(channel.id) ?? false;
+                    // The mute state lives on my join row, same source the settings toggle writes
+                    // through (join.update) — not the channel's embedded $join.
+                    const muted = join?.notify === 'none';
+                    const { leading, trailing } = swipeActionsFor(channel, join, pinned, muted);
+                    return (
+                        <SwipeActionRow
+                            key={channel.id}
+                            leadingActions={leading}
+                            trailingActions={trailing}
+                            open={openRow?.id === channel.id ? openRow.side : null}
+                            onOpenChange={side => setOpenRow(side ? { id: channel.id, side } : null)}
+                            onReveal={() => haptics.play('selection')}
+                        >
+                            <ChannelItem
+                                channel={channel}
+                                unread={unreadByChannel[channel.id] ?? 0}
+                                myNick={myNick}
+                                myThumbnail={myThumbnail}
+                                joinNick={join?.nick}
+                                uid={uid ?? undefined}
+                                dmPeer={dmPeers.get(channel.id)}
+                                pinned={pinned}
+                                muted={muted}
+                                lastChat={lastChats.get(channel.id)}
+                            />
+                        </SwipeActionRow>
+                    );
+                })
             )}
+            {rowActions.dialog}
         </CollapsibleSection>
     );
 };
