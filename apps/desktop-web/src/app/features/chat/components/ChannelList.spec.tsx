@@ -793,6 +793,74 @@ describe('ChannelList 1:1 names', () => {
     });
 });
 
+describe('ChannelList notes-to-self row', () => {
+    afterEach(() => {
+        hydrate.profiles = {};
+        hydrate.cloud = new Map();
+    });
+    const selfRoom = {
+        id: 'S1',
+        stereo: 'self',
+        memberIds: ['me-cloud'],
+        $join: { userId: 'me-cloud' },
+    } as DomainChannel;
+    const renderSelf = () =>
+        render(
+            <ChannelList
+                channels={[selfRoom]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+    const photo = () =>
+        screen.getByRole('button', { name: /You/ }).querySelector('[data-photo]')?.getAttribute('data-photo');
+
+    // It drew a lettered "Y" while the picker drew my photo for the same room.
+    it("draws my photo from this place's profile, keyed by my id in the cloud", () => {
+        hydrate.profiles = { 'me-cloud': { nick: 'Louis', thumbnail: 'me-place.png' } };
+        renderSelf();
+
+        expect(photo()).toBe('me-place.png');
+    });
+
+    it('falls back to my cloud profile photo', () => {
+        hydrate.cloud = new Map([['me-cloud', { name: 'Louis', thumbnail: 'me-cloud.png' }]]);
+        renderSelf();
+
+        expect(photo()).toBe('me-cloud.png');
+    });
+
+    // The relay's room has no join row of mine, only its one member.
+    it('reads my id off the member list when the room has no join row', () => {
+        hydrate.profiles = { 'me-relay': { nick: 'Louis', thumbnail: 'me-relay.png' } };
+        render(
+            <ChannelList
+                channels={[{ id: 'S2', stereo: 'self', memberIds: ['me-relay'] } as DomainChannel]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+
+        expect(photo()).toBe('me-relay.png');
+    });
+
+    it('keeps the "You" label', () => {
+        hydrate.profiles = { 'me-cloud': { nick: 'Louis', thumbnail: 'me-place.png' } };
+        renderSelf();
+
+        expect(screen.getByRole('button', { name: /You/ })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /Louis/ })).toBeNull();
+    });
+});
+
 describe('ChannelList 1:1 names on a cold cloud', () => {
     // Room names sort the other way round from the people's names, so a sort by room name shows.
     const dmZed = { id: 'D1', stereo: 'dm', name: 'a-room', memberIds: ['me', '1000007'] } as DomainChannel;

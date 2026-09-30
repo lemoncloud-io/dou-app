@@ -259,6 +259,12 @@ const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
+/**
+ * My id in a notes-to-self room: its join row names my id in this cloud, which is what place and
+ * cloud profiles are keyed by — the session id can differ from it.
+ */
+const selfIdOf = (channel: DomainChannel): string => channel.$join?.userId ?? channel.memberIds?.[0] ?? '';
+
 /** A person's avatar as the Direct messages rows draw it: their photo, else a colored initial. */
 const personAvatar = (seed: string, display: { name: string; thumbnail?: string }): ReactNode => (
     <Avatar className="h-6 w-6 shrink-0">
@@ -395,7 +401,9 @@ export const ChannelList = ({
     const members = useMemo(() => (canStartDm ? (memberPeers ?? []) : []), [canStartDm, memberPeers]);
     const counterpartIds = useMemo(
         () => [
-            ...dms.map(c => dmCounterpartId(c, myUid, c.$join?.userId)).filter((id): id is string => !!id),
+            ...dms
+                .map(c => (isSelfChannel(c) ? selfIdOf(c) : dmCounterpartId(c, myUid, c.$join?.userId)))
+                .filter((id): id is string => !!id),
             ...members.map(member => member.peerId),
         ],
         [dms, myUid, members]
@@ -426,17 +434,14 @@ export const ChannelList = ({
     /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
     const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode; pending: boolean } => {
         if (isSelfChannel(channel)) {
-            return {
-                label: t('dm.you'),
-                icon: (
-                    <Avatar className="h-6 w-6 shrink-0">
-                        <AvatarFallback className="text-nano font-semibold" style={avatarStyle(myUid ?? 'me')}>
-                            {t('dm.you').charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                    </Avatar>
-                ),
-                pending: false,
-            };
+            // Drawn like the picker's "me" row: my place photo, else my cloud one. The label stays.
+            const selfId = selfIdOf(channel);
+            const display = resolveDisplay(
+                selfId ? placeProfiles[selfId] : undefined,
+                counterpartProfiles.get(selfId)?.name ?? t('dm.you'),
+                counterpartProfiles.get(selfId)?.thumbnail
+            );
+            return { label: t('dm.you'), icon: personAvatar(selfId || (myUid ?? 'me'), display), pending: false };
         }
         const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
         const display = resolveDisplay(
