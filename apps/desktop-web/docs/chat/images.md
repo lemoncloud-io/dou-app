@@ -99,7 +99,25 @@ Closing returns focus to the tile that opened it (ui-kit's dialog focus return, 
 
 ## Previews outside the feed
 
-A message with images and no text still says something in the sidebar row and in the OS
-notification: "Photo", or "3 photos" (`shared/utils/messagePreview.ts`). It counts from `upload$$`,
-or from the `uploadIds` a channel head carries, the same way apps/web does. It used to leave a blank
-line, and the banner read "Raine:" with nothing after it.
+A message with attachments and no text still says something in the sidebar row and in the OS
+notification, and it names what it carries (`shared/utils/messagePreview.ts`): "Photo" or "3 photos",
+"Video" or "2 videos", "File" or "3 files", and "3 attachments" when the kinds differ. It used to
+leave a blank line, and the banner read "Raine:" with nothing after it; after that it said "Photo"
+for a PDF too, because the server now stores videos and documents as well.
+
+The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
+or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo`, read as a plain
+string because the server names documents `file` and sound `audio`, which the installed contract
+types do not know yet. A slot still being sent has no `stereo`, and neither does a head that only
+has `uploadIds`; both count as images, so a photo on its way never reads as an attachment. Kinds
+that differ, and `audio`, read as attachments (a single one as "Attachment"). The rule is meant
+to match how the server picks a push's body key, so a row and its push agree.
+
+A push from another cloud reaches the renderer with the server's `loc_key` and `loc_args` untouched
+(`shared/utils/pushBody.ts`). For an attachment key the body is made here with the same labels, taking
+the count from `loc_args` whether it arrives as FCM's JSON string or as an array. Without this the
+banner would show the shell's body, which is the first loc arg: a bare "3". A message push with no
+text, which is how an attachment-only message is pushed until the server names kinds, and a plural
+key whose count cannot be read both show "New message" instead of an empty line or a wrong number.
+Any other push keeps the body the shell derived. Desktop uses the sidebar's nouns rather than the
+phone's sentences ("Sent 3 photos"), because the same-cloud banner already prefixes the sender.
