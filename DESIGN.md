@@ -371,7 +371,7 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 | Mine vs theirs        | same row shape, author resolved from profile                                  | navy bubble right / gray bubble left                                           |
 | Sending / failed      | row at 50% opacity, then `text-destructive` caption with retry                | spinner, then red alert icon with retry                                        |
 | Connecting            | amber pill in the header with a pulsing dot                                   | —                                                                              |
-| Empty                 | 56px `bg-primary/10` glyph tile, heading, caption, one action                 | `EmptyState` composite                                                         |
+| Empty                 | 56px `bg-muted` glyph tile, heading, caption, one action                      | `EmptyState` composite                                                         |
 | Loading               | `Skeleton` rows matching the final layout                                     | `RoomSkeleton`                                                                 |
 
 Unread is derived client-side, never read from the server's lagging count (rule in the

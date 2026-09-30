@@ -62,12 +62,11 @@ export const ChannelIntro = ({
                     </AvatarFallback>
                 </Avatar>
             ) : (
+                // Neutral like the self note's tile: the channel glyph is an identity mark, and
+                // lime is kept for what the user can act on or has selected.
                 <span
                     aria-hidden
-                    className={cn(
-                        'flex h-14 w-14 items-center justify-center rounded-2xl',
-                        kind === 'self' ? 'bg-muted text-label' : 'bg-primary/15 text-primary-ink'
-                    )}
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-label"
                 >
                     {kind === 'self' ? <StickyNote size={26} /> : <Hash size={26} strokeWidth={2.25} />}
                 </span>

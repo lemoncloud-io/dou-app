@@ -213,7 +213,7 @@ export const ChatPane = ({
     if (!hasRoom) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-display font-semibold text-primary-ink">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-display font-semibold text-label">
                     #
                 </div>
                 <p className="text-heading text-foreground">{t(`chat.empty.${emptyState.mode}.title`)}</p>

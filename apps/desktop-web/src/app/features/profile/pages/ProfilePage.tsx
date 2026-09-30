@@ -143,7 +143,7 @@ export const ProfilePage = () => {
                         </div>
                         {placeStateKnown ? (
                             <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
-                                <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                                <Avatar className="h-16 w-16 rounded-xl">
                                     {displayPhoto && (
                                         <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
                                     )}
