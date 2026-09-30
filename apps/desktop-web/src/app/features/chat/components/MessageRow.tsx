@@ -120,6 +120,11 @@ interface MessageRowProps {
      */
     receiptRead?: number;
     receiptUnread?: number;
+    /**
+     * Show the receipt only while its message is hovered or focused. Set on every block of mine
+     * but the latest, where a line under each one was the loudest repeated thing in a busy feed.
+     */
+    receiptOnReveal?: boolean;
 }
 
 /**
@@ -217,6 +222,7 @@ export const MessageRow = memo(
         withDayInTime,
         receiptRead,
         receiptUnread,
+        receiptOnReveal,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -419,9 +425,19 @@ export const MessageRow = memo(
                             // receipts would stack four identical lines under a burst of
                             // four messages sent a second apart. A message still in flight,
                             // failed or deleted has no meaningful count.
+                            //
+                            // An older block's receipt waits for its message to be hovered or
+                            // focused. Keyed on the same state as the toolbar, so the arrow keys
+                            // that move focus through the feed reveal it too, not only a pointer.
                             const isLastInGroup = i === group.messages.length - 1;
+                            const isReceiptRevealed = !receiptOnReveal || hoverKey === key || focusKey === key;
                             const receipt: ReadCount | null =
-                                receiptRead != null && isLastInGroup && isSettled && !message.hidden && message.chatNo
+                                receiptRead != null &&
+                                isLastInGroup &&
+                                isReceiptRevealed &&
+                                isSettled &&
+                                !message.hidden &&
+                                message.chatNo
                                     ? { readCount: receiptRead, unreadCount: receiptUnread ?? 0 }
                                     : null;
                             // Keep the toolbar up whenever it owns something the reader is

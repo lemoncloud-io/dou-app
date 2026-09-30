@@ -175,6 +175,20 @@ export const MessageList = ({
         [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
     );
 
+    // Only my latest block shows its receipt outright; every earlier one shows it on hover or
+    // focus. The newest count is the one people check, and a line under each of my blocks was
+    // the loudest repeated element in a busy channel. Walks back to the first block with a count.
+    let latestReceiptKey: string | null = null;
+    for (let i = rows.length - 1; i >= 0 && readCountOf; i--) {
+        const row = rows[i];
+        if (row.kind !== 'group') continue;
+        const last = row.group.messages[row.group.messages.length - 1];
+        if (last?.chatNo && readCountOf(last.chatNo, last.ownerId)) {
+            latestReceiptKey = row.group.key;
+            break;
+        }
+    }
+
     const dayChunks = useMemo(() => {
         const chunks: { key: string; rows: typeof rows }[] = [];
         for (const row of rows) {
@@ -648,6 +662,7 @@ export const MessageList = ({
                                     reactorName={reactorName}
                                     receiptRead={receipt?.readCount}
                                     receiptUnread={receipt?.unreadCount}
+                                    receiptOnReveal={row.group.key !== latestReceiptKey}
                                 />
                             );
                         })}

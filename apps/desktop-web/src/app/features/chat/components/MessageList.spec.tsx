@@ -272,6 +272,37 @@ describe('MessageList', () => {
         expect(screen.getByText('Unseen by 1')).toBeDefined();
     });
 
+    // A receipt under each of my blocks was the loudest repeated line in a busy channel. The
+    // latest block keeps it; an earlier one shows it only while its message is hovered or has
+    // focus, and focus is how the arrow keys move through the feed.
+    it('shows the receipt outright only on the latest block that has one', () => {
+        render(
+            <MessageList
+                messages={[
+                    message(1, 'me', 'mine, older'),
+                    message(2, 'ada', 'reply'),
+                    message(3, 'me', 'mine, latest'),
+                ]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                readCountOf={(chatNo, senderId) => (senderId === 'me' ? { readCount: chatNo, unreadCount: 0 } : null)}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getAllByText(/^Seen by /).map(node => node.textContent)).toEqual(['Seen by 3']);
+
+        const older = screen.getByText('mine, older').closest('[role="article"]') as HTMLElement;
+        fireEvent.mouseEnter(older);
+        expect(screen.getByText('Seen by 1')).toBeDefined();
+        fireEvent.mouseLeave(older);
+        expect(screen.queryByText('Seen by 1')).toBeNull();
+
+        fireEvent.focus(older);
+        expect(screen.getByText('Seen by 1')).toBeDefined();
+    });
+
     // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
     // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
     // false rather than staying quiet.
