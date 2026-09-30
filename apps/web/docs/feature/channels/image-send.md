@@ -78,8 +78,12 @@ one would land in the main feed.
 `MessageImages` draws a row's `upload$$` with the kit's `MessageImageTiles` and opens a tapped one in
 `ImageViewer`. With no text the images take the bubble's place — an empty bubble beside them would read
 as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
-`localStatus`; a server head from `thumbUrl`, falling back to `orgUrl`. A head the server marks failed,
-carries an error, or has no address stays as a broken tile, so the count still matches what was sent.
+`localStatus`; a server head from `thumbUrl`, falling back to `orgUrl`. A GIF is sent without a
+thumbnail (`prepareChatAttachment` in `@chatic/shared`), so its tile draws the original and plays: a
+thumbnail is its first frame only, and the head carries no content type to tell a GIF's thumbnail
+from a photo's. A GIF sent before that has a thumbnail and stays still in the row; it plays in the
+viewer. A head the server marks failed, carries an error, or has no address stays as a broken tile, so
+the count still matches what was sent.
 The tiles are fixed-size: the server embeds no dimensions. A tap opens the viewer; a hold opens the
 message's action sheet, as on a bubble ([chat-room.md](./chat-room.md#a-message-row)).
 
@@ -140,11 +144,13 @@ a redraw with a new address does not blink.
   fetching for a minute and draw addresses directly.
 - **Only what is drawn is asked for:** a message's four visible tiles, and in the viewer the showing
   original and its two neighbours, with their thumbnails. No original is fetched before the viewer
-  opens, and the neighbours' originals only once the showing one is in, or has fallen back to its
-  address: fetched side by side, three originals of several MB split a slow network three ways, and
-  the photo being looked at took three times as long. Until then a neighbour draws only what memory
-  already has (so the photo sliding out does not drop to its thumbnail), and a neighbour still
-  downloading, the photo just swiped away from, is let go and cancelled with the rest below.
+  opens — except for a tile with no thumbnail, a GIF, which draws its original and keeps it under the
+  `org` key, where the viewer finds it too — and the neighbours' originals only once the showing one
+  is in, or has fallen back to its address: fetched side by side, three originals of several MB split
+  a slow network three ways, and the photo being looked at took three times as long. Until then a
+  neighbour draws only what memory already has (so the photo sliding out does not drop to its
+  thumbnail), and a neighbour still downloading, the photo just swiped away from, is let go and
+  cancelled with the rest below.
 - **A download nobody draws is cancelled** at the next sweep (below), unless something took the image
   again by then. The bucket answers over HTTP/1.1, so the page gets about six connections to it. Before
   this, swiping through ten photos on Slow 4G left the originals already swiped past holding all six,

@@ -312,7 +312,7 @@ uncompressed base64 blob.
 ```ts
 await prepareImage(file, AVATAR_IMAGE); // avatar — square crop, base64
 await prepareImage(file, REPORT_PHOTO); // feedback screenshot — whole frame, tighter budget
-await prepareImage(file, CHAT_ATTACHMENT); // chat photo — original plus a thumbnail
+await prepareChatAttachment(file); // chat photo — CHAT_ATTACHMENT, but a GIF goes without a thumbnail
 ```
 
 The destinations are **named policies** rather than options spelled out per call site, because the
@@ -330,8 +330,11 @@ is that budget, not a taste call.
 carries it, and re-encoding would spend the quality the sender chose. It returns the original, its
 dimensions, and a small thumbnail for lists. "The original" means _not resized_, not _not touched_:
 HEIC is still converted to JPEG and renamed, because the endpoint answers anything outside
-png/jpeg/gif/webp with a 415. An animated GIF is never redrawn — but it still gets a thumbnail, since
-a first frame is what a list row wants.
+png/jpeg/gif/webp with a 415. An animated GIF is never redrawn. `prepareImage` still gives it a
+thumbnail when asked, but a chat photo goes through `prepareChatAttachment`, which asks for none for a
+GIF: a thumbnail is a canvas drawing, which keeps only the first frame, and the server hands an upload
+back with no content type, so a room could not tell that still from a photo's and drew it as the tile.
+With no thumbnail the room draws the original, and the GIF plays in the list.
 
 Picking the wrong `fit` loses data: `'cover'` center-crops to a square, for avatars where the square
 is the point, and `'contain'` keeps the whole frame and never upscales, for images that are read

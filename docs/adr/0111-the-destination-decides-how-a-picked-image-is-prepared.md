@@ -1,6 +1,7 @@
 # ADR-0111: The destination decides how a picked image is prepared, and the native picker does not prepare it
 
-> Status: Accepted · Decided: 2026-09-22 · Implemented: `feat/image-resize`
+> Status: Accepted (the GIF thumbnail is Superseded by
+> [ADR-0142](./0142-a-chat-gif-goes-up-without-a-thumbnail.md)) · Decided: 2026-09-22 · Implemented: `feat/image-resize`
 > · Scope: `libs/shared/src/utils/prepareImage.ts` · `libs/shared/src/utils/index.ts`
 > · `apps/web/src/app/**` · `apps/desktop-web/src/app/features/profile/**` (call sites)
 > Related: [ADR-0049](./0049-feedback-photo-attachment-inline-base64.md) (introduced

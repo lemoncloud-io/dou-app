@@ -1,4 +1,4 @@
-import { prepareImage } from './prepareImage';
+import { prepareChatAttachment, prepareImage } from './prepareImage';
 import { THUMBNAIL_PROFILE } from './profiles';
 
 // jsdom has neither `URL.createObjectURL` nor a canvas implementation, so the browser edges this
@@ -178,7 +178,8 @@ describe('prepareImage — 프로필 있는 file 은 줄인 사본이다', () =>
 
         const { original, thumbnail } = await prepareImage(source, { original: ORIGINAL, thumbnail: THUMB });
 
-        // The animation survives where it matters, and the list still gets something small.
+        // The generic preparer only: a chat photo goes through `prepareChatAttachment`, which asks
+        // for no thumbnail for a GIF (covered below).
         expect(original.file).toBe(source);
         expect(thumbnail?.file.type).toBe('image/jpeg');
     });
@@ -264,5 +265,28 @@ describe('prepareImage — 직교', () => {
         const out = await prepareImage(file('photo.jpg', 'image/jpeg'), { original: ORIGINAL });
 
         expect(Object.keys(out)).toEqual(['original']);
+    });
+});
+
+describe('prepareChatAttachment', () => {
+    it('gives a photo its original and a thumbnail', async () => {
+        const source = file('photo.jpg', 'image/jpeg');
+
+        const { original, thumbnail } = await prepareChatAttachment(source);
+
+        expect(original.file).toBe(source);
+        expect(thumbnail?.file.name).toBe('photo-thumb.jpg');
+    });
+
+    it('sends a gif as its original alone, so the room draws the frames that animate', async () => {
+        const source = file('loop.gif', 'image/gif');
+
+        const { original, thumbnail } = await prepareChatAttachment(source);
+
+        expect(original.file).toBe(source);
+        expect([original.width, original.height]).toEqual([4032, 3024]);
+        expect(thumbnail).toBeNull();
+        // No canvas work for a thumbnail nobody will upload.
+        expect(toBlobCalls).toHaveLength(0);
     });
 });
