@@ -142,7 +142,6 @@ export const ChatPane = ({
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
     const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's
@@ -327,15 +326,6 @@ export const ChatPane = ({
                     )}
                 </div>
                 <div className="flex shrink-0 items-center gap-4">
-                    {!isVerified && (
-                        <span
-                            role="status"
-                            className="flex items-center gap-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-caption font-medium text-warning-foreground"
-                        >
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning motion-reduce:animate-none" />
-                            {t('chat.connecting')}
-                        </span>
-                    )}
                     <Hint label={t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}>
                         <button
                             type="button"

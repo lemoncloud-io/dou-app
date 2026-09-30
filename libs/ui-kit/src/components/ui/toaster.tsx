@@ -9,7 +9,7 @@ import { useToast } from './use-toast';
  * anyone could act on it, or even notice it had fired. A swipe or the close button
  * still dismisses it early.
  */
-const TOAST_DURATION_MS = 5000;
+export const TOAST_DURATION_MS = 5000;
 
 interface ToasterProps {
     /** Extra classes for the viewport, e.g. to keep toasts clear of an app header. */

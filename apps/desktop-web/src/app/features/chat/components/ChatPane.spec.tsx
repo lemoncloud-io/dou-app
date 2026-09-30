@@ -14,7 +14,6 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'site-a' }),
         },
-        connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
     },
 }));
 vi.mock('../../../shared', async () => ({

@@ -24,7 +24,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | Figma name                    | Hex       | Where it lands                                                   |
 | ----------------------------- | --------- | ---------------------------------------------------------------- |
 | `main color/GR1`              | `#B0EA10` | `--primary` on every surface. The only hue in the system         |
-| (GR2, referenced in comments) | `#90C304` | `--main-accent`: the shared toast's success check and edge only  |
+| (GR2, referenced in comments) | `#90C304` | `--main-accent`: the toast's success check, plus its edge on web |
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
 | `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
@@ -372,6 +372,8 @@ project CLAUDE.md). Optimistic writes render at once; nothing flashes a stale va
   pins `colorScheme: light` on the layout root.
 - Every token is defined in both blocks. A colour that exists only in one theme is a bug.
 - Toasts invert: dark card on light theme, light card on dark theme.
+- Desktop toasts (`AppToaster`) drop the kit's edge bar: a capsule sized to its text, 12px from
+  the top over the header's empty middle, with the icon alone carrying the tone.
 
 ## Do / Don't
 
