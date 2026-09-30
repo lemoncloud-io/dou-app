@@ -225,14 +225,23 @@ export const MessageList = ({
     }, [threadMeta, names, placeProfiles, viewer]);
 
     // @name → member, for mentions that open a profile. Stable identity: rows are memo'd.
+    // Autocomplete inserts the resolved display name (place nick over global name), so
+    // that is keyed first; the global name still resolves mentions typed by hand.
     const resolveMention = useMemo<MentionResolver>(() => {
         const byName = new Map<string, { userId: string; name: string }>();
-        names?.forEach((name, userId) => {
-            const key = name.trim().toLowerCase();
-            if (key && !byName.has(key)) byName.set(key, { userId, name });
-        });
+        const people = [...(names ?? [])].map(([userId, name]) => ({
+            userId,
+            global: name,
+            name: resolveDisplay(placeProfiles[userId], name, undefined).name,
+        }));
+        for (const key of ['name', 'global'] as const) {
+            for (const person of people) {
+                const k = person[key].trim().toLowerCase();
+                if (k && !byName.has(k)) byName.set(k, { userId: person.userId, name: person.name });
+            }
+        }
         return name => byName.get(name.toLowerCase());
-    }, [names]);
+    }, [names, placeProfiles]);
 
     // Lowercased "me" names for self-mention highlighting (profile name +
     // place nick under either of my ids — mirrors the notification filter).
