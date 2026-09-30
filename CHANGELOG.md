@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-09-30] - No version updates
+
+### Features
+
+- (web/home) refresh home by pulling it down, through the background sync (ADR-0144)
+- (web-ui-kit) add PullToRefresh, a scroll container that refreshes on a pull from the top
+
 ## [2026-09-30] - root@0.74.1, @chatic/desktop-web@0.16.5
 
 ### Bug Fixes
