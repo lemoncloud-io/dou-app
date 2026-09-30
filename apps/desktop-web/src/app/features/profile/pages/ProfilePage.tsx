@@ -9,7 +9,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
     avatarStyle,
-    isPlaceholderName,
+    useAccountName,
     useCopyToClipboard,
     useCurrentPlace,
     useDisplayProfile,
@@ -61,7 +61,8 @@ export const ProfilePage = () => {
     // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile
     // and the account email from the active session token.
     const { userId } = runtime.session.useSessionIdentity();
-    const { userName, photo } = runtime.session.useRuntimeProfile();
+    const { photo } = runtime.session.useRuntimeProfile();
+    const accountName = useAccountName();
     const accountUser = runtime.session.getActiveSessionUser() as { email?: string } | null;
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
@@ -79,7 +80,7 @@ export const ProfilePage = () => {
     const hasPlaceProfile = !!useSiteProfileMap()[userId ?? ''];
 
     const fallback = t('profile.unknown');
-    const name = userName || fallback;
+    const name = accountName || fallback;
     const email = accountUser?.email || t('profile.notSet');
     const uid = userId ?? fallback;
     // No email on the account ⇒ a Guest Session (Social Login backfills the
@@ -88,10 +89,9 @@ export const ProfilePage = () => {
     const showSocialLogin = !accountUser?.email && isSocialLoginEnabled();
 
     // Effective display = my Place Profile when active, else the global identity.
-    const globalName = isPlaceholderName(userName) ? '' : userName;
     const { name: displayName, thumbnail: displayPhoto } = useDisplayProfile(
         userId ?? '',
-        globalName || fallback,
+        accountName || fallback,
         photo
     );
     const initial = displayName.charAt(0).toUpperCase() || '?';

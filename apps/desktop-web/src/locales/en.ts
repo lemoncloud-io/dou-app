@@ -354,6 +354,7 @@ export const en = {
     'profile.panel.title': 'Profile',
     'profile.panel.close': 'Close profile',
     'profile.panel.resize': 'Resize profile panel',
+    'profile.guestName': 'Guest',
     'profile.unknown': '-',
     'profile.notSet': 'Not set',
     'profile.thisPlace': 'This place',

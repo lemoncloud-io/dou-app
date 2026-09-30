@@ -24,6 +24,7 @@ export * from './useInvitedCloudRecovery';
 export * from './useRemoveCloud';
 export * from './useUser';
 export * from './useMyProfile';
+export * from './useAccountName';
 export * from './useSiteProfiles';
 export * from './useAuthorNames';
 export * from './useChannelLabels';

@@ -16,7 +16,14 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { avatarStyle, isPlaceholderName, useCurrentPlace, useMyProfile, useSiteProfilesStore } from '../../../shared';
+import {
+    avatarStyle,
+    isPlaceholderName,
+    useAccountName,
+    useCurrentPlace,
+    useMyProfile,
+    useSiteProfilesStore,
+} from '../../../shared';
 import { PlaceChip } from './PlaceChip';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
@@ -38,7 +45,10 @@ export const EditPlaceProfileDialog = () => {
     const { userId } = runtime.session.useSessionIdentity();
     const { userName, photo } = runtime.session.useRuntimeProfile();
     const myUid = userId ?? '';
+    // Seeds the nick field: a real account name only. A guest's "Guest" is how the app names
+    // them, not a nick they chose, so it only shows as the placeholder.
     const globalName = isPlaceholderName(userName) ? '' : userName;
+    const accountName = useAccountName();
     const globalPhoto = photo ?? '';
 
     const [nick, setNick] = useState('');
@@ -122,7 +132,7 @@ export const EditPlaceProfileDialog = () => {
         }
     };
 
-    const initial = (nick || globalName).charAt(0).toUpperCase() || '?';
+    const initial = (nick || accountName).charAt(0).toUpperCase() || '?';
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -170,7 +180,7 @@ export const EditPlaceProfileDialog = () => {
                             autoFocus
                             value={nick}
                             onChange={e => setNick(e.target.value)}
-                            placeholder={globalName || t('profile.place.nick')}
+                            placeholder={accountName || t('profile.place.nick')}
                             disabled={busy}
                         />
                     </div>

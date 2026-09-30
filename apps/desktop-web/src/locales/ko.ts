@@ -356,6 +356,7 @@ export const ko: EnTranslation = {
     'profile.panel.title': '프로필',
     'profile.panel.close': '프로필 닫기',
     'profile.panel.resize': '프로필 패널 크기 조절',
+    'profile.guestName': '게스트',
     'profile.unknown': '-',
     'profile.notSet': '설정되지 않음',
     'profile.thisPlace': '이 플레이스',
