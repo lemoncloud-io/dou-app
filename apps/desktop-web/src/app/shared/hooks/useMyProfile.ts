@@ -20,8 +20,9 @@ import type { DomainProfile } from '@chatic/data';
  */
 export const useMyProfile = () => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
-    // The save names its place. `setMyProfile` used to read it off the ambient data context, which
-    // a site switch pre-applies before the token commits (ADR-0085).
+    // The server writes a profile to the place the session is on, whatever place the request names.
+    // The save still names the selected place: the repository tags its optimistic row with it and
+    // rejects when the answer comes back from another place.
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const [profile, setProfile] = useState<DomainProfile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +54,10 @@ export const useMyProfile = () => {
                 setIsSaving(false);
             }
         },
-        [profileRepository]
+        // `selectedSiteId` is a dependency: the dialog stays mounted across place switches, and a
+        // closure over the first place named it on every later save — which the repository now
+        // rejects as a write that landed elsewhere, although it landed where the user was.
+        [profileRepository, selectedSiteId]
     );
 
     return { profile, isLoading, isSaving, load, save };
