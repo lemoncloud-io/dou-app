@@ -60,7 +60,9 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
   one-shot request in `useComposerFocusStore`, keyed by the removed channel, and `ChatPane` spends it
   on the first room it shows that is not that one — its composer takes focus. With no room left, the
   empty state's create/join button takes it. Either way the request is used once, so a later plain
-  channel switch does not move focus.
+  channel switch does not move focus. The one exception is a removal from a sidebar row in the
+  open drawer: `<main>` is `inert` behind the drawer, so the focus call does nothing, the request is
+  still spent, and focus stays where the drawer leaves it.
 - **A failed place-profile save** puts focus back on the nickname field: the save disabled the field
   and both buttons, so the control that held focus went dead.
 - **Trailing panels** take focus when they cover the chat, and return it to their opener when they
