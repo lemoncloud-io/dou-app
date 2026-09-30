@@ -8,7 +8,8 @@ const hueFromString = (value: string): number => {
 /**
  * Inline style for a per-identity avatar. Hue varies per user; lightness and
  * foreground come from theme tokens (`--avatar-l`/`--avatar-fg`) so contrast
- * holds in both light and dark mode instead of a hardcoded white-on-45%.
+ * holds in both light and dark mode instead of a hardcoded white-on-45%. Every hue at
+ * this saturation is checked against those tokens in `src/tokenContrast.spec.ts`.
  */
 export const avatarStyle = (value: string): { backgroundColor: string; color: string } => ({
     backgroundColor: `hsl(${hueFromString(value)} 42% var(--avatar-l))`,

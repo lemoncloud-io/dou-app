@@ -93,8 +93,10 @@
         --sidebar: 0 0% 100%; /* #FFFFFF Channel List Panel */
         --sidebar-foreground: 0 0% 0%;
 
-        /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme) */
-        --avatar-l: 40%;
+        /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme).
+           White initials at 40% measured 3.33:1 on the yellow hues; 32% holds 4.91:1 on the
+           weakest hue (the sweep in src/tokenContrast.spec.ts). */
+        --avatar-l: 32%;
         --avatar-fg: 0 0% 100%;
 
         /* Figma #FF3B30 is 3.58:1 on white as text and carries white at the same 3.58:1 as a
@@ -222,7 +224,8 @@
         --sidebar: 90 2% 18%; /* #2E2F2D Channel List Panel */
         --sidebar-foreground: 60 7% 92%; /* #EBEBE8 */
 
-        --avatar-l: 58%;
+        /* Dark initials at 58% measured 3.74:1 on the blue hues; 64% holds 4.92:1. */
+        --avatar-l: 64%;
         --avatar-fg: 0 0% 8%;
 
         /* Lifted for text on the dark panes (4.7:1 even on the hover fill); a fill of it
