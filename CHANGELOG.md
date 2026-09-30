@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-30] - root@0.77.0, @chatic/web@0.58.0
+
+### Features
+
+- (web) list the notes-to-self room with the cloud 1:1s
+
 ## [2026-09-30] - No version updates
 
 ### Features
