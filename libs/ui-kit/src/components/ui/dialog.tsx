@@ -114,7 +114,7 @@ const DialogContent = React.forwardRef<
                     ref={ref}
                     onCloseAutoFocus={withReturn(onCloseAutoFocus)}
                     className={cn(
-                        'fixed z-50 grid gap-4 bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+                        'fixed z-50 grid grid-cols-[minmax(0,1fr)] gap-4 bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
                         dialogVariants[variant],
                         className
                     )}
