@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { HomePage } from './HomePage';
 import { ROUTES } from '../../../routes/paths';
@@ -17,6 +17,8 @@ let selectedSiteId: string | null = 'site-1';
 // and so the "still fetching" state — where the tier is undecided — can be reproduced.
 let membership: { isValid: boolean } | undefined = { isValid: false };
 let isMembershipLoading = false;
+// Whether a session exists — the catalog refetch on a pull is gated on it, as its query is.
+let isAuthenticated = true;
 // The relay cloud catalog. `hasCloudCatalog` is whether it has answered at all — the banner waits for
 // it — and `isPendingClouds` keeps the tier open, since an active cloud alone makes it PRO.
 let catalog: { clouds: { id: string; status?: string }[]; hasCloudCatalog: boolean; isPendingClouds: boolean } = {
@@ -37,14 +39,24 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
+            useSessionAuth: () => ({ isAuthenticated }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
         },
     },
 }));
 
-jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => catalog }));
+// The three things a pull re-asks. Spies, so the pull-to-refresh block can see each one go out.
+const refetchCloudsMock = jest.fn();
+const refetchMembershipMock = jest.fn();
+const requestBackgroundRefreshMock = jest.fn();
+jest.mock('../../../hooks/useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ ...catalog, refetchClouds: refetchCloudsMock }),
+}));
 jest.mock('../../../hooks/useMembership', () => ({
-    useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading }),
+    useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading, refetch: refetchMembershipMock }),
+}));
+jest.mock('../../../runtime/backgroundRefresh', () => ({
+    requestBackgroundRefresh: () => requestBackgroundRefreshMock(),
 }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
@@ -72,6 +84,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     EmptyState: () => <div data-testid="empty-state" />,
     ProfileAvatar: () => <img alt="" />,
+    // The gesture is the kit's to test; here a button stands in for a completed pull.
+    PullToRefresh: ({ children, onRefresh }: { children: any; onRefresh: () => Promise<unknown> }) => (
+        <div>
+            <button data-testid="pull-refresh" onClick={() => void onRefresh()} />
+            {children}
+        </div>
+    ),
     SubscriptionBadge: ({ tier }: { tier: string }) => <span data-testid="tier-badge">{tier}</span>,
     SubscriptionBadgeSkeleton: () => <span data-testid="tier-badge-skeleton" />,
 }));
@@ -252,6 +271,10 @@ beforeEach(() => {
     isMembershipLoading = false;
     catalog = { clouds: [], hasCloudCatalog: true, isPendingClouds: false };
     collapsedSections = {};
+    isAuthenticated = true;
+    refetchCloudsMock.mockResolvedValue(undefined);
+    refetchMembershipMock.mockResolvedValue(undefined);
+    requestBackgroundRefreshMock.mockResolvedValue(undefined);
 });
 
 describe('HomePage — relay mode', () => {
@@ -720,5 +743,41 @@ describe('HomePage — 그룹 방 만들기', () => {
             expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
             expect(toastMock).toHaveBeenCalledWith({ title: 'homePage.selectPlaceFirst' });
         });
+    });
+});
+
+describe('HomePage — pull to refresh', () => {
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+    });
+
+    it('re-asks the background lists and both header queries', async () => {
+        render(<HomePage />);
+
+        await act(async () => fireEvent.click(screen.getByTestId('pull-refresh')));
+
+        expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
+        expect(refetchCloudsMock).toHaveBeenCalledTimes(1);
+        expect(refetchMembershipMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not ask the catalog without a session — its query is disabled then', async () => {
+        isAuthenticated = false;
+        render(<HomePage />);
+
+        await act(async () => fireEvent.click(screen.getByTestId('pull-refresh')));
+
+        expect(refetchCloudsMock).not.toHaveBeenCalled();
+        expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('still asks the rest when one part fails', async () => {
+        refetchCloudsMock.mockRejectedValue(new Error('offline'));
+        render(<HomePage />);
+
+        await act(async () => fireEvent.click(screen.getByTestId('pull-refresh')));
+
+        expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
+        expect(refetchMembershipMock).toHaveBeenCalledTimes(1);
     });
 });
