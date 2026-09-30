@@ -5,12 +5,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
+import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 
 import { toError, useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
-import { extractServerErrorMessage, parseInviteInput } from '../utils';
+import { extractServerErrorMessage, isTrustedInviteBackend, parseInviteInput } from '../utils';
 import type { InviteLoginError } from '../utils';
+
+/** Backends this build talks to; read per call because `config` answers undefined before boot. */
+const configuredBackends = (): string[] => [
+    config.get<string>('net.relay.backend') ?? '',
+    config.get<string>('net.admin.backend') ?? '',
+];
 
 /**
  * Invite-code auth flow — mirrors apps/web's invite acceptance (useInviteAccept +
@@ -47,6 +54,13 @@ export const useInviteLogin = () => {
                 return failure;
             }
             const { code, backend } = parsed;
+            // Checked before the guest login below, so a rejected link creates no session either.
+            if (backend && !isTrustedInviteBackend(backend, configuredBackends())) {
+                logger.warn('AUTH', '[useInviteLogin] invite link names an untrusted backend', { backend });
+                const failure: InviteLoginError = { kind: 'backend' };
+                setError(failure);
+                return failure;
+            }
 
             setIsSubmitting(true);
             setError(null);

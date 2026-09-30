@@ -30,6 +30,8 @@ export const ko: EnTranslation = {
     'auth.invite.failed.already': '이미 참여한 클라우드예요. 맨 왼쪽 목록에서 골라 주세요.',
     'auth.invite.failed.denied': '이 계정으로는 쓸 수 없는 초대예요. 초대를 받은 계정으로 로그인해 주세요.',
     'auth.invite.failed.network': '서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
+    'auth.invite.failed.backend':
+        'DoU가 알지 못하는 서버로 연결되는 링크라서 열지 않았어요. 초대한 사람에게 새 링크를 받아 주세요.',
     'auth.invite.failed.generic': '이 코드로 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요.',
     'auth.debug.title': '디버그 로그인',
     'auth.debug.subtitle': '개발용 이메일·비밀번호 로그인이에요.',

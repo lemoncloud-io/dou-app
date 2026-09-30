@@ -17,6 +17,8 @@ export const en = {
     'auth.invite.failed.already': "You're already in this cloud. Pick it from the list on the far left.",
     'auth.invite.failed.denied': "This invite isn't for this account. Sign in with the account it was sent to.",
     'auth.invite.failed.network': "Couldn't reach the server. Check your connection and try again.",
+    'auth.invite.failed.backend':
+        "This link points to a server DoU doesn't recognize, so it wasn't opened. Ask whoever invited you for a new link.",
     'auth.invite.failed.generic': "Couldn't join with that code. Check it and try again.",
     'auth.debug.title': 'Debug sign-in',
     'auth.debug.subtitle': 'Email + password login for development.',
