@@ -70,6 +70,21 @@ that exists — there is no "already have one?" branch.
   user directory to search. 1:1 and self rooms are read from the cache only, not fetched per room.
   With no place, the "+" hides, since the pool could only be empty.
 
+### Notes to self
+
+The same hook opens my own notes-to-self room (`openSelf`), from a row pinned above the picker's
+people. It cannot go through `channel.start-dm`: the server answers 400 when the peer is me. The room
+comes from `channel.get-self` instead, which gets or creates it — one per person per cloud, so asking
+again returns the same room, like a 1:1.
+
+- **It shares the one flight** with `startDm`, and the same cloud-switch guard and failure toast.
+- **It needs an open place.** The answer carries no place of its own, so the repository tags the row
+  with the one it is handed (`getSelfChannel(payload, siteId)`), and with no place there is nothing
+  to hand it. The row hides there (`canOpenSelf`).
+- **The row does not wait for the pool.** It is drawn apart from the people list, so it shows while
+  that list loads, fails or is empty. A search filters it like any row — by my place nick, my account
+  name, my id, its "You" tag or its "Notes to self" line.
+
 ## Opening a room that is not listed yet
 
 A room the call just created comes back **without a place** (`sid` empty). `ChannelRepository.startDm`

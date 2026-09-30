@@ -464,6 +464,7 @@ export const en = {
     'dm.new.loadFailed': "Couldn't load people from your channels.",
     'dm.new.empty': 'No one to message yet. People you share a channel with show up here.',
     'dm.new.noMatches': 'No one matches that search.',
+    'dm.new.self': 'Notes to self',
     'dm.start.failed': "Couldn't open the conversation. Try again.",
     'dm.start.message': 'Message',
     'channels.delete.title': 'Delete #{{name}}?',

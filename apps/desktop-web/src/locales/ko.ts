@@ -460,6 +460,7 @@ export const ko: EnTranslation = {
     'dm.new.loadFailed': '채널의 사람 목록을 불러오지 못했어요.',
     'dm.new.empty': '아직 메시지를 보낼 사람이 없어요. 같은 채널에 있는 사람이 여기에 표시돼요.',
     'dm.new.noMatches': '검색과 일치하는 사람이 없어요.',
+    'dm.new.self': '나와의 채팅',
     'dm.start.failed': '대화를 열지 못했어요. 다시 시도해 주세요.',
     'dm.start.message': '메시지 보내기',
     'channels.delete.title': '#{{name}} 채널을 삭제할까요?',

@@ -9,8 +9,9 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { usePendingOpenStore } from '../stores';
 
 /**
- * Open (or return to) the 1:1 with another member of the active cloud — the one call both entry
- * points share: the sidebar's "New message" picker and another person's profile card.
+ * Open (or return to) the 1:1 with another member of the active cloud, or my own notes-to-self room
+ * (`openSelf`) — the one hook every entry point shares: the sidebar's "New message" picker and a
+ * profile card.
  *
  * The server resolves the pair to a single room, so there is no "already have one?" branch here:
  * asking again returns the room that exists. The room is opened through the pending-open target,
@@ -50,6 +51,7 @@ export const useStartDm = () => {
     const { channel: channelRepository, syncMeta } = runtime.data.useRuntimeRepositories();
     const cloudId = runtime.session.useGlobalSession().cloud.cloudId;
     const isAvailable = !!cloudId && cloudId !== RELAY_CLOUD_ID;
+    const { selectedSiteId } = runtime.session.useSessionSelection();
 
     // The cloud as of the latest render, read after the await: a switch while the call is in
     // flight leaves the returned room in the cloud that was left.
@@ -58,14 +60,16 @@ export const useStartDm = () => {
     const inFlightRef = useRef(false);
     const [isStarting, setIsStarting] = useState(false);
 
-    const startDm = useCallback(
-        async (peerId: string): Promise<DomainChannel | null> => {
-            if (!isAvailable || !peerId || inFlightRef.current) return null;
+    // Both opens share one flight, one cloud guard and one failure path; they differ only in the
+    // call that yields the room.
+    const open = useCallback(
+        async (kind: 'dm' | 'self', request: () => Promise<DomainChannel>): Promise<DomainChannel | null> => {
+            if (inFlightRef.current) return null;
             const startedIn = cloudIdRef.current;
             inFlightRef.current = true;
             setIsStarting(true);
             try {
-                const room = await channelRepository.startDm({ peerId });
+                const room = await request();
                 if (!room?.id) throw new Error('[useStartDm] the room came back without an id');
                 if (cloudIdRef.current !== startedIn) return null;
                 usePendingOpenStore.getState().request({ placeId: '', channelId: room.id });
@@ -75,7 +79,7 @@ export const useStartDm = () => {
                 if (!room.sid && startedIn) void syncCloudChannels(channelRepository, syncMeta, startedIn);
                 return room;
             } catch (error) {
-                logger.error('CHANNEL', '[useStartDm] start failed', { error });
+                logger.error('CHANNEL', '[useStartDm] start failed', { kind, cloudId: startedIn, error });
                 toast({ variant: 'destructive', description: t('dm.start.failed') });
                 return null;
             } finally {
@@ -83,8 +87,26 @@ export const useStartDm = () => {
                 setIsStarting(false);
             }
         },
-        [channelRepository, syncMeta, isAvailable, t]
+        [channelRepository, syncMeta, t]
     );
 
-    return { startDm, isStarting, isAvailable };
+    const startDm = useCallback(
+        (peerId: string): Promise<DomainChannel | null> =>
+            isAvailable && peerId ? open('dm', () => channelRepository.startDm({ peerId })) : Promise.resolve(null),
+        [open, channelRepository, isAvailable]
+    );
+
+    // `channel.start-dm` refuses my own id (400); my notes-to-self room has its own get-or-create
+    // call. Its answer carries no place, so the repository tags the row with the one it is given,
+    // and without an open place there is nothing to tag it with.
+    const canOpenSelf = isAvailable && !!selectedSiteId;
+    const openSelf = useCallback(
+        (): Promise<DomainChannel | null> =>
+            canOpenSelf && selectedSiteId
+                ? open('self', () => channelRepository.getSelfChannel(undefined, selectedSiteId))
+                : Promise.resolve(null),
+        [open, channelRepository, canOpenSelf, selectedSiteId]
+    );
+
+    return { startDm, openSelf, isStarting, isAvailable, canOpenSelf };
 };
