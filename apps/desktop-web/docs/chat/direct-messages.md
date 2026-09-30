@@ -78,9 +78,10 @@ that exists — there is no "already have one?" branch.
 ### Notes to self
 
 The same hook opens my own notes-to-self room (`openSelf`), from a row pinned above the picker's
-people. It cannot go through `channel.start-dm`: the server answers 400 when the peer is me. The room
-comes from `channel.get-self` instead, which gets or creates it — one per person per cloud, so asking
-again returns the same room, like a 1:1.
+people and from the action my own profile card or panel shows in place of "Message". It cannot go
+through `channel.start-dm`: the server answers 400 when the peer is me. The room comes from
+`channel.get-self` instead, which gets or creates it — one per person per cloud, so asking again
+returns the same room, like a 1:1.
 
 - **It shares the one flight** with `startDm`, and the same cloud-switch guard and failure toast.
 - **It needs an open place.** The answer carries no place of its own, so the repository tags the row
