@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toast, useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -60,5 +60,18 @@ describe('AppToaster region', () => {
 
         // Radix names the region "Notifications (F8)" unless it is given a label.
         expect(screen.getByRole('region', { name: '알림 (F8)' })).toBeTruthy();
+    });
+});
+
+describe('AppToaster layer', () => {
+    it('puts the toast viewport on the app scale under the modal layer, not over it', () => {
+        render(<AppToaster />);
+
+        const viewport = within(screen.getByRole('region')).getByRole('list');
+
+        // The kit's z-[100] sits over an open dialog (z-50). Both classes surviving would leave the
+        // stylesheet order to pick, so the kit's has to be gone, not just outnumbered.
+        expect(viewport.classList).toContain('z-toast');
+        expect(viewport.classList).not.toContain('z-[100]');
     });
 });

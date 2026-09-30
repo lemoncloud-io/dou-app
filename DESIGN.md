@@ -242,8 +242,9 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 - **Stacking** (desktop): one named scale in `tailwind.config.js`, no numeric `z-*`.
   `z-raised` (a toolbar or sticky label above its own row), `z-float` (pills, the mention
   list and a drawer's scrim over a pane), `z-overlay` (the drop zone over a whole pane),
-  `z-drawer` (a panel or drawer laid over its neighbour), `z-popover` (fixed to the
-  viewport, level with ui-kit's dialogs and menus at 50).
+  `z-drawer` (a panel or drawer laid over its neighbour), `z-toast` (toasts: over every
+  pane, under an open dialog), `z-popover` (fixed to the viewport, level with ui-kit's
+  dialogs and menus at 50).
 
 ## Layout
 

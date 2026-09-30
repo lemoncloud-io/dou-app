@@ -75,9 +75,15 @@ export const AppToaster = () => {
                 </Toast>
             ))}
             {/* The gap lives in `top`, not in padding: the kit's `pt-safe-top` outranks any
-                `pt-*` passed here, and on desktop it resolves to 0. */}
+                `pt-*` passed here, and on desktop it resolves to 0.
+                `z-toast` puts the toasts under the modal layer (dialogs, menus and popovers are
+                z-50) instead of the kit's z-[100] over it. A dialog is the thing the user is
+                working in: a "channel created" toast from the previous step sat on top of the
+                next dialog's title. No position avoids that in a short window, where a dialog
+                fills the height, so the toast goes under the dim instead of beside it. It is
+                still announced by its live region. */}
             {/* Radix names the region in English unless told; `{hotkey}` is its own placeholder. */}
-            <ToastViewport className="absolute top-3" label={t('common.toastRegion')} />
+            <ToastViewport className="absolute top-3 z-toast" label={t('common.toastRegion')} />
         </ToastProvider>
     );
 };

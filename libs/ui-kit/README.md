@@ -83,7 +83,9 @@ portalled to `document.body` is the one thing a call site cannot correct.
 5. **One `cn`, and it is not just `clsx`.** `src/utils/index.ts` extends `tailwind-merge` with the
    repo's own `font-size` scale. Without that registration `twMerge` reads `text-callout` as a text
    _colour_ and drops it whenever a span also carries `text-foreground`, collapsing the type scale to
-   the 16px browser default. Import `cn` from `@chatic/lib/utils`; never call `twMerge` directly.
+   the 16px browser default. desktop-web's named `z-*` scale is registered the same way, or
+   `z-toast` would not override the toast viewport's `z-[100]`. Import `cn` from `@chatic/lib/utils`;
+   never call `twMerge` directly.
 6. **English only.** A Korean literal in a primitive is a bug — this lib is rendered by an admin
    console that does not load the app's i18n catalogue.
 
@@ -142,7 +144,7 @@ Those five counts are files reaching a `components/ui/` path — 154 in all. Nin
 ```text
 libs/ui-kit/src/
 ├── index.ts            public barrel — one line, and it exports `cn` only
-├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size scale
+├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size and z-index scales
 ├── utils/openerFocus.tsx  focus back to whatever opened a dialog (dialog, alert-dialog)
 └── components/ui/      29 primitives, one file each, plus use-toast.ts
 ```

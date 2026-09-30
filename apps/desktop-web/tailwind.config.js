@@ -25,12 +25,14 @@ module.exports = {
         },
         extend: {
             // One stacking scale for the app's own layers (DESIGN.md "Elevation"). ui-kit's
-            // dialogs, menus and toasts sit at 50 and above, so everything here stays below.
+            // dialogs and menus sit at 50, so everything here stays at or below it. A new name
+            // also goes into the `z` group of ui-kit's `cn`, or it will not override a kit class.
             zIndex: {
                 raised: '10', // above its own row or pane: a toolbar, a sticky label, a resize handle
                 float: '20', // floats over a pane's content: jump pills, the mention list, a drawer's scrim
                 overlay: '25', // covers a whole pane: the drop zone
                 drawer: '30', // a panel or drawer laid over its neighbour in a narrow window
+                toast: '40', // over every pane, but under an open dialog: the dialog is the task at hand
                 popover: '50', // fixed to the viewport, level with ui-kit's popovers
             },
             colors: {
