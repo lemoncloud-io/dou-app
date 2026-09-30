@@ -1,5 +1,66 @@
 # Changelog
 
+## [2026-09-30] - root@0.74.2, @chatic/desktop-web@0.16.6
+
+### Bug Fixes
+
+- (desktop-web) raise the toast limit on mount, not on import
+- (desktop-web) leave a space alone while a composition commits it
+- (desktop-web) list the account's Self Channel in every place
+- (ui-kit,desktop-web) keep sticky errors and stacking to desktop
+- (data) keep the Self Channel that arrives with no place
+- (desktop-web) call a cloud a cloud in the onboarding tips too
+- (desktop-web) show focus on the OAuth hand-off and announce its state
+- (desktop-web) keep create and join dialogs open while they submit
+- (desktop-web) move through radio groups with the arrow keys
+- (desktop-web) let the auth screen scroll instead of clipping the card
+- (shared,web) announce the boot splash as a loading status
+- (desktop-web,ui-kit) keep toasts under an open dialog, not over it
+- (ui-kit,web,desktop-web) cap a centred dialog at the window height
+- (ui-kit,web,desktop-web,admin-v2) require close and toast labels
+- (desktop-web) stop spending the lime accent on identity marks
+- (desktop-web) keep avatar initials at 4.5:1 on every hue
+- (ui-kit,desktop-web) hold control edges and switch states to 3:1
+- (ui-kit,desktop-web) keep error toasts until they are closed
+- (desktop-web) stop the add-members toast printing server wire text
+- (desktop-web) hide the place profile card when no place is selected
+- (desktop-web) refuse invite links that name an unknown backend
+- (desktop-web) show a rejected invite code instead of landing on home
+- (desktop-web) read my place profile before drawing the place card
+- (desktop-web) name a guest account "Guest", not by its UUID
+- (desktop-web,app-runtime) hold the feed until a cold room loads
+- (desktop-web) hold 1:1 rows until their people's names load
+- (desktop-web) fit the thread composer and toolbar to a narrow panel
+- (desktop-web) keep hints shut on focus handed back by a dialog
+- (desktop-web) drop the double space after picking a mention
+- (desktop-web) list me last in mention suggestions, not first
+- (desktop-web) show read receipts on my latest block, not every one
+- (desktop-web) stack the profile panel on the thread, not replace it
+- (desktop-web) stop telling an owner with nobody that all are here
+- (desktop-web) tell a full place from a failed channel create
+- (desktop-web) say on Home where clouds and 1:1s are made
+- (desktop-web) point a lapsed cloud at the mobile app, not a retry
+- (desktop-web) say the profile card counts channels in common
+- (desktop-web) explain an empty message search and offer channels
+- (desktop-web) say channels, not messages, in the empty Home sidebar
+- (desktop-web) call a cloud a cloud and tell its rail tiles apart
+- (theme,desktop-web) follow the OS theme on first run and at runtime
+- (desktop-web) show onboarding once per account, with tips it can use
+- (desktop-web) list Home's rows when it has no place selected
+- (desktop-web) focus the next room after a channel is deleted or left
+- (desktop-web) refocus the nick field after a failed profile save
+- (desktop-web) focus the composer when a dialog has no opener left
+
+### Documentation
+
+- (desktop-web) note that a removal from the drawer keeps focus there
+
+### Other
+
+- test: (desktop-web) align specs with the merged copy and hint rules
+- perf: (desktop-web) re-render only the jumped-to block on a message jump
+- perf: (desktop-web) stop holding first paint on the Pretendard CSS
+
 ## [2026-09-30] - No version updates
 
 ### Features
