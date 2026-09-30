@@ -43,6 +43,18 @@ describe('downloadImage', () => {
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:saved');
     });
 
+    // A document sent before the server kept names is saved as "file"; its bytes say what it is.
+    it('names a nameless document by its type too', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({ ok: true, blob: async () => new Blob(['x'], { type: 'application/pdf' }) }))
+        );
+
+        await downloadImage({ url: 'https://storage.example/o', name: 'file' });
+
+        expect(clicked).toEqual([{ href: 'blob:saved', download: 'file.pdf' }]);
+    });
+
     it('rejects without clicking anything when the remote image cannot be fetched', async () => {
         vi.stubGlobal(
             'fetch',
@@ -59,7 +71,10 @@ describe('downloadImage', () => {
 
         await downloadImage({ url: 'https://storage.example/o', name: 'image-1' });
 
-        expect(fetch).toHaveBeenCalledWith('https://storage.example/o', expect.objectContaining({ credentials: 'omit' }));
+        expect(fetch).toHaveBeenCalledWith(
+            'https://storage.example/o',
+            expect.objectContaining({ credentials: 'omit' })
+        );
     });
 
     it('fetches past the HTTP cache, where the tile or viewer left a copy the save cannot read', async () => {

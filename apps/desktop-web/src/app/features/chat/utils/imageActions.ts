@@ -1,3 +1,5 @@
+import { chatAttachmentExtension } from '@chatic/data';
+
 import { isSafeImageUrl, type ChatImage } from './chatImages';
 
 const clickSave = (href: string, name: string): void => {
@@ -10,16 +12,12 @@ const clickSave = (href: string, name: string): void => {
     anchor.remove();
 };
 
-const EXTENSIONS: Record<string, string> = {
-    'image/png': 'png',
-    'image/jpeg': 'jpg',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-};
-
-/** A sent image is named by its place in the message; give the saved file the extension its bytes have. */
+/**
+ * A sent image is named by its place in the message, and a document sent before the server kept
+ * names is "file"; give the saved file the extension its bytes have.
+ */
 const withExtension = (name: string, type: string): string => {
-    const extension = EXTENSIONS[type];
+    const extension = chatAttachmentExtension(type);
     return !extension || /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${extension}`;
 };
 

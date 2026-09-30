@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DomainChat } from '@chatic/data';
+
 import {
     MAX_ATTACHMENTS,
     attachmentKey,
     layoutImageGrid,
+    toChatFiles,
     toChatImages,
     validateAttachments,
     type ChatImage,
@@ -105,6 +108,71 @@ describe('layoutImageGrid', () => {
         const layout = layoutImageGrid(images);
         expect(layout.tiles.map(t => t.id)).toEqual(['i0', 'i1', 'i2', 'i3']);
         expect(layout.overflow).toBe(6);
+    });
+});
+
+describe('toChatImages and toChatFiles', () => {
+    const mixed = [
+        { id: 'up-1', status: 'stored', stereo: 'image', orgUrl: 'https://s/o1' },
+        {
+            id: 'up-2',
+            status: 'stored',
+            stereo: 'file',
+            name: 'report.pdf',
+            contentType: 'application/pdf',
+            contentSize: 2048,
+            orgUrl: 'https://s/o2',
+        },
+        { id: 'up-3', status: 'stored', stereo: 'video', name: 'clip.mp4', orgUrl: 'https://s/o3' },
+    ] as DomainChat['upload$$'];
+
+    // A PDF drawn by <img> is a broken tile; only images go to the grid and the viewer.
+    it('gives the grid only the images, and the rest to the file list', () => {
+        expect(toChatImages('row-1', mixed).map(image => image.id)).toEqual(['up-1']);
+        // Numbered among the images, so a photo after a document is still "image-1".
+        expect(toChatImages('row-1', [mixed![1], mixed![0]]).map(image => image.name)).toEqual(['image-1']);
+        expect(toChatFiles('row-1', mixed)).toEqual([
+            { id: 'up-2', kind: 'file', name: 'report.pdf', size: 2048, url: 'https://s/o2' },
+            { id: 'up-3', kind: 'video', name: 'clip.mp4', url: 'https://s/o3' },
+        ]);
+    });
+
+    it('shows a video or document being sent from the details its slot kept', () => {
+        const slots = [
+            {
+                localStatus: 'sending',
+                localThumbUrl: 'blob:1',
+                localName: 'a.hwp',
+                localContentType: 'application/x-hwp',
+                localSize: 10,
+            },
+            {
+                localStatus: 'failed',
+                localThumbUrl: 'blob:2',
+                localName: 'b.mp4',
+                localContentType: 'video/mp4',
+                localSize: 5,
+            },
+        ] as DomainChat['upload$$'];
+        expect(toChatImages('row-1', slots)).toEqual([]);
+        expect(toChatFiles('row-1', slots)).toEqual([
+            { id: 'row-1:0', kind: 'file', name: 'a.hwp', size: 10, url: '', isUploading: true, isFailed: false },
+            { id: 'row-1:1', kind: 'video', name: 'b.mp4', size: 5, url: '', isUploading: false, isFailed: true },
+        ]);
+    });
+
+    it('has nothing to load for a failed upload, one still on its way, or an unsafe address', () => {
+        expect(
+            toChatFiles('row-1', [
+                { id: 'a', status: 'failed', stereo: 'file' },
+                { id: 'b', status: 'stored', stereo: 'file' },
+                { id: 'c', status: 'stored', stereo: 'video', orgUrl: 'javascript:alert(1)' },
+            ] as DomainChat['upload$$'])
+        ).toEqual([
+            { id: 'a', kind: 'file', url: '', isFailed: true },
+            { id: 'b', kind: 'file', url: '', isUploading: true },
+            { id: 'c', kind: 'video', url: '', isFailed: true },
+        ]);
     });
 });
 

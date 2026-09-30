@@ -37,34 +37,108 @@ export const isUnsentImageMessage = (message: Pick<DomainChat, 'upload$$'>): boo
 export const isSendingImages = (message: Pick<DomainChat, 'upload$$'>): boolean =>
     !!message.upload$$?.some(slot => isPendingUploadSlot(slot) && slot.localStatus === 'sending');
 
+/** A video or document on a message: played in place or saved, never drawn as a tile. */
+export interface ChatFile {
+    id: string;
+    kind: 'video' | 'file';
+    /** The name to show and to save under. Absent on an upload sent before the server kept names. */
+    name?: string;
+    size?: number;
+    /** The signed original. Empty while sending, when failed, or when the address is not one to load. */
+    url: string;
+    isUploading?: boolean;
+    isFailed?: boolean;
+}
+
+type Slot = NonNullable<DomainChat['upload$$']>[number];
+
 /**
- * A message's images from its `upload$$`. The server keeps no file name (the tiles are a fixed size),
- * so each image is named by its place in the message.
+ * What a slot holds. A server upload says so in its `stereo`; a pending one by the type it kept, and a
+ * pending slot with none, or an upload with no `stereo`, is an image — every one was, before other
+ * kinds could be sent. `audio` is not sent from here, and is saved like a document.
+ */
+const slotKind = (slot: Slot): 'image' | 'video' | 'file' => {
+    if (isPendingUploadSlot(slot)) {
+        if (!slot.localContentType) return 'image';
+        const kind = chatAttachmentFormat({ name: slot.localName ?? '', type: slot.localContentType })?.kind;
+        return kind ?? 'file';
+    }
+    if (!slot.stereo || slot.stereo === 'image') return 'image';
+    return slot.stereo === 'video' ? 'video' : 'file';
+};
+
+/** Where a video or document may be loaded from: a signed storage address only. */
+const isSafeFileUrl = (url: string): boolean => url.startsWith('https://');
+
+/**
+ * A message's videos and documents from its `upload$$`, in order. The addresses are signed and
+ * short-lived: shown, never kept.
+ */
+export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): ChatFile[] =>
+    (slots ?? []).flatMap((slot, index): ChatFile[] => {
+        const kind = slotKind(slot);
+        if (kind === 'image') return [];
+        if (isPendingUploadSlot(slot)) {
+            return [
+                {
+                    id: `${messageId}:${index}`,
+                    kind,
+                    ...(slot.localName ? { name: slot.localName } : {}),
+                    ...(slot.localSize !== undefined ? { size: slot.localSize } : {}),
+                    url: '',
+                    isUploading: slot.localStatus === 'sending',
+                    isFailed: slot.localStatus === 'failed',
+                },
+            ];
+        }
+        const base = {
+            id: slot.id ?? `${messageId}:${index}`,
+            kind,
+            ...(slot.name ? { name: slot.name } : {}),
+            ...(slot.contentSize !== undefined ? { size: slot.contentSize } : {}),
+        };
+        if (slot.status === 'failed' || slot.error) return [{ ...base, url: '', isFailed: true }];
+        if (!slot.orgUrl) return [{ ...base, url: '', isUploading: true }];
+        if (!isSafeFileUrl(slot.orgUrl)) return [{ ...base, url: '', isFailed: true }];
+        return [{ ...base, url: slot.orgUrl }];
+    });
+
+/**
+ * A message's images from its `upload$$` — its videos and documents are `toChatFiles`'. Each image is
+ * named by its place in the message: the tiles are a fixed size and show no name of their own.
  *
  * A pending slot shows its local preview, spinning while it is sent. A server upload shows its
  * thumbnail and opens its original; one the server marks failed or reports with an error has nothing
  * to load, and one with no address yet (the read-back has not landed) is still on its way. The
  * addresses are signed and short-lived: shown, never kept.
  */
-export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): ChatImage[] =>
-    (slots ?? []).map((slot, index): ChatImage => {
-        const name = `image-${index + 1}`;
-        if (isPendingUploadSlot(slot)) {
-            return {
-                id: `${messageId}:${index}`,
-                name,
-                url: slot.localThumbUrl,
-                isUploading: slot.localStatus === 'sending',
-                isFailed: slot.localStatus === 'failed',
-            };
-        }
-        const id = slot.id ?? `${messageId}:${index}`;
-        if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
-        if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
-        if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };
-        const thumbUrl = slot.thumbUrl && isSafeImageUrl(slot.thumbUrl) ? slot.thumbUrl : undefined;
-        return { id, name, url: slot.orgUrl, ...(thumbUrl ? { thumbUrl } : {}) };
+export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): ChatImage[] => {
+    const images: ChatImage[] = [];
+    (slots ?? []).forEach((slot, index) => {
+        if (slotKind(slot) === 'image') images.push(toChatImage(messageId, slot, index, images.length + 1));
     });
+    return images;
+};
+
+/** `index` is the slot's place in `upload$$` (its id); `position` its place among the images (its name). */
+const toChatImage = (messageId: string, slot: Slot, index: number, position: number): ChatImage => {
+    const name = `image-${position}`;
+    if (isPendingUploadSlot(slot)) {
+        return {
+            id: `${messageId}:${index}`,
+            name,
+            url: slot.localThumbUrl,
+            isUploading: slot.localStatus === 'sending',
+            isFailed: slot.localStatus === 'failed',
+        };
+    }
+    const id = slot.id ?? `${messageId}:${index}`;
+    if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
+    if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
+    if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };
+    const thumbUrl = slot.thumbUrl && isSafeImageUrl(slot.thumbUrl) ? slot.thumbUrl : undefined;
+    return { id, name, url: slot.orgUrl, ...(thumbUrl ? { thumbUrl } : {}) };
+};
 
 /** The most images one message can carry (Figma "#max 10 images"). */
 export const MAX_ATTACHMENTS = 10;

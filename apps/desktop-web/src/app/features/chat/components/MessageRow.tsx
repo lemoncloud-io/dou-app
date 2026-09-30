@@ -54,7 +54,7 @@ import {
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
-import { MessageImages } from './images';
+import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
@@ -621,6 +621,8 @@ export const MessageRow = memo(
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
                                     )}
+                                    {/* Videos and documents under the images; the grid and viewer take images only. */}
+                                    {message.id && !message.hidden && !isEditing && <MessageFiles message={message} />}
                                     {/* `failure &&` first: an unsent message has no id, and
                                         `undefined === undefined` drew this line with no failure. */}
                                     {failure && failure.id === message.id && (
