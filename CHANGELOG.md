@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-09-30] - root@0.73.1, @chatic/desktop-web@0.16.2
+
+### Features
+
+- (desktop) check for shell updates every 30 minutes and on focus
+
+### Bug Fixes
+
+- (desktop-web) make the update banner readable
+- (desktop,desktop-web) keep "Later" on the update banner
+
 ## [2026-09-30] - root@0.73.0, @chatic/web@0.56.0
 
 ### Features
