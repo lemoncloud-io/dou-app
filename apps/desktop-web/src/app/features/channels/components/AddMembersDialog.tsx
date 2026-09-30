@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { avatarStyle, displayName, extractErrorMessage } from '../../../shared';
+import { avatarStyle, displayName, extractErrorMessage, focusComposerIfDropped } from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
 import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 
@@ -60,7 +60,13 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
 
     return (
         <Dialog open={open} onOpenChange={next => !isAdding && onOpenChange(next)}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
+            {/* The opener can leave the page while this is open — the intro's actions go once the
+                channel has messages, a menu item goes with its menu. */}
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="sm:max-w-md"
+                onCloseAutoFocus={focusComposerIfDropped}
+            >
                 <DialogTitle>{t('channels.addMembers.title')}</DialogTitle>
                 <DialogDescription>{t('channels.addMembers.description')}</DialogDescription>
                 <div className="flex flex-col gap-3 pt-2">

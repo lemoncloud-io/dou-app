@@ -8,6 +8,7 @@ import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { focusComposerIfDropped } from '../../../shared';
 import { hasSeenOnboarding, markOnboardingSeen, useOnboardingStore } from '../stores';
 
 interface OnboardingDialogProps {
@@ -76,7 +77,13 @@ export const OnboardingDialog = ({ enabled, showChannelStatus, isChannelReady }:
 
     return (
         <Dialog open={open} onOpenChange={isOpen => !isOpen && close()}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-sm">
+            {/* Opened from state, so there is no opener to go back to: the room's message box is
+                where the tips point next. */}
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="sm:max-w-sm"
+                onCloseAutoFocus={focusComposerIfDropped}
+            >
                 {step === 1 ? (
                     <>
                         {stepLabel}

@@ -5,7 +5,7 @@ import { Hash, PenLine, Settings, Star, StickyNote, UserPlus } from 'lucide-reac
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { avatarStyle } from '../../../shared';
+import { avatarStyle, focusComposer } from '../../../shared';
 
 interface ChannelIntroProps {
     kind: 'channel' | 'dm' | 'self';
@@ -30,8 +30,6 @@ const INTRO_ACTION =
     'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-caption font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
 /** The one filled action, and only on an empty channel: writing is what it is for. */
 const INTRO_PRIMARY = 'border-transparent bg-primary text-primary-foreground hover:bg-primary/90';
-
-const focusComposer = () => document.querySelector<HTMLElement>('[data-composer-input]')?.focus();
 
 /**
  * The top of a conversation once its whole history is loaded (Slack's "This is the very

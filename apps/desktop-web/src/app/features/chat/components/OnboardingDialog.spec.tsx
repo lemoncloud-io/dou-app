@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -39,6 +39,40 @@ describe('OnboardingDialog', () => {
 
         mount();
         expect(screen.queryByRole('dialog')).toBeNull();
+    });
+});
+
+// The dialog opens from state with nothing focused, so it has no opener to return to: closing it
+// dropped focus on <body> and the next Tab started from the top of the page.
+describe('OnboardingDialog focus on close', () => {
+    let composer: HTMLElement;
+    beforeEach(() => {
+        localStorage.clear();
+        useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
+        const main = document.createElement('main');
+        composer = document.createElement('div');
+        composer.setAttribute('data-composer-input', '');
+        composer.tabIndex = 0;
+        main.appendChild(composer);
+        document.body.appendChild(main);
+    });
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('hands focus to the room composer when closed with Escape', async () => {
+        mount();
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+        await waitFor(() => expect(document.activeElement).toBe(composer));
+    });
+
+    it('hands focus to the room composer when closed with Done', async () => {
+        mount();
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Start chatting' }));
+
+        await waitFor(() => expect(document.activeElement).toBe(composer));
     });
 });
 
