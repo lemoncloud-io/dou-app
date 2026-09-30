@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-09-30] - No version updates
+
+### Bug Fixes
+
+- (web-ui-kit) stop a bottom sheet from sliding in again on every tap
+
 ## [2026-09-29] - No version updates
 
 ### Features
