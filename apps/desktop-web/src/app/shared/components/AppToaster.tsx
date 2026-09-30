@@ -1,6 +1,5 @@
-import { useTranslation } from 'react-i18next';
-
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import {
@@ -77,7 +76,8 @@ export const AppToaster = () => {
             ))}
             {/* The gap lives in `top`, not in padding: the kit's `pt-safe-top` outranks any
                 `pt-*` passed here, and on desktop it resolves to 0. */}
-            <ToastViewport className="absolute top-3" />
+            {/* Radix names the region in English unless told; `{hotkey}` is its own placeholder. */}
+            <ToastViewport className="absolute top-3" label={t('common.toastRegion')} />
         </ToastProvider>
     );
 };

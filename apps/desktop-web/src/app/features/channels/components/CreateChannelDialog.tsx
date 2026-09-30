@@ -4,13 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogTitle,
-    DialogFooter,
-} from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
 
 import { MobileAppPointer, useDesktopChannelMutations } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
@@ -81,9 +75,11 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
+            {/* No description: the title and the field's own label and hint say it all, and a
+                hidden copy of the title made a screen reader read it twice. `undefined` is
+                Radix's opt-out from its missing-description warning. */}
+            <DialogContent closeLabel={t('common.close')} aria-describedby={undefined} className="sm:max-w-md">
                 <DialogTitle>{t('channels.create.title')}</DialogTitle>
-                <DialogDescription className="sr-only">{t('channels.create.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
                     <ChannelNameField
                         id="channel-name"

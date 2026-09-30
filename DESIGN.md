@@ -344,7 +344,9 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 - **Focus**: `.focus-ring` on every interactive element — a 2px background gap then a
   ring in `--focus-ring` (the ink lime in light mode, the fill lime in dark: 3:1 or more
   on the pane), visible only on `:focus-visible`. Every focus indicator uses it; the
-  token pairs are checked by `apps/desktop-web/src/tokenContrast.spec.ts`.
+  token pairs are checked by `apps/desktop-web/src/tokenContrast.spec.ts`. `libs/ui-kit`'s
+  Button, Switch and dialog close button draw the same geometry (`ring-2` behind a 2px
+  `ring-offset-background` gap) from `--ring`, which points at `--focus-ring`.
 - **Press**: `.tactile` scales to 0.97 over 140ms with `ease-tactile`
   (`cubic-bezier(0.16, 1, 0.3, 1)`). Transform only, no layout.
 - **Transitions**: colour changes use `transition-colors ease-tactile`. Panels animate

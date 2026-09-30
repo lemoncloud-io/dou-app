@@ -63,7 +63,10 @@ export const PlaceLimitDialog = ({
                 quietly opt this dialog out of it. The close button is repositioned to the design's
                 12px inset — it comes baked into DialogContent, so it is reached through the child
                 selector. */}
-            <DialogContent className="gap-0 overflow-hidden rounded-[12px] border-0 bg-surface p-0 pt-[40px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] [&>button]:right-3 [&>button]:top-3 sm:rounded-[12px]">
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="gap-0 overflow-hidden rounded-[12px] border-0 bg-surface p-0 pt-[40px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] [&>button]:right-3 [&>button]:top-3 sm:rounded-[12px]"
+            >
                 <div className="flex w-full flex-col gap-[22px]">
                     <div className="flex flex-col gap-2 px-[27.5px] text-center">
                         <DialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">

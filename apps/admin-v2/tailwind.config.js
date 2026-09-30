@@ -57,6 +57,8 @@ module.exports = {
                 // The Switch's off track. Mapped onto the console's existing `--input` so its
                 // switches look as they did before the kit named the token.
                 'control-border': 'hsl(var(--input))',
+                // The scrim behind ui-kit's dialogs and sheets.
+                overlay: 'hsl(var(--overlay))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

@@ -389,6 +389,7 @@ export const en = {
     'shell.skip.sidebar': 'Skip to channels',
     'common.cancel': 'Cancel',
     'common.close': 'Close',
+    'common.toastRegion': 'Notifications ({hotkey})',
     'common.confirm': 'Confirm',
     'common.back': 'Back',
     'error.boundary.title': 'Something broke',

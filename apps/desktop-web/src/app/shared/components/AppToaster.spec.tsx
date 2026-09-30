@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toast, useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import '../../../i18n';
+import i18n from '../../../i18n';
 import { AppToaster } from './AppToaster';
 
 const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
@@ -48,5 +48,17 @@ describe('AppToaster', () => {
 
         expect(screen.getByText('First failure')).toBeTruthy();
         expect(screen.getByText('Second failure')).toBeTruthy();
+    });
+});
+
+describe('AppToaster region', () => {
+    afterEach(() => void i18n.changeLanguage('en'));
+
+    it('names the toast region in the app language, with the hotkey filled in', async () => {
+        await i18n.changeLanguage('ko');
+        render(<AppToaster />);
+
+        // Radix names the region "Notifications (F8)" unless it is given a label.
+        expect(screen.getByRole('region', { name: '알림 (F8)' })).toBeTruthy();
     });
 });

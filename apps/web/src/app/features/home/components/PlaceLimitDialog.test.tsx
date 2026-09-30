@@ -87,7 +87,7 @@ describe('PlaceLimitDialog', () => {
     it('X로 닫으면 열림 상태를 내려준다', () => {
         const { onOpenChange } = renderDialog();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+        fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
 
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });

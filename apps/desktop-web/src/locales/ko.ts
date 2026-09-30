@@ -391,6 +391,7 @@ export const ko: EnTranslation = {
     'shell.skip.sidebar': '채널 목록으로 건너뛰기',
     'common.cancel': '취소',
     'common.close': '닫기',
+    'common.toastRegion': '알림 ({hotkey})',
     'common.confirm': '확인',
     'common.back': '뒤로',
     'error.boundary.title': '문제가 생겼어요',

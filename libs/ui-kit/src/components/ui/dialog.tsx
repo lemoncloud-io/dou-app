@@ -22,7 +22,9 @@ const DialogOverlay = React.forwardRef<
     <DialogPrimitive.Overlay
         ref={ref}
         className={cn(
-            'fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            // The host's scrim token, not a literal black: an app that tints its scrim (or keeps
+            // it black) says so once in its stylesheet, and every kit overlay follows.
+            'fixed inset-0 z-50 bg-overlay/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             className
         )}
         {...props}
@@ -78,27 +80,29 @@ const dialogVariants = {
     'slide-up': `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full data-[state=open]:fade-in-100 data-[state=closed]:fade-out-100 data-[state=open]:duration-500 data-[state=closed]:duration-300 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]`,
 };
 
+/**
+ * The built-in close button's accessible name is required whenever the button renders. It is
+ * the one string these primitives write themselves, and an English default meant a caller that
+ * forgot it shipped the one English word a Korean screen reader still read out — the compiler
+ * now asks instead. A caller that hides the button owes no label.
+ */
+export type CloseButtonProps = { hideClose: true; closeLabel?: string } | { hideClose?: false; closeLabel: string };
+
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
-    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
-        hideClose?: boolean;
-        /**
-         * Accessible name for the built-in close button. It is the one string this
-         * primitive writes itself, so in a localized app it was the one English
-         * word a Korean screen reader still read out. Hosts pass their own.
-         */
-        closeLabel?: string;
-        variant?: keyof typeof dialogVariants;
-        /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
-        overlayClassName?: string;
-    }
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> &
+        CloseButtonProps & {
+            variant?: keyof typeof dialogVariants;
+            /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
+            overlayClassName?: string;
+        }
 >(
     (
         {
             className,
             children,
             hideClose,
-            closeLabel = 'Close',
+            closeLabel,
             variant = 'default',
             overlayClassName,
             onCloseAutoFocus,
