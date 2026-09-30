@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-09-30] - No version updates
+
+### Features
+
+- (web/home) swipe a room row to pin, mute, leave or delete; feel the pull and swipe
+- (app-messages,mobile,web) play haptics in the shell on the web's request (ADR-0146)
+- (web-ui-kit) add SwipeActionRow, and let the pull indicator arm at the threshold
+
+### Bug Fixes
+
+- (mobile) ask iOS for the upload progress UI only once a transfer runs 3s (ADR-0145)
+
 ## [2026-09-30] - root@0.76.0, @chatic/desktop-web@0.18.0
 
 ### Features
