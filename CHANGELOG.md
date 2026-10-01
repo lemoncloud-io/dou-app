@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-01] - root@0.79.0, @chatic/web@0.60.0
+
+### Features
+
+- (scripts) let the test push tool send any body loc key, not only the text one
+- (web) preview an attachment-only chat by its kind, not always as a photo
+- (mobile) push an attachment-only chat as what it carries, not {0} (ADR-0151)
+
 ## [2026-10-01] - root@0.78.1, @chatic/desktop-web@0.19.1
 
 ### Bug Fixes
