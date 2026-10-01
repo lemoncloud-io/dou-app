@@ -1,6 +1,7 @@
 # ADR-0146: Haptics are played by the shell, on a web request named by feel
 
-> Status: Accepted · Decided: 2026-09-30
+> Status: Accepted (the "tick per gesture" consequence is amended for home's pull, which plays a run
+> of ticks → [ADR-0157](./0157-a-home-pull-fills-a-ticking-gauge-and-refreshes-on-the-fill.md)) · Decided: 2026-09-30
 > · Scope: `libs/app-messages/src/types/model/haptic.ts` · `apps/web/src/app/bridge/haptics.ts` ·
 > `apps/mobile/src/app/bridge/HapticBridge.ts` · `apps/mobile/ios/Bridges/HapticModule.m` ·
 > `apps/mobile/android/.../module/HapticModule.kt`

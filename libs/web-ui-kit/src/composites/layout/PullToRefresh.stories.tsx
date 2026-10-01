@@ -24,6 +24,9 @@ export const Default: Story = {
     render: () => (
         <PullToRefresh
             onRefresh={() => wait(1500)}
+            // No haptics in a browser; the console shows where the host would play them.
+            onTick={() => console.info('tick')}
+            onFill={() => console.info('fill')}
             refreshingLabel="새로고침 중"
             className="min-h-0 flex-1 overflow-y-auto"
             contentClassName="flex flex-col"

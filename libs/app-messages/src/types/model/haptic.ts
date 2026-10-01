@@ -2,7 +2,7 @@
  * The feel of a haptic, not the gesture that asks for it — each shell maps these onto its own
  * platform's feedback so the web never names an OS constant.
  * - `selection` — the lightest tick, for a control snapping to a new position.
- * - `impact` — a short, firmer tap, for a threshold that commits an action on release.
+ * - `impact` — a short, firmer tap, for a threshold that commits an action.
  */
 export type HapticKind = 'selection' | 'impact';
 
