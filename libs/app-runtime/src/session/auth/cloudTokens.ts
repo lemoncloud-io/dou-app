@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { getRepositories } from '../../data/runtime';
 import { cloudStore } from '../store/stores';
+import { msUntilExpiration } from '../store/expiry';
 import { rebuildSessionIdentity, sessionSignal } from '../store';
 import { recordCloudIdentity } from './cloudIdentity';
 import type { IAuthRepository } from '@chatic/data';
@@ -31,6 +32,43 @@ export interface IssuedCloudTokens {
     delegationToken: CloudDelegationTokenView;
     cloudToken: UserTokenView;
 }
+
+/** What an invite login answered with, and where the invited cloud lives. */
+export interface InviteLoginEntry {
+    /** The invite login's answer: the invitee's own cloud token, from the cloud backend itself. */
+    cloudToken: UserTokenView;
+    /** The cloud's REST endpoint — the one the invite login was sent to. */
+    backend?: string;
+    /** The cloud's socket endpoint, from the invite. */
+    wss?: string;
+}
+
+/**
+ * The tokens an invite login answered with, in the shape a switch commits. Null when the answer
+ * cannot be entered with — no identity token, or no endpoint to reach the cloud at — and the caller
+ * falls back to an ordinary, `delegate-cloud`-issued entry.
+ *
+ * The delegation half is assembled, not issued: nothing here went through `delegate-cloud`, so there
+ * is no delegation JWT to keep. What the session reads off that half is the cloud id (it is how the
+ * committed cloud is told) and the two endpoints, and those are the invite's own. A later renewal
+ * re-issues both halves through `delegate-cloud` as usual.
+ */
+export const tokensFromInviteLogin = (cloudId: string, entry: InviteLoginEntry): IssuedCloudTokens | null => {
+    const { cloudToken, backend, wss } = entry;
+    if (!cloudId || !cloudToken?.Token?.identityToken || !backend || !wss) return null;
+    const now = Date.now();
+    const remaining = msUntilExpiration(cloudToken.Token.credential?.Expiration, now);
+    return {
+        delegationToken: {
+            delegationToken: '',
+            cloudId,
+            backend,
+            wss,
+            expiredAt: remaining == null ? 0 : now + remaining,
+        },
+        cloudToken,
+    };
+};
 
 /** One exchange per cloud at a time — see `issueCloudTokens`. */
 const exchangesInFlight = new Map<string, Promise<IssuedCloudTokens>>();

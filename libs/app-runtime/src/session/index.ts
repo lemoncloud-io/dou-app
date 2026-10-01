@@ -42,6 +42,8 @@ export type {
 
 // --- auth use-cases (non-React) -----------------------------------------------------------------
 export type { LogoutOptions } from './auth/relaySession';
+// The invite login answer `useSwitchCloudSession().switchCloud` can enter a cloud with.
+export type { InviteLoginEntry } from './auth/cloudTokens';
 // Only these two. The other use-cases reach apps through their hooks (`useLogin` ·
 // `useLoginRelaySocial` · `useSwitchCloudSession` · `useRelaySessionInit`), and Decision 6's rule is
 // "the barrel sells what apps import" — so the raw functions stay internal. OAuth exchange and the

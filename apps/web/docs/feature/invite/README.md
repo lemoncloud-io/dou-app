@@ -25,16 +25,16 @@ what both obey.
   three-tier hunt for the room the accept creates.
 - The place invite: the room invite's contact invite with no room, at `/invite/place/:placeId`, and
   the accept screen's `place` target kind.
+- The cloud acceptance pipeline: the invite login, entering the cloud with its answer, caching the
+  cloud and who accepted it, and the place and room entry after it.
 
 **Out**
 
 - **Group-room "add a friend"**, which uses a different packet (`user.invite`) and is bound to a
   channel — [channels](../channels/README.md).
-- **The cloud invitation lane**, apart from the place invite's page and target card.
-  `/invite/accept` routes it, but the REST accept pipeline behind
-  `CloudInviteAccept` — login with the code, then enter cloud, site and channel — is documented
-  with the rest of session entry in [auth](../auth/README.md). How it leaves the accept screen is
-  shared by both lanes and is below.
+- **Issuing a cloud invitation**, apart from the place invite's page and target card. Accepting
+  one is in scope — `/invite/accept` routes it to `CloudInviteAccept`, and its pipeline is
+  [below](#accepting-a-cloud-invite).
 - **Phone verification and country-aware number input.** The issue form and the accept flow both
   mount screens they do not own — [auth](../auth/README.md).
 - **The 1:1 room itself**, including the "they left" footer that starts a re-invite —
@@ -94,6 +94,51 @@ The sender's screens are ordinary private routes: the issue form (`/invite/conta
 state also puts into re-invite mode), the waiting screen (`/invite/:inviteId/waiting`), and the place
 invite with its link screen (`/invite/place/:placeId`, `…/link`).
 
+## Accepting a cloud invite
+
+`useInviteAccept` runs one pipeline, in order: log in with the code (`runtime.session.useInviteFlow`),
+enter the cloud, cache it, enter the place, leave for the room. Each step no-ops when the invite
+carries no id for it, and a failure is named by the step it happened in.
+
+**An invited cloud is entered per device, whatever the relay user is.** The invite login sends the
+`delegatorId` — the device user registered on first launch, which a sign-in does not replace — and
+answers with **the invitee's own cloud token**. That answer is what the cloud is entered with
+(`switchCloud(cloudId, { inviteLogin })`), so a guest and an account the guest has since signed in to
+land on the same invitee. Re-issuing through `delegate-cloud` cannot stand in for it, and until
+2026-10 it did. That call answers for the relay user as it is now, and two server rules, measured
+against production, made that the wrong user:
+
+- after a sign-in the relay user is the account, not the device user the invite was bound to;
+- `delegate-cloud` into a cloud the relay user has never been in does not fail — it mints an **empty
+  user**, a member of nothing, and the invite login cannot attach its member to a relay user that
+  already has one.
+
+Either way the session entered the cloud as a user with no rooms, and every room it was invited to
+answered `403 not a member of channel`. What the pipeline keeps around that entry:
+
+- **Entered before it is cached.** Caching lists the cloud, and the background sockets prepare a
+  socket for every listed cloud by re-issuing it. A committed cloud is left out of that list, so
+  nothing re-issues it under the entry.
+- **An invite into the cloud already selected is still entered** — the user the session holds there
+  may not be the invitee. The answer replaces that cloud's token rather than merging into it, and a
+  background socket already up for the cloud is re-registered with it.
+- **Who accepted is written on the cached cloud** as `acceptedBy`, the `delegatorId` of every device
+  user that accepted it here, and **`useInvitedClouds` leaves out a row other device users
+  accepted.** The cloud cache is one partition per device, not per user — each web tab starts its
+  own device user — and a listed cloud is one the background sockets delegate into, minting the empty
+  user above. A row with no `acceptedBy` was written before the field existed; it cannot be
+  attributed and is kept, because invited clouds have no server list to refill from.
+- **An answer that cannot be entered with** (no identity token, no endpoint) falls back to the
+  ordinary re-issued switch. That one is relay-signed, and an app opened cold by the invite link has a
+  stale relay credential for its first seconds, so a switch that gets no HTTP answer is retried
+  three times over seven seconds.
+- **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight, so a
+  second press cannot start a second pipeline.
+
+`cloudInviteAccept.integration.test.tsx` runs this pipeline through the real hooks against a fake
+server that follows the rules above: a fresh device user, a signed-in one, one whose background
+socket delegated first, another device user's cached cloud, and the cold-start fallback.
+
 ## Leaving the accept screen, and opening the room
 
 **Both lanes leave the accept screen the same way**, whatever the outcome: by the stack's deeplink
@@ -141,7 +186,7 @@ then a full page load, which would take an in-memory id with it.
 
 ## Where the backend still has gaps
 
-Both lanes are shaped around the same two absences, so they are stated once here:
+The lanes are shaped around these absences, so they are stated once here:
 
 - **No notification reaches the inviter** when an invite is accepted, rejected or canceled. The
   sender learns by re-asking `invite.list` — a background cadence on home, thirty seconds on the
@@ -150,6 +195,13 @@ Both lanes are shaped around the same two absences, so they are stated once here
   the field is filled is a backend question. Both lanes therefore degrade instead of assuming: the
   recipient's three-tier resolver and the sender's `useAcceptedChannelSync` both end in "the room is
   on its way, check home" rather than an error.
+- **A cloud token renewal answers for the relay user, not the invitee.** The credential guard
+  renews a lapsing cloud token by re-issuing it through `delegate-cloud`, which — as above — answers
+  for the relay user as it is now. For an invited cloud entered by a signed-in device that is the
+  account, which the server refuses (`has no permission on cloud`). The relay session's identity
+  token is meant to name the device user it started from (`did`), and after a sign-in it is empty.
+  Until a renewal can name the device user, an invited cloud entered after a sign-in lasts as long
+  as the invite login's credential or the cloud socket's own refresh keeps it.
 
 A third limit is structural rather than missing work: `invite.list` is asked with `limit: 100` and
 `InviteListInput` has no cursor, so there is no real paging. An invite outside that window is

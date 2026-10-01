@@ -207,6 +207,13 @@ nothing to restore it from. Two functions defend it, both best-effort and both i
 - `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list.
 - `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it.
 
+A row may carry `acceptedBy`, the device users that accepted the cloud on this device, which apps/web
+reads to keep one device user's invited cloud out of another's list
+([apps/web invite](../../../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)). A
+row this module rebuilds carries none, so it is listed like a row written before the field existed —
+for every device user, including one the cloud was never granted to, whose background socket then
+delegates into it.
+
 The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, the
 OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the
 single-source rule, which is itself deliberate — a second parallel registry diverges, and then two
