@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-10-01] - root@0.78.0, @chatic/web@0.59.0, @chatic/landing@0.5.3, @chatic/desktop-web@0.19.0
+
+### Features
+
+- (web) list the notes-to-self room with the cloud 1:1s
+- (desktop-web) open sent PDFs and text files in an in-app viewer
+- (desktop-web) name a sent image by the name the server kept
+- (desktop-web) play videos and show documents in the feed
+- (desktop-web,data) attach videos and documents in the composer
+- (app-runtime,data) send a video or document as its original alone
+- (data) know the twelve formats the server takes for a chat upload
+- (desktop-web,data) name the attachment kind in previews and pushes
+
+### Bug Fixes
+
+- (data) give a large upload time in proportion to its size
+- (data,desktop-web) read an upload slot's kind from one rule
+
+### Documentation
+
+- (adr) record ADR-0149, desktop draws PDFs with pdf.js
+- record how desktop sends videos and documents (ADR-0148)
+- (adr) record ADR-0147, desktop names the attachment kind
+
+### Other
+
+- build: (deps) take chatic-socials-api 0.26.903 and lemon-model 1.5.1
+
 ## [2026-09-30] - root@0.77.0, @chatic/web@0.58.0
 
 ### Features
