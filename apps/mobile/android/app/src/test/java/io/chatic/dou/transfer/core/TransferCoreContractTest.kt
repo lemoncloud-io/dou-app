@@ -12,9 +12,9 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * The cases both platforms must pass (U1–U24). The iOS suite carries the same numbers, so a number
+ * The cases both platforms must pass (U1–U25). The iOS suite carries the same numbers, so a number
  * missing on either side means the platforms no longer promise the same behaviour. U19–U22 pin the
- * download-folder rules in [DownloadFiles].
+ * download-folder rules in [DownloadFiles], U25 the upload-source rule in [UploadSources].
  */
 class TransferCoreContractTest {
 
@@ -472,6 +472,52 @@ class TransferCoreContractTest {
             TransferRules.downloadHeaders(headers).toList(),
         )
         assertTrue(TransferRules.requestHeaders(emptyMap(), "image/png").keys.none { it.equals("accept-encoding", true) })
+    }
+
+    @Test
+    fun U25_uploadSource_onlyTheShellsOwnFolders_neverContentUris() {
+        val cache = File(temp.root, "cache").apply { mkdirs() }
+        val attachPick = File(cache, "attach-pick").apply { mkdirs() }
+        val tempFolder = File(cache, UploadSources.TEMP_FOLDER).apply { mkdirs() }
+        val roots = listOf(attachPick, tempFolder)
+        val picked = File(attachPick, "uuid/clip one.mp4").apply { parentFile!!.mkdirs(); writeBytes(PNG) }
+        val written = File(tempFolder, "abc-photo.jpg").apply { writeBytes(PNG) }
+        val download = File(cache, "${DownloadFiles.FOLDER}/x/photo.png").apply { parentFile!!.mkdirs(); writeBytes(PNG) }
+        val database = File(temp.root, "databases/app.db").apply { parentFile!!.mkdirs(); writeText("secret") }
+        val link = File(attachPick, "uuid/link.mp4").also { Files.createSymbolicLink(it.toPath(), database.toPath()) }
+        fun uri(path: String) = "file://$path"
+
+        val accepted = listOf(
+            uri(picked.path).replace(" ", "%20"),
+            uri(written.path),
+            written.path,
+            "FILE://${written.path}",
+            uri("${attachPick.path}/uuid/gone.mp4"),
+        )
+        for (value in accepted) {
+            assertTrue(value, UploadSources.isAllowed(value, roots))
+        }
+
+        val refused = mapOf(
+            "content URI" to "content://media/picker/0/com.android.providers.media.photopicker/media/1000000123",
+            "document URI" to "content://com.android.providers.downloads.documents/document/42",
+            "the download folder" to uri(download.path),
+            "the database" to uri(database.path),
+            "dot-dot escape" to uri("${attachPick.path}/uuid/../../../databases/app.db"),
+            "symbolic link escape" to uri(link.path),
+            "a sibling with the same prefix" to uri("${cache.path}/attach-pick-other/a.mp4"),
+            "the folder itself" to uri(attachPick.path),
+            "file URI with a host" to "file://evil${picked.path}",
+            "relative path" to "attach-pick/uuid/clip.mp4",
+            "https" to "https://bucket.example.com/a.mp4",
+            "a NUL" to uri("${attachPick.path}/uuid/a%00b.mp4"),
+            "blank" to " ",
+        )
+        for ((case, value) in refused) {
+            assertFalse(case, UploadSources.isAllowed(value, roots))
+        }
+        assertFalse("null", UploadSources.isAllowed(null, roots))
+        assertFalse("no roots", UploadSources.isAllowed(uri(written.path), emptyList()))
     }
 
     private companion object {

@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import io.chatic.dou.file.TempFileName
+import io.chatic.dou.transfer.core.UploadSources
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
@@ -23,7 +24,9 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
 
     override fun getConstants(): Map<String, Any>? {
         return mapOf(
-            "DocumentDirectoryPath" to reactApplicationContext.filesDir.absolutePath
+            "DocumentDirectoryPath" to reactApplicationContext.filesDir.absolutePath,
+            // The folder an upload may read a `WriteTempFile` file from; the debug screen's dummy files go here too.
+            "TransferTempPath" to File(reactApplicationContext.cacheDir, UploadSources.TEMP_FOLDER).absolutePath
         )
     }
 
@@ -202,7 +205,7 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
         thread {
             try {
                 val bytes = Base64.decode(base64, Base64.DEFAULT)
-                val dir = File(reactApplicationContext.cacheDir, "transfer-temp")
+                val dir = File(reactApplicationContext.cacheDir, UploadSources.TEMP_FOLDER)
                 if (!dir.isDirectory && !dir.mkdirs()) throw IllegalStateException("cannot create the temp directory")
                 val file = File(dir, "${UUID.randomUUID()}-${TempFileName.safe(fileName)}")
                 FileOutputStream(file).use { it.write(bytes) }
@@ -223,6 +226,7 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
             if (file.exists()) {
                 file.delete()
             }
+            file.parentFile?.mkdirs()
             RandomAccessFile(file, "rw").use { raf ->
                 raf.setLength(sizeInBytes.toLong())
             }
