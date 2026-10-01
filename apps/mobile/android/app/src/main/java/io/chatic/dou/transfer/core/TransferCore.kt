@@ -31,7 +31,8 @@ class TransferCore(
     private class Entry(
         val transferId: String,
         val direction: TransferDirection,
-        val totalBytes: Long,
+        /** Known at start for an upload; a download learns it from the response ([expectLength]). */
+        var totalBytes: Long,
         val title: String?,
     ) {
         var state: TransferState = TransferState.RUNNING
@@ -40,6 +41,7 @@ class TransferCore(
         var providerCode: String? = null
         var errorCode: TransferErrorCode? = null
         var errorMessage: String? = null
+        var file: DownloadedFile? = null
         var lastEmittedAt: Long = 0
         var lastProgressAt: Long? = null
 
@@ -56,6 +58,7 @@ class TransferCore(
             providerCode = providerCode,
             errorCode = errorCode,
             errorMessage = errorMessage,
+            file = file,
         )
     }
 
@@ -86,15 +89,25 @@ class TransferCore(
         if (entries.containsKey(transferId)) throw invalid("transferId is already in use")
         val direction = TransferDirection.fromWire(request.direction)
             ?: throw invalid("direction must be upload or download")
-        // Download is part of the contract so its names never have to change, but it is not built
-        // yet. Refusing it keeps a caller from getting a silent upload in its place.
-        if (direction == TransferDirection.DOWNLOAD) throw invalid("download is not supported yet")
-        if (request.method != "PUT") throw invalid("upload requires method PUT")
-        if (!TransferRules.isTransferUrl(request.url)) throw invalid("url must be an absolute http or https URL")
-        if (request.fileUri.isNullOrBlank()) throw invalid("file.uri is required")
-        val length = request.contentLength
-        if (length == null || !length.isFinite() || length < 0 || length != Math.floor(length)) {
-            throw invalid("upload requires a whole, non-negative file.contentLength")
+        val totalBytes = when (direction) {
+            TransferDirection.UPLOAD -> {
+                if (request.method != "PUT") throw invalid("upload requires method PUT")
+                if (!TransferRules.isTransferUrl(request.url)) throw invalid("url must be an absolute http or https URL")
+                if (request.fileUri.isNullOrBlank()) throw invalid("file.uri is required")
+                val length = request.contentLength
+                if (length == null || !length.isFinite() || length < 0 || length != Math.floor(length)) {
+                    throw invalid("upload requires a whole, non-negative file.contentLength")
+                }
+                length.toLong()
+            }
+            TransferDirection.DOWNLOAD -> {
+                if (request.method != "GET") throw invalid("download requires method GET")
+                if (!TransferRules.isTransferUrl(request.url)) throw invalid("url must be an absolute http or https URL")
+                // The shell picks where a download goes. A caller able to name the path could
+                // overwrite the app's own files, and the page asking is loaded from the network.
+                if (!request.fileUri.isNullOrBlank()) throw invalid("download takes no file.uri; the shell chooses the file")
+                0L
+            }
         }
 
         val now = clock()
@@ -103,7 +116,7 @@ class TransferCore(
             batchStartedAt = now
             batchSequence++
         }
-        val entry = Entry(transferId, direction, length.toLong(), request.title?.takeIf { it.isNotBlank() })
+        val entry = Entry(transferId, direction, totalBytes, request.title?.takeIf { it.isNotBlank() })
         entry.lastEmittedAt = now
         entries[transferId] = entry
         batch.add(entry)
@@ -130,13 +143,28 @@ class TransferCore(
     }
 
     /**
+     * A download's response headers arrived: [contentLength] (-1 when absent, as chunked replies
+     * have none) becomes its progress denominator, 0 meaning unknown. Nothing is emitted; the next
+     * event carries it. Ignored for an upload, whose length was declared at start.
+     */
+    fun expectLength(transferId: String, contentLength: Long) {
+        val entry = runningEntry(transferId)?.takeIf { it.direction == TransferDirection.DOWNLOAD } ?: return
+        entry.totalBytes = DownloadFiles.totalBytes(contentLength)
+    }
+
+    /**
      * The server answered. Any status is `responded` — whether 403 or 412 is a failure is decided
      * above the shell, which knows the storage contract. Returns null for an unknown or ended id.
+     *
+     * [file] is the download's committed file. It is kept only for a download answered with a 2xx
+     * ([DownloadFiles.keepsBody]); the OS layer writes no file otherwise, and this holds the line
+     * even if it did.
      */
-    fun response(transferId: String, httpStatus: Int, body: String?): TransferSnapshot? {
+    fun response(transferId: String, httpStatus: Int, body: String?, file: DownloadedFile? = null): TransferSnapshot? {
         val entry = runningEntry(transferId) ?: return null
         entry.httpStatus = httpStatus
         entry.providerCode = if (httpStatus >= 300) TransferRules.parseProviderCode(body) else null
+        entry.file = file?.takeIf { entry.direction == TransferDirection.DOWNLOAD && DownloadFiles.keepsBody(httpStatus) }
         return settle(entry, TransferState.RESPONDED)
     }
 
@@ -179,10 +207,11 @@ class TransferCore(
 
     /**
      * The system's continued-processing task expired. It is treated as a cancellation because the
-     * OS does not say whether the user or the system ended it.
+     * OS does not say whether the user or the system ended it. Only uploads are cancelled: a download
+     * never joins that task, so its expiry says nothing about one.
      */
     fun continuedTaskExpired(): List<TransferSnapshot> =
-        runningEntries().map { settle(it, TransferState.CANCELLED) }
+        runningEntries().filter { joinsSystemProgress(it.direction) }.map { settle(it, TransferState.CANCELLED) }
 
     /** Drops the acknowledged terminal entries. Running and unknown ids are ignored. */
     fun ack(transferIds: Collection<String>): Int {
@@ -202,17 +231,32 @@ class TransferCore(
 
     fun hasRunning(): Boolean = entries.values.any { it.state == TransferState.RUNNING }
 
+    /** Ids of the running downloads, whose folders the sweep must leave alone. */
+    fun runningDownloads(): List<String> =
+        runningEntries().filter { it.direction == TransferDirection.DOWNLOAD }.map { it.transferId }
+
+    /**
+     * Whether the system progress UI (the iOS continued-processing task) should start: only while an
+     * upload runs. A download is a few seconds the user waits through on screen, where the page shows
+     * its progress; a system progress bar for it would be noise.
+     */
+    fun shouldStartContinuedTask(): Boolean = runningEntries().any { joinsSystemProgress(it.direction) }
+
     /**
      * The batch as the notification shows it. The ratio is byte-weighted — a settled member counts
      * as its full total — never an average of per-file ratios, which would read 90 % for nine tiny
      * finished files next to one large untouched one.
      */
     fun batchStatus(): BatchStatus {
-        val ratio = if (batch.isEmpty() || batch.any { it.totalBytes == 0L }) {
+        // The percentage follows the uploads whenever the batch has any. A download learns its
+        // length only from a 2xx reply, so one that ended otherwise — or a chunked one — stays at an
+        // unknown total and would hold an upload's bar indeterminate until the batch ends.
+        val measured = batch.filter { joinsSystemProgress(it.direction) }.ifEmpty { batch }
+        val ratio = if (measured.isEmpty() || measured.any { it.totalBytes == 0L }) {
             null
         } else {
-            val total = batch.sumOf { it.totalBytes }.toDouble()
-            val counted = batch.sumOf { if (it.state.isTerminal) it.totalBytes else it.transferredBytes }
+            val total = measured.sumOf { it.totalBytes }.toDouble()
+            val counted = measured.sumOf { if (it.state.isTerminal) it.totalBytes else it.transferredBytes }
             counted / total
         }
         return BatchStatus(
@@ -223,6 +267,8 @@ class TransferCore(
                 .map { RunningTransfer(it.transferId, it.direction, it.title) },
             failed = batch.count { it.state == TransferState.FAILED },
             ratio = ratio,
+            uploads = batch.count { it.direction == TransferDirection.UPLOAD },
+            failedUploads = batch.count { it.direction == TransferDirection.UPLOAD && it.state == TransferState.FAILED },
         )
     }
 
@@ -231,13 +277,16 @@ class TransferCore(
      * [STALL_TIMEOUT_MS]. It never cancels a transfer — the transfer keeps going without the UI.
      */
     fun shouldCloseContinuedTask(now: Long = clock()): Boolean {
-        if (!hasRunning()) return false
-        val lastActivity = batch.mapNotNull { it.lastProgressAt }.maxOrNull()
+        if (!shouldStartContinuedTask()) return false
+        val lastActivity = batch.filter { joinsSystemProgress(it.direction) }.mapNotNull { it.lastProgressAt }.maxOrNull()
             ?.let { maxOf(it, batchStartedAt) } ?: batchStartedAt
         return now - lastActivity >= STALL_TIMEOUT_MS
     }
 
     // ---- Internals ------------------------------------------------------------------------------
+
+    /** The system surfaces that stand in for the page — the iOS progress task, failure notices — cover uploads only. */
+    private fun joinsSystemProgress(direction: TransferDirection) = direction == TransferDirection.UPLOAD
 
     private fun runningEntry(transferId: String): Entry? =
         entries[transferId]?.takeIf { it.state == TransferState.RUNNING }

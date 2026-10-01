@@ -93,9 +93,96 @@ describe('upload-test-server', () => {
         expect(res.body).toContain('<Code>NoSuchKey</Code>');
     });
 
-    it('rejects methods other than PUT on scenario paths', async () => {
+    it('rejects methods other than PUT and GET on scenario paths', async () => {
         const res = await send('POST', '/s3/ok', bytes(5));
         expect(res.status).toBe(405);
+    });
+});
+
+/** A GET; resolves with status, headers and the raw body, or rejects on a connection error. */
+const get = (path, headers = {}) =>
+    new Promise((resolve, reject) => {
+        http.get({ host: '127.0.0.1', port, path, headers }, res => {
+            const chunks = [];
+            res.on('data', chunk => chunks.push(chunk));
+            res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+            res.on('error', reject);
+        }).on('error', reject);
+    });
+
+describe('upload-test-server downloads', () => {
+    const magic = {
+        png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+        jpeg: [0xff, 0xd8, 0xff],
+        gif: [...Buffer.from('GIF89a')],
+        webp: [...Buffer.from('RIFF')],
+    };
+
+    it.each(Object.keys(magic))('serves a real %s with its Content-Length on /s3/image', async format => {
+        const res = await get(`/s3/image?format=${format}`);
+        expect(res.status).toBe(200);
+        expect(Number(res.headers['content-length'])).toBe(res.body.length);
+        expect([...res.body.subarray(0, magic[format].length)]).toEqual(magic[format]);
+    });
+
+    it('sizes the png by px, so progress has room to show', async () => {
+        const small = await get('/s3/image?px=16');
+        const large = await get('/s3/image?px=256');
+        expect(large.body.length).toBeGreaterThan(small.body.length * 100);
+    });
+
+    it('records the request headers, so Accept-Encoding: identity can be checked', async () => {
+        await get('/s3/image', { 'accept-encoding': 'identity' });
+        expect(log[0]).toMatchObject({ method: 'GET', path: '/s3/image', outcome: 200 });
+        expect(log[0].headers['accept-encoding']).toBe('identity');
+    });
+
+    it('sends /s3/image-chunked without a Content-Length', async () => {
+        const res = await get('/s3/image-chunked');
+        expect(res.status).toBe(200);
+        expect(res.headers['content-length']).toBeUndefined();
+        expect(res.headers['transfer-encoding']).toBe('chunked');
+        expect([...res.body.subarray(0, 3)]).toEqual(magic.jpeg);
+    });
+
+    it('answers GET /s3/expired with 403 and an AccessDenied body', async () => {
+        const res = await get('/s3/expired');
+        expect(res.status).toBe(403);
+        expect(res.body.toString()).toContain('<Code>AccessDenied</Code>');
+    });
+
+    it('sends /s3/slow no faster than the requested rate', async () => {
+        const started = Date.now();
+        const res = await get('/s3/slow?bps=40000&px=64');
+        expect(res.status).toBe(200);
+        expect(res.body.length).toBe(Number(res.headers['content-length']));
+        // A 64×64 noise png is over 12 000 bytes; at 40 000 bytes per second that is 300 ms or more.
+        expect(Date.now() - started).toBeGreaterThanOrEqual(250);
+    });
+
+    it('declares the whole body on /s3/drop and cuts the connection part-way', async () => {
+        const received = await new Promise(resolve => {
+            http.get({ host: '127.0.0.1', port, path: '/s3/drop?after=1000' }, res => {
+                let length = 0;
+                res.on('data', chunk => (length += chunk.length));
+                res.on('aborted', () => resolve({ declared: Number(res.headers['content-length']), length }));
+                res.on('error', () => resolve({ declared: Number(res.headers['content-length']), length }));
+            });
+        });
+        expect(received.length).toBe(1000);
+        expect(received.declared).toBeGreaterThan(1000);
+        expect(log[0]).toMatchObject({ path: '/s3/drop', outcome: 'dropped' });
+    });
+
+    it('answers /s3/html with a 200 page that is not an image', async () => {
+        const res = await get('/s3/html');
+        expect(res.status).toBe(200);
+        expect(res.headers['content-type']).toBe('text/html');
+        expect(res.body.toString()).toContain('<html>');
+    });
+
+    it('answers 404 on an unknown download path', async () => {
+        expect((await get('/s3/nope')).status).toBe(404);
     });
 });
 

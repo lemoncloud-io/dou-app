@@ -9,6 +9,7 @@ export * from './device';
 export * from './file-transfer';
 export * from './haptic';
 export * from './iap';
+export * from './media-export';
 export * from './notification';
 export * from './perf';
 export * from './photo-library';

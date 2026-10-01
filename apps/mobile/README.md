@@ -65,10 +65,11 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 26 handler hooks that answer web messages; the
-19 service domains behind them; the 9 native bridge modules and their Android/Kotlin and iOS/Swift
+**In** — the WebView host and the message router; the 27 handler hooks that answer web messages; the
+19 service domains behind them; the 10 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
-counts and push-tap routing; deep links and universal links; large-file upload; boot metrics; theme
+counts and push-tap routing; deep links and universal links; large-file upload and download, and saving or sharing a downloaded
+image; boot metrics; theme
 and system bars; the build, run and store-deploy pipelines.
 
 **Out** — screens, navigation between them, data fetching, product state and the debug panel UI
@@ -91,9 +92,9 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>26 handlers"]
+    Handlers["webview/hooks<br/>27 handlers"]
     Services["services/<br/>19 domains"]
-    BridgeTS["bridge/<br/>9 native modules"]
+    BridgeTS["bridge/<br/>10 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
     Boot --> Screen --> WV
@@ -150,10 +151,11 @@ apps/mobile/
 │   ├── main-web.tsx       the web target's entry point
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check
-│       ├── webview/       62 files: AppWebView, SimpleWebView, the router, 26 handlers, injection
+│       ├── webview/       62 files: AppWebView, SimpleWebView, the router, 27 handlers, injection
 │       ├── services/      97 files across 19 domains, assembled in provider.ts
-│       ├── bridge/        7 modules onto native: app icon, back nav, badge sync, file manager,
-│       │                  push marks, system bars, upload manager
+│       ├── bridge/        10 modules onto native: app icon, back nav, badge sync, file manager,
+│       │                  haptics, media export, push marks, shared language, system bars,
+│       │                  file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
 │       ├── features/      core chrome and features/main — MainScreen and ModalScreen only
@@ -210,7 +212,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 26 handler hooks → useServices() → provider
+                    └── 27 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first
@@ -223,7 +225,7 @@ call, not at boot.
 
 `webClient.request(...)` in the web posts a typed message. `AppWebView`'s `onMessage` drops it unless
 the page is on a trusted origin ([docs/webview](./docs/webview/README.md#trust-boundary)), then hands it
-to `useWebMessageRouter`, which queues it and dispatches by type to one handler hook. The handler calls a
+to `useWebMessageRouter`, which dispatches it by type, without queueing, to one handler hook. The handler calls a
 service and returns a response object; the router posts it back with the original `refId`, and
 `@chatic/bridges` resolves the caller's promise. A message with no handler still gets a reply — that
 is the bridge's job, not this app's.

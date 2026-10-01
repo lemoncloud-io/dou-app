@@ -30,6 +30,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     ListPhotos: 'OnListPhotos',
     ReadPhoto: 'OnReadPhoto',
     ManagePhotoSelection: 'OnManagePhotoSelection',
+    SaveToPhotoLibrary: 'OnSaveToPhotoLibrary',
+    ShareFile: 'OnShareFile',
     FetchSafeArea: 'OnFetchSafeArea',
     FetchBackgroundStatus: 'OnBackgroundStatusChanged',
     RequestPermission: 'OnRequestPermission',

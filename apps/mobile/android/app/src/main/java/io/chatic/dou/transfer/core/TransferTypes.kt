@@ -56,6 +56,8 @@ class TransferRequest(
     /** JS numbers arrive as doubles; the core checks that the value is a whole, non-negative number. */
     val contentLength: Double?,
     val title: String? = null,
+    /** `download` only: the file name hint (`file.name`). Where the file goes is the shell's choice. */
+    val fileName: String? = null,
 ) {
     override fun toString(): String = "TransferRequest(transferId=$transferId, direction=$direction)"
 }
@@ -71,6 +73,17 @@ data class TransferSnapshot(
     val providerCode: String? = null,
     val errorCode: TransferErrorCode? = null,
     val errorMessage: String? = null,
+    /** A committed download's file; only on a download that ended `responded` with a 2xx status. */
+    val file: DownloadedFile? = null,
+)
+
+/** The file a download wrote, as the bridge payload `DownloadedFile` carries it. */
+data class DownloadedFile(
+    /** `file://` URI inside the download folder. */
+    val uri: String,
+    val size: Long,
+    /** The response's `Content-Type`, passed through unjudged. */
+    val contentType: String? = null,
 )
 
 /** A running transfer as the notification needs it — never a URL or a path. */
@@ -88,6 +101,7 @@ data class RunningTransfer(
  *   batch it already summarised from a new one.
  * @property members every transfer that joined the batch, including ones already acknowledged.
  * @property directions the directions of all members, for direction-aware wording.
+ * @property uploads the upload members; a download is announced by the page that asked for it.
  * @property ratio byte-weighted progress in 0..1, or null when it cannot be known (a member with an
  *   unknown total, or no batch at all).
  */
@@ -98,4 +112,7 @@ data class BatchStatus(
     val running: List<RunningTransfer>,
     val failed: Int,
     val ratio: Double?,
+    /** Upload members, and how many of them failed — the failure summary counts uploads only. */
+    val uploads: Int = members,
+    val failedUploads: Int = failed,
 )

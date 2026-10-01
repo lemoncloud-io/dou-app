@@ -76,6 +76,24 @@ describe('createFileTransferHandlers', () => {
             expect(logged).not.toContain('secret');
         });
 
+        it('relays a download unchanged — it names no local file, the shell picks one', async () => {
+            const download: StartFileTransferPayload = {
+                transferId: 'd1',
+                direction: 'download',
+                url: 'https://bucket.example.com/key?X-Amz-Signature=secret',
+                method: 'GET',
+                file: { name: 'photo.png' },
+            };
+
+            const reply = await handlers().handleStartFileTransfer(message('StartFileTransfer', download));
+
+            expect(transfer.start).toHaveBeenCalledWith(download);
+            expect(reply).toEqual({ type: 'OnStartFileTransfer', success: true, data: { transferId: 'd1' } });
+            const logged = logger.info.mock.calls.map(call => call.join(' ')).join('\n');
+            expect(logged).toContain('start download from bucket.example.com');
+            expect(logged).not.toContain('secret');
+        });
+
         it('carries the native error code into the reply envelope', async () => {
             transfer.start.mockRejectedValueOnce(rejection('INVALID', 'duplicate transferId'));
 
@@ -196,6 +214,27 @@ describe('createFileTransferHandlers', () => {
     });
 
     describe('state events', () => {
+        it('forwards a finished download with its file, so the web can hand the URI on', () => {
+            let listener: ((state: OnFileTransferStatePayload) => void) | undefined;
+            transfer.subscribe.mockImplementationOnce(fn => {
+                listener = fn;
+                return jest.fn();
+            });
+            handlers().relayStateEvents();
+            const state: OnFileTransferStatePayload = {
+                transferId: 'd1',
+                direction: 'download',
+                state: 'responded',
+                transferredBytes: 42,
+                totalBytes: 42,
+                httpStatus: 200,
+                file: { uri: 'file:///cache/transfer-download/x/photo.png', size: 42, contentType: 'image/png' },
+            };
+            listener?.(state);
+
+            expect(bridge.pushEvent).toHaveBeenCalledWith({ type: 'OnFileTransferState', success: true, data: state });
+        });
+
         it('forwards every native state change to the WebView as OnFileTransferState', () => {
             const unsubscribe = jest.fn();
             let listener: ((state: OnFileTransferStatePayload) => void) | undefined;

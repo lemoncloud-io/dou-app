@@ -92,6 +92,8 @@ import type {
     OnListPhotosPayload,
     OnReadPhotoPayload,
     OnManagePhotoSelectionPayload,
+    OnSaveToPhotoLibraryPayload,
+    OnShareFilePayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnTriggerHapticPayload,
@@ -135,6 +137,8 @@ export type AppMessageDataMap = {
     OnListPhotos: OnListPhotosPayload;
     OnReadPhoto: OnReadPhotoPayload;
     OnManagePhotoSelection: OnManagePhotoSelectionPayload;
+    OnSaveToPhotoLibrary: OnSaveToPhotoLibraryPayload;
+    OnShareFile: OnShareFilePayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;

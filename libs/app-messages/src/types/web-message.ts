@@ -61,6 +61,8 @@ import type {
     ListPhotosPayload,
     ReadPhotoPayload,
     ManagePhotoSelectionPayload,
+    SaveToPhotoLibraryPayload,
+    ShareFilePayload,
     CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
@@ -122,6 +124,10 @@ export type WebMessagePayloadMap = {
     ListPhotos: ListPhotosPayload;
     ReadPhoto: ReadPhotoPayload;
     ManagePhotoSelection: ManagePhotoSelectionPayload;
+    // Hand a downloaded file to the photo library or the share sheet. Newer than most shells: the web
+    // shows the controls only when the handshake lists both.
+    SaveToPhotoLibrary: SaveToPhotoLibraryPayload;
+    ShareFile: ShareFilePayload;
     FetchSafeArea: FetchSafeAreaPayload;
     FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;

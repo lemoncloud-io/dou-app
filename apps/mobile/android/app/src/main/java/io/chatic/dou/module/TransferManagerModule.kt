@@ -143,6 +143,16 @@ class TransferManagerModule(reactContext: ReactApplicationContext) : ReactContex
         snapshot.providerCode?.let { putString("providerCode", it) }
         snapshot.errorCode?.let { putString("errorCode", it.name) }
         snapshot.errorMessage?.let { putString("errorMessage", it) }
+        snapshot.file?.let { file ->
+            putMap(
+                "file",
+                Arguments.createMap().apply {
+                    putString("uri", file.uri)
+                    putDouble("size", file.size.toDouble())
+                    file.contentType?.let { putString("contentType", it) }
+                },
+            )
+        }
     }
 
     /** Reads only what the core validates; a wrongly typed field becomes null and is refused there. */
@@ -166,6 +176,7 @@ class TransferManagerModule(reactContext: ReactApplicationContext) : ReactContex
             contentType = file?.optString("contentType"),
             contentLength = file?.optNumber("contentLength"),
             title = map.optString("title"),
+            fileName = file?.optString("name"),
         )
     }
 
