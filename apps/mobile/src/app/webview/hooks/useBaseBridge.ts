@@ -1,3 +1,4 @@
+import type { WebAppReadyPayload } from '@chatic/app-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import { AppBridgeHost } from '@chatic/bridges';
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -9,7 +10,10 @@ import { logger } from '../../services';
 import { useDebugSettingsStore } from '../../stores';
 import { isTrustedBridgeUrl } from '../utils/urlTrust';
 
-export const useAppBridgeHost = (webViewRef: RefObject<WebView | null>, onAppReady?: () => void) => {
+export const useAppBridgeHost = (
+    webViewRef: RefObject<WebView | null>,
+    onAppReady?: (payload: WebAppReadyPayload) => void
+) => {
     const onAppReadyRef = useRef(onAppReady);
     useEffect(() => {
         onAppReadyRef.current = onAppReady;
@@ -37,8 +41,8 @@ export const useAppBridgeHost = (webViewRef: RefObject<WebView | null>, onAppRea
                 sendToWeb: (message: string) => {
                     webViewRef.current?.postMessage(message);
                 },
-                onAppReady: () => {
-                    onAppReadyRef.current?.();
+                onAppReady: payload => {
+                    onAppReadyRef.current?.(payload);
                 },
                 // Local-cache capability, reported in the handshake so a web build deployed ahead of
                 // this app can route domains this build cannot store to its own storage instead of

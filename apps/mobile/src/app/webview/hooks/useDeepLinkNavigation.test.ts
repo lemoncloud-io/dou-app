@@ -206,33 +206,6 @@ describe('useDeepLinkNavigation', () => {
         });
     });
 
-    describe('콜드스타트 스플래시', () => {
-        it('콜드스타트 web 딥링크는 isRedirecting을 켜고 handleWebViewLoad 후 해제한다', async () => {
-            jest.useFakeTimers();
-            mockGetInitialUrl = 'chatic://channels/1';
-            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1' });
-
-            const { result } = renderHook(() => useDeepLinkNavigation(bridge as any));
-
-            // Flush getInitialUrl().then so the cold-start redirect is marked.
-            await act(async () => {
-                await Promise.resolve();
-            });
-            expect(result.current.isRedirecting).toBe(true);
-
-            // WebView load + 300ms clears the splash.
-            act(() => {
-                result.current.handleWebViewLoad();
-            });
-            act(() => {
-                jest.advanceTimersByTime(300);
-            });
-            expect(result.current.isRedirecting).toBe(false);
-
-            jest.useRealTimers();
-        });
-    });
-
     it('bridge가 없으면 캡처를 등록하지 않는다', () => {
         renderHook(() => useDeepLinkNavigation(undefined));
 

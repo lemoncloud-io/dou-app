@@ -42,7 +42,8 @@ Two symptoms motivate every rule below:
 - First-paint background color unification (`getThemeBackgroundColor`)
 - `window.CHATIC_APP_THEME` injection — the native stored value, delivered before web's first paint
 - Web's light default (store and pre-paint script)
-- Web's `ThemeApplier` updates to `meta[theme-color]` and `--splash-bg`
+- Web's `ThemeApplier` updates to `meta[theme-color]` (the boot cover follows the `<html>` class it sets)
+- The startup theme handed to the native launch splash — [../boot/boot-splash.md](../boot/boot-splash.md)
 - Normalizing a legacy `'system'` value to light
 
 **Out**
@@ -52,7 +53,7 @@ Two symptoms motivate every rule below:
 - New bridge message **types** — injection already covers the boot path, and native has no theme UI
   to trigger a runtime push. The existing `SavePreference` confirmation round trip is in scope.
 - `@chatic/theme` and its consumers (`admin`, `desktop-web`, `landing`).
-- Dark splash-asset variants, and the dark-only styling under `features/debug/**` (intentional).
+- The dark-only styling under `features/debug/**` (intentional).
 
 ## Scenarios
 
@@ -65,8 +66,8 @@ Two symptoms motivate every rule below:
 3. `AppWebView` injects `window.CHATIC_APP_THEME = 'light'` via
    `injectedJavaScriptBeforeContentLoaded`.
 4. `index.html`'s pre-paint script reads `localStorage['vite-ui-theme']` → the injected global →
-   `'light'`, in that order, and sets the `<html>` class, `theme-color` and `--splash-bg` before the
-   first paint.
+   `'light'`, in that order, and sets the `<html>` class and `theme-color` before the first paint —
+   the boot cover is coloured by that class.
 5. The web store reads the same order and, if the value came from injection, caches it to
    `localStorage` so the next load is self-sufficient.
 
@@ -78,7 +79,7 @@ No step reads the OS color scheme.
    `config.set('ui.theme', 'dark', { lane: 'shell' })`, a confirmed-with-one-retry
    `appBridge.savePreferenceConfirmed({ key: 'theme', value: 'dark' })`, and
    `localStorage.setItem('vite-ui-theme', 'dark')`.
-2. `ThemeApplier` updates the `<html>` class, `meta[theme-color]` and `--splash-bg` — no reload needed
+2. `ThemeApplier` updates the `<html>` class and `meta[theme-color]` — no reload needed
    for the mobile status bar area to follow.
 3. Native's `usePreferenceCacheHandler` validates the `SavePreference` payload and calls
    `themeStore.setTheme('dark')`, which writes MMKV and flips `SystemBars`, the root background and
@@ -131,7 +132,7 @@ sequenceDiagram
     Store-->>WV: theme
     WV->>HTML: injectedJavaScriptBeforeContentLoaded<br/>window.CHATIC_APP_THEME
     HTML->>HTML: localStorage -> injected global -> 'light'
-    Note over HTML: html class, theme-color, --splash-bg
+    Note over HTML: html class, theme-color
     HTML-->>WStore: same priority for the initial value
     WStore->>WStore: config.init() reads localStorage/injection into 'ui.theme'
 ```
@@ -245,9 +246,14 @@ touches it. `appBridge.savePreferenceConfirmed` (confirmed, one retry) is what k
 current; it is the one write of the three that does not self-heal, since a lost write leaves native
 and web permanently disagreeing until a full restart.
 
-`ThemeApplier` never writes `--splash-bg` — its only consumer is the `#splash` placeholder inside
-`index.html`, which React replaces on its first commit, before `ThemeApplier` ever runs. Only the
-pre-paint script's write to that variable has any effect.
+The `index.html` boot cover (`#splash`) has no colour of its own to keep in step: it is styled from
+the `<html>` `dark` class, so the pre-paint script colours it and `ThemeApplier` recolours it if the
+runtime corrects the theme before the first screen.
+
+`App.tsx` also hands `themeStore`'s mode to the native launch splash (`BootSplashBridge.setStartupTheme`)
+on every start and every change, so the **next** launch's splash is drawn in the app theme where the
+platform allows it — Android 12+ fully, iOS and older Android from the first app-drawn frame on. Why
+the very first frame cannot follow it is in [../boot/boot-splash.md](../boot/boot-splash.md).
 
 ## How to verify
 
@@ -262,7 +268,7 @@ pre-paint script's write to that variable has any effect.
 | Injection script carries mode, escaping                                                              | [`injectionScripts.test.ts`](../../src/app/webview/utils/injectionScripts.test.ts)                   |
 | Bridge `theme` write, invalid/escape-payload rejection, legacy-envelope acceptance                   | [`usePreferenceCacheHandler.test.ts`](../../src/app/webview/hooks/usePreferenceCacheHandler.test.ts) |
 | Light default, native-store confirm-and-retry, three-channel write                                   | [`useTheme.test.tsx`](../../../web/src/app/hooks/useTheme.test.tsx)                                  |
-| `meta[theme-color]` update, `name` lookup, `--splash-bg` untouched                                   | [`ThemeApplier.test.tsx`](../../../web/src/app/runtime/ThemeApplier.test.tsx)                        |
+| `meta[theme-color]` update, `name` lookup                                                            | [`ThemeApplier.test.tsx`](../../../web/src/app/runtime/ThemeApplier.test.tsx)                        |
 
 ```bash
 yarn nx test mobile && yarn nx test web

@@ -6,6 +6,7 @@ import {
     useCrudCacheHandler,
     useClipboardHandler,
     useHapticHandler,
+    useBootSplashHandler,
     useDeviceHandler,
     useSmsHandler,
     useFcmHandler,
@@ -51,7 +52,7 @@ export interface UseWebMessageRouterProps {
  * @returns An object containing the message handler callback and IAP loading state.
  */
 export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
-    const { showResumeOverlay, dismissOverlay } = useResumeOverlay();
+    const { showResumeOverlay, dismissOverlay, coverReload } = useResumeOverlay();
 
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
@@ -132,6 +133,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
     const { handleTriggerHaptic } = useHapticHandler();
+    const { handleFirstScreenReady } = useBootSplashHandler();
     const {
         handleSendBootMetrics,
         handleSetDebugMode,
@@ -162,6 +164,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
         handleDismissResumeOverlay,
+        handleFirstScreenReady,
         fetchProducts,
         fetchCurrentPurchases,
         handlePurchaseSubscription,
@@ -251,6 +254,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
             handleDismissResumeOverlay,
+            handleFirstScreenReady,
             fetchProducts,
             fetchCurrentPurchases,
             handlePurchaseSubscription,
@@ -409,6 +413,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ShareFile: message => handlersRef.current.handleShareFile(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
+            FirstScreenReady: message => handlersRef.current.handleFirstScreenReady(message),
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
             FetchBootRecords: message => handlersRef.current.handleFetchBootRecords(message),
             ClearBootRecords: message => handlersRef.current.handleClearBootRecords(message),
@@ -444,5 +449,5 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         };
     }, [bridge, isPhotoLibraryAvailable]);
 
-    return { isIapLoading, showResumeOverlay };
+    return { isIapLoading, showResumeOverlay, coverReload };
 };

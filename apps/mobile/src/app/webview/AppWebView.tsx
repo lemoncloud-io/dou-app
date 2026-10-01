@@ -55,7 +55,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const webViewRef = useRef<WebView | null>(null);
     const { onLoad: propsOnLoad } = props;
 
-    const { isIapLoading, showResumeOverlay } = useWebMessageRouter({
+    const { isIapLoading, showResumeOverlay, coverReload } = useWebMessageRouter({
         bridge,
     });
 
@@ -81,8 +81,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         // The forced reload is effectively a full re-boot of the web app —
         // record it as its own boot session so it shows up in the perf history.
         bootMetricsService.startReloadSession();
+        // The reload is a full web boot with no launch splash over it; cover it the same way.
+        coverReload();
         webViewRef.current?.reload();
-    }, [captureWebViewCrash]);
+    }, [captureWebViewCrash, coverReload]);
 
     // Android: render process crashed/killed — capture and reload the same way as the iOS path
     const handleRenderProcessGone = useCallback(
@@ -91,9 +93,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 `Android WebView render process gone (didCrash: ${event.nativeEvent?.didCrash ?? 'unknown'})`
             );
             bootMetricsService.startReloadSession();
+            coverReload();
             webViewRef.current?.reload();
         },
-        [captureWebViewCrash]
+        [captureWebViewCrash, coverReload]
     );
 
     const firebaseInstallId = useFirebaseInstallId();

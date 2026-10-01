@@ -38,10 +38,23 @@ export const appBridge = {
      * native bridge, which is not an error condition here, and resolves `null` instead.
      */
     notifyWebAppReady(): Promise<OnWebAppReadyPayload | null> {
-        return webClient
-            .request({ type: 'WebAppReady', data: {} })
-            .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
-            .catch(() => null);
+        return (
+            webClient
+                // `holdsBootSplash`: this build sends `FirstScreenReady` (see `runtime/bootSplash`), so a
+                // shell holding its launch splash may wait for it instead of lifting on this handshake.
+                .request({ type: 'WebAppReady', data: { holdsBootSplash: true } })
+                .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
+                .catch(() => null)
+        );
+    },
+
+    /**
+     * Tell native the first screen has painted, so it can lift its launch splash (or the cover it
+     * shows while a crashed WebView reloads). Fire-and-forget: an older shell answers NOT_FOUND and
+     * lifts its splash on its own.
+     */
+    notifyFirstScreenReady(): void {
+        webClient.post({ type: 'FirstScreenReady', data: {} });
     },
 
     /** Ask native to dismiss the resume/cold-start overlay. */

@@ -47,6 +47,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
             launchOptions: launchOptions
         )
 
+        // Hold the launch screen over the app until the web reports its first screen painted — the
+        // OS drops its own as soon as RN draws, long before the WebView has content.
+        if let window {
+            BootSplashOverlay.shared.show(in: window)
+        }
+
         return true
     }
 

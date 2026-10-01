@@ -59,7 +59,8 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
    `ERROR_MESSAGES`, because they are what renders when something already failed — possibly the
    `/locales` request itself — and a raw key there would be worse than English. `LoadingFallback`
    names its `status` region from `common.loading` with the same kind of English default, because it
-   is the `<Suspense>` fallback that shows while those locales are still on their way.
+   is the `<Suspense>` fallback that renders while those locales are still on their way. It draws no
+   logo: in the app the launch splash is the only screen that does.
 8. **An export with no reader is a defect, not inventory.** Nothing in the repo type checks against
    an unused export, so the only thing that catches one is the sweep in
    [Scope](#the-membership-rule-and-where-it-fails). Run it before you add, and run it when you remove

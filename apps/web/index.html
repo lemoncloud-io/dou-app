@@ -30,11 +30,9 @@
                 if (isDark) {
                     document.documentElement.classList.add('dark');
                     document.getElementById('theme-color-meta').content = '#121212';
-                    document.documentElement.style.setProperty('--splash-bg', '#121212');
                 } else {
                     document.documentElement.classList.remove('dark');
                     document.getElementById('theme-color-meta').content = '#ffffff';
-                    document.documentElement.style.setProperty('--splash-bg', '#ffffff');
                 }
             })();
         </script>
@@ -47,6 +45,62 @@
             html.dark,
             html.dark body {
                 background-color: #121212;
+            }
+            /*
+             * Boot cover: the theme background and nothing else, over the page until the first screen
+             * has painted (runtime/bootSplash removes it). No logo on purpose — in the app the native
+             * splash is the only thing that draws one and it stays up until that same moment, so a
+             * logo here could only ever show as a second, mismatched copy. It follows the html.dark
+             * class rather than a value fixed at boot, so a theme the runtime corrects before the
+             * first screen recolours it too.
+             */
+            #splash {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483647;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                background-color: #ffffff;
+            }
+            html.dark #splash {
+                background-color: #121212;
+            }
+            /*
+             * The dots only appear once a start is slow enough to be mistaken for a hang; a normal
+             * boot shows the plain background and never a third element arriving mid-handoff.
+             */
+            #splash > span {
+                width: 6px;
+                height: 6px;
+                border-radius: 9999px;
+                background-color: rgba(115, 115, 115, 0.4);
+                opacity: 0;
+                animation:
+                    splash-dots-in 0s linear 1s forwards,
+                    splash-dots-pulse 1.5s ease-in-out 1s infinite;
+            }
+            #splash > span:nth-child(2) {
+                animation-delay: 1s, 1.2s;
+            }
+            #splash > span:nth-child(3) {
+                animation-delay: 1s, 1.4s;
+            }
+            @keyframes splash-dots-in {
+                to {
+                    opacity: 1;
+                }
+            }
+            @keyframes splash-dots-pulse {
+                50% {
+                    background-color: rgba(115, 115, 115, 0.15);
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                #splash > span {
+                    animation: splash-dots-in 0s linear 1s forwards;
+                }
             }
         </style>
         <!-- Preconnect: Google Fonts -->
@@ -61,20 +115,20 @@
         <link rel="stylesheet" href="/src/styles.css" />
     </head>
     <body>
-        <div id="root">
-            <div
-                id="splash"
-                style="
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100dvh;
-                    background: var(--splash-bg, #ffffff);
-                "
-            >
-                <img src="/logo.png" alt="" width="96" height="96" />
-            </div>
+        <!-- Outside #root so React mounting does not replace it; see the #splash style above. -->
+        <div id="splash" role="status" aria-label="Loading">
+            <span></span>
+            <span></span>
+            <span></span>
         </div>
+        <script>
+            (function () {
+                // i18n is not loaded yet; the shell injects the app language, a browser reports its own.
+                var lang = window.CHATIC_APP_CURRENT_LANGUAGE || navigator.language || '';
+                if (/^ko/i.test(lang)) document.getElementById('splash').setAttribute('aria-label', '불러오는 중');
+            })();
+        </script>
+        <div id="root"></div>
         <script type="module" src="/src/main.tsx"></script>
     </body>
 </html>

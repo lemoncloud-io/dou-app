@@ -10,7 +10,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 11 files |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 12 files |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`              |
@@ -39,6 +39,7 @@ platform:
 | Photo library   | `PhotoLibraryBridge.ts`    | `PhotoLibraryModule.kt`, `photo/core/` — MediaStore                                            | `PhotoLibrary/` — `PhotoLibrary.swift`, `PhotoLibrary.m`, `Core/` — see [photo-library.md](./photo-library.md)                                 |
 | File            | `FileManagerBridge.ts`     | `FileManagerModule.kt`                                                                         | `FileManager.m`                                                                                                                                |
 | App icon        | `AppIconBridge.ts`         | `AppIconManagerModule.kt`                                                                      | `AppIconManager.m`                                                                                                                             |
+| Boot splash     | `BootSplashBridge.ts`      | `BootSplashModule.kt` (+ `splash/BootSplashState.kt`, held in `MainActivity.kt`)               | `BootSplashModule.swift`/`.m`, `BootSplashOverlay.swift` — see [../boot/boot-splash.md](../boot/boot-splash.md)                                |
 | System bars     | `SystemBarsBridge.ts`      | `SystemBarsModule.kt`                                                                          | no-op — `Platform.OS !== 'android'` short-circuits                                                                                             |
 | Back navigation | `BackNavigationBridge.ts`  | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                                          | no-op — same guard, iOS uses the OS swipe-back gesture                                                                                         |
 | Push marks      | `PushMarksBridge.ts`       | `PushMarksModule.kt` (+ `PushMarkStore.kt`)                                                    | `PushMarksModule.m`                                                                                                                            |

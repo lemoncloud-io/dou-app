@@ -1,0 +1,7 @@
+<resources>
+    <!--
+      Dark system-bar icons on a light background. Shared by SplashTheme and AppTheme so the icon
+      colour does not flip when the splash hands over to the app; values-night overrides it.
+    -->
+    <bool name="light_system_bars">true</bool>
+</resources>

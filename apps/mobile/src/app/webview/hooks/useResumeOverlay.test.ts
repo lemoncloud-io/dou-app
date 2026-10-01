@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { Platform } from 'react-native';
 
-import { useResumeOverlay } from './useResumeOverlay';
+import { RELOAD_COVER_CAP_MS, useResumeOverlay } from './useResumeOverlay';
 
 const mockAddEventListener = jest.fn();
 const mockRecordForegroundResume = jest.fn();
@@ -17,9 +17,19 @@ jest.mock('react-native', () => ({
 
 // Stub the services barrel: importing the real one drags in the whole provider
 // (MMKV, SQLite, Firebase, ...) which cannot load under jsdom.
+const mockRevealListeners = new Set<() => void>();
 jest.mock('../../services', () => ({
     bootMetricsService: { recordForegroundResume: (ms: number) => mockRecordForegroundResume(ms) },
+    bootSplashService: {
+        subscribe: (listener: () => void) => {
+            mockRevealListeners.add(listener);
+            return () => mockRevealListeners.delete(listener);
+        },
+    },
 }));
+
+/** What the boot splash service does when the web reports its first screen. */
+const revealWeb = () => mockRevealListeners.forEach(listener => listener());
 
 describe('useResumeOverlay hook', () => {
     let appStateListeners: { [key: string]: ((...args: any[]) => any)[] } = {};
@@ -30,6 +40,7 @@ describe('useResumeOverlay hook', () => {
         appStateListeners = {};
         mockAddEventListener.mockClear();
         mockRecordForegroundResume.mockClear();
+        mockRevealListeners.clear();
         mockAddEventListener.mockImplementation((event, listener) => {
             if (!appStateListeners[event]) {
                 appStateListeners[event] = [];
@@ -130,5 +141,55 @@ describe('useResumeOverlay hook', () => {
         });
         // Should remain false
         expect(result.current.showResumeOverlay).toBe(false);
+    });
+
+    // A crashed content process reloads into a full web boot with no launch splash to cover it.
+    describe('crash-reload cover', () => {
+        it('covers on Android too, until the reloaded web reports its first screen', () => {
+            Platform.OS = 'android';
+            const { result } = renderHook(() => useResumeOverlay());
+
+            act(() => {
+                result.current.coverReload();
+            });
+            expect(result.current.showResumeOverlay).toBe(true);
+
+            act(() => {
+                revealWeb();
+            });
+            expect(result.current.showResumeOverlay).toBe(false);
+        });
+
+        it('lifts on its cap when the web never reports', () => {
+            const { result } = renderHook(() => useResumeOverlay());
+
+            act(() => {
+                result.current.coverReload();
+            });
+            act(() => {
+                jest.advanceTimersByTime(RELOAD_COVER_CAP_MS - 1);
+            });
+            expect(result.current.showResumeOverlay).toBe(true);
+
+            act(() => {
+                jest.advanceTimersByTime(1);
+            });
+            expect(result.current.showResumeOverlay).toBe(false);
+        });
+
+        // Two causes, two flags: the resume fallback must not lift a cover the reload still needs.
+        it('stays up while a resume dismissal clears only the resume cause', () => {
+            const { result } = renderHook(() => useResumeOverlay());
+
+            act(() => {
+                triggerAppStateChange('background');
+                result.current.coverReload();
+            });
+            act(() => {
+                result.current.dismissOverlay();
+            });
+
+            expect(result.current.showResumeOverlay).toBe(true);
+        });
     });
 });

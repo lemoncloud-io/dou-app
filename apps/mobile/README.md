@@ -65,8 +65,8 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 27 handler hooks that answer web messages; the
-19 service domains behind them; the 10 native bridge modules and their Android/Kotlin and iOS/Swift
+**In** — the WebView host and the message router; the 29 handler hooks that answer web messages; the
+20 service domains behind them; the 12 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
 counts and push-tap routing; deep links and universal links; large-file upload and download, and saving or sharing a downloaded
 image; boot metrics; theme
@@ -92,8 +92,8 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>27 handlers"]
-    Services["services/<br/>19 domains"]
+    Handlers["webview/hooks<br/>29 handlers"]
+    Services["services/<br/>20 domains"]
     BridgeTS["bridge/<br/>10 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
@@ -150,12 +150,13 @@ apps/mobile/
 │   ├── main.tsx           AppRegistry.registerComponent('Chatic', App) — four lines, nothing else
 │   ├── main-web.tsx       the web target's entry point
 │   └── app/
-│       ├── App.tsx        safe-area provider, system bars, navigation container, version check
-│       ├── webview/       62 files: AppWebView, SimpleWebView, the router, 27 handlers, injection
-│       ├── services/      97 files across 19 domains, assembled in provider.ts
-│       ├── bridge/        10 modules onto native: app icon, back nav, badge sync, file manager,
-│       │                  haptics, media export, push marks, shared language, system bars,
-│       │                  file transfer
+│       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
+│       │                  startup theme handed to the native splash
+│       ├── webview/       79 files: AppWebView, SimpleWebView, the router, 29 handlers, injection
+│       ├── services/      98 files across 20 domains, assembled in provider.ts
+│       ├── bridge/        12 modules onto native: app icon, back nav, badge sync, boot splash,
+│       │                  file manager, haptics, media export, photo library, push marks,
+│       │                  shared language, system bars, file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
 │       ├── features/      core chrome and features/main — MainScreen and ModalScreen only
@@ -212,7 +213,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 27 handler hooks → useServices() → provider
+                    └── 29 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first

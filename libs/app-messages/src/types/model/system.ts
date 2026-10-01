@@ -303,6 +303,13 @@ export type WebAppReadyPayload = {
     protocolVersion?: string;
     /** List of WebMessages the web can call. Used for capability negotiation. */
     supportedWebMessages?: string[];
+    /**
+     * True when this web build sends `FirstScreenReady` once its first screen is painted. A shell
+     * holding its launch splash waits for that signal when this is true, and lifts the splash on
+     * the handshake itself when it is absent — an older web build never sends the signal, and would
+     * otherwise sit under the splash until the shell's safety cap.
+     */
+    holdsBootSplash?: boolean;
 };
 
 /** [Request] Show loader (indicator) request */
@@ -555,5 +562,19 @@ export type DismissResumeOverlayPayload = {
 
 /** [Response] Payload for the result of dismissing the overlay after the webview returns from background */
 export type OnDismissResumeOverlayPayload = {
+    // Empty object type
+};
+
+/**
+ * [Request] The web's first screen has been painted — the shell may lift whatever covers the
+ * WebView while it boots (the launch splash, or the cover shown while a crashed WebView reloads).
+ * Fire-and-forget: an older shell answers NOT_FOUND, and nothing on the web waits for the reply.
+ */
+export type FirstScreenReadyPayload = {
+    // Empty object type
+};
+
+/** [Response] Acknowledgement of FirstScreenReady */
+export type OnFirstScreenReadyPayload = {
     // Empty object type
 };

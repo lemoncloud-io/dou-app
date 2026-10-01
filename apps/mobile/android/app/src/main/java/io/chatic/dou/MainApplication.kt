@@ -9,6 +9,7 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import io.chatic.dou.bridge.AppIconManagerPackage
 import io.chatic.dou.bridge.BackNavigationPackage
 import io.chatic.dou.bridge.BadgeSyncPackage
+import io.chatic.dou.bridge.BootSplashPackage
 import io.chatic.dou.bridge.FileManagerPackage
 import io.chatic.dou.bridge.HapticPackage
 import io.chatic.dou.bridge.MediaExportPackage
@@ -29,6 +30,7 @@ class MainApplication : Application(), ReactApplication {
             add(AppIconManagerPackage())
             add(BackNavigationPackage())
             add(BadgeSyncPackage())
+            add(BootSplashPackage())
             add(FileManagerPackage())
             add(HapticPackage())
             add(MediaExportPackage())

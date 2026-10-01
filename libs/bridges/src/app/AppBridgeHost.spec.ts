@@ -52,6 +52,23 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         );
     });
 
+    // The shell decides from the handshake whether to wait for a later web signal (the boot splash
+    // waits for FirstScreenReady only when the web declares it will send one), so the declaration has
+    // to reach onAppReady — and an older web that sends no data must still arrive as an object.
+    it('hands the WebAppReady declaration to onAppReady', async () => {
+        const onAppReady = jest.fn();
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, protocol: JsonProtocol, onAppReady });
+
+        const ready = (data: unknown) =>
+            JsonProtocol.encode({ type: 'WebAppReady', refId: 'r', version: BRIDGE_PROTOCOL_VERSION, data } as any);
+
+        await host.handleMessage(ready({ holdsBootSplash: true }) as string);
+        expect(onAppReady).toHaveBeenLastCalledWith({ holdsBootSplash: true });
+
+        await host.handleMessage(ready(undefined) as string);
+        expect(onAppReady).toHaveBeenLastCalledWith({});
+    });
+
     // The web deploys ahead of the app, so it cannot assume what the INSTALLED app can store. The
     // handshake is where the app says so — and a host with no local cache DB must keep sending the
     // exact payload it sent before these fields existed.
