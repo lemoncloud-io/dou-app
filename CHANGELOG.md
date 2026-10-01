@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-01] - root@0.80.1, @chatic/web@0.61.1
+
+### Features
+
+- (mobile) read the photo library from MediaStore on Android too (ADR-0150)
+- (mobile) read the photo library natively on iOS for the in-app picker (ADR-0150)
+
+### Bug Fixes
+
+- (web) give the photo-library calls timeouts for what they wait on, not 15s
+
+### Other
+
+- test: (mobile) cover where the router registers the photo-library messages
+
 ## [2026-10-01] - root@0.80.0, @chatic/web@0.61.0
 
 ### Features
