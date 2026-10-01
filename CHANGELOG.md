@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web/channels) draw header photos from the place profile only, not the account avatar
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
 - (web,app-runtime,app-messages) enter an invited cloud with the invite login answer (ADR-0156)
 
 ## [2026-10-01] - root@0.81.0, @chatic/web@0.62.0
