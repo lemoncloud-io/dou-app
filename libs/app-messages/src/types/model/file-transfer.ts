@@ -1,15 +1,15 @@
 // --- File Transfer Types ---
 //
-// The web hands the native shell a transfer instruction (a signed URL plus the headers it covers)
-// and a local file; the native side moves the bytes, keeps going in the background, and reports
-// back. The contract is direction-neutral on purpose: downloads arrive as one more `direction`
-// value instead of a second set of message names.
+// The web hands the native shell a transfer instruction (a signed URL plus the headers it covers);
+// the native side moves the bytes, keeps going in the background, and reports back. The contract is
+// direction-neutral on purpose: a download is one more `direction` value on the same five messages,
+// not a second set of message names.
 
 /**
  * Which way the bytes move.
  * - `upload`: from `file.uri` to `url`.
- * - `download`: from `url` to `file.uri`. Reserved — the shell rejects it with `INVALID` until it
- *   is implemented, so a caller never gets a silent upload in its place.
+ * - `download`: from `url` into a file the shell creates in a folder it owns. The terminal event
+ *   carries that file's URI.
  */
 export type FileTransferDirection = 'upload' | 'download';
 
@@ -23,36 +23,71 @@ export type FileTransferState = 'running' | 'responded' | 'failed' | 'cancelled'
  * Why a transfer ended in `failed`. Only used when no HTTP response arrived — a response of any
  * status is `responded`, and what it means is decided above the shell.
  * - `NETWORK`: connection failure, timeout, or a drop mid-transfer.
- * - `SOURCE`: the local file could not be opened or read.
- * - `INVALID`: the request itself is wrong — missing field, duplicate id, unimplemented direction,
- *   or an operation on a transfer that already ended.
+ * - `SOURCE`: the local file could not be used — for an upload it could not be opened or read, for
+ *   a download it could not be written (a full disk, for example).
+ * - `INVALID`: the request itself is wrong — missing field, duplicate id, a method or file that does
+ *   not fit the direction, or an operation on a transfer that already ended.
  * - `SYSTEM`: the OS stopped the transfer (for example the Android data-sync time limit). The app
  *   may start it again once it is back in the foreground.
  * - `INTERNAL`: anything else.
  */
 export type FileTransferErrorCode = 'NETWORK' | 'SOURCE' | 'INVALID' | 'SYSTEM' | 'INTERNAL';
 
-/** [Request] Start a transfer. A successful envelope means "accepted", not "done" — results arrive as events. */
-export type StartFileTransferPayload = {
-    /** Chosen by the caller (a UUID). Must not be reused while the shell still holds it. */
+/** Fields every start request carries, whichever way the bytes move. */
+type StartFileTransferCommon = {
+    /**
+     * Chosen by the caller (a UUID). Must not be reused while the shell still holds it. A download
+     * whose id is reused after acknowledgement starts from an empty folder: the earlier file is gone.
+     */
     transferId: string;
-    direction: FileTransferDirection;
     /** Signed URL. Never persisted or logged by the shell; only its host appears in logs. */
     url: string;
-    /** `upload` accepts `PUT`, `download` accepts `GET`. */
-    method: 'PUT' | 'GET';
     /** Sent as given, except the headers the platform owns (`content-length`, `host`). */
     headers?: Record<string, string>;
-    file: {
-        /** `upload`: the file to read. `download`: the file to write. */
-        uri: string;
-        contentType?: string;
-        /** Required for `upload` — it is the progress denominator. `download` learns it from the response. */
-        contentLength?: number;
-    };
     /** Name shown in the system notification. Falls back to a direction-specific default. Never a URL or path. */
     title?: string;
 };
+
+/** [Request] Start an upload: read `file.uri` and send it to `url`. */
+export type StartUploadPayload = StartFileTransferCommon & {
+    direction: 'upload';
+    method: 'PUT';
+    file: {
+        /** The file to read. */
+        uri: string;
+        contentType?: string;
+        /** Required — it is the progress denominator. */
+        contentLength?: number;
+    };
+};
+
+/**
+ * [Request] Start a download: fetch `url` into a file the shell creates.
+ *
+ * Where the file goes is the shell's decision, not the caller's. The web bundle is loaded remotely,
+ * and a caller that could name the target path could overwrite the app's own database or settings,
+ * so a request that carries `file.uri` is refused with `INVALID`. The shell always asks for the
+ * body unencoded (`Accept-Encoding: identity`), so the bytes it keeps are the stored object's.
+ */
+export type StartDownloadPayload = StartFileTransferCommon & {
+    direction: 'download';
+    method: 'GET';
+    file?: {
+        /**
+         * A file name hint. The shell drops path segments and control characters, shortens it, and
+         * replaces the extension with the one the bytes show when they are a known image type.
+         */
+        name?: string;
+    };
+};
+
+/**
+ * [Request] Start a transfer. A successful envelope means "accepted", not "done" — results arrive as
+ * events. Refused with `INVALID`: a reused id, a URL that is not an absolute http(s) URL, a method
+ * that does not match the direction (`upload` needs `PUT`, `download` needs `GET`), and a `download`
+ * that names `file.uri`.
+ */
+export type StartFileTransferPayload = StartUploadPayload | StartDownloadPayload;
 
 /** [Response] The transfer was accepted. */
 export type OnStartFileTransferPayload = {
@@ -130,4 +165,24 @@ export type OnFileTransferStatePayload = {
     errorCode?: FileTransferErrorCode;
     /** `failed` only: a short diagnostic string with any URL removed. */
     errorMessage?: string;
+    /**
+     * `download` only, and only when it ended `responded` with a 2xx `httpStatus` — any other
+     * response leaves no file behind. The local file the shell wrote, to hand as is to
+     * `SaveToPhotoLibrary` or `ShareFile`. Held with the rest of the result until acknowledged, so a
+     * WebView that reloaded meanwhile finds it again through `ListFileTransfers`.
+     */
+    file?: DownloadedFile;
+};
+
+/** A file a download wrote into the shell's download folder. */
+export type DownloadedFile = {
+    /** `file://` URI inside the shell's download folder. */
+    uri: string;
+    /** Size in bytes. */
+    size: number;
+    /**
+     * The response's `Content-Type`, carried as is. It is what the uploader declared, so nothing
+     * decides on it — `SaveToPhotoLibrary` and `ShareFile` read the file's bytes instead.
+     */
+    contentType?: string;
 };
