@@ -13,6 +13,7 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		96A4B745983B8AB3FF9F785C /* TransferTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91EB1B0E6926E0CA606D3EFD /* TransferTypes.swift */; };
 		A1D0C0DE5EED0000000000B1 /* DownloadFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D0C0DE5EED0000000000F1 /* DownloadFiles.swift */; };
+		C75137B43126CCC5FA31156F /* PhotoLibraryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B5BEECE2611915AA70DFC82 /* PhotoLibraryCore.swift */; };
 		D9351215330C67867100EA0F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		E5FB1AD81B5AE6E98D9F6464 /* TransferText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC543E0C41AB9FC82850DBA /* TransferText.swift */; };
 		E8526592B556118E622D7751 /* TransferCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04EA8F32D8C92209A3B7693B /* TransferCore.swift */; };
@@ -58,6 +59,7 @@
 		7217888ACC081748F8F0C215 /* Pods_Chatic.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Chatic.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		722274CE872EAD2197C7EE0D /* ChaticTransferCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChaticTransferCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Chatic/AppDelegate.swift; sourceTree = "<group>"; };
+		7B5BEECE2611915AA70DFC82 /* PhotoLibraryCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoLibraryCore.swift; sourceTree = "<group>"; };
 		7DBA3ABEBDD04827AF4DC448 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = Chatic/Colors.xcassets; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Chatic/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		91EB1B0E6926E0CA606D3EFD /* TransferTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TransferTypes.swift; sourceTree = "<group>"; };
@@ -171,6 +173,15 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		5966F507958B540DF7914A45 /* PhotoLibraryCore */ = {
+			isa = PBXGroup;
+			children = (
+				7B5BEECE2611915AA70DFC82 /* PhotoLibraryCore.swift */,
+			);
+			name = PhotoLibraryCore;
+			path = Bridges/PhotoLibrary/Core;
+			sourceTree = "<group>";
+		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
@@ -190,6 +201,7 @@
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
 				FB228D84F257893C39A1707F /* ChaticTransferCoreTests */,
 				876D9EBAC443B2624C4FEAA2 /* TransferCore */,
+				5966F507958B540DF7914A45 /* PhotoLibraryCore */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -509,6 +521,7 @@
 				E8526592B556118E622D7751 /* TransferCore.swift in Sources */,
 				E5FB1AD81B5AE6E98D9F6464 /* TransferText.swift in Sources */,
 				96A4B745983B8AB3FF9F785C /* TransferTypes.swift in Sources */,
+				C75137B43126CCC5FA31156F /* PhotoLibraryCore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

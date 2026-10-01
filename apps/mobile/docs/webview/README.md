@@ -86,9 +86,15 @@ Some rely on that: `ShareFile` on iOS answers only when the share sheet closes, 
 user lingers — see [../native/media-export.md](../native/media-export.md). Two requests of the same
 kind can therefore finish out of order; a handler that needs ordering has to provide it itself.
 
+A message is registered only where this build can answer it. The photo-library messages are added to
+the routing map only when the native `PhotoLibrary` module exists, so on Android they stay unregistered
+and `AppBridgeHost` answers `NOT_FOUND` — the answer the web falls back to its file input on
+([../native/photo-library.md](../native/photo-library.md)). A handler that exists but fails would take
+that fallback away.
+
 ## The WebAppReady handshake
 
-`WebAppReady` is not one of the 25 routed messages — `AppBridgeHost` (`@chatic/bridges`) answers it
+`WebAppReady` is not one of the routed messages — `AppBridgeHost` (`@chatic/bridges`) answers it
 internally, inside `handleMessage`, before a message ever reaches `useWebMessageRouter`. It is a
 capability handshake, not a plain ready ping: the reply reports the app's local-cache schema version
 and supported cache types (read from the SQLite install, warmed in parallel with the WebView's bundle
