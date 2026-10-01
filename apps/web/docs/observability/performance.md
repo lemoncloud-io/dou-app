@@ -34,9 +34,15 @@ holding a trace until it expires.
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
-exactly the sample the tail is made of. INP is collected for the debug overlay but not recorded. It
-keeps being revised for the life of the page, and in a WebView that lifetime is the whole session,
-so there is no moment at which it is final.
+exactly the sample the tail is made of.
+
+`site_switch` also carries one metric, `verified`: when the socket it switches on was verified. That
+splits the switch into the wait for the socket and the `auth.switch` round trip. A wait that timed
+out leaves it unset.
+
+INP is collected for the debug overlay but not recorded. It keeps being revised for the life of the
+page, and in a WebView that lifetime is the whole session, so there is no moment at which it is
+final.
 
 ## `chat_room_open`
 
@@ -86,15 +92,32 @@ screen shares.
 
 ### Phases (metrics, in ms from the trace's start)
 
-| Metric          | Marked when                                                                                                    |
-| --------------- | -------------------------------------------------------------------------------------------------------------- |
-| `handler`       | the web's `OnNavigate` handler took the navigation. For a cold tap, this is where boot and the router gate end |
-| `switch_done`   | the cloud or place switch the push needed has finished (`usePushNavigate`)                                     |
-| `mount`         | the room page mounted: routing and the route chunk are behind us                                               |
-| `cache_emit`    | the first chat-list emission from the local cache                                                              |
-| `message_count` | how many messages the room showed. A count, not a time                                                         |
+| Metric           | Marked when                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `handler`        | the web's `OnNavigate` handler took the navigation. For a cold tap, this is where boot and the router gate end    |
+| `handshake_done` | a push that needed a switch saw the current socket verified (`usePushNavigate`)                                   |
+| `recover_done`   | the check that re-caches a lost invited cloud finished — a no-op when the cloud was still cached. Native app only |
+| `cloud_done`     | the cloud switch, or the return to relay, has finished                                                            |
+| `switch_done`    | the cloud or place switch the push needed has finished (`usePushNavigate`)                                        |
+| `mount`          | the room page mounted: routing and the route chunk are behind us                                                  |
+| `cache_emit`     | the first chat-list emission from the local cache                                                                 |
+| `message_count`  | how many messages the room showed. A count, not a time                                                            |
 
 The trace's own duration is the end of the wait: tap to messages on screen.
+
+The four switch marks split a switched push's wait into its steps, which run one after another:
+the wait for the current socket, the invited-cloud recovery, the cloud switch, and the place switch,
+which ends at `switch_done`. `switch_done` alone could not say which of them held a slow switch. A
+step the push did not need leaves no mark, so the place switch is `switch_done` minus the latest
+mark before it.
+
+Two cases leave a `switch` attribute naming a switch that did not complete, because the attribute is
+set before the first wait:
+
+- **The handshake timed out.** None of the four is marked. The push lands without switching, and
+  the room ends the trace as usual. Filter on `handshake_done` to keep only the switches that ran.
+- **A step threw.** That step and every later one are unmarked, and the push still lands. The last
+  mark present is where the switch failed.
 
 ### Attributes
 
@@ -176,16 +199,16 @@ page (`useRoomSyncTrace`) adds `mount` and ends it.
 
 ### Phases (metrics, in ms from the tap)
 
-| Metric                   | Marked when                                                                                                                                  |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `handler`, `switch_done` | as for `chat_room_open` — a push's handler and switch                                                                                        |
-| `mount`                  | the room page mounted                                                                                                                        |
-| `verified`               | the sync saw the room's socket slot verified. Usually before `mount`: the slot is already verified, and the sync hooks run first in the page |
-| `feed_sent`              | the latest page was requested (`chat.feed`)                                                                                                  |
-| `feed_done`              | the page came back and was written to the cache                                                                                              |
-| `fetched`                | rows in that page. A count, not a time                                                                                                       |
-| `latest_no`              | the newest `chatNo` in that page. What the end waits for                                                                                     |
-| `message_count`          | rows in the room's window when it ended. A count                                                                                             |
+| Metric                                                                   | Marked when                                                                                                                                  |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `handler`, `handshake_done`, `recover_done`, `cloud_done`, `switch_done` | as for `chat_room_open` — a push's handler and the steps of its switch                                                                       |
+| `mount`                                                                  | the room page mounted                                                                                                                        |
+| `verified`                                                               | the sync saw the room's socket slot verified. Usually before `mount`: the slot is already verified, and the sync hooks run first in the page |
+| `feed_sent`                                                              | the latest page was requested (`chat.feed`)                                                                                                  |
+| `feed_done`                                                              | the page came back and was written to the cache                                                                                              |
+| `fetched`                                                                | rows in that page. A count, not a time                                                                                                       |
+| `latest_no`                                                              | the newest `chatNo` in that page. What the end waits for                                                                                     |
+| `message_count`                                                          | rows in the room's window when it ended. A count                                                                                             |
 
 The trace's own duration is the wait until the latest page is on screen: the first commit after
 `feed_done` whose window holds row `latest_no`, which is the cache write re-emitting the list. The row

@@ -155,6 +155,27 @@ describe('switchSiteViaSocket — site_switch trace', () => {
         );
     });
 
+    it('marks when the socket was verified, so the wait and the auth.switch can be told apart', async () => {
+        mockedGetSelected.mockReturnValue('site-old');
+        withUser('user-1');
+        mockedGetManager.mockReturnValue(makeManager(jest.fn().mockResolvedValue(undefined)));
+
+        await switchSite('site-new');
+
+        expect(backend.stop.mock.calls[0][0].metrics).toHaveProperty('verified');
+    });
+
+    it('leaves no verified mark when the wait for the socket timed out', async () => {
+        mockedGetSelected.mockReturnValue('site-old');
+        withUser('user-1');
+        const authSwitch = jest.fn().mockRejectedValue(new Error('not-connected'));
+        mockedGetManager.mockReturnValue(makeManager(authSwitch, jest.fn().mockResolvedValue(false)));
+
+        await expect(switchSite('site-new')).rejects.toThrow('not-connected');
+
+        expect(backend.stop.mock.calls[0][0].metrics).not.toHaveProperty('verified');
+    });
+
     it('records a failed switch too, with outcome error', async () => {
         mockedGetSelected.mockReturnValue('site-old');
         withUser('user-1');

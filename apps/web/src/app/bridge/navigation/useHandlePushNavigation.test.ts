@@ -8,7 +8,7 @@ import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { pendingNavigationStore } from './pendingNavigationStore';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { useHandlePushNavigation } from './useHandlePushNavigation';
-import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
+import { configurePerfTraces, getActivePerfTrace, resetPerfTraces } from '@chatic/perf';
 import { roomOpenTrace } from '../../runtime/perf';
 
 // The invited-cloud recovery step added to usePushNavigate pulls three more app-runtime exports.
@@ -612,6 +612,82 @@ describe('useHandlePushNavigation', () => {
             const result = finish();
             expect(result.attributes).toMatchObject({ switch: 'cloud' });
             expect(result.metrics).toHaveProperty('switch_done');
+        });
+
+        it('marks each step of a cloud-and-place switch as it finishes', async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's2' });
+
+            await invoke('/channels/roomA/room');
+
+            const { metrics } = finish();
+            expect(metrics).toHaveProperty('handshake_done');
+            expect(metrics).toHaveProperty('cloud_done');
+            expect(metrics).toHaveProperty('switch_done');
+            // The invited-cloud recovery is native-only, and this suite runs as the browser.
+            expect(metrics).not.toHaveProperty('recover_done');
+        });
+
+        it('marks the recovery step when the native app runs it', async () => {
+            (runtime.boot.isNativeApp as jest.Mock).mockReturnValueOnce(true);
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's1' });
+
+            await invoke('/channels/roomA/room');
+
+            expect(runtime.data.recoverInvitedCloudIfMissing).toHaveBeenCalled();
+            expect(finish().metrics).toHaveProperty('recover_done');
+        });
+
+        it('leaves no cloud mark for a place-only switch', async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c1', sid: 's2' });
+
+            await invoke('/channels/roomA/room');
+
+            const { metrics } = finish();
+            expect(metrics).toHaveProperty('handshake_done');
+            expect(metrics).not.toHaveProperty('cloud_done');
+            expect(metrics).toHaveProperty('switch_done');
+        });
+
+        it('marks each step after it finishes, on the sync trace as well', async () => {
+            // A clock only the switch steps move, so each mark's gap from the one before is the time
+            // its own step took — a mark set before its await would show a zero gap.
+            let now = 0;
+            const clock = jest.spyOn(performance, 'now').mockImplementation(() => now);
+            switchCloud.mockImplementation(async () => {
+                now += 1000;
+            });
+            switchSite.mockImplementation(async () => {
+                now += 500;
+            });
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's2' });
+
+            try {
+                await invoke('/channels/roomA/room');
+
+                const sync = getActivePerfTrace('chat_room_sync', 'roomA');
+                expect(finish().metrics).toMatchObject({ handshake_done: 0, cloud_done: 1000, switch_done: 1500 });
+                expect(sync?.getMetric('cloud_done')).toBe(1000);
+                expect(sync?.getMetric('switch_done')).toBe(1500);
+            } finally {
+                clock.mockRestore();
+            }
+        });
+
+        it('marks no switch step when the handshake times out', async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's2' });
+            waitUntilVerified.mockResolvedValue(false);
+
+            await invoke('/channels/roomA/room');
+
+            const { metrics } = finish();
+            for (const mark of ['handshake_done', 'recover_done', 'cloud_done', 'switch_done']) {
+                expect(metrics).not.toHaveProperty(mark);
+            }
         });
 
         it('starts nothing for a navigation that does not open a room', async () => {
