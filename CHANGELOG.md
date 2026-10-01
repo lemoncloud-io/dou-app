@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (web,mobile,app-messages) show the launch splash once, held until the web paints (ADR-0154)
+
 ## [2026-10-01] - root@0.80.1, @chatic/web@0.61.1
 
 ### Features
