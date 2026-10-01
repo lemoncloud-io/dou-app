@@ -44,7 +44,9 @@ operations, what to retry, and what a failure means. It does **not** know how by
 | no answer: source, system | failed                         | not retried: nothing changes by trying again                      |
 
 - **A slot failing is not the message failing.** Whatever reached `stored` is sent, and the server
-  marks the other slots itself. The message fails only when nothing is stored.
+  marks the other slots itself. The message fails only when nothing is stored. A sent result names
+  the slots it left out (`failedIndexes`, by position in the pick), so the caller can keep those
+  files: `useSendImages` writes them as a failed message of their own, with the usual retry.
 - **A thumbnail never fails its slot.** If the thumbnail PUT fails, the slot still counts as done and
   the server keeps the original without a preview.
 - **A socket operation failing is the message failing.** That covers `start`, `complete`, `send`, and

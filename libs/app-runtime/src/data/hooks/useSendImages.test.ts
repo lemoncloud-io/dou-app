@@ -66,7 +66,7 @@ beforeEach(() => {
     chat.listPendingImageChats.mockResolvedValue([]);
 });
 
-const sent: SendImageResult = { status: 'sent', uploadIds: ['up-1'], failedSlots: 0 };
+const sent: SendImageResult = { status: 'sent', uploadIds: ['up-1'], failedIndexes: [] };
 const failed: SendImageResult = { status: 'failed', reason: 'socket', error: new Error('x') };
 const files = () => [new File(['a'], 'a.jpg'), new File(['b'], 'b.jpg')];
 
@@ -153,6 +153,53 @@ describe('useSendImages', () => {
         expect(result.current.canRetry(pendingId)).toBe(false);
         expect(chat.failPendingImageChat).not.toHaveBeenCalled();
         unmount();
+    });
+
+    // A refused file (a type this cloud does not take) used to vanish with the row the message replaced.
+    it('writes the files a sent message left out as a failed message of their own, which can be retried', async () => {
+        const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
+        mockSendImageMessage.mockResolvedValueOnce(partial).mockResolvedValueOnce(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' })
+        );
+        const picked = [new File(['a'], 'a.jpg'), new File(['%PDF'], 'quote.pdf', { type: 'application/pdf' })];
+
+        await act(() => result.current.sendImages(picked));
+
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(2);
+        expect(chat.createPendingImageChat).toHaveBeenLastCalledWith({
+            channelId: 'ch-1',
+            parentId: 'root-1',
+            localThumbUrls: [expect.stringMatching(/^blob:/)],
+            localFiles: [{ name: 'quote.pdf', contentType: 'application/pdf', size: 4 }],
+        });
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
+        expect(result.current.canRetry(leftover)).toBe(true);
+
+        await act(async () => void (await result.current.retry(leftover)));
+        expect(mockSendImageMessage.mock.calls[1][0]).toEqual([picked[1]]);
+        unmount();
+    });
+
+    it('leaves no files in memory for the left-out files when the screen has gone', async () => {
+        const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
+        let finish: (value: SendImageResult) => void = () => undefined;
+        mockSendImageMessage.mockImplementationOnce(() => new Promise<SendImageResult>(resolve => (finish = resolve)));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages(files())));
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalled());
+        unmount();
+        await act(async () => {
+            finish(partial);
+            await sending;
+        });
+
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
+        expect(result.current.canRetry(leftover)).toBe(false);
     });
 
     it('marks the row failed and keeps the files, then retries the same pictures on the same row', async () => {

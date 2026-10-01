@@ -126,7 +126,7 @@ export const useImageSend = (channelId: string) => {
             });
             if (result.status === 'sent') {
                 urls.forEach(url => URL.revokeObjectURL(url));
-                add(`result: sent ${result.uploadIds.length}, failed slots ${result.failedSlots}`);
+                add(`result: sent ${result.uploadIds.length}, failed slots ${result.failedIndexes.length}`);
             } else {
                 await repos.chat.failPendingImageChat(pendingId);
                 add(

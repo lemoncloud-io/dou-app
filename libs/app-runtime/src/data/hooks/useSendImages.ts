@@ -105,6 +105,37 @@ const release = (pendingId: string) => {
 const log = (message: string, data?: Record<string, unknown>) => logger.info('UPLOAD', message, data);
 
 /**
+ * Writes the files a sent message left out (the server refused one, or its transfer failed) as a
+ * failed message of their own, right after it. Without it they would vanish with the pending row the
+ * server's message replaced, and nothing would say they were never sent. Retry and delete then work
+ * on them as on any failed message — unless the screen that sent them has left, in which case the
+ * row stays to say so and only delete is left.
+ */
+const keepUnsent = async (sent: PendingImages, files: File[]): Promise<void> => {
+    const urls = files.map(file => URL.createObjectURL(file));
+    const localFiles = files.map(pendingFileDetails);
+    const chat = chatOf(sent.cid);
+    try {
+        const pendingId = await chat.createPendingImageChat({
+            channelId: sent.channelId,
+            ...(sent.parentId ? { parentId: sent.parentId } : {}),
+            localThumbUrls: urls,
+            ...(localFiles.some(Boolean) ? { localFiles } : {}),
+        });
+        await chat.failPendingImageChat(pendingId);
+        if (sent.detached) {
+            urls.forEach(url => URL.revokeObjectURL(url));
+            return;
+        }
+        pendingImages.set(pendingId, { ...sent, files, urls, thumbnailed: false, inFlight: false });
+        changed();
+    } catch (error) {
+        urls.forEach(url => URL.revokeObjectURL(url));
+        log('image message: could not keep the unsent files', { error: (error as Error)?.name });
+    }
+};
+
+/**
  * The chat repository of the room's own cloud, never the selection's: an upload takes seconds, and a
  * switch in that time would otherwise put the finished message on the next cloud's socket.
  */
@@ -209,7 +240,9 @@ export const useSendImages = ({ cid, channelId, parentId, put, beforeSweep }: Us
             return sendImageMessage(entry.files, ports);
         });
         if (result.status === 'sent') {
+            const unsent = result.failedIndexes.map(index => entry.files[index]).filter(Boolean);
             release(pendingId);
+            if (unsent.length > 0) await keepUnsent(entry, unsent);
             return;
         }
         await chatOf(entry.cid)

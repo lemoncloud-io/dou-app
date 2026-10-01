@@ -77,7 +77,7 @@ describe('sendImageMessage', () => {
 
         const result = await sendImageMessage(files, ports, noWait);
 
-        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0', 'up-1', 'up-2'], failedSlots: 0 });
+        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0', 'up-1', 'up-2'], failedIndexes: [] });
         expect(ports.start).toHaveBeenCalledTimes(1);
         expect(ports.start.mock.calls[0][0].list).toEqual(
             files.map(source => ({
@@ -131,7 +131,7 @@ describe('sendImageMessage', () => {
         const result = await sendImageMessage(files, ports, noWait);
 
         expect(ports.complete).toHaveBeenCalledWith({ list: [{ id: 'up-0' }] });
-        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0'], failedSlots: 0 });
+        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0'], failedIndexes: [] });
     });
 
     it('reports a failed original to complete, skips its thumbnail, and sends the rest', async () => {
@@ -151,7 +151,7 @@ describe('sendImageMessage', () => {
         });
         expect(putLabels(ports.put)).not.toContain('slot-1/thumbnail');
         expect(ports.send).toHaveBeenCalledWith({ uploadIds: ['up-0', 'up-2'] });
-        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0', 'up-2'], failedSlots: 1 });
+        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0', 'up-2'], failedIndexes: [1] });
     });
 
     it('sends nothing and fails when no upload was stored', async () => {
@@ -175,7 +175,7 @@ describe('sendImageMessage', () => {
 
         expect(putLabels(ports.put)).toEqual(['slot-1/original', 'slot-1/thumbnail']);
         expect(ports.complete).toHaveBeenCalledWith({ list: [{ id: 'up-1' }] });
-        expect(result).toEqual({ status: 'sent', uploadIds: ['up-1'], failedSlots: 1 });
+        expect(result).toEqual({ status: 'sent', uploadIds: ['up-1'], failedIndexes: [0] });
     });
 
     it('sends only the thumbnail of an upload the server already stores, and still settles it', async () => {
@@ -233,7 +233,7 @@ describe('sendImageMessage', () => {
 
             const result = await sendImageMessage(files, ports, noWait);
 
-            expect(result).toEqual({ status: 'sent', uploadIds: ['up-1'], failedSlots: 1 });
+            expect(result).toEqual({ status: 'sent', uploadIds: ['up-1'], failedIndexes: [0] });
         });
     });
 
