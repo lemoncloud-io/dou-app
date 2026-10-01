@@ -169,4 +169,13 @@ describe('InviteAcceptScreen — shared chrome', () => {
         expect(onDecline).toHaveBeenCalled();
         expect(onClose).not.toHaveBeenCalled();
     });
+
+    // A freshly mounted backdrop layer composites late on an iOS device, and this screen mounts
+    // full-viewport ones as it opens — which showed as a black flash down the right edge. Every
+    // backdrop here is a soft gradient a blur cannot visibly change, so the screen carries none.
+    it('opens without any backdrop-filter layer', () => {
+        const { container } = setup({ targetKind: 'group', placeName: '레몬클라우드' });
+
+        expect(container.querySelector('[class*="backdrop-blur"]')).toBeNull();
+    });
 });
