@@ -8,9 +8,19 @@ const mockMediaExport = {
     handleShareFile: jest.fn().mockResolvedValue({ type: 'OnShareFile', success: true }),
 };
 
+const mockPhotoLibrary = {
+    isAvailable: true,
+    handleListPhotoAlbums: jest.fn().mockResolvedValue({ type: 'OnListPhotoAlbums', success: true }),
+    handleListPhotos: jest.fn().mockResolvedValue({ type: 'OnListPhotos', success: true }),
+    handleReadPhoto: jest.fn().mockResolvedValue({ type: 'OnReadPhoto', success: true }),
+    handleManagePhotoSelection: jest.fn().mockResolvedValue({ type: 'OnManagePhotoSelection', success: true }),
+};
+
+const PHOTO_LIBRARY_MESSAGES = ['ListPhotoAlbums', 'ListPhotos', 'ReadPhoto', 'ManagePhotoSelection'];
+
 // Every domain hook becomes a stub whose handlers are fresh mocks, so the router can be mounted on
-// its own; the real hooks pull in native modules and the service provider. Media export is pinned so
-// a registered handler can be traced back to it.
+// its own; the real hooks pull in native modules and the service provider. Media export and the
+// photo library are pinned so a registered handler can be traced back to them.
 jest.mock('./index', () => {
     const stubHandlers = () => new Proxy({}, { get: (_target, name) => (name === 'then' ? undefined : jest.fn()) });
     return new Proxy(
@@ -19,6 +29,7 @@ jest.mock('./index', () => {
             get: (_target, name) => {
                 if (name === '__esModule') return true;
                 if (name === 'useMediaExportHandler') return () => mockMediaExport;
+                if (name === 'usePhotoLibraryHandler') return () => mockPhotoLibrary;
                 return () => stubHandlers();
             },
         }
@@ -74,5 +85,36 @@ describe('useWebMessageRouter', () => {
 
         const removed = bridge.unregisterHandler.mock.calls.map(call => call[0]);
         expect(removed).toEqual(expect.arrayContaining(['SaveToPhotoLibrary', 'ShareFile']));
+    });
+
+    describe('photo library', () => {
+        afterEach(() => {
+            mockPhotoLibrary.isAvailable = true;
+        });
+
+        it('registers its four messages where the native module exists', async () => {
+            const bridge = createBridgeMock();
+            renderHook(() => useWebMessageRouter({ bridge }));
+            const handlerFor = (type: string) =>
+                bridge.registerHandler.mock.calls.find(call => call[0] === type)?.[1] as any;
+            const read = { type: 'ReadPhoto', data: { id: 'p1' } };
+
+            await handlerFor('ReadPhoto')(read);
+
+            expect(registered(bridge)).toEqual(expect.arrayContaining(PHOTO_LIBRARY_MESSAGES));
+            expect(mockPhotoLibrary.handleReadPhoto).toHaveBeenCalledWith(read);
+        });
+
+        // Unregistered, the bridge answers NOT_FOUND — the web's signal to use its own file input.
+        // A registered handler answering an error instead would leave the web asking.
+        it('leaves them unregistered where the native module is missing', () => {
+            mockPhotoLibrary.isAvailable = false;
+            const bridge = createBridgeMock();
+
+            renderHook(() => useWebMessageRouter({ bridge }));
+
+            for (const type of PHOTO_LIBRARY_MESSAGES) expect(registered(bridge)).not.toContain(type);
+            expect(registered(bridge)).toEqual(expect.arrayContaining(['SaveToPhotoLibrary', 'ShareFile']));
+        });
     });
 });
