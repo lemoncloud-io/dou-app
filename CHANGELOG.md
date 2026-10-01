@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (data,app-runtime) keep files a sent message left out
+
 ## [2026-10-01] - root@0.78.0, @chatic/web@0.59.0, @chatic/landing@0.5.3, @chatic/desktop-web@0.19.0
 
 ### Features
