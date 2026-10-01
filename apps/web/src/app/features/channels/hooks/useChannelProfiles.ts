@@ -4,6 +4,7 @@ import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
 import { readSelectedCloudId, useSelectedCloudId } from '../../../hooks/useCloudScope';
+import { getSocketErrorCode } from '../../../utils/errors';
 
 /**
  * Per-member profile poll cadence (ms) for a chat room.
@@ -19,10 +20,11 @@ const PROFILE_SYNC_INTERVAL_MS = 20_000;
 
 /**
  * Site-scoped member profiles (nick/avatar) for a channel. Observes the profile cache by `sid`
- * and registers a profile sync target for EVERY active member (`activeMemberIds`, i.e. join rows
- * with `joined !== 0`). Members whose profile is not in the local cache yet are additionally
- * bootstrapped with a one-shot `refreshItem` so a never-seen member (or a cold cache) populates
- * immediately instead of waiting for the first poll tick or a site-wide delta sync.
+ * and registers a profile sync target for each active member (`activeMemberIds`, i.e. join rows
+ * with `joined !== 0`) that has a profile in this place. Members whose profile is not in the local
+ * cache yet are first bootstrapped with a one-shot `refreshItem`, so a never-seen member (or a cold
+ * cache) populates immediately instead of waiting for a site-wide delta sync — and a member that
+ * read answers 404 for gets no poll at all.
  *
  * The cloud is the selected one — the same cloud the observation reads, since the app graph scopes it
  * to the selection. Targets are registered for it by name and wait for its own slot, and the effect
@@ -66,36 +68,76 @@ export const useChannelProfiles = (
         });
     }, [profileRepository, sid]);
 
-    // Register a profile sync target for EVERY active member, synchronously, so an early cleanup
-    // can never race an async registration. Network-bound, so gated on isVerified (auto-retries on
-    // the false→true edge after re-auth/reconnect). The cache read only drives the bootstrap of
-    // members the cache does not hold yet — it never gates registration.
+    // Register a profile sync target per active member, except one the server has just said has no
+    // profile in this place. Network-bound, so gated on isVerified (auto-retries on the false→true
+    // edge after re-auth/reconnect).
+    //
+    // A member the cache holds is registered straight away. One it does not hold is bootstrapped
+    // first, and registered only if that read did not come back 404. A profile exists per place and
+    // only once its owner has opened that place (`profile.get-mine` creates it), so a member who
+    // never has — a cloud 1:1's peer from another place, say — answers 404 for as long as the room
+    // is open. A poll for them only re-reads that absence until the scheduler gives up
+    // after two 404s and reports the give-up as local rows dropped. They are named through the
+    // user-record fallback instead. A profile they create later arrives through the site-wide
+    // `profile.syncProfiles` delta when this is the active place, and on the next mount otherwise.
+    //
+    // Registration is async, so `disposed` is checked before every one: a cleanup that runs first
+    // leaves nothing behind for it to have missed.
     useEffect(() => {
         if (!sid || !isVerified || activeMemberIds.length === 0) return;
 
         const sync = runtime.sync.getSyncManager();
-        const disposers = activeMemberIds.map(userId =>
-            sync.registerProfile(`${sid}@${userId}`, syncIntervalMs, { cid })
-        );
-
+        const disposers: Array<() => void> = [];
         let disposed = false;
+        const register = (userId: string) => {
+            if (disposed) return;
+            disposers.push(sync.registerProfile(`${sid}@${userId}`, syncIntervalMs, { cid }));
+        };
+
         void (async () => {
+            let cachedUserIds: Set<string | undefined>;
             try {
                 const cached = await profileRepository.cacheReadList({ sid });
-                // The app graph fetches through whichever cloud is selected when the call starts. If
-                // the selection moved during the read, the refreshes below would ask the next cloud for
-                // this cloud's members — and the re-run for that cloud does its own bootstrap anyway.
-                if (disposed || readSelectedCloudId() !== cid) return;
-                const cachedUserIds = new Set(
+                cachedUserIds = new Set(
                     (cached?.list ?? []).map(profile => profile.userId ?? profile.uid).filter(Boolean)
                 );
-                await Promise.all(
-                    activeMemberIds
-                        .filter(userId => !cachedUserIds.has(userId))
-                        .map(userId => profileRepository.refreshItem(`${sid}@${userId}`))
-                );
             } catch {
-                // Bootstrap is best-effort: the registered poll picks the member up on the next tick.
+                // Without a reading, nobody can be told apart: register everyone and let the poll sort it.
+                try {
+                    activeMemberIds.forEach(register);
+                } finally {
+                    if (!disposed) setHasSnapshot(true);
+                }
+                return;
+            }
+
+            const uncached = activeMemberIds.filter(userId => !cachedUserIds.has(userId));
+
+            try {
+                activeMemberIds.filter(userId => cachedUserIds.has(userId)).forEach(register);
+
+                // The app graph fetches through whichever cloud is selected when the call starts. If
+                // the selection moved during the read, a refresh would ask the next cloud for this
+                // cloud's members — so register them unread, and the re-run for that cloud does its
+                // own bootstrap anyway.
+                if (disposed || readSelectedCloudId() !== cid) {
+                    uncached.forEach(register);
+                    return;
+                }
+                await Promise.all(
+                    uncached.map(userId =>
+                        profileRepository.refreshItem(`${sid}@${userId}`).then(
+                            () => register(userId),
+                            error => {
+                                // Only the server saying "not here" withholds the poll. Anything else
+                                // is the bootstrap failing — a timeout, no socket, or a 403, which a
+                                // re-auth of the same socket answers for a moment — and the poll is
+                                // what recovers from that.
+                                if (getSocketErrorCode(error) !== 404) register(userId);
+                            }
+                        )
+                    )
+                );
             } finally {
                 // Settle the reading even if the cache held nothing and `observeList` never emitted,
                 // so a caller waiting on `hasSnapshot` cannot wait forever.

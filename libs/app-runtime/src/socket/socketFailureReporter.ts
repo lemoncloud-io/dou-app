@@ -24,6 +24,25 @@ const classify = (code: number | undefined): SocketFailureClass => {
 };
 
 /**
+ * Rejections that are the server answering "there is nothing here", for a request whose caller
+ * expects that answer as a normal outcome. Keyed by request type; the value is the one status that
+ * means it.
+ *
+ * `profile.get` 404: a profile exists per place, and only once its owner has opened that place
+ * (`profile.get-mine` is what creates it). Reading a member's profile in a place they never opened —
+ * a cloud 1:1's peer from another place, a member who joined a room without entering its place — is
+ * answered 404, and the caller falls back to the user record. Whoever the profile belongs to, mine
+ * included, the status means only that it does not exist in that place — nothing the caller has to
+ * recover from.
+ *
+ * Still recorded, at `info`: the entry is what explains a name falling back. It is not an `error`
+ * because nothing failed, and one per member per room opened buried the real ones.
+ */
+const ABSENCE_ANSWERS: Readonly<Record<string, number>> = {
+    'profile.get': 404,
+};
+
+/**
  * Reports failed socket requests — the class of failure that had no trigger at all.
  *
  * **Why this exists.** The catalog's "socket error" row is about the SDK's `onError`, and a server's
@@ -99,6 +118,14 @@ class SocketFailureReporter implements ISocketFailureReporter {
             // the caller may well retry into a working socket, and because a wedged server produces
             // these in numbers a second `error` source would not survive.
             logger.warn('SOCKET', `socket request timed out — ${kind}.${action}(${type})`, {
+                error,
+                data: { kind, cid: key, action, type, code },
+            });
+            return;
+        }
+
+        if (code !== undefined && ABSENCE_ANSWERS[type] === code) {
+            logger.info('SOCKET', `${code} socket request found nothing — ${kind}.${action}(${type})`, {
                 error,
                 data: { kind, cid: key, action, type, code },
             });
