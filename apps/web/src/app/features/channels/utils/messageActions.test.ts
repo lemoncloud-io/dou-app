@@ -1,4 +1,4 @@
-import { canOpenMessageActions, hasMessageText } from './messageActions';
+import { canOpenMessageActions, hasMessageText, shareableFile } from './messageActions';
 
 const upload$$ = [{ id: 'u1', status: 'stored', orgUrl: 'https://s3/1' }] as never;
 
@@ -36,5 +36,47 @@ describe('canOpenMessageActions', () => {
     it('stays shut for a deleted message, whatever it carried', () => {
         expect(canOpenMessageActions({ content: 'hello', chatNo: 3, hidden: true })).toBe(false);
         expect(canOpenMessageActions({ content: '', upload$$, chatNo: 3, hidden: true })).toBe(false);
+    });
+});
+
+describe('shareableFile', () => {
+    const docs = [
+        { id: 'p1', status: 'stored', orgUrl: 'https://s3/p1', contentType: 'image/jpeg' },
+        {
+            id: 'd1',
+            status: 'stored',
+            orgUrl: 'https://s3/d1',
+            contentType: 'application/pdf',
+            stereo: 'file',
+            name: 'a.pdf',
+        },
+        {
+            id: 'd2',
+            status: 'stored',
+            orgUrl: 'https://s3/d2',
+            contentType: 'application/pdf',
+            stereo: 'file',
+            name: 'b.pdf',
+        },
+    ] as never;
+
+    it('is the first stored document of a persisted message, keyed like its card', () => {
+        expect(shareableFile({ cid: 'c', upload$$: docs, chatNo: 3 })).toEqual(
+            expect.objectContaining({ key: 'c/d1', uploadId: 'd1', url: 'https://s3/d1', name: 'a.pdf' })
+        );
+    });
+
+    it('skips a document the server failed to store', () => {
+        const failedFirst = [
+            { id: 'd1', status: 'failed', orgUrl: 'https://s3/d1', contentType: 'application/pdf', stereo: 'file' },
+            { id: 'd2', status: 'stored', orgUrl: 'https://s3/d2', contentType: 'application/pdf', stereo: 'file' },
+        ] as never;
+        expect(shareableFile({ cid: 'c', upload$$: failedFirst, chatNo: 3 })?.uploadId).toBe('d2');
+    });
+
+    it('is nothing for photos only, a message on its way, or a deleted one', () => {
+        expect(shareableFile({ cid: 'c', upload$$, chatNo: 3 })).toBeUndefined();
+        expect(shareableFile({ cid: 'c', upload$$: docs, chatNo: 0 })).toBeUndefined();
+        expect(shareableFile({ cid: 'c', upload$$: docs, chatNo: 3, hidden: true })).toBeUndefined();
     });
 });

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/data';
-import { ImageViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
+import { MediaViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
 
 import { useCachedImages, type CachedImage, type CachedImageRequest } from '../hooks/useCachedImages';
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageAddressRefresh } from '../hooks/useImageAddressRefresh';
-import { isExportableUrl, useImageExports, type ExportableImage } from '../hooks/useImageExports';
+import { useImageExports, type ExportableMedia } from '../hooks/useImageExports';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
 
 import { SaveShareButtons } from './SaveShareButtons';
@@ -41,7 +41,7 @@ interface MessageImagesProps {
  * address stays what failure handling reasons about; a cached source that fails to decode is dropped
  * and the tile falls back to it.
  *
- * The viewer steps through the message's images — only the ones that can be opened, so a broken
+ * The viewer steps through the message's photos and videos — only the ones that can be opened, so a broken
  * tile is skipped rather than shown as a blank page. Its state is kept per row rather than lifted to
  * the page: only one row's viewer can be open at a time anyway, and a page-level viewer would need to
  * know which list every row belongs to. It holds a position, not an address, so a refresh reaches an
@@ -74,14 +74,11 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
         [split, dead]
     );
 
-    // What the viewer can page through: photos that are not broken and have an original to open, with
-    // the tile each one came from.
+    // What the viewer can page through: photos and videos that are not broken and have an original to
+    // open, with the tile each one came from.
     const viewable = tiles
-        .map((tile, index) => ({
-            index,
-            src: tile.kind === 'image' && tile.state !== 'broken' ? tile.src : undefined,
-        }))
-        .filter((item): item is { index: number; src: string } => !!item.src);
+        .map((tile, index) => ({ index, kind: tile.kind, src: tile.state === 'broken' ? undefined : tile.src }))
+        .filter((item): item is { index: number; kind: 'image' | 'video'; src: string } => !!item.src);
 
     // The viewer's position, dropped when the list shrank under it — the same value closes the viewer,
     // so nothing is fetched for a viewer that is not showing.
@@ -89,11 +86,11 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     const nearOpen = (at: number) => openIndex !== null && Math.abs(at - openIndex) <= 1;
     // However the viewer went away — closed, or its images gone from under it — a share still
     // downloading must not open its sheet afterwards.
-    const { cancelShares } = exports;
+    const { stopOnClose } = exports;
     const viewerOpen = openIndex !== null;
     useEffect(() => {
-        if (!viewerOpen) cancelShares();
-    }, [viewerOpen, cancelShares]);
+        if (!viewerOpen) stopOnClose();
+    }, [viewerOpen, stopOnClose]);
     // Tiles the viewer draws around the open image, to ask for their thumbnails as placeholders even
     // when they sit behind the "+n" tile.
     const around = new Set(viewable.filter((_, at) => nearOpen(at)).map(item => item.index));
@@ -104,13 +101,14 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     };
 
     // The viewer's pages as the export sees them, in the same order.
-    const exportables: ExportableImage[] = viewable.map(item => {
+    const exportables: ExportableMedia[] = viewable.map(item => {
         const slot = sentSlot(item.index);
         return {
             uploadId: slot?.id ?? `local-${item.index}`,
-            // A photo still on its way has only its page-local preview: not exportable.
+            // An item still on its way has only its page-local preview: not exportable.
             url: slot ? item.src : undefined,
             name: slot?.name,
+            kind: item.kind,
         };
     });
 
@@ -127,8 +125,11 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
         })
     );
     const { images: originals, reject: rejectOriginal } = useCachedImages(
+        // A video is streamed by the player from its address, never cached or fetched ahead.
         viewable.map((item, at) =>
-            nearOpen(at) ? requestFor(item.index, item.src, sentSlot(item.index)?.orgUrl ? 'org' : 'thumb') : undefined
+            item.kind === 'image' && nearOpen(at)
+                ? requestFor(item.index, item.src, sentSlot(item.index)?.orgUrl ? 'org' : 'thumb')
+                : undefined
         ),
         openIndex ?? undefined
     );
@@ -173,9 +174,11 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                         size={file.size}
                         state={file.state}
                         download={files.stateOf(file)}
-                        onPress={() => void files.download(file)}
+                        progress={files.progressOf(file) ?? undefined}
+                        onPress={() => void files.open(file)}
                         onDownload={() => void files.download(file)}
                         onCancel={() => files.cancel(file)}
+                        onOpen={() => void files.open(file)}
                         labels={{
                             untitled: t('chat.attach.fileCard.fallbackName'),
                             download: t('chat.attach.fileCard.download', { name }),
@@ -188,26 +191,37 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     />
                 );
             })}
-            <ImageViewer
-                images={viewable.map((item, at) => drawn(originals[at], item.src))}
-                placeholders={viewable.map(item => drawn(thumbs[item.index], undefined))}
+            <MediaViewer
+                items={viewable.map((item, at) => ({
+                    key: tiles[item.index]?.key ?? `tile-${item.index}`,
+                    kind: item.kind,
+                    src: item.kind === 'image' ? drawn(originals[at], item.src) : item.src,
+                    preview: drawn(thumbs[item.index], undefined),
+                    state: tiles[item.index]?.state === 'sending' ? ('sending' as const) : ('ready' as const),
+                }))}
                 index={openIndex}
+                // The viewer only ever opens from a tile tap, which is what lets a video start playing.
+                autoPlay
                 onIndexChange={setOpenAt}
                 onClose={() => setOpenAt(null)}
                 renderFooter={
                     exports.canExport
                         ? at => {
-                              const image = exportables[at];
-                              if (!image) return null;
-                              const savable = exportables.filter(entry => isExportableUrl(entry.url));
+                              const item = exportables[at];
+                              if (!item || !exports.canExportItem(item)) return null;
+                              const savable = exports.savable(exportables);
                               return (
                                   <SaveShareButtons
-                                      image={image}
-                                      busy={exports.busyFor(image.uploadId)}
+                                      item={item}
+                                      busy={exports.busyFor(item.uploadId)}
                                       onAction={(action, target) => void exports.run(action, target)}
                                       saveAll={
                                           savable.length > 1
-                                              ? { count: savable.length, onSaveAll: () => void exports.runAll(savable) }
+                                              ? {
+                                                    count: savable.length,
+                                                    videos: savable.some(entry => entry.kind === 'video'),
+                                                    onSaveAll: () => void exports.runAll(savable),
+                                                }
                                               : undefined
                                       }
                                   />
@@ -222,10 +236,13 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     if (!item || !chatId || !slot || isPendingUploadSlot(slot)) return;
                     void refresh({ cid, chatId, src: item.src });
                 }}
-                title={t('chat.attach.viewer')}
-                closeLabel={t('chat.attach.viewerClose')}
-                previousLabel={t('chat.attach.viewerPrevious')}
-                nextLabel={t('chat.attach.viewerNext')}
+                labels={{
+                    title: t('chat.attach.viewer'),
+                    close: t('chat.attach.viewerClose'),
+                    previous: t('chat.attach.viewerPrevious'),
+                    next: t('chat.attach.viewerNext'),
+                    play: t('chat.attach.viewerPlay'),
+                }}
             />
         </>
     );

@@ -25,10 +25,16 @@ type Listener = () => void;
  * message map rather than from its handlers; that gap is closed on the app side, where a test holds
  * both types to a registered handler. If a press still meets `NOT_FOUND`, `withdrawImageExport`
  * turns the buttons off for the rest of the session.
+ *
+ * Videos widened the same two messages instead of adding new ones, so the handshake cannot tell an
+ * app that takes videos from one built before them. That one is learned instead: an older app answers
+ * a video with `UNSUPPORTED_TYPE`, and `withdrawVideoExport` hides video export from then on while
+ * photos keep theirs.
  */
 class ShellCapabilities {
     private report: OnWebAppReadyPayload | null = null;
     private imageExportWithdrawn = false;
+    private videoExportWithdrawn = false;
     private readonly listeners = new Set<Listener>();
 
     setReport(report: OnWebAppReadyPayload | null): void {
@@ -38,6 +44,18 @@ class ShellCapabilities {
 
     canExportImages(): boolean {
         return !this.imageExportWithdrawn && supportsImageExport(this.report);
+    }
+
+    /** Photo export, and no video yet refused as a format this app does not know. */
+    canExportVideos(): boolean {
+        return !this.videoExportWithdrawn && this.canExportImages();
+    }
+
+    /** An app built before videos refused one: hide video export until the page reloads. */
+    withdrawVideoExport(): void {
+        if (this.videoExportWithdrawn) return;
+        this.videoExportWithdrawn = true;
+        this.notify();
     }
 
     /** The shell answered `NOT_FOUND` after all: hide the buttons until the page reloads. */
@@ -58,6 +76,7 @@ class ShellCapabilities {
     reset(): void {
         this.report = null;
         this.imageExportWithdrawn = false;
+        this.videoExportWithdrawn = false;
         this.notify();
     }
 
@@ -71,3 +90,7 @@ export const shellCapabilities = new ShellCapabilities();
 /** Re-renders when the handshake arrives or export is withdrawn. */
 export const useCanExportImages = (): boolean =>
     useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.canExportImages());
+
+/** Re-renders when video export becomes possible or is withdrawn. */
+export const useCanExportVideos = (): boolean =>
+    useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.canExportVideos());

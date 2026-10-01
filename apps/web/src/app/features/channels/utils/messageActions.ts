@@ -1,3 +1,5 @@
+import { chatMediaItems, type ChatFileSlot } from '@chatic/data';
+
 import type { ClientChatView } from '../types';
 
 type ActionTarget = Pick<ClientChatView, 'content' | 'upload$$' | 'chatNo' | 'hidden'>;
@@ -17,4 +19,16 @@ export const canOpenMessageActions = (message: ActionTarget): boolean => {
     if (message.hidden) return false;
     if (hasMessageText(message)) return true;
     return (message.upload$$?.length ?? 0) > 0 && !!message.chatNo;
+};
+
+/**
+ * The document the action sheet's "Share file" hands on: the message's first document the server
+ * stored. A message with several shares only that first one — one row, one file, rather than a list
+ * to pick from inside the sheet. A message still on its way, or with no stored document, has none.
+ */
+export const shareableFile = (
+    message: Pick<ClientChatView, 'cid' | 'upload$$' | 'chatNo' | 'hidden'>
+): ChatFileSlot | undefined => {
+    if (message.hidden || !message.chatNo) return undefined;
+    return chatMediaItems(message.cid, message.upload$$).files.find(file => file.state === 'ready' && !!file.url);
 };

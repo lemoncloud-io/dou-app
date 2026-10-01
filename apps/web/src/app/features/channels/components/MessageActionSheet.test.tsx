@@ -1,12 +1,18 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 
+const shareFile = jest.fn();
+jest.mock('../hooks/useFileDownloads', () => ({
+    useFileDownloads: () => ({ share: (file: unknown) => shareFile(file) }),
+}));
+
 import { MessageActionSheet } from './MessageActionSheet';
+import { shellCapabilities } from '../../../bridge/shellCapabilities';
 import { useRecentEmojiStore, QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
 
 const baseProps = {
@@ -158,5 +164,72 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
 
         expect(screen.getByText('chat.room.deleteMessage')).toBeInTheDocument();
         expect(screen.queryByText('chat.room.delete')).not.toBeInTheDocument();
+    });
+});
+
+describe('MessageActionSheet — Share file', () => {
+    const fileMessage = {
+        cid: 'c',
+        id: 'm',
+        chatNo: 3,
+        upload$$: [
+            {
+                id: 'd1',
+                status: 'stored',
+                orgUrl: 'https://s3/d1',
+                contentType: 'application/pdf',
+                stereo: 'file',
+                name: 'a.pdf',
+            },
+            {
+                id: 'd2',
+                status: 'stored',
+                orgUrl: 'https://s3/d2',
+                contentType: 'application/pdf',
+                stereo: 'file',
+                name: 'b.pdf',
+            },
+        ],
+    } as never;
+    const canShare = () =>
+        shellCapabilities.setReport({
+            protocolVersion: '2.3.0',
+            supportedWebMessages: ['SaveToPhotoLibrary', 'ShareFile'],
+            supportedAppMessages: [],
+        });
+
+    afterEach(() => act(() => shellCapabilities.reset()));
+
+    it('is not offered without the handshake listing ShareFile — a browser has none', () => {
+        render(<MessageActionSheet {...baseProps} fileMessage={fileMessage} />);
+        expect(screen.queryByText('chat.attach.fileCard.share')).not.toBeInTheDocument();
+    });
+
+    it('is not offered for a message without a document', () => {
+        canShare();
+        const photos = {
+            cid: 'c',
+            id: 'm',
+            chatNo: 3,
+            upload$$: [{ id: 'p1', status: 'stored', orgUrl: 'https://s3/p1', contentType: 'image/jpeg' }],
+        } as never;
+        render(<MessageActionSheet {...baseProps} fileMessage={photos} />);
+        expect(screen.queryByText('chat.attach.fileCard.share')).not.toBeInTheDocument();
+    });
+
+    it('sits below every other row, shares the first document and closes the sheet', () => {
+        canShare();
+        render(<MessageActionSheet {...baseProps} canModify fileMessage={fileMessage} />);
+
+        const labels = screen
+            .getAllByText(
+                /^chat\.(room|thread|attach\.fileCard)\.(replyAction|copyMessage|editMessage|deleteMessage|share)$/
+            )
+            .map(node => node.textContent);
+        expect(labels.at(-1)).toBe('chat.attach.fileCard.share');
+
+        fireEvent.click(screen.getByText('chat.attach.fileCard.share'));
+        expect(shareFile).toHaveBeenCalledWith(expect.objectContaining({ key: 'c/d1', uploadId: 'd1' }));
+        expect(baseProps.onOpenChange).toHaveBeenCalledWith(false);
     });
 });

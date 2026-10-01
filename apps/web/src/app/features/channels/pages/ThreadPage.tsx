@@ -496,6 +496,7 @@ export const ThreadPage = () => {
 
             <MessageActionSheet
                 open={!!actionMessage && !pickerOpen}
+                fileMessage={actionMessage}
                 onOpenChange={open => !open && setActionMessage(null)}
                 tallies={actionMessage?.id ? reactions.get(actionMessage.id) : undefined}
                 canReact={canReact}

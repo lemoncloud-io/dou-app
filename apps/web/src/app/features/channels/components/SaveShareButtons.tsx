@@ -2,64 +2,76 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Images, Share } from 'lucide-react';
 
-import { BottomSheet, ImageViewerActionButton, SheetAction } from '@chatic/web-ui-kit';
+import { BottomSheet, MediaViewerActionButton, SheetAction } from '@chatic/web-ui-kit';
 
-import { isExportableUrl, type ExportableImage, type ImageExportBusy } from '../hooks/useImageExports';
-import type { ImageExportAction } from '../lib/imageExport';
+import { isExportableUrl, type ExportableMedia, type MediaExportBusy } from '../hooks/useImageExports';
+import type { MediaExportAction } from '../lib/imageExport';
 
 interface SaveShareButtonsProps {
-    image: ExportableImage;
-    busy: ImageExportBusy | undefined;
-    onAction: (action: ImageExportAction, image: ExportableImage) => void;
+    item: ExportableMedia;
+    busy: MediaExportBusy | undefined;
+    onAction: (action: MediaExportAction, item: ExportableMedia) => void;
     /**
-     * The message has more than one image to save: saving asks first whether to save this one or
-     * all of them. `count` is how many the shell can fetch — photos still on their way are not.
+     * The message has more than one item to save: saving asks first whether to save this one or all
+     * of them. `count` is how many can be saved now — not sending, not broken, and no video once the
+     * app refused one. `videos` says whether any of them is a video: the sheet then counts items
+     * rather than photos. A count of one saves straight away.
      */
-    saveAll?: { count: number; onSaveAll: () => void };
+    saveAll?: { count: number; videos: boolean; onSaveAll: () => void };
 }
 
 /**
- * The viewer's share and save for the showing image, at the two ends of its bottom bar. Both are
- * off for a photo still on its way (its address is a page-local preview) and while either is working
- * on this image.
+ * The viewer's share and save for the showing photo or video, at the two ends of its bottom bar, with
+ * a "save all" run's position between them. Both are off for an item still on its way (its address is
+ * a page-local preview), for one the viewer could not draw, and while either is working on this item.
  */
-export const SaveShareButtons = ({ image, busy, onAction, saveAll }: SaveShareButtonsProps) => {
+export const SaveShareButtons = ({ item, busy, onAction, saveAll }: SaveShareButtonsProps) => {
     const { t } = useTranslation();
-    // The image the sheet was opened for, held so a page turned behind the sheet does not change it.
-    const [choosing, setChoosing] = useState<ExportableImage | null>(null);
-    const disabled = !isExportableUrl(image.url) || !!busy;
+    // The item the sheet was opened for, held so a page turned behind the sheet does not change it.
+    const [choosing, setChoosing] = useState<ExportableMedia | null>(null);
+    const disabled = !isExportableUrl(item.url) || !!item.broken || !!busy;
+    const video = item.kind === 'video';
     const save = () => {
-        if (saveAll && saveAll.count > 1) setChoosing(image);
-        else onAction('save', image);
+        if (saveAll && saveAll.count > 1) setChoosing(item);
+        else onAction('save', item);
     };
     return (
         <>
-            <ImageViewerActionButton
-                label={t('chat.attach.export.share')}
-                onClick={() => onAction('share', image)}
+            <MediaViewerActionButton
+                label={t(video ? 'chat.attach.export.shareVideo' : 'chat.attach.export.share')}
+                onClick={() => onAction('share', item)}
                 disabled={disabled}
                 busy={busy?.action === 'share'}
                 progress={busy?.action === 'share' ? busy.progress : null}
             >
                 <Share className="size-5" aria-hidden="true" />
-            </ImageViewerActionButton>
-            <ImageViewerActionButton
-                label={t('chat.attach.export.save')}
+            </MediaViewerActionButton>
+            {busy?.step && (
+                <span role="status" className="text-sm tabular-nums text-white">
+                    {t('chat.attach.export.saveAllProgress', busy.step)}
+                </span>
+            )}
+            <MediaViewerActionButton
+                label={t(video ? 'chat.attach.export.saveVideo' : 'chat.attach.export.save')}
                 onClick={save}
                 disabled={disabled}
                 busy={busy?.action === 'save'}
                 progress={busy?.action === 'save' ? busy.progress : null}
             >
                 <Download className="size-5" aria-hidden="true" />
-            </ImageViewerActionButton>
+            </MediaViewerActionButton>
             {saveAll && (
                 <BottomSheet
                     open={choosing !== null}
                     onOpenChange={open => {
                         if (!open) setChoosing(null);
                     }}
-                    title={t('chat.attach.export.chooseTitle')}
-                    description={t('chat.attach.export.chooseDescription')}
+                    title={t(saveAll.videos ? 'chat.attach.export.chooseTitleItems' : 'chat.attach.export.chooseTitle')}
+                    description={t(
+                        saveAll.videos
+                            ? 'chat.attach.export.chooseDescriptionItems'
+                            : 'chat.attach.export.chooseDescription'
+                    )}
                     hideHeader
                     showHandle
                     className="pb-8"
@@ -67,7 +79,11 @@ export const SaveShareButtons = ({ image, busy, onAction, saveAll }: SaveShareBu
                     <div className="pt-6">
                         <SheetAction
                             icon={<Download size={22} aria-hidden="true" />}
-                            label={t('chat.attach.export.saveOne')}
+                            label={t(
+                                choosing?.kind === 'video'
+                                    ? 'chat.attach.export.saveOneVideo'
+                                    : 'chat.attach.export.saveOne'
+                            )}
                             onClick={() => {
                                 if (choosing) onAction('save', choosing);
                                 setChoosing(null);
@@ -75,7 +91,12 @@ export const SaveShareButtons = ({ image, busy, onAction, saveAll }: SaveShareBu
                         />
                         <SheetAction
                             icon={<Images size={22} aria-hidden="true" />}
-                            label={t('chat.attach.export.saveAll', { n: saveAll.count })}
+                            label={t(
+                                saveAll.videos ? 'chat.attach.export.saveAllItems' : 'chat.attach.export.saveAll',
+                                {
+                                    n: saveAll.count,
+                                }
+                            )}
                             onClick={() => {
                                 setChoosing(null);
                                 saveAll.onSaveAll();

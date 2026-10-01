@@ -2,10 +2,14 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
 import { BottomSheet, IconCopy, IconEmojiAdd, IconSpinner, IconThread, SheetAction } from '@chatic/web-ui-kit';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Share, Trash2 } from 'lucide-react';
 
+import { useCanExportImages } from '../../../bridge/shellCapabilities';
+import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useRecentEmojiStore, QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
+import type { ClientChatView } from '../types';
 import { hasMyReaction, type ReactionTally } from '../utils/foldReactions';
+import { shareableFile } from '../utils/messageActions';
 
 // Fills the quick row when the person has few recents. Together with QUICK_REACTIONS
 // these are conversation acknowledgements, not a "top emoji" chart.
@@ -38,6 +42,11 @@ interface MessageActionSheetProps {
     onReply: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    /**
+     * The target message, for "Share file": shown when it carries a stored document and the installed
+     * app can share one — the same handshake the viewer's share asks. Never in a browser.
+     */
+    fileMessage?: Pick<ClientChatView, 'cid' | 'id' | 'upload$$' | 'chatNo' | 'hidden'> | null;
 }
 
 /**
@@ -86,9 +95,13 @@ export const MessageActionSheet = ({
     onReply,
     onEdit,
     onDelete,
+    fileMessage,
 }: MessageActionSheetProps) => {
     const { t } = useTranslation();
     const recent = useRecentEmojiStore(s => s.recent);
+    const canShareFiles = useCanExportImages();
+    const files = useFileDownloads({ cid: fileMessage?.cid ?? '', chatId: fileMessage?.id });
+    const sharedFile = canShareFiles && fileMessage ? shareableFile(fileMessage) : undefined;
 
     // Recents first (habit wins), topped up with the fixed acknowledgements — deduped
     // on the raw string; the fold key only matters once a reaction exists.
@@ -173,6 +186,18 @@ export const MessageActionSheet = ({
                         onClick={onDelete}
                     />
                 </>
+            )}
+            {/* Below everything else, per the order above. The sheet closes at once; the download's
+                progress shows on the document's own card, and the share sheet follows it. */}
+            {sharedFile && (
+                <SheetAction
+                    icon={<Share size={22} />}
+                    label={t('chat.attach.fileCard.share')}
+                    onClick={() => {
+                        void files.share(sharedFile);
+                        onOpenChange(false);
+                    }}
+                />
             )}
         </BottomSheet>
     );
