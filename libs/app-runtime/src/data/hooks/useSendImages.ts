@@ -54,8 +54,11 @@ interface PendingImages {
 const pendingImages = new Map<string, PendingImages>();
 
 /**
- * Shell files the shell has said are gone (`SOURCE`): it cleared its folder, or the OS cleared the cache.
- * Nothing brings them back, so a row holding one is not offered a retry that can only fail again.
+ * Shell files a retry cannot send: the shell has said they are gone (`SOURCE` — it cleared its folder,
+ * or the OS cleared the cache), or a video was refused for what it is (`TOO_LARGE`, `UNSUPPORTED`, or
+ * its conversion over the limit), which converting it again would only repeat. A row holding one is
+ * offered delete, not a retry that can only fail again. A conversion that failed in passing (`SYSTEM`,
+ * such as the app leaving the screen mid-way) stays retryable.
  */
 const goneShellFiles = new Set<string>();
 const isGone = (source: ChatAttachmentSource) => isShellFileRef(source) && goneShellFiles.has(source.uri);
@@ -329,7 +332,9 @@ export const useSendImages = ({
             if (reason) onVideoRefusedRef.current?.(reason);
         };
         for (const [index, source] of entry.files.entries()) {
-            if (!isShellFileRef(source) || source.kind !== 'video') continue;
+            // By the format, not the shell's `kind`: an `.mp4` picked as a document is a video too, and
+            // gets the shell's H.264 check and a poster.
+            if (!isShellFileRef(source) || chatAttachmentSourceFormat(source)?.kind !== 'video') continue;
             const convert = prepareVideoRef.current;
             if (!convert) {
                 refuse(index);
@@ -339,13 +344,14 @@ export const useSendImages = ({
                 const video = await convert(source);
                 const { rejected } = judgeChatAttachments([video.file], 1);
                 if (rejected.length > 0) {
+                    goneShellFiles.add(source.uri);
                     refuse(index, rejected[0].reason === 'too-large' ? 'too-large' : 'unsupported');
                     continue;
                 }
                 converted.set(index, video);
             } catch (error) {
                 const code = codeOf(error);
-                if (code === 'SOURCE') goneShellFiles.add(source.uri);
+                if (code === 'SOURCE' || code === 'TOO_LARGE' || code === 'UNSUPPORTED') goneShellFiles.add(source.uri);
                 refuse(index, code === 'TOO_LARGE' ? 'too-large' : code === 'UNSUPPORTED' ? 'unsupported' : undefined);
                 log('image message: video not converted', { slot: index, code });
             }

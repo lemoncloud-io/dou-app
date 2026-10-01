@@ -36,6 +36,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     SaveFile: 'OnSaveFile',
     PickAttachments: 'OnPickAttachments',
     PrepareVideo: 'OnPrepareVideo',
+    ReadAttachment: 'OnReadAttachment',
     FetchSafeArea: 'OnFetchSafeArea',
     FetchBackgroundStatus: 'OnBackgroundStatusChanged',
     RequestPermission: 'OnRequestPermission',

@@ -4,8 +4,9 @@
 // bridge: a 300MB video would arrive as one 400MB base64 message. The shell copies what was picked
 // into a folder of its own (`attach-pick`) and answers with each copy's `file://` URI and details; the
 // web uploads from that URI with `StartFileTransfer`, which only accepts upload sources inside the
-// shell's own folders. Photos picked here do cross, as base64, prepared the way the in-app photo grid
-// prepares them (location removed, HEIC written as JPEG), because the web prepares every photo itself.
+// shell's own folders. A photo is kept there too, prepared the way the in-app photo grid prepares one
+// (location removed, HEIC written as JPEG), and its bytes cross one photo at a time with `ReadAttachment`:
+// the web prepares every photo itself, and ten photos in one answer would be some 200MB of base64.
 //
 // The web ships before the app: a shell without these handlers answers `NOT_FOUND`, and the web then
 // opens its own file input instead and learns not to ask again for the page's life.
@@ -38,12 +39,26 @@ export type PickAttachmentsPayload = {
     maxBytes: AttachmentMaxBytes;
 };
 
-/** A picked photo: its prepared bytes, as the in-app grid hands one over. */
+/**
+ * The error codes `PickAttachments` fails with. A cancelled picker is not one of them.
+ * - `BUSY`: a picker is already open.
+ * - `INVALID`: a missing or malformed field.
+ * - `INTERNAL`: no screen to present the picker on, or anything else.
+ */
+export type PickAttachmentsErrorCode = 'BUSY' | 'INVALID' | 'INTERNAL';
+
+/**
+ * A picked photo, prepared and kept in the shell's `attach-pick` folder. Its bytes are read with
+ * `ReadAttachment`, one photo at a time.
+ */
 export type PickedImageAttachment = {
     kind: 'image';
-    base64: string;
-    mimeType: string;
-    fileName: string;
+    /** `file://` inside the shell's `attach-pick` folder. */
+    uri: string;
+    name: string;
+    /** The prepared photo's type, one the server takes. */
+    contentType: string;
+    size: number;
     width: number;
     height: number;
 };
@@ -75,12 +90,45 @@ export type PickedAttachment = PickedImageAttachment | PickedShellAttachment;
 /** Why the shell did not copy a picked item. */
 export type AttachmentRefusalReason = 'too-large' | 'unsupported' | 'unreadable';
 
+/** A picked item the shell did not copy. */
+export type RefusedAttachment = {
+    name: string;
+    /** What the item was, so the web names the right limit. */
+    kind: 'image' | 'video' | 'file';
+    reason: AttachmentRefusalReason;
+};
+
 /** [Response] What was picked, in pick order. A cancelled picker is `items: []`, not an error. */
 export type OnPickAttachmentsPayload = {
     items: PickedAttachment[];
     /** Items the shell would not copy, in pick order. The web reports them as it reports its own refusals. */
-    refused: { name: string; reason: AttachmentRefusalReason }[];
+    refused: RefusedAttachment[];
 };
+
+/**
+ * [Request] The bytes of one picked photo. The web asks for one at a time, in pick order, so at most
+ * one photo is ever on the bridge. It ships in the same build as `PickAttachments`, so an app that
+ * answers a pick answers this too.
+ *
+ * Fails with `INVALID` for a missing URI or one outside the shell's `attach-pick` folder, `SOURCE` when
+ * the copy is gone, and `INTERNAL` otherwise. The web refuses that photo alone, as `unreadable`.
+ */
+export type ReadAttachmentPayload = {
+    /** A `PickedImageAttachment.uri`. */
+    uri: string;
+};
+
+/** [Response] The prepared photo, in the shape `ReadPhoto` answers. */
+export type OnReadAttachmentPayload = {
+    base64: string;
+    mimeType: string;
+    fileName: string;
+    width: number;
+    height: number;
+};
+
+/** The error codes `ReadAttachment` fails with. */
+export type ReadAttachmentErrorCode = 'INVALID' | 'SOURCE' | 'INTERNAL';
 
 /**
  * The error codes `PrepareVideo` fails with.

@@ -99,6 +99,7 @@ import type {
     OnSaveFilePayload,
     OnPickAttachmentsPayload,
     OnPrepareVideoPayload,
+    OnReadAttachmentPayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnTriggerHapticPayload,
@@ -148,6 +149,7 @@ export type AppMessageDataMap = {
     OnSaveFile: OnSaveFilePayload;
     OnPickAttachments: OnPickAttachmentsPayload;
     OnPrepareVideo: OnPrepareVideoPayload;
+    OnReadAttachment: OnReadAttachmentPayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;

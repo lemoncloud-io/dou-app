@@ -743,6 +743,17 @@ describe('useSendImages — shell files', () => {
         unmount();
     });
 
+    it('converts an mp4 the shell handed over as a document, as it does any video', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const clip = shellFile('clip.mp4', 'application/octet-stream', { kind: 'file' });
+
+        await act(() => result.current.sendImages([clip]));
+
+        expect(prepareVideo).toHaveBeenCalledWith(clip);
+        unmount();
+    });
+
     it('routes a shell file to the shell sender and a page file to the page sender', async () => {
         runSequence();
         const { result, unmount } = renderHook(useShell);
@@ -812,7 +823,7 @@ describe('useSendImages — shell files', () => {
         unmount();
     });
 
-    it('leaves a video the shell refused out of the message, says why, and keeps it to retry on its own', async () => {
+    it('leaves a video the shell refused out of the message, says why, and offers only delete for it', async () => {
         prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'TOO_LARGE' }));
         runSequence();
         const { result, unmount } = renderHook(useShell);
@@ -832,6 +843,26 @@ describe('useSendImages — shell files', () => {
             { name: 'IMG_0001.mp4', contentType: 'video/mp4', size: 170_000_000 },
         ]);
         expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
+        // Converting it again would be refused the same way.
+        expect(result.current.canRetry(leftover)).toBe(false);
+        unmount();
+    });
+
+    it('keeps a video whose conversion failed in passing to retry on its own', async () => {
+        prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'SYSTEM' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const photo = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const video = mov();
+
+        await act(() => result.current.sendImages([video, photo]));
+
+        expect(onVideoRefused).not.toHaveBeenCalled();
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
         expect(result.current.canRetry(leftover)).toBe(true);
 
         await act(async () => void (await result.current.retry(leftover)));
@@ -850,7 +881,7 @@ describe('useSendImages — shell files', () => {
         expect(mockSendImageMessage).not.toHaveBeenCalled();
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
         expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
-        expect(result.current.canRetry(pendingId)).toBe(true);
+        expect(result.current.canRetry(pendingId)).toBe(false);
         unmount();
     });
 

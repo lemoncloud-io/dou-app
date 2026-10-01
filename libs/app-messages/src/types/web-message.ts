@@ -67,6 +67,7 @@ import type {
     SaveFilePayload,
     PickAttachmentsPayload,
     PrepareVideoPayload,
+    ReadAttachmentPayload,
     CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
@@ -141,6 +142,7 @@ export type WebMessagePayloadMap = {
     // without them answers `NOT_FOUND`, and the web uses its own file input instead.
     PickAttachments: PickAttachmentsPayload;
     PrepareVideo: PrepareVideoPayload;
+    ReadAttachment: ReadAttachmentPayload;
     FetchSafeArea: FetchSafeAreaPayload;
     FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;
