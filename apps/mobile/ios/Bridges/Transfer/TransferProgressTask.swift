@@ -53,7 +53,7 @@ final class TransferProgressTask {
     /// Called on every event and every second while active.
     func refresh() {
         let core = owner.coreForProgressTask
-        if case .pending = phase, core.runningCount == 0 {
+        if case .pending = phase, core.runningUploadCount == 0 {
             // Everything ended before the system got round to launching the request; withdraw
             // it so the next start submits a fresh one instead of waiting on this one.
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier)
@@ -63,7 +63,7 @@ final class TransferProgressTask {
         guard case let .active(task) = phase else { return }
         let aggregate = core.batchAggregate()
 
-        if core.runningCount == 0 {
+        if core.runningUploadCount == 0 {
             complete(task, success: !(aggregate?.anyFailed ?? false))
             return
         }

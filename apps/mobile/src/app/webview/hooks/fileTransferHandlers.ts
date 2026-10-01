@@ -34,8 +34,10 @@ export const createFileTransferHandlers = (
 ) => {
     const handleStartFileTransfer = async (message: WebMessageData<'StartFileTransfer'>) => {
         const request = message.data;
-        // Host only: the URL's query string carries the signature.
-        logger.info('TRANSFER', `[${request.transferId}] start ${request.direction} to ${safeHost(request.url)}`);
+        // Host only: the URL's query string carries the signature. A download names no local file —
+        // the shell picks where it goes — so the request is relayed exactly as it came.
+        const way = request.direction === 'download' ? 'from' : 'to';
+        logger.info('TRANSFER', `[${request.transferId}] start ${request.direction} ${way} ${safeHost(request.url)}`);
         try {
             await transfer.start(request);
             return { type: 'OnStartFileTransfer' as const, success: true, data: { transferId: request.transferId } };

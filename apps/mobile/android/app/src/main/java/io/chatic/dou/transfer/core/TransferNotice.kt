@@ -39,14 +39,16 @@ object TransferNotice {
 
     /**
      * The summary for a finished batch, or null when it should post nothing: the batch is still
-     * running, or every transfer ended without failing. Success is not announced — the app shows it.
+     * running, or no upload in it failed. Success is not announced — the app shows it. Downloads are
+     * not counted: the user is waiting for one on screen, and the page that started it reports the
+     * failure there, so a notification would only repeat it.
      */
     fun failureSummary(status: BatchStatus): FailureNotice? {
-        if (status.running.isNotEmpty() || status.failed == 0) return null
+        if (status.running.isNotEmpty() || status.failedUploads == 0) return null
         return FailureNotice(
-            direction = status.directions.singleOrNull(),
-            failed = status.failed,
-            total = status.members,
+            direction = TransferDirection.UPLOAD,
+            failed = status.failedUploads,
+            total = status.uploads,
         )
     }
 

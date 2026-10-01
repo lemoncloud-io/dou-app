@@ -37,6 +37,16 @@ object TransferRules {
     }
 
     /**
+     * The headers a download sends: [filterHeaders], with `Accept-Encoding: identity` in place of
+     * any the caller gave. Both HTTP stacks ask for gzip by default and inflate the reply on their
+     * own, so the bytes kept and the length reported could differ from the stored object's. The
+     * signature covers the host only, so replacing this header does not break it.
+     */
+    fun downloadHeaders(headers: Map<String, String>): Map<String, String> =
+        LinkedHashMap(filterHeaders(headers).filterKeys { !it.equals("accept-encoding", ignoreCase = true) })
+            .apply { put("Accept-Encoding", "identity") }
+
+    /**
      * An absolute http(s) URL with a host. Checked at `start` so a malformed instruction is refused
      * straight away instead of being accepted and failing later — the iOS shell refuses it at the
      * same point, and a caller should get the same answer on both.

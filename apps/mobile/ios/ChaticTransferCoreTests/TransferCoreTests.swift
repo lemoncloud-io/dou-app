@@ -1,7 +1,8 @@
 import XCTest
 
-/// The core rules both platforms promise. U1 to U16 carry the same numbers as the Android suite;
-/// the tests after them cover the remaining branches of this implementation.
+/// The core rules both platforms promise. U1 to U24 carry the same numbers as the Android suite;
+/// the tests after them cover the remaining branches of this implementation. U19 to U22 pin the
+/// download-folder rules in `DownloadFiles`.
 ///
 /// This bundle compiles `Bridges/Transfer/Core/*.swift` directly (no app host), so a new file in
 /// that folder has to be added to the ChaticTransferCoreTests target as well.
@@ -45,6 +46,36 @@ final class TransferCoreTests: XCTestCase {
         )
     }
 
+    private func downloadRequest(
+        _ id: String,
+        method: String = "GET",
+        uri: String = "",
+        fileName: String? = "photo.png",
+        url: String = "https://bucket.example.com/key?X-Amz-Signature=secret"
+    ) -> TransferRequest {
+        TransferRequest(
+            transferId: id,
+            direction: "download",
+            url: url,
+            method: method,
+            fileUri: uri,
+            contentLength: nil,
+            fileName: fileName
+        )
+    }
+
+    private func startDownload(_ id: String) {
+        XCTAssertNoThrow(try core.start(downloadRequest(id)))
+    }
+
+    private let downloaded = DownloadedFile(
+        uri: "file:///var/mobile/Library/Caches/transfer-download/x/photo.png",
+        size: 42,
+        contentType: "image/png"
+    )
+
+    private static let png: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52]
+
     private func start(_ id: String, length: Int64 = 1_000, title: String? = nil) {
         XCTAssertNoThrow(try core.start(request(id, length: length, title: title)))
     }
@@ -59,7 +90,7 @@ final class TransferCoreTests: XCTestCase {
         events.filter { $0.transferId == id && $0.state.isTerminal }
     }
 
-    // MARK: - U1 to U16
+    // MARK: - U1 to U24
 
     func test_U1_start_emitsFirstRunningEventImmediately() {
         start("a", length: 500)
@@ -146,10 +177,15 @@ final class TransferCoreTests: XCTestCase {
         XCTAssertNoThrow(try core.start(request("a")))
     }
 
-    func test_U8_download_isInvalid() {
-        assertInvalid { try self.core.start(self.request("a", direction: "download", method: "GET")) }
-        XCTAssertTrue(events.isEmpty)
-        XCTAssertTrue(core.list().isEmpty)
+    func test_U8_directionAndMethod_downloadGetAccepted_mismatchesAndDownloadFileUriInvalid() {
+        startDownload("ok")
+        XCTAssertEqual(events.last?.direction, .download)
+        XCTAssertEqual(events.last?.totalBytes, 0, "the length is learned from the response")
+
+        assertInvalid { try self.core.start(self.downloadRequest("put", method: "PUT")) }
+        assertInvalid { try self.core.start(self.request("get", method: "GET")) }
+        assertInvalid { try self.core.start(self.downloadRequest("uri", uri: "file:///var/mobile/Library/app.sqlite")) }
+        XCTAssertEqual(core.list().map(\.transferId), ["ok"])
     }
 
     func test_U9_progressThrottle_terminalImmediate_noEventWithoutIncrease() {
@@ -291,6 +327,218 @@ final class TransferCoreTests: XCTestCase {
         XCTAssertTrue(core.shouldCloseContinuedTask(now: clock))
         XCTAssertTrue(core.isRunning("a"), "closing the UI never cancels the transfer")
         XCTAssertTrue(terminalEvents("a").isEmpty)
+    }
+
+    func test_U17_commit_only2xxKeepsTheBody_everyOtherStatusLeavesNoFile() {
+        for status in [200, 204, 299] { XCTAssertTrue(DownloadFiles.keepsBody(status), "\(status)") }
+        for status in [199, 301, 403, 404, 500] { XCTAssertFalse(DownloadFiles.keepsBody(status), "\(status)") }
+
+        startDownload("ok")
+        core.response("ok", status: 200, body: nil, file: downloaded)
+        XCTAssertEqual(terminalEvents("ok").first?.file, downloaded)
+
+        let xml = Data("<Error><Code>AccessDenied</Code><Message>Request has expired</Message></Error>".utf8)
+        for status in [301, 403, 404, 500] {
+            startDownload("d\(status)")
+            // Even if a file were reported, a non-2xx answer keeps none: an error document must never
+            // reach the photo library under an image's name.
+            core.response("d\(status)", status: status, body: xml, file: downloaded)
+            XCTAssertEqual(terminalEvents("d\(status)").first?.state, .responded)
+            XCTAssertNil(terminalEvents("d\(status)").first?.file, "\(status)")
+        }
+        XCTAssertEqual(terminalEvents("d403").first?.providerCode, "AccessDenied")
+
+        start("u")
+        core.response("u", status: 200, body: nil, file: downloaded)
+        XCTAssertNil(terminalEvents("u").first?.file, "an upload never carries a file")
+    }
+
+    func test_U18_denominator_fromContentLength_orUnknownWithout() {
+        startDownload("known")
+        core.expectLength("known", contentLength: 1_234)
+        XCTAssertEqual(core.list().first { $0.transferId == "known" }?.totalBytes, 1_234)
+
+        startDownload("chunked")
+        core.expectLength("chunked", contentLength: -1)
+        XCTAssertEqual(core.list().first { $0.transferId == "chunked" }?.totalBytes, 0)
+        clock += 500
+        core.progress("chunked", bytes: 900)
+        XCTAssertEqual(events.last?.transferredBytes, 900, "unknown total: bytes still count up")
+
+        start("u", length: 100)
+        core.expectLength("u", contentLength: 5)
+        XCTAssertEqual(core.list().first { $0.transferId == "u" }?.totalBytes, 100, "an upload keeps its declared length")
+    }
+
+    func test_U19_exportable_onlyCommittedFilesInsideTheDownloadFolder() throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: base) }
+        let root = base.appendingPathComponent("Caches/\(DownloadFiles.folder)")
+        let folder = root.appendingPathComponent("abc")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let photo = folder.appendingPathComponent("photo.png")
+        try Data(Self.png).write(to: photo)
+        try Data(Self.png).write(to: folder.appendingPathComponent("a b.png"))
+        try Data(Self.png).write(to: folder.appendingPathComponent("next.png.part"))
+        let database = base.appendingPathComponent("Library/app.sqlite")
+        try fm.createDirectory(at: database.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("secret".utf8).write(to: database)
+        let link = folder.appendingPathComponent("link.png")
+        try fm.createSymbolicLink(at: link, withDestinationURL: database)
+        let otherCache = base.appendingPathComponent("Caches/transfer-temp/upload.png")
+        try fm.createDirectory(at: otherCache.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(Self.png).write(to: otherCache)
+        func uri(_ path: String) -> String { "file://\(path)" }
+
+        guard case let .accepted(file) = DownloadFiles.checkExportable(uri(photo.path), root: root) else {
+            return XCTFail("the committed file is accepted")
+        }
+        XCTAssertEqual(file.lastPathComponent, "photo.png")
+        XCTAssertEqual(try Data(contentsOf: file), Data(Self.png))
+        guard case .accepted = DownloadFiles.checkExportable(uri(folder.path + "/a%20b.png"), root: root) else {
+            return XCTFail("a percent-encoded name is accepted")
+        }
+
+        let refused: [(String, String)] = [
+            ("dot-dot escape", uri(folder.path + "/../../../Library/app.sqlite")),
+            ("symbolic link escape", uri(link.path)),
+            ("another folder", uri(otherCache.path)),
+            ("database directly", uri(database.path)),
+            ("content scheme", "content://io.chatic.dou.share.fileprovider/transfer-download/abc/photo.png"),
+            ("https", "https://bucket.example.com/photo.png"),
+            ("relative path", "photo.png"),
+            ("file URI with a host", "file://evil" + photo.path),
+            ("still receiving", uri(folder.path + "/next.png.part")),
+            ("the folder itself", uri(root.path)),
+            ("a transfer folder", uri(folder.path)),
+            ("a NUL in the path", uri(folder.path + "/a%00b.png")),
+        ]
+        for (label, value) in refused {
+            guard case .invalid = DownloadFiles.checkExportable(value, root: root) else {
+                XCTFail("\(label) must be refused")
+                continue
+            }
+        }
+        XCTAssertEqual(DownloadFiles.checkExportable(uri(folder.path + "/gone.png"), root: root), .missing)
+    }
+
+    func test_U20_sniff_knownImagesByTheirFirstBytes_anythingElseUnsupported() {
+        XCTAssertEqual(DownloadFiles.sniffImage(Data(Self.png)), .png)
+        XCTAssertEqual(DownloadFiles.sniffImage(Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01])), .jpeg)
+        XCTAssertEqual(DownloadFiles.sniffImage(Data("GIF87a\u{1}\u{0}\u{1}\u{0}\u{0}\u{0}".utf8)), .gif)
+        XCTAssertEqual(DownloadFiles.sniffImage(Data("GIF89a\u{1}\u{0}\u{1}\u{0}\u{0}\u{0}".utf8)), .gif)
+        XCTAssertEqual(DownloadFiles.sniffImage(Data("RIFF\u{24}\u{0}\u{0}\u{0}WEBPVP8 ".utf8)), .webp)
+
+        XCTAssertEqual(DownloadFiles.ImageType.jpeg.mimeType, "image/jpeg")
+        XCTAssertEqual(DownloadFiles.ImageType.jpeg.fileExtension, "jpg")
+
+        XCTAssertNil(DownloadFiles.sniffImage(Data("<?xml version=\"1.0\"?><Error/>".utf8)), "XML error body")
+        XCTAssertNil(DownloadFiles.sniffImage(Data("<!doctype html><html>".utf8)), "HTML")
+        XCTAssertNil(DownloadFiles.sniffImage(Data("RIFF\u{24}\u{0}\u{0}\u{0}WAVEfmt ".utf8)), "RIFF but not WebP")
+        XCTAssertNil(DownloadFiles.sniffImage(Data()), "empty")
+        XCTAssertNil(DownloadFiles.sniffImage(Data(Self.png.prefix(10))), "fewer than 11 bytes")
+    }
+
+    func test_U21_names_cleaned_shortened_extensionFromBytes_collisionsNumbered() {
+        typealias Parts = DownloadFiles.NameParts
+        let emoji = "\u{1F600}"
+        let cases: [(String, Parts)] = [
+            ("../../etc/passwd", Parts(base: "passwd", ext: nil)),
+            ("C:\\Users\\me\\Photo.PNG", Parts(base: "Photo", ext: "png")),
+            ("pho\u{0}to\u{1F}\u{7F}\u{85}.jpg", Parts(base: "photo", ext: "jpg")),
+            ("a:b*c?\"<>|.png", Parts(base: "a_b_c_____", ext: "png")),
+            ("  .hidden.gif. ", Parts(base: "hidden", ext: "gif")),
+            (String(repeating: "x", count: 80) + ".gif", Parts(base: String(repeating: "x", count: 60), ext: "gif")),
+            (String(repeating: emoji, count: 70), Parts(base: String(repeating: emoji, count: 60), ext: nil)),
+            ("archive.tar.gz", Parts(base: "archive.tar", ext: "gz")),
+            ("notes.not an ext", Parts(base: "notes.not an ext", ext: nil)),
+            ("resume.part", Parts(base: "resume", ext: nil)),
+            ("a.part.part", Parts(base: "a", ext: nil)),
+            ("photo.png.PART", Parts(base: "photo", ext: "png")),
+        ]
+        for (hint, parts) in cases {
+            XCTAssertEqual(DownloadFiles.nameParts(hint), parts, hint)
+            XCTAssertEqual(DownloadFiles.nameParts(DownloadFiles.fileName(parts)), parts, "idempotent: \(hint)")
+        }
+        for empty in [nil, "", "   ", "...", "/", "\u{0}"] as [String?] {
+            XCTAssertEqual(DownloadFiles.nameParts(empty), Parts(base: "image", ext: nil))
+        }
+
+        let photo = DownloadFiles.nameParts("photo.png")
+        XCTAssertEqual(DownloadFiles.fileName(photo, sniffed: .jpeg), "photo.jpg")
+        XCTAssertEqual(DownloadFiles.fileName(DownloadFiles.nameParts("scan.jpeg"), sniffed: .jpeg), "scan.jpg")
+        XCTAssertEqual(DownloadFiles.fileName(DownloadFiles.nameParts("report.pdf"), sniffed: nil), "report.pdf")
+        XCTAssertEqual(DownloadFiles.fileName(DownloadFiles.nameParts(nil), sniffed: .webp), "image.webp")
+        XCTAssertEqual(DownloadFiles.partName(photo), "photo.png.part")
+
+        XCTAssertEqual(DownloadFiles.uniqueName("image.png") { _ in false }, "image.png")
+        XCTAssertEqual(DownloadFiles.uniqueName("image.png") { $0 == "image.png" }, "image (1).png")
+        XCTAssertEqual(DownloadFiles.uniqueName("image.png") { ["image.png", "image (1).png"].contains($0) }, "image (2).png")
+        XCTAssertEqual(DownloadFiles.uniqueName("image") { $0 == "image" }, "image (1)")
+
+        // The folder is a hash of the id, so an id cannot name a path.
+        XCTAssertEqual(DownloadFiles.folderName("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        XCTAssertNotNil(DownloadFiles.folderName("../../databases").range(of: "^[0-9a-f]{64}$", options: .regularExpression))
+    }
+
+    func test_U22_sweep_onlyFoldersOlderThan24h_neverARunningTransfers() {
+        let hour: Int64 = 60 * 60 * 1000
+        let now = 100 * 24 * hour
+        let folders = [
+            DownloadFiles.FolderAge(name: "old", modifiedAtMs: now - 24 * hour - 1),
+            DownloadFiles.FolderAge(name: "exactly-a-day", modifiedAtMs: now - 24 * hour),
+            DownloadFiles.FolderAge(name: "fresh", modifiedAtMs: now - hour),
+            DownloadFiles.FolderAge(name: "running", modifiedAtMs: now - 48 * hour),
+        ]
+        XCTAssertEqual(DownloadFiles.foldersToSweep(folders, nowMs: now, runningFolderNames: ["running"]), ["old"])
+
+        startDownload("r")
+        start("u")
+        startDownload("done")
+        core.response("done", status: 200, body: nil, file: downloaded)
+        XCTAssertEqual(core.runningDownloads(), ["r"])
+    }
+
+    func test_U23_systemSurfaces_downloadOnlyBatch_noProgressTaskNoFailureNotice() {
+        startDownload("d1")
+        XCTAssertFalse(core.shouldStartContinuedTask())
+        core.failure("d1", code: .network, message: "reset")
+        XCTAssertNil(core.batchFailureNotice())
+        XCTAssertNil(core.batchAggregate(), "a download never joins the batch")
+
+        // Mixed: the upload decides, and the notice counts uploads only.
+        start("u1")
+        startDownload("d2")
+        XCTAssertTrue(core.shouldStartContinuedTask())
+        core.failure("u1", code: .network, message: "reset")
+        core.failure("d2", code: .network, message: "reset")
+        let notice = core.batchFailureNotice()
+        XCTAssertEqual(notice?.failedCount, 1)
+        XCTAssertEqual(notice?.memberCount, 1)
+
+        // The task's expiry cancels the uploads it covered and leaves a download running.
+        start("u3")
+        startDownload("d3")
+        XCTAssertEqual(core.continuedTaskExpired(), ["u3"])
+        XCTAssertTrue(core.isRunning("d3"))
+        XCTAssertEqual(core.runningUploadCount, 0)
+        XCTAssertFalse(core.shouldStartContinuedTask(), "nothing left for the task to show")
+        XCTAssertFalse(core.shouldCloseContinuedTask(now: .max))
+    }
+
+    func test_U24_requestHeaders_downloadAsksForIdentity_overridingTheCaller_uploadUntouched() {
+        let headers = [
+            "ACCEPT-ENCODING": "gzip",
+            "Host": "bucket.example.com",
+            "content-length": "12",
+            "x-amz-date": "20260930T000000Z",
+        ]
+        XCTAssertEqual(
+            TransferText.downloadHeaders(headers),
+            ["x-amz-date": "20260930T000000Z", "Accept-Encoding": "identity"]
+        )
+        XCTAssertFalse(TransferText.requestHeaders([:], contentType: "image/png").keys.contains { $0.lowercased() == "accept-encoding" })
     }
 
     // MARK: - restore
@@ -583,6 +831,48 @@ final class TransferCoreTests: XCTestCase {
 
         core.response("a", status: 200, body: nil)
         XCTAssertEqual(events.last?.transferredBytes, 300)
+    }
+
+    func test_download_validate_rejectsABadUrlOrMethod_treatsABlankFileUriAsAbsent() {
+        assertInvalid { try self.core.start(self.downloadRequest("file", url: "file:///var/app.sqlite")) }
+        assertInvalid { try self.core.start(self.downloadRequest("hostless", url: "https:///no-host")) }
+        assertInvalid { try self.core.start(self.downloadRequest("method", method: "")) }
+        XCTAssertNoThrow(try core.start(downloadRequest("blank", uri: "  ", fileName: nil)))
+        XCTAssertEqual(core.list().map(\.transferId), ["blank"])
+    }
+
+    func test_download_progressIsClampedOnceTheLengthIsKnown_andTheFileIsHeldUntilAck() {
+        startDownload("d")
+        core.expectLength("d", contentLength: 100)
+        clock += 500
+        core.progress("d", bytes: 250)
+        XCTAssertEqual(events.last?.transferredBytes, 100)
+
+        core.response("d", status: 200, body: nil, file: downloaded)
+        XCTAssertEqual(core.list().first?.file, downloaded)
+        XCTAssertEqual((core.list().first?.dictionary["file"] as? [String: Any])?["uri"] as? String, downloaded.uri)
+        _ = core.ack(["d"])
+        XCTAssertTrue(core.list().isEmpty)
+    }
+
+    func test_expectLength_afterTheEnd_orForAnUnknownId_isIgnored() {
+        startDownload("d")
+        core.failure("d", code: .network, message: "reset")
+        core.expectLength("d", contentLength: 100)
+        core.expectLength("nobody", contentLength: 100)
+        XCTAssertEqual(core.list().first?.totalBytes, 0)
+    }
+
+    func test_requestDictionary_readsTheDownloadNameHint() {
+        let parsed = TransferRequest(dictionary: [
+            "transferId": "d",
+            "direction": "download",
+            "url": "https://bucket.example.com/k",
+            "method": "GET",
+            "file": ["name": "photo.png"],
+        ])
+        XCTAssertEqual(parsed.fileName, "photo.png")
+        XCTAssertEqual(parsed.fileUri, "")
     }
 
     func test_providerCode_emptyOrMissingBody() {

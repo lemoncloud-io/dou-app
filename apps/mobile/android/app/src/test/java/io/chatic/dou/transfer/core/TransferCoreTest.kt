@@ -52,6 +52,67 @@ class TransferCoreTest {
     }
 
     @Test
+    fun start_download_rejectsAUrlThatIsNotAnAbsoluteHttpUrl_andAMissingMethod() {
+        assertRejected(TransferErrorCode.INVALID) { core.start(download("file", url = "file:///data/app.db")) }
+        assertRejected(TransferErrorCode.INVALID) { core.start(download("hostless", url = "https:///no-host")) }
+        assertRejected(TransferErrorCode.INVALID) { core.start(download("method", method = null)) }
+        assertTrue(core.list().isEmpty())
+    }
+
+    @Test
+    fun start_download_treatsABlankFileUriAsAbsent_andNeedsNoLength() {
+        val event = core.start(download("blank", fileUri = "  ", fileName = null))
+        assertEquals(TransferState.RUNNING, event.state)
+        assertEquals(0L, event.totalBytes)
+    }
+
+    @Test
+    fun download_progressIsClampedOnceTheLengthIsKnown_andTheFileIsHeldUntilAck() {
+        core.start(download("d"))
+        core.expectLength("d", 100)
+        clock.advance(500)
+        assertEquals(100L, core.progress("d", 250)?.transferredBytes)
+
+        core.response("d", 200, null, downloadedFile())
+        assertEquals(downloadedFile(), core.list().single().file)
+        core.ack(listOf("d"))
+        assertTrue(core.list().isEmpty())
+    }
+
+    @Test
+    fun batch_ratioFollowsTheUploads_soADownloadWithoutALengthDoesNotHideTheirProgress() {
+        core.start(upload("u", contentLength = 1_000.0))
+        clock.advance(500)
+        core.progress("u", 400)
+        core.start(download("d"))
+        assertEquals(0.4, core.batchStatus().ratio!!, 0.0001)
+
+        // Ended without ever learning its length (a 403): the upload's bar is still measured.
+        core.response("d", 403, null)
+        assertEquals(0.4, core.batchStatus().ratio!!, 0.0001)
+        assertEquals("the download is still listed in the batch", 2, core.batchStatus().members)
+    }
+
+    @Test
+    fun batch_downloadOnly_isMeasuredByItsDownloads() {
+        core.start(download("d"))
+        assertNull("length not known yet", core.batchStatus().ratio)
+        core.expectLength("d", 200)
+        clock.advance(500)
+        core.progress("d", 50)
+        assertEquals(0.25, core.batchStatus().ratio!!, 0.0001)
+    }
+
+    @Test
+    fun expectLength_afterTheEnd_orForAnUnknownId_isIgnored() {
+        core.start(download("d"))
+        core.failure("d", TransferErrorCode.NETWORK, "reset")
+        core.expectLength("d", 100)
+        core.expectLength("nobody", 100)
+        assertEquals(0L, core.list().single().totalBytes)
+    }
+
+    @Test
     fun start_rejectsMissingNegativeFractionalOrNonFiniteContentLength() {
         for (length in listOf(null, -1.0, 1.5, Double.NaN, Double.POSITIVE_INFINITY)) {
             assertRejected(TransferErrorCode.INVALID) { core.start(upload(contentLength = length)) }
