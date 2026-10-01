@@ -100,7 +100,8 @@ reconnect catch-up run for as long as it is on screen:
   `usePlaceSync(placeId)`.
 - Dynamic list: `runtime.sync.getSyncManager().registerChannel(id)` / `registerPlace(id)` /
   `registerProfile(id)` / `registerJoin(id)`, called per id and disposed on cleanup —
-  `useChannelProfiles.ts` and `useMyJoins.ts` (`useJoinSyncRegistration`) are the app's examples.
+  `useMyJoins.ts` (`useJoinSyncRegistration`) is the app's example. `useChannelProfiles.ts` is the
+  deferred variant, which registers only after a read — see [data-layer.md](../feature/channels/data-layer.md).
   Pass the cloud as the third argument (`registerJoin(id, undefined, { cid })`) whenever the caller
   knows it, and build any `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`: without a cloud
   the target lands on whichever cloud is selected when the effect runs, and the session uid is only
