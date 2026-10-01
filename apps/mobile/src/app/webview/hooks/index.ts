@@ -24,6 +24,7 @@ export * from './useLogBufferHandler';
 export * from './useLogStoreHandler';
 export * from './usePendingReportHandler';
 export * from './useFileTransferHandler';
+export * from './useMediaExportHandler';
 export * from './useTestRecordHandler';
 export * from './useResumeOverlay';
 export * from './usePerfHandler';

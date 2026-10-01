@@ -11,6 +11,7 @@ import io.chatic.dou.bridge.BackNavigationPackage
 import io.chatic.dou.bridge.BadgeSyncPackage
 import io.chatic.dou.bridge.FileManagerPackage
 import io.chatic.dou.bridge.HapticPackage
+import io.chatic.dou.bridge.MediaExportPackage
 import io.chatic.dou.bridge.NativeLoggerPackage
 import io.chatic.dou.bridge.PushMarksPackage
 import io.chatic.dou.bridge.SharedLanguagePackage
@@ -29,6 +30,7 @@ class MainApplication : Application(), ReactApplication {
             add(BadgeSyncPackage())
             add(FileManagerPackage())
             add(HapticPackage())
+            add(MediaExportPackage())
             add(NativeLoggerPackage())
             add(PushMarksPackage())
             add(SharedLanguagePackage())

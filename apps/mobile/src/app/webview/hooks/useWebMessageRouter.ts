@@ -20,6 +20,7 @@ import {
     useSearchCacheHandler,
     useSubscriptionIapHandler,
     useFileTransferHandler,
+    useMediaExportHandler,
     useTestRecordHandler,
     useResumeOverlay,
     useCustomZipHandler,
@@ -42,7 +43,8 @@ export interface UseWebMessageRouterProps {
 /**
  * Central router for handling messages sent from the Web (WebView) to the Native App.
  * It acts as a Facade, delegating specific tasks to domain-specific handler hooks.
- * This hook also implements a message queue to process incoming messages sequentially, preventing race conditions and bottlenecks.
+ * Messages are not queued: each is handled as it arrives, so a handler that waits on the user
+ * (ShareFile on iOS waits for the share sheet to close) holds up no other message.
  *
  * @param props - Dependencies injected from the MainScreen (bridge, navigation, etc.)
  * @returns An object containing the message handler callback and IAP loading state.
@@ -113,6 +115,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleAckFileTransfers,
         handleWriteTempFile,
     } = useFileTransferHandler(bridge);
+    const { handleSaveToPhotoLibrary, handleShareFile } = useMediaExportHandler();
 
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
@@ -214,6 +217,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleListFileTransfers,
         handleAckFileTransfers,
         handleWriteTempFile,
+        handleSaveToPhotoLibrary,
+        handleShareFile,
         handleFetchTestRecord,
         handleFetchAllTestRecords,
         handleSaveTestRecord,
@@ -302,6 +307,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleListFileTransfers,
             handleAckFileTransfers,
             handleWriteTempFile,
+            handleSaveToPhotoLibrary,
+            handleShareFile,
             handleFetchUrlMetadata,
         };
     });
@@ -378,6 +385,11 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ListFileTransfers: () => handlersRef.current.handleListFileTransfers(),
             AckFileTransfers: message => handlersRef.current.handleAckFileTransfers(message),
             WriteTempFile: message => handlersRef.current.handleWriteTempFile(message),
+            // Registered with their message types in the same change: the web shows save and share
+            // only when the handshake lists both names, and the handshake is built from the message
+            // map, not from this table — a type without a handler here would be advertised anyway.
+            SaveToPhotoLibrary: message => handlersRef.current.handleSaveToPhotoLibrary(message),
+            ShareFile: message => handlersRef.current.handleShareFile(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
