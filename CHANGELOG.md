@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-01] - root@0.78.1, @chatic/desktop-web@0.19.1
+
+### Bug Fixes
+
+- (desktop-web) offer Delete on a file-only reply in a thread
+
 ## [2026-10-01] - No version updates
 
 ### Bug Fixes
