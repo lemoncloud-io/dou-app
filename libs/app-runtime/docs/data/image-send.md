@@ -73,13 +73,17 @@ is sent under the name and type `chatAttachmentFormat` gives it, so an HWP the O
 
 **A shell video is converted before the sequence starts, not inside its `prepare` port.** After the
 pending row is written, the hook calls `prepareVideo` for each shell video, one at a time in pick
-order, outside the cloud's socket hold (a conversion can take minutes and needs no socket). The
-sequence fails the whole message when its `prepare` throws, and a refused video must fail alone, so:
+order, outside the cloud's socket hold (a conversion can take minutes and needs no socket). A shell
+file is a video by its format (`chatAttachmentSourceFormat`), not by the `kind` the shell gave it, so
+an `.mp4` picked through the documents picker is converted or checked, and gets a poster, like one
+picked from the album. The sequence fails the whole message when its `prepare` throws, and a refused
+video must fail alone, so:
 
 - **A refusal fails only that video.** `TOO_LARGE`, `UNSUPPORTED`, `SOURCE`, `SYSTEM` or a timeout
   leaves the video out of the list the sequence runs on, and it is reported the way a slot whose upload
-  failed is: written as a failed message of its own, with the usual retry. `onVideoRefused` is told
-  `too-large` or `unsupported`, so the screen can say why.
+  failed is: written as a failed message of its own. `onVideoRefused` is told `too-large` or
+  `unsupported`, so the screen can say why. Whether that message can be retried depends on the
+  refusal (below).
 - **The result is judged again** with `judgeChatAttachments`, since the shell only estimated its size
   before converting. A result over the limit is refused like a `TOO_LARGE`.
 - **Inside the sequence, `prepare` passes the converted file and its poster through** as the slot's
@@ -89,10 +93,14 @@ sequence fails the whole message when its `prepare` throws, and a refused video 
   file's slot has no preview, and neither does a page video: an object URL of an `mp4` drawn as an
   image only breaks.
 
-**A shell file the shell has lost cannot be retried.** When `prepareVideo` or the shell's PUT answers
-`SOURCE`, the file is marked gone for the page. Left out of a sent message, gone files are written as a
-failed row of their own with no files in memory, so delete is all it offers; a failed message whose
-every file is gone lets its files go the same way.
+**A shell file a retry could only fail again cannot be retried.** The file is marked gone for the page
+(`goneShellFiles`) when the shell has lost it — `prepareVideo` answers `SOURCE`, or the shell's PUT
+does, at its start (iOS refuses a missing file there) or once it reads — and when a video was refused
+for what it is: `TOO_LARGE`, `UNSUPPORTED`, or a converted result over the limit, which converting
+again would only repeat. Left out of a sent message, gone files are written as a failed row of their
+own with no files in memory, so delete is all it offers; a failed message whose every file is gone
+lets its files go the same way. Only a failure in passing stays retryable — `SYSTEM` (on iOS, the app
+leaving the screen mid-conversion) or a timeout.
 
 ## Memory, and what it cannot hold
 

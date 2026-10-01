@@ -13,8 +13,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
 | `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
 | `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 29 handler hooks                        |
-| `src/app/webview/hooks/*Handler.ts`            | 29 domain handlers, one per capability group                                  |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 30 handler hooks                        |
+| `src/app/webview/hooks/*Handler.ts`            | 30 domain handlers, one per capability group                                  |
 | `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
@@ -89,8 +89,12 @@ kind can therefore finish out of order; a handler that needs ordering has to pro
 A message is registered only where this build can answer it. The photo-library messages are added to
 the routing map only when the native `PhotoLibrary` module exists, so a JS bundle run over a native
 build without it leaves them unregistered and `AppBridgeHost` answers `NOT_FOUND` — the answer the
-web falls back to its file input on ([../native/photo-library.md](../native/photo-library.md)). A
-handler that exists but fails would take that fallback away.
+web falls back to its file input on ([../native/photo-library.md](../native/photo-library.md)). The
+same holds for `PickAttachments`, `PrepareVideo` and `ReadAttachment` (the native `AttachmentPicker` module,
+[../native/attachment-picker.md](../native/attachment-picker.md)), and for `OpenFile` and `SaveFile`,
+each registered only when the installed `MediaExport` module has that method
+([../native/media-export.md](../native/media-export.md)). A handler that exists but fails would take
+that fallback away.
 
 ## The WebAppReady handshake
 

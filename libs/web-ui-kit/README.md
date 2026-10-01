@@ -85,7 +85,7 @@ than tailwind-merges and breaks the two-up action row.
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 86 spec files and 73 story files against 85 exported
+6. **Every component has a test and a story.** 90 spec files and 75 story files against 87 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -154,13 +154,13 @@ libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
 │   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
-│   ├── icons/              43 exports: lucide aliases + Figma-exported glyphs
+│   ├── icons/              52 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
 ├── foundations/   11 groups, 36 components
 │   avatar(7) · button(9) · input(7) · badge(5) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 49 components
-    chat(15) · list(6) · media(5) · overlay(5) · section(4) · header(3) ·
+└── composites/    10 groups, 51 components
+    chat(17) · list(6) · media(5) · overlay(5) · section(4) · header(3) ·
     layout(4) · subscription(3) · feedback(2) · navigation(2)
 ```
 
@@ -284,7 +284,7 @@ accessible names; leave pixel values to the story.
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 86 spec files
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 90 spec files
 npx jest --config libs/web-ui-kit/jest.config.js
 ```
 

@@ -65,8 +65,8 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 29 handler hooks that answer web messages; the
-20 service domains behind them; the 12 native bridge modules and their Android/Kotlin and iOS/Swift
+**In** — the WebView host and the message router; the 30 handler hooks that answer web messages; the
+20 service domains behind them; the 13 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
 counts and push-tap routing; deep links and universal links; large-file upload and download, and saving or sharing a downloaded
 image; boot metrics; theme
@@ -92,9 +92,9 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>29 handlers"]
+    Handlers["webview/hooks<br/>30 handlers"]
     Services["services/<br/>20 domains"]
-    BridgeTS["bridge/<br/>10 native modules"]
+    BridgeTS["bridge/<br/>13 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
     Boot --> Screen --> WV
@@ -152,11 +152,11 @@ apps/mobile/
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
-│       ├── webview/       79 files: AppWebView, SimpleWebView, the router, 29 handlers, injection
+│       ├── webview/       82 files: AppWebView, SimpleWebView, the router, 30 handlers, injection
 │       ├── services/      98 files across 20 domains, assembled in provider.ts
-│       ├── bridge/        12 modules onto native: app icon, back nav, badge sync, boot splash,
-│       │                  file manager, haptics, media export, photo library, push marks,
-│       │                  shared language, system bars, file transfer
+│       ├── bridge/        13 modules onto native: app icon, attachment picker, back nav, badge sync,
+│       │                  boot splash, file manager, haptics, media export, photo library,
+│       │                  push marks, shared language, system bars, file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
 │       ├── features/      core chrome and features/main — MainScreen and ModalScreen only
@@ -167,7 +167,7 @@ apps/mobile/
 ├── android/               Kotlin: MainActivity, bridge, handler, module, push, service, worker
 ├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension
 ├── fastlane/              store upload lanes
-└── docs/                  7 categories, 15 topic documents — see Documents
+└── docs/                  7 categories, 17 topic documents — see Documents
 ```
 
 There is no `screens/` directory to open beyond `features/main`, and no `api/` directory at all —
@@ -213,7 +213,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 29 handler hooks → useServices() → provider
+                    └── 30 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first
@@ -288,7 +288,7 @@ Those are the detail, and this README is the map.
 ## How to verify
 
 ```bash
-npx jest --config apps/mobile/jest.config.js     # 57 spec files
+npx jest --config apps/mobile/jest.config.js     # 74 spec files
 npx tsc -b apps/mobile/tsconfig.json             # the app sources
 ```
 

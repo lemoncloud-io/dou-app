@@ -1,4 +1,4 @@
-# image send — `useSendImages`
+# attachment send — photos, videos and documents (`useSendImages`)
 
 > Status: wired into the room and the thread through the composer's attach button. Canonical code:
 > [`hooks/useSendImages.ts`](../../../src/app/features/channels/hooks/useSendImages.ts) (this shell's
@@ -11,9 +11,10 @@
 > ([libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md)).
 
 `useSendImages({ cid, channelId, parentId? })` is that hook bound to this shell: `put` is the
-shell's PUT (below), and `beforeSweep` — also run whenever the app comes back to the front — catches
-up with the transfers the native shell finished while the page was away. It returns
-`{ sendImages, retry, canRetry, discard }`.
+shell's PUT for page files (below), `putShellFile` and `prepareVideo` send and convert the files the
+app keeps (inside the app only), `onVideoRefused` shows why the app would not convert a video, and
+`beforeSweep` — also run whenever the app comes back to the front — catches up with the transfers the
+native shell finished while the page was away. It returns `{ sendImages, retry, canRetry, discard }`.
 
 ## Which PUT
 
@@ -24,6 +25,14 @@ up with the transfers the native shell finished while the page was away. It retu
 | browser                              | `xhrPut` (`@chatic/data`) — the page's own `XMLHttpRequest`                            |
 | app with the transfer module         | `nativePut` — temp file, `StartFileTransfer`, wait for the terminal state, acknowledge |
 | app built before the transfer module | `xhrPut`, after the first request comes back `NOT_FOUND`; remembered for the page      |
+
+**Only a photo crosses the bridge.** A page file that is a video or a document goes up by `xhrPut`
+even inside the app: the native path would first copy it to the shell as base64 in one message, and a
+WebView does not survive that for a 300MB file. The picked `File` is handed over as it is, which the
+browser streams from disk. A file the app keeps (`ShellFileRef`, from the app's own picker, below) goes
+through `putShellFile`: `StartFileTransfer` with the shell's own address and the declared size, no temp
+file. It has no page fallback — only an app with the transfer module makes such files — so one that
+reaches an older shell fails its slot.
 
 The native path keeps moving bytes with the app in the background. It writes one temp file at a
 time — each write holds a whole photo as base64 in page memory — while the transfers themselves
@@ -41,8 +50,9 @@ a failure, so its message cannot hang in "sending".
 
 ## Picking — `useChatImageAttach`
 
-The composer's leading button opens the attach menu — photos, camera, files. How photos are picked
-depends on the shell:
+The composer's leading button opens the attach menu — photos, camera, files. "Files" opens a second
+sheet (`AttachSourceSheet`): choose from the album (photos and videos) or from files (documents). How
+photos are picked from the photos entry depends on the shell:
 
 | Shell                                   | Photos                                                               |
 | --------------------------------------- | -------------------------------------------------------------------- |
@@ -56,7 +66,48 @@ what the page asks for and returns a device path the page cannot read, while the
 real bytes — the profile and channel photo fields already rely on it inside the app.
 
 The camera entry is a capturing file input in every shell, so it opens the camera directly and needs
-nothing from the app. Files always use the page's input.
+nothing from the app. The photos entry, the grid and the camera take photos only.
+
+The second sheet's two entries depend on the shell too:
+
+| Shell                                   | Choose from album / Choose from files                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app |
+| app built before the picker, or browser | the page's own file input: photos and `mp4`, or the seven document formats                  |
+| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from         |
+
+In the app the shell copies what was picked into its own folder and answers with addresses, never
+bytes (`bridge/attachmentPicker.ts`). Photos picked alongside are kept there too, already prepared like
+the grid's, and the page reads their bytes one photo at a time (`ReadAttachment`, two minutes each) in
+pick order: the page resizes every photo itself, and ten photos in the pick's own answer would be some
+200MB of base64, enough to take the WebView down — the grid reads one at a time for the same reason. A
+photo whose read fails is refused alone, as `unreadable`. The pick resolves once every photo is read,
+so the pending row appears with all of them.
+
+The page asks at the tap, since the message itself opens the picker. An app without it answers
+`NOT_FOUND` within one round trip, and the page then opens its own input in the same tap — as long as
+the answer came within 800ms, because iOS lets a page open a file input only within about a second of
+the gesture. A slower answer asks for another tap, and from then on the input opens straight away. A
+`BUSY` answer — a second tap while the picker opens or copies — shows nothing: the first tap is still
+under way. iOS WebKit's own input hands every picked video over as a QuickTime `.mov` after a silent
+conversion of up to minutes, and the server takes only `mp4`, so there it is not offered videos at
+all, and the sheet says so: inside the app, that an update sends videos
+(`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
+(`chat.attach.source.videoInApp`).
+
+A video the app picked may still need converting (an iPhone records HEVC in QuickTime). The send converts
+it with `PrepareVideo` after the pending row is shown — the tile is a grey panel until the poster comes.
+Which files go through it is decided by the format, not by the shell's `kind`: an `.mp4` picked through
+the documents picker is a video too, and is checked and gets a poster. A video the app refuses
+(`too-large`: past about four minutes even at 720p; `unsupported`: an Android video that is not H.264)
+fails as a message of its own, with a notice that says why. At 720p, the iPhone's last step down, a
+minute runs about 76MB, so the 300MB limit lands near 3.9 minutes.
+
+Only a passing failure can be retried. A video refused `TOO_LARGE` or `UNSUPPORTED`, one whose
+converted result fails the page's own size check, and one the app lost (`SOURCE` — from `PrepareVideo`,
+or from the upload's start, where iOS refuses a file that is gone) would only fail again, so its
+message offers delete alone. A conversion that failed in passing (`SYSTEM`, such as the app leaving the
+screen mid-way) stays retryable.
 
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
 page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
@@ -64,10 +115,13 @@ one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG and removes
 they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
 a "choose more" row that re-lists after the system sheet closes.
 
-What is picked is judged before anything is sent (`judgeChatImages` in `@chatic/data`): the four
-formats the server takes, 20MB a file, the same photo tapped twice, and ten a message
-(`IMAGE_MESSAGE_SLOT_MAX`). The first reason met is shown once; whatever passes is sent at once — there
-is no tray and no confirmation, the pick is the send.
+What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photo
+entries use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
+own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked twice, and ten a message
+(`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
+refusals carries the item's `kind`, so a too-large one names that kind's limit. The first reason met
+is shown once, naming the kind whose limit was passed or what an unknown format looked like;
+whatever passes is sent at once — there is no tray and no confirmation, the pick is the send.
 
 The button shares the composer's lock (nobody left in a 1:1, a message being edited). In a thread it
 also stays locked until the root is loaded: a reply needs the root's full id, and a photo sent without
@@ -75,8 +129,12 @@ one would land in the main feed.
 
 ## Rendering
 
-`MessageImages` draws a row's `upload$$` with the kit's `MessageImageTiles` and opens a tapped one in
-`ImageViewer`. With no text the images take the bubble's place — an empty bubble beside them would read
+`MessageImages` splits a row's `upload$$` with `chatMediaItems` (`@chatic/data`): photos and videos as
+one list of media in the order they were sent, drawn by the kit's `MessageMediaTiles`, and documents as
+`MessageFileCard`s below them. A video tile draws its poster (the upload's thumbnail), or a grey panel
+without one, with a play mark; no `<video>` is put in the feed, where every video would start a request
+just by scrolling past. A tapped photo opens in `ImageViewer`. With no text the attachments take the
+bubble's place — an empty bubble beside them would read
 as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
 `localStatus`; a server head from `thumbUrl`, falling back to `orgUrl`. A GIF is sent without a
 thumbnail (`prepareChatAttachment` in `@chatic/shared`), so its tile draws the original and plays: a
@@ -171,9 +229,24 @@ a redraw with a new address does not blink.
 The trade-offs, and the server-side fix that would make the address itself cacheable, are recorded in
 [ADR-0128](../../../../../docs/adr/0128-chat-images-are-cached-by-upload-not-by-signed-address.md).
 
+### Document cards
+
+A card shows the format's icon, the name in two lines with its extension always visible, the size, and
+a download button at its right edge. An upload older than names says "File". A pending card draws from
+the slot's `localName` / `localSize`, a server-failed one is dimmed and says it cannot be opened.
+
+In a browser the button and the card both download (`lib/fileDownload.ts`): the bytes are fetched into
+a `Blob` and saved from a local address under the upload's own name, since an anchor's `download`
+attribute names nothing on the bucket's origin. The whole file is in memory meanwhile, which the 50MB
+document limit keeps affordable. A 403 means the signed address expired: the message is read again for
+fresh ones and the user presses again. Inside the app the WebView ignores `download`, so the shell has
+to save the file.
+
 ## Not done here
 
 - **Upload progress, cancel, a hash.** None are shown or sent.
+- **Videos in the viewer, and documents downloaded inside the app.** A video tile opens nothing yet,
+  and inside the app a document card shows an update notice in place of its button.
 - **Save and share in the viewer.** It shows, zooms and steps between the originals only. A tile
   cannot save either: a right-click on it opens the message's action sheet, not the browser's
   image menu (ADR-0136).
@@ -190,6 +263,8 @@ The trade-offs, and the server-side fix that would make the address itself cache
 npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hooks/useSendImages \
   apps/web/src/app/runtime/upload apps/web/src/app/bridge/shellUpload \
   apps/web/src/app/features/channels/components/MessageImages \
+  apps/web/src/app/features/channels/components/ChatImageAttach apps/web/src/app/bridge/attachmentPicker \
+  apps/web/src/app/features/channels/lib/fileDownload apps/web/src/app/features/channels/utils/attachSources \
   apps/web/src/app/features/channels/components/ChannelMessageRow \
   apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages
 ```
