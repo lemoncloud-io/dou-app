@@ -271,9 +271,11 @@ own name and face as the person I am talking to.
 
 Two hooks wrap it, one per surface shape:
 
-- **`useDmPeer(channel, members, profileMap, userId)`** for a single room. `profileNick` is the
-  place profile only; `thumbnail` does fall back to the member cache, because an avatar a list
-  happens not to have simply does not render, and showing a global one is better than showing none.
+- **`useDmPeer(channel, members, profileMap, userId)`** for a single room. `profileNick` and
+  `thumbnail` are both the place profile only. A profile is per-place, so the member cache's
+  account-wide avatar is a photo the peer never chose for this place — showing it put a face in the
+  room header and settings that the home row (which never had it) did not show. With no profile
+  photo the placeholder glyph is drawn.
 - **`useDmPeers(sid, channels, userId)`** for lists. It collects every DM row's peer off the roster
   and subscribes to profiles **once for the whole list**, deduped and sorted. Sorting is load-bearing:
   `useChannelProfiles` keys its registration effect on `ids.join(',')`, and a list ordered by recent

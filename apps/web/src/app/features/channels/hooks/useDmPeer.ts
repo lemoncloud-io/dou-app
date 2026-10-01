@@ -16,9 +16,10 @@ export interface DmPeer {
      */
     profileNick?: string;
     /**
-     * Avatar URL — site profile thumbnail preferred, member-cache thumbnail fallback. Unlike the
-     * nick, the fallback stays: an avatar the list happens not to have simply does not render, and
-     * showing the peer's global avatar in the room is better than showing none.
+     * The peer's site-profile photo — profile ONLY, like the nick. A profile is per-place, so the
+     * member-cache (account-wide) avatar is a photo the peer never chose for this place; with no
+     * profile photo the caller draws the placeholder glyph instead. It is also what `useDmPeers`
+     * gives the list rows, so the room and the list cannot show two different faces.
      */
     thumbnail?: string;
 }
@@ -49,11 +50,10 @@ export const useDmPeer = (
         if (!peerId) return null;
 
         const profile = profileMap.get(peerId);
-        const member = members.find(m => m.id === peerId);
         return {
             id: peerId,
             profileNick: profile?.nick,
-            thumbnail: profile?.thumbnail ?? member?.thumbnail,
+            thumbnail: profile?.thumbnail,
         };
     }, [channel?.stereo, channel?.memberIds, members, profileMap, userId]);
 };
