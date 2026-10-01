@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/data';
@@ -7,7 +7,10 @@ import { ImageViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTi
 import { useCachedImages, type CachedImage, type CachedImageRequest } from '../hooks/useCachedImages';
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageAddressRefresh } from '../hooks/useImageAddressRefresh';
+import { isExportableUrl, useImageExports, type ExportableImage } from '../hooks/useImageExports';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
+
+import { SaveShareButtons } from './SaveShareButtons';
 
 interface MessageImagesProps {
     uploads: DomainChat['upload$$'];
@@ -43,10 +46,15 @@ interface MessageImagesProps {
  * the page: only one row's viewer can be open at a time anyway, and a page-level viewer would need to
  * know which list every row belongs to. It holds a position, not an address, so a refresh reaches an
  * open viewer too.
+ *
+ * Inside an app that can, the viewer offers save and share for the showing image
+ * (`SaveShareButtons`). They download the original through the shell, never the page's cached copy:
+ * the cache may not hold the bytes at all when storage sends no CORS headers.
  */
 export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProps) => {
     const { t } = useTranslation();
     const refresh = useImageAddressRefresh();
+    const exports = useImageExports({ cid, chatId });
     // Addresses seen to fail. A tile whose address is here draws as a placeholder until the re-read
     // brings a different one.
     const [dead, setDead] = useState<ReadonlySet<string>>(() => new Set());
@@ -79,6 +87,13 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     // so nothing is fetched for a viewer that is not showing.
     const openIndex = openAt !== null && openAt < viewable.length ? openAt : null;
     const nearOpen = (at: number) => openIndex !== null && Math.abs(at - openIndex) <= 1;
+    // However the viewer went away — closed, or its images gone from under it — a share still
+    // downloading must not open its sheet afterwards.
+    const { cancelShares } = exports;
+    const viewerOpen = openIndex !== null;
+    useEffect(() => {
+        if (!viewerOpen) cancelShares();
+    }, [viewerOpen, cancelShares]);
     // Tiles the viewer draws around the open image, to ask for their thumbnails as placeholders even
     // when they sit behind the "+n" tile.
     const around = new Set(viewable.filter((_, at) => nearOpen(at)).map(item => item.index));
@@ -87,6 +102,18 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
         const slot = uploads?.[slotOf(tile)];
         return slot && !isPendingUploadSlot(slot) ? slot : undefined;
     };
+
+    // The viewer's pages as the export sees them, in the same order.
+    const exportables: ExportableImage[] = viewable.map(item => {
+        const slot = sentSlot(item.index);
+        return {
+            uploadId: slot?.id ?? `local-${item.index}`,
+            // A photo still on its way has only its page-local preview: not exportable.
+            url: slot ? item.src : undefined,
+            name: slot?.name,
+        };
+    });
+
     const requestFor = (index: number, url: string | undefined, variant: ImageVariant) => {
         const slot = sentSlot(index);
         if (!url || !slot?.id) return undefined;
@@ -167,6 +194,27 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                 index={openIndex}
                 onIndexChange={setOpenAt}
                 onClose={() => setOpenAt(null)}
+                renderFooter={
+                    exports.canExport
+                        ? at => {
+                              const image = exportables[at];
+                              if (!image) return null;
+                              const savable = exportables.filter(entry => isExportableUrl(entry.url));
+                              return (
+                                  <SaveShareButtons
+                                      image={image}
+                                      busy={exports.busyFor(image.uploadId)}
+                                      onAction={(action, target) => void exports.run(action, target)}
+                                      saveAll={
+                                          savable.length > 1
+                                              ? { count: savable.length, onSaveAll: () => void exports.runAll(savable) }
+                                              : undefined
+                                      }
+                                  />
+                              );
+                          }
+                        : undefined
+                }
                 onError={at => {
                     if (rejectOriginal(at)) return;
                     const item = viewable[at];

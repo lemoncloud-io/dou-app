@@ -926,6 +926,24 @@
                 "unavailable": "앱을 업데이트하면 받을 수 있어요",
                 "broken": "열 수 없음",
                 "downloadFailed": "파일을 받지 못했어요"
+            },
+            "export": {
+                "save": "사진 저장",
+                "share": "사진 공유",
+                "saved": "사진에 저장했어요",
+                "permission": "사진 접근을 허용해야 저장할 수 있어요",
+                "settings": "설정",
+                "unsupportedType": "이 형식은 저장할 수 없어요",
+                "network": "연결을 확인하고 다시 시도해 주세요",
+                "failed": "사진을 저장하거나 공유하지 못했어요",
+                "updateRequired": "앱을 업데이트하면 사진을 저장하고 공유할 수 있어요",
+                "saveOne": "이 사진만 저장",
+                "saveAll": "전체 저장 ({{n}}장)",
+                "cancel": "취소",
+                "chooseTitle": "사진 저장",
+                "chooseDescription": "이 사진만 저장하거나 메시지의 사진을 모두 저장해요",
+                "savedAll": "사진 {{n}}장을 저장했어요",
+                "savedSome": "{{total}}장 중 {{saved}}장을 저장했어요"
             }
         }
     },

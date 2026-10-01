@@ -4,6 +4,42 @@
 
 ### Bug Fixes
 
+- (web/invite) stop the accept screen flashing black on iOS as it opens
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (web/channels) draw header photos from the place profile only, not the account avatar
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (web,app-runtime,app-messages) enter an invited cloud with the invite login answer (ADR-0156)
+
+## [2026-10-01] - root@0.81.0, @chatic/web@0.62.0
+
+### Features
+
+- (web) save or share chat photos from the image viewer
+- (web) download through the native shell, apart from the upload catch-up
+- (web-ui-kit) give the image viewer a bottom bar for the host's buttons
+
+### Documentation
+
+- (web) document save and share in the image viewer (ADR-0155)
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (web,app-runtime) stop polling a profile the place does not have, and logging it as an error
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
 - (web,mobile,app-messages) show the launch splash once, held until the web paints (ADR-0154)
 
 ## [2026-10-01] - root@0.80.1, @chatic/web@0.61.1

@@ -834,20 +834,20 @@ export const ChannelRoomPage = () => {
         />
     ) : undefined;
 
-    // Group header meta — an owner-first participant stack (max 5, resolved via
-    // the site profile then the member user cache) plus the total member count.
+    // Group header meta — an owner-first participant stack (max 5) plus the total member count.
     // Self / 1:1 DM headers stay single-line (no meta), so this is group-only.
+    // Photos are the place profile's only, like the header avatar above: the member cache's
+    // account-wide avatar is not a photo anyone chose for this place, so a member without a
+    // profile photo gets the default avatar. The name (alt text) still falls back to the cache.
     // Built inline (plain code, not a hook) since it sits past the error return.
     const headerMeta = !isGroupChat
         ? undefined
         : (() => {
-              const memberById = new Map<string, (typeof members)[number]>();
-              for (const member of members) if (member.id) memberById.set(member.id, member);
               const ids = orderMemberIdsOwnerFirst(channel?.ownerId, activeMemberIds, 5);
               const avatars = ids.map(id => {
                   const profile = profileMap.get(id);
                   const member = memberById.get(id);
-                  const thumbnail = profile?.thumbnail ?? member?.thumbnail;
+                  const thumbnail = profile?.thumbnail;
                   const name = profile?.nick ?? member?.nick ?? member?.name ?? '';
                   return thumbnail ? (
                       <ImageAvatar key={id} src={thumbnail} alt={name} size={20} className="ring-2 ring-surface" />

@@ -3,7 +3,8 @@ import { logger } from '@chatic/bridges';
 import { cloudStore } from '../store/stores';
 import { getCloudSessionSnapshot, rebuildSessionIdentity, sessionSignal, setSelectedSiteId } from '../store';
 import type { CloudSessionSnapshot } from '../store';
-import { issueCloudTokens } from './cloudTokens';
+import { issueCloudTokens, type IssuedCloudTokens } from './cloudTokens';
+import { recordCloudIdentity } from './cloudIdentity';
 
 /**
  * The CLOUD half of the session hub's use-cases (ADR-0076 decision 5) — entering a cloud, leaving it, and
@@ -29,6 +30,14 @@ export interface SwitchCloudOptions {
      * which re-registers the socket as it re-issues.
      */
     hasLiveSlot?: boolean;
+    /**
+     * Tokens the server already issued for this entry, committed in place of any cached or re-issued
+     * ones. An invite login answers with the invitee's own cloud token, and that is the identity the
+     * invite was accepted as. `delegate-cloud` cannot stand in for it: it answers for whoever the
+     * relay session is now, which after a sign-in is the account and not the device the invite was
+     * bound to. They replace whatever this cloud held, never merge with it — the user may differ.
+     */
+    issuedTokens?: IssuedCloudTokens;
 }
 
 export interface ICloudSession {
@@ -59,7 +68,10 @@ class CloudSession implements ICloudSession {
      * in `applySelectedSite`). Tokens are persisted only on success, so a failed exchange rolls
      * cid/sid back to the previous cloud and the previous cloud's tokens stay valid.
      */
-    async switchTo(cloudId: string, { hasLiveSlot = false }: SwitchCloudOptions = {}): Promise<CloudSessionSnapshot> {
+    async switchTo(
+        cloudId: string,
+        { hasLiveSlot = false, issuedTokens }: SwitchCloudOptions = {}
+    ): Promise<CloudSessionSnapshot> {
         const previousCloudId = cloudStore.getSelectedCloudId();
         const previousSiteId = cloudStore.getSelectedSiteId();
         const isCloudChange = previousCloudId !== cloudId;
@@ -80,7 +92,13 @@ class CloudSession implements ICloudSession {
             // the cloud we are already in (which passes allowCache: false — see that module).
             const live = hasLiveSlot ? cloudStore.peekCachedCloudTokens(cloudId) : null;
             const { delegationToken: cloudDelegationToken, cloudToken: userToken } =
-                live ?? (await issueCloudTokens(cloudId, { allowCache: true }));
+                issuedTokens ?? live ?? (await issueCloudTokens(cloudId, { allowCache: true }));
+            if (issuedTokens) {
+                // Into the per-cloud cache too: that copy is what this cloud's socket signs with and
+                // what a re-entry is served from, so it must name the same user as the store.
+                cloudStore.setCachedCloudTokens(cloudId, issuedTokens);
+                recordCloudIdentity(cloudId, issuedTokens.cloudToken);
+            }
 
             // The commit is ONE observable change (ADR-0076 decision 2). Before this batch the success path
             // fired the session signal eight times, so seven inconsistent intermediate states were
@@ -90,7 +108,7 @@ class CloudSession implements ICloudSession {
             // must be observable immediately.
             sessionSignal.batch(() => {
                 cloudStore.saveDelegationToken(cloudDelegationToken);
-                const existingToken = isCloudChange ? null : cloudStore.getCloudToken();
+                const existingToken = isCloudChange || issuedTokens ? null : cloudStore.getCloudToken();
                 cloudStore.saveCloudToken(
                     existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken
                 );

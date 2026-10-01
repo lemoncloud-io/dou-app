@@ -20,6 +20,13 @@ import type {
  * Inbound subscription (App -> Web) stays in `useHandleAppMessage`.
  */
 
+/**
+ * How long a save or share may wait for the shell. Both can sit behind something the user answers —
+ * a permission prompt, an open share sheet — and the default timeout would report a failure for a
+ * photo that is then saved anyway.
+ */
+export const MEDIA_EXPORT_TIMEOUT_MS = 10 * 60_000;
+
 /** Convenience alias for a given message type's `data` payload. */
 type Payload<K extends WebMessageType> = WebMessageData<K>['data'];
 
@@ -464,6 +471,25 @@ export const appBridge = {
      */
     managePhotoSelection(timeoutMs = 300_000): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
         return webClient.request({ type: 'ManagePhotoSelection', data: {} }, { timeoutMs });
+    },
+
+    /**
+     * Add an image the shell downloaded (its `file://` URI from a download's terminal event) to the
+     * photo library. Waits long: the first save answers only once the OS permission prompt does.
+     */
+    saveToPhotoLibrary(uri: string): Promise<WebMessageResponse<'SaveToPhotoLibrary'>> {
+        return webClient.request({ type: 'SaveToPhotoLibrary', data: { uri } }, { timeoutMs: MEDIA_EXPORT_TIMEOUT_MS });
+    },
+
+    /**
+     * Put a file the shell downloaded on the system share sheet. Waits long: on iOS the answer comes
+     * when the sheet closes, however long the user keeps it open.
+     */
+    shareFile(uri: string, title?: string): Promise<WebMessageResponse<'ShareFile'>> {
+        return webClient.request(
+            { type: 'ShareFile', data: { uri, ...(title ? { title } : {}) } },
+            { timeoutMs: MEDIA_EXPORT_TIMEOUT_MS }
+        );
     },
 
     /**

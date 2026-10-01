@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import { ImageViewer } from './ImageViewer';
+import { ImageViewer, ImageViewerActionButton } from './ImageViewer';
+import { createPortal } from 'react-dom';
 
 const images = ['https://example.com/a.jpg', 'https://example.com/b.jpg', 'https://example.com/c.jpg'];
 const shown = () => screen.getByRole('dialog').querySelector('img[data-current]') as HTMLImageElement;
@@ -173,6 +174,161 @@ describe('ImageViewer', () => {
         fireEvent.click(screen.getByRole('dialog'));
         fireEvent.click(screen.getByRole('button', { name: '닫기' }));
         expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    describe('actions', () => {
+        it("draws the host's buttons for the showing image, and follows it to the next", () => {
+            const renderFooter = jest.fn((index: number) => <button type="button">save {index}</button>);
+            const { rerender } = render(
+                <ImageViewer
+                    images={images}
+                    index={1}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                    renderFooter={renderFooter}
+                />
+            );
+            expect(screen.getByRole('button', { name: 'save 1' })).toBeTruthy();
+            expect(renderFooter).toHaveBeenLastCalledWith(1);
+
+            rerender(
+                <ImageViewer
+                    images={images}
+                    index={2}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                    renderFooter={renderFooter}
+                />
+            );
+            expect(screen.getByRole('button', { name: 'save 2' })).toBeTruthy();
+        });
+
+        it('draws nothing extra without renderFooter', () => {
+            render(
+                <ImageViewer
+                    images={images}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                    closeLabel="닫기"
+                />
+            );
+            const buttons = screen.getAllByRole('button').map(button => button.getAttribute('aria-label'));
+            expect(buttons).toEqual(['Next photo', '닫기']);
+        });
+
+        it('does not close when an action is pressed', () => {
+            const onClose = jest.fn();
+            const onSave = jest.fn();
+            render(
+                <ImageViewer
+                    images={images}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={onClose}
+                    renderFooter={() => (
+                        <ImageViewerActionButton label="저장" onClick={onSave}>
+                            S
+                        </ImageViewerActionButton>
+                    )}
+                />
+            );
+            fireEvent.click(screen.getByRole('button', { name: '저장' }));
+            expect(onSave).toHaveBeenCalledTimes(1);
+            expect(onClose).not.toHaveBeenCalled();
+        });
+    });
+
+    it('stays open when something drawn over it, such as a toast, is pressed', async () => {
+        const onClose = jest.fn();
+        render(
+            <>
+                <ImageViewer images={images} index={0} onIndexChange={jest.fn()} onClose={onClose} />
+                <button type="button">toast action</button>
+            </>
+        );
+        // Radix arms its outside-press listener on the next tick.
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const action = screen.getByText('toast action');
+        fireEvent.pointerDown(action);
+        fireEvent.pointerUp(action);
+        fireEvent.click(action);
+
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('ignores keys and drags on something a host portals out of its footer, such as a sheet', () => {
+        const onIndexChange = jest.fn();
+        render(
+            <ImageViewer
+                images={images}
+                index={1}
+                onIndexChange={onIndexChange}
+                onClose={jest.fn()}
+                renderFooter={() => createPortal(<button type="button">sheet option</button>, document.body)}
+            />
+        );
+        const option = screen.getByText('sheet option');
+
+        fireEvent.keyDown(option, { key: 'ArrowRight' });
+        fireEvent.keyDown(option, { key: 'ArrowLeft' });
+
+        expect(onIndexChange).not.toHaveBeenCalled();
+    });
+
+    describe('ImageViewerActionButton', () => {
+        it('shows its icon, or a spinner while busy, or a ring once progress is known', () => {
+            const { rerender } = render(
+                <ImageViewerActionButton label="저장" onClick={jest.fn()}>
+                    <span data-testid="icon" />
+                </ImageViewerActionButton>
+            );
+            expect(screen.getByTestId('icon')).toBeTruthy();
+
+            rerender(
+                <ImageViewerActionButton label="저장" onClick={jest.fn()} busy>
+                    <span data-testid="icon" />
+                </ImageViewerActionButton>
+            );
+            const busy = screen.getByRole('button', { name: '저장' });
+            expect(busy.getAttribute('aria-busy')).toBe('true');
+            // Still focusable, so focus stays on the button just pressed.
+            expect((busy as HTMLButtonElement).disabled).toBe(false);
+            expect(busy.getAttribute('aria-disabled')).toBe('true');
+            expect(screen.queryByTestId('icon')).toBeNull();
+            expect(busy.querySelector('[data-progress]')).toBeNull();
+
+            rerender(
+                <ImageViewerActionButton label="저장" onClick={jest.fn()} busy progress={0.42}>
+                    <span data-testid="icon" />
+                </ImageViewerActionButton>
+            );
+            expect(busy.querySelector('[data-progress]')?.getAttribute('data-progress')).toBe('42');
+            expect(screen.getByRole('progressbar', { name: '저장' }).getAttribute('aria-valuenow')).toBe('42');
+        });
+
+        it('ignores presses while busy', () => {
+            const onClick = jest.fn();
+            render(
+                <ImageViewerActionButton label="저장" onClick={onClick} busy>
+                    S
+                </ImageViewerActionButton>
+            );
+            fireEvent.click(screen.getByRole('button', { name: '저장' }));
+            expect(onClick).not.toHaveBeenCalled();
+        });
+
+        it('does nothing while disabled', () => {
+            const onClick = jest.fn();
+            render(
+                <ImageViewerActionButton label="공유" onClick={onClick} disabled>
+                    S
+                </ImageViewerActionButton>
+            );
+            fireEvent.click(screen.getByRole('button', { name: '공유' }));
+            expect(onClick).not.toHaveBeenCalled();
+        });
     });
 
     describe('placeholders', () => {

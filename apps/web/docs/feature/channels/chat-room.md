@@ -27,9 +27,15 @@ The header takes its `kind` from the channel's stereo, which picks the fallback 
 `channel.thumbnail` otherwise. Its only menu item is Settings, navigated with
 `state: { roomDistance: 1 }`.
 
+Every person photo in the header is the **place profile's only**. A profile is per-place, and the
+member's user row carries an account-wide avatar nobody chose for this place; falling back to it put
+a face in the header that the home row, which never had it, did not show. No profile photo means
+the placeholder, not the account avatar.
+
 The participant stack is `orderMemberIdsOwnerFirst(ownerId, activeMemberIds, 5)` — owner leftmost,
-then active members, capped at five — with each id resolved through the site profile and then the
-member's user row. The count beside it is the full `memberCount`, not the five.
+then active members, capped at five. Each photo is the site profile's (default avatar without one);
+the name used as alt text still falls back to the member's user row. The count beside it is the full
+`memberCount`, not the five.
 
 Self and DM headers stay single-line: no `meta`. Neither reads `channel.thumbnail`, because neither
 room has a photo of its own and the row stands for a person.

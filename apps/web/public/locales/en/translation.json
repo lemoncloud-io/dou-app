@@ -926,6 +926,24 @@
                 "unavailable": "Update the app to download",
                 "broken": "Can't open",
                 "downloadFailed": "Couldn't download the file"
+            },
+            "export": {
+                "save": "Save photo",
+                "share": "Share photo",
+                "saved": "Saved to Photos",
+                "permission": "Allow photo access to save",
+                "settings": "Settings",
+                "unsupportedType": "This format can't be saved",
+                "network": "Check your connection and try again",
+                "failed": "Couldn't save or share the photo",
+                "updateRequired": "Update the app to save and share photos",
+                "saveOne": "Save this photo",
+                "saveAll": "Save all ({{n}})",
+                "cancel": "Cancel",
+                "chooseTitle": "Save photos",
+                "chooseDescription": "Save only this photo or every photo in the message",
+                "savedAll": "Saved {{n}} photos",
+                "savedSome": "Saved {{saved}} of {{total}} photos"
             }
         }
     },

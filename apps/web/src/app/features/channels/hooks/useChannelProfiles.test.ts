@@ -72,12 +72,12 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         expect(result.current.profileMap.get('u2')?.nick).toBe('Bo');
     });
 
-    it('캐시 여부와 무관하게 모든 멤버에 profile sync를 등록한다', () => {
+    it('registers a cached member, and an uncached one whose bootstrap found a profile', async () => {
         cacheReadList.mockResolvedValue({ list: [profile('u1')] });
 
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
-        expect(registerProfile).toHaveBeenCalledTimes(2);
+        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(2));
         // Default interval is 20s — member count / interval is directly the request rate, so a
         // 5s interval in a 20-person room would have meant 4 requests per second.
         expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
@@ -93,14 +93,53 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         expect(refreshItem).toHaveBeenCalledWith('s1@u2');
     });
 
-    it('refreshItem이 실패해도 등록은 유지된다', async () => {
-        cacheReadList.mockResolvedValue({ list: [] });
-        refreshItem.mockRejectedValue(new Error('network'));
+    it.each(['408 REQUEST TIMEOUT - profile.get', '403 FORBIDDEN - profile.get', 'network'])(
+        'still registers a member whose bootstrap failed for a reason other than absence (%s)',
+        async message => {
+            cacheReadList.mockResolvedValue({ list: [] });
+            refreshItem.mockRejectedValue(new Error(message));
 
-        renderHook(() => useChannelProfiles('s1', ['u1']));
+            renderHook(() => useChannelProfiles('s1', ['u1']));
 
-        await waitFor(() => expect(refreshItem).toHaveBeenCalledWith('s1@u1'));
+            await waitFor(() => expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' }));
+        }
+    );
+
+    it('does not poll a member the bootstrap was told has no profile here', async () => {
+        // No emission, so `hasSnapshot` can only come from the bootstrap settling — the point at
+        // which every registration this run makes has already been made.
+        observeList.mockImplementation(() => () => undefined);
+        cacheReadList.mockResolvedValue({ list: [profile('u1')] });
+        refreshItem.mockRejectedValue(new Error('404 NOT FOUND - not found @doGet(profiles/s1@u2)'));
+
+        const { result } = renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
+
+        await waitFor(() => expect(result.current.hasSnapshot).toBe(true));
+        expect(refreshItem).toHaveBeenCalledWith('s1@u2');
+        expect(registerProfile).toHaveBeenCalledTimes(1);
         expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
+    });
+
+    it('registers every member when the cache cannot be read', async () => {
+        cacheReadList.mockRejectedValue(new Error('idb'));
+
+        renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
+
+        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(2));
+        expect(refreshItem).not.toHaveBeenCalled();
+    });
+
+    it('registers nothing after an unmount that lands before the bootstrap settles', async () => {
+        let resolveRefresh: (value: null) => void = () => undefined;
+        refreshItem.mockReturnValue(new Promise(resolve => (resolveRefresh = resolve)));
+
+        const { unmount } = renderHook(() => useChannelProfiles('s1', ['u1']));
+        await waitFor(() => expect(refreshItem).toHaveBeenCalled());
+
+        unmount();
+        await act(async () => resolveRefresh(null));
+
+        expect(registerProfile).not.toHaveBeenCalled();
     });
 
     it('sid가 없으면 구독/등록하지 않는다', () => {
@@ -117,35 +156,35 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         expect(registerProfile).not.toHaveBeenCalled();
     });
 
-    it('언마운트 시 등록한 sync를 해제한다', () => {
+    it('언마운트 시 등록한 sync를 해제한다', async () => {
         const dispose = jest.fn();
         registerProfile.mockReturnValue(dispose);
 
         const { unmount } = renderHook(() => useChannelProfiles('s1', ['u1']));
-        expect(registerProfile).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(1));
 
         unmount();
         expect(dispose).toHaveBeenCalledTimes(1);
     });
 
-    it("registers under the selected cloud and waits for that cloud's slot", () => {
+    it("registers under the selected cloud and waits for that cloud's slot", async () => {
         setSelectedCloud('cloud-b');
 
         renderHook(() => useChannelProfiles('s1', ['u1']));
 
         expect(runtime.connection.useCloudVerified).toHaveBeenCalledWith('cloud-b');
         expect(runtime.session.useUidInCloud).toHaveBeenCalledWith('cloud-b');
-        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-b' });
+        await waitFor(() => expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-b' }));
     });
 
-    it('re-registers when the uid in the cloud changes', () => {
+    it('re-registers when the uid in the cloud changes', async () => {
         const { rerender } = renderHook(() => useChannelProfiles('s1', ['u1']));
-        expect(registerProfile).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(1));
 
         (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me-again');
         rerender();
 
-        expect(registerProfile).toHaveBeenCalledTimes(2);
+        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(2));
     });
 
     it('does not bootstrap members when the selection moved during the cache read', async () => {
@@ -160,5 +199,7 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         });
 
         expect(refreshItem).not.toHaveBeenCalled();
+        // Registered unread — the poll is all that is left to find the member with.
+        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
     });
 });

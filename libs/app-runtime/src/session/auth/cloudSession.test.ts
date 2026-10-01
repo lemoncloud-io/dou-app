@@ -283,6 +283,41 @@ describe('session/auth/cloudSession', () => {
         expect(mockSaveCloudToken).toHaveBeenCalledWith(live.cloudToken);
     });
 
+    it('commits tokens the server already issued, ahead of a live slot and the cache, and caches them', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        const issuedTokens = {
+            delegationToken: { cloudId: 'cloud-new', wss: 'wss://cloud.example.com', delegationToken: '' },
+            cloudToken: { id: 'invitee', Token: { identityToken: 'invitee-token' } },
+        } as never;
+        mockPeekCachedCloudTokens.mockReturnValue({ delegationToken: {}, cloudToken: { id: 'empty-user' } });
+        mockGetCachedCloudTokens.mockReturnValue({ delegationToken: {}, cloudToken: { id: 'empty-user' } });
+
+        await cloudSession.switchTo('cloud-new', { hasLiveSlot: true, issuedTokens });
+
+        expect(mockIssueCloudDelegationToken).not.toHaveBeenCalled();
+        expect(mockSaveDelegationToken).toHaveBeenCalledWith(expect.objectContaining({ cloudId: 'cloud-new' }));
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ id: 'invitee' }));
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-new', issuedTokens);
+    });
+
+    it('replaces, not merges, the token of the cloud already entered when issued tokens name another user', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        const { cloudStore } = jest.requireMock('../store/stores') as {
+            cloudStore: { getCloudToken: jest.Mock };
+        };
+        cloudStore.getCloudToken.mockReturnValue({ id: 'empty-user', nick: 'Empty', Token: { identityToken: 'old' } });
+        const cloudToken = { id: 'invitee', Token: { identityToken: 'invitee-token' } };
+
+        await cloudSession.switchTo('cloud-1', {
+            issuedTokens: {
+                delegationToken: { cloudId: 'cloud-1', delegationToken: '', expiredAt: 0 },
+                cloudToken,
+            } as never,
+        });
+
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(cloudToken);
+    });
+
     it('with a live slot but nothing cached, falls back to the ordinary exchange', async () => {
         mockGetSelectedCloudId.mockReturnValue('cloud-old');
         mockPeekCachedCloudTokens.mockReturnValue(null);
