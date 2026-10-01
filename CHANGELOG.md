@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web/invite) stop the accept screen flashing black on iOS as it opens
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
 - (web/channels) draw header photos from the place profile only, not the account avatar
 
 ## [2026-10-01] - No version updates
