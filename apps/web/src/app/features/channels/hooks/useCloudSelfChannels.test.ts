@@ -5,7 +5,7 @@ import { renderHook } from '@testing-library/react';
 import type { DomainChannel } from '@chatic/data';
 
 import { ActiveCloudDataContext, type ActiveCloudData } from '../../../hooks/activeCloudDataContext';
-import { useCloudDmChannels } from './useCloudDmChannels';
+import { useCloudSelfChannels } from './useCloudSelfChannels';
 
 const channel = (id: string, stereo: string, cid: string, sid = 'S:wherever'): DomainChannel =>
     ({ id, stereo, cid, sid }) as unknown as DomainChannel;
@@ -27,28 +27,28 @@ const wrapper =
             children
         );
 
-describe('useCloudDmChannels', () => {
-    // Every 1:1 in this cloud, whatever place it carries — `sid` does not scope this read. The
-    // notes-to-self room belongs to the account, not a place, so it is listed here too.
-    it('keeps the cloud 1:1 rooms, place tag and all, and the notes-to-self room', () => {
-        const { result } = renderHook(() => useCloudDmChannels(), {
+describe('useCloudSelfChannels', () => {
+    // The notes-to-self room belongs to the account, not a place, so it is read cloud-wide. A cloud
+    // 1:1 is listed nowhere on mobile home, so this section does not take it either.
+    it('keeps only the notes-to-self room, whatever place it carries', () => {
+        const { result } = renderHook(() => useCloudSelfChannels(), {
             wrapper: wrapper([
                 channel('cloud-dm', 'dm', '1000001', 'S:creator-was-here'),
                 channel('relay-dm', 'dm', 'default'),
                 channel('group', 'private', '1000001'),
-                channel('self', 'self', '1000001'),
+                channel('self', 'self', '1000001', 'S:somewhere'),
             ]),
         });
 
-        expect(result.current.channels.map(c => c.id)).toEqual(['cloud-dm', 'self']);
+        expect(result.current.channels.map(c => c.id)).toEqual(['self']);
         expect(result.current.isLoading).toBe(false);
     });
 
-    // The section exists because these rooms are in no place list. If it also took the relay's
-    // 1:1s — which DO live in a place and are already listed — they would appear twice.
-    it('leaves a relay 1:1 and the relay notes-to-self room to the place list', () => {
-        const { result } = renderHook(() => useCloudDmChannels(), {
-            wrapper: wrapper([channel('relay-dm', 'dm', 'default'), channel('relay-self', 'self', 'default')]),
+    // The relay's self chat lives in its one place and is already listed there; taking it here as
+    // well would show it twice.
+    it('leaves the relay notes-to-self room to the place list', () => {
+        const { result } = renderHook(() => useCloudSelfChannels(), {
+            wrapper: wrapper([channel('relay-self', 'self', 'default')]),
         });
 
         expect(result.current.channels).toEqual([]);
@@ -57,7 +57,7 @@ describe('useCloudDmChannels', () => {
     // An empty cloud and a cloud whose read has not landed are the same array; only the flag tells
     // them apart, so the empty state cannot be shown over an unfinished read.
     it('reports loading from the observation, not from emptiness', () => {
-        const { result } = renderHook(() => useCloudDmChannels(), { wrapper: wrapper([], false) });
+        const { result } = renderHook(() => useCloudSelfChannels(), { wrapper: wrapper([], false) });
 
         expect(result.current.channels).toEqual([]);
         expect(result.current.isLoading).toBe(true);

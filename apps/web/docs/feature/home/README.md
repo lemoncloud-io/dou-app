@@ -150,15 +150,16 @@ is a known gap, not an intended rule.
 
 ## Folded sections
 
-Places, Chat Rooms and the cloud 1:1 section each fold independently, and the fold is remembered.
-`useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key (`persist: 'local'`),
-and `HomePage` passes each list a controlled `open`/`onOpenChange` under its own id — `places`,
-`channels`, `cloudDm`. The place rooms and the cloud 1:1s are the same `ChannelList`, so the id is
-what keeps folding one from folding the other.
+Places, Chat Rooms and the Self Chat section each fold independently, and the fold is
+remembered. `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key
+(`persist: 'local'`), and `HomePage` passes each list a controlled `open`/`onOpenChange` under its own
+id — `places`, `channels`, `cloudDm`. The place rooms and the notes-to-self room are the same
+`ChannelList`, so the id is what keeps folding one from folding the other. The last id predates the
+section losing its cloud 1:1s and keeps its name because it is a stored key.
 
 It is not left to `CollapsibleSection`'s own state because that state lives only as long as the
 section is mounted, and in ordinary use it is not: a reload, leaving home and coming back, and a
-switch between relay and a cloud (which mounts or drops the Place and cloud 1:1 sections) each start
+switch between relay and a cloud (which mounts or drops the Place and Self Chat sections) each start
 it over. So does a cold cloud switch, where the Chat section gives way to the loading state until a
 place is selected. The skeleton-to-list swap inside the Place section is not one of these — both
 render the same section, so React keeps it — but both branches still forward `open`.
@@ -239,7 +240,7 @@ sync home already registers, which catches a row up whenever the channel delta m
 
 ## Row swipe actions
 
-Every room row in the Chat section, and in the cloud 1:1 section, slides sideways to reveal actions
+Every room row in the Chat section, and in the Self Chat section, slides sideways to reveal actions
 behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing else.
 
 | Swipe | Actions                                                                   |
@@ -254,11 +255,12 @@ behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing els
 - **Notifications** write my join row's `notify`, as the settings switch does. The write is
   optimistic, so the bell-off glyph is the answer; only a failure speaks, as a toast.
 - **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin
-  moves the row, often out from under the finger, so it is confirmed with a toast. The cloud 1:1
-  section has no pin list behind it, so its rows have no right swipe.
-- **A self chat** has a pin and no left side — its settings offer neither notifications nor an exit.
-  Someone else's self chat, which is only ever a row left over from the previous account, has no
-  actions at all. Sent-invite rows do not swipe.
+  moves the row, often out from under the finger, so it is confirmed with a toast. The Self Chat
+  section has no pin list behind it, so its row has no right swipe — and with no left side either, a
+  cloud's self chat does not swipe at all.
+- **A self chat** in a place's list (relay) has a pin and no left side — its settings offer neither
+  notifications nor an exit. Someone else's self chat, which is only ever a row left over from the
+  previous account, has no actions at all. Sent-invite rows do not swipe.
 
 One row is open at a time: `ChannelList` holds which. A tap on an open row's content, a scroll that
 starts on it and a touch anywhere else all close it, and none of them also does what the tap would

@@ -95,3 +95,31 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(result.current.byPlace).toEqual({ s1: 2 });
     });
 });
+
+// Mobile lists no cloud 1:1, so its unread must not reach a mark nothing on home can clear.
+describe('useChannelUnreads — cloud 1:1', () => {
+    it('keeps a cloud 1:1 out of the place and total sums but still counts its own row', () => {
+        const channels = [
+            channel('group', { chatNo: 5, sid: 'S:one', stereo: 'private', cid: '1000001' }),
+            channel('cloud-dm', { chatNo: 9, sid: 'S:one', stereo: 'dm', cid: '1000001' }),
+        ];
+        const joins = joinMap({ group: join({ chatNo: 2 }), 'cloud-dm': join({ chatNo: 1 }) });
+
+        const { result } = renderHook(() => useChannelUnreads(channels, joins));
+
+        expect(result.current.byChannel).toEqual({ group: 3, 'cloud-dm': 8 });
+        expect(result.current.byPlace).toEqual({ 'S:one': 3 });
+        expect(result.current.total).toBe(3);
+    });
+
+    // The relay's 1:1s live in its one place and are listed there, so they still count.
+    it('still counts a relay 1:1', () => {
+        const channels = [channel('relay-dm', { chatNo: 4, sid: '0000', stereo: 'dm', cid: 'default' })];
+        const joins = joinMap({ 'relay-dm': join({ chatNo: 1 }) });
+
+        const { result } = renderHook(() => useChannelUnreads(channels, joins));
+
+        expect(result.current.byPlace).toEqual({ '0000': 3 });
+        expect(result.current.total).toBe(3);
+    });
+});
