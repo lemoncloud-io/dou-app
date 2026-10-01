@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-01] - root@0.80.0, @chatic/web@0.61.0
+
+### Features
+
+- (web) drop the cloud 1:1 from mobile, and from its unread counts (ADR-0153)
+
 ## [2026-10-01] - No version updates
 
 ### Features
