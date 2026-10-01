@@ -13,8 +13,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
 | `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
 | `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; queues and dispatches to 26 handler hooks             |
-| `src/app/webview/hooks/*Handler.ts`            | 26 domain handlers, one per capability group                                  |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 27 handler hooks                        |
+| `src/app/webview/hooks/*Handler.ts`            | 27 domain handlers, one per capability group                                  |
 | `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
@@ -50,11 +50,13 @@ flowchart TD
     RNWebView --> Router["useWebMessageRouter"]
     Router --> FCM["useFcmHandler"]
     Router --> Transfer["useFileTransferHandler"]
+    Router --> Media["useMediaExportHandler"]
     Router --> Cache["useCrudCacheHandler / useSearchCacheHandler"]
     Router --> Device["useDeviceHandler / usePermissionHandler"]
     Router --> Other["OAuth / IAP / Log / AppIcon / SMS handlers"]
     FCM --> Services["services/*"]
     Transfer --> Native["TransferManagerBridge (native)"]
+    Media --> Export["MediaExportBridge (native)"]
     Cache --> Services
     Device --> Services
     Other --> Services
@@ -78,8 +80,11 @@ sequenceDiagram
     Handler-->>Web: bridge response or event
 ```
 
-`useWebMessageRouter` queues incoming messages and processes them one at a time, so a slow handler
-cannot let a later message overtake it.
+Messages are not queued. `useBaseBridge` hands each one to `AppBridgeHost.handleMessage` without
+waiting for the previous one, so handlers run concurrently and a slow one holds up nothing else.
+Some rely on that: `ShareFile` on iOS answers only when the share sheet closes, minutes later if the
+user lingers — see [../native/media-export.md](../native/media-export.md). Two requests of the same
+kind can therefore finish out of order; a handler that needs ordering has to provide it itself.
 
 ## The WebAppReady handshake
 

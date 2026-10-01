@@ -15,6 +15,8 @@ messages that carry those bytes across the boundary are in
 
 It is a recovery story: the app is killed at any moment, and what is on disk is what is left.
 
-File transfer is not here although it outlives a screen — it deliberately persists nothing, because
-the signed URL it carries is a credential that expires. It is described with the other native
-modules in [../native/file-transfer.md](../native/file-transfer.md).
+File transfer is not here although it outlives a screen — it deliberately persists no request state,
+because the signed URL it carries is a credential that expires. A download's file does sit in the
+cache directory for a while, but that is a cache the OS may clear, not a store anything relies on;
+both are described with the other native modules in
+[../native/file-transfer.md](../native/file-transfer.md).
