@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { deeplinkService, logger, notificationService } from '../../services';
 // A leaf module: deeplinkUtils reaches react-native-config, which a unit test cannot load.
@@ -12,18 +12,10 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type { HandedOverPerfTrace } from '@chatic/app-messages';
 import { startPerfTrace } from '@chatic/perf';
 
-// Delay before lifting the cold-start splash after the WebView reports load: keeps the "home" frame
-// hidden until the buffered OnNavigate has applied, avoiding a flash on cold-start deep links.
-const COLD_START_SPLASH_CLEAR_MS = 300;
-
 export interface UseDeepLinkNavigationResult {
     deepLinkError: boolean;
     deepLinkErrorReason: string | null;
     handleDismissError: () => void;
-    /** True while a cold-start deep link/tap is redirecting; keeps the splash up to avoid a home flash. */
-    isRedirecting: boolean;
-    /** WebView onLoad hook: clears the cold-start splash shortly after the page loads. */
-    handleWebViewLoad: () => void;
 }
 
 /**
@@ -33,27 +25,15 @@ export interface UseDeepLinkNavigationResult {
  * (useFcmHandler) is left with foreground receipt only.
  *
  * The bridge buffers OnNavigate until WebAppReady, so cold-start links/taps are delivered as soon as
- * the web handshake lands — no startup delay is needed.
+ * the web handshake lands — no startup delay is needed. Hiding home while a cold-start link applies is
+ * not this hook's job any more: the web holds its boot cover (and so the launch splash) until the
+ * replayed navigation has rendered.
  *
  * @param bridge
  */
 export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDeepLinkNavigationResult => {
     const [deepLinkError, setDeepLinkError] = useState(false);
     const [deepLinkErrorReason, setDeepLinkErrorReason] = useState<string | null>(null);
-    const [isRedirecting, setIsRedirecting] = useState(false);
-
-    // Cold-start splash coordination. Cold-start capture is async, so refs guard the race between it
-    // and the (possibly earlier) WebView load event.
-    const webViewLoadedRef = useRef(false);
-    const pendingColdStartRedirectRef = useRef(false);
-
-    const handleWebViewLoad = useCallback(() => {
-        webViewLoadedRef.current = true;
-        if (pendingColdStartRedirectRef.current) {
-            pendingColdStartRedirectRef.current = false;
-            setTimeout(() => setIsRedirecting(false), COLD_START_SPLASH_CLEAR_MS);
-        }
-    }, []);
 
     const handleDismissError = useCallback(() => {
         setDeepLinkError(false);
@@ -94,14 +74,6 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
             return { id: trace.id, syncId: sync.id, startedAt: Date.now(), entry, coldStart };
         };
 
-        // Keep the splash up for a cold-start redirect. If the WebView already loaded, the splash
-        // would no longer help, so skip it.
-        const markColdStartRedirect = () => {
-            if (webViewLoadedRef.current) return;
-            pendingColdStartRedirectRef.current = true;
-            setIsRedirecting(true);
-        };
-
         // Apply a native (target=native) route imperatively. Web routes never reach here. Note the
         // Debug/Modal screens are not currently registered in the navigator, so this mirrors the prior
         // (linking-driven) behavior for those routes rather than introducing new navigation.
@@ -117,7 +89,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
             }
         };
 
-        // Resolve an OS deep link / invite link and route it. `isColdStart` drives the splash.
+        // Resolve an OS deep link / invite link and route it. `isColdStart` is reported on the trace.
         const dispatchDeepLink = (url: string, isColdStart: boolean) => {
             const resolution = deeplinkService.resolveInbound(url);
             if (resolution.kind === 'invalid') {
@@ -130,7 +102,6 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 applyNativeRoute(resolution.state);
                 return;
             }
-            if (isColdStart) markColdStartRedirect();
             emitNavigate(resolution.path, handOverRoomOpenTrace(resolution.path, 'deeplink', isColdStart));
         };
 
@@ -156,7 +127,6 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 );
                 return;
             }
-            if (isColdStart) markColdStartRedirect();
             emitNavigate(path, handOverRoomOpenTrace(path, 'push_tap', isColdStart));
         };
 
@@ -185,5 +155,5 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         };
     }, [bridge]);
 
-    return { deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting, handleWebViewLoad };
+    return { deepLinkError, deepLinkErrorReason, handleDismissError };
 };

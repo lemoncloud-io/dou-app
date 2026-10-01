@@ -42,7 +42,6 @@ beforeEach(() => {
     osPrefersDark = false;
     mockUseConfigValue.mockReturnValue('system');
     document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.style.removeProperty('--splash-bg');
     document.getElementById('theme-color-meta')?.remove();
     const meta = document.createElement('meta');
     meta.name = 'theme-color';
@@ -53,7 +52,6 @@ beforeEach(() => {
 
 const rootClasses = () => document.documentElement.classList;
 const themeColor = () => document.getElementById('theme-color-meta')?.getAttribute('content');
-const splashBg = () => document.documentElement.style.getPropertyValue('--splash-bg');
 
 describe('ThemeApplier — <html> 클래스 적용', () => {
     it("theme='light'면 html에 light 클래스를 적용한다", () => {
@@ -140,14 +138,5 @@ describe('ThemeApplier — 시스템 UI 색상 동기화', () => {
 
         expect(() => render(<ThemeApplier />)).not.toThrow();
         expect(rootClasses().contains('dark')).toBe(true);
-    });
-
-    it('--splash-bg는 건드리지 않는다', () => {
-        mockUseConfigValue.mockReturnValue('dark');
-        render(<ThemeApplier />);
-
-        // Its only consumer is the #splash placeholder inside #root, which React has already
-        // replaced by the time this component first runs. Writing it was dead code.
-        expect(splashBg()).toBe('');
     });
 });

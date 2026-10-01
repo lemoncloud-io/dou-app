@@ -188,7 +188,14 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         requestMock.mockResolvedValueOnce({ success: true, data: report });
 
         await expect(appBridge.notifyWebAppReady()).resolves.toEqual(report);
-        expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: {} });
+        // The handshake declares that this build sends FirstScreenReady, which is what lets a shell
+        // tell it apart from an older build and wait for the signal instead of lifting its splash.
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: { holdsBootSplash: true } });
+    });
+
+    it('notifyFirstScreenReady posts FirstScreenReady fire-and-forget', () => {
+        appBridge.notifyFirstScreenReady();
+        expect(postMock).toHaveBeenLastCalledWith({ type: 'FirstScreenReady', data: {} });
     });
 
     // On a plain browser with no native bridge, a reject is expected — it must not break boot.

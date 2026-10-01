@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { Navigate } from 'react-router-dom';
 
+import { useBootSplashHold } from '../runtime/bootSplash';
 import { InviteEntryGate } from './InviteEntryGate';
 import { ROUTES } from './paths';
 
@@ -17,8 +18,15 @@ import { ROUTES } from './paths';
  * The gate is the one thing that does leave: an invite landing goes to `/invite/accept`, which is a
  * common route and so exists in this signed-out state too. It waits out the same guest login, but on
  * the invite's own surface instead of a blank page.
+ *
+ * Rendering nothing is not a first screen, so this holds the boot cover (and with it the app's launch
+ * splash) until it unmounts — when the router rebuilds into the private routes, or the gate leaves
+ * for the invite.
  */
-const PublicRootEntry = (): JSX.Element => <InviteEntryGate />;
+const PublicRootEntry = (): JSX.Element => {
+    useBootSplashHold();
+    return <InviteEntryGate />;
+};
 
 export const publicRoutes = [
     { path: ROUTES.root, element: <PublicRootEntry /> },

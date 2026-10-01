@@ -13,8 +13,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
 | `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
 | `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 27 handler hooks                        |
-| `src/app/webview/hooks/*Handler.ts`            | 27 domain handlers, one per capability group                                  |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 29 handler hooks                        |
+| `src/app/webview/hooks/*Handler.ts`            | 29 domain handlers, one per capability group                                  |
 | `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
@@ -100,8 +100,9 @@ capability handshake, not a plain ready ping: the reply reports the app's local-
 and supported cache types (read from the SQLite install, warmed in parallel with the WebView's bundle
 load) so a web build newer than this app can route unsupported cache domains to its own storage
 instead of a silent void. `useBaseBridge.ts` passes an `onAppReady` callback into `AppBridgeHost`;
-`MainScreen` uses it to clear the `ResumeOverlay`-adjacent loading state and mark the
-`bootMetricsService` `web-app-ready` timestamp. `DismissResumeOverlay`, by contrast, is a normal
+`MainScreen` uses it to mark the `bootMetricsService` `web-app-ready` timestamp and to hand the
+web's declaration to `bootSplashService` — a web build that does not declare `holdsBootSplash` is
+revealed on the handshake itself, since it will never send `FirstScreenReady`. `DismissResumeOverlay`, by contrast, is a normal
 routed message — `useAppStateHandler` answers it like any other handler — that fires when the web's
 own repaint animation after a resume has finished, and is what actually hides `ResumeOverlay`.
 
@@ -109,6 +110,7 @@ own repaint animation after a resume has finished, and is what actually hides `R
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `WebAppReady`                    | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it                                                             |
 | `DismissResumeOverlay`           | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                                                                       |
+| `FirstScreenReady`               | Routed handler (`useBootSplashHandler`); lifts the launch splash and the crash-reload cover — see [../boot/boot-splash.md](../boot/boot-splash.md)             |
 | `SavePreference` with `theme`    | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md)                                    |
 | `SavePreference` with `language` | Routed handler (`usePreferenceCacheHandler`); validates `system`/`ko`/`en` and updates the language store — see [../system/language.md](../system/language.md) |
 

@@ -43,6 +43,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     CopyToClipboard: 'OnCopyToClipboard',
     TriggerHaptic: 'OnTriggerHaptic',
     DismissResumeOverlay: 'OnDismissResumeOverlay',
+    FirstScreenReady: 'OnFirstScreenReady',
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
     FetchBadgeBase: 'OnFetchBadgeBase',

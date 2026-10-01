@@ -37,9 +37,9 @@ describe('LoadingFallback', () => {
         expect(status.textContent).toContain('로그아웃 중');
     });
 
-    it('keeps the logo out of what is announced', async () => {
-        await renderInKorean(<LoadingFallback />);
+    it('draws no logo — that belongs to the launch splash alone', async () => {
+        const { container } = await renderInKorean(<LoadingFallback />);
 
-        expect(screen.queryByRole('img')).toBeNull();
+        expect(container.querySelector('img')).toBeNull();
     });
 });

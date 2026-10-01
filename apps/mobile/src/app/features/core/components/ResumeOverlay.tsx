@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { getThemeBackgroundColor } from '../../../hooks';
 
@@ -8,24 +8,18 @@ interface ResumeOverlayProps {
 }
 
 /**
- * An overlay screen that prevents a flash when iOS resumes from the background and covers the
- * WebView area during initial load.
- * Fills the background with a solid color matching the theme (Light/Dark) and centers the logo image.
+ * A solid theme-coloured cover over the WebView: on an iOS resume it hides the white flash a
+ * WKWebView shows, and while a crashed WebView reloads it hides the blank page.
+ *
+ * Deliberately no logo. The launch splash is the only screen that shows one; a resume is not a
+ * launch, and a logo here flashed on every return to the app.
  */
 export const ResumeOverlay = ({ isDark }: ResumeOverlayProps) => (
-    <View style={[styles.resumeOverlay, { backgroundColor: getThemeBackgroundColor(isDark) }]}>
-        <Image source={require('../../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-    </View>
+    <View style={[styles.resumeOverlay, { backgroundColor: getThemeBackgroundColor(isDark) }]} />
 );
 
 const styles = StyleSheet.create({
     resumeOverlay: {
         ...StyleSheet.absoluteFillObject,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    logo: {
-        width: 96,
-        height: 96,
     },
 });

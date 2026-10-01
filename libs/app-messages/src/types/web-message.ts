@@ -90,6 +90,7 @@ import type {
     CopyToClipboardPayload,
     TriggerHapticPayload,
     DismissResumeOverlayPayload,
+    FirstScreenReadyPayload,
     StartUpdateDownloadPayload,
     RestartToUpdatePayload,
     SendBootMetricsPayload,
@@ -207,6 +208,7 @@ export type WebMessagePayloadMap = {
     CopyToClipboard: CopyToClipboardPayload;
     TriggerHaptic: TriggerHapticPayload;
     DismissResumeOverlay: DismissResumeOverlayPayload;
+    FirstScreenReady: FirstScreenReadyPayload;
     SendBootMetrics: SendBootMetricsPayload;
     SetDebugMode: SetDebugModePayload;
     StartPerfTrace: StartPerfTracePayload;

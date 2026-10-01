@@ -8,6 +8,7 @@ export * from './useAppIconHandler';
 export * from './useDeviceHandler';
 export * from './useClipboardHandler';
 export * from './useHapticHandler';
+export * from './useBootSplashHandler';
 export * from './useSmsHandler';
 export * from './useSafeAreaHandler';
 export * from './usePermissionHandler';

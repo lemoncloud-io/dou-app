@@ -7,11 +7,25 @@ import { foregroundAPNsCopy, NotificationService } from './NotificationService';
 
 // Mock every native import NotificationService pulls in at module load so the class can be
 // instantiated under jsdom.
-jest.mock('react-native', () => ({ PermissionsAndroid: {}, Platform: { OS: 'android' } }));
+const mockPermissionCheck = jest.fn();
+const mockPermissionRequest = jest.fn();
+const mockMessagingRequest = jest.fn();
+jest.mock('react-native', () => ({
+    PermissionsAndroid: {
+        PERMISSIONS: { POST_NOTIFICATIONS: 'post' },
+        RESULTS: { GRANTED: 'granted' },
+        check: (...args: unknown[]) => mockPermissionCheck(...args),
+        request: (...args: unknown[]) => mockPermissionRequest(...args),
+    },
+    Platform: { OS: 'android', Version: 34 },
+}));
 jest.mock('@react-native-firebase/messaging', () => ({
     __esModule: true,
-    default: jest.fn(() => ({ onMessage: jest.fn(() => jest.fn()) })),
-    AuthorizationStatus: { AUTHORIZED: 1, PROVISIONAL: 2 },
+    default: jest.fn(() => ({
+        onMessage: jest.fn(() => jest.fn()),
+        requestPermission: () => mockMessagingRequest(),
+    })),
+    AuthorizationStatus: { AUTHORIZED: 1, PROVISIONAL: 2, NOT_DETERMINED: -1 },
 }));
 jest.mock('@notifee/react-native', () => ({
     __esModule: true,
@@ -150,5 +164,40 @@ describe('NotificationService onMessage — iOS foreground', () => {
             expect.objectContaining({ notification: { title: 'Raine', body: 'Sent a photo' }, data })
         );
         expect(finish).toHaveBeenCalledWith('NoData');
+    });
+});
+
+describe('NotificationService permission prompt', () => {
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockPermissionRequest.mockResolvedValue('granted');
+        mockMessagingRequest.mockResolvedValue(1);
+    });
+
+    it('waits for the launch splash before raising the OS prompt', async () => {
+        mockPermissionCheck.mockResolvedValue(false);
+        let lift!: () => void;
+        const beforePrompt = jest.fn(() => new Promise<void>(resolve => (lift = resolve)));
+        const service = new NotificationService(logger, beforePrompt);
+
+        const result = service.requestPermission();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(beforePrompt).toHaveBeenCalledTimes(1);
+        expect(mockPermissionRequest).not.toHaveBeenCalled();
+
+        lift();
+        await expect(result).resolves.toBe(true);
+        expect(mockPermissionRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not wait when the permission is already decided, since no prompt will show', async () => {
+        mockPermissionCheck.mockResolvedValue(true);
+        const beforePrompt = jest.fn(() => Promise.resolve());
+        const service = new NotificationService(logger, beforePrompt);
+
+        await expect(service.requestPermission()).resolves.toBe(true);
+        expect(beforePrompt).not.toHaveBeenCalled();
     });
 });

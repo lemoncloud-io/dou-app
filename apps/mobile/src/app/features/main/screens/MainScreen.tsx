@@ -1,33 +1,35 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { WebView } from 'react-native-webview';
-import { Image, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
+import type { WebAppReadyPayload } from '@chatic/app-messages';
 
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { useDeepLinkNavigation } from '../../../webview/hooks/useDeepLinkNavigation';
 import { AppWebView } from '../../../webview';
-import { DeepLinkErrorView, ResumeOverlay } from '../../core/components';
+import { DeepLinkErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
-import { bootMetricsService, logger } from '../../../services';
+import { bootMetricsService, bootSplashService, logger } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 import { useCustomZipBootGate } from '../../../customZip';
 
 export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
-    const [isWebAppReady, setIsWebAppReady] = useState(false);
-    const webAppReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const updateWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
 
-    const handleAppReady = useCallback(() => {
+    // Nothing native covers the WebView while it boots: the launch splash (native) stays up until the
+    // web reports its first screen, and the web keeps its own cover until then, so there is no
+    // window in which this screen has to hide a half-loaded page. The handshake only matters for an
+    // older web build, which never reports a first screen and is revealed on the handshake instead.
+    const handleAppReady = useCallback((payload: WebAppReadyPayload) => {
         logger.debug('WEBVIEW', 'WebAppReady received in MainScreen');
         bootMetricsService.mark('web-app-ready');
-        if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
-        setIsWebAppReady(true);
+        bootSplashService.onWebAppReady(payload);
     }, []);
 
     const { bridge, onMessage } = useAppBridge(webViewRef, handleAppReady);
-    const { isDark, backgroundColor } = useResolvedTheme();
+    const { backgroundColor } = useResolvedTheme();
     const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
 
@@ -38,51 +40,27 @@ export const MainScreen = ({ route }: MainScreenProps) => {
 
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
     // Single owner of inbound navigation: OS deep links, invite links, and notification taps → OnNavigate.
-    const { deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting, handleWebViewLoad } =
-        useDeepLinkNavigation(bridge);
+    const { deepLinkError, deepLinkErrorReason, handleDismissError } = useDeepLinkNavigation(bridge);
 
     // source is not frozen at mount time — it's derived from the resolved base URL, so that
     // toggling the custom zip on/off is reflected when the origin changes; reloading happens via a
     // reloadToken key remount.
     const webViewSource = useMemo(() => ({ uri: webViewBaseUrl }), [webViewBaseUrl]);
 
-    const handleWebViewLoadStart = useCallback(() => {
-        // If the web app is already ready (e.g. from SPA navigation), don't flip the state back to not-ready (false).
-        if (isWebAppReady) return;
-
-        if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
-        webAppReadyTimeoutRef.current = setTimeout(() => {
-            logger.debug('WEBVIEW', 'WebAppReady fallback timeout reached');
-            setIsWebAppReady(true);
-        }, 1000);
-    }, [isWebAppReady]);
-
+    // The error view replaces the WebView, so nothing will ever report a first screen; lift the
+    // splash so the error is seen now rather than at the native cap.
     useEffect(() => {
-        // Reset the ready state only when a full WebView reload occurs (Reload Token change).
-        setIsWebAppReady(false);
-    }, [webViewReloadToken]);
-
-    useEffect(() => {
-        return () => {
-            if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
-        };
-    }, []);
+        if (deepLinkError) bootSplashService.onLoadFailed();
+    }, [deepLinkError]);
 
     // Boot timeline: WebView screen mounted — network load starts right after.
     useEffect(() => {
         bootMetricsService.mark('main-screen-mount');
     }, []);
 
+    // Still under the launch splash at boot, so the theme background is all this needs to be.
     if (!webViewBaseUrl || isRestoringCustomZip) {
-        return (
-            <View style={[loadingStyles.container, { backgroundColor }]}>
-                <Image
-                    source={require('../../../../assets/logo.png')}
-                    style={loadingStyles.logo}
-                    resizeMode="contain"
-                />
-            </View>
-        );
+        return <View style={{ flex: 1, backgroundColor }} />;
     }
 
     if (deepLinkError) {
@@ -98,10 +76,8 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                 bridge={bridge}
                 onMessage={onMessage}
                 scrollEnabled={false}
-                onLoad={handleWebViewLoad}
                 onLoadStart={event => {
                     bootMetricsService.mark('load-start');
-                    handleWebViewLoadStart();
                     updateWebViewState({
                         isLoading: true,
                         currentUrl: event.nativeEvent.url,
@@ -144,21 +120,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                         isLoading: false,
                         lastError: event.nativeEvent.description,
                     });
+                    bootSplashService.onLoadFailed();
                 }}
             />
-            {(!isWebAppReady || isRedirecting) && <ResumeOverlay isDark={isDark} />}
         </View>
     );
 };
-
-const loadingStyles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    logo: {
-        width: 96,
-        height: 96,
-    },
-});

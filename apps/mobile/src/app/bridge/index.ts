@@ -1,6 +1,7 @@
 export * from './AppIconBridge';
 export * from './BackNavigationBridge';
 export * from './BadgeSyncBridge';
+export * from './BootSplashBridge';
 export * from './FileManagerBridge';
 export * from './HapticBridge';
 export * from './MediaExportBridge';

@@ -49,7 +49,17 @@ export const foregroundAPNsCopy = (
  * (FCM/APNs/PushNotificationIOS) native push channels, permissions, and the app badge count.
  */
 export class NotificationService implements INotificationService {
-    constructor(private readonly logger: ILogService) {}
+    /**
+     * @param beforePrompt awaited before the OS permission prompt is raised (and only then — an
+     *   already-decided permission is not delayed). The provider waits for the launch splash to
+     *   lift: on Android a permission activity opened over the held splash plays its window
+     *   transition onto an undrawn app window — black, then the splash a second time — and on
+     *   both platforms the prompt reads better over the first screen than over the logo.
+     */
+    constructor(
+        private readonly logger: ILogService,
+        private readonly beforePrompt: () => Promise<void> = () => Promise.resolve()
+    ) {}
 
     /**
      * Fetches the notification permission status.
@@ -106,6 +116,8 @@ export class NotificationService implements INotificationService {
      * @returns whether permission was granted
      */
     async requestPermission(): Promise<boolean> {
+        if (await this.wouldPrompt()) await this.beforePrompt();
+
         if (Platform.OS === 'android' && Platform.Version >= 33) {
             const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
             if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
@@ -115,6 +127,21 @@ export class NotificationService implements INotificationService {
 
         const authStatus = await messaging().requestPermission();
         return authStatus === AuthorizationStatus.AUTHORIZED || authStatus === AuthorizationStatus.PROVISIONAL;
+    }
+
+    /** Whether `requestPermission` would put an OS prompt on screen, rather than answer silently. */
+    private async wouldPrompt(): Promise<boolean> {
+        try {
+            if (Platform.OS === 'android') {
+                if (Platform.Version < 33) return false;
+                return !(await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS));
+            }
+            return (await messaging().hasPermission()) === AuthorizationStatus.NOT_DETERMINED;
+        } catch {
+            // Unknown is treated as "might prompt": waiting costs at most the splash, prompting under it
+            // costs the flicker.
+            return true;
+        }
     }
 
     /**

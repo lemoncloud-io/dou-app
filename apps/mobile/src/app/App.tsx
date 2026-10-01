@@ -8,6 +8,8 @@ import { RootNavigator, navigationRef } from './features/core/navigation';
 import { useAppVersionCheck, useResolvedTheme } from './hooks';
 import { bootMetricsService, notificationService } from './services';
 import { SystemBars } from './features/core/components';
+import { BootSplashBridge } from './bridge';
+import { useThemeStore } from './stores';
 
 export const App = () => {
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
@@ -32,6 +34,14 @@ export const App = () => {
             showUpdateAlert();
         }
     }, [hasUpdate, showUpdateAlert]);
+
+    // Hand the in-app theme to the native splash for the NEXT launch — the one this launch's splash
+    // could not know. Re-sent on every start too, so an install that chose its theme before this
+    // existed is corrected from its second launch on.
+    const theme = useThemeStore(state => state.theme);
+    useEffect(() => {
+        void BootSplashBridge.setStartupTheme(theme);
+    }, [theme]);
 
     const { backgroundColor } = useResolvedTheme();
 

@@ -51,4 +51,5 @@ export const pushEventManager = provider.pushEventManager;
 export const deeplinkManager = provider.deeplinkManager;
 export const deeplinkService = provider.deeplinkService;
 export const bootMetricsService = provider.bootMetricsService;
+export const bootSplashService = provider.bootSplashService;
 export const perfTraceBackend = provider.perfTraceBackend;

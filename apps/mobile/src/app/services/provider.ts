@@ -25,6 +25,9 @@ import type { IOAuthService } from './oauth';
 import { OAuthService } from './oauth';
 import type { IDynamicAppIconService } from './dynamicAppIcon';
 import { DynamicAppIconService } from './dynamicAppIcon';
+import type { IBootSplashService } from './bootSplash';
+import { BootSplashService } from './bootSplash';
+import { BootSplashBridge } from '../bridge/BootSplashBridge';
 import type { IFirebaseCrashlyticsService, IFirebaseInstallationService } from './firebase';
 import { FirebaseCrashlyticsService, FirebaseInstallationService, FirebasePerfTraceBackend } from './firebase';
 import type { ISubscriptionIapService } from './subscriptionIap';
@@ -78,6 +81,8 @@ class DependencyProvider {
     public readonly deeplinkManager: DeepLinkManager;
     public readonly deeplinkService: IDeeplinkService;
     public readonly firebaseCrashlyticsService: IFirebaseCrashlyticsService;
+    /** Lifts the launch splash once the web is worth showing; read by the very first WebView messages. */
+    public readonly bootSplashService: IBootSplashService;
     public readonly pendingReportQueueService: IPendingReportQueueService;
 
     // Lazy — created on first access via getters to keep them off the boot critical path (see
@@ -137,7 +142,13 @@ class DependencyProvider {
 
         // Deep link / notification services stay eager: cold-start capture reads them during the first
         // render (getInitialUrl / getInitialNotification), so they must exist before then.
-        this.notificationService = new NotificationService(this.logService);
+        // Eager: the handshake that may lift the splash is among the first messages the web sends, and
+        // construction is a Set — there is nothing to defer.
+        this.bootSplashService = new BootSplashService(this.logService, BootSplashBridge);
+        // The permission prompt waits for the launch splash to lift; see NotificationService.
+        this.notificationService = new NotificationService(this.logService, () =>
+            this.bootSplashService.whenRevealed()
+        );
         this.pushEventManager = new PushEventManager(this.logService);
         this.deeplinkManager = new DeepLinkManager(this.logService);
         this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
