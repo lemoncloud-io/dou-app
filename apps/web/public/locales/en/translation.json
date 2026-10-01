@@ -566,20 +566,11 @@
             "confirm": "Leave"
         }
     },
-    "cloudDm": {
-        "picker": {
-            "title": "Start a 1:1",
-            "searchPlaceholder": "Search by name",
-            "empty": "Nobody to talk to yet",
-            "emptyHint": "You can start a 1:1 with anyone who shares a room with you.",
-            "noMatch": "No matches",
-            "failed": "Could not open the 1:1"
-        },
+    "cloudSelf": {
         "section": {
-            "title": "1:1 chats",
-            "empty": "No 1:1 chats yet"
-        },
-        "startFromProfile": "Start a 1:1"
+            "title": "Self Chat",
+            "empty": "No self chat yet"
+        }
     },
     "channelList": {
         "noDescription": "No description",

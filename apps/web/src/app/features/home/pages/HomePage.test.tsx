@@ -118,7 +118,7 @@ jest.mock('../../../hooks', () => ({
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
     // The app-wide shared observation home reads instead of subscribing for itself.
     useActiveCloudData: () => ({
-        channels: [],
+        channels: activeCloudChannels,
         isLoaded: true,
         myJoins: new Map(),
         unreads: { byChannel: {}, byPlace: {}, total: 0 },
@@ -150,29 +150,37 @@ jest.mock('../components', () => ({
     // Mirrors the create-group entry back out: the popover is the list's, but what the tap does
     // (upsell vs create dialog) is decided here, in the page.
     //
-    // The page renders this twice on a cloud — the place's rooms, and the cloud 1:1 section, which
-    // is a list and not a create surface. The button follows `onCreateGroup` so the stub says the
-    // same thing the real popover does: no handler, no entry. `title` tells the two apart.
+    // The page renders this twice on a cloud — the place's rooms, and the Self Chat section,
+    // which is a list and not a create surface. The buttons follow their handlers (and the 1:1 one
+    // its flag) so the stub says the same thing the real popover does: no handler, no entry.
+    // `title` tells the two apart.
     ChannelList: ({
         isPro,
         onCreateGroup,
+        showOneOnOneCreate,
+        onCreateOneOnOne,
         title,
         open,
         onOpenChange,
     }: {
         isPro?: boolean;
         onCreateGroup?: () => void;
+        showOneOnOneCreate?: boolean;
+        onCreateOneOnOne?: () => void;
         title?: string;
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
     }) => (
         <div
-            data-testid={title ? 'cloud-dm-list' : 'channel-list'}
+            data-testid={title ? 'self-chat-list' : 'channel-list'}
             data-is-pro={String(isPro)}
             data-open={String(open)}
         >
             {onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
-            <button data-testid={title ? 'cloud-dm-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
+            {showOneOnOneCreate && onCreateOneOnOne && (
+                <button data-testid="create-direct" onClick={onCreateOneOnOne} />
+            )}
+            <button data-testid={title ? 'self-chat-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
         </div>
     ),
     CloudPromoBanner: ({ onAddCloud }: { onAddCloud?: () => void }) => (
@@ -228,6 +236,8 @@ let places: { id: string; stereo: string; isOwner?: boolean }[] = [{ id: 'site-1
 let isPlacesLoading = false;
 let selectedPlaceId: string | null = 'site-1';
 let isSwitchingPlace = false;
+// The active cloud's rooms as the shared observation holds them — the Self Chat section reads it.
+let activeCloudChannels: unknown[] = [];
 const useHomePlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
@@ -266,6 +276,7 @@ beforeEach(() => {
     isPlacesLoading = false;
     selectedPlaceId = 'site-1';
     isSwitchingPlace = false;
+    activeCloudChannels = [];
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
@@ -341,6 +352,14 @@ describe('HomePage — relay mode', () => {
         // footer button still opens the plan picker directly.
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
+
+    // On relay a 1:1 is reached by phone number, so the entry stays and goes to the contact form.
+    it('offers the 1:1 entry and sends it to the contact invite form', () => {
+        render(<HomePage />);
+        fireEvent.click(screen.getByTestId('create-direct'));
+
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.contact);
+    });
 });
 
 describe('HomePage — cloud mode', () => {
@@ -361,14 +380,39 @@ describe('HomePage — cloud mode', () => {
 
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
     });
+
+    // Mobile opens no cloud 1:1, so a cloud offers no 1:1 entry. The list is asserted first so the
+    // test cannot pass merely because the section was not drawn.
+    it('offers no 1:1 entry', () => {
+        render(<HomePage />);
+
+        expect(screen.getByTestId('channel-toggle')).toBeInTheDocument();
+        expect(screen.queryByTestId('create-direct')).not.toBeInTheDocument();
+    });
+
+    // A cloud does not make the self chat on its own and mobile cannot ask for it, so with no room
+    // there is no section — a heading with nothing under it.
+    it('draws no Self Chat section until the room is there', () => {
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('self-chat-list')).not.toBeInTheDocument();
+    });
+
+    it('draws the Self Chat section once the room is there', () => {
+        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
+    });
 });
 
 // The fold of each section comes from the stored record, not from the section itself — that is
 // what lets it survive leaving home. Each of the three sections must read and write its own id:
-// the place rooms and the cloud 1:1s are the same component, so a shared id would fold both.
+// the place rooms and the notes-to-self room are the same component, so a shared id would fold both.
 describe('HomePage — section folds', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
+        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
     });
 
     it('opens each section from its own stored entry', () => {
@@ -377,7 +421,7 @@ describe('HomePage — section folds', () => {
 
         expect(screen.getByTestId('place-list')).toHaveAttribute('data-open', 'true');
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
-        expect(screen.getByTestId('cloud-dm-list')).toHaveAttribute('data-open', 'true');
+        expect(screen.getByTestId('self-chat-list')).toHaveAttribute('data-open', 'true');
     });
 
     it('writes a toggle under the id of the section that was toggled', () => {
@@ -385,7 +429,7 @@ describe('HomePage — section folds', () => {
 
         fireEvent.click(screen.getByTestId('place-toggle'));
         fireEvent.click(screen.getByTestId('channel-toggle'));
-        fireEvent.click(screen.getByTestId('cloud-dm-toggle'));
+        fireEvent.click(screen.getByTestId('self-chat-toggle'));
 
         expect(setSectionOpenMock.mock.calls).toEqual([
             ['places', false],

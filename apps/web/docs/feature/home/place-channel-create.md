@@ -50,15 +50,10 @@ The channel section's `＋` opens for **either** of its two rows, which is not t
 `canCreate`. `canCreate` (`isDefaultCloud || isCloudOwner`) means "may make a room here" and now
 guards the `그룹 방 만들기` row alone; that row additionally appears **only while unpaid** on the
 relay, because a group room lives in a cloud of one's own and for a subscriber the relay entry would
-lead nowhere. `1:1 대화` has its own condition and shows in all three environments — including an
-invited cloud, where rooms cannot be made but the people already beside you can still be talked to.
-
-**`1:1 대화` is one label over two acts**, and the flag that shows it is not the flag that decides
-what it does. `showOneOnOneCreate` draws the row; the page routes the tap — on relay to the
-phone-number contact form, inside a cloud to the peer picker, because there the other person is
-already a member and there is nothing to invite. `isDefaultCloud` used to carry both, which is why
-the group upsell rule above and the 1:1 entry could not move independently. See
-[dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Opening a cloud 1:1.
+lead nowhere. `1:1 대화` has its own condition, `showOneOnOneCreate`, and shows on relay only: the tap
+goes to the phone-number contact form, and mobile opens no cloud 1:1. An invited cloud therefore has
+neither row and no `＋`. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile neither
+opens nor lists a cloud 1:1.
 
 ### What each tap does
 

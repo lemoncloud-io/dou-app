@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import { isCloudWideChannel, type DomainChannel, type DomainJoin } from '@chatic/data';
 
 import { unreadOf } from '../utils/countUnread';
 
@@ -10,7 +10,7 @@ export interface ChannelUnreads {
     byChannel: Record<string, number>;
     /** unread summed per owning site id (sid); a place shows a dot when its value > 0. */
     byPlace: Record<string, number>;
-    /** sum of all per-channel unread counts across the active cloud. */
+    /** sum of the per-channel unread counts that `byPlace` sums too — cloud 1:1s left out. */
     total: number;
 }
 
@@ -24,6 +24,10 @@ export interface ChannelUnreads {
  * lives in {@link countUnread}, shared with the search results and the cross-cloud unread hint.
  *
  * A channel with neither (cursor unknown) counts 0 rather than flashing a full count.
+ *
+ * **A cloud 1:1 counts in `byChannel` only.** Mobile lists no cloud 1:1 anywhere on home, so a
+ * count in a place dot, the bottom nav, the cloud switcher or the app icon would be a mark nothing
+ * on screen can clear — and `sid`, which would pick the place, is only where its creator stood.
  */
 export const useChannelUnreads = (
     channels: DomainChannel[],
@@ -38,6 +42,7 @@ export const useChannelUnreads = (
             const unread = unreadOf(ch, joinByChannel?.get(ch.id));
 
             byChannel[ch.id] = unread;
+            if (isCloudWideChannel(ch)) continue;
             total += unread;
             // Bucket by owning site so a place shows a dot when any of its channels is unread.
             if (ch.sid) {

@@ -278,17 +278,17 @@ interface ChannelListProps {
      */
     /**
      * The place whose profiles name the people in these rows. Usually the place being listed; for
-     * the cloud 1:1 section it is the place the READER is standing in, because a cloud 1:1 has none
-     * of its own (`profilePlaceOf`).
+     * the Self Chat section it is the place the READER is standing in, because that room has no
+     * place of its own.
      */
     sid: string;
     isLoading: boolean;
-    /** Section heading. Defaults to the chat-room heading; the cloud 1:1 section passes its own. */
+    /** Section heading. Defaults to the chat-room heading; the Self Chat section passes its own. */
     title?: string;
     /**
      * Empty body for a section that is not a place's room list. The place list's own empty state
      * nudges towards creating or explains an invited place, and neither sentence is true of a
-     * section that simply has no 1:1 in it yet.
+     * section that simply has no room in it yet.
      */
     emptyLabel?: string;
     /** Show the create (＋) popover in the section header. */
@@ -300,9 +300,8 @@ interface ChannelListProps {
      */
     isDefaultCloud?: boolean;
     /**
-     * Show the "1:1 대화" entry in the create popover. A 1:1 is reachable two ways that look the
-     * same here and are not: by inviting a phone number on relay, and by picking a member inside a
-     * cloud. This component draws the entry; where the tap goes is the host's call.
+     * Show the "1:1 대화" entry in the create popover. This component draws the entry; whether it
+     * shows and where the tap goes are the host's call (on mobile: relay only, to the contact form).
      */
     showOneOnOneCreate?: boolean;
     /** Drives the PRO badge on "그룹 방 만들기" — and, on relay, whether that entry shows at all. */
@@ -311,14 +310,14 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** The notes-to-self room leads the list, above pins and the sort — the cloud 1:1 section. */
+    /** The notes-to-self room leads the list, above pins and the sort — the Self Chat section. */
     leadsWithSelf?: boolean;
     /**
      * Pins or unpins a room in this place. Given, rows offer it as their right-swipe action; left out
-     * — the cloud 1:1 section, whose pins nothing stores — they offer no right swipe at all.
+     * — the Self Chat section, whose pins nothing stores — they offer no right swipe at all.
      */
     onTogglePin?: (channelId: string) => void;
-    /** Start a 1:1 — the host picks the destination by cloud kind. */
+    /** Start a 1:1 — the host picks the destination. */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
@@ -505,9 +504,8 @@ export const ChannelList = ({
     // allowed to do.
     const showGroupCreate = canCreate && (!isDefaultCloud || !isPro);
 
-    // The popover opens for either entry, not for group-create alone. An invited member may open a
-    // 1:1 — they share rooms with these people, which is the whole premise — while creating rooms
-    // stays shut to them, so the two conditions have to be able to disagree.
+    // The popover opens for either entry, not for group-create alone: the two rows have separate
+    // conditions, so the popover must not hang on just one of them.
     const createMenu =
         showGroupCreate || showOneOnOneCreate ? (
             <DropdownMenu>

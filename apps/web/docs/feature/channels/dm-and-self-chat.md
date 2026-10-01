@@ -74,9 +74,10 @@ A **relay** 1:1 is reached by inviting a phone number. It lives in the relay's o
 it carries that place's `sid`, and it has an invite behind it — which is what the departure footer
 reads and what its re-invite CTA sends another of.
 
-A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`). It belongs to the cloud
-rather than to a place, because the two participants need not share one, so it is stored with `sid`
-deliberately blank. There is no invite in its history and no number to send one to.
+A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`) — on desktop; mobile no
+longer opens one. It belongs to the cloud rather than to a place, because the two participants need
+not share one; the place the server stamps on it is not used to file it (`isInPlaceList`). There is
+no invite in its history and no number to send one to.
 
 **`cid` is the mark — the cloud the room is in.** It is the server's own answer, it arrives on every
 read, and nothing on the client derives or overwrites it. An unknown cloud reads as a subscription
@@ -118,69 +119,54 @@ different names** — which is exactly why the room could not have picked one pl
 `null` means "nothing to look under yet", which the profile hooks read as "do not subscribe". An
 unresolved session must not collapse into an empty-string lookup that answers with nobody.
 
-### Opening a cloud 1:1, and finding it afterwards
+### Mobile neither opens nor lists a cloud 1:1
 
-Three surfaces, and the third is not optional.
+Mobile has no screen for a cloud 1:1. The peer picker, the "1:1 대화하기" row on a participant's
+profile and home's cloud 1:1 section were removed; desktop keeps all of them. What remains on mobile
+is the relay 1:1, reached by phone number through the contact form. The decision, and what it
+costs, is ADR-0153.
 
-| Surface                                          | What it does                                            |
-| ------------------------------------------------ | ------------------------------------------------------- |
-| Home create menu → `CloudDmPickerPage`           | Pick one person; the tap IS the action, no confirm step |
-| A participant's profile → the "1:1 대화하기" row | Same `useStartDm`, with the peer already chosen         |
-| Home's cloud 1:1 section                         | Where the room lives afterwards                         |
+| Environment              | `1:1 대화` entry | Tap goes to         |
+| ------------------------ | ---------------- | ------------------- |
+| Relay                    | yes              | `ContactInvitePage` |
+| A cloud I own            | no               | —                   |
+| A cloud I was invited to | no               | —                   |
 
-**`sid` is not a scope key for a 1:1**, and the section is what follows from that. A group is read
-within its place; a 1:1 is read across the cloud, because the place it carries describes where one
-person stood rather than where the conversation lives — the other participant need not be in it, so a
-place-scoped read would show the room to one of them and hide it from the other. `isInPlaceList`
-(in `libs/data`) holds both halves: a place list takes rooms whose `sid` matches **and** that are not
-read cloud-wide, or a cloud 1:1 appears twice.
+`showOneOnOneCreate` is what draws the entry and `HomePage` passes it on relay only. The popover
+still opens for either of its rows, and `canCreate` still guards the group row alone, so an invited
+cloud — which offers neither now — shows no `＋` at all.
 
-`useCloudDmChannels` reads the cloud-wide observation for the rooms `isInCloudDmSection` names — the
-ones `dmLineageOf` calls `cloud`, plus the cloud's self chat — and the section is `ChannelList`
-itself — same rows, a different title and source — so the title chain, the avatar, unread and the
-preview cannot drift into a second copy.
+**A cloud 1:1 still exists, because desktop opens them.** Mobile simply has no list that shows one.
+`sid` is not a scope key for a 1:1: the place it carries describes where its creator stood rather
+than where the conversation lives, so `isInPlaceList` (in `libs/data`) keeps every cloud 1:1 out of a
+place's list, and no other home list takes it. A cloud 1:1 that reaches mobile some other way — a
+push tap, a search result — still opens and is drawn by every rule in this document, so those rules
+stay.
 
-**The self chat leads the cloud 1:1 section, not the place's rooms.** It belongs to the account
-rather than to a place, so under a place it showed in whichever one it was tagged with and in none of
-the others; desktop already lists it first among its direct messages. `HomePage` drops it from the
-place list with the same rule, keeping it in the place's join and chat sync registration, and the
-section passes `leadsWithSelf` so it sits above every 1:1. On relay nothing moves: its self chat and
-its 1:1s share its one place, which is the only list there. A self chat the cache filed under the
-account (`ACCOUNT_CHANNEL_SID`, when the server named no place) passes the active cloud's
-reachable-place filter, which would otherwise drop it as a row from a place no rail lists.
+**Its unread reaches no mark.** `useChannelUnreads` counts a cloud 1:1 for its own row only and
+leaves it out of the place, total and other-cloud sums, so no place dot, bottom-nav count, cloud
+switcher dot or app-icon number rests on a room home cannot show. A message in one is learned of
+from its push alone; see [unread-dot.md](../home/unread-dot.md).
 
-**The create menu entry is one label over two acts.** On relay a 1:1 is reached by phone number, so
-it goes to the contact form — which carries its own ordered gates: phone verification for a guest or
-an unlinked account, then the place-profile nudge, then the form. Inside a cloud the other person is
-already a member, so it goes to the picker and nothing is sent.
+### The cloud's self chat has a section of its own
 
-| Environment              | Entry shows | Tap goes to         |
-| ------------------------ | ----------- | ------------------- |
-| Relay                    | yes         | `ContactInvitePage` |
-| A cloud I own            | yes         | `CloudDmPickerPage` |
-| A cloud I was invited to | yes         | `CloudDmPickerPage` |
+**The self chat has a section of its own, not a place's rooms.** It belongs to the account rather
+than to a place, so under a place it showed in whichever one it was tagged with and in none of the
+others. `useCloudSelfChannels` reads the cloud-wide observation for the room `isInCloudSelfSection`
+names, and the section is `ChannelList` itself — same row, a different title and source — so the
+title chain, the avatar, unread and the preview cannot drift into a second copy. `HomePage` drops the
+room from the place list with the same rule, keeping it in the place's join and chat sync
+registration. On relay nothing moves: its self chat shares its one place, which is the only list
+there. A self chat the cache filed under the account (`ACCOUNT_CHANNEL_SID`, when the server named
+no place) passes the active cloud's reachable-place filter, which would otherwise drop it as a row
+from a place no rail lists.
 
-`isDefaultCloud` used to decide both **whether** the entry showed and **what** it did;
-`showOneOnOneCreate` now carries the first and the page the second.
+**The section is drawn only once the room is there.** A cloud does not make the room on its own, and
+mobile does not ask for it (`channel.get-self` runs on the relay only), so a mobile-only member of a
+cloud may have none. An empty section would be a heading with nothing to do under it.
 
-**The invited cloud is the row that was missing.** `canCreate` opened the whole popover and means
-"may make a room here" — which an invited member may not — so they had no 1:1 entry at all, though
-they are exactly the colleague this feature exists to reach. The popover now opens for either entry
-and `canCreate` guards only the group row.
-
-**That guard is load-bearing.** `showGroupCreate` is a negative (`!isDefaultCloud || !isPro`) and so
-reads true for every cloud that is not the relay. Opening the popover for an invited member without
-it would offer them the one action they are refused. Both directions are pinned by tests.
-
-**Candidates are not a directory.** `useCloudDmCandidates` unions the members of every room I am in
-across the cloud, minus me. There is no user-directory action to ask — every listing is channel
-scoped — so somebody in this cloud who shares no room with me cannot be reached here at all. The
-empty state says that rather than implying the cloud is empty. People I already have a 1:1 with stay
-in the list: the server resolves a pair to one room, so picking them re-opens that conversation.
-
-> **The three screens have no design.** They are assembled from `web-ui-kit` primitives, following
-> the nearest precedent (`PlaceInviteTab` for the picker, `ChannelList` for the section), and the
-> arrangement is provisional in a way the behaviour is not. Do not read the layout as decided.
+The section's stored fold id is still `cloudDm` — it held the cloud 1:1s too until mobile stopped
+listing them, and renaming a stored key would reset every user's fold.
 
 ### A cloud 1:1 skips step 1 of the title chain
 
@@ -190,9 +176,9 @@ choice.** The server seeds it on rooms nobody has named, and `customJoinNick` ca
 seeded values that LOOK machine-made; a seeded value shaped like a person's name is
 indistinguishable from a typed one.
 
-Measured on dev: a cloud 1:1 opened from the picker came back with a plausible human name in
-`join.nick`. The header showed it; the picker, the entry system message and every other surface
-showed the place profile. Same person, two names.
+Measured on dev: a cloud 1:1 opened from the (since removed) mobile picker came back with a
+plausible human name in `join.nick`. The header showed it; the picker, the entry system message and
+every other surface showed the place profile. Same person, two names.
 
 So `resolveChannelTitle` drops that rung **for the cloud lineage only**. A relay 1:1 begins at an
 invite form where the sender types the friend's name into their own `join.nick` — a real choice, and

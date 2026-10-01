@@ -26,7 +26,7 @@ export interface HomeChannelsResult {
  * The filter stays because the cloud-wide read is not sid-isolated (see above), so rows from other
  * sites must not reach a per-site list. It also drops the rooms that are not place-scoped at all —
  * cloud 1:1s, which carry a `sid` that describes where their creator stood rather than where the
- * conversation lives, and are read from their own cloud-wide section instead.
+ * conversation lives. Mobile lists them nowhere on home.
  *
  * `isLoading` follows the shared observation's `isLoaded` rather than an emptiness test: a site with
  * no channels and a site whose read has not landed are indistinguishable from the array alone. That

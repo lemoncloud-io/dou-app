@@ -2,7 +2,7 @@ import {
     channelKindOf,
     dmLineageOf,
     hasDmInviteFlow,
-    isInCloudDmSection,
+    isInCloudSelfSection,
     profilePlaceOf,
     removalActionFor,
     showsMemberCount,
@@ -124,17 +124,17 @@ describe('profilePlaceOf', () => {
     });
 });
 
-describe('isInCloudDmSection', () => {
-    it('takes a cloud 1:1 and the cloud self chat', () => {
-        expect(isInCloudDmSection({ stereo: 'dm', cid: '1000001' })).toBe(true);
-        expect(isInCloudDmSection({ stereo: 'self', cid: '1000001' })).toBe(true);
+describe('isInCloudSelfSection', () => {
+    it('takes the cloud self chat', () => {
+        expect(isInCloudSelfSection({ stereo: 'self', cid: '1000001' })).toBe(true);
     });
 
-    // The relay has one place, and its list already holds both.
-    it('leaves the relay 1:1 and self chat, and every group, to the place list', () => {
-        expect(isInCloudDmSection({ stereo: 'dm', cid: 'default' })).toBe(false);
-        expect(isInCloudDmSection({ stereo: 'self', cid: 'default' })).toBe(false);
-        expect(isInCloudDmSection({ stereo: 'private', cid: '1000001' })).toBe(false);
-        expect(isInCloudDmSection(undefined)).toBe(false);
+    // A cloud 1:1 is listed nowhere on mobile home; the relay has one place, and its list holds the rest.
+    it('leaves out a cloud 1:1, the relay 1:1 and self chat, and every group', () => {
+        expect(isInCloudSelfSection({ stereo: 'dm', cid: '1000001' })).toBe(false);
+        expect(isInCloudSelfSection({ stereo: 'dm', cid: 'default' })).toBe(false);
+        expect(isInCloudSelfSection({ stereo: 'self', cid: 'default' })).toBe(false);
+        expect(isInCloudSelfSection({ stereo: 'private', cid: '1000001' })).toBe(false);
+        expect(isInCloudSelfSection(undefined)).toBe(false);
     });
 });

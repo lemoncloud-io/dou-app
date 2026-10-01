@@ -14,8 +14,10 @@ export type ChannelSortMethod = 'recent' | 'unread';
 export const DEFAULT_CHANNEL_SORT: ChannelSortMethod = 'recent';
 
 /**
- * The collapsible sections on home. `cloudDm` is the cloud 1:1 section, which reuses the channel
- * list component but folds independently of the place's rooms.
+ * The collapsible sections on home. `cloudDm` is the cloud's Self Chat section, which reuses the
+ * channel list component but folds independently of the place's rooms. It held the cloud 1:1s too
+ * until mobile stopped listing them; the id is a stored key, so it keeps its name rather than reset
+ * every user's folded state.
  */
 export type HomeSectionId = 'places' | 'channels' | 'cloudDm';
 
