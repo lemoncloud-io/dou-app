@@ -4,9 +4,22 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import { useWebMessageRouter } from './useWebMessageRouter';
 
 const mockMediaExport = {
+    canOpenFile: true,
+    canSaveFile: true,
     handleSaveToPhotoLibrary: jest.fn().mockResolvedValue({ type: 'OnSaveToPhotoLibrary', success: true }),
     handleShareFile: jest.fn().mockResolvedValue({ type: 'OnShareFile', success: true }),
+    handleOpenFile: jest.fn().mockResolvedValue({ type: 'OnOpenFile', success: true }),
+    handleSaveFile: jest.fn().mockResolvedValue({ type: 'OnSaveFile', success: true }),
 };
+
+const mockAttachmentPicker = {
+    isAvailable: true,
+    handlePickAttachments: jest.fn().mockResolvedValue({ type: 'OnPickAttachments', success: true }),
+    handlePrepareVideo: jest.fn().mockResolvedValue({ type: 'OnPrepareVideo', success: true }),
+    handleReadAttachment: jest.fn().mockResolvedValue({ type: 'OnReadAttachment', success: true }),
+};
+
+const ATTACHMENT_PICKER_MESSAGES = ['PickAttachments', 'PrepareVideo', 'ReadAttachment'];
 
 const mockPhotoLibrary = {
     isAvailable: true,
@@ -19,8 +32,8 @@ const mockPhotoLibrary = {
 const PHOTO_LIBRARY_MESSAGES = ['ListPhotoAlbums', 'ListPhotos', 'ReadPhoto', 'ManagePhotoSelection'];
 
 // Every domain hook becomes a stub whose handlers are fresh mocks, so the router can be mounted on
-// its own; the real hooks pull in native modules and the service provider. Media export and the
-// photo library are pinned so a registered handler can be traced back to them.
+// its own; the real hooks pull in native modules and the service provider. Media export, the
+// attachment picker and the photo library are pinned so a registered handler can be traced back to them.
 jest.mock('./index', () => {
     const stubHandlers = () => new Proxy({}, { get: (_target, name) => (name === 'then' ? undefined : jest.fn()) });
     return new Proxy(
@@ -30,6 +43,7 @@ jest.mock('./index', () => {
                 if (name === '__esModule') return true;
                 if (name === 'useMediaExportHandler') return () => mockMediaExport;
                 if (name === 'usePhotoLibraryHandler') return () => mockPhotoLibrary;
+                if (name === 'useAttachmentPickerHandler') return () => mockAttachmentPicker;
                 return () => stubHandlers();
             },
         }
@@ -115,6 +129,78 @@ describe('useWebMessageRouter', () => {
 
             for (const type of PHOTO_LIBRARY_MESSAGES) expect(registered(bridge)).not.toContain(type);
             expect(registered(bridge)).toEqual(expect.arrayContaining(['SaveToPhotoLibrary', 'ShareFile']));
+        });
+    });
+    describe('attachment picker', () => {
+        afterEach(() => {
+            mockAttachmentPicker.isAvailable = true;
+        });
+
+        it('registers PickAttachments, PrepareVideo and ReadAttachment where the native module exists', async () => {
+            const bridge = createBridgeMock();
+            renderHook(() => useWebMessageRouter({ bridge }));
+            const handlerFor = (type: string) =>
+                bridge.registerHandler.mock.calls.find(call => call[0] === type)?.[1] as any;
+            const pick = { type: 'PickAttachments', data: { source: 'media', selectionLimit: 10 } };
+            const prepare = { type: 'PrepareVideo', data: { uri: 'file:///attach-pick/a/IMG_0001.MOV' } };
+
+            await handlerFor('PickAttachments')(pick);
+            await handlerFor('PrepareVideo')(prepare);
+            const read = { type: 'ReadAttachment', data: { uri: 'file:///attach-pick/b/photo.jpg' } };
+            await handlerFor('ReadAttachment')(read);
+
+            expect(registered(bridge)).toEqual(expect.arrayContaining(ATTACHMENT_PICKER_MESSAGES));
+            expect(mockAttachmentPicker.handlePickAttachments).toHaveBeenCalledWith(pick);
+            expect(mockAttachmentPicker.handlePrepareVideo).toHaveBeenCalledWith(prepare);
+            expect(mockAttachmentPicker.handleReadAttachment).toHaveBeenCalledWith(read);
+        });
+
+        // Unregistered, the bridge answers NOT_FOUND — the web's signal to open its own file input.
+        it('leaves them unregistered where the native module is missing', () => {
+            mockAttachmentPicker.isAvailable = false;
+            const bridge = createBridgeMock();
+
+            renderHook(() => useWebMessageRouter({ bridge }));
+
+            for (const type of ATTACHMENT_PICKER_MESSAGES) expect(registered(bridge)).not.toContain(type);
+            expect(registered(bridge)).toEqual(expect.arrayContaining(['SaveToPhotoLibrary', 'ShareFile']));
+        });
+    });
+
+    describe('open and save a file', () => {
+        afterEach(() => {
+            mockMediaExport.canOpenFile = true;
+            mockMediaExport.canSaveFile = true;
+        });
+
+        it('registers OpenFile and SaveFile where the native module has both methods', async () => {
+            const bridge = createBridgeMock();
+            renderHook(() => useWebMessageRouter({ bridge }));
+            const handlerFor = (type: string) =>
+                bridge.registerHandler.mock.calls.find(call => call[0] === type)?.[1] as any;
+            const open = { type: 'OpenFile', data: { uri: 'file:///a.pdf' } };
+            const save = { type: 'SaveFile', data: { uri: 'file:///a.pdf', name: 'a.pdf' } };
+
+            await handlerFor('OpenFile')(open);
+            await handlerFor('SaveFile')(save);
+
+            expect(mockMediaExport.handleOpenFile).toHaveBeenCalledWith(open);
+            expect(mockMediaExport.handleSaveFile).toHaveBeenCalledWith(save);
+        });
+
+        // A native MediaExport built before these two still answers save and share, so only the two
+        // newer messages go unregistered — and each on its own method's presence.
+        it.each([
+            ['openFile', 'canOpenFile', 'OpenFile', 'SaveFile'],
+            ['saveFile', 'canSaveFile', 'SaveFile', 'OpenFile'],
+        ] as const)('leaves %s unregistered where the native method is missing', (_m, flag, missing, present) => {
+            mockMediaExport[flag] = false;
+            const bridge = createBridgeMock();
+
+            renderHook(() => useWebMessageRouter({ bridge }));
+
+            expect(registered(bridge)).not.toContain(missing);
+            expect(registered(bridge)).toEqual(expect.arrayContaining([present, 'SaveToPhotoLibrary', 'ShareFile']));
         });
     });
 });

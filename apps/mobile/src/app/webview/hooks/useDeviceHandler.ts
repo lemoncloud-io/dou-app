@@ -186,7 +186,9 @@ export const useDeviceHandler = () => {
     const handleCreateDummyFile = useCallback(
         async (message: WebMessageData<'CreateDummyFile'>) => {
             const { sizeInBytes, fileName } = message.data;
-            const path = `${FileManagerBridge.DocumentDirectoryPath}/${fileName}`;
+            // An upload reads only the shell's own upload folders, so a dummy file is written into one.
+            const folder = FileManagerBridge.TransferTempPath || FileManagerBridge.DocumentDirectoryPath;
+            const path = `${folder}/${fileName}`;
             try {
                 const resultPath = await FileManagerBridge.createDummyFile(path, sizeInBytes);
                 return {
