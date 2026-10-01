@@ -81,6 +81,14 @@ export type CacheCloudView = CloudView &
         cid: string;
         /** Classifies a cloud as invited ('invited') vs. self-owned ('owner') */
         cloudType?: 'invited' | 'owner';
+        /**
+         * Device user ids that accepted an invite into this cloud — the `delegatorId` each
+         * acceptance was bound to. The cache is one partition per device, not per user, and apps/web
+         * reads this to keep one device user's invited cloud out of another's list; desktop-web and
+         * the runtime's push recovery neither write nor read it yet. Absent on rows written before
+         * it existed, which therefore cannot be attributed.
+         */
+        acceptedBy?: string[];
     };
 
 /** Channel info view (includes Site ID and domain fields) */

@@ -8,6 +8,7 @@ import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
 import { useEnterInvitedSite } from './useEnterInvitedSite';
 import type { InviteContext } from '../types';
+import { withAcceptor } from '../../../../utils/invitedCloudAcceptance';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
 import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -97,14 +98,17 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
     // The app graph follows the selection on every call, so after the cloud and site switches below
     // `profile` reads the invited place, not the one this render started on.
     const { cloud, profile, channel } = runtime.data.useRuntimeRepositories();
+    // The guest the invite login binds the acceptance to — recorded on the cached cloud below.
+    const { delegatorId } = runtime.session.useSessionIdentity();
     const [missingDelegator, setMissingDelegator] = useState(false);
-    // Covers the whole pipeline, including the steps no hook reports on (the cloud cache write, the
-    // place lookup, the profile check). Without it the accept button re-enabled during those, and a
-    // tap in that gap ran the accept a second time.
-    const [isRunning, setIsRunning] = useState(false);
-    const runningRef = useRef(false);
     const [profilePending, setProfilePending] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    // One pipeline at a time, for its whole length. The step hooks each report only their own call,
+    // which leaves gaps between steps (the cache write, the place lookup, the profile check) and
+    // during the cloud step's retry waits — seconds in which Accept looked idle and a second press
+    // started a second pipeline.
+    const [isRunning, setIsRunning] = useState(false);
+    const runningRef = useRef(false);
 
     /**
      * The place the invite leads into. An invite is issued with nothing but a `channelId`; the server
@@ -132,8 +136,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
 
     const accept = useCallback(async () => {
         const { code, backend, relay } = params;
-        if (!code) return;
-        if (runningRef.current) return;
+        if (!code || runningRef.current) return;
         // Relay invites legitimately carry no backend address: registerUserWithInviteCode resolves the
         // env relay endpoint. Only a link that is neither addressed nor marked relay is unusable.
         if (!backend && !relay) {
@@ -148,7 +151,16 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
         runningRef.current = true;
         setIsRunning(true);
         try {
-            await runInviteFlow({ code, backend });
+            // The answer is the invitee's own cloud token; the cloud is entered with it (see
+            // `useEnterInvitedCloud` for why a re-issue cannot stand in for it).
+            const inviteToken = await runInviteFlow({ code, backend });
+
+            // Entered BEFORE the cloud is cached. Caching it lists it, and a listed cloud is what the
+            // background sockets prepare a socket for — by re-issuing through `delegate-cloud`. Once
+            // the cloud is committed it is left out of that list, so nothing can re-issue it under
+            // the entry and land the cloud's socket on a user other than the invitee.
+            step = 'enter-cloud';
+            await enterCloud(info, inviteToken);
 
             // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
             // the cloud sheet. Skipped when the invite carries no cloudId. Both id and cid are keyed
@@ -156,8 +168,11 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             // Store the display info too (name + owner) so the switcher renders a proper label and
             // owner caption without a separate fetch: use the invite's cloudName as the label and
             // the inviter as the owner.
+            // `acceptedBy` adds this guest to whoever accepted the cloud on this device before, read
+            // back first because the write replaces the field rather than merging it.
             if (info?.cloudId) {
                 step = 'cache-cloud';
+                const existing = await cloud.cacheRead(info.cloudId);
                 await cloud.cacheWrite({
                     id: info.cloudId,
                     cid: info.cloudId,
@@ -167,11 +182,10 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
                     backend: info.$envs?.backend,
                     wss: info.$envs?.wss,
                     cloudType: 'invited',
+                    acceptedBy: withAcceptor(existing?.acceptedBy, delegatorId),
                 });
             }
 
-            step = 'enter-cloud';
-            await enterCloud(info);
             step = 'enter-site';
             const siteId = await resolveInvitedSiteId();
             if (siteId) {
@@ -216,6 +230,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
         enterSite,
         enterChannel,
         cloud,
+        delegatorId,
         profile,
         resolveInvitedSiteId,
         toast,

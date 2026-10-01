@@ -7,6 +7,8 @@ const mockEnterCloud = jest.fn();
 const mockEnterSite = jest.fn();
 const mockEnterChannel = jest.fn();
 const mockCacheWrite = jest.fn();
+const mockCacheRead = jest.fn();
+const mockUseSessionIdentity = jest.fn();
 const mockGetMyProfile = jest.fn();
 const mockSyncChannels = jest.fn();
 const mockObserveChannel = jest.fn();
@@ -33,13 +35,15 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({
-                cloud: { cacheWrite: mockCacheWrite },
+                cloud: { cacheWrite: mockCacheWrite, cacheRead: mockCacheRead },
                 profile: { getMyProfile: mockGetMyProfile },
                 channel: { syncChannels: mockSyncChannels, observeItem: mockObserveChannel },
             }),
         },
         session: {
             useInviteFlow: () => ({ runInviteFlow: mockRunInviteFlow, isInviting: false }),
+            // Only the first block sets an identity; the others run without a guest.
+            useSessionIdentity: () => mockUseSessionIdentity() ?? {},
         },
     },
 }));
@@ -78,16 +82,24 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         mockRunInviteFlow.mockResolvedValue({});
         mockEnterCloud.mockResolvedValue(undefined);
         mockEnterSite.mockResolvedValue(undefined);
+        mockCacheRead.mockResolvedValue(null);
+        mockUseSessionIdentity.mockReturnValue({ delegatorId: 'guest-1' });
     });
 
-    it('성공 시 login → cacheWrite → cloud → site → channel 순서로 실행하고 에러 상태가 없다', async () => {
-        const result = await runAccept(ctx());
+    it('logs in, enters the cloud with the login answer, then caches it, enters the place and the room', async () => {
+        const inviteToken = { id: 'invitee-1', Token: { identityToken: 'idt' } };
+        mockRunInviteFlow.mockResolvedValue(inviteToken);
+        const context = ctx();
+
+        const result = await runAccept(context);
 
         expect(mockRunInviteFlow).toHaveBeenCalledWith({ code: 'invt:1:abc', backend: 'https://cloud.example' });
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, inviteToken);
         expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'cloud-1', cloudType: 'invited' }));
-        expect(mockEnterCloud).toHaveBeenCalled();
         expect(mockEnterSite).toHaveBeenCalled();
         expect(mockEnterChannel).toHaveBeenCalled();
+        // Entered before cached: a cached cloud is listed, and a listed one gets a re-issued socket.
+        expect(mockEnterCloud.mock.invocationCallOrder[0]).toBeLessThan(mockCacheWrite.mock.invocationCallOrder[0]);
         expect(result.current.errorKey).toBeNull();
         expect(result.current.missingDelegator).toBe(false);
         expect(mockToast).not.toHaveBeenCalled();
@@ -181,6 +193,42 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
     it('login-invite 단계의 그 외 서버 오류는 failed 키', async () => {
         mockRunInviteFlow.mockRejectedValue(new Error('500 SERVER ERROR'));
         expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.failed');
+    });
+
+    it('records the accepting guest on the cached cloud, keeping guests that accepted it before', async () => {
+        mockCacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', acceptedBy: ['guest-0'] });
+
+        await runAccept(ctx());
+
+        expect(mockCacheRead).toHaveBeenCalledWith('cloud-1');
+        expect(mockCacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'cloud-1', acceptedBy: ['guest-0', 'guest-1'] })
+        );
+    });
+
+    it('reports accepting for the whole pipeline and ignores a second press while it runs', async () => {
+        let releaseCloud: () => void = () => undefined;
+        mockEnterCloud.mockReturnValue(new Promise<void>(resolve => (releaseCloud = resolve)));
+        const { result } = renderHook(() => useInviteAccept(ctx()));
+
+        let first: Promise<void> = Promise.resolve();
+        await act(async () => {
+            first = result.current.accept();
+            await Promise.resolve();
+        });
+        expect(result.current.isAccepting).toBe(true);
+
+        await act(async () => {
+            await result.current.accept();
+        });
+        expect(mockRunInviteFlow).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            releaseCloud();
+            await first;
+        });
+        expect(result.current.isAccepting).toBe(false);
+        expect(mockEnterChannel).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -323,38 +371,5 @@ describe('useInviteAccept — finding the invited place', () => {
         );
         expect(mockEnterChannel).toHaveBeenCalled();
         expect(result.current.errorKey).toBeNull();
-    });
-});
-
-describe('useInviteAccept — one accept at a time', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockEnterCloud.mockResolvedValue(undefined);
-        mockEnterSite.mockResolvedValue(undefined);
-        mockGetMyProfile.mockResolvedValue({ nick: 'Raine', active: true });
-    });
-
-    it('stays busy through the whole pipeline and ignores a second tap while it runs', async () => {
-        let finishLogin: () => void = () => undefined;
-        mockRunInviteFlow.mockReturnValue(new Promise<void>(resolve => (finishLogin = resolve)));
-        const { result } = renderHook(() => useInviteAccept(ctx()));
-
-        let first: Promise<void> = Promise.resolve();
-        act(() => {
-            first = result.current.accept();
-        });
-        expect(result.current.isAccepting).toBe(true);
-
-        await act(async () => {
-            await result.current.accept();
-        });
-        expect(mockRunInviteFlow).toHaveBeenCalledTimes(1);
-
-        await act(async () => {
-            finishLogin();
-            await first;
-        });
-        expect(result.current.isAccepting).toBe(false);
-        expect(mockEnterChannel).toHaveBeenCalledTimes(1);
     });
 });

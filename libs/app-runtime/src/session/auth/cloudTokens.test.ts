@@ -1,6 +1,6 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { issueCloudTokens, reissueCloudTokens } from './cloudTokens';
+import { issueCloudTokens, reissueCloudTokens, tokensFromInviteLogin } from './cloudTokens';
 
 const mockDelegateCloud = jest.fn();
 const mockExchangeToken = jest.fn();
@@ -281,5 +281,44 @@ describe('reissueCloudTokens', () => {
 
         await expect(reissueCloudTokens('cloud-1')).rejects.toThrow('403');
         expect(mockSaveCloudToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('tokensFromInviteLogin', () => {
+    const answer = (credential?: { Expiration?: string }) =>
+        ({ id: 'invitee', Token: { identityToken: 'invitee-identity', credential } }) as unknown as UserTokenView;
+    const endpoints = { backend: 'https://cloud.example.com', wss: 'wss://cloud.example.com' };
+
+    it('assembles a committable entry from the answer and the invite endpoints, with no delegation JWT', () => {
+        const expiration = new Date(Date.now() + 60 * 60_000).toISOString();
+        const cloudToken = answer({ Expiration: expiration });
+
+        const tokens = tokensFromInviteLogin('cloud-1', { cloudToken, ...endpoints });
+
+        expect(tokens).toEqual({
+            delegationToken: {
+                delegationToken: '',
+                cloudId: 'cloud-1',
+                backend: 'https://cloud.example.com',
+                wss: 'wss://cloud.example.com',
+                expiredAt: expect.any(Number),
+            },
+            cloudToken,
+        });
+        expect(Math.abs((tokens?.delegationToken.expiredAt ?? 0) - Date.parse(expiration))).toBeLessThan(1000);
+    });
+
+    it('keeps an answer with no measurable credential, at expiredAt 0', () => {
+        expect(
+            tokensFromInviteLogin('cloud-1', { cloudToken: answer(), ...endpoints })?.delegationToken.expiredAt
+        ).toBe(0);
+    });
+
+    it('cannot enter with an answer that has no identity token, or without both endpoints', () => {
+        const noIdentity = { id: 'invitee', Token: {} } as unknown as UserTokenView;
+        expect(tokensFromInviteLogin('cloud-1', { cloudToken: noIdentity, ...endpoints })).toBeNull();
+        expect(tokensFromInviteLogin('cloud-1', { cloudToken: answer(), backend: endpoints.backend })).toBeNull();
+        expect(tokensFromInviteLogin('cloud-1', { cloudToken: answer(), wss: endpoints.wss })).toBeNull();
+        expect(tokensFromInviteLogin('', { cloudToken: answer(), ...endpoints })).toBeNull();
     });
 });
