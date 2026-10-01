@@ -307,6 +307,32 @@ describe('MessageList', () => {
     // over the author line hid the author's name. There it hangs under the header on a block's
     // first message; the rest keep their place above their own message. jsdom lays nothing out,
     // so this pins the placement class; the overlap itself needs a browser.
+    // A thread passes no `onOpenThread` (no thread inside a thread), and a file sent on its own has
+    // no text. The row still has to offer Delete to the person who sent it.
+    it('offers Delete on my file-only reply in a thread', () => {
+        const fileOnly = {
+            ...message(1, 'me', ''),
+            uploadIds: ['U1'],
+            upload$$: [
+                {
+                    id: 'U1',
+                    status: 'stored',
+                    stereo: 'file',
+                    name: 'report.docx',
+                    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    contentSize: 26_300,
+                },
+            ],
+        } as unknown as DomainChat;
+
+        render(<MessageList messages={[fileOnly]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+        clickRowMenuItem('Delete message');
+
+        expect(screen.getByRole('alertdialog')).toBeDefined();
+    });
+
     it('hangs the first toolbar under the author line in a thread, not over it', () => {
         const toolbarTops = (threadReplyCount?: number) => {
             const { container, unmount } = render(

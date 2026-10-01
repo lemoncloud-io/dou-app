@@ -432,6 +432,12 @@ export const MessageRow = memo(
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
+                            // The toolbar has something to offer: Reply, the text's own actions,
+                            // or my Edit and Delete. The last counts on its own because a thread
+                            // passes no Reply, and a file or photo sent there with no text would
+                            // otherwise have no Delete anywhere.
+                            const hasActions =
+                                (!!onOpenThread && isSettled) || !!content || canModifyMessage(message, group.isMine);
                             const isEditing = editingKey === key;
                             const wasEdited = isEdited(message);
                             // One receipt per author block, on its last message — the same
@@ -679,7 +685,7 @@ export const MessageRow = memo(
                                     from under the control the reader is using. Slack keeps the
                                     pill above the open picker for the same reason: it is the
                                     only thing still tying the grid to the message it acts on. */}
-                                    {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
+                                    {!isEditing && !message.hidden && hasActions && (
                                         <div
                                             data-row-actions=""
                                             inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
