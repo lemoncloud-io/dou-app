@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-10-01] - No version updates
+
+### Features
+
+- (mobile) save a downloaded image to the photo library or share it as a file
+- (mobile) download into a folder the shell owns, keeping a file only for a 2xx
+- (app-messages,bridges) let StartFileTransfer download, and add SaveToPhotoLibrary and ShareFile
+
+### Documentation
+
+- (mobile) document native downloads and media export (ADR-0152)
+
+### Other
+
+- test: (scripts) serve download scenarios from the transfer test server
+
 ## [2026-10-01] - root@0.79.0, @chatic/web@0.60.0
 
 ### Features
