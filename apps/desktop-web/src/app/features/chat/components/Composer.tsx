@@ -164,7 +164,7 @@ const ComposerInner = ({
     return (
         <div
             className={cn('bg-background pt-2', compact ? 'px-3 pb-3' : 'px-6 pb-5')}
-            // Pasted images join the tray; pasted text still goes to the editor untouched.
+            // Pasted files join the tray; pasted text still goes to the editor untouched.
             // A copy from Excel or Word carries the text and a picture of it together, and
             // taking the files used to drop the text: it goes in as plain text alongside.
             // Only for a rich copy (HTML or RTF on the clipboard): a file copied in Finder

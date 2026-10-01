@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DomainChat } from '@chatic/data';
+
 import {
     MAX_ATTACHMENTS,
     attachmentKey,
     layoutImageGrid,
+    toChatFiles,
     toChatImages,
     validateAttachments,
     type ChatImage,
@@ -19,10 +22,34 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({});
     });
 
-    it('refuses a type the viewer cannot draw, keeping the rest', () => {
-        const result = validateAttachments([], [file('doc.pdf', 'application/pdf'), file('a.png')]);
+    it('refuses a format the server does not take, keeping the rest', () => {
+        const result = validateAttachments([], [file('a.zip', 'application/zip'), file('a.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ unsupported: 1 });
+    });
+
+    it('takes videos and documents beside images, an untyped HWP included', () => {
+        const result = validateAttachments(
+            [],
+            [file('clip.mp4', 'video/mp4'), file('a.pdf', 'application/pdf'), file('보고서.hwp', '')]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['clip.mp4', 'a.pdf', '보고서.hwp']);
+        expect(result.rejected).toEqual({});
+    });
+
+    // The server refuses these with a 413 after the whole transfer; the tray says so before it starts.
+    it('refuses a file over its kind’s limit', () => {
+        const MiB = 1024 * 1024;
+        const result = validateAttachments(
+            [],
+            [
+                file('big.png', 'image/png', 21 * MiB),
+                file('long.mp4', 'video/mp4', 290 * MiB),
+                file('big.pdf', 'application/pdf', 51 * MiB),
+            ]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['long.mp4']);
+        expect(result.rejected).toEqual({ 'too-large': 2 });
     });
 
     // A re-pick of a file already in the tray, and the same file twice in one drop.
@@ -39,6 +66,19 @@ describe('validateAttachments', () => {
         const result = validateAttachments(existing, [file('a.png'), file('b.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ limit: 1 });
+    });
+
+    it('keeps the first ten of a mixed pick of twelve, whatever their kinds, and counts the rest', () => {
+        const kinds = [
+            ['a.png', 'image/png'],
+            ['b.mp4', 'video/mp4'],
+            ['c.pdf', 'application/pdf'],
+            ['d.hwp', ''],
+        ];
+        const picked = Array.from({ length: 12 }, (_, i) => file(`${i}-${kinds[i % 4][0]}`, kinds[i % 4][1]));
+        const result = validateAttachments([], picked);
+        expect(result.accepted.map(f => f.name)).toEqual(picked.slice(0, 10).map(f => f.name));
+        expect(result.rejected).toEqual({ limit: 2 });
     });
 
     // Only the first refusal used to be reported, so a mixed drop hid the rest of what it left out.
@@ -71,6 +111,96 @@ describe('layoutImageGrid', () => {
     });
 });
 
+describe('toChatImages and toChatFiles', () => {
+    const mixed = [
+        { id: 'up-1', status: 'stored', stereo: 'image', orgUrl: 'https://s/o1' },
+        {
+            id: 'up-2',
+            status: 'stored',
+            stereo: 'file',
+            name: 'report.pdf',
+            contentType: 'application/pdf',
+            contentSize: 2048,
+            orgUrl: 'https://s/o2',
+        },
+        { id: 'up-3', status: 'stored', stereo: 'video', name: 'clip.mp4', orgUrl: 'https://s/o3' },
+    ] as NonNullable<DomainChat['upload$$']>;
+
+    // A PDF drawn by <img> is a broken tile; only images go to the grid and the viewer.
+    it('gives the grid only the images, and the rest to the file list', () => {
+        expect(toChatImages('row-1', mixed).map(image => image.id)).toEqual(['up-1']);
+        // Numbered among the images, so a photo after a document is still "image-1".
+        expect(toChatImages('row-1', [mixed[1], mixed[0]]).map(image => image.name)).toEqual(['image-1']);
+        expect(toChatFiles('row-1', mixed)).toEqual([
+            {
+                id: 'up-2',
+                kind: 'file',
+                name: 'report.pdf',
+                size: 2048,
+                contentType: 'application/pdf',
+                url: 'https://s/o2',
+            },
+            { id: 'up-3', kind: 'video', name: 'clip.mp4', url: 'https://s/o3' },
+        ]);
+    });
+
+    it('shows a video or document being sent from the details its slot kept', () => {
+        const slots = [
+            {
+                localStatus: 'sending',
+                localThumbUrl: 'blob:1',
+                localName: 'a.hwp',
+                localContentType: 'application/x-hwp',
+                localSize: 10,
+            },
+            {
+                localStatus: 'failed',
+                localThumbUrl: 'blob:2',
+                localName: 'b.mp4',
+                localContentType: 'video/mp4',
+                localSize: 5,
+            },
+        ] as DomainChat['upload$$'];
+        expect(toChatImages('row-1', slots)).toEqual([]);
+        expect(toChatFiles('row-1', slots)).toEqual([
+            {
+                id: 'row-1:0',
+                kind: 'file',
+                name: 'a.hwp',
+                size: 10,
+                contentType: 'application/x-hwp',
+                url: '',
+                isUploading: true,
+                isFailed: false,
+            },
+            {
+                id: 'row-1:1',
+                kind: 'video',
+                name: 'b.mp4',
+                size: 5,
+                contentType: 'video/mp4',
+                url: '',
+                isUploading: false,
+                isFailed: true,
+            },
+        ]);
+    });
+
+    it('has nothing to load for a failed upload, one still on its way, or an unsafe address', () => {
+        expect(
+            toChatFiles('row-1', [
+                { id: 'a', status: 'failed', stereo: 'file' },
+                { id: 'b', status: 'stored', stereo: 'file' },
+                { id: 'c', status: 'stored', stereo: 'video', orgUrl: 'javascript:alert(1)' },
+            ] as DomainChat['upload$$'])
+        ).toEqual([
+            { id: 'a', kind: 'file', url: '', isFailed: true },
+            { id: 'b', kind: 'file', url: '', isUploading: true },
+            { id: 'c', kind: 'video', url: '', isFailed: true },
+        ]);
+    });
+});
+
 describe('toChatImages', () => {
     it('shows a pending slot from its local preview, spinning while it is sent', () => {
         expect(
@@ -88,6 +218,16 @@ describe('toChatImages', () => {
         expect(
             toChatImages('row-1', [{ id: 'up-1', status: 'stored', orgUrl: 'https://s/o', thumbUrl: 'https://s/t' }])
         ).toEqual([{ id: 'up-1', name: 'image-1', url: 'https://s/o', thumbUrl: 'https://s/t' }]);
+    });
+
+    // An upload sent before the server kept names has none; its place in the message stands in.
+    it('names a stored image by the name it was sent under, when the server kept one', () => {
+        expect(
+            toChatImages('row-1', [
+                { id: 'up-1', status: 'stored', name: 'orange.png', orgUrl: 'https://s/o' },
+                { id: 'up-2', status: 'stored', orgUrl: 'https://s/o2' },
+            ]).map(image => image.name)
+        ).toEqual(['orange.png', 'image-2']);
     });
 
     it('falls back to the original when the upload has no thumbnail', () => {

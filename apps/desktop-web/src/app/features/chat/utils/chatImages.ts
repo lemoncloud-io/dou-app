@@ -1,4 +1,10 @@
-import { isPendingUploadSlot, type DomainChat } from '@chatic/data';
+import {
+    CHAT_ATTACHMENT_MAX_BYTES,
+    chatAttachmentFormat,
+    isPendingUploadSlot,
+    uploadSlotKind,
+    type DomainChat,
+} from '@chatic/data';
 
 /**
  * One image on a message or in the composer tray.
@@ -37,34 +43,104 @@ export const isUnsentImageMessage = (message: Pick<DomainChat, 'upload$$'>): boo
 export const isSendingImages = (message: Pick<DomainChat, 'upload$$'>): boolean =>
     !!message.upload$$?.some(slot => isPendingUploadSlot(slot) && slot.localStatus === 'sending');
 
+/** A video or document on a message: played in place or saved, never drawn as a tile. */
+export interface ChatFile {
+    id: string;
+    kind: 'video' | 'file';
+    /** The name to show and to save under. Absent on an upload sent before the server kept names. */
+    name?: string;
+    size?: number;
+    /** The content type it was sent as, when known. The viewer reads it to pick how to draw the file. */
+    contentType?: string;
+    /** The signed original. Empty while sending, when failed, or when the address is not one to load. */
+    url: string;
+    isUploading?: boolean;
+    isFailed?: boolean;
+}
+
+type Slot = NonNullable<DomainChat['upload$$']>[number];
+
+// `audio` is not sent from here; it is saved like a document.
+const slotKind = (slot: Slot): 'image' | 'video' | 'file' => {
+    const kind = uploadSlotKind(slot);
+    return kind === 'audio' ? 'file' : kind;
+};
+
+/** Where a video or document may be loaded from: a signed storage address only. */
+const isSafeFileUrl = (url: string): boolean => url.startsWith('https://');
+
 /**
- * A message's images from its `upload$$`. The server keeps no file name (the tiles are a fixed size),
- * so each image is named by its place in the message.
+ * A message's videos and documents from its `upload$$`, in order. The addresses are signed and
+ * short-lived: shown, never kept.
+ */
+export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): ChatFile[] =>
+    (slots ?? []).flatMap((slot, index): ChatFile[] => {
+        const kind = slotKind(slot);
+        if (kind === 'image') return [];
+        if (isPendingUploadSlot(slot)) {
+            return [
+                {
+                    id: `${messageId}:${index}`,
+                    kind,
+                    ...(slot.localName ? { name: slot.localName } : {}),
+                    ...(slot.localSize !== undefined ? { size: slot.localSize } : {}),
+                    ...(slot.localContentType ? { contentType: slot.localContentType } : {}),
+                    url: '',
+                    isUploading: slot.localStatus === 'sending',
+                    isFailed: slot.localStatus === 'failed',
+                },
+            ];
+        }
+        const base = {
+            id: slot.id ?? `${messageId}:${index}`,
+            kind,
+            ...(slot.name ? { name: slot.name } : {}),
+            ...(slot.contentSize !== undefined ? { size: slot.contentSize } : {}),
+            ...(slot.contentType ? { contentType: slot.contentType } : {}),
+        };
+        if (slot.status === 'failed' || slot.error) return [{ ...base, url: '', isFailed: true }];
+        if (!slot.orgUrl) return [{ ...base, url: '', isUploading: true }];
+        if (!isSafeFileUrl(slot.orgUrl)) return [{ ...base, url: '', isFailed: true }];
+        return [{ ...base, url: slot.orgUrl }];
+    });
+
+/**
+ * A message's images from its `upload$$` — its videos and documents are `toChatFiles`'. Each image is
+ * named by the name the server kept for it; one sent before names were kept, or still being sent, by
+ * its place in the message.
  *
  * A pending slot shows its local preview, spinning while it is sent. A server upload shows its
  * thumbnail and opens its original; one the server marks failed or reports with an error has nothing
  * to load, and one with no address yet (the read-back has not landed) is still on its way. The
  * addresses are signed and short-lived: shown, never kept.
  */
-export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): ChatImage[] =>
-    (slots ?? []).map((slot, index): ChatImage => {
-        const name = `image-${index + 1}`;
-        if (isPendingUploadSlot(slot)) {
-            return {
-                id: `${messageId}:${index}`,
-                name,
-                url: slot.localThumbUrl,
-                isUploading: slot.localStatus === 'sending',
-                isFailed: slot.localStatus === 'failed',
-            };
-        }
-        const id = slot.id ?? `${messageId}:${index}`;
-        if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
-        if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
-        if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };
-        const thumbUrl = slot.thumbUrl && isSafeImageUrl(slot.thumbUrl) ? slot.thumbUrl : undefined;
-        return { id, name, url: slot.orgUrl, ...(thumbUrl ? { thumbUrl } : {}) };
+export const toChatImages = (messageId: string, slots: DomainChat['upload$$']): ChatImage[] => {
+    const images: ChatImage[] = [];
+    (slots ?? []).forEach((slot, index) => {
+        if (slotKind(slot) === 'image') images.push(toChatImage(messageId, slot, index, images.length + 1));
     });
+    return images;
+};
+
+/** `index` is the slot's place in `upload$$` (its id); `position` its place among the images (its fallback name). */
+const toChatImage = (messageId: string, slot: Slot, index: number, position: number): ChatImage => {
+    if (isPendingUploadSlot(slot)) {
+        return {
+            id: `${messageId}:${index}`,
+            name: `image-${position}`,
+            url: slot.localThumbUrl,
+            isUploading: slot.localStatus === 'sending',
+            isFailed: slot.localStatus === 'failed',
+        };
+    }
+    const id = slot.id ?? `${messageId}:${index}`;
+    const name = slot.name || `image-${position}`;
+    if (slot.status === 'failed' || slot.error) return { id, name, url: '', isFailed: true };
+    if (!slot.orgUrl) return { id, name, url: '', isUploading: true };
+    if (!isSafeImageUrl(slot.orgUrl)) return { id, name, url: '', isFailed: true };
+    const thumbUrl = slot.thumbUrl && isSafeImageUrl(slot.thumbUrl) ? slot.thumbUrl : undefined;
+    return { id, name, url: slot.orgUrl, ...(thumbUrl ? { thumbUrl } : {}) };
+};
 
 /** The most images one message can carry (Figma "#max 10 images"). */
 export const MAX_ATTACHMENTS = 10;
@@ -72,11 +148,18 @@ export const MAX_ATTACHMENTS = 10;
 /** Tiles a message draws before the last one turns into a "+n" counter. */
 export const MAX_VISIBLE_TILES = 4;
 
-/** Raster types every Chromium build decodes. HEIC and friends are refused rather than shown broken. */
-export const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
-
-export const isSupportedImage = (file: Pick<File, 'type'>): boolean =>
-    (SUPPORTED_IMAGE_TYPES as readonly string[]).includes(file.type);
+/** A size as a person reads it: "820 B", "1.5 KB", "12.3 MB". */
+export const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB', 'MB', 'GB'];
+    let value = bytes / 1024;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+    return `${Number(value.toFixed(1))} ${units[unit]}`;
+};
 
 /**
  * Identity for "the same file twice". Name + size + mtime is what the OS picker hands
@@ -86,7 +169,7 @@ export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>
     `${file.name}:${file.size}:${file.lastModified}`;
 
 /** Why a file in a drop or pick was refused. */
-export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported';
+export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported' | 'too-large';
 
 /** How many files each reason refused; a reason that refused nothing is absent. */
 export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
@@ -103,9 +186,10 @@ export interface AttachmentValidation<T> {
 /**
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
- * An unsupported type is refused outright, a file already in the tray (or twice in
- * this batch) is a duplicate, and whatever would push the tray past `MAX_ATTACHMENTS`
- * is over the limit. Accepted files keep their incoming order up to the limit, so a
+ * A format the server does not take is refused outright, and so is a file over its
+ * kind's size limit (the server would refuse it only after the whole transfer). A file
+ * already in the tray (or twice in this batch) is a duplicate, and whatever would push
+ * the tray past `MAX_ATTACHMENTS` is over the limit. Accepted files keep their incoming order up to the limit, so a
  * drop of twelve keeps the first ten.
  */
 export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
@@ -119,8 +203,13 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
         rejected[reason] = (rejected[reason] ?? 0) + 1;
     };
     for (const file of incoming) {
-        if (!isSupportedImage(file)) {
+        const format = chatAttachmentFormat(file);
+        if (!format) {
             reject('unsupported');
+            continue;
+        }
+        if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) {
+            reject('too-large');
             continue;
         }
         const key = attachmentKey(file);

@@ -10,6 +10,7 @@ import {
     isDndActive,
     isMentioned,
     messagePlainText,
+    pushBody,
     readCacheRecords,
     resolveMyMentionNames,
     resolvePushCloudIdFrom,
@@ -42,15 +43,17 @@ const presentPush = async (
     notification: { title?: string; body?: string; data?: Record<string, string> } | undefined
 ): Promise<void> => {
     const title = notification?.title;
-    const body = notification?.body;
     // Silent/data-only pushes and click-routing events (pushDeeplink) carry no
     // content — badges consume them elsewhere; never surface a banner or toast.
-    if (!title && !body) return;
+    if (!title && !notification?.body) return;
+    const data = notification?.data ?? {};
+    // The shell's body is the first loc arg, which for an attachment push is a bare count ("3") or
+    // nothing at all; name the attachment here, where the copy lives.
+    const body = pushBody(data, notification?.body) ?? notification?.body;
     // Global do-not-disturb (snooze / quiet hours) silences banner and toast alike.
     const prefs = useNotificationPrefsStore.getState();
     if (isDndActive(prefs)) return;
 
-    const data = notification?.data ?? {};
     const myUid = runtime.session.getGlobalSessionContext().identity.userId;
     if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
     // One cache scan serves both the source-cloud resolution and the notify-mode lookup.

@@ -1,20 +1,21 @@
+import { CHAT_ATTACHMENT_MAX_BYTES, uploadSlotKind } from './chatAttachments';
 import type { DomainChat } from './models';
 
 /**
- * Image-message rules the screens share: which files may be picked, and how many images a chat
- * carries. The send sequence itself lives in `uploads/`; this is the part a picker and a list row
- * both need before or without it.
+ * Image-message rules the screens share: which files may be picked, how many images a chat
+ * carries, and what kind of attachment a preview should name. The send sequence itself lives in
+ * `uploads/`; this is the part a picker and a list row both need before or without it.
  */
 
 /** The formats the server accepts. Anything else is refused before an upload is started. */
 export const CHAT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
 
 /**
- * Per-file ceiling for the page. The server's own limit is far higher, but the web shell holds a
- * whole picked photo in memory while it prepares it, and the app hands each one over as base64 —
- * so the limit is the page's, and every shell uses the same one to avoid "it worked on my phone".
+ * Per-file ceiling for an image, the server's own. Every shell uses the same one to avoid "it worked
+ * on my phone"; the web shell also holds a whole picked photo in memory while it prepares it, and the
+ * app hands each one over as base64.
  */
-export const CHAT_IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+export const CHAT_IMAGE_MAX_BYTES = CHAT_ATTACHMENT_MAX_BYTES.image;
 
 /**
  * Why a picked file was not taken, judged in this order: the first two are the file's own
@@ -66,3 +67,25 @@ export const judgeChatImages = (files: readonly File[], max: number): ChatImageJ
  */
 export const chatImageCount = (chat: Pick<DomainChat, 'upload$$' | 'uploadIds'> | null | undefined): number =>
     chat?.upload$$?.length ?? chat?.uploadIds?.length ?? 0;
+
+/** What a message's attachments are, as a preview names them. `mixed` covers kinds that differ and `audio`. */
+export type ChatAttachmentKind = 'image' | 'video' | 'file' | 'mixed';
+
+const NAMED_KINDS: readonly string[] = ['image', 'video', 'file'];
+
+/**
+ * What a chat carries, for a preview: one kind when every attachment is the same image, video or
+ * file, else `mixed`, with the count `chatImageCount` gives. `null` when nothing is attached. The
+ * same kinds name a push's body key, so a row and its push are meant to agree.
+ */
+export const chatAttachmentSummary = (
+    chat: Pick<DomainChat, 'upload$$' | 'uploadIds'> | null | undefined
+): { kind: ChatAttachmentKind; count: number } | null => {
+    const count = chatImageCount(chat);
+    if (count === 0) return null;
+    // A head with only `uploadIds` knows no kinds, and before other kinds existed every one was an image.
+    const kinds = new Set<string>((chat?.upload$$ ?? []).map(uploadSlotKind));
+    if (kinds.size === 0) return { kind: 'image', count };
+    const [only] = kinds;
+    return { kind: kinds.size === 1 && NAMED_KINDS.includes(only) ? (only as ChatAttachmentKind) : 'mixed', count };
+};

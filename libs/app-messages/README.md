@@ -191,8 +191,8 @@ The payload files, with what is in each:
 | `index.ts`         | 19    | The barrel for the nineteen above                                                                        |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
-and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`) while an image message is still on its
-way. A reader tells them apart with `isPendingUploadSlot` from `@chatic/data`, never by probing for
+and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`, plus `localName` / `localContentType` /
+`localSize` for a video or document) while an attachment message is still on its way. A reader tells them apart with `isPendingUploadSlot` from `@chatic/data`, never by probing for
 the server's `status`, which a pending slot does not have. The shell stores chat rows as a JSON blob,
 so the wider type asks nothing of it.
 

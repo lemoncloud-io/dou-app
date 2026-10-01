@@ -5,4 +5,5 @@ export * from './ImageActions';
 export * from './ImageSpinner';
 export * from './ImageTile';
 export * from './ImageViewer';
+export * from './MessageFiles';
 export * from './MessageImages';

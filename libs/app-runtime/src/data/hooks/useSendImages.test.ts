@@ -465,6 +465,71 @@ describe('useSendImages — previews while sending', () => {
         });
     });
 
+    // A video or document has nothing to resize and no thumbnail; the server wants its original under
+    // its own type, and a name that ends in the format's extension.
+    it('sends a video or document as its original alone, typed and named the way the server takes it', async () => {
+        const prepared: unknown[] = [];
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                for (const file of picked) prepared.push(await ports.prepare(file));
+                return sent;
+            }
+        );
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() =>
+            result.current.sendImages([
+                new File(['%PDF'], 'report', { type: 'application/pdf' }),
+                new File(['h'], 'a.hwp'),
+            ])
+        );
+
+        expect(prepareChatAttachment).not.toHaveBeenCalled();
+        const [pdf, hwp] = prepared as { original: { file: File; width: number; height: number }; thumbnail: null }[];
+        expect(pdf).toMatchObject({ original: { width: 0, height: 0 }, thumbnail: null });
+        expect(pdf.original.file).toMatchObject({ name: 'report.pdf', type: 'application/pdf', size: 4 });
+        expect(hwp.original.file).toMatchObject({ name: 'a.hwp', type: 'application/x-hwp' });
+        expect(chat.createPendingImageChat.mock.calls[0][0].localFiles).toEqual([
+            { name: 'report.pdf', contentType: 'application/pdf', size: 4 },
+            { name: 'a.hwp', contentType: 'application/x-hwp', size: 1 },
+        ]);
+        unmount();
+    });
+
+    // An image let in by its extension still has the raw type it arrived with; declared as-is, the
+    // server refuses it, and an untyped GIF would get the still thumbnail a GIF must not have.
+    it('prepares an image under its format’s type when it arrived untyped', async () => {
+        runSequence();
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages([new File(['g'], 'a.gif')]));
+
+        expect((prepareChatAttachment as jest.Mock).mock.calls[0][0]).toMatchObject({
+            name: 'a.gif',
+            type: 'image/gif',
+        });
+        unmount();
+    });
+
+    it('writes no file details for an image, which draws its own preview', async () => {
+        runSequence();
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages([new File(['a'], 'a.jpg', { type: 'image/jpeg' })]));
+
+        expect(prepareChatAttachment).toHaveBeenCalledTimes(1);
+        expect(chat.createPendingImageChat.mock.calls[0][0]).not.toHaveProperty('localFiles');
+        unmount();
+    });
+
     // A phone photo is several megapixels; the feed must not decode ten of them for small tiles.
     it('switches the row to the thumbnails once every image is prepared, before the upload starts', async () => {
         (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({

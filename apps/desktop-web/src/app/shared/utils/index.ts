@@ -29,6 +29,7 @@ export * from './formatDate';
 export * from './tileInitials';
 export * from './channelLabel';
 export * from './messagePreview';
+export * from './pushBody';
 export * from './hoverReveal';
 export * from './composerFocus';
 export * from './radioGroup';
