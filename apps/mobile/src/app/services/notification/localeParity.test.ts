@@ -65,4 +65,47 @@ describe('푸시 번역 키 4벌 동기화', () => {
             expect(readNative(dir, lang).push_cloud_activate_title).toContain('{0}');
         }
     });
+
+    // Attachment bodies split one/many into separate keys because the native templates only do
+    // positional substitution. A plural template that lost {0} would say "Sent photos" with no
+    // count; a singular one — or the fallback, which is shown exactly when substitution failed —
+    // that gained a placeholder would trip the leftover-placeholder guard on every push.
+    const PLURAL_BODY_KEYS = [
+        'push_chat_images_body',
+        'push_chat_videos_body',
+        'push_chat_files_body',
+        'push_chat_attachments_body',
+    ] as const;
+    const ARGLESS_BODY_KEYS = [
+        'push_chat_image_body',
+        'push_chat_video_body',
+        'push_chat_file_body',
+        'push_chat_fallback_body',
+    ] as const;
+
+    const allSets = (lang: (typeof LANGS)[number]): Record<string, Record<string, unknown>> => ({
+        shell: SHELL_SETS[lang] as unknown as Record<string, unknown>,
+        ...Object.fromEntries(Object.entries(NATIVE_SETS).map(([name, dir]) => [name, readNative(dir, lang)])),
+    });
+
+    it.each(LANGS)('%s: plural attachment bodies keep the count placeholder', lang => {
+        for (const [name, source] of Object.entries(allSets(lang))) {
+            for (const key of PLURAL_BODY_KEYS) {
+                expect({ [`${name}.${key}`]: source[key] }).toEqual({
+                    [`${name}.${key}`]: expect.stringContaining('{0}'),
+                });
+            }
+        }
+    });
+
+    it.each(LANGS)('%s: singular attachment bodies and the fallback carry no placeholder', lang => {
+        for (const [name, source] of Object.entries(allSets(lang))) {
+            for (const key of ARGLESS_BODY_KEYS) {
+                expect({ [`${name}.${key}`]: source[key] }).toEqual({ [`${name}.${key}`]: expect.any(String) });
+                expect({ [`${name}.${key}`]: String(source[key]).includes('{') }).toEqual({
+                    [`${name}.${key}`]: false,
+                });
+            }
+        }
+    });
 });

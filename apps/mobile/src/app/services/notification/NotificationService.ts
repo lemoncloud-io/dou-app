@@ -6,7 +6,41 @@ import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import type { INotificationService } from './types';
 import type { ILogService } from '../log';
 import { BadgeSyncBridge } from '../../bridge';
-import { t } from '../../utils';
+import { formatPushCopy, getEffectiveLanguage, t } from '../../utils';
+
+const asString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
+
+/**
+ * The banner copy for an iOS push received in the foreground.
+ *
+ * That push reaches the shell straight from `willPresent`, never passing the Notification Service
+ * Extension, so `getTitle()`/`getMessage()` are the APNs `alert` the push server filled without
+ * knowing the reader's language — for a message with no text, an empty body. The copy is built
+ * here from the payload's top-level `loc_key`/`loc_args` instead, in the same language the native
+ * handlers use. The `alert` stays as the answer for a payload with no key, and for a field that
+ * formats to nothing — which is also where the extension keeps the original. Field names and their
+ * camelCase aliases are the ones the extension reads.
+ *
+ * A silent push is left as it came. The push server sends it with the same loc keys but no `alert`,
+ * and the web recognises a silent push by its having neither title nor body — building copy for it
+ * here would turn it into an in-app banner.
+ */
+export const foregroundAPNsCopy = (
+    data: Record<string, unknown>,
+    alertTitle: string | undefined,
+    alertBody: string | undefined
+): { title: string | undefined; body: string | undefined } => {
+    if (data.silent === true || data.silent === 'true') return { title: alertTitle, body: alertBody };
+    const lang = getEffectiveLanguage();
+    const titleKey = asString(data.title_loc_key) ?? asString(data.titleLocKey);
+    const bodyKey = asString(data.loc_key) ?? asString(data.bodyLocKey);
+    const titleArgs = data.title_loc_args ?? data.titleLocArgs;
+    const bodyArgs = data.loc_args ?? data.bodyLocArgs;
+    return {
+        title: (titleKey && formatPushCopy(titleKey, titleArgs, lang, 'title')) || alertTitle,
+        body: (bodyKey && formatPushCopy(bodyKey, bodyArgs, lang, 'body')) || alertBody,
+    };
+};
 
 /**
  * NotificationService
@@ -172,12 +206,10 @@ export class NotificationService implements INotificationService {
         // 2. Register and normalize the iOS APNs receive listener
         if (Platform.OS === 'ios') {
             const handleAPNs = (notification: any) => {
+                const data = (notification.getData() ?? {}) as Record<string, unknown>;
                 const normalizedMessage = {
-                    notification: {
-                        title: notification.getTitle(),
-                        body: notification.getMessage(),
-                    },
-                    data: notification.getData() as Record<string, string>,
+                    notification: foregroundAPNsCopy(data, notification.getTitle(), notification.getMessage()),
+                    data: data as Record<string, string>,
                     sentTime: Date.now(),
                 } as FirebaseMessagingTypes.RemoteMessage;
 

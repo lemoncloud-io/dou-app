@@ -8,6 +8,8 @@ import { translate } from './translate';
 import type { TranslationKey } from './types';
 
 export type { TranslationKey } from './types';
+export { formatPushCopy } from './formatPushCopy';
+export type { PushCopyField } from './formatPushCopy';
 
 /**
  * Where the language choice is read from, registered by `languageStore` when it loads.

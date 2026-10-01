@@ -81,6 +81,33 @@ from the activity time itself:
 - **My `join.updatedAt` is never used for ordering.** It also moves when I merely _read_ a room, so
   it is not "when the room last moved". `joinByChannel` stays for the nickname and mute readouts.
 
+## What the row prints
+
+`ChannelList` turns the last chat into one line, in this order: a deleted message prints
+`chat.room.deletedMessage`; a message with text prints the text (code markup flattened), whatever it
+has attached; and a message with attachments and no text prints what it carries.
+
+That last case reads `chatAttachmentSummary` from `libs/data` — the kind and number of the chat's
+attachments, taken from each slot of `upload$$` (or from `uploadIds` on a row that has no `upload$$`):
+
+| Kind                              | One                                   | Several                                        |
+| --------------------------------- | ------------------------------------- | ---------------------------------------------- |
+| `image`                           | `chat.attach.preview` — `사진`        | `chat.attach.previewCount` — `사진 3장`        |
+| `video`                           | `chat.attach.previewVideo` — `동영상` | `chat.attach.previewVideoCount` — `동영상 2개` |
+| `file`                            | `chat.attach.previewFile` — `파일`    | `chat.attach.previewFileCount` — `파일 3개`    |
+| `mixed` (several kinds, or audio) | —                                     | `chat.attach.previewMixedCount` — `첨부 3개`   |
+
+- **A sent upload says its kind in `stereo`; a slot still being sent, by the content type it kept**
+  (`uploadSlotKind` in `libs/data`). A slot with no type, an upload with no `stereo`, and a row with bare
+  `uploadIds` count as images — every attachment was one until the server took videos and documents.
+  Reading them any other way would flash "1 attachment" under a photo that is on its way.
+- **Audio has no noun of its own**, so even a single audio file prints the `mixed` count form.
+- **The nouns are the push's nouns.** The mobile push for the same message says
+  `사진 3장을 보냈습니다` / `Sent 3 photos` (`apps/mobile/docs/push/README.md`, "Chat message body"),
+  and the server picks that push's key by the same kind rule, so the row and the push name the same thing.
+  Changing a noun or counter here means changing the push copy with it.
+- `apps/desktop-web` previews its rows with the same `chatAttachmentSummary`, so the two lists agree.
+
 ## Unread is a separate calculation
 
 Changing the preview source changed nothing about unread. `useChannelUnreads` works from the
