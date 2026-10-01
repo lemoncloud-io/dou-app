@@ -10,4 +10,7 @@ export * from './SystemNotice';
 export * from './ThreadSummary';
 export * from './AttachActionTile';
 export * from './AttachMenuSheet';
-export * from './MessageImageTiles';
+export * from './AttachSourceSheet';
+export * from './MessageMediaTiles';
+export * from './MessageFileCard';
+export * from './messageFile';

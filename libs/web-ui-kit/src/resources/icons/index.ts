@@ -7,6 +7,7 @@ import {
     ChevronDown,
     Clock,
     Copy,
+    Download,
     House,
     ChevronLeft,
     ChevronRight,
@@ -71,6 +72,8 @@ export const IconBellOff: LucideIcon = BellOff;
 export const IconLeave: LucideIcon = LogOut;
 /** Delete a room — the owner's destructive swipe action. */
 export const IconTrash: LucideIcon = Trash2;
+/** Save a file to the device — the idle state of a chat document card's download button. */
+export const IconDownload: LucideIcon = Download;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
@@ -101,3 +104,16 @@ export { IconStarsSolid, type IconStarsSolidProps } from './IconStarsSolid';
 export { IconGalleryWideSolid, type IconGalleryWideSolidProps } from './IconGalleryWideSolid';
 export { IconCameraSolid, type IconCameraSolidProps } from './IconCameraSolid';
 export { IconFileSolid, type IconFileSolidProps } from './IconFileSolid';
+// Chat attachment glyphs drawn for the message feed: the play mark a video tile carries, and the
+// file-kind sheets a document card leads with. Both fill `currentColor`; the tile or card colours them.
+export { IconPlaySolid, type IconPlaySolidProps } from './IconPlaySolid';
+export {
+    IconFileDoc,
+    IconFileGeneric,
+    IconFileHangul,
+    IconFilePdf,
+    IconFileSheet,
+    IconFileSlides,
+    IconFileText,
+    type FileKindIconProps,
+} from './FileKindIcons';
