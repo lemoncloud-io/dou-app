@@ -107,6 +107,9 @@ lists them under the images:
 - **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.
+- **When only some files go**, the message is sent with those, and the rest follow it as a failed
+  message of their own, with Retry and Delete. A subscription cloud that does not take a format
+  answers `415 UNSUPPORTED` for that file alone; before this the refused file simply disappeared.
 - **An upload from before the server kept names** has none; its card says "File" or "Video".
 
 Saving goes through `downloadImage`, the same fetch-then-save as an image, under the upload's `name`,
