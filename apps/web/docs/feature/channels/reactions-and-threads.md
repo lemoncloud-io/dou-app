@@ -84,7 +84,7 @@ would make the same gesture feel like two gestures depending on where the thumb 
 | Target        | Tap                  | Press and hold                     |
 | ------------- | -------------------- | ---------------------------------- |
 | message body  | —                    | `MessageActionSheet`               |
-| image tile    | `ImageViewer`        | `MessageActionSheet`               |
+| image tile    | `MediaViewer`        | `MessageActionSheet`               |
 | reaction chip | toggle that reaction | `ReactionDetailSheet`              |
 | chip row `+`  | `EmojiPickerSheet`   | — (not a toggle, no pressed state) |
 

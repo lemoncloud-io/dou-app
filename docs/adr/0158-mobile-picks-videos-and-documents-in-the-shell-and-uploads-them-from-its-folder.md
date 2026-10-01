@@ -1,4 +1,4 @@
-# ADR-0157: Mobile picks videos and documents in the shell, and uploads them from its folder
+# ADR-0158: Mobile picks videos and documents in the shell, and uploads them from its folder
 
 > Status: Accepted · Decided: 2026-10-01
 > · Scope: `libs/app-messages/src/types/model/attachment-picker.ts` · `libs/data/src/{domain/chatImages,uploads/types}.ts` ·

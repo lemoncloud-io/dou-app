@@ -135,7 +135,8 @@ one would land in the main feed.
 one list of media in the order they were sent, drawn by the kit's `MessageMediaTiles`, and documents as
 `MessageFileCard`s below them. A video tile draws its poster (the upload's thumbnail), or a grey panel
 without one, with a play mark; no `<video>` is put in the feed, where every video would start a request
-just by scrolling past. A tapped photo opens in `ImageViewer`. With no text the attachments take the
+just by scrolling past. A tapped photo or video opens in the kit's `MediaViewer`, which plays a video
+there and only there (below). With no text the attachments take the
 bubble's place — an empty bubble beside them would read
 as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
 `localStatus`; a server head from `thumbUrl`, falling back to `orgUrl`. A GIF is sent without a
@@ -162,13 +163,24 @@ tile drew it — until the original has arrived, so a large original opens on a 
 black. The viewer reaches the images behind the "+n" tile too, and skips
 broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
-The showing image zooms, in the kit's `ImageViewer` with its arithmetic in `imageZoom.ts`. A pinch
+The showing photo zooms, in the kit's `MediaViewer` with its arithmetic in `imageZoom.ts`. A pinch
 scales it around the point between the fingers, up to four times. A double tap on it zooms to 2.5
 times at that point, or back out. While it is zoomed, a one-finger drag pans it instead of turning
 the page, and the photo's edge cannot be pulled off the page. A tap beside a zoomed photo does not
 close the viewer. Turning the page or closing starts the next image fitted again, and a pinch that
 ends barely zoomed snaps back. The browser's own pinch is not used: the app fixes the page scale
 (`user-scalable=no`), and the browser would zoom the whole screen rather than the photo.
+
+A video in the viewer is the OS player (`<video controls playsInline preload="metadata">`) over its
+poster, fitted between the top and bottom bars so the player's own controls are never under the bottom
+bar. It does not zoom. A horizontal drag still turns the page, except one that starts in the bottom
+72 px, where the player's seek bar is. Opening a video from its tile tries `play()` within that tap —
+Android refuses a play that comes about five seconds after the gesture, so nothing is awaited first, not
+even a fresh address; when the play is refused a large play button takes the next tap. Turning away
+pauses it, rewinds it and detaches its address, so the download stops; closing pauses it. The player
+streams from the signed address with range requests, so no video is cached or fetched ahead — only its
+poster is. A player error asks for fresh addresses, as a photo's does. Inside an iOS app built before
+inline playback, the play opens the OS full-screen player instead.
 
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
@@ -241,15 +253,47 @@ In a browser the button and the card both download (`lib/fileDownload.ts`): the 
 a `Blob` and saved from a local address under the upload's own name, since an anchor's `download`
 attribute names nothing on the bucket's origin. The whole file is in memory meanwhile, which the 50MB
 document limit keeps affordable. A 403 means the signed address expired: the message is read again for
-fresh ones and the user presses again. Inside the app the WebView ignores `download`, so the shell has
-to save the file.
+fresh ones and the user presses again.
+
+Inside the app the WebView ignores `download`, so the shell does the work (`lib/fileExport.ts`, driven
+by `hooks/useFileDownloads`). The shell downloads the file — the button shows the byte progress, and
+pressing it again cancels — and the page hands the downloaded file to the OS:
+
+| Press                     | What follows the download                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| The button                | `SaveFile` under the upload's name. Saved: a toast says where, with an Open action. The iOS export sheet dismissed: nothing.    |
+| The card body             | `OpenFile` — QuickLook on iOS, the system viewer on Android. `NO_HANDLER` (an HWP, usually) puts it on the share sheet instead. |
+| A `done` button           | `OpenFile`, as the body.                                                                                                        |
+| Long press → "Share file" | `ShareFile`. A message with several documents shares the first one only — one row, rather than a picker inside the sheet.       |
+
+The downloaded file is remembered for the page's life by the card's key, so the card turns `done` and
+the next open, save or share hands over the same file without downloading again. The shell keeps the
+file after any of the three, and acknowledging the download drops only the shell's record of it. The
+recoveries:
+
+- **403, once.** The message is read again for the upload's new address and the download runs once
+  more; a second 403 is a failure.
+- **`SOURCE`, once.** The OS cleared the file. It is forgotten and downloaded again.
+- **`NOT_FOUND` from `OpenFile` or `SaveFile`.** An app built before them. Nothing tells the page up
+  front — the handshake only lists the photo messages — so it is learned from that first answer, and
+  every card then shows its update notice until the page reloads. A shell with no downloads at all is
+  learned the same way.
+- **`PERMISSION_DENIED`.** Android 7–9 asks for the storage permission on the first save; a refusal
+  says saving needs it and offers the settings.
+- **`UNSUPPORTED_TYPE` from `ShareFile`.** An app that shares photos but predates documents: a toast
+  asks for an update.
+- Anything else says the file could not be downloaded. A cancel, a timeout and a closed sheet say
+  nothing.
+
+"Share file" appears only inside an app whose handshake lists `ShareFile` (the check the viewer's photo
+share uses), and never in a browser, where the button already saves the file.
 
 ## Not done here
 
 - **Upload progress, cancel, a hash.** None are shown or sent.
-- **Videos in the viewer, and documents downloaded inside the app.** A video tile opens nothing yet,
-  and inside the app a document card shows an update notice in place of its button.
-- **Save and share from a tile.** The viewer has them for photos inside an app that can
+- **Documents surviving a reload inside the app.** The record of which file the shell downloaded lives
+  in the page, so after a reload the card is `idle` again and the next press downloads once more.
+- **Save and share from a tile.** The viewer has them for photos and videos inside an app that can
   ([image-export.md](./image-export.md)); a tile does not. A right-click on a tile opens the
   message's action sheet, not the browser's image menu (ADR-0136).
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
