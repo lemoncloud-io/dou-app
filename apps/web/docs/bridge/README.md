@@ -1,6 +1,6 @@
 # bridge — the app-side seam over `@chatic/bridges`
 
-> Scope: `apps/web/src/app/bridge/` (29 files). The transport itself — `webClient`, readiness
+> Scope: `apps/web/src/app/bridge/` (33 files). The transport itself — `webClient`, readiness
 > polling, timeouts, the message vocabulary — is [`@chatic/bridges`](../../../../libs/bridges/README.md);
 > this document covers only the wrapper this app builds on top of it.
 
@@ -24,7 +24,7 @@ folder:
 ## Outbound: `appBridge`
 
 `appBridge` (`appBridge.ts`) wraps every `webClient.post`/`webClient.request` call the app makes —
-58 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
+61 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
 mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.post({ type:
 'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file.
 
@@ -41,7 +41,8 @@ event through `webClient.onEvent`; every `useOn<EventName>` hook in that file (1
 push-only: a request/response exchange goes through `appBridge`, never through one of these hooks.
 
 `GlobalBridgeListener` (mounted once in `app.tsx`) is where the app-wide subscriptions live:
-`useDeviceTokenRegistration()`, the `OnUpdateDeviceInfo` listener that feeds the version-check
+`useDeviceTokenRegistration()`, the download catch-up (`useShellDownloadCatchUp()`), the
+`OnUpdateDeviceInfo` listener that feeds the version-check
 store, and `useAppForeground` for dismissing the native resume overlay. A feature-local push (e.g. a
 purchase result inside `useSubscriptionIap`) subscribes directly with its own `useOn*` hook instead
 of routing through this component.
@@ -56,6 +57,22 @@ through as an argument, so this file stays the only place that hands it `webClie
 from `@chatic/data`. The first
 `NOT_FOUND` from a shell built before the transfer module switches the page to `xhrPut` for good.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
+
+## Downloads and capabilities: `shellDownload`, `shellCapabilities`
+
+`shellDownload.ts` is the download side of the same transfer module: `getShellDownloads()` returns
+the page's one download registry (`runtime/transfer/nativeGet`), and `syncShellDownloads()` catches
+up with downloads that ended while the page was away; calls that overlap share one list request.
+`useShellDownloadCatchUp()`, mounted once in `GlobalBridgeListener`, runs it when the handshake
+allows export and on every return to the front. In a browser it does nothing.
+
+`shellCapabilities.ts` keeps what the handshake reply said the installed app can do. Unlike the
+picker, haptics and the upload sender, which each learn from their first `NOT_FOUND`, the viewer's
+save and share must be absent before anyone presses them. So `useCanExportImages()` is true only
+once the reply lists both `SaveToPhotoLibrary` and `ShareFile`, and false until it arrives.
+`withdrawImageExport()` turns it off for the session if a press meets `NOT_FOUND` anyway.
+`main.tsx` is the one place that sets the reply. The consumer →
+[feature/channels/image-export.md](../feature/channels/image-export.md).
 
 ## Haptics: `haptics`
 

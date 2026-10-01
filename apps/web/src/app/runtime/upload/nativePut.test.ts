@@ -278,6 +278,36 @@ describe('syncFileTransfers', () => {
         });
     });
 
+    it('leaves downloads to their own reader: neither settled nor acknowledged', async () => {
+        const { transfers, bridge, requests } = setup({
+            ListFileTransfers: {
+                transfers: [
+                    {
+                        transferId: 'a-download',
+                        direction: 'download',
+                        state: 'responded',
+                        httpStatus: 200,
+                        transferredBytes: 3,
+                        totalBytes: 3,
+                        file: { uri: 'file:///cache/transfer-download/x/a.jpg', size: 3, contentType: 'image/jpeg' },
+                    },
+                    {
+                        transferId: 'an-upload',
+                        direction: 'upload',
+                        state: 'responded',
+                        httpStatus: 200,
+                        transferredBytes: 1,
+                        totalBytes: 1,
+                    },
+                ],
+            },
+        });
+
+        await syncFileTransfers(bridge, transfers);
+
+        expect(requests.at(-1)).toEqual({ type: 'AckFileTransfers', data: { transferIds: ['an-upload'] } });
+    });
+
     it('fails an upload the shell accepted but no longer holds', async () => {
         const { transfers, bridge } = setup({ ListFileTransfers: { transfers: [] } });
         const result = transfers.put(target, file, 'slot-0/original');

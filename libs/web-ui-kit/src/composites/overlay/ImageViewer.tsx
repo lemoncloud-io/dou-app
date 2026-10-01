@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { IconBack, IconChevronRight, IconClose } from '../../resources/icons';
+import { IconBack, IconChevronRight, IconClose, IconSpinner } from '../../resources/icons';
 import {
     clampZoom,
     doubleTapZoom,
@@ -40,7 +40,107 @@ export interface ImageViewerProps {
     nextLabel?: string;
     /** Fired with the index of an image that fails to load — a signed address may have expired. */
     onError?: (index: number) => void;
+    /**
+     * Buttons for the showing image, drawn in a bar along the bottom edge — the host decides what
+     * they do (the viewer knows nothing of chats). Called with the showing index; the bar spreads
+     * what it returns from edge to edge, so two buttons sit at the two ends. Without it there is no
+     * bar. Use `ImageViewerActionButton` so they match the close button.
+     *
+     * The bottom rather than the top bar: a toast slides in at the top of the screen, and one there
+     * would cover the buttons the user is about to press again.
+     */
+    renderFooter?: (index: number) => React.ReactNode;
 }
+
+export interface ImageViewerActionButtonProps {
+    /** Accessible name — the button shows an icon only. */
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    /** Working: the icon gives way to a spinner, or to a ring when `progress` is known. */
+    busy?: boolean;
+    /** `0`..`1` while busy and the total is known; `null` or absent for a spinner. */
+    progress?: number | null;
+    children: React.ReactNode;
+}
+
+const RING_RADIUS = 14;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+
+/**
+ * A round icon button for the viewer's top bar, the same size and tint as its close button.
+ *
+ * While busy it stays focusable and only ignores presses (`aria-disabled`): disabling the button
+ * the user just pressed would drop keyboard and screen-reader focus out of it.
+ */
+export const ImageViewerActionButton = ({
+    label,
+    onClick,
+    disabled,
+    busy,
+    progress,
+    children,
+}: ImageViewerActionButtonProps) => (
+    <button
+        type="button"
+        aria-label={label}
+        aria-busy={busy || undefined}
+        aria-disabled={busy || undefined}
+        disabled={disabled && !busy}
+        onClick={() => {
+            if (!busy) onClick();
+        }}
+        className={cn(
+            'flex size-9 items-center justify-center rounded-full bg-white/20 text-white',
+            disabled && !busy && 'opacity-40'
+        )}
+    >
+        {!busy ? (
+            children
+        ) : progress !== null && progress !== undefined ? (
+            <svg
+                viewBox="0 0 32 32"
+                className="size-6 -rotate-90"
+                role="progressbar"
+                aria-label={label}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progress * 100)}
+                data-progress={Math.round(progress * 100)}
+            >
+                <circle
+                    cx="16"
+                    cy="16"
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeOpacity={0.3}
+                    strokeWidth={3}
+                />
+                <circle
+                    cx="16"
+                    cy="16"
+                    r={RING_RADIUS}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                    strokeDasharray={RING_LENGTH}
+                    strokeDashoffset={RING_LENGTH * (1 - Math.min(Math.max(progress, 0), 1))}
+                    strokeLinecap="round"
+                />
+            </svg>
+        ) : (
+            <IconSpinner className="size-5 animate-spin" aria-hidden="true" />
+        )}
+    </button>
+);
+
+/**
+ * Whether an event happened in the viewer's own DOM. React events bubble through portals, so a sheet a
+ * host opens from its buttons is inside the viewer for React though it is drawn elsewhere — a drag or
+ * an arrow key on it must not turn the page behind it.
+ */
+const isOwnEvent = (event: React.SyntheticEvent) => event.currentTarget.contains(event.target as Node);
 
 /** How far a drag has to travel before it is read as a swipe or a scroll rather than a tap. */
 const DRAG_SLOP_PX = 8;
@@ -72,7 +172,8 @@ interface Press {
  * a strip: a horizontal drag moves the strip under the finger, and on release it slides on to the
  * next image or back to the same one. The arrow buttons at the sides and the arrow keys slide it the
  * same way, and a count says where it is ("2 / 3"). It stops at the ends rather than wrapping: a count
- * that jumps from the last back to "1" reads as a different message. Save and share are not here yet.
+ * that jumps from the last back to "1" reads as a different message. The host may put buttons for the
+ * showing image in a bar along the bottom (`renderFooter`) — the chat puts share and save there.
  *
  * The showing image zooms: a pinch scales it around the point between the fingers (up to four times),
  * and a double tap on it zooms in on that point or back out. While it is zoomed a one-finger drag
@@ -102,6 +203,7 @@ export const ImageViewer = ({
     previousLabel = 'Previous photo',
     nextLabel = 'Next photo',
     onError,
+    renderFooter,
 }: ImageViewerProps) => {
     const open = index !== null && index >= 0 && index < images.length;
     const current = open ? index : 0;
@@ -363,15 +465,21 @@ export const ImageViewer = ({
                 <Dialog.Content
                     ref={contentRef}
                     aria-describedby={undefined}
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onPointerCancel={onPointerCancel}
+                    // The viewer fills the screen, so anything "outside" it is drawn on top of it — a
+                    // toast with a button of its own. Pressing that button must not close the viewer
+                    // on the way, or the press never reaches it.
+                    onInteractOutside={event => event.preventDefault()}
+                    onPointerDown={event => isOwnEvent(event) && onPointerDown(event)}
+                    onPointerMove={event => isOwnEvent(event) && onPointerMove(event)}
+                    onPointerUp={event => isOwnEvent(event) && onPointerUp(event)}
+                    onPointerCancel={event => isOwnEvent(event) && onPointerCancel(event)}
                     onKeyDown={event => {
+                        if (!isOwnEvent(event)) return;
                         if (event.key === 'ArrowLeft') go(-1);
                         if (event.key === 'ArrowRight') go(1);
                     }}
                     onClick={event => {
+                        if (!isOwnEvent(event)) return;
                         if (swipedRef.current) {
                             swipedRef.current = false;
                             return;
@@ -481,6 +589,11 @@ export const ImageViewer = ({
                         >
                             <IconChevronRight className="size-6 text-white" />
                         </button>
+                    )}
+                    {renderFooter && (
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent px-4 pb-[calc(var(--safe-bottom,0px)+16px)] pt-6">
+                            {renderFooter(current)}
+                        </div>
                     )}
                     <Dialog.Close
                         aria-label={closeLabel}
