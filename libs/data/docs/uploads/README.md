@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (not wired to a screen yet) · Last updated: 2026-09-29 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (not wired to a screen yet) · Last updated: 2026-10-01 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -27,7 +27,7 @@ operations, what to retry, and what a failure means. It does **not** know how by
   the original untouched, so for now they are the picked file's.
 - **No thumbnail, no thumbnail field.** The server then stores the original alone.
 - **Picking order, not finishing order.** `uploadIds` follow the input, whatever order the PUTs end in.
-- **At most ten images.** Anything past the tenth is left out. The screen is meant to stop the user
+- **At most ten attachments.** Anything past the tenth is left out. The screen is meant to stop the user
   earlier. This sequence does not re-validate format or size: the server rejects a bad slot at
   `start`, and that slot fails like any other.
 - **No hash, no progress, no cancel.** The hash is optional and the server verifies what it stores.
@@ -57,6 +57,37 @@ operations, what to retry, and what a failure means. It does **not** know how by
 
 Retry and re-issue live here and nowhere else. A PUT port reports what happened and never decides,
 so the web sender, the native sender and the old-app fallback cannot come to different conclusions.
+
+## Page files and shell files
+
+A pick is made of two kinds of source (`ChatAttachmentSource`):
+
+- **A page file** — a browser `File`, from the page's own input or built from bytes the shell handed
+  over (a photo is always one, since the page prepares photos itself).
+- **A shell file** (`ShellFileRef`) — a video or document the mobile app picked and copied into its
+  own folder. The page holds its `uri`, `name`, `type`, `size` and `kind`, never its bytes: a 300MB
+  video does not fit through the bridge, which carries bytes as base64 in a single message.
+  `isShellFileRef` tells the two apart. A poster the shell made for a video is a shell file too, with
+  the video's `kind`. `needsExport` marks an iOS video the shell has yet to write as an H.264 `mp4`;
+  its name, type and size are still the source's.
+
+The sequence does not look inside either. `SendImagePorts<S>` and `PreparedImageMirror<S>` are
+generic over the source type, `File` by default, so the browser, desktop and testbed shells that only
+ever send page files type their ports as before. A caller that also sends shell files widens `S` to
+`ChatAttachmentSource`, and its `put` then takes both: a shell file's original and poster reach it as
+shell files, and only the native transfer can send them (`ShellFilePutPort`). The guard that fails a
+shell file which reaches a page PUT lives in `useSendImages`, not in `xhrPut`.
+
+**A page file that is a video or document goes up by the page's own PUT, even inside the app.** The
+native sender would first copy it to the shell as base64 in one bridge message, and a WebView does not
+survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
+from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
+
+The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the twelve server
+formats, each kind's own limit, the same item twice (a page file by name, size and time, a shell file
+by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
+because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
+size-checked by its source: the shell's estimate and the check of its result decide that.
 
 The page's own sender lives here too: `xhrPut` (`uploads/xhrPut.ts`) PUTs from the page with
 `XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It sets no progress

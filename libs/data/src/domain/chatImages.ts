@@ -1,4 +1,12 @@
-import { CHAT_ATTACHMENT_MAX_BYTES, uploadSlotKind } from './chatAttachments';
+import { isShellFileRef, type ChatAttachmentSource } from '../uploads/types';
+
+import {
+    CHAT_ATTACHMENT_MAX_BYTES,
+    chatAttachmentFormat,
+    type ChatAttachmentFormat,
+    type ChatUploadKind,
+    uploadSlotKind,
+} from './chatAttachments';
 import type { DomainChat } from './models';
 
 /**
@@ -17,10 +25,7 @@ export const CHAT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/
  */
 export const CHAT_IMAGE_MAX_BYTES = CHAT_ATTACHMENT_MAX_BYTES.image;
 
-/**
- * Why a picked file was not taken, judged in this order: the first two are the file's own
- * properties, the last two its relation to the rest of the pick.
- */
+/** Why a picked file was not taken, judged in this order. Kept for the image-only callers. */
 export type ChatImageRejection = 'unsupported' | 'too-large' | 'duplicate' | 'limit';
 
 export interface ChatImageJudgement {
@@ -29,36 +34,87 @@ export interface ChatImageJudgement {
     rejected: { file: File; reason: ChatImageRejection }[];
 }
 
-// A HEIC may arrive typed empty from some pickers; the name is the only clue left, and it is not
-// one of ours either way, so an untyped file is judged by nothing and refused.
-const isAcceptedType = (file: File): boolean => (CHAT_IMAGE_TYPES as readonly string[]).includes(file.type);
+/**
+ * Why a picked attachment was not taken, judged in this order: the first two are the item's own
+ * properties, the last two its relation to the rest of the pick. `too-large` names the kind, because
+ * the limits differ and the notice has to say which one was passed ("videos up to 300MB").
+ */
+export type ChatAttachmentRejection =
+    | { reason: 'unsupported' | 'duplicate' | 'limit' }
+    | { reason: 'too-large'; kind: ChatUploadKind };
 
-// Name + size + mtime rather than a content hash: hashing would read every picked file in full,
-// and the pick that matters here is the same photo tapped twice, which these three already catch.
-const fileKey = (file: File): string => `${file.name}:${file.size}:${file.lastModified}`;
+export interface ChatAttachmentJudgement<T extends ChatAttachmentSource> {
+    /** Items to send, in the order they were picked. */
+    accepted: T[];
+    rejected: ({ item: T } & ChatAttachmentRejection)[];
+}
 
 /**
- * Sorts a pick into what can be sent and what cannot, and why.
- *
- * `max` is the per-message image limit. It is passed in rather than imported so this module does
- * not depend on the send sequence that owns it — callers pass that one constant.
+ * What the item is sent as. An iOS video the shell has yet to convert is judged as what it will be — an
+ * `mp4` — since its own type (`video/quicktime`) is one the server refuses and the conversion exists
+ * precisely to change it.
  */
-export const judgeChatImages = (files: readonly File[], max: number): ChatImageJudgement => {
-    const accepted: File[] = [];
-    const rejected: ChatImageJudgement['rejected'] = [];
+export const chatAttachmentSourceFormat = (item: ChatAttachmentSource): ChatAttachmentFormat | null =>
+    isShellFileRef(item) && item.needsExport
+        ? chatAttachmentFormat({ name: `${item.name.replace(/\.[^.]*$/, '')}.mp4`, type: 'video/mp4' })
+        : chatAttachmentFormat(item);
+
+/**
+ * Whether the item's size is still to be decided by the shell's conversion. A 4K HEVC source runs at
+ * about 170MB a minute, so judged by it against the 300MB limit a clip under two minutes would be
+ * refused that converts to well under it. The shell's estimate before converting, and the check of its
+ * result after, decide instead.
+ */
+const awaitsExport = (item: ChatAttachmentSource): boolean => isShellFileRef(item) && !!item.needsExport;
+
+/**
+ * Name + size + mtime for a page file, rather than a content hash: hashing would read every picked file
+ * in full, and the pick that matters here is the same photo tapped twice, which these three already
+ * catch. A shell file has no mtime, but its address is its own: the shell copies each pick to a new one.
+ */
+const itemKey = (item: ChatAttachmentSource): string =>
+    isShellFileRef(item) ? `shell:${item.uri}` : `${item.name}:${item.size}:${item.lastModified}`;
+
+const judge = <T extends ChatAttachmentSource>(
+    items: readonly T[],
+    max: number,
+    takes: (kind: ChatUploadKind) => boolean
+): ChatAttachmentJudgement<T> => {
+    const accepted: T[] = [];
+    const rejected: ChatAttachmentJudgement<T>['rejected'] = [];
     const seen = new Set<string>();
 
-    for (const file of files) {
-        if (!isAcceptedType(file)) rejected.push({ file, reason: 'unsupported' });
-        else if (file.size > CHAT_IMAGE_MAX_BYTES) rejected.push({ file, reason: 'too-large' });
-        else if (seen.has(fileKey(file))) rejected.push({ file, reason: 'duplicate' });
-        else if (accepted.length >= max) rejected.push({ file, reason: 'limit' });
+    for (const item of items) {
+        const format = chatAttachmentSourceFormat(item);
+        if (!format || !takes(format.kind)) rejected.push({ item, reason: 'unsupported' });
+        else if (!awaitsExport(item) && item.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) {
+            rejected.push({ item, reason: 'too-large', kind: format.kind });
+        } else if (seen.has(itemKey(item))) rejected.push({ item, reason: 'duplicate' });
+        else if (accepted.length >= max) rejected.push({ item, reason: 'limit' });
         else {
-            seen.add(fileKey(file));
-            accepted.push(file);
+            seen.add(itemKey(item));
+            accepted.push(item);
         }
     }
     return { accepted, rejected };
+};
+
+/**
+ * Sorts a pick into what can be sent and what cannot, and why: the server's twelve formats, each
+ * kind's own size limit, the same item picked twice, and the per-message limit.
+ *
+ * `max` is the per-message limit. It is passed in rather than imported so this module does not depend
+ * on the send sequence that owns it — callers pass that one constant.
+ */
+export const judgeChatAttachments = <T extends ChatAttachmentSource>(
+    items: readonly T[],
+    max: number
+): ChatAttachmentJudgement<T> => judge(items, max, () => true);
+
+/** `judgeChatAttachments` for a pick that may hold images only: anything else is `unsupported`. */
+export const judgeChatImages = (files: readonly File[], max: number): ChatImageJudgement => {
+    const { accepted, rejected } = judge(files, max, kind => kind === 'image');
+    return { accepted, rejected: rejected.map(({ item, reason }) => ({ file: item, reason })) };
 };
 
 /**

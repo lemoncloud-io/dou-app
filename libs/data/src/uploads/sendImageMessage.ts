@@ -1,6 +1,13 @@
 import { logger } from '@chatic/bridges';
 import type { UploadCompleteInput, UploadStartInput } from '@lemoncloud/chatic-sockets-lib';
-import type { PreparedImageMirror, PresignedUploadTicket, PutResult, SendImagePorts, UploadPutTarget } from './types';
+import type {
+    ChatAttachmentSource,
+    PreparedImageMirror,
+    PresignedUploadTicket,
+    PutResult,
+    SendImagePorts,
+    UploadPutTarget,
+} from './types';
 import { UploadResponseShapeError } from './types';
 
 /**
@@ -37,9 +44,9 @@ export interface SendImageOptions {
     wait?: (ms: number) => Promise<void>;
 }
 
-interface Slot {
+interface Slot<S extends ChatAttachmentSource = ChatAttachmentSource> {
     index: number;
-    prepared: PreparedImageMirror | null;
+    prepared: PreparedImageMirror<S> | null;
     uploadId?: string;
     /** The upload is already `stored` on the server: its original has nothing left to send. */
     originalDone: boolean;
@@ -84,7 +91,10 @@ const toFailure = (result: PutResult): UploadFailure =>
 const describeResult = (result: PutResult) =>
     result.kind === 'responded' ? { httpStatus: result.httpStatus } : { noResponse: result.reason };
 
-const toIntent = (prepared: PreparedImageMirror, fallbackName: string): UploadStartInput['list'][number] => {
+const toIntent = (
+    prepared: PreparedImageMirror<ChatAttachmentSource>,
+    fallbackName: string
+): UploadStartInput['list'][number] => {
     const { original, thumbnail } = prepared;
     return {
         name: original.file.name || fallbackName,
@@ -120,8 +130,9 @@ const runPool = async <T>(items: readonly T[], limit: number, work: (item: T) =>
 };
 
 /**
- * Sends picked images as one chat message: prepare → `upload.start` → PUT → `upload.complete` →
- * `chat.send`. The pending row is the caller's: this sequence reports the outcome and the caller
+ * Sends picked attachments as one chat message: prepare → `upload.start` → PUT → `upload.complete` →
+ * `chat.send`. A pick is page files, shell files (which the PUT port sends from the shell's folder), or
+ * both. The pending row is the caller's: this sequence reports the outcome and the caller
  * confirms or fails the row.
  *
  * - **A slot failing is not the message failing.** Whatever reached `stored` is sent; the server
@@ -131,9 +142,9 @@ const runPool = async <T>(items: readonly T[], limit: number, work: (item: T) =>
  * - **The thumbnail never fails a slot.** Without it the server stores the original alone.
  * - Order is the picking order, whatever order the PUTs finish in.
  */
-export const sendImageMessage = async (
-    files: readonly File[],
-    ports: SendImagePorts,
+export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
+    files: readonly S[],
+    ports: SendImagePorts<S>,
     options: SendImageOptions = {}
 ): Promise<SendImageResult> => {
     const log = options.log ?? defaultLog;
@@ -145,7 +156,7 @@ export const sendImageMessage = async (
 
     try {
         // One at a time: on the native shell a decode holds the whole source in WebView memory.
-        const slots: Slot[] = [];
+        const slots: Slot<S>[] = [];
         const intents: UploadStartInput['list'] = [];
         for (const [index, file] of picked.entries()) {
             const prepared = await ports.prepare(file);
@@ -157,7 +168,7 @@ export const sendImageMessage = async (
         if (started.list.length !== slots.length) throw new UploadResponseShapeError('start', 'list');
         slots.forEach((slot, i) => applyTicket(slot, started.list[i]));
 
-        const reissue = async (slot: Slot): Promise<boolean> => {
+        const reissue = async (slot: Slot<S>): Promise<boolean> => {
             if (slot.reissued || !slot.uploadId) return false;
             slot.reissued = true;
             try {
@@ -175,9 +186,9 @@ export const sendImageMessage = async (
         };
 
         const putWithRetry = async (
-            slot: Slot,
+            slot: Slot<S>,
             payload: 'original' | 'thumbnail',
-            file: File
+            file: S
         ): Promise<PutResult | null> => {
             const label = `slot-${slot.index}/${payload}`;
             let networkRetries = 0;
@@ -274,7 +285,12 @@ const applyTicket = (slot: Slot, ticket: PresignedUploadTicket) => {
 };
 
 /** A port that throws is treated as a transfer that never answered. */
-const safePut = async (ports: SendImagePorts, target: UploadPutTarget, file: File, label: string) => {
+const safePut = async <S extends ChatAttachmentSource>(
+    ports: SendImagePorts<S>,
+    target: UploadPutTarget,
+    file: S,
+    label: string
+) => {
     try {
         return await ports.put(target, file, label);
     } catch {

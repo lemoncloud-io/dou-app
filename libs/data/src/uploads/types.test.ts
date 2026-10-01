@@ -1,5 +1,6 @@
 import {
     isPendingUploadSlot,
+    isShellFileRef,
     parseUploadCompleteResult,
     parseUploadStartResult,
     UploadResponseShapeError,
@@ -179,5 +180,25 @@ describe('isPendingUploadSlot', () => {
 
     it.each([null, undefined, 'localStatus', 3])('is false for %p', value => {
         expect(isPendingUploadSlot(value)).toBe(false);
+    });
+});
+
+describe('isShellFileRef', () => {
+    it('tells a shell file from a page file', () => {
+        const shell = {
+            uri: 'file:///cache/attach-pick/a/x.pdf',
+            name: 'x.pdf',
+            type: 'application/pdf',
+            size: 1,
+            kind: 'file',
+        };
+        expect(isShellFileRef(shell)).toBe(true);
+        expect(isShellFileRef(new File(['x'], 'x.pdf', { type: 'application/pdf' }))).toBe(false);
+    });
+
+    it('takes nothing without a string uri for a shell file', () => {
+        expect(isShellFileRef(null)).toBe(false);
+        expect(isShellFileRef({ uri: 1 })).toBe(false);
+        expect(isShellFileRef('file:///x')).toBe(false);
     });
 });
