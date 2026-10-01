@@ -58,6 +58,11 @@ final class TransferSessionOwner: NSObject {
             .appendingPathComponent(DownloadFiles.folder, isDirectory: true)
     }
 
+    /// The folders an upload may read from: the attachment picker's copies and `WriteTempFile`'s.
+    static var uploadRoots: [URL] {
+        [AttachmentPicker.root, FileManager.default.temporaryDirectory.appendingPathComponent(UploadSources.tempFolder, isDirectory: true)]
+    }
+
     private var backgroundCompletionHandler: (() -> Void)?
     /// Set when the session finished delivering events before AppDelegate handed over the
     /// completion handler, so the handler is called as soon as it arrives instead of never.
@@ -337,15 +342,19 @@ final class TransferSessionOwner: NSObject {
         }
     }
 
-    /// Background sessions only upload from files, and only local files can be read.
+    /// Background sessions only upload from files, and only from the shell's own staging folders
+    /// (`UploadSources`): a file anywhere else is `INVALID`, one that is gone from them `SOURCE`.
     private static func readableFileURL(_ uri: String) throws -> URL {
-        guard let fileURL = TransferText.localFileURL(uri) else {
-            throw TransferError(code: .source, message: "only a file:// URI or an absolute path can be uploaded")
+        let fileURL: URL
+        switch UploadSources.check(uri, roots: uploadRoots) {
+        case let .accepted(accepted):
+            fileURL = accepted
+        case let .invalid(reason):
+            throw TransferError(code: .invalid, message: reason)
+        case .missing:
+            throw TransferError(code: .source, message: "the file no longer exists")
         }
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: fileURL.path, isDirectory: &isDirectory), !isDirectory.boolValue,
-              FileManager.default.isReadableFile(atPath: fileURL.path)
-        else {
+        guard FileManager.default.isReadableFile(atPath: fileURL.path) else {
             throw TransferError(code: .source, message: "the file cannot be read")
         }
         return fileURL

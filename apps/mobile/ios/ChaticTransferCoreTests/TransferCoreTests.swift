@@ -1,8 +1,8 @@
 import XCTest
 
-/// The core rules both platforms promise. U1 to U24 carry the same numbers as the Android suite;
+/// The core rules both platforms promise. U1 to U25 carry the same numbers as the Android suite;
 /// the tests after them cover the remaining branches of this implementation. U19 to U22 pin the
-/// download-folder rules in `DownloadFiles`.
+/// download-folder rules in `DownloadFiles`, U25 the upload-source rule in `UploadSources`.
 ///
 /// This bundle compiles `Bridges/Transfer/Core/*.swift` directly (no app host), so a new file in
 /// that folder has to be added to the ChaticTransferCoreTests target as well.
@@ -90,7 +90,7 @@ final class TransferCoreTests: XCTestCase {
         events.filter { $0.transferId == id && $0.state.isTerminal }
     }
 
-    // MARK: - U1 to U24
+    // MARK: - U1 to U25
 
     func test_U1_start_emitsFirstRunningEventImmediately() {
         start("a", length: 500)
@@ -542,6 +542,60 @@ final class TransferCoreTests: XCTestCase {
     }
 
     // MARK: - restore
+
+    func test_U25_uploadSource_onlyTheShellsOwnFolders_neverContentUris() throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: base) }
+        let pick = base.appendingPathComponent("Caches/attach-pick")
+        let temp = base.appendingPathComponent("tmp/\(UploadSources.tempFolder)")
+        let picked = pick.appendingPathComponent("u1/회의 영상.MOV")
+        let written = temp.appendingPathComponent("abc-photo.jpg")
+        let database = base.appendingPathComponent("Library/app.sqlite")
+        let download = base.appendingPathComponent("Caches/transfer-download/f/photo.png")
+        for file in [picked, written, database, download] {
+            try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(Self.png).write(to: file)
+        }
+        let link = pick.appendingPathComponent("u1/link.mp4")
+        try fm.createSymbolicLink(at: link, withDestinationURL: database)
+        let roots = [pick, temp]
+
+        guard case let .accepted(file) = UploadSources.check(picked.absoluteString, roots: roots) else {
+            return XCTFail("a picked copy, percent-encoded as the picker hands it out, is accepted")
+        }
+        XCTAssertEqual(file.lastPathComponent, "회의 영상.MOV")
+        guard case .accepted = UploadSources.check(written.path, roots: roots) else {
+            return XCTFail("an absolute path inside the temp folder is accepted")
+        }
+
+        let refused: [(String, String)] = [
+            ("dot-dot escape", "file://" + pick.path + "/u1/../../../Library/app.sqlite"),
+            ("symbolic link escape", link.absoluteString),
+            ("the download folder", download.absoluteString),
+            ("the database", database.absoluteString),
+            ("content scheme", "content://media/picker/0/1000000123"),
+            ("https", "https://bucket.example.com/a.mp4"),
+            ("relative path", "attach-pick/u1/a.mp4"),
+            ("a host", "file://evil" + picked.path),
+            ("the folder itself", pick.absoluteString),
+            ("a pick folder", pick.appendingPathComponent("u1").absoluteString),
+            ("a NUL", "file://" + pick.path + "/u1/a%00b.mp4"),
+            ("a sibling named like the folder", base.appendingPathComponent("Caches/attach-pick-other/a.mp4").absoluteString),
+        ]
+        for (label, uri) in refused {
+            guard case .invalid = UploadSources.check(uri, roots: roots) else {
+                XCTFail("\(label) must be refused")
+                continue
+            }
+        }
+        // Inside but gone. iOS refuses that at start with SOURCE, since the OS reads the file itself once
+        // the task is handed over; Android accepts it and fails later with failed(SOURCE).
+        XCTAssertEqual(UploadSources.check(pick.appendingPathComponent("u2/gone.mp4").absoluteString, roots: roots), .missing)
+        guard case .invalid = UploadSources.check(written.absoluteString, roots: []) else {
+            return XCTFail("no folders means nothing is accepted")
+        }
+    }
 
     func test_restore_reRegistersRunningTransfer_andJoinsBatch() {
         XCTAssertTrue(core.restore(transferId: "r", direction: .upload, totalBytes: 1_000, transferredBytes: 400))
