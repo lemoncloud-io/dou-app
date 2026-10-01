@@ -14,6 +14,8 @@ import type { NativeTransfers, TransferBridge } from './nativePut';
  * shell's cap for unacknowledged results, or with the shell's own state. It is settled as a system
  * failure, because nothing would ever settle it otherwise and its message would stay "sending".
  *
+ * Downloads are left alone — they have a reader of their own (`runtime/transfer`).
+ *
  * Safe to run on a shell without the transfer module — the list request fails and nothing happens.
  */
 export const syncFileTransfers = async (bridge: TransferBridge, transfers: NativeTransfers): Promise<void> => {
@@ -26,7 +28,9 @@ export const syncFileTransfers = async (bridge: TransferBridge, transfers: Nativ
     } catch {
         return;
     }
-    const listed = held.data?.transfers ?? [];
+    // Uploads only. A download belongs to the image export, which acknowledges it after the file is
+    // saved or shared; taking it here would drop the file out from under it.
+    const listed = (held.data?.transfers ?? []).filter(state => state.direction === 'upload');
     const ended: string[] = [];
     for (const state of listed) {
         if (state.state === 'running') continue;

@@ -14,6 +14,7 @@ import { migrateLegacyPreferences, syncThemeFromSharedKey } from './app/config/l
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
+import { shellCapabilities } from './app/bridge/shellCapabilities';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
@@ -152,6 +153,8 @@ pendingNavigationStore.start();
 void appBridge.notifyWebAppReady().then(report => {
     // First, so nothing that follows can leave every trace of this session held unresolved.
     webPerfTraces.resolveWith(report);
+    // Until this lands the viewer shows no save or share — the safe reading for an older app.
+    shellCapabilities.setReport(report);
     if (report) runtime.boot.setNativeCacheSupport(report);
 });
 

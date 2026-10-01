@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 import { useDeviceInfoStore } from '@chatic/device-utils';
 import { appBridge } from './appBridge';
+import { useShellDownloadCatchUp } from './shellDownload';
 import { useAppForeground } from './useAppForeground';
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 import { useOnUpdateDeviceInfo } from './useHandleAppMessage';
@@ -8,6 +9,9 @@ import { useOnUpdateDeviceInfo } from './useHandleAppMessage';
 export const GlobalBridgeListener = (): null => {
     // Register the native push token once authenticated (no-op on web).
     useDeviceTokenRegistration();
+
+    // Downloads the shell finished while the page was away, for the viewer's save and share.
+    useShellDownloadCatchUp();
 
     useOnUpdateDeviceInfo(message => {
         useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);
