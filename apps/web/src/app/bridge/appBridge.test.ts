@@ -119,6 +119,20 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         );
     });
 
+    it('saves and shares with a wait long enough for the permission prompt and the share sheet', () => {
+        appBridge.saveToPhotoLibrary('file:///cache/transfer-download/x/a.jpg');
+        expect(requestMock).toHaveBeenLastCalledWith(
+            { type: 'SaveToPhotoLibrary', data: { uri: 'file:///cache/transfer-download/x/a.jpg' } },
+            { timeoutMs: 600_000 }
+        );
+
+        appBridge.shareFile('file:///cache/transfer-download/x/a.jpg', 'a.jpg');
+        expect(requestMock).toHaveBeenLastCalledWith(
+            { type: 'ShareFile', data: { uri: 'file:///cache/transfer-download/x/a.jpg', title: 'a.jpg' } },
+            { timeoutMs: 600_000 }
+        );
+    });
+
     it('fetchProducts는 10초 timeout으로 request를 호출한다', () => {
         appBridge.fetchProducts();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchProducts', data: {} }, { timeoutMs: 10_000 });

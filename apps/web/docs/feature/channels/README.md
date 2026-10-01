@@ -85,10 +85,13 @@ Files whose contents the name does not give away:
   questions about a join row that nothing else can answer.
 - `utils/displayName.ts` — the one chain that turns a user id into a name.
 
-Six native bridge calls are made from this feature and no new capability is asked of the shell:
-`getContacts`, `openShareSheet`, `openSettings`, `openURL`, `copyClipBoard` and
-`fetchUrlMetadata`. Image sends add the shell's existing file-transfer messages, reached through
-`bridge/shellUpload.ts` rather than from the feature itself ([image-send.md](./image-send.md)).
+Eight native bridge calls are made from this feature: `getContacts`, `openShareSheet`,
+`openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, and the viewer's
+`saveToPhotoLibrary` and `shareFile`. Image sends add the shell's existing file-transfer messages,
+reached through `bridge/shellUpload.ts` rather than from the feature itself
+([image-send.md](./image-send.md)). The viewer's save and share download through
+`bridge/shellDownload.ts`, and show only when the app's handshake lists both messages
+([image-export.md](./image-export.md)).
 
 ## Documents
 
@@ -96,6 +99,7 @@ Six native bridge calls are made from this feature and no new capability is aske
 | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                              |
 | [image-send.md](./image-send.md)                       | Photos: the attach menu and pickers, the send, the tiles and viewer, the image cache, retry and leftovers |
+| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts  |
 | [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll               |
 | [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                      |
 | [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                                 |

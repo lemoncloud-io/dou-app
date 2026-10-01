@@ -37,7 +37,9 @@ The native shell may also have finished transfers while the page was away. The b
 front. A finished transfer this page never started is acknowledged and dropped: the message it
 belonged to lived in the memory of a page that no longer exists. A transfer this page is waiting on
 that the shell no longer holds at all (evicted at its cap for unacknowledged results) is settled as
-a failure, so its message cannot hang in "sending".
+a failure, so its message cannot hang in "sending". The catch-up reads only uploads from the list: a download there
+belongs to the viewer's save or share, which acknowledges it once the file is used
+([image-export.md](./image-export.md)).
 
 ## Picking — `useChatImageAttach`
 
@@ -174,9 +176,9 @@ The trade-offs, and the server-side fix that would make the address itself cache
 ## Not done here
 
 - **Upload progress, cancel, a hash.** None are shown or sent.
-- **Save and share in the viewer.** It shows, zooms and steps between the originals only. A tile
-  cannot save either: a right-click on it opens the message's action sheet, not the browser's
-  image menu (ADR-0136).
+- **Save and share from a tile.** The viewer has them inside an app that can
+  ([image-export.md](./image-export.md)); a tile does not. A right-click on a tile opens the
+  message's action sheet, not the browser's image menu (ADR-0136).
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 - **A cacheable address.** Making the signed address stable across reads, and giving the objects a
