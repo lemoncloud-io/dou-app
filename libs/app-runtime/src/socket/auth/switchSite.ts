@@ -44,7 +44,9 @@ export const switchSite = async (siteId: string): Promise<void> => {
         const manager = getSocketManager();
         // auth.switch on a not-connected socket rejects (AuthSwitchError phase 'not-connected'), so
         // give a briefly-reconnecting socket a chance to verify first.
-        await manager.waitUntilVerified();
+        // Marked so the trace splits into the wait for this socket and the `auth.switch` round trip.
+        // A wait that timed out leaves no mark; the switch below then fails on its own.
+        if (await manager.waitUntilVerified()) trace.mark('verified');
 
         const auth = manager.getClient()?.auth;
         if (!auth) {
