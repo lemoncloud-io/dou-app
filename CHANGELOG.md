@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web-ui-kit,web) fill a ticking DoU gauge on the home pull, refreshing on the fill (ADR-0157)
+
+## [2026-10-01] - No version updates
+
+### Features
+
 - (web,app-runtime) time each step of a push's switch, not only its end
 
 ## [2026-10-01] - No version updates
