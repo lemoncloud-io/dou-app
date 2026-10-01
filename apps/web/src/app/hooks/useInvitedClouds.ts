@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from './useCloudCatalog';
+import { isAcceptedBy } from '../utils/invitedCloudAcceptance';
 import type { DomainCloud } from '@chatic/data';
 
 export interface InvitedCloudsResult {
@@ -21,10 +22,16 @@ export interface InvitedCloudsResult {
  * account that OWNS that cloud — it then appears in the owned relay catalog. Such clouds are hidden
  * from the invited list (non-destructive: the cache row is kept) so they surface only as owned and
  * are never shown twice.
+ *
+ * Attribution: the cache is shared by every guest the device has had, so a row recorded as accepted
+ * by another guest is left out (non-destructive too). Everything downstream — the cloud sheet, the
+ * background sockets, unread counts — reads this list, and a cloud left in it would be delegated into
+ * by a guest the server never granted it to (see `utils/invitedCloudAcceptance`).
  */
 export const useInvitedClouds = (): InvitedCloudsResult => {
     const { cloud } = runtime.data.useRuntimeRepositories();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
+    const { delegatorId } = runtime.session.useSessionIdentity();
     const [cachedInvited, setCachedInvited] = useState<DomainCloud[]>([]);
 
     useEffect(() => {
@@ -35,7 +42,7 @@ export const useInvitedClouds = (): InvitedCloudsResult => {
 
     // Drop invited rows whose id is present in the owned catalog (now owned by the signed-in account).
     const ownedIds = new Set(ownedClouds.map(c => c.id).filter((id): id is string => !!id));
-    const invitedClouds = cachedInvited.filter(c => !c.id || !ownedIds.has(c.id));
+    const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isAcceptedBy(c, delegatorId));
 
     return { invitedClouds, hasInvitedClouds: invitedClouds.length > 0 };
 };
