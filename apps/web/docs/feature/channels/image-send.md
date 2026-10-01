@@ -44,10 +44,10 @@ a failure, so its message cannot hang in "sending".
 The composer's leading button opens the attach menu — photos, camera, files. How photos are picked
 depends on the shell:
 
-| Shell                                   | Photos                                                               |
-| --------------------------------------- | -------------------------------------------------------------------- |
-| app with the photo-library bridge       | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
-| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser |
+| Shell                                                     | Photos                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------- |
+| iOS app with the photo-library bridge                     | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
+| Android app, an app built before the bridge, or a browser | the page's own file input, which the WebView hands to the OS chooser |
 
 The page learns which by asking: opening the menu requests the newest photos (`ListPhotos`), and an
 app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A
@@ -60,7 +60,7 @@ nothing from the app. Files always use the page's input.
 
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
 page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
-one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG), so the pending row appears once
+one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG and removes the location), so the pending row appears once
 they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
 a "choose more" row that re-lists after the system sheet closes.
 
