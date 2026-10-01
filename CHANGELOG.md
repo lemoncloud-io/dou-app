@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-01] - root@0.81.0, @chatic/web@0.62.0
+
+### Features
+
+- (web) save or share chat photos from the image viewer
+- (web) download through the native shell, apart from the upload catch-up
+- (web-ui-kit) give the image viewer a bottom bar for the host's buttons
+
+### Documentation
+
+- (web) document save and share in the image viewer (ADR-0155)
+
 ## [2026-10-01] - No version updates
 
 ### Bug Fixes
