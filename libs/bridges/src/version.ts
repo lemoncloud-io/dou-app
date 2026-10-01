@@ -8,7 +8,9 @@
 // 2.2.0: added ShowNotification (web -> app) for desktop OS notifications. See docs/adr/0001.
 // 2.3.0: StartFileTransfer accepts `download`; added SaveToPhotoLibrary and ShareFile (web -> app).
 //        TriggerHaptic landed while 2.2.0 was current, so this is the first version that has it.
-export const BRIDGE_VERSION = '2.3.0' as const;
+// 2.4.0: added PickAttachments, PrepareVideo, OpenFile and SaveFile (web -> app); SaveToPhotoLibrary
+//        takes MP4 and ShareFile the server's document formats.
+export const BRIDGE_VERSION = '2.4.0' as const;
 
 /**
  * Protocol version currently spoken by this bridge runtime.
