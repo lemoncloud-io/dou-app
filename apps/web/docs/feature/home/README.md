@@ -205,13 +205,25 @@ invited clouds, or subscribe.
 ## Pull to refresh
 
 The scrolling body under the header is the kit's `PullToRefresh`: from the top of the list, a drag
-down reveals a small disc whose ring fills with the pull, and a release past 64px (after the pull's
-resistance halves finger travel) refreshes. At 64px the ring completes in the accent colour, the
-disc snaps a little larger and the phone gives a light haptic tap — the `impact` kind, see
-[Haptics](#haptics) — so the moment letting go will refresh is both seen and felt. While the refresh
-runs the ring turns as an open arc. It is touch-only — a mouse drag does nothing — and a pull that
-starts below the top, or moves sideways or up first, is an ordinary scroll. The first 6px of travel decide which it is, since
-iOS reports one-pixel moves and the first alone is jitter. A second finger drops the pull.
+down reveals a small disc holding the DoU character, and the disc fills from the bottom in the accent
+colour as the pull goes on — a gauge. The character grows, straightens and takes on its colour with
+the fill. The gauge fills in eight steps: each of the first seven crossed on the way down plays a
+light `selection` tick, so a pull is felt filling up as a run of ticks, and the eighth is the fill.
+Pulling back and down again ticks again, but a step only re-arms once the pull is 3px clear of its
+boundary, so a finger resting on one does not buzz with every tremble. At 64px (after the pull's
+resistance halves finger travel) the gauge is full, and **the refresh starts right there, finger
+still down** — the phone gives the stronger `impact` tap and the character pops, see
+[Haptics](#haptics). It does not wait for the release: a full gauge that still needed letting go
+would put the strongest feedback a beat before the thing it announces. The cost is that past the
+fill there is no backing out — pulling back does not cancel the refresh. Once a touch has filled the
+gauge it makes no more ticks. While the refresh runs the character wobbles in the full disc; on
+release the list settles into the indicator's slot, or straight back if the refresh already ended,
+and the disc keeps its reading as it rides up rather than emptying on the way out.
+
+It is touch-only — a mouse drag does nothing — and a pull that starts below the top, or moves
+sideways or up first, is an ordinary scroll. The first 6px of travel decide which it is, since iOS
+reports one-pixel moves and the first alone is jitter. A second finger, or the system taking the
+touch, drops a pull that has not filled; one that has keeps its refresh.
 The release is heard on the element the finger landed on, not on the list, so a skeleton row that
 gives way to real rows mid-pull still lets the list go back.
 
@@ -227,13 +239,13 @@ A pull adds **no fetch of its own**. It asks, sooner, for what the screen would 
   tier pill, which the background sync does not own. The catalog is asked only with a session,
   because its query is disabled without one and `refetch` does not honour that.
 
-The spinner stays up until all three have settled, or 10 seconds at most, and every part is
+The indicator stays up until all three have settled, or 10 seconds at most, and every part is
 best-effort: a failure ends the pull just as a success does, with whatever the cache already held
 left in place. The cap is for a socket that is dead but not yet known to be — right after a return
-from the background — where a request would otherwise hold the spinner for its full 30-second
+from the background — where a request would otherwise hold the indicator for its full 30-second
 timeout. It stops the waiting, not the work. On a socket that is
 not verified, or mid-switch, the background pass sends nothing and settles at once — it would be
-answered by the wrong session — so the spinner only covers the two queries there.
+answered by the wrong session — so the indicator only covers the two queries there.
 
 A pull re-reads lists; it does not re-read message history. Rows' previews follow from the chat
 sync home already registers, which catches a row up whenever the channel delta moves its head.
@@ -278,12 +290,15 @@ stay in each room's settings.
 
 The page cannot make a haptic itself — WebKit implements no `navigator.vibrate` — so home asks the
 shell, through `haptics.play(kind)` in `app/bridge/haptics.ts`. The kinds name a feel, not a gesture:
-`selection` for a row reaching its actions, `impact` for a pull reaching the refresh point.
+`selection` for a row reaching its actions and for each step of the pull-to-refresh gauge, `impact`
+for the gauge filling and the refresh starting.
 
 The web ships ahead of the app, so an installed app older than the message answers `NOT_FOUND`. One
 such answer settles it for the session and nothing more is sent; a browser is never asked. After the
 first answered request every haptic is a one-way post that the shell plays without replying, so a
-gesture never waits on a round trip. The shell honours the device's own touch-feedback setting.
+gesture never waits on a round trip. Only that first request is ever out at a time: while it is
+unanswered further haptics are dropped, so the run of ticks on a session's first pull sends one
+request rather than eight. The shell honours the device's own touch-feedback setting.
 
 ## When an invite lands
 

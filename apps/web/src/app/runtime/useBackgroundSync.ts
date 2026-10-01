@@ -88,7 +88,7 @@ export const useBackgroundSync = (): void => {
             // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
             // getSyncedAt → sync → setSyncedAt watermark ordering internally.
             // The automatic triggers fire and forget, so awaiting all five changes nothing for them.
-            // It is for the pull-to-refresh caller, whose spinner should stay up until the place
+            // It is for the pull-to-refresh caller, whose indicator should stay up until the place
             // rail has been re-asked too, not only the channel list.
             await Promise.all([
                 repos.place
@@ -277,7 +277,7 @@ export const useBackgroundSync = (): void => {
     // Trigger 5 — on request, from home's pull-to-refresh. The same pass the edges run, self channel
     // included since a pull is a user asking for the place to be re-read, and under the same guards
     // as the foreground signal: an unverified or mid-switch socket would answer for the wrong
-    // session, so the request settles at once and the spinner goes away instead of lying.
+    // session, so the request settles at once and the indicator goes away instead of lying.
     // Registered once; the ref keeps the handler reading this render's guards and callbacks.
     // A request made while one is still running joins it rather than starting a second pass: two
     // passes read the same delta watermark, and whichever answers last writes it back.

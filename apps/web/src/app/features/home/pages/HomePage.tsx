@@ -256,7 +256,7 @@ export const HomePage = () => {
     // channel delta — which carries the cloud 1:1s too — profiles, sent invites, the relay self
     // channel) in one pass, and the two queries behind the header, the cloud catalog and membership.
     // Nothing is fetched by a new path; a pull only runs sooner what the edges and the poll would run
-    // anyway. The spinner waits for all of it, and every part is best-effort, so a failure ends the
+    // anyway. The indicator waits for all of it, and every part is best-effort, so a failure ends the
     // pull like a success does.
     // The catalog query is disabled without a session, and `refetch` ignores that — so it is asked
     // only when the query itself would be.
@@ -481,7 +481,10 @@ export const HomePage = () => {
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
                 onRefresh={handleRefresh}
-                onArm={() => haptics.play('impact')}
+                // A light tick for each step of the gauge short of full, and the stronger tap when it
+                // fills and the refresh starts — so a pull is felt filling up, not only at its end.
+                onTick={() => haptics.play('selection')}
+                onFill={() => haptics.play('impact')}
                 refreshingLabel={t('homePage.refreshing')}
                 className="min-h-0 flex-1 overflow-y-auto pt-2"
                 contentClassName="flex flex-col"
