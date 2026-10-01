@@ -57,7 +57,8 @@ describe('useDmPeer', () => {
         expect(result.current?.profileNick).toBeUndefined();
     });
 
-    it('still falls back to the member-cache thumbnail', () => {
+    // A profile is per-place: the account-wide avatar is not a photo the peer chose for this place.
+    it('leaves thumbnail undefined when no profile photo is cached', () => {
         const { result } = renderHook(() =>
             useDmPeer(
                 channel({ stereo: 'dm', memberIds: ['me', 'peer'] }),
@@ -66,7 +67,7 @@ describe('useDmPeer', () => {
                 'me'
             )
         );
-        expect(result.current?.thumbnail).toBe('cache.png');
+        expect(result.current?.thumbnail).toBeUndefined();
     });
 
     it('resolves the peer from the member list when the roster is empty', () => {
