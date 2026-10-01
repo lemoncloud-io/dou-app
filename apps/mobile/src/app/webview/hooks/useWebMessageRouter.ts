@@ -21,6 +21,7 @@ import {
     useSubscriptionIapHandler,
     useFileTransferHandler,
     useMediaExportHandler,
+    usePhotoLibraryHandler,
     useTestRecordHandler,
     useResumeOverlay,
     useCustomZipHandler,
@@ -116,6 +117,14 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleWriteTempFile,
     } = useFileTransferHandler(bridge);
     const { handleSaveToPhotoLibrary, handleShareFile } = useMediaExportHandler();
+
+    const {
+        isAvailable: isPhotoLibraryAvailable,
+        handleListPhotoAlbums,
+        handleListPhotos,
+        handleReadPhoto,
+        handleManagePhotoSelection,
+    } = usePhotoLibraryHandler();
 
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
@@ -219,6 +228,10 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleWriteTempFile,
         handleSaveToPhotoLibrary,
         handleShareFile,
+        handleListPhotoAlbums,
+        handleListPhotos,
+        handleReadPhoto,
+        handleManagePhotoSelection,
         handleFetchTestRecord,
         handleFetchAllTestRecords,
         handleSaveTestRecord,
@@ -309,6 +322,10 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleWriteTempFile,
             handleSaveToPhotoLibrary,
             handleShareFile,
+            handleListPhotoAlbums,
+            handleListPhotos,
+            handleReadPhoto,
+            handleManagePhotoSelection,
             handleFetchUrlMetadata,
         };
     });
@@ -402,6 +419,14 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
+            // Registered only where the native module exists. A build without it leaves the web its
+            // NOT_FOUND, which is the signal to fall back to the page's own file input.
+            ...(isPhotoLibraryAvailable && {
+                ListPhotoAlbums: () => handlersRef.current.handleListPhotoAlbums(),
+                ListPhotos: message => handlersRef.current.handleListPhotos(message),
+                ReadPhoto: message => handlersRef.current.handleReadPhoto(message),
+                ManagePhotoSelection: () => handlersRef.current.handleManagePhotoSelection(),
+            }),
         };
 
         // Register handlers with the bridge
@@ -417,7 +442,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 bridge.unregisterHandler(type);
             });
         };
-    }, [bridge]);
+    }, [bridge, isPhotoLibraryAvailable]);
 
     return { isIapLoading, showResumeOverlay };
 };

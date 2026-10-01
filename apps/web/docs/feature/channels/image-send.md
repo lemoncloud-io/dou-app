@@ -60,7 +60,7 @@ nothing from the app. Files always use the page's input.
 
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
 page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
-one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG), so the pending row appears once
+one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG and removes the location), so the pending row appears once
 they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
 a "choose more" row that re-lists after the system sheet closes.
 

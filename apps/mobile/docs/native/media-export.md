@@ -110,10 +110,13 @@ then fail.
 - JS relay and the Android <29 permission step: `yarn workspace @chatic/mobile test mediaExportHandlers useWebMessageRouter`.
 - The allowed-path and byte rules are core cases `U19` and `U20` on both platforms (see
   [file-transfer.md](./file-transfer.md) § Verifying for the commands).
-- The merged manifest must not gain a media-read permission:
+- Saving adds no media-read permission of its own. The merged manifest's only `READ_MEDIA` entries
+  are the in-app photo picker's ([photo-library.md](./photo-library.md)), which reads the library and
+  is declared to Play for it:
 
     ```bash
-    grep -c 'READ_MEDIA' apps/mobile/android/app/build/intermediates/merged_manifest/devDebug/processDevDebugMainManifest/AndroidManifest.xml   # 0
+    grep 'READ_MEDIA' apps/mobile/android/app/build/intermediates/merged_manifest/devDebug/processDevDebugMainManifest/AndroidManifest.xml
+    # READ_MEDIA_IMAGES and READ_MEDIA_VISUAL_USER_SELECTED only — both from the photo library
     ```
 
 - End to end: download `GET /s3/image?format=gif` from the test server, then save it — the photo
@@ -127,4 +130,4 @@ then fail.
 - Is the type read from the bytes, never from `Content-Type` or the file name?
 - Does a save leave no copy behind, and a share keep its file?
 - Is the iPad share sheet anchored?
-- Did the change add a media-read permission to the merged manifest?
+- Did the change add a media-read permission beyond the photo picker's to the merged manifest?

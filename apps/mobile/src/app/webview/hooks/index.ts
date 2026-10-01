@@ -25,6 +25,7 @@ export * from './useLogStoreHandler';
 export * from './usePendingReportHandler';
 export * from './useFileTransferHandler';
 export * from './useMediaExportHandler';
+export * from './usePhotoLibraryHandler';
 export * from './useTestRecordHandler';
 export * from './useResumeOverlay';
 export * from './usePerfHandler';

@@ -148,4 +148,14 @@ describe('usePhotoPicker', () => {
         // The fresh page's own answer wins over what the sheet reported a moment earlier.
         await waitFor(() => expect(result.current.access).toBe('granted'));
     });
+
+    it('still lists again when the limited-access sheet call fails', async () => {
+        const library = fakeLibrary({ manageSelection: jest.fn().mockRejectedValue(new Error('timeout')) });
+        const { result } = setup(library);
+
+        await act(() => result.current.manageSelection());
+
+        expect(library.photos).toHaveBeenCalledWith({ albumId: undefined, after: undefined, limit: 60 });
+        await waitFor(() => expect(result.current.access).toBe('granted'));
+    });
 });

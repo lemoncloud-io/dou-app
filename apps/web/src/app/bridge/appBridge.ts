@@ -421,25 +421,36 @@ export const appBridge = {
 
     // In-app photo picker. Raw like their neighbours: the NOT_FOUND learning (an app built before the
     // picker has no handler) and the base64 decoding live in `photoLibrary`, so these stay a facade.
+    //
+    // None of them use the 15s default, because each can be waiting on something other than the
+    // shell. A timed-out request drops the answer that arrives after it, so a clock shorter than the
+    // wait turns a photo that was on its way into a failure.
 
-    /** The albums the in-app picker can switch between. Rejects with NOT_FOUND on an older app. */
-    listPhotoAlbums(): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
-        return webClient.request({ type: 'ListPhotoAlbums', data: {} });
+    /**
+     * The albums the in-app picker can switch between. Rejects with NOT_FOUND on an older app.
+     *
+     * 60s: on first use the OS permission prompt is raised inside this request, as for contacts.
+     */
+    listPhotoAlbums(timeoutMs = 60_000): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
+        return webClient.request({ type: 'ListPhotoAlbums', data: {} }, { timeoutMs });
     },
 
-    /** One page of the library, newest first, with small previews. */
-    listPhotos(payload: Payload<'ListPhotos'>): Promise<WebMessageResponse<'ListPhotos'>> {
-        return webClient.request({ type: 'ListPhotos', data: payload });
+    /** One page of the library, newest first, with small previews. 60s for the same permission prompt. */
+    listPhotos(payload: Payload<'ListPhotos'>, timeoutMs = 60_000): Promise<WebMessageResponse<'ListPhotos'>> {
+        return webClient.request({ type: 'ListPhotos', data: payload }, { timeoutMs });
     },
 
-    /** The bytes of one photo the user is sending. */
-    readPhoto(id: string): Promise<WebMessageResponse<'ReadPhoto'>> {
-        return webClient.request({ type: 'ReadPhoto', data: { id } });
+    /** The bytes of one photo the user is sending. 2 minutes: an original kept only in iCloud is downloaded first. */
+    readPhoto(id: string, timeoutMs = 120_000): Promise<WebMessageResponse<'ReadPhoto'>> {
+        return webClient.request({ type: 'ReadPhoto', data: { id } }, { timeoutMs });
     },
 
-    /** Under iOS limited access, lets the user change which photos are shared. */
-    managePhotoSelection(): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
-        return webClient.request({ type: 'ManagePhotoSelection', data: {} });
+    /**
+     * Under iOS limited access, lets the user change which photos are shared. 5 minutes: the answer
+     * comes when the person closes the system sheet, after however long they spend choosing.
+     */
+    managePhotoSelection(timeoutMs = 300_000): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
+        return webClient.request({ type: 'ManagePhotoSelection', data: {} }, { timeoutMs });
     },
 
     /**

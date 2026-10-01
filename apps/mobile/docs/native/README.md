@@ -8,15 +8,15 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 ## Layout
 
-| Layer                        | Path                                                           |
-| ---------------------------- | -------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 9 files |
-| Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module` |
-| Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                 |
-| Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`             |
-| Android share provider       | `android/app/src/main/java/io/chatic/dou/media`                |
-| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                             |
-| iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                 |
+| Layer                        | Path                                                            |
+| ---------------------------- | --------------------------------------------------------------- |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 11 files |
+| Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
+| Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
+| Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`              |
+| Android share provider       | `android/app/src/main/java/io/chatic/dou/media`                 |
+| iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                              |
+| iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                  |
 
 ## Responsibilities
 
@@ -29,13 +29,14 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Nine TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Eleven TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature         | TypeScript                 | Android                                                                                        | iOS                                                                                                                                            |
 | --------------- | -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | File transfer   | `TransferManagerBridge.ts` | `transfer/` — `TransferManagerModule.kt`, `TransferService.kt`, `TransferRegistry.kt`, `core/` | `Transfer/` — `TransferManager.swift`, `TransferManager.m`, `TransferSessionOwner.swift`, `Core/` — see [file-transfer.md](./file-transfer.md) |
 | Media export    | `MediaExportBridge.ts`     | `MediaExportModule.kt`, `media/ShareFileProvider.kt`                                           | `MediaExport/` — `MediaExport.swift`, `MediaExport.m` — see [media-export.md](./media-export.md)                                               |
+| Photo library   | `PhotoLibraryBridge.ts`    | `PhotoLibraryModule.kt`, `photo/core/` — MediaStore                                            | `PhotoLibrary/` — `PhotoLibrary.swift`, `PhotoLibrary.m`, `Core/` — see [photo-library.md](./photo-library.md)                                 |
 | File            | `FileManagerBridge.ts`     | `FileManagerModule.kt`                                                                         | `FileManager.m`                                                                                                                                |
 | App icon        | `AppIconBridge.ts`         | `AppIconManagerModule.kt`                                                                      | `AppIconManager.m`                                                                                                                             |
 | System bars     | `SystemBarsBridge.ts`      | `SystemBarsModule.kt`                                                                          | no-op — `Platform.OS !== 'android'` short-circuits                                                                                             |
@@ -110,5 +111,6 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
 - [service.md](./service.md) — the layer that calls these wrappers and owns the behaviour around them.
 - [file-transfer.md](./file-transfer.md) and [media-export.md](./media-export.md) — downloading a file
   and handing it to the photo library or the share sheet.
+- [photo-library.md](./photo-library.md) — the in-app photo picker's library reads, PhotoKit and MediaStore.
 - [../push/badge.md](../push/badge.md) — the badge-count flow `BadgeSyncBridge` and `PushMarksBridge` both feed.
 - [../push/README.md](../push/README.md) — the push-delivery path with no TypeScript wrapper of its own.
