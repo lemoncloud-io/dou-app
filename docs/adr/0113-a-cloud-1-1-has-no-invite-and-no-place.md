@@ -1,6 +1,6 @@
 # ADR-0113: A 1:1 opened inside a cloud — no invite, no place, and a second axis under `stereo`
 
-> Status: Accepted (where desktop lists a cloud 1:1 superseded by [ADR-0141](./0141-desktop-lists-a-cloud-1-1-in-the-places-its-peer-shares.md); decision 1 stands)
+> Status: Accepted (where desktop lists a cloud 1:1 superseded by [ADR-0141](./0141-desktop-lists-a-cloud-1-1-in-the-places-its-peer-shares.md); on mobile, decisions 8–9 and the cloud-scoped section superseded by [ADR-0153](./0153-mobile-neither-opens-nor-lists-a-cloud-1-1.md); decision 1 stands)
 > · Decided: 2026-09-22 · Implemented: `feat/cloud-dm` (partly — § Consequences lists what is not built yet)
 > · Scope: `apps/web/src/app/features/channels/**` · `apps/web/src/app/features/invite/accept/**` ·
 > `libs/data/**` · `libs/logger/**` · the sockets library and its types

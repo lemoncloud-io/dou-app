@@ -12,6 +12,7 @@ import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
 import { ROUTES } from './paths';
 import { observeRouterRoutes } from '../navigation';
+import { bootSplash } from '../runtime/bootSplash';
 
 export const Router = () => {
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
@@ -23,10 +24,15 @@ export const Router = () => {
         if (!isInitialized) return;
         markBoot('session-initialized');
         scheduleBootMetricsReport();
+        // RouterProvider rendered its first route in this same commit, so this is where the boot
+        // cover may start counting down to the first painted screen.
+        bootSplash.markRouteMounted();
     }, [isInitialized]);
 
     const handleRouterError = useCallback((error: Error): void => {
         logger.error('ROUTER', 'Router Error', { error });
+        // An error screen is a screen: lift the cover so it is seen instead of waiting for the cap.
+        bootSplash.release('error');
     }, []);
 
     const router = useMemo(() => {

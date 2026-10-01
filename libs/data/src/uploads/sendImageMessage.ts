@@ -23,7 +23,8 @@ const NETWORK_RETRY_DELAYS_MS: readonly number[] = [1000, 3000];
 type UploadFailure = NonNullable<UploadCompleteInput['list'][number]['failure']>;
 
 export type SendImageResult =
-    | { status: 'sent'; uploadIds: string[]; failedSlots: number }
+    /** `failedIndexes`: the picked files left out of the message, by position in the pick. */
+    | { status: 'sent'; uploadIds: string[]; failedIndexes: number[] }
     /** Nothing reached `stored`, so no message was sent. */
     | { status: 'failed'; reason: 'no-stored-upload'; failedSlots: number }
     /** A socket operation (start, complete or send) failed; the message as a whole failed. */
@@ -241,16 +242,17 @@ export const sendImageMessage = async (
             }
         }
 
-        const uploadIds = slots.map(slot => slot.uploadId).filter((id): id is string => !!id && storedIds.has(id));
-        const failedSlots = slots.length - uploadIds.length;
+        const isStored = (slot: Slot) => !!slot.uploadId && storedIds.has(slot.uploadId);
+        const uploadIds = slots.filter(isStored).map(slot => slot.uploadId as string);
+        const failedIndexes = slots.filter(slot => !isStored(slot)).map(slot => slot.index);
         if (uploadIds.length === 0) {
             log('image message: nothing stored, not sent', { slots: slots.length });
-            return { status: 'failed', reason: 'no-stored-upload', failedSlots };
+            return { status: 'failed', reason: 'no-stored-upload', failedSlots: failedIndexes.length };
         }
 
         await ports.send({ uploadIds });
-        log('image message: sent', { stored: uploadIds.length, failedSlots });
-        return { status: 'sent', uploadIds, failedSlots };
+        log('image message: sent', { stored: uploadIds.length, failedSlots: failedIndexes.length });
+        return { status: 'sent', uploadIds, failedIndexes };
     } catch (error) {
         log('image message: socket operation failed', { error: errorName(error) });
         return { status: 'failed', reason: 'socket', error };

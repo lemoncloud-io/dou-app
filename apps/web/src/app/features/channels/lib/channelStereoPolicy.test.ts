@@ -2,6 +2,7 @@ import {
     channelKindOf,
     dmLineageOf,
     hasDmInviteFlow,
+    isInCloudSelfSection,
     profilePlaceOf,
     removalActionFor,
     showsMemberCount,
@@ -120,5 +121,20 @@ describe('profilePlaceOf', () => {
         expect(profilePlaceOf({ stereo: 'dm', cid: '1000001', sid: '' }, null)).toBeNull();
         expect(profilePlaceOf({ stereo: 'dm', cid: '1000001', sid: '' }, undefined)).toBeNull();
         expect(profilePlaceOf(null, 'S:active')).toBeNull();
+    });
+});
+
+describe('isInCloudSelfSection', () => {
+    it('takes the cloud self chat', () => {
+        expect(isInCloudSelfSection({ stereo: 'self', cid: '1000001' })).toBe(true);
+    });
+
+    // A cloud 1:1 is listed nowhere on mobile home; the relay has one place, and its list holds the rest.
+    it('leaves out a cloud 1:1, the relay 1:1 and self chat, and every group', () => {
+        expect(isInCloudSelfSection({ stereo: 'dm', cid: '1000001' })).toBe(false);
+        expect(isInCloudSelfSection({ stereo: 'dm', cid: 'default' })).toBe(false);
+        expect(isInCloudSelfSection({ stereo: 'self', cid: 'default' })).toBe(false);
+        expect(isInCloudSelfSection({ stereo: 'private', cid: '1000001' })).toBe(false);
+        expect(isInCloudSelfSection(undefined)).toBe(false);
     });
 });

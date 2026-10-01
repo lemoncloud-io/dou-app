@@ -108,7 +108,7 @@ export type CacheChannelView = ChannelView &
     };
 
 /**
- * One image slot of a message that has not been sent yet. Local names only — never the server's
+ * One attachment slot of a message that has not been sent yet. Local names only — never the server's
  * `status` / `error` / `url` / `thumbnail` — because the server's `'failed'` is terminal while a
  * local `'failed'` can be retried, and a reader that met the same name would take one for the other.
  * The shell stores the row as-is, so this needs nothing from it.
@@ -117,6 +117,13 @@ export type PendingUploadSlot = {
     localStatus: 'sending' | 'failed';
     /** An object URL for this page only; it dies with the page and is never sent anywhere. */
     localThumbUrl: string;
+    /**
+     * A video or document's own details, for the card drawn while it is sent — it has no preview.
+     * Absent on an image slot, and on any slot written before other kinds could be sent.
+     */
+    localName?: string;
+    localContentType?: string;
+    localSize?: number;
 };
 
 /** Chat message view (includes send status and domain fields) */

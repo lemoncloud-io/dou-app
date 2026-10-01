@@ -57,7 +57,10 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
    three error screens read `error.screen.*` the same way (`components/useErrorScreenText.ts`). The
    error screens differ in one respect: every lookup carries its English default from
    `ERROR_MESSAGES`, because they are what renders when something already failed — possibly the
-   `/locales` request itself — and a raw key there would be worse than English.
+   `/locales` request itself — and a raw key there would be worse than English. `LoadingFallback`
+   names its `status` region from `common.loading` with the same kind of English default, because it
+   is the `<Suspense>` fallback that renders while those locales are still on their way. It draws no
+   logo: in the app the launch splash is the only screen that does.
 8. **An export with no reader is a defect, not inventory.** Nothing in the repo type checks against
    an unused export, so the only thing that catches one is the sweep in
    [Scope](#the-membership-rule-and-where-it-fails). Run it before you add, and run it when you remove
@@ -329,8 +332,8 @@ is that budget, not a taste call.
 `'storage'` is bytes PUT to object storage, and **the original goes up at full size** — the transport
 carries it, and re-encoding would spend the quality the sender chose. It returns the original, its
 dimensions, and a small thumbnail for lists. "The original" means _not resized_, not _not touched_:
-HEIC is still converted to JPEG and renamed, because the endpoint answers anything outside
-png/jpeg/gif/webp with a 415. An animated GIF is never redrawn. `prepareImage` still gives it a
+HEIC is still converted to JPEG and renamed, because the endpoint takes no HEIC and answers it with
+a 415. An animated GIF is never redrawn. `prepareImage` still gives it a
 thumbnail when asked, but a chat photo goes through `prepareChatAttachment`, which asks for none for a
 GIF: a thumbnail is a canvas drawing, which keeps only the first frame, and the server hands an upload
 back with no content type, so a room could not tell that still from a photo's and drew it as the tile.

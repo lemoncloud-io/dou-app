@@ -198,6 +198,10 @@ event until `useHandlePushNavigation` registers. Only the latest unconsumed even
 taps during boot should land on the last one. The held event is cleared before delivery so a
 StrictMode remount cannot replay a navigation that already happened.
 
+While an event is held the store also holds the boot cover, and so the app's launch splash, until the
+replay has navigated — after the cloud switch, for a push into another cloud. A cold-start tap lands
+on its room without home showing first; see [../shell/boot-cover.md](../shell/boot-cover.md).
+
 ### The foreground banner
 
 A push arriving while the app is open does not reach the shade. `useInAppPushMessage` draws it as a

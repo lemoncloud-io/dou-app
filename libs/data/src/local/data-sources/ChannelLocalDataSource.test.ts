@@ -1,3 +1,4 @@
+import { ACCOUNT_CHANNEL_SID } from '../../domain';
 import { ChannelLocalDataSource } from './ChannelLocalDataSource';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
@@ -175,6 +176,38 @@ describe('ChannelLocalDataSource', () => {
             const dataSource = new ChannelLocalDataSource(noSidProvider as any, storage);
 
             await expect(dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm' } as any)).rejects.toThrow(/sid is required/);
+        });
+    });
+
+    // The Self Channel belongs to the account, not a place, and the relay sends it with an empty
+    // `$`. Refused for lack of a place, it never reached a desktop user's Home, which has none.
+    describe('a Self Channel with no place', () => {
+        const noSidProvider = {
+            getContext: () => ({ cid: 'default', uid: 'me' }),
+            setContext: () => undefined,
+        };
+
+        it('is stored under the account', async () => {
+            const dataSource = new ChannelLocalDataSource(
+                noSidProvider as any,
+                createPartitionedMemoryStorage('channel')
+            );
+
+            await dataSource.cacheWriteMany([{ id: 'U:me', stereo: 'self', $: {} } as any]);
+
+            expect((await dataSource.cacheRead('U:me'))?.sid).toBe(ACCOUNT_CHANNEL_SID);
+        });
+
+        it('keeps a real place once it has one', async () => {
+            const dataSource = new ChannelLocalDataSource(
+                noSidProvider as any,
+                createPartitionedMemoryStorage('channel')
+            );
+            await dataSource.cacheWrite({ id: 'U:me', stereo: 'self', sid: 'site-1' } as any);
+
+            await dataSource.cacheWriteMany([{ id: 'U:me', stereo: 'self', $: {} } as any]);
+
+            expect((await dataSource.cacheRead('U:me'))?.sid).toBe('site-1');
         });
     });
 });

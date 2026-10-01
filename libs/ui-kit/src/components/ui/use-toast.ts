@@ -2,7 +2,15 @@ import * as React from 'react';
 
 import type { ToastActionElement, ToastProps } from './toast';
 
-const TOAST_LIMIT = 1;
+/**
+ * How many toasts show at once. One by default; an app whose errors stay until closed raises it
+ * with {@link setToastLimit}, or the next toast would evict an error unread.
+ */
+let toastLimit = 1;
+
+export const setToastLimit = (limit: number) => {
+    toastLimit = limit;
+};
 const TOAST_REMOVE_DELAY = 1000;
 
 type ToasterToast = ToastProps & {
@@ -73,7 +81,7 @@ export const reducer = (state: State, action: Action): State => {
         case 'ADD_TOAST':
             return {
                 ...state,
-                toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+                toasts: [action.toast, ...state.toasts].slice(0, toastLimit),
             };
 
         case 'UPDATE_TOAST':

@@ -60,7 +60,7 @@ nothing from the app. Files always use the page's input.
 
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
 page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
-one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG), so the pending row appears once
+one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG and removes the location), so the pending row appears once
 they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
 a "choose more" row that re-lists after the system sheet closes.
 
@@ -114,7 +114,8 @@ Retry of a failed image row goes to `retry(pendingId)`, not the text path (which
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
 state, and the send lets a retry in only after it has marked the row failed. A row whose files are gone
 — a reload left it behind — answers with a notice to delete it. Deleting
-discards the files as well. The home list previews an image-only last message as a photo count.
+discards the files as well. The home list previews an image-only last message as a photo count — the kind rule for every attachment is in
+[home's last-chat.md](../home/last-chat.md#what-the-row-prints).
 
 ### The image cache
 

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { HomePage } from './HomePage';
 import { ROUTES } from '../../../routes/paths';
@@ -17,6 +17,8 @@ let selectedSiteId: string | null = 'site-1';
 // and so the "still fetching" state — where the tier is undecided — can be reproduced.
 let membership: { isValid: boolean } | undefined = { isValid: false };
 let isMembershipLoading = false;
+// Whether a session exists — the catalog refetch on a pull is gated on it, as its query is.
+let isAuthenticated = true;
 // The relay cloud catalog. `hasCloudCatalog` is whether it has answered at all — the banner waits for
 // it — and `isPendingClouds` keeps the tier open, since an active cloud alone makes it PRO.
 let catalog: { clouds: { id: string; status?: string }[]; hasCloudCatalog: boolean; isPendingClouds: boolean } = {
@@ -37,14 +39,24 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
+            useSessionAuth: () => ({ isAuthenticated }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
         },
     },
 }));
 
-jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => catalog }));
+// The three things a pull re-asks. Spies, so the pull-to-refresh block can see each one go out.
+const refetchCloudsMock = jest.fn();
+const refetchMembershipMock = jest.fn();
+const requestBackgroundRefreshMock = jest.fn();
+jest.mock('../../../hooks/useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ ...catalog, refetchClouds: refetchCloudsMock }),
+}));
 jest.mock('../../../hooks/useMembership', () => ({
-    useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading }),
+    useMembershipInfo: () => ({ data: membership, isLoading: isMembershipLoading, refetch: refetchMembershipMock }),
+}));
+jest.mock('../../../runtime/backgroundRefresh', () => ({
+    requestBackgroundRefresh: () => requestBackgroundRefreshMock(),
 }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
@@ -72,6 +84,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     EmptyState: () => <div data-testid="empty-state" />,
     ProfileAvatar: () => <img alt="" />,
+    // The gesture is the kit's to test; here a button stands in for a completed pull.
+    PullToRefresh: ({ children, onRefresh }: { children: any; onRefresh: () => Promise<unknown> }) => (
+        <div>
+            <button data-testid="pull-refresh" onClick={() => void onRefresh()} />
+            {children}
+        </div>
+    ),
     SubscriptionBadge: ({ tier }: { tier: string }) => <span data-testid="tier-badge">{tier}</span>,
     SubscriptionBadgeSkeleton: () => <span data-testid="tier-badge-skeleton" />,
 }));
@@ -99,7 +118,7 @@ jest.mock('../../../hooks', () => ({
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
     // The app-wide shared observation home reads instead of subscribing for itself.
     useActiveCloudData: () => ({
-        channels: [],
+        channels: activeCloudChannels,
         isLoaded: true,
         myJoins: new Map(),
         unreads: { byChannel: {}, byPlace: {}, total: 0 },
@@ -131,29 +150,37 @@ jest.mock('../components', () => ({
     // Mirrors the create-group entry back out: the popover is the list's, but what the tap does
     // (upsell vs create dialog) is decided here, in the page.
     //
-    // The page renders this twice on a cloud — the place's rooms, and the cloud 1:1 section, which
-    // is a list and not a create surface. The button follows `onCreateGroup` so the stub says the
-    // same thing the real popover does: no handler, no entry. `title` tells the two apart.
+    // The page renders this twice on a cloud — the place's rooms, and the Self Chat section,
+    // which is a list and not a create surface. The buttons follow their handlers (and the 1:1 one
+    // its flag) so the stub says the same thing the real popover does: no handler, no entry.
+    // `title` tells the two apart.
     ChannelList: ({
         isPro,
         onCreateGroup,
+        showOneOnOneCreate,
+        onCreateOneOnOne,
         title,
         open,
         onOpenChange,
     }: {
         isPro?: boolean;
         onCreateGroup?: () => void;
+        showOneOnOneCreate?: boolean;
+        onCreateOneOnOne?: () => void;
         title?: string;
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
     }) => (
         <div
-            data-testid={title ? 'cloud-dm-list' : 'channel-list'}
+            data-testid={title ? 'self-chat-list' : 'channel-list'}
             data-is-pro={String(isPro)}
             data-open={String(open)}
         >
             {onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
-            <button data-testid={title ? 'cloud-dm-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
+            {showOneOnOneCreate && onCreateOneOnOne && (
+                <button data-testid="create-direct" onClick={onCreateOneOnOne} />
+            )}
+            <button data-testid={title ? 'self-chat-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
         </div>
     ),
     CloudPromoBanner: ({ onAddCloud }: { onAddCloud?: () => void }) => (
@@ -209,6 +236,8 @@ let places: { id: string; stereo: string; isOwner?: boolean }[] = [{ id: 'site-1
 let isPlacesLoading = false;
 let selectedPlaceId: string | null = 'site-1';
 let isSwitchingPlace = false;
+// The active cloud's rooms as the shared observation holds them — the Self Chat section reads it.
+let activeCloudChannels: unknown[] = [];
 const useHomePlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
@@ -247,11 +276,16 @@ beforeEach(() => {
     isPlacesLoading = false;
     selectedPlaceId = 'site-1';
     isSwitchingPlace = false;
+    activeCloudChannels = [];
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
     catalog = { clouds: [], hasCloudCatalog: true, isPendingClouds: false };
     collapsedSections = {};
+    isAuthenticated = true;
+    refetchCloudsMock.mockResolvedValue(undefined);
+    refetchMembershipMock.mockResolvedValue(undefined);
+    requestBackgroundRefreshMock.mockResolvedValue(undefined);
 });
 
 describe('HomePage — relay mode', () => {
@@ -318,6 +352,14 @@ describe('HomePage — relay mode', () => {
         // footer button still opens the plan picker directly.
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
+
+    // On relay a 1:1 is reached by phone number, so the entry stays and goes to the contact form.
+    it('offers the 1:1 entry and sends it to the contact invite form', () => {
+        render(<HomePage />);
+        fireEvent.click(screen.getByTestId('create-direct'));
+
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.contact);
+    });
 });
 
 describe('HomePage — cloud mode', () => {
@@ -338,14 +380,39 @@ describe('HomePage — cloud mode', () => {
 
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
     });
+
+    // Mobile opens no cloud 1:1, so a cloud offers no 1:1 entry. The list is asserted first so the
+    // test cannot pass merely because the section was not drawn.
+    it('offers no 1:1 entry', () => {
+        render(<HomePage />);
+
+        expect(screen.getByTestId('channel-toggle')).toBeInTheDocument();
+        expect(screen.queryByTestId('create-direct')).not.toBeInTheDocument();
+    });
+
+    // A cloud does not make the self chat on its own and mobile cannot ask for it, so with no room
+    // there is no section — a heading with nothing under it.
+    it('draws no Self Chat section until the room is there', () => {
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('self-chat-list')).not.toBeInTheDocument();
+    });
+
+    it('draws the Self Chat section once the room is there', () => {
+        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
+    });
 });
 
 // The fold of each section comes from the stored record, not from the section itself — that is
 // what lets it survive leaving home. Each of the three sections must read and write its own id:
-// the place rooms and the cloud 1:1s are the same component, so a shared id would fold both.
+// the place rooms and the notes-to-self room are the same component, so a shared id would fold both.
 describe('HomePage — section folds', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
+        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
     });
 
     it('opens each section from its own stored entry', () => {
@@ -354,7 +421,7 @@ describe('HomePage — section folds', () => {
 
         expect(screen.getByTestId('place-list')).toHaveAttribute('data-open', 'true');
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
-        expect(screen.getByTestId('cloud-dm-list')).toHaveAttribute('data-open', 'true');
+        expect(screen.getByTestId('self-chat-list')).toHaveAttribute('data-open', 'true');
     });
 
     it('writes a toggle under the id of the section that was toggled', () => {
@@ -362,7 +429,7 @@ describe('HomePage — section folds', () => {
 
         fireEvent.click(screen.getByTestId('place-toggle'));
         fireEvent.click(screen.getByTestId('channel-toggle'));
-        fireEvent.click(screen.getByTestId('cloud-dm-toggle'));
+        fireEvent.click(screen.getByTestId('self-chat-toggle'));
 
         expect(setSectionOpenMock.mock.calls).toEqual([
             ['places', false],
@@ -720,5 +787,41 @@ describe('HomePage — 그룹 방 만들기', () => {
             expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
             expect(toastMock).toHaveBeenCalledWith({ title: 'homePage.selectPlaceFirst' });
         });
+    });
+});
+
+describe('HomePage — pull to refresh', () => {
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+    });
+
+    it('re-asks the background lists and both header queries', async () => {
+        render(<HomePage />);
+
+        await act(async () => fireEvent.click(screen.getByTestId('pull-refresh')));
+
+        expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
+        expect(refetchCloudsMock).toHaveBeenCalledTimes(1);
+        expect(refetchMembershipMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not ask the catalog without a session — its query is disabled then', async () => {
+        isAuthenticated = false;
+        render(<HomePage />);
+
+        await act(async () => fireEvent.click(screen.getByTestId('pull-refresh')));
+
+        expect(refetchCloudsMock).not.toHaveBeenCalled();
+        expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('still asks the rest when one part fails', async () => {
+        refetchCloudsMock.mockRejectedValue(new Error('offline'));
+        render(<HomePage />);
+
+        await act(async () => fireEvent.click(screen.getByTestId('pull-refresh')));
+
+        expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
+        expect(refetchMembershipMock).toHaveBeenCalledTimes(1);
     });
 });

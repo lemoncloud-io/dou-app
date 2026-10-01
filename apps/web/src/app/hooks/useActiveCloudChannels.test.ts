@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
 
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
 import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
@@ -195,6 +195,16 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         const { result } = renderHook(() => useActiveCloudChannelsSource());
 
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
+    });
+
+    // The cache files a notes-to-self room that names no place under the account; no rail lists it.
+    it('keeps the notes-to-self room filed under the account', () => {
+        emitPlaces(['site-1']);
+        emit([channel('self', ACCOUNT_CHANNEL_SID)]);
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+
+        expect(result.current.channels.map(c => c.id)).toEqual(['self']);
     });
 });
 

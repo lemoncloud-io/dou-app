@@ -6,3 +6,5 @@
 "transfer_progress_title" = "업로드 중";
 "transfer_progress_subtitle_one" = "파일 1개";
 "transfer_progress_subtitle_many" = "파일 %d개";
+
+"photo_library_all_photos" = "최근 항목";

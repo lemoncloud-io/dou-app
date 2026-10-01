@@ -1,12 +1,15 @@
 # File transfer
 
-The web hands the shell a transfer instruction — a signed URL and the headers it covers — plus a local
-file, and the shell moves the bytes: in the background, cancellable, reporting progress and the
-result. Only uploads are implemented; the contract is direction-neutral so a download arrives as one
-more `direction` value rather than a second set of messages, module names and handlers.
+The web hands the shell a transfer instruction — a signed URL and the headers it covers — and the
+shell moves the bytes: in the background, cancellable, reporting progress and the result. An upload
+reads a local file the web names. A download writes into a folder the shell owns and hands back the
+file it wrote. Both are the same five messages with a different `direction`, so the next consumer of
+a download reuses them rather than a second set of messages, module names and handlers.
 
-The shell does not talk to the upload API. Asking the server for an upload slot, and telling it the
-upload is done, happen in the web; the shell's part ends when the storage endpoint answers.
+The shell does not talk to the upload API. Asking the server for an upload slot or a message's image
+address, and telling it an upload is done, happen in the web; the shell's part ends when the storage
+endpoint answers. What happens to a downloaded file next — the photo library, the share sheet — is
+[media-export.md](./media-export.md).
 
 ## Files
 
@@ -17,20 +20,22 @@ upload is done, happen in the web; the shell's part ends when the storage endpoi
 | TS native wrapper | `src/app/bridge/TransferManagerBridge.ts`, `FileManagerBridge.ts` (`writeTempFile`)                                                                         |
 | Android           | `io/chatic/dou/transfer/` — `core/` (decisions), `TransferRegistry.kt` (owner), `TransferService.kt` (runs transfers), `TransferManagerModule.kt` (RN face) |
 | iOS               | `ios/Bridges/Transfer/` — `Core/` (decisions), `TransferSessionOwner.swift` (owner), `TransferManager.swift` (RN face)                                      |
+| Download folder   | `core/DownloadFiles.kt`, `Core/DownloadFiles.swift` — names, image type, what may be exported, sweep; shared with media export                              |
 | Test server       | `scripts/upload-test-server.js`                                                                                                                             |
 
 ## Messages
 
 | Request              | Reply                  | What it does                                                          |
 | -------------------- | ---------------------- | --------------------------------------------------------------------- |
-| `StartFileTransfer`  | `OnStartFileTransfer`  | Accepts a transfer. A successful reply means accepted, not done       |
+| `StartFileTransfer`  | `OnStartFileTransfer`  | Accepts an upload or a download. A successful reply means accepted    |
 | `CancelFileTransfer` | `OnCancelFileTransfer` | Cancels a running transfer. `INVALID` when it already ended           |
 | `ListFileTransfers`  | `OnListFileTransfers`  | Running transfers plus ended ones not yet acknowledged                |
 | `AckFileTransfers`   | `OnAckFileTransfers`   | Drops acknowledged ended transfers                                    |
 | `WriteTempFile`      | `OnWriteTempFile`      | Writes base64 bytes to a temporary file and returns its `file://` URI |
 
 Results arrive only as the `OnFileTransferState` event: `running` any number of times, then exactly
-one of `responded`, `failed`, `cancelled`.
+one of `responded`, `failed`, `cancelled`. A download that ended `responded` with a 2xx status also
+carries `file` — `{ uri, size, contentType }`, the local file to pass on.
 
 **The web ships before the app.** A web build that sends these messages to an installed shell that
 predates them gets `NOT_FOUND`, so a web caller must treat `NOT_FOUND` as "native transfer is not
@@ -83,12 +88,42 @@ cases and keep identical behaviour.
   `content-length` among its signed headers; the platform sets it from the body, which is what was
   signed.
 - **Logs carry the host only.** The query string holds the signature.
-- **A malformed request is refused at `start` with `INVALID`** — a reused id, `download`, a method
-  other than `PUT`, a missing file URI or length, and a URL that is not an absolute http(s) URL with a
-  host. Nothing is registered, so no event follows.
+- **A malformed request is refused at `start` with `INVALID`** — a reused id, a URL that is not an
+  absolute http(s) URL with a host, a method that does not fit the direction (`upload` takes `PUT`,
+  `download` takes `GET`), an upload without a file URI or length, and a download that names a file
+  URI. Nothing is registered, so no event follows.
 - **When no `Content-Type` header is given,** the file's `contentType` is sent, or
   `application/octet-stream`. Android would otherwise send a form-encoded type, which storage keeps as
   the object's type.
+
+## Downloads
+
+- **The shell chooses where a download goes.** The web is loaded remotely; a caller that could name
+  the target path could overwrite the app's database or settings. So a download takes a name hint
+  only (`file.name`), and the file lands in `<cache>/transfer-download/<folder>/`, where `<folder>` is
+  the SHA-256 of the transfer id — hashed, so an id such as `../../databases` cannot name a path.
+  A download starts from an empty folder, so reusing an acknowledged id discards the file it left.
+- **Only a 2xx keeps a file.** Anything else is reported `responded` with its `<Code>`, as for an
+  upload, and leaves nothing on disk. S3 answers an expired signature with a 403 XML document; kept
+  under an image's name it would go into the photo library.
+- **While receiving, the file is `<name>.part`**, renamed once the body is complete. A failed or
+  cancelled download deletes its folder, `.part` and all. A cancel that lands while the file is
+  being committed wins, and the file goes too.
+- **The name** is the hint's last path segment without control characters, with `: * ? " < > |`
+  replaced, trimmed of spaces and dots, cut to 60 code points, `image` when nothing is left. The
+  extension comes from the bytes when they are PNG, JPEG, GIF or WebP (`jpeg` becomes `.jpg`), so a
+  `photo.png` hint on JPEG bytes is saved as `photo.jpg`; otherwise the hint's extension stays.
+- **The progress denominator is the response's `Content-Length`**; a chunked reply has none, and
+  `totalBytes` stays `0` (unknown) until the end. The request carries `Accept-Encoding: identity`,
+  replacing any the caller gave: both HTTP stacks ask for gzip by default and inflate the reply
+  themselves, and then the bytes and the length would differ from the stored object's. The signature
+  covers the host only, so the header does not break it.
+- **Old folders are swept** each time a download starts: any folder last changed more than 24 hours
+  ago, except one whose download is still running. A shared file is kept after the share sheet
+  closes — the receiving app may read it late — and this is what eventually removes it. The OS may
+  clear the cache sooner; a save or share then fails with `SOURCE` and the web downloads again.
+- **The result keeps `file` until it is acknowledged**, like any result: a WebView that reloaded
+  after the download finished finds the file again through `ListFileTransfers`.
 
 ## Background
 
@@ -96,13 +131,18 @@ cases and keep identical behaviour.
   run for 6 hours in a 24-hour period; at the limit the OS calls `onTimeout`, running transfers end as
   `failed` with `SYSTEM`, and the service stops within seconds (otherwise the OS kills the app). The
   timer resets when the user brings the app to the foreground.
-- **iOS** uses one background `URLSession` with a fixed identifier and uploads the original file. A
-  task's `taskDescription` holds the transfer id only. When the OS relaunches the app to deliver
+- **iOS** uses one background `URLSession` with a fixed identifier, for downloads as well — in the
+  foreground it is as fast as a default session. An upload sends the original file. A task's
+  `taskDescription` holds the transfer id only. When the OS relaunches the app to deliver
   results, the owner recreates the session and restores running transfers from the session's tasks.
   The session's total-time limit is left at the 7-day default: it measures the whole transfer, so a
   shorter one would cut slow but healthy large uploads.
   A finished task sometimes arrives with both byte counters at 0 although the server received the
   whole body; the task's progress fraction, applied to the declared length, is then used instead.
+  A download's body is moved inside `didFinishDownloadingTo`, synchronously: the OS deletes the file
+  it delivered there as soon as the callback returns. A non-2xx body arrives there too, as a file,
+  and is only read for its `<Code>`. An empty `<name>.part` marker is written at start, because the
+  task itself may carry nothing but the id; a relaunched process reads the name from it.
 
 Two differences between the platforms are allowed, both forced by where the OS takes over. A caller
 handles each the same way on either platform, so neither needs a platform branch.
@@ -116,22 +156,43 @@ handles each the same way on either platform, so neither needs a platform branch
 
 ## Notifications
 
+The system surfaces below stand in for the page while the user is away. A download is different: it
+is a few seconds the user waits through on screen, where the page shows both its progress and its
+failure. So downloads never start the iOS progress task and are never counted in a failure
+notification on either platform.
+
 - **Android** — the foreground-service notification shows the file name or the file count and a
   byte-weighted percentage, a Cancel action, and opens the app when tapped. Progress is weighted by
   bytes: nine 10 KB files done and one 4 MB file untouched is about 2 %, not 90 %. When a batch ends
-  with a failure, one summary notification stays; a fully successful batch leaves none.
+  with a failed upload, one summary notification stays; a batch whose uploads all succeeded leaves
+  none. A download runs in the same service, because without it the transfer stops when the app goes
+  to the background, so its notification appears too — for about a second on a short one. Android 12
+  and later delay a service notification by up to 10 seconds, but not when it has an action button,
+  as this one does. It is silent (`IMPORTANCE_LOW`) and says what is happening; keeping one transfer
+  path was preferred over hiding it.
 - **iOS, all versions** — when a batch ends with a failure while the app is in the background, one
   local notification: the file's title for a one-file batch, "2 of 5 uploads failed" otherwise — the
   same once-per-batch rule as Android's summary. Success is not announced. Permission is never
   requested here.
-- **iOS 26 and later** — a continued-processing task shows system progress and a cancel control. All
-  transfers join one task. The OS reports both a user cancellation and its own termination the same
-  way, and the app cannot tell them apart, so an expiration is treated as a cancellation. To keep the
+- **iOS 26 and later** — a continued-processing task shows system progress and a cancel control. It
+  is asked for only when an upload is still running 3 seconds after a start: the system UI arrives
+  with a haptic and a banner, and a chat photo is usually uploaded well inside that, so a quick send
+  stays quiet. Leaving the app within those 3 seconds loses the UI for that batch, not the transfer —
+  the bytes move through the background session regardless. All uploads join one task; downloads
+  never do, and its expiration cancels only the uploads. The OS reports both a user cancellation and
+  its own termination the same way, and the app cannot tell them apart, so an expiration is treated
+  as a cancellation. To keep the
   OS from ending a task on its own — it ends tasks that make no progress first — the app closes the
   task itself after 30 seconds without progress, leaving the transfer running; the progress UI then
   stays closed until the next transfer starts.
 
 ## Temporary files
+
+Two folders, for opposite reasons. `transfer-temp/` (the cache directory on Android, the temporary
+directory on iOS) holds what the web wrote for an upload; `transfer-download/` (the cache directory,
+`Library/Caches` on iOS) holds what the shell downloaded (see § Downloads). Only the second is
+ever handed to the photo library or the share sheet — the first holds nothing the app needs to give
+out.
 
 `WriteTempFile` exists because the transfer reads only files, while an image the web resized lives
 only in web memory. The bytes cross the bridge once as base64 and land in the shell's temporary
@@ -141,9 +202,10 @@ may still be reading the file after the WebView is gone.
 ## Verifying
 
 - JS relay: `yarn workspace @chatic/mobile test fileTransferHandlers`.
-- Core, the same numbered cases (`U1`–`U16`) on both platforms. Neither runs in CI.
+- Core, the same numbered cases (`U1`–`U24`) on both platforms. Neither runs in CI.
     - Android, from `apps/mobile/android`: `./gradlew :app:testDevDebugUnitTest`. The build needs
-      `app/google-services.json`, which is not in the repo.
+      `app/src/dev/google-services.json`, which is not in the repo; copy it from a checkout that
+      has it and never commit it.
     - iOS, from `apps/mobile/ios`:
       `xcodebuild test -project Chatic.xcodeproj -scheme ChaticTransferCoreTests -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`.
       The `ChaticTransferCoreTests` target has no host app and no Pods — it compiles only
@@ -155,6 +217,11 @@ may still be reading the file after the WebView is gone.
   port on Android (`adb reverse tcp:8080 tcp:8080`), open the debug panel's Upload test screen and pick
   a scenario: `ok`, `expired` (403 + `AccessDenied`), `exists` (412), `slow`, `drop`. The screen
   targets port 8080 on whatever host the page was loaded from.
+- Downloads use `GET` on the same server: `/s3/image?format=png|jpeg|gif|webp` (with a length; `px`
+  sizes the PNG), `/s3/image-chunked` (no length), `/s3/expired` (403 — the folder must stay empty),
+  `/s3/slow?bps=N` (to cancel mid-way), `/s3/drop?after=N` (`failed(NETWORK)`, no `.part` left) and
+  `/s3/html` (a 200 that is kept, then refused by save and share). `GET /s3/_log` shows the request
+  headers, where `accept-encoding: identity` should appear.
 - On a real device, the WebView and the test server are reached over the LAN: build with
   `VITE_WEBVIEW_BASE_URL` set to the machine's LAN address in the local `.env`, serve the web with
   `--host 0.0.0.0`, and allow the app's local-network prompt on the phone. The iOS 26
@@ -180,7 +247,8 @@ may still be reading the file after the WebView is gone.
 ## Checklist
 
 - Do the Android and iOS cores pass the same numbered cases?
-- Is a status other than 2xx still `responded`, never `failed`?
+- Is a status other than 2xx still `responded`, never `failed` — and for a download, is no file left?
+- Does a download write only under `transfer-download/`, whatever id and name hint it was given?
 - Does an ended transfer stay listed until it is acknowledged, and only then disappear?
 - Does anything write the URL or headers to disk, a log line, or `taskDescription`?
 - After a relaunch on iOS, are running transfers restored and the completion handler called?

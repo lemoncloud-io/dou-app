@@ -44,7 +44,9 @@ operations, what to retry, and what a failure means. It does **not** know how by
 | no answer: source, system | failed                         | not retried: nothing changes by trying again                      |
 
 - **A slot failing is not the message failing.** Whatever reached `stored` is sent, and the server
-  marks the other slots itself. The message fails only when nothing is stored.
+  marks the other slots itself. The message fails only when nothing is stored. A sent result names
+  the slots it left out (`failedIndexes`, by position in the pick), so the caller can keep those
+  files: `useSendImages` writes them as a failed message of their own, with the usual retry.
 - **A thumbnail never fails its slot.** If the thumbnail PUT fails, the slot still counts as done and
   the server keeps the original without a preview.
 - **A socket operation failing is the message failing.** That covers `start`, `complete`, `send`, and
@@ -59,8 +61,9 @@ so the web sender, the native sender and the old-app fallback cannot come to dif
 The page's own sender lives here too: `xhrPut` (`uploads/xhrPut.ts`) PUTs from the page with
 `XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It sets no progress
 listener, because one on `upload` turns every cross-origin PUT into a preflighted one; it skips the
-headers the browser owns (`content-length`, `host`); and it bounds the whole PUT at five minutes. The
-native sender stays in `apps/web`, since it talks through that shell's bridge.
+headers the browser owns (`content-length`, `host`); and it bounds the whole PUT at five minutes, or
+at the time a 1 Mbps uplink needs for the file when that is longer (about 42 minutes for a 300MB
+video). The native sender stays in `apps/web`, since it talks through that shell's bridge.
 
 ## The answer guard
 
@@ -104,13 +107,13 @@ quote the request it failed on.
 
 `ChatRepository` owns the row. The sequence only reports its outcome.
 
-| Method                                                             | What it does                                                                                                                                                    |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createPendingImageChat({ channelId, parentId?, localThumbUrls })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per image                                                                       |
-| `createPendingImageChat({ …, pendingId })`                         | re-arms that same row for a retry: `sending` again, not a second row                                                                                            |
-| `sendPendingImageChat(pendingId, { uploadIds })`                   | sends the message, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails |
-| `failPendingImageChat(pendingId)`                                  | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                |
-| `listPendingImageChats(channelId)`                                 | the channel's unsent rows that hold pending slots                                                                                                               |
+| Method                                                                          | What it does                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createPendingImageChat({ channelId, parentId?, localThumbUrls, localFiles? })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per file; a video or document's slot also keeps `localName` / `localContentType` / `localSize`. A rewrite without `localFiles` keeps what the row holds |
+| `createPendingImageChat({ …, pendingId })`                                      | re-arms that same row for a retry: `sending` again, not a second row                                                                                                                                                                    |
+| `sendPendingImageChat(pendingId, { uploadIds })`                                | sends the message, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails                                                                         |
+| `failPendingImageChat(pendingId)`                                               | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                                                                                        |
+| `listPendingImageChats(channelId)`                                              | the channel's unsent rows that hold pending slots                                                                                                                                                                                       |
 
 - **A pending row keeps the scope it was written in.** A send takes long enough for a cloud switch,
   so the repository remembers each row's scope and reads, fails and sends it there. On a graph that
@@ -126,7 +129,8 @@ quote the request it failed on.
   A failed read-back leaves the send's answer in place, since the message went out regardless, and
   the images appear the next time the room reads its feed. Note that `chat.get` omits an empty
   `content` instead of answering `''`.
-- **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }`, never
+- **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }` (plus
+  `localName` / `localContentType` / `localSize` for a video or document), never
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a
   local `'failed'` can be retried, and a reader that met the same name would take one for the other.
   `isPendingUploadSlot` tells them apart inside one `upload$$` list.

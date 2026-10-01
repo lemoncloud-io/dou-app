@@ -17,6 +17,9 @@ module.exports = {
                 primary: {
                     DEFAULT: 'hsl(var(--primary))',
                     foreground: 'hsl(var(--primary-foreground))',
+                    // `ui-kit`'s link variant and Switch edge. This console's primary is a blue
+                    // that already reads as text, so ink and fill are the same colour.
+                    ink: 'hsl(var(--primary))',
                 },
                 muted: {
                     DEFAULT: 'hsl(var(--muted))',
@@ -51,6 +54,11 @@ module.exports = {
                 'input-border': 'hsl(var(--input))',
                 placeholder: 'hsl(var(--muted-foreground))',
                 'focus-border': 'hsl(var(--ring))',
+                // The Switch's off track. Mapped onto the console's existing `--input` so its
+                // switches look as they did before the kit named the token.
+                'control-border': 'hsl(var(--input))',
+                // The scrim behind ui-kit's dialogs and sheets.
+                overlay: 'hsl(var(--overlay))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

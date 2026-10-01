@@ -1,8 +1,11 @@
 import { logger, webClient } from '@chatic/bridges';
 import type { AppMessageData } from '@chatic/app-messages';
 
+import { bootSplash } from '../../runtime/bootSplash';
+
 type OnNavigateMessage = AppMessageData<'OnNavigate'>;
-type NavigationConsumer = (message: OnNavigateMessage) => void;
+/** May settle later: a push into another cloud navigates only after the cloud switch lands. */
+type NavigationConsumer = (message: OnNavigateMessage) => void | Promise<unknown>;
 type NavigationSubscribe = (handler: NavigationConsumer) => () => void;
 
 export interface PendingNavigationStore {
@@ -31,10 +34,23 @@ export interface PendingNavigationStore {
  * registers. Only the latest un-consumed event is kept: repeated taps during boot
  * should land on the last target, matching the rebase-to-home history convention.
  */
-export const createPendingNavigationStore = (subscribe: NavigationSubscribe): PendingNavigationStore => {
+export const createPendingNavigationStore = (
+    subscribe: NavigationSubscribe,
+    /**
+     * Keeps the boot cover up while an event is held. A held event means the first screen the
+     * router draws (home) is not the one the user asked for, so the cover must outlast the replay.
+     */
+    holdCover: () => () => void = () => () => undefined
+): PendingNavigationStore => {
     let pending: OnNavigateMessage | null = null;
     let consumer: NavigationConsumer | null = null;
     let unsubscribe: (() => void) | null = null;
+    let releaseCover: (() => void) | null = null;
+
+    const dropCover = () => {
+        releaseCover?.();
+        releaseCover = null;
+    };
 
     return {
         start: () => {
@@ -47,6 +63,7 @@ export const createPendingNavigationStore = (subscribe: NavigationSubscribe): Pe
                     // Cold-start leg: the router-mounted handler does not exist yet.
                     logger.info('ROUTER', `OnNavigate held until handler mounts: ${message.data?.path}`);
                     pending = message;
+                    releaseCover ??= holdCover();
                 }
             });
         },
@@ -54,6 +71,7 @@ export const createPendingNavigationStore = (subscribe: NavigationSubscribe): Pe
             unsubscribe?.();
             unsubscribe = null;
             pending = null;
+            dropCover();
         },
         register: nextConsumer => {
             consumer = nextConsumer;
@@ -63,7 +81,19 @@ export const createPendingNavigationStore = (subscribe: NavigationSubscribe): Pe
                 const held = pending;
                 pending = null;
                 logger.info('ROUTER', `Replaying held OnNavigate to newly mounted handler: ${held.data?.path}`);
-                nextConsumer(held);
+                // The cover goes once the consumer has navigated — which, for a push into another cloud,
+                // is after the switch it awaits, not when it returns. A lazy target takes its own hold
+                // before this one goes; a failed replay still lets go.
+                let replay: unknown;
+                try {
+                    replay = nextConsumer(held);
+                } catch (error) {
+                    dropCover();
+                    throw error;
+                }
+                void Promise.resolve(replay)
+                    .catch(() => undefined)
+                    .finally(dropCover);
             }
             return () => {
                 if (consumer === nextConsumer) consumer = null;
@@ -73,4 +103,7 @@ export const createPendingNavigationStore = (subscribe: NavigationSubscribe): Pe
 };
 
 /** App-wide singleton wired to the bridge client. `start()` is called in `main.tsx`. */
-export const pendingNavigationStore = createPendingNavigationStore(handler => webClient.onEvent('OnNavigate', handler));
+export const pendingNavigationStore = createPendingNavigationStore(
+    handler => webClient.onEvent('OnNavigate', handler),
+    () => bootSplash.hold()
+);

@@ -22,7 +22,9 @@ const DialogOverlay = React.forwardRef<
     <DialogPrimitive.Overlay
         ref={ref}
         className={cn(
-            'fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            // The host's scrim token, not a literal black: an app that tints its scrim (or keeps
+            // it black) says so once in its stylesheet, and every kit overlay follows.
+            'fixed inset-0 z-50 bg-overlay/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             className
         )}
         {...props}
@@ -51,9 +53,19 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
  */
 const APP_WIDTH_CAP = 'max-w-[var(--app-width,100%)] mx-auto';
 
+/**
+ * A centred card is placed by its middle, so one taller than the window loses its title off the
+ * top and its buttons off the bottom, with nothing to scroll — a desktop window can be as short as
+ * 480px, and a list dialog grows past that. The cap keeps 1rem clear at either edge and scrolls the
+ * panel itself; a dialog that wants one region to give way first (a list, not the whole panel)
+ * lays itself out as a flex column and lets that region shrink. `dvh`, not `vh`, so a mobile
+ * browser's collapsing toolbar is not counted as room. A caller that uses this variant as a
+ * full-height screen passes `max-h-none`.
+ */
+export const VIEWPORT_HEIGHT_CAP = 'max-h-[calc(100dvh-2rem)] overflow-y-auto';
+
 const dialogVariants = {
-    default:
-        'p-6 left-[50%] top-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
+    default: `${VIEWPORT_HEIGHT_CAP} p-6 left-[50%] top-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg`,
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
     /** No placement or entrance of its own — the caller's `className` positions the panel. */
     bare: '',
@@ -78,27 +90,29 @@ const dialogVariants = {
     'slide-up': `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full data-[state=open]:fade-in-100 data-[state=closed]:fade-out-100 data-[state=open]:duration-500 data-[state=closed]:duration-300 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]`,
 };
 
+/**
+ * The built-in close button's accessible name is required whenever the button renders. It is
+ * the one string these primitives write themselves, and an English default meant a caller that
+ * forgot it shipped the one English word a Korean screen reader still read out — the compiler
+ * now asks instead. A caller that hides the button owes no label.
+ */
+export type CloseButtonProps = { hideClose: true; closeLabel?: string } | { hideClose?: false; closeLabel: string };
+
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
-    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
-        hideClose?: boolean;
-        /**
-         * Accessible name for the built-in close button. It is the one string this
-         * primitive writes itself, so in a localized app it was the one English
-         * word a Korean screen reader still read out. Hosts pass their own.
-         */
-        closeLabel?: string;
-        variant?: keyof typeof dialogVariants;
-        /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
-        overlayClassName?: string;
-    }
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> &
+        CloseButtonProps & {
+            variant?: keyof typeof dialogVariants;
+            /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
+            overlayClassName?: string;
+        }
 >(
     (
         {
             className,
             children,
             hideClose,
-            closeLabel = 'Close',
+            closeLabel,
             variant = 'default',
             overlayClassName,
             onCloseAutoFocus,

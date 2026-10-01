@@ -24,6 +24,7 @@ import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
 import { configureWebPerfTraces } from './app/runtime/perf';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
+import { bootSplash } from './app/runtime/bootSplash';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
 // which the barrel deliberately keeps out (see its comment).
 import { initWebVitals } from './app/utils/webVitals';
@@ -111,6 +112,12 @@ schedulePendingReportFlush();
 // Boot/perf collectors first so buffered long tasks and the boot timeline
 // include everything from here on (surfaced in the debug overlay).
 markBoot('main-start');
+
+// The boot cover in index.html lifts when the first screen paints (runtime/bootSplash). The cap is
+// the guarantee that a boot which never gets there still shows whatever it did render — an error,
+// a stalled gate — instead of an endless blank cover. Generous on purpose: it is not a budget, and
+// the native shell lifts its own splash on a shorter cap of its own.
+bootSplash.armCap(10_000);
 initLongTasks();
 
 // Performance traces. Where they go is only known once the WebAppReady reply

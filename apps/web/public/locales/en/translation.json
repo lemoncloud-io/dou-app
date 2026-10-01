@@ -25,7 +25,9 @@
         "confirm": "OK",
         "save": "Save Changes",
         "saving": "Saving...",
-        "back": "Back"
+        "back": "Back",
+        "toastRegion": "Notifications ({hotkey})",
+        "loading": "Loading"
     },
     "nav": {
         "authTest": "Auth Test",
@@ -481,6 +483,7 @@
         "noPlaceTitle": "No place connected",
         "noPlaceDescription": "Connect to a place to start chatting",
         "loadingCloud": "Loading cloud",
+        "refreshing": "Refreshing",
         "selectPlaceFirst": "Select a place first"
     },
     "cloudSessionSheet": {
@@ -563,20 +566,11 @@
             "confirm": "Leave"
         }
     },
-    "cloudDm": {
-        "picker": {
-            "title": "Start a 1:1",
-            "searchPlaceholder": "Search by name",
-            "empty": "Nobody to talk to yet",
-            "emptyHint": "You can start a 1:1 with anyone who shares a room with you.",
-            "noMatch": "No matches",
-            "failed": "Could not open the 1:1"
-        },
+    "cloudSelf": {
         "section": {
-            "title": "1:1 chats",
-            "empty": "No 1:1 chats yet"
-        },
-        "startFromProfile": "Start a 1:1"
+            "title": "Self Chat",
+            "empty": "No self chat yet"
+        }
     },
     "channelList": {
         "noDescription": "No description",
@@ -593,7 +587,15 @@
         "emptyInvited": "You're not in any chat room yet.\nRooms you're invited to will show up here.",
         "emptyInvitedLeaveHint": "You can leave this place if you no longer use it.",
         "emptyInvitedPlaceInfo": "Go to place info",
-        "loading": "Loading chat rooms"
+        "loading": "Loading chat rooms",
+        "swipe": {
+            "pin": "Pin",
+            "unpin": "Unpin",
+            "mute": "Mute",
+            "unmute": "Unmute",
+            "leave": "Leave",
+            "delete": "Delete"
+        }
     },
     "channelManage": {
         "title": "Manage chats",
@@ -884,6 +886,11 @@
             },
             "preview": "Photo",
             "previewCount": "{{count}} photos",
+            "previewVideo": "Video",
+            "previewVideoCount": "{{count}} videos",
+            "previewFile": "File",
+            "previewFileCount": "{{count}} files",
+            "previewMixedCount": "{{count}} attachments",
             "tile": "Photo {{position}}",
             "viewer": "Photo",
             "viewerClose": "Close",

@@ -24,8 +24,8 @@ const LIGHT_BG = '#ffffff';
  *
  * `theme-color` is set here too, not only by the pre-paint script: that script runs once at
  * boot, so without this an in-app theme change left the mobile system UI tint stale until the
- * next reload. `--splash-bg` is deliberately NOT set here — its only consumer is the #splash
- * placeholder inside #root, which React has already replaced by the time this first runs.
+ * next reload. The `index.html` boot cover needs nothing from here: it is coloured by the same
+ * `html.dark` class this toggles, so it follows a theme corrected before the first screen too.
  */
 export const ThemeApplier = (): null => {
     const { isDarkTheme } = useTheme();

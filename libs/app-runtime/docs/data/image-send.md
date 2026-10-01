@@ -33,9 +33,14 @@ whichever cloud is on screen by the time it ends.
 ## What happens on send
 
 1. **A pending row goes into the cache first** (`chat.createPendingImageChat`), with an object-URL
-   preview per image, so the message is on screen before anything is prepared or uploaded. The list
-   is cut to ten first, so the row never shows a slot that will not be sent.
-2. **The sequence runs** on ports the hook binds: `prepare` is `prepareChatAttachment(file)`,
+   preview per file, so the message is on screen before anything is prepared or uploaded. The list
+   is cut to ten first, so the row never shows a slot that will not be sent. A video or document
+   also passes its name, type and size (`localFiles`), which its slot keeps for the card drawn in
+   place of a preview. A send of images only passes none and writes the row it always has.
+2. **The sequence runs** on ports the hook binds: `prepare` is `prepareChatAttachment(file)` for an
+   image. A video or document (`chatAttachmentFormat` in `@chatic/data`) is not redrawn: it goes up
+   as its original with no dimensions and no thumbnail, under the server's content type and a name
+   that ends in its format's extension. The other ports:
    `start` / `complete` / `send` are the chat repository's `startUploads` / `completeUploads` /
    `sendPendingImageChat(pendingId, …)`, and `put` is the sender the shell passed in.
 3. **Sent** — the repository has already swapped in the server's row and read it back once for the
@@ -85,7 +90,8 @@ catches up there, so a row it finished is settled rather than failed as a leftov
 
 ## Not done here
 
-- **Rendering.** The pending slots are `{ localStatus, localThumbUrl }`. The tile that draws them,
+- **Rendering.** The pending slots are `{ localStatus, localThumbUrl }`, plus `localName`,
+  `localContentType` and `localSize` for a video or document. The tile that draws them,
   the retry and delete buttons and the picker belong to each app's composer.
 - **Progress, cancel, a hash.** None are shown or sent.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send

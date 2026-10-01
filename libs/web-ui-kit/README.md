@@ -19,7 +19,7 @@ can be rearranged with no blast radius outside the lib.
 grep -rn "@chatic/web-ui-kit/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-This lib **owns no state, no data and no copy.** It does not fetch, it does not know a domain model,
+This lib **owns no host state, no data and no copy.** It does not fetch, it does not know a domain model,
 and it does not translate. Text and avatars arrive as props or slots, open/expanded state is owned by
 the host, and `aria-label` defaults are English strings a caller overrides. Everything above that —
 the screens, the hooks, the i18n catalogue — is `apps/web`.
@@ -58,13 +58,16 @@ dismiss, ARIA wiring. Nothing visual is pulled in: `AlertDialog.tsx` goes as far
 styled wrappers inject `buttonVariants` and `mt-2` through a Radix `Slot`, which concatenates rather
 than tailwind-merges and breaks the two-up action row.
 
-`cn` is the one other thing taken from that package, as `@chatic/lib/utils` — 71 files import it.
+`cn` is the one other thing taken from that package, as `@chatic/lib/utils` — 81 files import it.
 
 ## Design principles
 
 1. **Stateless and slot-based.** A component takes what it draws and reports what was clicked. Open,
    expanded and selected state lives in the host. `AppHeader`'s `switcherMenu` is a slot precisely so
-   Radix owns the open state, not this lib.
+   Radix owns the open state, not this lib. What a component may hold is the state of one gesture:
+   `BottomSheet`'s drag offset, `PullToRefresh`'s pull distance and the refresh that pull started,
+   `SwipeActionRow`'s sideways offset. It ends with the gesture, and what the gesture means —
+   closing, refreshing, which row's actions are out — is still the host's.
 2. **i18n-agnostic.** Labels default to English (`selectLabel = 'Select photo'`) and every one is a
    prop. A Korean string hard-coded in a component is a bug; a Korean string in a JSDoc comment
    naming a Figma layer is not.
@@ -82,7 +85,7 @@ than tailwind-merges and breaks the two-up action row.
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 81 spec files and 71 story files against 83 exported
+6. **Every component has a test and a story.** 86 spec files and 73 story files against 85 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -106,9 +109,9 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 47<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    C["composites × 49<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 36<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
-    R["resources<br/><i>tokens.css · 39 icons · 7 assets</i>"]:::res
+    R["resources<br/><i>tokens.css · 43 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 29 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
@@ -151,14 +154,14 @@ libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
 │   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
-│   ├── icons/              39 exports: lucide aliases + Figma-exported glyphs
+│   ├── icons/              43 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
 ├── foundations/   11 groups, 36 components
 │   avatar(7) · button(9) · input(7) · badge(5) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 47 components
-    chat(15) · list(5) · media(5) · overlay(5) · section(4) · header(3) ·
-    layout(3) · subscription(3) · feedback(2) · navigation(2)
+└── composites/    10 groups, 49 components
+    chat(15) · list(6) · media(5) · overlay(5) · section(4) · header(3) ·
+    layout(4) · subscription(3) · feedback(2) · navigation(2)
 ```
 
 Three files are internal — used across a group but absent from every barrel, so grepping the public
@@ -281,7 +284,7 @@ accessible names; leave pixel values to the story.
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 81 spec files
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 86 spec files
 npx jest --config libs/web-ui-kit/jest.config.js
 ```
 

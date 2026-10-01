@@ -130,7 +130,16 @@ export const useInviteCandidates = (
             }
             return [...byId.values()];
         },
-        [userRepository, enabled, targetChannelId, myChannelIds, personalRoomIds, channelNameById, targetMemberIds, myUid]
+        [
+            userRepository,
+            enabled,
+            targetChannelId,
+            myChannelIds,
+            personalRoomIds,
+            channelNameById,
+            targetMemberIds,
+            myUid,
+        ]
     );
 
     useEffect(() => {

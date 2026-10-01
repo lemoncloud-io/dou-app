@@ -43,14 +43,14 @@ so that the room, settings, the home list and place channel management cannot di
 The read path is always `repository.observe*` — a subscription to the local cache, never a fetch.
 Keeping the cache fresh is a second, separate act:
 
-| Hook                 | Observes                                             | Registers                                                     |
-| -------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
-| `useChannel`         | `channel.observeItem(channelId)`                     | `runtime.sync.useChannelSync(channelId)`                      |
-| `useChats`           | `chat.observeList({ channelId, limit })`             | `runtime.sync.useChatSync(channelId)`                         |
-| `useChannelJoins`    | `join.observeList({ channelId, activeOnly: false })` | nothing — the screen registers (below)                        |
-| `useJoinPositions`   | nothing                                              | `sync.registerJoin` on `<channelId>@<userId>`, per member     |
-| `useChannelProfiles` | `profile.observeList({ sid })`                       | `sync.registerProfile` on `<sid>@<userId>`, per active member |
-| `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                  |
+| Hook                 | Observes                                             | Registers                                                                         |
+| -------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `useChannel`         | `channel.observeItem(channelId)`                     | `runtime.sync.useChannelSync(channelId)`                                          |
+| `useChats`           | `chat.observeList({ channelId, limit })`             | `runtime.sync.useChatSync(channelId)`                                             |
+| `useChannelJoins`    | `join.observeList({ channelId, activeOnly: false })` | nothing — the screen registers (below)                                            |
+| `useJoinPositions`   | nothing                                              | `sync.registerJoin` on `<channelId>@<userId>`, per member                         |
+| `useChannelProfiles` | `profile.observeList({ sid })`                       | `sync.registerProfile` on `<sid>@<userId>`, per active member with a profile here |
+| `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                                      |
 
 Both registrars register with an explicit `{ cid }`: `useJoinPositions` takes the room's cloud from
 its caller (the channel row's `cid`), `useChannelProfiles` uses the selected cloud — the one its
@@ -220,8 +220,10 @@ observer per cache per screen, not a convenience.
    slot's `isVerified` for a call through the app graph (§ A network read waits for its socket).
 5. If it registers a sync target, pass its cloud (`{ cid }` as the last argument), build any
    `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`, keep both in the dependency array, and
-   return the disposer from the effect. Registration is synchronous so an early cleanup cannot race
-   it.
+   return the disposer from the effect. Register synchronously when you can, so an early cleanup
+   cannot race it; if registration has to wait on a read (as `useChannelProfiles` does for uncached
+   members), check a `disposed` flag before each `register` and collect the disposers in an array
+   the cleanup drains.
 6. Co-locate `*.test.ts`.
 
 ### What not to do
@@ -266,6 +268,15 @@ observer per cache per screen, not a convenience.
   (`LIST_PROFILE_SYNC_INTERVAL_MS`) — one target per member means the request rate is
   `members / interval` for as long as the screen is open. First paint never waits for a tick: the
   hook one-shots `refreshItem` for members the cache does not hold.
+- That one-shot also decides whether the member is polled at all. A cached member is registered
+  straight away; an uncached one only after the read, and **not at all if it answered 404**. A
+  profile exists per place, and only once its owner has opened that place, so a cloud 1:1's peer
+  from another place, say, has none here — a poll would only re-read the 404 until the scheduler stopped
+  the target and logged "local rows dropped". They fall back to the user record, and a profile they
+  create later arrives through the site-wide `profile.syncProfiles` delta when the room's place is
+  the active one, and on the next mount otherwise. Any other bootstrap failure — a timeout, no
+  socket, or a 403, which a re-auth of the same socket answers for a moment — still registers,
+  because the poll is what recovers from that.
 - `useChannelMembers` reaches `syncChannelUsers` through a narrow cast, because the published
   `@chatic/data` types do not surface it on `IUserRepository` yet.
 - Jest runs the channels suites with the app config:

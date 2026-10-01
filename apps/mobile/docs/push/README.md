@@ -21,6 +21,7 @@ suspended then), and the web re-aggregates the true count on the next foreground
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/app/App.tsx`                                                  | creates the Android notification channels at mount                                                                                                                                                   |
 | `src/app/services/notification/NotificationService.ts`             | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                                                                    |
+| `src/app/utils/i18n/formatPushCopy.ts`                             | builds a banner's title/body from `loc_key`/`loc_args` for the iOS foreground path — see [Chat message body](#chat-message-body)                                                                     |
 | `src/app/services/notification/PushEventManager.ts`                | in-memory foreground-event broker between OS/native events and the WebView bridge                                                                                                                    |
 | `src/app/webview/hooks/useFcmHandler.ts`                           | WebView bridge handler for token, badge and push-mark requests, and the foreground push relay (`OnReceiveNotification`)                                                                              |
 | `src/app/webview/hooks/useDeepLinkNavigation.ts`                   | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `resolvePushTapPath` / `resolveDeepLink` in `deeplinkUtils`)                                    |
@@ -119,6 +120,16 @@ A foreground APNs notification reaches JS via
 `RNCPushNotificationIOS.didReceiveRemoteNotification(...)`, and the system foreground-presentation
 callback answers `[]`, so iOS shows no system banner while the app is active.
 
+**That path never runs the Notification Service Extension**, so nothing has translated the push by
+the time it reaches JS: `getTitle()`/`getMessage()` are the APNs `alert` the push server filled
+without knowing the reader's language (for a chat message with no text, an empty body). The shell
+therefore builds the copy itself — `handleAPNs` hands `getData()`'s top-level `loc_key`/`loc_args`
+(and the title pair) to `formatPushCopy`, in the same language the native handlers resolve, and
+falls back to the `alert` only for a payload with no key or a field that formats to nothing. A silent
+push is left as it came: the server sends it with the loc keys but no `alert`, and the web recognises
+it by its empty title and body, so building copy for it would turn it into a banner. The
+in-app banner the web draws is then the same copy the extension would have put on the lock screen.
+
 **A tap** rides a _different_ JS event than foreground receipt. iOS delivers a tap as a
 `UNNotificationResponse`, and `AppDelegate.userNotificationCenter(_:didReceive:)` forwards it to
 `RNCPushNotificationIOS.didReceive(response)`. On the JS side this surfaces as the **`localNotification`**
@@ -139,8 +150,8 @@ mute the sound). A silent push never runs the extension.
 
 `loc_args`/`title_loc_args` may arrive as a native JSON array (`["Raine"]` — the real backend's APNs
 shape) or as a JSON-encoded string (`"[\"Raine\"]"` — FCM-shaped test tooling), and the extension
-accepts both. Missing or unparseable args leave the template unsubstituted, so the banner shows a
-literal `{0}`.
+accepts both. Missing or unparseable args no longer leave a literal `{0}` on the banner — see
+[Unfilled placeholders](#unfilled-placeholders).
 
 ```mermaid
 sequenceDiagram
@@ -243,6 +254,55 @@ sequenceDiagram
 
 The full badge lifecycle — background increment, foreground reconcile — is in [badge.md](./badge.md).
 
+## Chat message body
+
+The server picks a chat push's body key; the device only fills in the copy. A message with text sends
+the text, whatever it has attached; an attachment-only message is described by what it carries,
+judged from each upload's `stereo` — the server's kind for a file (`image`, `video`, `audio`,
+`file`), with an upload that has none counted as `image`.
+
+| Message                                              | `loc_key`                    | `loc_args` | ko / en                                          |
+| ---------------------------------------------------- | ---------------------------- | ---------- | ------------------------------------------------ |
+| has text (attachments or not)                        | `push_chat_message_body`     | `[text]`   | the text                                         |
+| one photo / several                                  | `push_chat_image_body`       | absent     | `사진을 보냈습니다` / `Sent a photo`             |
+|                                                      | `push_chat_images_body`      | `["3"]`    | `사진 3장을 보냈습니다` / `Sent 3 photos`        |
+| one video / several                                  | `push_chat_video_body`       | absent     | `동영상을 보냈습니다` / `Sent a video`           |
+|                                                      | `push_chat_videos_body`      | `["2"]`    | `동영상 2개를 보냈습니다` / `Sent 2 videos`      |
+| one file / several                                   | `push_chat_file_body`        | absent     | `파일을 보냈습니다` / `Sent a file`              |
+|                                                      | `push_chat_files_body`       | `["3"]`    | `파일 3개를 보냈습니다` / `Sent 3 files`         |
+| mixed kinds, or audio                                | `push_chat_attachments_body` | `["3"]`    | `첨부 3개를 보냈습니다` / `Sent 3 attachments`   |
+| neither text nor attachments (a blocks-only webhook) | `push_chat_message_body`     | absent     | `새 메시지` / `New message` — the fallback below |
+
+One and several are separate keys because every assembler here does positional substitution only; none
+knows plural rules. The count is the message's attachment count, which is what the room shows: the app
+only sends uploads that finished storing.
+
+**Rollout order is part of the design.** A build that does not have a key shows the key name itself on
+the banner, so the server only starts sending the attachment keys once a build that has them has
+spread. Until then an attachment-only message still arrives as `push_chat_message_body` with no args,
+and the guard below turns it into `새 메시지` / `New message`. The channel list's preview uses the same
+nouns (`사진 3장` against `사진 3장을 보냈습니다`) — see the web's home feature docs — so a change to one
+side's copy is a change to both.
+
+### Unfilled placeholders
+
+All three assemblers — `formatPushTemplate` in `ChaticFirebaseMessagingService.kt` (Android, every app state),
+the extension's `formatTemplate` (iOS background/killed) and `formatPushCopy` (iOS foreground) — apply
+the same rule when a template names a `{n}` that the args do not reach:
+
+- **body** — the result is replaced by `push_chat_fallback_body` (`새 메시지` / `New message`) from the
+  same locale. The server never sends that key; it exists for this.
+- **title** — the unfilled placeholders are removed and the rest trimmed. An empty title is then left
+  to the platform: the extension keeps the `alert` title, and Android leaves the title line blank (the notification header still names the app).
+
+The hole is judged on the template, not on the substituted text, so a message that itself contains
+`{0}` is shown verbatim. **A key that is not found is left alone** — the key name staying visible is
+the signal that a payload outran the installed build, and hiding it would hide the rollout mistake.
+
+To send these payloads without the server, `scripts/send-test-push.js` takes `--loc-key` and
+`--loc-args` (`'["3"]'`, or `none` to leave the field out the way the server does for a message with
+no text); add `--loc-args-array` on iOS for the backend's array shape.
+
 ## Cloud activation push
 
 When a cloud is first activated, the server sends its owner one notification: over the socket
@@ -259,12 +319,12 @@ When a cloud is first activated, the server sends its owner one notification: ov
 
 ### Translation keys
 
-`push_cloud_activate_title` must exist in **all four** locale sets — each has a different consumer, so
-a missing one only breaks that path:
+Every `push_*` key — `push_cloud_activate_title` here, and the chat keys above — must exist in **all
+four** locale sets. Each has a different consumer, so a missing one only breaks that path:
 
 | Location                                              | Consumer                         | If missing                               |
 | ----------------------------------------------------- | -------------------------------- | ---------------------------------------- |
-| `src/app/utils/i18n/locales/{ko,en}.ts`               | native shell UI                  | shell copy only (push unaffected)        |
+| `src/app/utils/i18n/locales/{ko,en}.ts`               | shell UI, and `formatPushCopy`   | literal key on the iOS foreground banner |
 | `android/app/src/main/assets/locales/{ko,en}.json`    | `ChaticFirebaseMessagingService` | literal key on the Android banner        |
 | `ios/assets/locales/{ko,en}.json`                     | iOS app                          | literal key in the app                   |
 | `ios/ChaticNotificationServiceExtension/{ko,en}.json` | the extension                    | literal key on the iOS background banner |
@@ -273,13 +333,15 @@ The copy is ko `{0} 클라우드가 준비되었습니다`, en `{0} is ready` �
 variable (Korean grammar picks "이" or "가" by the name's final sound, which cannot be fixed for an
 arbitrary name). Every new key that carries a variable follows the same rule.
 
-It is not in `TranslationKey` (`src/app/utils/i18n/types.ts`) — neither is the existing
-`push_chat_message_title`. Push keys are assembled natively and never go through the shell's `t()`.
+It is not in `TranslationKey` (`src/app/utils/i18n/types.ts`) — no push key is. They never go through
+the shell's `t()`: the natives assemble them, and the shell's one push path uses `formatPushCopy`.
 
 [`localeParity.test.ts`](../../src/app/services/notification/localeParity.test.ts) is what keeps the four
 sets in sync: it diffs the native three against the shell locale's flat `push_*` key set, checks for
 empty values, and checks that the activation title still has a `{0}` slot (a missing arg makes the
-fallback title a literal `cloud`).
+fallback title a literal `cloud`). For the chat bodies it checks that the four plural keys keep their
+`{0}` and that the three singular keys and the fallback carry no `{` at all — a placeholder there would
+send every such push to the fallback.
 
 **The Extension target's bundled resources are outside that test's reach.** If
 `ios/ChaticNotificationServiceExtension/*.json` is missing from the Extension target's Copy Bundle
@@ -329,6 +391,9 @@ title alone says which cloud (hence no body).
   `assets/locales/{lang}.json` (English fallback); `loc_args`/`title_loc_args` accept both the native
   JSON array (APNs) and a JSON string. `assets/locales/*.json` must be bundled into **both** the app
   target's and the **Extension** target's Copy Bundle Resources.
+- A template's unfilled `{n}` never reaches a banner: a body falls back to `push_chat_fallback_body`, a
+  title drops the placeholder. The rule is written three times — Kotlin, the extension, `formatPushCopy`
+  — and the three must change together.
 - Foreground push delivery is deliberately decoupled through `PushEventManager` — the WebView may not
   be mounted yet when the OS/native callback fires.
 - Background/killed silent Android pushes currently skip the native banner and are not persisted to a
@@ -346,3 +411,4 @@ title alone says which cloud (hence no body).
 - Do `NotificationService.createNotificationChannel` and `ChaticFirebaseMessagingService.createNotificationChannel` still agree on channel behavior?
 - If payload localization changed, does the iOS Notification Service Extension still resolve `loc_args` (both native-array and JSON-string shapes) from `assets/locales`, and is that JSON bundled into the Extension target?
 - Is the foreground system banner still suppressed on both platforms as intended?
+- If a push key or its copy changed, is it in all four locale sets, does iOS foreground still build its copy through `formatPushCopy`, and do the three assemblers still share the unfilled-placeholder rule?

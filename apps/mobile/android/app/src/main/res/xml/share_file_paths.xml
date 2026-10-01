@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The only folder ShareFileProvider hands out: downloads under the cache directory. Media export
+    checks every URI against the same folder before it gets here, so this rule is the second line —
+    no other file of the app (its database, its settings) can be turned into a shareable URI.
+-->
+<paths>
+    <cache-path name="transfer-download" path="transfer-download/" />
+</paths>

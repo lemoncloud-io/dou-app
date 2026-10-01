@@ -4,6 +4,21 @@ The thread, Mentions, Saved, channel settings, profile and debug panels all sit 
 chat, one at a time. `HomePage` picks which one is open and passes it to `DesktopLayout` as `panel`.
 Each panel is built on `ResizablePanel` (`shared/components/ResizablePanel.tsx`).
 
+## One owner, except the profile
+
+`useTrailingPanelOwners` (`features/chat/hooks/`) holds the rule. Thread, settings, Saved and Mentions
+are exclusive: opening one closes the others, and the last one opened wins.
+
+The profile stacks instead. It opens from inside another panel, a mention in a thread or a member in
+the settings list, to check who someone is. So it shows over that panel without closing it, and
+closing the profile shows the panel underneath again. It used to close the thread, and a reader who
+stopped to check a name lost the conversation they were in. Opening any other panel from the profile
+closes both, as before.
+
+The panel underneath is remounted, not kept alive: a hidden panel would still answer Escape. The
+thread's reply box keeps its draft (drafts live in `useComposerDraftStore`) and takes focus again,
+but its scroll position starts over.
+
 ## Width
 
 Every panel opens at `PANEL_WIDTH` (360px), and each kind remembers its own drag under its own
@@ -35,6 +50,9 @@ Supplying `onClose` buys the whole contract, at any width:
   on its first render, before any effect runs. An effect-time read ran after the panel's own focus
   move (and after its content's, for example the settings panel landing on its member list), so the
   panel recorded itself, which is gone once it closes, and focus fell to `<body>`.
+- If that element has left the page by then, focus goes to the room's message box. A thread shown
+  again under a closed profile recorded the profile's close button as its opener, and closing the
+  thread later left focus on `<body>`.
 
 ## The sidebar drawer
 

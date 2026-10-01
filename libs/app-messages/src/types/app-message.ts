@@ -52,6 +52,7 @@ import type {
     OnOpenURLPayload,
     OnNavigatePayload,
     OnDismissResumeOverlayPayload,
+    OnFirstScreenReadyPayload,
     OnWebAppReadyPayload,
     OnShowLoaderPayload,
     OnHideLoaderPayload,
@@ -92,8 +93,11 @@ import type {
     OnListPhotosPayload,
     OnReadPhotoPayload,
     OnManagePhotoSelectionPayload,
+    OnSaveToPhotoLibraryPayload,
+    OnShareFilePayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
+    OnTriggerHapticPayload,
     OnUpdateStatusPayload,
     OnStartUpdateDownloadPayload,
     OnRestartToUpdatePayload,
@@ -134,10 +138,13 @@ export type AppMessageDataMap = {
     OnListPhotos: OnListPhotosPayload;
     OnReadPhoto: OnReadPhotoPayload;
     OnManagePhotoSelection: OnManagePhotoSelectionPayload;
+    OnSaveToPhotoLibrary: OnSaveToPhotoLibraryPayload;
+    OnShareFile: OnShareFilePayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;
     OnDismissResumeOverlay: OnDismissResumeOverlayPayload;
+    OnFirstScreenReady: OnFirstScreenReadyPayload;
     OnSendSms: OnSendSmsPayload;
     OnFetchAppIcon: OnFetchAppIconPayload;
     OnFetchAppIconList: OnFetchAppIconListPayload;
@@ -214,6 +221,7 @@ export type AppMessageDataMap = {
     OnFetchPendingReports: OnFetchPendingReportsPayload;
     OnAckPendingReports: OnAckPendingReportsPayload;
     OnCopyToClipboard: OnCopyToClipboardPayload;
+    OnTriggerHaptic: OnTriggerHapticPayload;
     OnSendBootMetrics: OnSendBootMetricsPayload;
     OnSetDebugMode: OnSetDebugModePayload;
     OnStartPerfTrace: OnStartPerfTracePayload;

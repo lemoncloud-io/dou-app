@@ -50,10 +50,29 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
 - **Dialogs** (every ui-kit `Dialog` and `AlertDialog`) return focus to whatever held it when they
   opened (ADR-0131; `libs/ui-kit/README.md`). This covers the Quick Switcher, search, the viewer and
   every confirm.
+- **When that opener is gone**, focus goes to the room's message box instead. Onboarding opens from
+  state with nothing focused, and Add Members can outlive its opener (the intro's actions leave once
+  the channel has messages, a menu item leaves with its menu). Their `onCloseAutoFocus` is
+  `focusComposerIfDropped` (`shared/utils/composerFocus.ts`): it waits a microtask so the opener
+  return runs first, and acts only if focus is still on `<body>`.
+- **After a channel is deleted or left** (header menu, settings panel or sidebar row), the confirm
+  has already closed and the room it returned focus to is gone. `useChannelActions` leaves a
+  one-shot request in `useComposerFocusStore`, keyed by the removed channel, and `ChatPane` spends it
+  on the first room it shows that is not that one — its composer takes focus. With no room left, the
+  empty state's create/join button takes it. Either way the request is used once, so a later plain
+  channel switch does not move focus. The one exception is a removal from a sidebar row in the
+  open drawer: `<main>` is `inert` behind the drawer, so the focus call does nothing, the request is
+  still spent, and focus stays where the drawer leaves it.
+- **A failed place-profile save** puts focus back on the nickname field: the save disabled the field
+  and both buttons, so the control that held focus went dead.
 - **Trailing panels** take focus when they cover the chat, and return it to their opener when they
   close. See [`../shell/trailing-panels.md`](../shell/trailing-panels.md).
 - **The thread's reply box** takes focus when a thread opens, unless the reader is typing somewhere
   else. A thread can open seconds after the click, once its channel has loaded.
+- **A returned focus does not open a hint.** `Hint` skips a focus that came from no element on the
+  page, which is what a dialog or menu handing focus back after it has gone looks like (and a window
+  regaining focus). Without this, "Search messages" stayed up over the header button after the
+  search closed. Tab always comes from an element, so a keyboard user still gets the hint.
 
 ## Next unread
 

@@ -1,10 +1,55 @@
 /// <reference types='vitest' />
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import react from '@vitejs/plugin-react';
-import { defineConfig, searchForWorkspaceRoot } from 'vite';
+import { defineConfig, searchForWorkspaceRoot, type Plugin } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
 import desktopPkg from './package.json' with { type: 'json' };
+
+/**
+ * pdf.js's data files, served at `/pdfjs/<dir>/` in dev and emitted there in a build: the Adobe
+ * CMaps and standard fonts a PDF may name without embedding (common in Korean files), the ICC
+ * profiles, and the image-decoder wasm. Without them such a PDF draws without its text or images.
+ * The script-engine wasm is left out; the viewer never runs a PDF's scripts.
+ */
+const PDFJS_ASSET_DIRS = ['cmaps', 'standard_fonts', 'iccs', 'wasm'];
+const pdfjsAssetsPlugin = (): Plugin => {
+    const root = dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
+    // `<dir>/<name>` of every file served. A request is answered only on an exact match, so no path
+    // it names can reach outside these folders.
+    const files = new Set(
+        PDFJS_ASSET_DIRS.flatMap(dir =>
+            readdirSync(join(root, dir))
+                .filter(name => !name.startsWith('quickjs') && statSync(join(root, dir, name)).isFile())
+                .map(name => `${dir}/${name}`)
+        )
+    );
+    return {
+        name: 'pdfjs-assets',
+        configureServer(server) {
+            server.middlewares.use('/pdfjs', (req, res, next) => {
+                let file = '';
+                try {
+                    file = decodeURIComponent((req.url ?? '').split('?')[0]).replace(/^\/+/, '');
+                } catch {
+                    // A malformed escape names no file of ours.
+                }
+                if (!files.has(file)) return next();
+                res.setHeader('Content-Type', file.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream');
+                res.end(readFileSync(join(root, file)));
+            });
+        },
+        generateBundle() {
+            for (const file of files) {
+                this.emitFile({ type: 'asset', fileName: `pdfjs/${file}`, source: readFileSync(join(root, file)) });
+            }
+        },
+    };
+};
 
 const removeVitePrefix = (envVar: string) => envVar.replace('VITE_', '');
 
@@ -113,7 +158,7 @@ export default defineConfig({
         host: 'localhost',
     },
 
-    plugins: [htmlEnvInjectionPlugin(), svgr(), react(), nxViteTsPaths()],
+    plugins: [htmlEnvInjectionPlugin(), pdfjsAssetsPlugin(), svgr(), react(), nxViteTsPaths()],
 
     build: {
         sourcemap: process.env.VITE_ENV !== 'PROD',

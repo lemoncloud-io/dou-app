@@ -12,9 +12,10 @@
             (function () {
                 var storageKey = 'vite-ui-theme';
                 var theme = localStorage.getItem(storageKey);
+                // No stored choice means 'system', the same default app.tsx gives ThemeProvider.
                 var isDark =
                     theme === 'dark' ||
-                    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    ((!theme || theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
                 if (isDark) {
                     document.documentElement.classList.add('dark');

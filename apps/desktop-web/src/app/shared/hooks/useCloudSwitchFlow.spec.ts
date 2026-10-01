@@ -1,4 +1,6 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
+import i18next from 'i18next';
+import type { ReactElement, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 const session = vi.hoisted(() => ({
@@ -47,5 +49,34 @@ describe('useCloudSwitchFlow retry', () => {
         rerender();
         await act(async () => action.props.onClick());
         expect(session.switchCloud).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('useCloudSwitchFlow failure toast', () => {
+    const failWith = async (error: Error) => {
+        session.selectedCloudId = 'A';
+        session.switchCloud.mockRejectedValueOnce(error);
+        const { result } = renderHook(() => useCloudSwitchFlow());
+        await act(() => result.current.switchCloud('B'));
+        return session.toast.mock.calls.at(-1)?.[0] as { description: ReactNode; action?: unknown };
+    };
+
+    // A refused cloud refuses again, so Try again was a button that could never work.
+    it('offers no Try again for a refused cloud and points at the mobile app', async () => {
+        const { description, action } = await failWith(new Error('403 NOT ALLOWED - cloud access'));
+        expect(action).toBeUndefined();
+        render(description as ReactElement);
+        expect(screen.getByText(i18next.t('mobileApp.planAndCloud'), { exact: false })).toBeTruthy();
+    });
+
+    it('offers no Try again for a cloud that no longer exists', async () => {
+        const { action } = await failWith(new Error('404 NOT FOUND - cloud'));
+        expect(action).toBeUndefined();
+    });
+
+    it('keeps Try again for a dropped connection', async () => {
+        const { description, action } = await failWith(new Error('Failed to fetch'));
+        expect(action).toBeDefined();
+        expect(description).toBe(i18next.t('cloud.switchCause.network'));
     });
 });

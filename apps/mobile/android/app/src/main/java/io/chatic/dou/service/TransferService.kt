@@ -17,11 +17,16 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import io.chatic.dou.transfer.TransferNotifications
 import io.chatic.dou.transfer.TransferRegistry
+import io.chatic.dou.transfer.core.DownloadFiles
+import io.chatic.dou.transfer.core.DownloadedFile
+import io.chatic.dou.transfer.core.TransferDirection
 import io.chatic.dou.transfer.core.TransferErrorCode
 import io.chatic.dou.transfer.core.TransferNotice
 import io.chatic.dou.transfer.core.TransferSnapshot
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -41,8 +46,11 @@ import kotlin.concurrent.thread
  * It is an executor only. Every decision — what a response means, whether a late report counts,
  * which event goes out — belongs to [TransferRegistry]'s core; the service reports what happened
  * and stops a transport when the registry says the transfer ended. That is also how a cancel from
- * the web, from the notification, or from the OS time limit reaches a running upload: the service
+ * the web, from the notification, or from the OS time limit reaches a running transfer: the service
  * listens for terminal events and tears down the matching connection.
+ *
+ * A download writes into its own folder under `cache/transfer-download/` and keeps the file only
+ * when the server answered 2xx and the registry recorded it; every other ending deletes the folder.
  *
  * No retries here: whether to try again is the app's decision.
  */
@@ -183,30 +191,38 @@ class TransferService : Service() {
     }
 
     private fun runJob(job: Job) {
-        val spec = job.spec
-        val id = spec.transferId
-        var source: InputStream? = null
+        val id = job.spec.transferId
         try {
             if (job.aborted) return
-            source = try {
-                openSource(spec.fileUri)
-            } catch (e: Exception) {
-                TransferRegistry.failure(id, TransferErrorCode.SOURCE, "cannot open the source: ${describe(e)}")
-                return
+            when (job.spec.direction) {
+                TransferDirection.UPLOAD -> runUpload(job)
+                TransferDirection.DOWNLOAD -> download(job)
             }
-            upload(job, source)
         } catch (e: Exception) {
             if (!job.aborted) TransferRegistry.failure(id, TransferErrorCode.INTERNAL, describe(e))
         } finally {
-            try {
-                source?.close()
-            } catch (_: IOException) {
-            }
             job.connection?.disconnect()
             jobs.remove(id)
             // The job may end without an event this service caused (it was already aborted), so the
             // lifecycle is re-checked here as well.
             mainHandler.post { refresh() }
+        }
+    }
+
+    private fun runUpload(job: Job) {
+        val source = try {
+            openSource(job.spec.fileUri)
+        } catch (e: Exception) {
+            TransferRegistry.failure(job.spec.transferId, TransferErrorCode.SOURCE, "cannot open the source: ${describe(e)}")
+            return
+        }
+        try {
+            upload(job, source)
+        } finally {
+            try {
+                source.close()
+            } catch (_: IOException) {
+            }
         }
     }
 
@@ -297,6 +313,160 @@ class TransferService : Service() {
             return
         }
         TransferRegistry.response(id, status, readBody(connection))
+    }
+
+    /**
+     * One streaming GET into `transfer-download/<folder>/<name>.part`, renamed to its final name —
+     * with the extension the bytes show — once the body is complete. A status other than 2xx is
+     * reported with its `<Code>` and writes nothing: an S3 error document must never land under an
+     * image's name.
+     */
+    private fun download(job: Job) {
+        val spec = job.spec
+        val id = spec.transferId
+        val parts = spec.nameParts ?: DownloadFiles.nameParts(null)
+        val root = File(cacheDir, DownloadFiles.FOLDER)
+        val folder = File(root, DownloadFiles.folderName(id))
+        var kept = false
+        try {
+            // A reused id starts from an empty folder, the way the iOS shell starts it: whatever an
+            // earlier, acknowledged download left under the same id is not this one's.
+            folder.deleteRecursively()
+            sweepDownloads(root)
+            val connection = try {
+                URL(spec.url).openConnection() as HttpURLConnection
+            } catch (_: MalformedURLException) {
+                TransferRegistry.failure(id, TransferErrorCode.INVALID, "the url cannot be parsed")
+                return
+            } catch (_: ClassCastException) {
+                TransferRegistry.failure(id, TransferErrorCode.INVALID, "the url is not http or https")
+                return
+            }
+            job.connection = connection
+            if (job.aborted) return
+
+            connection.requestMethod = "GET"
+            connection.useCaches = false
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = READ_TIMEOUT_MS
+            // Includes `Accept-Encoding: identity`: set by hand, it also stops the stack from
+            // inflating a compressed reply, so the bytes kept are the stored object's.
+            spec.headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+
+            val status = try {
+                connection.responseCode
+            } catch (e: IOException) {
+                reportNetwork(job, e)
+                return
+            }
+            if (status < 0) {
+                if (!job.aborted) TransferRegistry.failure(id, TransferErrorCode.NETWORK, "the server reply was not valid HTTP")
+                return
+            }
+            if (!DownloadFiles.keepsBody(status)) {
+                TransferRegistry.response(id, status, readBody(connection))
+                return
+            }
+            TransferRegistry.expectLength(id, connection.contentLengthLong)
+
+            if (!folder.isDirectory && !folder.mkdirs()) {
+                TransferRegistry.failure(id, TransferErrorCode.SOURCE, "cannot create the download folder")
+                return
+            }
+            val part = File(folder, DownloadFiles.partName(parts))
+            if (!receive(job, connection, part)) return
+
+            val target = File(folder, DownloadFiles.fileName(parts, DownloadFiles.sniffImage(readHead(part))))
+            if (!part.renameTo(target)) {
+                TransferRegistry.failure(id, TransferErrorCode.SOURCE, "cannot commit the downloaded file")
+                return
+            }
+            val file = DownloadedFile(Uri.fromFile(target).toString(), target.length(), connection.contentType)
+            kept = TransferRegistry.response(id, status, null, file)
+        } finally {
+            // Anything but a committed, recorded file leaves nothing behind: a failed or cancelled
+            // `.part`, or a file whose transfer was cancelled while it was being committed.
+            if (!kept) folder.deleteRecursively()
+        }
+    }
+
+    /** Streams the body into [part]. Returns false once it has reported how it failed (or was aborted). */
+    private fun receive(job: Job, connection: HttpURLConnection, part: File): Boolean {
+        val id = job.spec.transferId
+        val input = try {
+            connection.inputStream
+        } catch (e: IOException) {
+            reportNetwork(job, e)
+            return false
+        }
+        input.use {
+            val output = try {
+                FileOutputStream(part)
+            } catch (e: IOException) {
+                TransferRegistry.failure(id, TransferErrorCode.SOURCE, "cannot create the file: ${describe(e)}")
+                return false
+            }
+            output.use {
+                val buffer = ByteArray(COPY_BUFFER_BYTES)
+                var received = 0L
+                while (true) {
+                    if (job.aborted) return false
+                    val read = try {
+                        input.read(buffer)
+                    } catch (e: IOException) {
+                        reportNetwork(job, e)
+                        return false
+                    }
+                    if (read < 0) break
+                    try {
+                        output.write(buffer, 0, read)
+                    } catch (e: IOException) {
+                        // On the download side SOURCE means the local file could not be written.
+                        if (!job.aborted) TransferRegistry.failure(id, TransferErrorCode.SOURCE, "cannot write the file: ${describe(e)}")
+                        return false
+                    }
+                    received += read
+                    TransferRegistry.progress(id, received)
+                }
+                val expected = connection.contentLengthLong
+                if (expected > 0 && received != expected) {
+                    if (!job.aborted) TransferRegistry.failure(id, TransferErrorCode.NETWORK, "the body ended after $received of $expected bytes")
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    /** The first bytes of [file], enough to tell an image type from. */
+    private fun readHead(file: File): ByteArray =
+        try {
+            FileInputStream(file).use { stream ->
+                val head = ByteArray(DownloadFiles.SNIFF_BYTES)
+                var total = 0
+                while (total < head.size) {
+                    val read = stream.read(head, total, head.size - total)
+                    if (read < 0) break
+                    total += read
+                }
+                head.copyOf(total)
+            }
+        } catch (_: IOException) {
+            ByteArray(0)
+        }
+
+    /**
+     * Deletes transfer folders last changed more than a day ago, except those of running downloads.
+     * A shared file is kept after the share sheet closes — the receiving app may read it late — so
+     * this is what eventually clears it. Best effort: the OS may clear the cache as well.
+     */
+    private fun sweepDownloads(root: File) {
+        val children = root.listFiles() ?: return
+        val running = TransferRegistry.runningDownloads().mapTo(HashSet()) { DownloadFiles.folderName(it) }
+        val folders = children.filter { it.isDirectory }.map { DownloadFiles.FolderAge(it.name, it.lastModified()) }
+        DownloadFiles.foldersToSweep(folders, System.currentTimeMillis(), running).forEach {
+            File(root, it).deleteRecursively()
+        }
     }
 
     private fun reportNetwork(job: Job, e: IOException) {

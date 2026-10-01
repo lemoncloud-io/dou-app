@@ -1,8 +1,9 @@
-# Images
+# Images, videos and documents
 
-The composer takes images from the "+" button, a drop, or a paste. They wait in a tray, and they go
-out with the message: the text first, then one image message with the pictures. In the feed they are
-tiles that open a full-image viewer.
+The composer takes images, MP4 videos and documents from the "+" button, a drop, or a paste. They
+wait in a tray, and they go out with the message: the text first, then one attachment message with
+the files. In the feed images are tiles that open a full-image viewer; a video plays in place, and a
+document is a card that saves it.
 
 The send itself is the runtime's, shared with apps/web: `data.useSendImages`, documented in
 [`libs/app-runtime/docs/data/image-send.md`](../../../../libs/app-runtime/docs/data/image-send.md).
@@ -12,12 +13,12 @@ depart from the Figma frames.
 Components are in `features/chat/components/images/`, and the tray state is in
 `features/chat/hooks/useImageAttachments.ts`.
 
-## Adding images
+## Adding files
 
 - **"+"** (`AttachButton`) opens the OS picker directly. It used to open a menu whose only entry did
-  the same.
-- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it. It says images,
-  because only images are taken.
+  the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/data`: every type and every
+  extension, because a picker that does not know HWP's type only offers the file by its extension.
+- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it, and says files.
 - **Paste:** pasted files join the tray. A rich copy (Excel, Word: `text/html` or `text/rtf` on the
   clipboard) also carries its text, and that text goes into the message as plain text. A file copied
   in Finder or Explorer carries only its own name as `text/plain`, and that is not inserted.
@@ -25,7 +26,13 @@ Components are in `features/chat/components/images/`, and the tray state is in
 Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.ts`), which counts
 refusals by reason:
 
-- `unsupported`: not PNG, JPEG, GIF or WebP.
+- `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
+  PNG, JPEG, GIF and WebP images, MP4 video, and PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents.
+  An empty or generic type (HWP arrives untyped on most systems) is read from the extension. A
+  video or document whose extension names another format is refused, because the receiver saves it
+  under that name.
+- `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
+  documents 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `duplicate`: the same name, size and modification time as a file already in the tray or in the same
   batch.
 - `limit`: over `MAX_ATTACHMENTS` (10).
@@ -37,8 +44,10 @@ a mixed drop never said what else it left out.
 ## The tray
 
 `ComposerAttachments` is one row of 92px tiles that scrolls sideways, with an `n/10` counter. The
-row used to wrap, and ten images took about 40% of the window. A preview shows a spinner until its
-`<img>` has decoded; the tray tracks that itself rather than decoding each file a second time.
+row used to wrap, and ten images took about 40% of the window. An image's preview shows a spinner
+until its `<img>` has decoded; the tray tracks that itself rather than decoding each file a second
+time. A video or document has no preview and no object URL: its tile shows a kind icon, its name and
+its size.
 
 The remove "×" sits on each tile's top-right corner. It surfaces on hover or focus (see
 [keyboard.md](./keyboard.md#hover-revealed-controls)). Removing a tile moves focus to the tile that
@@ -82,6 +91,34 @@ the same signed address already — both read it from the same message the save 
 heuristic, and a CORS fetch that reuses it fails with "No 'Access-Control-Allow-Origin' header"
 until the copy goes stale.
 
+## Videos and documents in the feed
+
+`toChatFiles` takes a message's videos and documents from its `upload$$`, and `toChatImages` takes
+only the images, so the grid, "Download all" and the viewer never see a PDF. The kind is the
+upload's `stereo`; a slot being sent reads it from the content type it kept. An image is named by
+the upload's `name` — the one-image caption, the viewer and the saved file — and one with no name
+(sent before the server kept names, or still being sent) by its place: `image-1`. `MessageFiles`
+lists them under the images:
+
+- **A video** plays in place (`<video controls preload="metadata">`). The original is signed for
+  inline viewing, and Chromium plays an H.264 MP4 itself. There is no poster: the app sends none.
+- **A document** is a card with a kind icon, its name and size, and a save button. A PDF or text
+  file's name also opens it in the document viewer (below).
+- **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
+  pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
+  **Failed**, the card says so, and the message's retry resends it with the rest.
+- **When only some files go**, the message is sent with those, and the rest follow it as a failed
+  message of their own, with Retry and Delete. A subscription cloud that does not take a format
+  answers `415 UNSUPPORTED` for that file alone; before this the refused file simply disappeared.
+- **An upload from before the server kept names** has none; its card says "File" or "Video".
+
+Saving goes through `downloadImage`, the same fetch-then-save as an image, under the upload's `name`,
+or "file" for an upload with none; the extension comes from the type the bytes arrive with. The
+name is the one the sender's app declared, and the app does not check it against the type again: the
+server refuses, at upload, a video or document whose name ends in another format's extension.
+The address must be `https:`; anything else is treated as nothing to load. A video or document is
+never saved without asking: the shell skips the dialog for images only (above).
+
 ## The viewer
 
 `ImageViewer` is a modal dialog over a plain scrim. Previously the app was frosted behind it.
@@ -97,9 +134,71 @@ until the copy goes stale.
 
 Closing returns focus to the tile that opened it (ui-kit's dialog focus return, ADR-0131).
 
+## The document viewer
+
+`FileViewer` opens a sent PDF or text file in the app, in the same frame as the image viewer: a
+header with the sender, the time and the file name, a save button and a close button. `canPreview`
+decides which cards open it. Only PDF and TXT do: nothing in the page draws a DOCX, XLSX, PPTX or
+Hancom file without handing it, and its signed address, to a third party, so those stay save cards.
+A video already plays in place.
+
+- **The bytes** are fetched when the viewer opens, the same way a save fetches them
+  (`fetchFileBytes`: `https:` only, no cookies, past the HTTP cache). Closing mid-download aborts the
+  fetch. A fetch that fails — an address older than its two-hour signature, say — or a file that
+  will not parse shows "Couldn't open this file" with the save button, not a blank dialog.
+- **A PDF** is drawn by pdf.js (`utils/pdf.ts`), loaded with a dynamic `import()` on the first open
+  so the feed does not pay for it; the load starts alongside the file's download. It is the legacy build: the modern one calls
+  `Map.prototype.getOrInsertComputed`, which Chromium does not ship yet (not in 142, nor in the
+  shell's 130). The
+  pages are canvases only, with no text or annotation layer, so a file someone else sent has no
+  links or forms to act on; XFA is off and scripts never run. pdf.js also gets its data files — the
+  Adobe CMaps and standard fonts a PDF may name without embedding (common in Korean files), the ICC
+  profiles and the image-decoder wasm. The `pdfjs-assets` plugin in `vite.config.mts` serves them at
+  `/pdfjs/<dir>/` in dev and emits them there in a build, leaving out the script-engine wasm.
+  `PdfPages` lays the pages out in a column with a rail of numbered thumbnails beside it, as Slack
+  does. Only pages near their scroll area hold a canvas, each sized for the screen's pixel ratio up
+  to 16 MP, so a long file does not hold every page in memory. Every page keeps its own shape's
+  height whether drawn or not, so drawing never moves the pages around it. A drawing still running
+  when its page leaves, or when the width changes, is cancelled before the next one starts: pdf.js
+  refuses two drawings on one canvas. A window drag redraws once it settles. The thumbnail of the page most in view is marked, and a
+  thumbnail jumps to its page. Closing destroys the document and its worker, and so does a file
+  that fails to open.
+- **A text file** shows its first 1 MB in a wrapping monospaced block, with a line saying so when
+  the file is longer; the save still writes the whole file. Only that first 1 MB is fetched (a
+  `Range` request; if storage answers with the whole file, reading stops at 1 MB), and the card's
+  size says whether there is more. A UTF-16 byte-order mark picks
+  UTF-16; otherwise it is read as UTF-8, and as EUC-KR when the bytes are not UTF-8 — what Korean
+  Windows usually saves a `.txt` as. One stray byte in a UTF-8 file therefore reads it all as EUC-KR.
+
+The viewer opens with focus on close. Save is the first control, and focusing it opens its tooltip,
+which would take the first Esc for itself.
+
+In the Vite dev server pdf.js reports "Setting up fake worker": the dev server adds its client to the
+worker file, the worker fails to start, and pdf.js parses on the main thread instead. A build emits
+the worker file as it is, and it starts.
+
 ## Previews outside the feed
 
-A message with images and no text still says something in the sidebar row and in the OS
-notification: "Photo", or "3 photos" (`shared/utils/messagePreview.ts`). It counts from `upload$$`,
-or from the `uploadIds` a channel head carries, the same way apps/web does. It used to leave a blank
-line, and the banner read "Raine:" with nothing after it.
+A message with attachments and no text still says something in the sidebar row and in the OS
+notification, and it names what it carries (`shared/utils/messagePreview.ts`): "Photo" or "3 photos",
+"Video" or "2 videos", "File" or "3 files", and "3 attachments" when the kinds differ. It used to
+leave a blank line, and the banner read "Raine:" with nothing after it; after that it said "Photo"
+for a PDF too, because the server now stores videos and documents as well.
+
+The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
+or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
+`audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video or
+document is read from the content type its slot kept, and an image slot, which keeps none, counts as
+an image, so a photo on its way never reads as an attachment. A head that only has `uploadIds`
+counts as images too. Kinds
+that differ, and `audio`, read as attachments (a single one as "Attachment"). The rule is meant
+to match how the server picks a push's body key, so a row and its push agree.
+
+A push from another cloud reaches the renderer with the server's `loc_key` and `loc_args` untouched
+(`shared/utils/pushBody.ts`). For an attachment key the body is made here with the same labels, taking
+the count from `loc_args` whether it arrives as FCM's JSON string or as an array. Without this the
+banner would show the shell's body, which is the first loc arg: a bare "3". A message push with no
+text, which is how an attachment-only message is pushed until the server names kinds, and a plural
+key whose count cannot be read both show "New message" instead of an empty line or a wrong number.
+Any other push keeps the body the shell derived. Desktop uses the sidebar's nouns rather than the
+phone's sentences ("Sent 3 photos"), because the same-cloud banner already prefixes the sender.

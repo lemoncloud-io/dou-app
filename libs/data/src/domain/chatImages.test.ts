@@ -1,4 +1,4 @@
-import { CHAT_IMAGE_MAX_BYTES, chatImageCount, judgeChatImages } from './chatImages';
+import { CHAT_IMAGE_MAX_BYTES, chatAttachmentSummary, chatImageCount, judgeChatImages } from './chatImages';
 
 const file = (name: string, type = 'image/jpeg', size = 1024, lastModified = 1): File => {
     const f = new File(['x'], name, { type, lastModified });
@@ -79,5 +79,53 @@ describe('chatImageCount', () => {
         expect(chatImageCount({ uploadIds: ['a', 'b', 'c'] })).toBe(3);
         expect(chatImageCount({})).toBe(0);
         expect(chatImageCount(null)).toBe(0);
+    });
+});
+
+describe('chatAttachmentSummary', () => {
+    const slots = (...stereos: (string | undefined)[]) =>
+        stereos.map(stereo => (stereo ? { id: 'u', stereo } : { id: 'u' })) as never;
+
+    it('names a single kind with its count', () => {
+        expect(chatAttachmentSummary({ upload$$: slots('image') })).toEqual({ kind: 'image', count: 1 });
+        expect(chatAttachmentSummary({ upload$$: slots('video', 'video') })).toEqual({ kind: 'video', count: 2 });
+        expect(chatAttachmentSummary({ upload$$: slots('file', 'file', 'file') })).toEqual({ kind: 'file', count: 3 });
+    });
+
+    it('names a file, and calls a lone audio mixed', () => {
+        expect(chatAttachmentSummary({ upload$$: slots('file') })).toEqual({ kind: 'file', count: 1 });
+        expect(chatAttachmentSummary({ upload$$: slots('audio') })).toEqual({ kind: 'mixed', count: 1 });
+    });
+
+    // Its kind is only in the type the slot kept; read as an image, a PDF being sent was a "Photo".
+    it('names a video or document still being sent by the type its slot kept', () => {
+        const sending = [
+            {
+                localStatus: 'sending',
+                localThumbUrl: 'blob:x',
+                localName: 'a.pdf',
+                localContentType: 'application/pdf',
+            },
+        ] as never;
+        expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'file', count: 1 });
+    });
+
+    it('calls kinds that differ mixed', () => {
+        expect(chatAttachmentSummary({ upload$$: slots('image', 'video') })).toEqual({ kind: 'mixed', count: 2 });
+    });
+
+    // A slot still being sent carries no stereo; reading it as anything but an image would flip a
+    // photo on its way into "attachments" for the moment it is sending.
+    it('takes a slot without stereo for an image', () => {
+        const sending = [{ localStatus: 'sending', localThumbUrl: 'blob:x' }] as never;
+        expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'image', count: 1 });
+        expect(chatAttachmentSummary({ upload$$: slots(undefined, 'image') })).toEqual({ kind: 'image', count: 2 });
+        expect(chatAttachmentSummary({ uploadIds: ['a', 'b'] })).toEqual({ kind: 'image', count: 2 });
+    });
+
+    it('counts the way chatImageCount does, and is null with nothing attached', () => {
+        expect(chatAttachmentSummary({ upload$$: [], uploadIds: ['a'] })).toBeNull();
+        expect(chatAttachmentSummary({})).toBeNull();
+        expect(chatAttachmentSummary(null)).toBeNull();
     });
 });

@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { avatarStyle, displayName, extractErrorMessage } from '../../../shared';
+import { MobileAppPointer, avatarStyle, displayName, focusComposerIfDropped } from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
+import { channelActionErrorKey } from '../utils';
 import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
 
 interface AddMembersDialogProps {
@@ -54,16 +55,24 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
             toast({ description: t('channels.addMembers.added', { count: selected.length }) });
             onOpenChange(false);
         } catch (e) {
-            toast({ variant: 'destructive', description: extractErrorMessage(e) });
+            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
         }
     };
 
     return (
         <Dialog open={open} onOpenChange={next => !isAdding && onOpenChange(next)}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
+            {/* The opener can leave the page while this is open — the intro's actions go once the
+                channel has messages, a menu item goes with its menu. A flex column, not the kit's
+                grid, so that in a short window the candidate list gives way first and the title,
+                search and buttons stay on screen. */}
+            <DialogContent
+                closeLabel={t('common.close')}
+                className="flex flex-col sm:max-w-md"
+                onCloseAutoFocus={focusComposerIfDropped}
+            >
                 <DialogTitle>{t('channels.addMembers.title')}</DialogTitle>
                 <DialogDescription>{t('channels.addMembers.description')}</DialogDescription>
-                <div className="flex flex-col gap-3 pt-2">
+                <div className="flex min-h-0 flex-col gap-3 pt-2">
                     <div className="relative">
                         <Search
                             size={14}
@@ -80,6 +89,8 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                         />
                     </div>
 
+                    {/* 18rem on a roomy window; below that it shrinks with the dialog's height cap,
+                        down to about two rows. */}
                     <div className="scrollbar-thin flex max-h-72 min-h-24 flex-col overflow-y-auto">
                         <CandidateList
                             candidates={filtered}
@@ -145,12 +156,19 @@ const CandidateList = ({
     if (error) {
         return <p className="px-2 py-2 text-callout text-destructive">{t('channels.addMembers.loadFailed')}</p>;
     }
-    if (candidates.length === 0) {
+    // An empty pool cannot tell "everyone is already here" from "there is nobody yet", and the old
+    // line said the first to an owner who had nobody. It now says who can be added here, and that
+    // someone new is invited from the mobile app, which is true either way.
+    if (hasNoCandidates) {
         return (
-            <p className="px-2 py-2 text-callout text-muted-foreground">
-                {t(hasNoCandidates ? 'channels.addMembers.empty' : 'channels.addMembers.noMatches')}
-            </p>
+            <div className="flex flex-col gap-1 px-2 py-2">
+                <p className="text-callout text-muted-foreground">{t('channels.addMembers.empty')}</p>
+                <MobileAppPointer messageKey="mobileApp.invite" />
+            </div>
         );
+    }
+    if (candidates.length === 0) {
+        return <p className="px-2 py-2 text-callout text-muted-foreground">{t('channels.addMembers.noMatches')}</p>;
     }
 
     return (

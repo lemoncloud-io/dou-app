@@ -95,6 +95,30 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'GetContacts', data: {} }, { timeoutMs: 60_000 });
     });
 
+    it('lists the photo library with a timeout long enough to outlast the OS permission prompt', () => {
+        appBridge.listPhotoAlbums();
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'ListPhotoAlbums', data: {} }, { timeoutMs: 60_000 });
+
+        appBridge.listPhotos({ limit: 60 });
+        expect(requestMock).toHaveBeenLastCalledWith(
+            { type: 'ListPhotos', data: { limit: 60 } },
+            { timeoutMs: 60_000 }
+        );
+    });
+
+    it('reads a photo with a timeout that leaves room for an iCloud download', () => {
+        appBridge.readPhoto('p1');
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'ReadPhoto', data: { id: 'p1' } }, { timeoutMs: 120_000 });
+    });
+
+    it('waits for the limited-access sheet for as long as a person may spend in it', () => {
+        appBridge.managePhotoSelection();
+        expect(requestMock).toHaveBeenLastCalledWith(
+            { type: 'ManagePhotoSelection', data: {} },
+            { timeoutMs: 300_000 }
+        );
+    });
+
     it('fetchProducts는 10초 timeout으로 request를 호출한다', () => {
         appBridge.fetchProducts();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchProducts', data: {} }, { timeoutMs: 10_000 });
@@ -164,7 +188,14 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         requestMock.mockResolvedValueOnce({ success: true, data: report });
 
         await expect(appBridge.notifyWebAppReady()).resolves.toEqual(report);
-        expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: {} });
+        // The handshake declares that this build sends FirstScreenReady, which is what lets a shell
+        // tell it apart from an older build and wait for the signal instead of lifting its splash.
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: { holdsBootSplash: true } });
+    });
+
+    it('notifyFirstScreenReady posts FirstScreenReady fire-and-forget', () => {
+        appBridge.notifyFirstScreenReady();
+        expect(postMock).toHaveBeenLastCalledWith({ type: 'FirstScreenReady', data: {} });
     });
 
     // On a plain browser with no native bridge, a reject is expected — it must not break boot.

@@ -5,9 +5,20 @@
     <uses-permission android:name="com.android.vending.BILLING" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- The in-app photo picker reads the library itself. Android 14's "limited" grant is
+         READ_MEDIA_VISUAL_USER_SELECTED; before Android 13 the read is READ_EXTERNAL_STORAGE. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Saving a downloaded image to Pictures/DoU on API 24-28 only; from 29 an app adds its own
+         media without a permission. Saving needs no media-read permission; the only ones declared
+         are the photo picker's above, which fall under Play's photo and video permissions policy. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <application
         android:name=".MainApplication"
@@ -109,6 +120,17 @@
             android:name="io.chatic.dou.service.TransferService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+        <!-- Its own class and authority, so it neither collides with the providers
+             react-native-webview and react-native-image-picker merge in nor shares their rules. -->
+        <provider
+            android:name="io.chatic.dou.media.ShareFileProvider"
+            android:authorities="${applicationId}.share.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_file_paths" />
+        </provider>
         <service
             android:name="io.chatic.dou.push.ChaticFirebaseMessagingService"
             android:exported="false">

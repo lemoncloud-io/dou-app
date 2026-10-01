@@ -100,7 +100,8 @@ reconnect catch-up run for as long as it is on screen:
   `usePlaceSync(placeId)`.
 - Dynamic list: `runtime.sync.getSyncManager().registerChannel(id)` / `registerPlace(id)` /
   `registerProfile(id)` / `registerJoin(id)`, called per id and disposed on cleanup —
-  `useChannelProfiles.ts` and `useMyJoins.ts` (`useJoinSyncRegistration`) are the app's examples.
+  `useMyJoins.ts` (`useJoinSyncRegistration`) is the app's example. `useChannelProfiles.ts` is the
+  deferred variant, which registers only after a read — see [data-layer.md](../feature/channels/data-layer.md).
   Pass the cloud as the third argument (`registerJoin(id, undefined, { cid })`) whenever the caller
   knows it, and build any `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`: without a cloud
   the target lands on whichever cloud is selected when the effect runs, and the session uid is only
@@ -142,11 +143,11 @@ Direct socket `send` / `emit` is not a path the app has. Every write goes throug
 
 The sync runtime replays registered targets automatically on a socket swap (reconnect / re-auth). A
 `sid`/`cid` context change alone does **not** trigger a re-fetch — that is the app's job.
-`app/runtime/useBackgroundSync.ts` owns it, with four numbered triggers in its own comments:
+`app/runtime/useBackgroundSync.ts` owns it, with five numbered triggers in its own comments:
 
 ```ts
-void repos.place.refreshList().catch(() => {}); // place has no delta gateway → always full
 await Promise.all([
+    repos.place.refreshList(), // place has no delta gateway → always full
     repos.user.getMyProfile(),
     /* channel-sync:${cid} delta via repos.channel.syncChannels(since) */
     /* sent relay invites — skipped for a cloud session or a guest */
@@ -179,6 +180,17 @@ on the _same_ socket and stays `authenticated`, so it produces no rising edge �
 a site reached only by switching would never be fetched and its channel list would stay empty. Fires
 once the switch settles (verified, not mid-switch) and only when `prevSiteRef` actually changed, so
 a cloud switch (already handled by Trigger 1) is not double-fetched.
+
+**Trigger 5 — on request**, from home's pull-to-refresh. The hook is mounted once under
+`AppRuntime`, so a screen cannot call into it; it registers a handler in
+`app/runtime/backgroundRefresh.ts`, and the screen calls `requestBackgroundRefresh()`, which settles
+when the pass has. The pass is Trigger 1's — lists plus `loadSelfChannel()` — under Trigger 3's
+guards: unverified or mid-switch, nothing is sent and the request settles at once, so a spinner
+never waits on a socket answering for the wrong session. A request made while one is still running
+joins it instead of starting a second pass, since two passes read the same delta watermark and the
+last to answer writes it. The place snapshot is awaited inside `Promise.all` rather than
+fired and forgotten: the automatic triggers ignore the returned promise either way, but a pull has
+to keep its spinner up until the place rail has been re-asked too.
 
 **Chat feed.** The chat plan has no poll — only live push and reconnect catch-up — so a missed push
 does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` complements

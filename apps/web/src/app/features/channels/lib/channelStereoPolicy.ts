@@ -104,8 +104,9 @@ export const removalActionFor = (kind: ChannelKind, isChannelOwner: boolean): Ch
  *
  * `stereo` cannot tell these apart — both are `'dm'` — and they are not the same room. A relay 1:1
  * is reached by inviting a phone number, so it has an invite behind it and can be re-opened by
- * sending another one. A cloud 1:1 is opened by naming a member directly (`channel.startDm`), so
- * there is no invite in its history and no number to send one to.
+ * sending another one. A cloud 1:1 is opened by naming a member directly (`channel.startDm` —
+ * desktop offers it, mobile no longer does), so there is no invite in its history and no number to
+ * send one to.
  */
 export type DmLineage = 'relay' | 'cloud';
 
@@ -129,6 +130,18 @@ export const dmLineageOf = (
     if (!channel || channelKindOf(channel.stereo) !== 'dm') return undefined;
     return channel.cid === RELAY_CLOUD_ID ? 'relay' : 'cloud';
 };
+
+/**
+ * Whether home lists a room in the Self Chat section rather than under a place: the
+ * notes-to-self room of a subscription cloud. It belongs to the account, not to a place, so under a
+ * place it showed in whichever one it was tagged with and in none of the others. On the relay it
+ * stays in its one place, which is the only list there.
+ *
+ * Cloud 1:1s are in no home list on mobile at all — the place list leaves them out because they are
+ * read cloud-wide (`isInPlaceList`), and this section does not take them either.
+ */
+export const isInCloudSelfSection = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
+    channel?.stereo === 'self' && channel.cid !== RELAY_CLOUD_ID;
 
 /**
  * Whether this room's UI may talk about invites — the departure footer, its re-invite CTA, and the

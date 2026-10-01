@@ -1,18 +1,22 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { ChevronLeft } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
+import type { DomainProfile } from '@chatic/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
+    Skeleton,
     avatarStyle,
-    isPlaceholderName,
+    resolveDisplay,
+    useAccountName,
     useCopyToClipboard,
     useCurrentPlace,
-    useDisplayProfile,
+    useMyProfile,
     useSiteProfileMap,
     useSiteProfiles,
 } from '../../../shared';
@@ -53,7 +57,8 @@ const SectionTitle = ({ children }: { children: string }) => (
  * Single profile surface. The "This place" card is how you appear in the current
  * place (per-place nick/photo, edited via the optimistic dialog); the "Account"
  * card is the read-only canonical (global) identity. One door — there is no
- * separate place-profile menu entry.
+ * separate place-profile menu entry. With no place selected (the Default Cloud) there
+ * is nowhere to save a place profile, so the card is not offered at all.
  */
 export const ProfilePage = () => {
     const { t } = useTranslation();
@@ -61,7 +66,8 @@ export const ProfilePage = () => {
     // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile
     // and the account email from the active session token.
     const { userId } = runtime.session.useSessionIdentity();
-    const { userName, photo } = runtime.session.useRuntimeProfile();
+    const { photo } = runtime.session.useRuntimeProfile();
+    const accountName = useAccountName();
     const accountUser = runtime.session.getActiveSessionUser() as { email?: string } | null;
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
@@ -71,15 +77,33 @@ export const ProfilePage = () => {
     // unmounted here, so without this the optimistic self-edit would not reflect
     // in the "This place" card until navigating back home.
     useSiteProfiles();
-    const { placeName } = useCurrentPlace();
+    const { placeName, placeId } = useCurrentPlace();
     const placeLabel = placeName || t('profile.thisPlaceFallback');
-    // Whether I have an active per-place override here (vs falling back to the
-    // account). Resolved from the display store (fed by useSiteProfiles) by my
-    // account uid.
-    const hasPlaceProfile = !!useSiteProfileMap()[userId ?? ''];
+    // Whether I have a per-place override here (vs falling back to the account). The display store
+    // (fed by useSiteProfiles, by my account uid) is reset when this page mounts and only gains my
+    // entry once my place profile has been read, which used to happen when the edit dialog opened:
+    // the card said "Set up" and flipped to "Edit" behind the dialog. So the page reads it once on
+    // mount and draws the card only once that read settles, or the cache already has my entry.
+    const cachedPlaceProfile = useSiteProfileMap()[userId ?? ''];
+    const { load: loadPlaceProfile } = useMyProfile();
+    const [placeRead, setPlaceRead] = useState<{ profile: DomainProfile | null } | null>(null);
+    useEffect(() => {
+        let live = true;
+        void loadPlaceProfile().then(profile => {
+            if (live) setPlaceRead({ profile });
+        });
+        return () => {
+            live = false;
+        };
+    }, [loadPlaceProfile]);
+    // The read's own result stands in until its cache write reaches the store, so the card does not
+    // flip for the frame in between.
+    const placeProfile = cachedPlaceProfile ?? placeRead?.profile ?? undefined;
+    const hasPlaceProfile = !!placeProfile;
+    const placeStateKnown = !!cachedPlaceProfile || placeRead !== null;
 
     const fallback = t('profile.unknown');
-    const name = userName || fallback;
+    const name = accountName || fallback;
     const email = accountUser?.email || t('profile.notSet');
     const uid = userId ?? fallback;
     // No email on the account ⇒ a Guest Session (Social Login backfills the
@@ -88,13 +112,13 @@ export const ProfilePage = () => {
     const showSocialLogin = !accountUser?.email && isSocialLoginEnabled();
 
     // Effective display = my Place Profile when active, else the global identity.
-    const globalName = isPlaceholderName(userName) ? '' : userName;
-    const { name: displayName, thumbnail: displayPhoto } = useDisplayProfile(
-        userId ?? '',
-        globalName || fallback,
-        photo
+    const { name: displayName, thumbnail: displayPhoto } = resolveDisplay(
+        placeProfile,
+        accountName || fallback,
+        photo ?? undefined
     );
-    const initial = displayName.charAt(0).toUpperCase() || '?';
+    // Initial of a real name only, else "?" — the edit dialog's avatar draws the same.
+    const initial = (placeProfile?.nick?.trim() || accountName).charAt(0).toUpperCase() || '?';
 
     const handleCopyUid = () => {
         if (userId) copy(userId);
@@ -110,43 +134,61 @@ export const ProfilePage = () => {
                 <h1 className="text-heading text-foreground">{t('profile.title')}</h1>
             </header>
 
-            <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
-                <section className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
-                        {placeName && <PlaceChip name={placeName} />}
-                    </div>
-                    <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
-                        <Avatar className="h-16 w-16 rounded-xl ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                            {displayPhoto && (
-                                <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
-                            )}
-                            <AvatarFallback
-                                className="rounded-xl text-title"
-                                style={avatarStyle(userId || displayName)}
-                            >
-                                {initial}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="truncate text-title tracking-tight text-foreground">{displayName}</span>
-                            <span className="text-caption text-muted-foreground">
-                                {hasPlaceProfile
-                                    ? t('profile.thisPlaceHint', { place: placeLabel })
-                                    : t('profile.usingAccountHere')}
-                            </span>
+            <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 space-y-8 overflow-y-auto p-8">
+                {placeId && (
+                    <section className="flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
+                            {placeName && <PlaceChip name={placeName} />}
                         </div>
-                        <Button
-                            variant={hasPlaceProfile ? 'outline' : 'default'}
-                            size="sm"
-                            onClick={openEditPlaceProfile}
-                        >
-                            {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
-                        </Button>
-                    </div>
-                </section>
+                        {placeStateKnown ? (
+                            <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
+                                <Avatar className="h-16 w-16 rounded-xl">
+                                    {displayPhoto && (
+                                        <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
+                                    )}
+                                    <AvatarFallback
+                                        className="rounded-xl text-title"
+                                        style={avatarStyle(userId || displayName)}
+                                    >
+                                        {initial}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                    <span className="truncate text-title tracking-tight text-foreground">
+                                        {displayName}
+                                    </span>
+                                    <span className="text-caption text-muted-foreground">
+                                        {hasPlaceProfile
+                                            ? t('profile.thisPlaceHint', { place: placeLabel })
+                                            : t('profile.usingAccountHere')}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant={hasPlaceProfile ? 'outline' : 'default'}
+                                    size="sm"
+                                    onClick={openEditPlaceProfile}
+                                >
+                                    {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div
+                                role="status"
+                                aria-label={t('chat.loading')}
+                                className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
+                            >
+                                <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
+                                <div className="flex flex-1 flex-col gap-2">
+                                    <Skeleton className="h-5 w-32" />
+                                    <Skeleton className="h-3 w-48" />
+                                </div>
+                            </div>
+                        )}
+                    </section>
+                )}
 
-                <section className="mt-8 flex flex-col gap-4">
+                <section className="flex flex-col gap-4">
                     <SectionTitle>{t('profile.account')}</SectionTitle>
                     <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
                         <ProfileField label={t('profile.name')} value={name} />
@@ -184,7 +226,7 @@ export const ProfilePage = () => {
                 </section>
             </div>
 
-            <EditPlaceProfileDialog />
+            {placeId && <EditPlaceProfileDialog />}
         </div>
     );
 };

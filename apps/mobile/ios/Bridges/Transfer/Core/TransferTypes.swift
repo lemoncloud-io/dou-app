@@ -1,7 +1,6 @@
 import Foundation
 
-/// Which way the bytes move. `download` is part of the contract but not implemented yet, so the
-/// core rejects it instead of silently doing something else.
+/// Which way the bytes move. A download writes into a folder the shell owns (`DownloadFiles`).
 enum TransferDirection: String {
     case upload
     case download
@@ -46,6 +45,8 @@ struct TransferRequest {
     let contentType: String?
     let contentLength: Int64?
     let title: String?
+    /// `download` only: the file name hint (`file.name`). Where the file goes is the shell's choice.
+    let fileName: String?
 
     /// Reads the bridge dictionary. Missing or mistyped fields become empty values and are rejected
     /// by validation, so a malformed request always ends as `INVALID` rather than a crash.
@@ -74,6 +75,7 @@ struct TransferRequest {
             contentLength = nil
         }
         title = dictionary["title"] as? String
+        fileName = file["name"] as? String
     }
 
     init(
@@ -85,7 +87,8 @@ struct TransferRequest {
         fileUri: String,
         contentType: String? = nil,
         contentLength: Int64?,
-        title: String? = nil
+        title: String? = nil,
+        fileName: String? = nil
     ) {
         self.transferId = transferId
         self.direction = direction
@@ -96,6 +99,22 @@ struct TransferRequest {
         self.contentType = contentType
         self.contentLength = contentLength
         self.title = title
+        self.fileName = fileName
+    }
+}
+
+/// The file a download wrote, as the bridge payload `DownloadedFile` carries it.
+struct DownloadedFile: Equatable {
+    /// `file://` URI inside the download folder.
+    let uri: String
+    let size: Int64
+    /// The response's `Content-Type`, passed through unjudged.
+    let contentType: String?
+
+    var dictionary: [String: Any] {
+        var payload: [String: Any] = ["uri": uri, "size": NSNumber(value: size)]
+        if let contentType { payload["contentType"] = contentType }
+        return payload
     }
 }
 
@@ -112,6 +131,8 @@ struct TransferSnapshot: Equatable {
     let errorMessage: String?
     /// Not part of the bridge payload; the OS layer uses it for notification text.
     let title: String?
+    /// A committed download's file; only on a download that ended `responded` with a 2xx status.
+    var file: DownloadedFile? = nil
 
     /// Bridge payload. Optional fields are left out rather than sent as null, matching the
     /// optional-property shape of the TypeScript type.
@@ -127,6 +148,7 @@ struct TransferSnapshot: Equatable {
         if let providerCode { payload["providerCode"] = providerCode }
         if let errorCode { payload["errorCode"] = errorCode.rawValue }
         if let errorMessage { payload["errorMessage"] = errorMessage }
+        if let file { payload["file"] = file.dictionary }
         return payload
     }
 }

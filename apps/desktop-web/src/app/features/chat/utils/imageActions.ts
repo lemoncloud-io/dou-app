@@ -1,3 +1,5 @@
+import { chatAttachmentExtension } from '@chatic/data';
+
 import { isSafeImageUrl, type ChatImage } from './chatImages';
 
 const clickSave = (href: string, name: string): void => {
@@ -10,31 +12,48 @@ const clickSave = (href: string, name: string): void => {
     anchor.remove();
 };
 
-const EXTENSIONS: Record<string, string> = {
-    'image/png': 'png',
-    'image/jpeg': 'jpg',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-};
-
-/** A sent image is named by its place in the message; give the saved file the extension its bytes have. */
+/**
+ * An image sent before the server kept names is named by its place in the message, and such a
+ * document is "file"; give the saved file the extension its bytes have.
+ */
 const withExtension = (name: string, type: string): string => {
-    const extension = EXTENSIONS[type];
+    const extension = chatAttachmentExtension(type);
     return !extension || /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${extension}`;
 };
 
 /**
- * The bytes of a remote image. Only an address an image may come from, and without this page's
- * cookies — the address is signed, and it came from message data.
+ * The bytes of a sent file, from its signed `https:` address, without this page's cookies — the
+ * address came from message data. `maxBytes` asks for only the start of it.
  *
- * Never from the HTTP cache: the copy an `<img>` left there for this address has no CORS headers
- * (docs/chat/images.md).
+ * Never from the HTTP cache: the copy an `<img>` or `<video>` left there for this address has no
+ * CORS headers (docs/chat/images.md).
  */
+export const fetchFileBytes = async (url: string, signal?: AbortSignal, maxBytes?: number): Promise<Blob> => {
+    if (!url.startsWith('https://')) throw new Error('file address refused');
+    // Only the start, when that is all that is shown; storage answers a range with just those bytes.
+    const headers = maxBytes ? { Range: `bytes=0-${maxBytes - 1}` } : undefined;
+    const response = await fetch(url, { credentials: 'omit', cache: 'no-store', signal, headers });
+    if (!response.ok) throw new Error(`file fetch failed: ${response.status}`);
+    if (!maxBytes || response.status === 206 || !response.body) return response.blob();
+    // Storage ignored the range and is sending the whole file: keep what was asked for, stop the rest.
+    // A fetch body's chunks are backed by plain ArrayBuffers, which is what a Blob takes.
+    const reader = response.body.getReader() as ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>;
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
+    let size = 0;
+    while (size < maxBytes) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        size += value.length;
+    }
+    void reader.cancel();
+    return new Blob(chunks);
+};
+
+/** The bytes of a remote image. Only an address an image may come from. */
 const fetchImage = async (url: string): Promise<Blob> => {
     if (!isSafeImageUrl(url)) throw new Error('image address refused');
-    const response = await fetch(url, { credentials: 'omit', cache: 'no-store' });
-    if (!response.ok) throw new Error(`image fetch failed: ${response.status}`);
-    return response.blob();
+    return fetchFileBytes(url);
 };
 
 /**

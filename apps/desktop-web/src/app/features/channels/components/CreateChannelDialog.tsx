@@ -4,20 +4,24 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogTitle,
-    DialogFooter,
-} from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
 
-import { useDesktopChannelMutations } from '../../../shared';
+import { MobileAppPointer, radioGroupOptions, useDesktopChannelMutations } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
-import { isValidChannelName } from '../utils';
+import { createChannelFailure, isValidChannelName, type CreateChannelFailure } from '../utils';
 import { ChannelNameField } from './ChannelNameField';
 
 type Visibility = 'public' | 'private';
+
+// Only the failures a second try can fix say "try again"; a full place or a refusal says what it is.
+const FAILURE_KEY: Record<CreateChannelFailure, string> = {
+    limit: 'channels.create.failed.limit',
+    denied: 'channels.create.failed.denied',
+    network: 'errors.network',
+    other: 'channels.create.failed',
+};
+
+const VISIBILITIES: readonly Visibility[] = ['public', 'private'];
 
 interface CreateChannelDialogProps {
     /**
@@ -35,18 +39,22 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
 
     const [name, setName] = useState('');
     const [visibility, setVisibility] = useState<Visibility>('public');
-    const [isError, setIsError] = useState(false);
+    const [failure, setFailure] = useState<CreateChannelFailure | null>(null);
     const [showInvalid, setShowInvalid] = useState(false);
+
+    const visibilityProps = radioGroupOptions(VISIBILITIES, visibility, setVisibility);
 
     const reset = () => {
         setName('');
         setVisibility('public');
-        setIsError(false);
+        setFailure(null);
         setShowInvalid(false);
     };
 
     const handleOpenChange = (next: boolean) => {
-        if (next) return;
+        // Escape, the X and the backdrop are ignored while the channel is being created, as in
+        // Rename and AddMembers: closing then would drop a failure message with nobody to read it.
+        if (next || isMutating) return;
         reset();
         close();
     };
@@ -59,23 +67,25 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
             setShowInvalid(true);
             return;
         }
-        setIsError(false);
+        setFailure(null);
         try {
             const channel = await createChannel({ stereo: visibility, name: trimmed });
             if (channel.id) onCreated(channel.id);
             reset();
             close();
             toast({ description: t('toast.channelCreated') });
-        } catch {
-            setIsError(true);
+        } catch (error) {
+            setFailure(createChannelFailure(error));
         }
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
+            {/* No description: the title and the field's own label and hint say it all, and a
+                hidden copy of the title made a screen reader read it twice. `undefined` is
+                Radix's opt-out from its missing-description warning. */}
+            <DialogContent closeLabel={t('common.close')} aria-describedby={undefined} className="sm:max-w-md">
                 <DialogTitle>{t('channels.create.title')}</DialogTitle>
-                <DialogDescription className="sr-only">{t('channels.create.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
                     <ChannelNameField
                         id="channel-name"
@@ -95,18 +105,16 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                         {/* A naked Public/Private pair says nothing about what either
                             does, so each option carries its own consequence line. */}
                         <div role="radiogroup" aria-labelledby="create-channel-visibility" className="flex gap-2">
-                            {(['public', 'private'] as const).map(option => (
+                            {VISIBILITIES.map(option => (
                                 <button
                                     key={option}
                                     type="button"
-                                    role="radio"
-                                    aria-checked={visibility === option}
-                                    onClick={() => setVisibility(option)}
+                                    {...visibilityProps(option)}
                                     className={cn(
                                         'focus-ring flex flex-1 flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-callout transition-colors',
                                         visibility === option
-                                            ? 'border-primary bg-primary/10 font-semibold text-foreground'
-                                            : 'border-input text-muted-foreground hover:bg-accent/50'
+                                            ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
+                                            : 'border-control-border text-muted-foreground hover:bg-accent/50'
                                     )}
                                 >
                                     {t(`channels.create.${option}`)}
@@ -118,10 +126,11 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
                         </div>
                     </div>
 
-                    {isError && (
-                        <p role="alert" className="text-callout text-destructive">
-                            {t('channels.create.failed')}
-                        </p>
+                    {failure && (
+                        <div role="alert" className="flex flex-col gap-1">
+                            <p className="text-callout text-destructive">{t(FAILURE_KEY[failure])}</p>
+                            {failure === 'limit' && <MobileAppPointer />}
+                        </div>
                     )}
 
                     <DialogFooter className="gap-2 pt-2 sm:space-x-0">

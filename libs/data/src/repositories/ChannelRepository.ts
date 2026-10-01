@@ -226,8 +226,11 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // Sync ingests channels across all places, so map without binding to the active sid.
         const remote = await this.channelSocketDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
 
+        // A row with no place is dropped, with one exception: the Self Channel belongs to the account,
+        // not to a place, and the relay sends it with an empty `$`. Dropping it left a new user's Home
+        // with no channel at all.
         const domainList = (remote.list || []).filter(
-            item => !!item.$?.sid && !!item.id && !this.isGuardedAfterLeave(item.id)
+            item => (!!item.$?.sid || item.stereo === 'self') && !!item.id && !this.isGuardedAfterLeave(item.id)
         );
 
         if (domainList.length > 0) {

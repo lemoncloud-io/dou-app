@@ -10,8 +10,8 @@ import { ProfileCardContent } from './ProfileCard';
 
 /**
  * Slack-style right-side profile pane. Visibility is driven by
- * useProfilePanelStore.target; the host (HomePage) renders this only when set
- * and keeps it mutually exclusive with the thread/settings panes. Reuses the
+ * useProfilePanelStore.target; the host (HomePage) renders this only when set,
+ * stacked on the pane it opened from, which shows again once this closes. Reuses the
  * popover's ProfileCardContent as its body so both surfaces resolve and render
  * one identity.
  */

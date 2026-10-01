@@ -31,7 +31,7 @@ class NotificationService: UNNotificationServiceExtension {
             
             // Translate title & body
             let finalTitle = translate(dict: i18nDict, key: titleLocKey, args: titleLocArgs)
-            let finalBody = translate(dict: i18nDict, key: bodyLocKey, args: bodyLocArgs)
+            let finalBody = translate(dict: i18nDict, key: bodyLocKey, args: bodyLocArgs, fallbackKey: NotificationService.bodyFallbackKey)
             
             if !finalTitle.isEmpty {
                 bestAttemptContent.title = finalTitle
@@ -162,7 +162,10 @@ class NotificationService: UNNotificationServiceExtension {
     }
 
     // MARK: - Localization Helpers
-    
+
+    /// Generic body for a push whose template came without the args it names. Never sent by the server.
+    private static let bodyFallbackKey = "push_chat_fallback_body"
+
     /// A language pinned in the app's Settings wins. `system`, no value (the app has not launched
     /// since updating) or an unreadable store all fall back to the device language, as before.
     private func resolveLanguage() -> String {
@@ -208,12 +211,18 @@ class NotificationService: UNNotificationServiceExtension {
          }
     }
     
-    private func translate(dict: [String: Any]?, key: String, args: [String]) -> String {
+    /// `fallbackKey` names the copy to show when the template needs more args than the payload
+    /// sent; without one the unfilled placeholders are dropped instead (see `formatTemplate`).
+    private func translate(dict: [String: Any]?, key: String, args: [String], fallbackKey: String? = nil) -> String {
         guard !key.isEmpty else { return "" }
+        // A key this build does not know stays on the banner as the key itself. That is the visible
+        // sign a payload outran the installed app, which the server's rollout order is there to
+        // prevent — covering it up here would hide the rollout mistake as well.
         guard let dict = dict else { return key }
         guard let template = resolveKey(dict: dict, path: key) else { return key }
 
-        return formatTemplate(template: template, args: args)
+        let fallback = fallbackKey.flatMap { resolveKey(dict: dict, path: $0) }
+        return formatTemplate(template: template, args: args, fallback: fallback)
     }
     
     private func resolveKey(dict: [String: Any], path: String) -> String? {
@@ -230,12 +239,44 @@ class NotificationService: UNNotificationServiceExtension {
         return current as? String
     }
     
-    private func formatTemplate(template: String, args: [String]) -> String {
+    /// A positional placeholder in a push template; the digits are the index of the arg it takes.
+    private static let placeholderPattern = try! NSRegularExpression(pattern: "\\{(\\d+)\\}")
+
+    /// Fills the template's `{n}` placeholders from `args`, in order.
+    ///
+    /// When the template names a placeholder `args` does not reach — a chat push for a message with
+    /// no text sends no args for its `{0}` body — the result is not shown as-is: it is `fallback`
+    /// when there is one, otherwise the template with those placeholders removed and trimmed. So a
+    /// body falls back to generic copy while a title just loses the part it could not fill.
+    ///
+    /// The hole is judged on the template, not on the substituted result, so an arg that itself
+    /// contains `{0}` (a message quoting code) is still shown verbatim. The Android service and
+    /// the RN shell apply the same rule.
+    private func formatTemplate(template: String, args: [String], fallback: String?) -> String {
+        let pattern = NotificationService.placeholderPattern
+        let whole = NSRange(template.startIndex..., in: template)
+        // Walked back to front so removing a hole does not shift the ranges still to visit.
+        let holes = pattern.matches(in: template, range: whole).filter { match in
+            guard let range = Range(match.range(at: 1), in: template), let index = Int(template[range]) else {
+                return true // an index too long for Int is certainly past the args too
+            }
+            return index >= args.count
+        }
+
+        if !holes.isEmpty, let fallback = fallback {
+            return fallback
+        }
+
         var result = template
+        for hole in holes.reversed() {
+            if let range = Range(hole.range, in: result) {
+                result.removeSubrange(range)
+            }
+        }
         for (index, arg) in args.enumerated() {
             result = result.replacingOccurrences(of: "{\(index)}", with: arg)
         }
-        return result
+        return holes.isEmpty ? result : result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     /// Normalizes APNs loc-args into positional strings.

@@ -66,6 +66,45 @@ describe('서버가 답한 실패는 건별로 남는다', () => {
     });
 });
 
+describe('an answer that a row is absent is not a failure', () => {
+    const missingProfile = () => serverError('404 NOT FOUND - not found @doGet(profiles/s1@u2) - profile.get:error');
+
+    it('records profile.get 404 at info, not error', () => {
+        socketFailureReporter.recordFailure(CLOUD, 'request', 'profile.get', missingProfile());
+
+        expect(error).not.toHaveBeenCalled();
+        expect(info).toHaveBeenCalledTimes(1);
+        expect(info.mock.calls[0][1]).toBe('404 socket request found nothing — cloud.request(profile.get)');
+        expect((info.mock.calls[0][2] as { data: Record<string, unknown> }).data).toMatchObject({
+            type: 'profile.get',
+            code: 404,
+        });
+    });
+
+    it('keeps any other profile.get status an error', () => {
+        socketFailureReporter.recordFailure(CLOUD, 'request', 'profile.get', serverError('403 FORBIDDEN'));
+        socketFailureReporter.recordFailure(CLOUD, 'request', 'profile.get', serverError('500 INTERNAL'));
+
+        expect(error).toHaveBeenCalledTimes(2);
+        expect(info).not.toHaveBeenCalled();
+    });
+
+    it('keeps a 404 on any other request type an error', () => {
+        socketFailureReporter.recordFailure(CLOUD, 'request', 'channel.get', serverError('404 NOT FOUND'));
+
+        expect(error).toHaveBeenCalledTimes(1);
+    });
+
+    it('still ends an unavailable streak, because the server answered', () => {
+        socketFailureReporter.recordFailure(CLOUD, 'request', 'join.get', serverError('503 SOCKET NOT CONNECTED'));
+        socketFailureReporter.recordFailure(CLOUD, 'request', 'profile.get', missingProfile());
+        socketFailureReporter.recordSuccess(CLOUD);
+
+        // Only the absence entry: the streak was reset by the 404, so the success has nothing to end.
+        expect(info).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('타임아웃은 거절과 다른 사건이다', () => {
     it('408은 warn으로 남긴다', () => {
         socketFailureReporter.recordFailure(

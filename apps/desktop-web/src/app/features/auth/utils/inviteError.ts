@@ -3,13 +3,15 @@ import { logger } from '@chatic/bridges';
 import { classifyWireError, type WireErrorKind } from '../../../shared';
 
 /**
- * Invite-login failure surfaced to the user. Two shapes:
+ * Invite-login failure surfaced to the user. Three shapes:
  *  - `format` — the pasted input never reached the backend (local parse fail),
  *    so there's no server text; we show a canned hint.
+ *  - `backend` — the link names a server this build does not trust, so nothing
+ *    was sent (see `isTrustedInviteBackend`).
  *  - `server` — the API/socket rejected it; the raw text goes to the console and
  *    the dialog gets a sentence that says what to do next.
  */
-export type InviteLoginError = { kind: 'format' } | { kind: 'server'; message: string };
+export type InviteLoginError = { kind: 'format' } | { kind: 'backend' } | { kind: 'server'; message: string };
 
 /**
  * Pull the backend's own error text out of a caught error. Covers both paths:
@@ -58,6 +60,7 @@ const KEY_BY_KIND: Record<WireErrorKind, InviteErrorKey> = {
 /** Resolve the user-facing line for an invite-login error. */
 export const inviteLoginErrorText = (error: InviteLoginError, t: (key: string) => string): string => {
     if (error.kind === 'format') return t('auth.invite.failed.format');
+    if (error.kind === 'backend') return t('auth.invite.failed.backend');
     logger.error('AUTH', '[InviteLogin] rejected', { raw: error.message });
     return t(KEY_BY_KIND[classifyWireError(error.message)]);
 };

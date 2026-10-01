@@ -319,7 +319,7 @@ host.pushEvent({ type: 'OnReceiveNotification', success: true, data: { notificat
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.2.0')
+       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.3.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -352,8 +352,10 @@ poll sees a channel, `flushBuffer` walks the queue and splits it: a message whos
 
 ### 2. The handshake
 
-`apps/web` calls `request({ type: 'WebAppReady', data: {} })` — a request, not a post, so the
-capability report resolves to the caller. The host answers with its protocol version and the full
+`apps/web` calls `request({ type: 'WebAppReady', data: { holdsBootSplash: true } })` — a request, not
+a post, so the capability report resolves to the caller. The host hands the request's `data` to its
+`onAppReady(payload)` callback; that declaration is how the mobile shell tells a web build that will
+later post `FirstScreenReady` from an older one that never will. The host answers with its protocol version and the full
 `supportedWebMessages` / `supportedAppMessages` lists taken from the keys and values of
 `WEB_MESSAGE_RESPONSE_TYPE`, plus whichever cache-capability fields it declares. This is also the
 message that most often flips the host's readiness flag and flushes its event buffer.
@@ -434,7 +436,7 @@ npx nx run-many -t typecheck --exclude=desktop-web,block-kit-builder,@chatic/lan
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.2.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.3.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. `BRIDGE_PROTOCOL_VERSION` is an alias of it today, kept separate so a future
 compatibility layer can run a newer bridge that still speaks an older protocol.
@@ -446,3 +448,8 @@ every shell look newer than it is. The value reaches the wire through the handsh
 `version` field this lib stamps on every outgoing message, and through `protocolVersion` on the
 errors it builds — `DESTROYED` being the one exception, since a client that has been torn down is not
 reporting a protocol problem.
+
+The version is a record, not a switch: no caller decides what a peer can do by comparing it. `2.3.0`
+opened `StartFileTransfer` to downloads and added `SaveToPhotoLibrary` and `ShareFile`; a web build
+that needs those asks whether the handshake's `supportedWebMessages` lists the message names, which
+says what the installed shell actually handles.

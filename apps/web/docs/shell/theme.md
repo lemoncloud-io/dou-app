@@ -44,9 +44,9 @@ once, at boot — without this, an in-app theme change would leave the mobile st
 until the next reload. It looks the meta tag up by `meta[name="theme-color"]`, not by `id`: binding
 to an `id` would silently break the sync the moment that attribute is removed.
 
-**`ThemeApplier` never touches `--splash-bg`.** Its only consumer is the `#splash` placeholder
-inside `index.html`'s `#root`, and React replaces that placeholder on its first commit — before
-`ThemeApplier` ever runs. Only the pre-paint script's own write to that variable has any effect.
+The boot cover (`#splash`, [boot-cover.md](./boot-cover.md)) needs nothing from `ThemeApplier`: it is
+styled from the same `<html>` `dark` class, so the pre-paint script colours it and a theme corrected
+before the first screen recolours it.
 
 The color pair (`#121212`/`#ffffff`) is hand-maintained in several places that cannot import a
 shared constant: `index.html`'s pre-paint script and its anti-flash `<style>` block,

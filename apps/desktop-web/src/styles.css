@@ -1,8 +1,47 @@
-/* Google Fonts does not serve Pretendard (that request answers 400), so the app
-   ran on the system fallback. jsDelivr carries the upstream release — the full files,
-   not the Unicode-range subset: the subset has no U+200B glyph, which Lexical inserts
-   while an IME composes, and without it the caret lands inside the composing syllable. */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+/* Pretendard, declared here rather than pulled in by an @import of the upstream stylesheet:
+   an @import holds the whole UI until that CDN request returns, so a slow network left the first
+   window blank. These rules sit in the bundled CSS; a face downloads only once text needs it, and
+   `swap` paints with the fallback until then. Only the weights the UI uses (400/500/600/700).
+   Google Fonts does not serve Pretendard (that request answers 400), so the files come from
+   jsDelivr's copy of the upstream release — the full files, not the Unicode-range subset: the
+   subset has no U+200B glyph, which Lexical inserts while an IME composes, and without it the
+   caret lands inside the composing syllable. */
+@font-face {
+    font-family: Pretendard;
+    font-weight: 400;
+    font-display: swap;
+    src:
+        local('Pretendard Regular'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Regular.woff2')
+            format('woff2');
+}
+@font-face {
+    font-family: Pretendard;
+    font-weight: 500;
+    font-display: swap;
+    src:
+        local('Pretendard Medium'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Medium.woff2')
+            format('woff2');
+}
+@font-face {
+    font-family: Pretendard;
+    font-weight: 600;
+    font-display: swap;
+    src:
+        local('Pretendard SemiBold'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-SemiBold.woff2')
+            format('woff2');
+}
+@font-face {
+    font-family: Pretendard;
+    font-weight: 700;
+    font-display: swap;
+    src:
+        local('Pretendard Bold'),
+        url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Bold.woff2')
+            format('woff2');
+}
 
 @tailwind base;
 @tailwind components;
@@ -58,8 +97,10 @@
         --sidebar: 0 0% 100%; /* #FFFFFF Channel List Panel */
         --sidebar-foreground: 0 0% 0%;
 
-        /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme) */
-        --avatar-l: 40%;
+        /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme).
+           White initials at 40% measured 3.33:1 on the yellow hues; 32% holds 4.91:1 on the
+           weakest hue (the sweep in src/tokenContrast.spec.ts). */
+        --avatar-l: 32%;
         --avatar-fg: 0 0% 100%;
 
         /* Figma #FF3B30 is 3.58:1 on white as text and carries white at the same 3.58:1 as a
@@ -73,6 +114,11 @@
 
         --border: 240 5% 92%; /* #EAEAEC BK_100 */
         --input: 240 6% 90%; /* #E5E5E8 composer box */
+        /* The edge of an interactive control: a text field, an unselected option, the
+           Switch's off track. --border and --input measured 1.21:1 on white, so a field
+           read as bare text; WCAG 1.4.11 holds a control boundary to 3:1 (3.83:1 here).
+           Dividers and cards carry no state and keep the --border hairline. */
+        --control-border: 220 5% 52%;
         /* ui-kit's own focus ring. Pointed at --focus-ring so a kit-rendered
            control and an app-rendered one show the same focus. */
         --ring: var(--focus-ring);
@@ -89,7 +135,7 @@
         --surface: 0 0% 100%;
         /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
         --main-accent: 76 96% 39%;
-        --input-border: 240 5% 92%;
+        --input-border: var(--control-border);
         /* Composer focus. Figma's GR2 lime (#90C304) outlines at 2.1:1 on white, under the
            3:1 a focus indicator needs, so light mode takes the ink lime the focus ring uses. */
         --focus-border: var(--focus-ring);
@@ -182,7 +228,8 @@
         --sidebar: 90 2% 18%; /* #2E2F2D Channel List Panel */
         --sidebar-foreground: 60 7% 92%; /* #EBEBE8 */
 
-        --avatar-l: 58%;
+        /* Dark initials at 58% measured 3.74:1 on the blue hues; 64% holds 4.92:1. */
+        --avatar-l: 64%;
         --avatar-fg: 0 0% 8%;
 
         /* Lifted for text on the dark panes (4.7:1 even on the hover fill); a fill of it
@@ -196,6 +243,8 @@
 
         --border: 96 4% 26%; /* #424540 */
         --input: 90 2% 24%; /* #3D3E3C composer box */
+        /* 4.10:1 on a card, 4.54:1 on the main pane. */
+        --control-border: 90 2% 55%;
         --ring: var(--focus-ring);
 
         /* Gray scale (dark) */
@@ -204,7 +253,7 @@
         --description: 82 5% 65%; /* #A8ABA3 */
         --surface: 90 3% 15%;
         --main-accent: 76 96% 39%; /* #90C304 */
-        --input-border: 90 2% 24%;
+        --input-border: var(--control-border);
         --focus-border: 76 87% 49%; /* dark composer focus = #B0EA10 (Figma 259:566) */
 
         /* Toast (light card on dark bg) */

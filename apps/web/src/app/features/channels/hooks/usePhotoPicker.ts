@@ -190,8 +190,14 @@ export const usePhotoPicker = ({
     }, [library, picked]);
 
     const manageSelection = useCallback(async () => {
-        const after = await library.manageSelection();
-        if (after) setAccess(after);
+        // The list below runs either way: whatever the sheet changed is on the device by now, and the
+        // page's own answer carries the access, so a sheet call that failed loses nothing worth keeping.
+        try {
+            const after = await library.manageSelection();
+            if (after) setAccess(after);
+        } catch {
+            // Falls through to the list.
+        }
         const token = ++albumTokenRef.current;
         loadingRef.current = false;
         void loadPage(album.id, undefined, token);

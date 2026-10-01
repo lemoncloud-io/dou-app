@@ -15,6 +15,7 @@ import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
 import { AppUpdatePromptHost } from './features/appUpdate';
 import { ThemeApplier } from './runtime/ThemeApplier';
+import { bootSplash } from './runtime/bootSplash';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 import { markBoot } from './features/debug/metrics/bootMarks';
 
@@ -106,6 +107,8 @@ export function App() {
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', '[error-boundary] Application Error', { error, data: info });
+        // The fallback rendered under the boot cover; lift it so the error is seen now, not at the cap.
+        bootSplash.release('error');
     }, []);
 
     return (

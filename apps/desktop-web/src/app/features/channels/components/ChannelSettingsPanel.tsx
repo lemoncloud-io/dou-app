@@ -18,6 +18,7 @@ import {
     type ChannelNotifyMode,
     PANE_HEADER,
     PANEL_TITLE,
+    radioGroupOptions,
 } from '../../../shared';
 import type { ChannelMember } from '../hooks';
 import { useChannelActions } from '../hooks';
@@ -28,6 +29,8 @@ import { MemberList } from './MemberList';
 
 /** Below this member count the roster is short enough to scan without a filter. */
 const MEMBER_SEARCH_THRESHOLD = 5;
+
+const NOTIFY_MODES: readonly ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
 interface ChannelSettingsPanelProps {
     /** The channel matching the store's openChannelId, resolved by the host. */
@@ -109,6 +112,7 @@ export const ChannelSettingsPanel = ({
         // pref stands even if this fails.
         if (joinUserId) void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch(() => undefined);
     };
+    const notifyProps = radioGroupOptions(NOTIFY_MODES, notifyMode, onNotifyChange);
 
     return (
         <ResizablePanel
@@ -134,7 +138,7 @@ export const ChannelSettingsPanel = ({
                     <h3 className="text-overline text-muted-foreground">{t('channels.settings.nameSection')}</h3>
                     <div className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2 text-heading text-foreground">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-micro font-bold text-primary-ink">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-micro font-bold text-label">
                                 #
                             </span>
                             <span className="truncate">{channel.name ?? channelId}</span>
@@ -208,13 +212,11 @@ export const ChannelSettingsPanel = ({
                         aria-label={t('channels.settings.notifications')}
                         className="flex rounded-lg border border-hairline bg-well p-0.5"
                     >
-                        {(['all', 'mention', 'none'] as const).map(mode => (
+                        {NOTIFY_MODES.map(mode => (
                             <button
                                 key={mode}
                                 type="button"
-                                role="radio"
-                                aria-checked={notifyMode === mode}
-                                onClick={() => onNotifyChange(mode)}
+                                {...notifyProps(mode)}
                                 className={cn(
                                     'focus-ring tactile flex-1 rounded-md px-2 py-1.5 text-caption font-medium transition-colors ease-tactile',
                                     notifyMode === mode

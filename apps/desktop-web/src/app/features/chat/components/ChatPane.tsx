@@ -20,10 +20,12 @@ import {
     isDmChannel,
     isSelfChannel,
     lastChatNoOf,
+    MobileAppPointer,
     resolveDisplay,
     useAuthorNames,
     useChannelLabels,
     useChats,
+    useComposerFocusStore,
     useMessageJumpStore,
     useOpenAtBottomStore,
     useReadCursorStore,
@@ -93,7 +95,7 @@ export const ChatPane = ({
     const viewer = useMessageViewer(channel);
     const placeProfiles = useSiteProfileMap();
     // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
-    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(
+    const { messages, isLoading, loadFailed, retryLoad, loadOlder, hasMore, isLoadingOlder } = useChats(
         channelId,
         channel ? lastChatNoOf(channel) : undefined
     );
@@ -169,7 +171,7 @@ export const ChatPane = ({
     const cachedNames = useAuthorNames(authorIds);
     const memberNames = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
-    const mentionables = useMentionables(members);
+    const mentionables = useMentionables(members, viewer);
 
     // The image tray belongs to the open channel: switching channels drops it (and its
     // object URLs) the way a thread switch does in ThreadPanel.
@@ -194,10 +196,24 @@ export const ChatPane = ({
         if (openAtBottom) clearOpenAtBottom();
     }, [openAtBottom, clearOpenAtBottom]);
 
-    if (!channelId || !channel) {
+    // After a delete or leave, focus goes to the first room shown that is not the removed one, or
+    // to the empty state's action when none is left. `pick` means rooms are listed and one is about
+    // to be selected, so the request waits for it.
+    const focusRemovedId = useComposerFocusStore(s => s.removedId);
+    const consumeComposerFocus = useComposerFocusStore(s => s.consume);
+    const hasRoom = !!channelId && !!channel;
+    const refocusComposer = focusRemovedId !== null && hasRoom && channelId !== focusRemovedId;
+    const refocusEmptyState = focusRemovedId !== null && !hasRoom && emptyState.mode !== 'pick';
+    const emptyActionRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        if (refocusEmptyState) emptyActionRef.current?.focus();
+        if (refocusComposer || refocusEmptyState) consumeComposerFocus();
+    }, [refocusComposer, refocusEmptyState, consumeComposerFocus]);
+
+    if (!hasRoom) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-display font-semibold text-primary-ink">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-display font-semibold text-label">
                     #
                 </div>
                 <p className="text-heading text-foreground">{t(`chat.empty.${emptyState.mode}.title`)}</p>
@@ -205,7 +221,11 @@ export const ChatPane = ({
                     {t(`chat.empty.${emptyState.mode}.hint`, { mod: MOD_KEY })}
                 </p>
                 {emptyState.mode !== 'pick' && emptyState.onAction && (
-                    <Button className="focus-ring tactile mt-1 transition-colors" onClick={emptyState.onAction}>
+                    <Button
+                        ref={emptyActionRef}
+                        className="focus-ring tactile mt-1 transition-colors"
+                        onClick={emptyState.onAction}
+                    >
                         {emptyState.mode === 'create' ? (
                             <Plus size={16} aria-hidden />
                         ) : (
@@ -214,6 +234,9 @@ export const ChatPane = ({
                         {t(`chat.empty.${emptyState.mode}.action`)}
                     </Button>
                 )}
+                {/* An invite is one way in; the other is a cloud of one's own, which desktop cannot
+                    make. Without this line Home read as if joining were the only option. */}
+                {emptyState.mode === 'join' && <MobileAppPointer className="mt-2 max-w-xs" />}
                 {/* A drawer hides the list this copy points at. */}
                 {emptyState.mode === 'pick' && shell.isDrawer && (
                     <Button
@@ -382,6 +405,8 @@ export const ChatPane = ({
                     onReadingPosition={reportPosition}
                     readCountOf={readCountOf}
                     intro={intro}
+                    loadFailed={loadFailed}
+                    onRetryLoad={retryLoad}
                 />
                 <Composer
                     onSend={handleSend}
@@ -392,6 +417,7 @@ export const ChatPane = ({
                     onAddFiles={tray.addFiles}
                     onRemoveAttachment={tray.remove}
                     capturesTyping
+                    autoFocus={refocusComposer}
                 />
                 {isDragging && <AttachmentDropOverlay />}
             </div>

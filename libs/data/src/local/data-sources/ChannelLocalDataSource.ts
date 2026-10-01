@@ -1,5 +1,5 @@
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../../domain';
-import { createDomainListResult } from '../../domain';
+import { ACCOUNT_CHANNEL_SID, createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
 import type { ScopedCacheStorage } from '../ports';
 import {
@@ -17,6 +17,10 @@ export type IChannelLocalDataSource = ILocalDataSource<
 >;
 
 /** Persists channels locally and fans out observer updates by scoped channel list keys. */
+/** A Self Channel with no place is stored under the account (see `ACCOUNT_CHANNEL_SID`). */
+const accountSid = (item: Partial<DomainChannel>): string | undefined =>
+    item.stereo === 'self' ? ACCOUNT_CHANNEL_SID : undefined;
+
 export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> implements IChannelLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'channel'>) {
         super(contextProvider, storages);
@@ -110,7 +114,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
 
         const storage = this.storage(scope);
         const existing = await storage.load(id);
-        const sid = (item.sid || existing?.sid || scope.sid) ?? '';
+        const sid = (item.sid || existing?.sid || scope.sid || accountSid(item)) ?? '';
         const cid = scope.cid || 'default';
 
         if (!sid) {
@@ -153,7 +157,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
         for (const item of validItems) {
             const id = item.id!;
             const existing = existingMap.get(id);
-            const sid = item.sid || item.$?.sid || existing?.sid || scope.sid;
+            const sid = item.sid || item.$?.sid || existing?.sid || scope.sid || accountSid(item);
 
             if (!sid) {
                 throw new Error('[ChannelLocalDataSource] sid is required to sync/save channels.');

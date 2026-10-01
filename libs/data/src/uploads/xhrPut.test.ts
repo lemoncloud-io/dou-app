@@ -66,6 +66,19 @@ describe('xhrPut', () => {
         expect(request.timeout).toBeGreaterThan(0);
     });
 
+    // A 300 MB video over a slow uplink takes far longer than a 20 MB image, and a retry resends it whole.
+    it('gives a large file time in proportion to its size', () => {
+        const small = setup();
+        void small.put(target, file, 'slot-0/original');
+        const large = setup();
+        const video = new File(['x'], 'clip.mp4', { type: 'video/mp4' });
+        Object.defineProperty(video, 'size', { value: 300 * 1024 * 1024 });
+        void large.put(target, video, 'slot-0/original');
+
+        expect(small.request.timeout).toBe(5 * 60_000);
+        expect(large.request.timeout).toBeGreaterThan(40 * 60_000);
+    });
+
     it('reports an error status with the storage code from the body, without judging it', async () => {
         const { request, put } = setup();
 

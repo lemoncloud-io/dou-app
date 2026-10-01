@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { BellOff } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
-import { chatImageCount, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/data';
+import {
+    chatAttachmentSummary,
+    type ChatAttachmentKind,
+    type DomainChannel,
+    type DomainChat,
+    type DomainJoin,
+} from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     DropdownMenu,
@@ -19,12 +24,19 @@ import {
     Badge,
     CollapsibleSection,
     DefaultAvatar,
+    IconBell,
+    IconBellOff,
     IconChatAdd,
+    IconLeave,
     IconPin,
+    IconTrash,
     ImageAvatar,
     ListRow,
     SubscriptionBadge,
+    SwipeActionRow,
     UnreadBadge,
+    type SwipeAction,
+    type SwipeSide,
 } from '@chatic/web-ui-kit';
 
 import { useDmPeers, type DmPeer } from '../../channels/hooks';
@@ -36,13 +48,21 @@ import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../ho
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
 import { roomOpenTrace } from '../../../runtime/perf';
+import { haptics } from '../../../bridge/haptics';
 import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
-import { channelKindOf, resolveChannelAvatar, resolveChannelTitle, showsMemberCount } from '../../channels/lib';
+import {
+    channelKindOf,
+    removalActionFor,
+    resolveChannelAvatar,
+    resolveChannelTitle,
+    showsMemberCount,
+} from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { ChannelEmptyState } from './ChannelEmptyState';
+import { useChannelRowActions } from '../hooks/useChannelRowActions';
 
 /**
  * One placeholder row. The pulse lives on the ROW (not each bar) and is offset per row, so three
@@ -58,6 +78,22 @@ const ChannelSkeleton = ({ delayMs = 0 }: { delayMs?: number }) => (
         </div>
     </div>
 );
+
+// Nouns and counters match the push for the same message ("사진 3장" / "사진 3장을 보냈습니다"),
+// so changing one of them means changing the push copy in the mobile locales too. `mixed` has no
+// one-attachment form: a single attachment is a single kind, except a lone audio file, which the
+// count form covers.
+const ATTACHMENT_PREVIEW_KEYS: Record<ChatAttachmentKind, { one?: string; many: string }> = {
+    image: { one: 'chat.attach.preview', many: 'chat.attach.previewCount' },
+    video: { one: 'chat.attach.previewVideo', many: 'chat.attach.previewVideoCount' },
+    file: { one: 'chat.attach.previewFile', many: 'chat.attach.previewFileCount' },
+    mixed: { many: 'chat.attach.previewMixedCount' },
+};
+
+const attachmentPreviewKey = ({ kind, count }: { kind: ChatAttachmentKind; count: number }): string => {
+    const keys = ATTACHMENT_PREVIEW_KEYS[kind];
+    return count === 1 && keys.one ? keys.one : keys.many;
+};
 
 const ChannelItem = ({
     channel,
@@ -139,16 +175,15 @@ const ChannelItem = ({
     // leaving the backticks in would make the list dirtier than before code was supported. No badge
     // or monospace either — that would complicate the row and tangle with blurLastMessage (ADR-0055).
     //
-    // An image message carries no text, so its row would read as a blank line. It previews as a
-    // photo count instead — counted from `upload$$`, or from the `uploadIds` a list head carries.
+    // An attachment-only message carries no text, so its row would read as a blank line. It
+    // previews as what it carries instead — "Photo", "3 videos", "2 attachments" — using the same
+    // nouns as the push for that message.
     const textPreview = toPlainPreview(messagePlainText(lastChat?.content));
-    const imageCount = chatImageCount(lastChat);
+    const attachments = chatAttachmentSummary(lastChat);
     const preview = lastChat?.hidden
         ? t('chat.room.deletedMessage')
-        : !textPreview && imageCount > 0
-          ? imageCount === 1
-              ? t('chat.attach.preview')
-              : t('chat.attach.previewCount', { count: imageCount })
+        : !textPreview && attachments
+          ? t(attachmentPreviewKey(attachments), { count: attachments.count })
           : textPreview;
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
@@ -196,9 +231,11 @@ const ChannelItem = ({
                         />
                     )}
                     {muted && (
-                        <BellOff
+                        <IconBellOff
                             role="img"
                             aria-label={t('channelList.muted')}
+                            // The kit's glyphs are decorative by default; this one is announced.
+                            aria-hidden={false}
                             className="size-3.5 shrink-0 text-muted-foreground"
                         />
                     )}
@@ -241,17 +278,17 @@ interface ChannelListProps {
      */
     /**
      * The place whose profiles name the people in these rows. Usually the place being listed; for
-     * the cloud 1:1 section it is the place the READER is standing in, because a cloud 1:1 has none
-     * of its own (`profilePlaceOf`).
+     * the Self Chat section it is the place the READER is standing in, because that room has no
+     * place of its own.
      */
     sid: string;
     isLoading: boolean;
-    /** Section heading. Defaults to the chat-room heading; the cloud 1:1 section passes its own. */
+    /** Section heading. Defaults to the chat-room heading; the Self Chat section passes its own. */
     title?: string;
     /**
      * Empty body for a section that is not a place's room list. The place list's own empty state
      * nudges towards creating or explains an invited place, and neither sentence is true of a
-     * section that simply has no 1:1 in it yet.
+     * section that simply has no room in it yet.
      */
     emptyLabel?: string;
     /** Show the create (＋) popover in the section header. */
@@ -263,9 +300,8 @@ interface ChannelListProps {
      */
     isDefaultCloud?: boolean;
     /**
-     * Show the "1:1 대화" entry in the create popover. A 1:1 is reachable two ways that look the
-     * same here and are not: by inviting a phone number on relay, and by picking a member inside a
-     * cloud. This component draws the entry; where the tap goes is the host's call.
+     * Show the "1:1 대화" entry in the create popover. This component draws the entry; whether it
+     * shows and where the tap goes are the host's call (on mobile: relay only, to the contact form).
      */
     showOneOnOneCreate?: boolean;
     /** Drives the PRO badge on "그룹 방 만들기" — and, on relay, whether that entry shows at all. */
@@ -274,7 +310,14 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** Start a 1:1 — the host picks the destination by cloud kind. */
+    /** The notes-to-self room leads the list, above pins and the sort — the Self Chat section. */
+    leadsWithSelf?: boolean;
+    /**
+     * Pins or unpins a room in this place. Given, rows offer it as their right-swipe action; left out
+     * — the Self Chat section, whose pins nothing stores — they offer no right swipe at all.
+     */
+    onTogglePin?: (channelId: string) => void;
+    /** Start a 1:1 — the host picks the destination. */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
@@ -311,6 +354,8 @@ export const ChannelList = ({
     isPro,
     sortMethod = 'recent',
     pinnedChannelIds,
+    leadsWithSelf,
+    onTogglePin,
     onCreateOneOnOne,
     onCreateGroup,
     isInvitedPlace,
@@ -368,12 +413,84 @@ export const ChannelList = ({
     // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
 
+    // Which row has its swipe actions out. One at a time: opening a row replaces this, and every
+    // other row reads null and stays closed.
+    const [openRow, setOpenRow] = useState<{ id: string; side: SwipeSide } | null>(null);
+    const rowActions = useChannelRowActions();
+    const { toast } = useToast();
+
+    /**
+     * A row's swipe actions. Right: pin. Left: notifications, then the way out — leave or delete,
+     * decided per row by `removalActionFor`, the rule the room's settings and the place's bulk remove
+     * already share, so a 1:1 always leaves and a group deletes only for its owner.
+     *
+     * A self chat has no left side: its settings offer neither notifications nor an exit. Someone
+     * else's self chat gets nothing — it is only ever a row left over from the previous account.
+     */
+    const swipeActionsFor = (
+        channel: DomainChannel,
+        join: DomainJoin | undefined,
+        pinned: boolean,
+        muted: boolean
+    ): { leading: SwipeAction[]; trailing: SwipeAction[] } => {
+        if (isSomeoneElsesSelfChat(channel, uid ?? undefined)) return { leading: [], trailing: [] };
+        const leading: SwipeAction[] = onTogglePin
+            ? [
+                  {
+                      key: 'pin',
+                      label: t(pinned ? 'channelList.swipe.unpin' : 'channelList.swipe.pin'),
+                      tone: 'accent',
+                      icon: <IconPin size={18} filled={!pinned} />,
+                      onSelect: () => {
+                          onTogglePin(channel.id);
+                          // Said out loud because a pin moves the row, often out from under the finger.
+                          toast({ title: t(pinned ? 'channelManage.unpinned' : 'channelManage.pinned') });
+                      },
+                  },
+              ]
+            : [];
+        const removal = removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid);
+        if (removal === 'none') return { leading, trailing: [] };
+        return {
+            leading,
+            trailing: [
+                {
+                    key: 'mute',
+                    label: t(muted ? 'channelList.swipe.unmute' : 'channelList.swipe.mute'),
+                    tone: 'neutral',
+                    icon: muted ? <IconBell className="size-[18px]" /> : <IconBellOff className="size-[18px]" />,
+                    onSelect: () => rowActions.setMuted(channel, join, !muted),
+                },
+                {
+                    key: 'remove',
+                    label: t(removal === 'delete' ? 'channelList.swipe.delete' : 'channelList.swipe.leave'),
+                    tone: 'destructive',
+                    icon:
+                        removal === 'delete' ? (
+                            <IconTrash className="size-[18px]" />
+                        ) : (
+                            <IconLeave className="size-[18px]" />
+                        ),
+                    onSelect: () => rowActions.requestRemoval(channel, removal),
+                },
+            ],
+        };
+    };
+
     // Order by the place's chosen sort method ('unread' floats unread channels above). The base
     // order is the last message's time, read from the same `lastChats` map the rows render — so the
     // order and the previews can never tell two different stories. See sortChannels (unit-tested).
     const sortedChannels = useMemo(
-        () => sortChannels({ channels, lastChatByChannel: lastChats, unreadByChannel, sortMethod, pinnedChannelIds }),
-        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds]
+        () =>
+            sortChannels({
+                channels,
+                lastChatByChannel: lastChats,
+                unreadByChannel,
+                sortMethod,
+                pinnedChannelIds,
+                leadsWithSelf,
+            }),
+        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
     );
 
     // "그룹 방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
@@ -387,9 +504,8 @@ export const ChannelList = ({
     // allowed to do.
     const showGroupCreate = canCreate && (!isDefaultCloud || !isPro);
 
-    // The popover opens for either entry, not for group-create alone. An invited member may open a
-    // 1:1 — they share rooms with these people, which is the whole premise — while creating rooms
-    // stays shut to them, so the two conditions have to be able to disagree.
+    // The popover opens for either entry, not for group-create alone: the two rows have separate
+    // conditions, so the popover must not hang on just one of them.
     const createMenu =
         showGroupCreate || showOneOnOneCreate ? (
             <DropdownMenu>
@@ -471,24 +587,39 @@ export const ChannelList = ({
                     />
                 ))
             ) : (
-                sortedChannels.map(channel => (
-                    <ChannelItem
-                        key={channel.id}
-                        channel={channel}
-                        unread={unreadByChannel[channel.id] ?? 0}
-                        myNick={myNick}
-                        myThumbnail={myThumbnail}
-                        joinNick={joinByChannel?.get(channel.id)?.nick}
-                        uid={uid ?? undefined}
-                        dmPeer={dmPeers.get(channel.id)}
-                        pinned={pinnedChannelIds?.has(channel.id) ?? false}
-                        // The mute state lives on my join row, same source the settings toggle
-                        // writes through (join.update) — not the channel's embedded $join.
-                        muted={joinByChannel?.get(channel.id)?.notify === 'none'}
-                        lastChat={lastChats.get(channel.id)}
-                    />
-                ))
+                sortedChannels.map(channel => {
+                    const join = joinByChannel?.get(channel.id);
+                    const pinned = pinnedChannelIds?.has(channel.id) ?? false;
+                    // The mute state lives on my join row, same source the settings toggle writes
+                    // through (join.update) — not the channel's embedded $join.
+                    const muted = join?.notify === 'none';
+                    const { leading, trailing } = swipeActionsFor(channel, join, pinned, muted);
+                    return (
+                        <SwipeActionRow
+                            key={channel.id}
+                            leadingActions={leading}
+                            trailingActions={trailing}
+                            open={openRow?.id === channel.id ? openRow.side : null}
+                            onOpenChange={side => setOpenRow(side ? { id: channel.id, side } : null)}
+                            onReveal={() => haptics.play('selection')}
+                        >
+                            <ChannelItem
+                                channel={channel}
+                                unread={unreadByChannel[channel.id] ?? 0}
+                                myNick={myNick}
+                                myThumbnail={myThumbnail}
+                                joinNick={join?.nick}
+                                uid={uid ?? undefined}
+                                dmPeer={dmPeers.get(channel.id)}
+                                pinned={pinned}
+                                muted={muted}
+                                lastChat={lastChats.get(channel.id)}
+                            />
+                        </SwipeActionRow>
+                    );
+                })
             )}
+            {rowActions.dialog}
         </CollapsibleSection>
     );
 };

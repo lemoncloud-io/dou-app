@@ -224,6 +224,14 @@ for interest:
 | `timeout`     | 408           | One `warn` each — the request was accepted and never answered, and a retry may well work |
 | `server`      | anything else | One `error` each: a decision the server made about one request                           |
 
+One `server` answer is not a failure and is recorded at `info` instead: **`profile.get` 404**. A
+profile exists per place and only once its owner has opened that place (`profile.get-mine` creates
+it), so reading a member's profile in a place they never entered — a cloud 1:1's peer from another
+place, say — is answered 404, and the caller names them through the user record. Whoever it belongs
+to, that status means only "there is no profile for this person here". The
+pair is one entry in the reporter's `ABSENCE_ANSWERS` table; any other status on `profile.get`, and a
+404 on any other type, stays an `error`.
+
 503 is raised per send attempt while the transport is down; 499 rejects every in-flight and queued
 request at once when the socket closes. Both mean "there is no socket", which the connection-level
 triggers already report better — and while the socket is down, every registered sync target fails on

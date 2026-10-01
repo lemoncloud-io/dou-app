@@ -46,6 +46,19 @@ describe('elsewhereChannels', () => {
     });
 
     // Channel ids repeat across places, so a group elsewhere is not the one listed here.
+    // My notes-to-self room is filed under every place that lists it, like a 1:1.
+    it('leaves out my notes-to-self room when this place lists it, and offers it once otherwise', () => {
+        const self = (placeId: string) => ({ ...entry(placeId, 'U:me', '#self'), self: true });
+        const known = { 'place-b:U:me': self('place-b'), 'place-c:U:me': self('place-c') };
+
+        expect(
+            elsewhereChannels(known, { placeId: 'place-a', placeName, listedIds: new Set(['U:me']), peerName })
+        ).toEqual([]);
+        expect(
+            elsewhereChannels(known, { placeId: 'place-a', placeName, listedIds: new Set(), peerName })
+        ).toHaveLength(1);
+    });
+
     it('keeps a group elsewhere whose id matches one listed here', () => {
         const known = { 'place-b:ch-1': entry('place-b', 'ch-1', 'design') };
 

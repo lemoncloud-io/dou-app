@@ -19,5 +19,7 @@
     <string name="transfer_upload_failed_summary">%1$d of %2$d uploads failed</string>
     <string name="transfer_download_failed_summary">%1$d of %2$d downloads failed</string>
     <string name="transfer_mixed_failed_summary">%1$d of %2$d transfers failed</string>
+    <string name="media_share_chooser_title">Share</string>
     <string name="exit_back_toast">Press back again to exit.</string>
+    <string name="photo_library_all_photos">Recents</string>
 </resources>

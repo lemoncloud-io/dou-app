@@ -5,6 +5,8 @@ import {
     useConfigKvHandler,
     useCrudCacheHandler,
     useClipboardHandler,
+    useHapticHandler,
+    useBootSplashHandler,
     useDeviceHandler,
     useSmsHandler,
     useFcmHandler,
@@ -19,6 +21,8 @@ import {
     useSearchCacheHandler,
     useSubscriptionIapHandler,
     useFileTransferHandler,
+    useMediaExportHandler,
+    usePhotoLibraryHandler,
     useTestRecordHandler,
     useResumeOverlay,
     useCustomZipHandler,
@@ -41,13 +45,14 @@ export interface UseWebMessageRouterProps {
 /**
  * Central router for handling messages sent from the Web (WebView) to the Native App.
  * It acts as a Facade, delegating specific tasks to domain-specific handler hooks.
- * This hook also implements a message queue to process incoming messages sequentially, preventing race conditions and bottlenecks.
+ * Messages are not queued: each is handled as it arrives, so a handler that waits on the user
+ * (ShareFile on iOS waits for the share sheet to close) holds up no other message.
  *
  * @param props - Dependencies injected from the MainScreen (bridge, navigation, etc.)
  * @returns An object containing the message handler callback and IAP loading state.
  */
 export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
-    const { showResumeOverlay, dismissOverlay } = useResumeOverlay();
+    const { showResumeOverlay, dismissOverlay, coverReload } = useResumeOverlay();
 
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
@@ -112,12 +117,23 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleAckFileTransfers,
         handleWriteTempFile,
     } = useFileTransferHandler(bridge);
+    const { handleSaveToPhotoLibrary, handleShareFile } = useMediaExportHandler();
+
+    const {
+        isAvailable: isPhotoLibraryAvailable,
+        handleListPhotoAlbums,
+        handleListPhotos,
+        handleReadPhoto,
+        handleManagePhotoSelection,
+    } = usePhotoLibraryHandler();
 
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const { handleCheckAppUpdate, handleOpenStore } = useAppUpdateHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
+    const { handleTriggerHaptic } = useHapticHandler();
+    const { handleFirstScreenReady } = useBootSplashHandler();
     const {
         handleSendBootMetrics,
         handleSetDebugMode,
@@ -148,6 +164,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
         handleDismissResumeOverlay,
+        handleFirstScreenReady,
         fetchProducts,
         fetchCurrentPurchases,
         handlePurchaseSubscription,
@@ -197,6 +214,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchAppIconList,
         handleChangeAppIcon,
         handleCopyToClipboard,
+        handleTriggerHaptic,
         handleSendBootMetrics,
         handleSetDebugMode,
         handleFetchBootRecords,
@@ -211,6 +229,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleListFileTransfers,
         handleAckFileTransfers,
         handleWriteTempFile,
+        handleSaveToPhotoLibrary,
+        handleShareFile,
+        handleListPhotoAlbums,
+        handleListPhotos,
+        handleReadPhoto,
+        handleManagePhotoSelection,
         handleFetchTestRecord,
         handleFetchAllTestRecords,
         handleSaveTestRecord,
@@ -230,6 +254,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
             handleDismissResumeOverlay,
+            handleFirstScreenReady,
             fetchProducts,
             fetchCurrentPurchases,
             handlePurchaseSubscription,
@@ -279,6 +304,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchAppIconList,
             handleChangeAppIcon,
             handleCopyToClipboard,
+            handleTriggerHaptic,
             handleSendBootMetrics,
             handleSetDebugMode,
             handleFetchBootRecords,
@@ -298,6 +324,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleListFileTransfers,
             handleAckFileTransfers,
             handleWriteTempFile,
+            handleSaveToPhotoLibrary,
+            handleShareFile,
+            handleListPhotoAlbums,
+            handleListPhotos,
+            handleReadPhoto,
+            handleManagePhotoSelection,
             handleFetchUrlMetadata,
         };
     });
@@ -368,13 +400,20 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchAppIconList: message => handlersRef.current.handleFetchAppIconList(message),
             ChangeAppIcon: message => handlersRef.current.handleChangeAppIcon(message),
             CopyToClipboard: message => handlersRef.current.handleCopyToClipboard(message),
+            TriggerHaptic: message => handlersRef.current.handleTriggerHaptic(message),
             StartFileTransfer: message => handlersRef.current.handleStartFileTransfer(message),
             CancelFileTransfer: message => handlersRef.current.handleCancelFileTransfer(message),
             ListFileTransfers: () => handlersRef.current.handleListFileTransfers(),
             AckFileTransfers: message => handlersRef.current.handleAckFileTransfers(message),
             WriteTempFile: message => handlersRef.current.handleWriteTempFile(message),
+            // Registered with their message types in the same change: the web shows save and share
+            // only when the handshake lists both names, and the handshake is built from the message
+            // map, not from this table — a type without a handler here would be advertised anyway.
+            SaveToPhotoLibrary: message => handlersRef.current.handleSaveToPhotoLibrary(message),
+            ShareFile: message => handlersRef.current.handleShareFile(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
+            FirstScreenReady: message => handlersRef.current.handleFirstScreenReady(message),
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
             FetchBootRecords: message => handlersRef.current.handleFetchBootRecords(message),
             ClearBootRecords: message => handlersRef.current.handleClearBootRecords(message),
@@ -385,6 +424,14 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
+            // Registered only where the native module exists. A build without it leaves the web its
+            // NOT_FOUND, which is the signal to fall back to the page's own file input.
+            ...(isPhotoLibraryAvailable && {
+                ListPhotoAlbums: () => handlersRef.current.handleListPhotoAlbums(),
+                ListPhotos: message => handlersRef.current.handleListPhotos(message),
+                ReadPhoto: message => handlersRef.current.handleReadPhoto(message),
+                ManagePhotoSelection: () => handlersRef.current.handleManagePhotoSelection(),
+            }),
         };
 
         // Register handlers with the bridge
@@ -400,7 +447,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 bridge.unregisterHandler(type);
             });
         };
-    }, [bridge]);
+    }, [bridge, isPhotoLibraryAvailable]);
 
-    return { isIapLoading, showResumeOverlay };
+    return { isIapLoading, showResumeOverlay, coverReload };
 };

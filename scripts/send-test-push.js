@@ -30,6 +30,11 @@ Options:
   --uid <id>           User id in custom payload (default: "user_test_id")
   --title <text>       Sender name / Title argument (default: "John Doe")
   --body <text>        Message content / Body argument (default: "Are you attending today's meeting?")
+  --loc-key <key>      Body translation key (default: "push_chat_message_body")
+                       e.g. push_chat_image_body, push_chat_images_body, push_chat_files_body
+  --loc-args <json>    Body args as a JSON array of strings (default: [<--body>]), e.g. '["3"]'.
+                       "none" leaves loc_args out entirely — what the server sends for a
+                       message with no text
   --silent             Send as a silent background push (NO banner — wakes app only; see notes)
   --loc-args-array     (iOS only) Send loc_args/title_loc_args as a native JSON array
                        (reproduces the real backend) instead of a JSON-encoded string
@@ -73,6 +78,10 @@ Sample Commands:
 
   # 6. iOS APNs - Production Chat Push (Uses AuthKey_PROD_*.p8 and bundle io.chatic.dou)
   node scripts/send-test-push.js ios apns_token_here --prod
+
+  # 7. Attachment bodies - three photos, then an attachment-only message as the server sends it today
+  node scripts/send-test-push.js ios apns_token_here --loc-args-array --loc-key push_chat_images_body --loc-args '["3"]'
+  node scripts/send-test-push.js android fcm_token_here --loc-args none
 `);
 }
 
@@ -120,6 +129,22 @@ const isProd = args.includes('--prod');
 // Notification Service Extension. Default stays a JSON-encoded string, matching
 // FCM (whose data values must be strings). iOS only — ignored for Android.
 const useArrayLocArgs = args.includes('--loc-args-array');
+const bodyLocKey = getOptionValue('--loc-key', 'push_chat_message_body');
+// Body args: `--body` by default; an explicit JSON array for the attachment keys; or none at all,
+// which is how the server sends a message without text (it omits the field rather than send []).
+const bodyLocArgs = (() => {
+    const raw = getOptionValue('--loc-args', null);
+    if (raw === null) return [bodyArg];
+    if (raw === 'none') return undefined;
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every(arg => typeof arg === 'string')) return parsed;
+    } catch {
+        // Reported below with the same message as a non-array value.
+    }
+    console.error('\x1b[31mError: --loc-args must be a JSON array of strings (e.g. \'["3"]\') or "none".\x1b[0m');
+    process.exit(1);
+})();
 
 // Resolve iOS config dynamically if platform is iOS
 let keyFile = getOptionValue('--key-file', null);
@@ -186,6 +211,8 @@ Site (sid):    ${sid}
 User (uid):    ${uid}
 Title Arg:     ${titleArg}
 Body Arg:      ${bodyArg}
+Body Loc Key:  ${bodyLocKey}
+Body Loc Args: ${bodyLocArgs === undefined ? '(omitted)' : JSON.stringify(bodyLocArgs)}
 Silent Push:   ${isSilent}
 ${
     platform === 'ios'
@@ -228,8 +255,9 @@ async function sendAndroidPush() {
                 timestamp: String(Date.now()),
                 title_loc_key: 'push_chat_message_title',
                 title_loc_args: JSON.stringify([titleArg]),
-                loc_key: 'push_chat_message_body',
-                loc_args: JSON.stringify([bodyArg]),
+                loc_key: bodyLocKey,
+                // FCM data values must be strings, so an omitted arg list is left out, not undefined.
+                ...(bodyLocArgs ? { loc_args: JSON.stringify(bodyLocArgs) } : {}),
                 silent: String(isSilent),
                 payload: JSON.stringify({
                     cid,
@@ -317,8 +345,9 @@ function sendIosPush() {
             // Native array when --loc-args-array (matches the real backend), else a
             // JSON-encoded string. The Extension must handle both interchangeably.
             title_loc_args: useArrayLocArgs ? [titleArg] : JSON.stringify([titleArg]),
-            loc_key: 'push_chat_message_body',
-            loc_args: useArrayLocArgs ? [bodyArg] : JSON.stringify([bodyArg]),
+            loc_key: bodyLocKey,
+            // Left out entirely (JSON.stringify drops undefined) when --loc-args none.
+            loc_args: bodyLocArgs && (useArrayLocArgs ? bodyLocArgs : JSON.stringify(bodyLocArgs)),
             silent: isSilent,
             payload: {
                 cid,

@@ -13,8 +13,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
 | `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
 | `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; queues and dispatches to 25 handler hooks             |
-| `src/app/webview/hooks/*Handler.ts`            | 25 domain handlers, one per capability group                                  |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 29 handler hooks                        |
+| `src/app/webview/hooks/*Handler.ts`            | 29 domain handlers, one per capability group                                  |
 | `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
@@ -50,11 +50,13 @@ flowchart TD
     RNWebView --> Router["useWebMessageRouter"]
     Router --> FCM["useFcmHandler"]
     Router --> Transfer["useFileTransferHandler"]
+    Router --> Media["useMediaExportHandler"]
     Router --> Cache["useCrudCacheHandler / useSearchCacheHandler"]
     Router --> Device["useDeviceHandler / usePermissionHandler"]
     Router --> Other["OAuth / IAP / Log / AppIcon / SMS handlers"]
     FCM --> Services["services/*"]
     Transfer --> Native["TransferManagerBridge (native)"]
+    Media --> Export["MediaExportBridge (native)"]
     Cache --> Services
     Device --> Services
     Other --> Services
@@ -78,19 +80,29 @@ sequenceDiagram
     Handler-->>Web: bridge response or event
 ```
 
-`useWebMessageRouter` queues incoming messages and processes them one at a time, so a slow handler
-cannot let a later message overtake it.
+Messages are not queued. `useBaseBridge` hands each one to `AppBridgeHost.handleMessage` without
+waiting for the previous one, so handlers run concurrently and a slow one holds up nothing else.
+Some rely on that: `ShareFile` on iOS answers only when the share sheet closes, minutes later if the
+user lingers — see [../native/media-export.md](../native/media-export.md). Two requests of the same
+kind can therefore finish out of order; a handler that needs ordering has to provide it itself.
+
+A message is registered only where this build can answer it. The photo-library messages are added to
+the routing map only when the native `PhotoLibrary` module exists, so a JS bundle run over a native
+build without it leaves them unregistered and `AppBridgeHost` answers `NOT_FOUND` — the answer the
+web falls back to its file input on ([../native/photo-library.md](../native/photo-library.md)). A
+handler that exists but fails would take that fallback away.
 
 ## The WebAppReady handshake
 
-`WebAppReady` is not one of the 25 routed messages — `AppBridgeHost` (`@chatic/bridges`) answers it
+`WebAppReady` is not one of the routed messages — `AppBridgeHost` (`@chatic/bridges`) answers it
 internally, inside `handleMessage`, before a message ever reaches `useWebMessageRouter`. It is a
 capability handshake, not a plain ready ping: the reply reports the app's local-cache schema version
 and supported cache types (read from the SQLite install, warmed in parallel with the WebView's bundle
 load) so a web build newer than this app can route unsupported cache domains to its own storage
 instead of a silent void. `useBaseBridge.ts` passes an `onAppReady` callback into `AppBridgeHost`;
-`MainScreen` uses it to clear the `ResumeOverlay`-adjacent loading state and mark the
-`bootMetricsService` `web-app-ready` timestamp. `DismissResumeOverlay`, by contrast, is a normal
+`MainScreen` uses it to mark the `bootMetricsService` `web-app-ready` timestamp and to hand the
+web's declaration to `bootSplashService` — a web build that does not declare `holdsBootSplash` is
+revealed on the handshake itself, since it will never send `FirstScreenReady`. `DismissResumeOverlay`, by contrast, is a normal
 routed message — `useAppStateHandler` answers it like any other handler — that fires when the web's
 own repaint animation after a resume has finished, and is what actually hides `ResumeOverlay`.
 
@@ -98,6 +110,7 @@ own repaint animation after a resume has finished, and is what actually hides `R
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `WebAppReady`                    | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it                                                             |
 | `DismissResumeOverlay`           | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                                                                       |
+| `FirstScreenReady`               | Routed handler (`useBootSplashHandler`); lifts the launch splash and the crash-reload cover — see [../boot/boot-splash.md](../boot/boot-splash.md)             |
 | `SavePreference` with `theme`    | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md)                                    |
 | `SavePreference` with `language` | Routed handler (`usePreferenceCacheHandler`); validates `system`/`ko`/`en` and updates the language store — see [../system/language.md](../system/language.md) |
 
@@ -107,7 +120,12 @@ Before the WebView loads, `injectionScripts.ts` assembles one script (`getSyncIn
 sets these globals, guarded so a runtime failure reports itself through `SendLog` (tag `INJECTION`)
 instead of surfacing as an opaque "Script error.":
 
-- safe-area insets and keyboard height, as CSS variables
+- safe-area insets and keyboard height, as CSS variables — and `AppWebView` injects them again
+  whenever either changes, which is how a keyboard opening reaches the web. `--keyboard-height` is
+  how far the keyboard reaches up from the WebView's bottom edge, which is the screen edge on both
+  platforms (Android runs edge-to-edge). Android's `Keyboard` event reports the height with the navigation bar subtracted,
+  so `useKeyboardHeight` adds the safe-area bottom back there — without it, anything padded by the
+  variable (the chat composer) sits behind the keyboard by exactly the navigation bar.
 - device info: run id, platform, stage, app/OS version, build number, language, device model
 - `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
   The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log

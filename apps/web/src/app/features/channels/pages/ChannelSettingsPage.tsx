@@ -29,7 +29,6 @@ import {
     useDmInviteState,
     useDmPeer,
     useJoinMutations,
-    useStartDm,
 } from '../hooks';
 import {
     channelKindOf,
@@ -70,11 +69,7 @@ export const ChannelSettingsPage = () => {
     // Issuing a relay invite takes a main user, so a device user never gets the re-invite CTA.
     const { isGuest } = runtime.session.useRuntimeProfile();
     // Settings names the same people the room does, from the same place — see `profilePlaceOf`.
-    // `selectedCloudId` tells relay from a subscription cloud, which decides whether a 1:1 can be
-    // opened by naming somebody at all.
-    const { selectedSiteId, selectedCloudId } = runtime.session.useSessionSelection();
-    const isDefaultCloud = selectedCloudId === 'default';
-    const { startDm } = useStartDm();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
 
     const { channel, isError } = useChannel(channelId ?? null);
     const activePlaceName = useActivePlaceName();
@@ -550,25 +545,6 @@ export const ChannelSettingsPage = () => {
                 onKick={handleKickMember}
                 isKicking={isPending.leave}
                 onOpenProfileSettings={() => openDialog('profileSettings')}
-                /**
-                 * Opening a 1:1 from here is a cloud act. Three conditions, each closing a way of
-                 * offering a room that cannot be opened:
-                 *
-                 * - **Not on relay.** There a 1:1 is reached by phone number, and this path has no
-                 *   number to send — relay is a non-goal and keeps its own flow untouched.
-                 * - **Not from inside a 1:1.** The peer is already the conversation; a row that
-                 *   re-opens the room you are standing in says nothing.
-                 * - **Not myself** — the dialog checks that again, so both ends agree.
-                 */
-                onStartDm={
-                    !isDefaultCloud && !isDmChat && selectedMember && selectedMember.id !== userId
-                        ? () => {
-                              const peerId = selectedMember.id;
-                              closeDialog();
-                              void startDm(peerId);
-                          }
-                        : undefined
-                }
             />
             <PlaceProfileEditDialog
                 open={activeDialog === 'profileSettings'}

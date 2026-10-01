@@ -6,6 +6,7 @@ import { cn } from '@chatic/lib/utils';
 import { buttonVariants } from '@chatic/ui-kit/components/ui/button';
 
 import { focusFirstIfNothingFocused, useOpenerFocus } from '../../utils/openerFocus';
+import { VIEWPORT_HEIGHT_CAP } from './dialog';
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -19,7 +20,8 @@ const AlertDialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <AlertDialogPrimitive.Overlay
         className={cn(
-            'fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            // The host's scrim token, as in `DialogOverlay`.
+            'fixed inset-0 z-50 bg-overlay/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             className
         )}
         {...props}
@@ -53,7 +55,8 @@ const AlertDialogContent = React.forwardRef<
                     // One notice width, declared here rather than at each call site, exactly as
                     // `DialogContent`'s `default` variant does — see the note there for why reading
                     // `--app-width` with no fallback is what keeps a desktop host on its original
-                    // 32rem.
+                    // 32rem. The height cap is the one `DialogContent` states, for the same reason.
+                    VIEWPORT_HEIGHT_CAP,
                     'fixed left-[50%] top-[50%] z-50 grid w-full grid-cols-[minmax(0,1fr)] [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
                     className
                 )}

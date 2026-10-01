@@ -7,6 +7,7 @@ export * from './useSiteProfilesStore';
 export * from './useUnreadStore';
 export * from './usePendingOpenStore';
 export * from './useOpenAtBottomStore';
+export * from './useComposerFocusStore';
 export * from './useMessageJumpStore';
 export * from './useProfilePanelStore';
 export * from './useSavedItemsStore';

@@ -74,7 +74,7 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent closeLabel="Close">
                 <DialogHeader>
                     <DialogTitle>Register New User</DialogTitle>
                     <DialogDescription>Create a new user account</DialogDescription>

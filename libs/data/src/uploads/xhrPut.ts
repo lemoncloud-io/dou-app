@@ -10,9 +10,13 @@ const USER_AGENT_OWNED_HEADERS = new Set(['content-length', 'host']);
 /**
  * A stalled connection (a network handoff, a captive portal) otherwise never ends: with no
  * timeout, `ontimeout` cannot fire. Generous, because it bounds the whole PUT, not a pause in it —
- * 20MB over a slow mobile uplink takes minutes.
+ * 20MB over a slow mobile uplink takes minutes. A larger file gets the time a 1 Mbps uplink needs
+ * for it, so a 300MB video is not cut off halfway and then resent whole into the same limit.
  */
-const PUT_TIMEOUT_MS = 5 * 60_000;
+const MIN_PUT_TIMEOUT_MS = 5 * 60_000;
+const SLOW_UPLINK_BYTES_PER_MS = 1_000_000 / 8 / 1000;
+
+const putTimeoutMs = (size: number): number => Math.max(MIN_PUT_TIMEOUT_MS, Math.ceil(size / SLOW_UPLINK_BYTES_PER_MS));
 
 /** S3 answers an error with an XML body; its `<Code>` is what tells an expiry from a denial. */
 const readProviderCode = (body: string): string | undefined => /<Code>([^<]+)<\/Code>/.exec(body)?.[1];
@@ -30,7 +34,7 @@ export const createXhrPut =
         new Promise<PutResult>(resolve => {
             const request = createRequest();
             request.open('PUT', target.url);
-            request.timeout = PUT_TIMEOUT_MS;
+            request.timeout = putTimeoutMs(file.size);
             for (const [name, value] of Object.entries(target.headers)) {
                 if (!USER_AGENT_OWNED_HEADERS.has(name.toLowerCase())) request.setRequestHeader(name, value);
             }

@@ -54,7 +54,7 @@ import {
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
-import { MessageImages } from './images';
+import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
@@ -120,6 +120,17 @@ interface MessageRowProps {
      */
     receiptRead?: number;
     receiptUnread?: number;
+    /**
+     * Show the receipt only while its message is hovered or focused. Set on every block of mine
+     * but the latest, where a line under each one was the loudest repeated thing in a busy feed.
+     */
+    receiptOnReveal?: boolean;
+    /**
+     * Hang the first message's toolbar just under the author line instead of over it. The
+     * thread panel sets it: its column is about 270px wide and the toolbar about 210px, so
+     * over the header the toolbar hid the name of the person whose message it acts on.
+     */
+    toolbarUnderHeader?: boolean;
 }
 
 /**
@@ -217,6 +228,8 @@ export const MessageRow = memo(
         withDayInTime,
         receiptRead,
         receiptUnread,
+        receiptOnReveal,
+        toolbarUnderHeader,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -394,6 +407,13 @@ export const MessageRow = memo(
                             const firstUrl = plain.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
+                            // The attachments' viewers repeat the message header.
+                            const author = {
+                                name: group.ownerName,
+                                avatar: group.avatar,
+                                colorSeed: group.colorSeed,
+                                time: formatTime(message.createdAt ?? message.createdAtMs ?? group.timestamp),
+                            };
                             // A loaded thread hangs off this message → show a reply footer.
                             // The index is keyed by the root's chatNo string (buildThreadIndex
                             // normalises optimistic full-id parentIds onto it). threadMeta is only
@@ -412,6 +432,12 @@ export const MessageRow = memo(
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
+                            // The toolbar has something to offer: Reply, the text's own actions,
+                            // or my Edit and Delete. The last counts on its own because a thread
+                            // passes no Reply, and a file or photo sent there with no text would
+                            // otherwise have no Delete anywhere.
+                            const hasActions =
+                                (!!onOpenThread && isSettled) || !!content || canModifyMessage(message, group.isMine);
                             const isEditing = editingKey === key;
                             const wasEdited = isEdited(message);
                             // One receipt per author block, on its last message — the same
@@ -419,9 +445,19 @@ export const MessageRow = memo(
                             // receipts would stack four identical lines under a burst of
                             // four messages sent a second apart. A message still in flight,
                             // failed or deleted has no meaningful count.
+                            //
+                            // An older block's receipt waits for its message to be hovered or
+                            // focused. Keyed on the same state as the toolbar, so the arrow keys
+                            // that move focus through the feed reveal it too, not only a pointer.
                             const isLastInGroup = i === group.messages.length - 1;
+                            const isReceiptRevealed = !receiptOnReveal || hoverKey === key || focusKey === key;
                             const receipt: ReadCount | null =
-                                receiptRead != null && isLastInGroup && isSettled && !message.hidden && message.chatNo
+                                receiptRead != null &&
+                                isLastInGroup &&
+                                isReceiptRevealed &&
+                                isSettled &&
+                                !message.hidden &&
+                                message.chatNo
                                     ? { readCount: receiptRead, unreadCount: receiptUnread ?? 0 }
                                     : null;
                             // Keep the toolbar up whenever it owns something the reader is
@@ -504,7 +540,7 @@ export const MessageRow = memo(
                                                 }}
                                                 aria-label={t('chat.edit')}
                                                 aria-describedby={`${key}-edit-hint`}
-                                                className="focus-ring w-full resize-none rounded-md border border-input bg-background px-2 py-1.5 text-body text-foreground"
+                                                className="focus-ring w-full resize-none rounded-md border border-control-border bg-background px-2 py-1.5 text-body text-foreground"
                                             />
                                             {/* Buttons and shortcuts both, deliberately. The
                                                 shortcuts are faster once known and the buttons are
@@ -587,16 +623,13 @@ export const MessageRow = memo(
                                         <MessageImages
                                             message={message}
                                             canDelete={group.isMine}
-                                            author={{
-                                                name: group.ownerName,
-                                                avatar: group.avatar,
-                                                colorSeed: group.colorSeed,
-                                                time: formatTime(
-                                                    message.createdAt ?? message.createdAtMs ?? group.timestamp
-                                                ),
-                                            }}
+                                            author={author}
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
+                                    )}
+                                    {/* Videos and documents under the images; the grid and viewer take images only. */}
+                                    {message.id && !message.hidden && !isEditing && (
+                                        <MessageFiles message={message} author={author} />
                                     )}
                                     {/* `failure &&` first: an unsent message has no id, and
                                         `undefined === undefined` drew this line with no failure. */}
@@ -652,12 +685,13 @@ export const MessageRow = memo(
                                     from under the control the reader is using. Slack keeps the
                                     pill above the open picker for the same reason: it is the
                                     only thing still tying the grid to the message it acts on. */}
-                                    {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
+                                    {!isEditing && !message.hidden && hasActions && (
                                         <div
                                             data-row-actions=""
                                             inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
                                             className={cn(
-                                                'absolute -top-10 right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                                i === 0 && toolbarUnderHeader ? '-top-1.5' : '-top-10',
+                                                'absolute right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned
                                                     ? 'translate-x-0 opacity-100'
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'

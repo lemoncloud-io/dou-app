@@ -22,6 +22,10 @@ flowchart TD
     H -.first access constructs.-> L[("SQLite open + data sources<br/>cache / upload / test-record services")]
 ```
 
+The user does not watch this path: the launch splash is held over all of it and lifts only when
+the web reports its first screen painted ([boot-splash.md](./boot-splash.md)). Shortening the path
+shortens that splash; nothing on it needs to draw a placeholder of its own.
+
 ## Design principles
 
 1. **Minimize the critical path.** Anything not required to get the WebView's URL loading is removed

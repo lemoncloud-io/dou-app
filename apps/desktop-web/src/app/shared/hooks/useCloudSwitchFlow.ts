@@ -1,4 +1,4 @@
-import { createElement, useCallback, useRef } from 'react';
+import { Fragment, createElement, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
@@ -6,6 +6,7 @@ import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
+import { MobileAppPointer } from '../components/MobileAppPointer';
 import { useSelectedChannelStore } from '../stores';
 import { classifyWireError, extractErrorMessage } from '../utils';
 
@@ -62,17 +63,32 @@ export const useCloudSwitchFlow = () => {
             } catch (e) {
                 // switchCloud / logoutCloudSession already rolled their own session back on failure.
                 logger.error('SESSION', '[CloudSwitchFlow] switchFailed', { error: e });
+                const cause = switchCauseKey(e);
+                // Try again only where a second attempt can land. A refused or vanished cloud
+                // refuses again; a refusal is how a lapsed subscription shows up, and that is
+                // renewed in the mobile app, so the toast points there instead.
+                const canRetry = cause === 'cloud.switchCause.network' || cause === 'cloud.switchCause.other';
                 toast({
                     title: t('cloud.switchFailed'),
-                    description: t(switchCauseKey(e)),
+                    description:
+                        cause === 'cloud.switchCause.denied'
+                            ? createElement(
+                                  Fragment,
+                                  null,
+                                  t(cause),
+                                  createElement(MobileAppPointer, { className: 'mt-1 text-current' })
+                              )
+                            : t(cause),
                     variant: 'destructive',
                     // The kit types its action as `ReactElement<typeof ToastAction>` (the
                     // component, not its props), which no created element satisfies.
-                    action: createElement(
-                        ToastAction,
-                        { altText: t('cloud.switchRetry'), onClick: () => void latestRef.current(cloudId) },
-                        t('cloud.switchRetry')
-                    ) as unknown as ToastActionElement,
+                    action: canRetry
+                        ? (createElement(
+                              ToastAction,
+                              { altText: t('cloud.switchRetry'), onClick: () => void latestRef.current(cloudId) },
+                              t('cloud.switchRetry')
+                          ) as unknown as ToastActionElement)
+                        : undefined,
                 });
             }
         },

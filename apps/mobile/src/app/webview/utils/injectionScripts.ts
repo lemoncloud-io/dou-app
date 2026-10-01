@@ -159,7 +159,7 @@ export const getLogUploadHoldScript = (hold: boolean): string => `
  * This is the restore path after a WebView cache wipe: localStorage is empty, but native
  * still holds the theme. Injected before content loads (see AppWebView's
  * `injectedJavaScriptBeforeContentLoaded`), so `index.html` can read it while deciding the
- * initial `<html>` class, `theme-color`, and `--splash-bg`. A bridge message could not
+ * initial `<html>` class and `theme-color` (which also colour its boot cover). A bridge message could not
  * arrive in time — it lands after the first paint.
  *
  * The value is already normalized by themeStorage, so the web never sees a legacy envelope.

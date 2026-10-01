@@ -8,6 +8,7 @@ import {
     type AppMessageType,
     type BridgeErrorResponse,
     type CacheDomainVersions,
+    type WebAppReadyPayload,
     type WebMessageData,
     type WebMessageHandlerResponse,
     type WebMessageType,
@@ -20,7 +21,12 @@ export interface AppBridgeHostConfig {
     sendToWeb: (message: string) => void;
     version?: string;
     eventBuffer?: IMessageQueue<EventMessage>;
-    onAppReady?: () => void;
+    /**
+     * Called on every WebAppReady handshake with what the web declared in it. The payload is what
+     * lets a shell tell a web build that will send a later signal (`holdsBootSplash`) from an older
+     * one that never will; a shell that does not care can ignore the argument.
+     */
+    onAppReady?: (payload: WebAppReadyPayload) => void;
     /**
      * This host's local cache DB schema version, reported in the handshake. Kept for debugging and
      * for web bundles that predate per-domain contract versions; the current web does NOT route on
@@ -80,7 +86,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
         // WebAppReady isn't a plain ready signal — it's a handshake that exchanges web/mobile protocol capability.
         this.registerHandler('WebAppReady', async message => {
-            config.onAppReady?.();
+            config.onAppReady?.(message.data ?? {});
             // Measured, so it can fail or be slow; a failure must not cost the rest of the
             // handshake, which is the only chance the web gets to learn any of this.
             let cacheDomainVersions: CacheDomainVersions | undefined;

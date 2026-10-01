@@ -52,8 +52,9 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the Place section; the Chat
-section with its previews, unread badges and creation popover; the cloud-switcher sheet; the place
-and cloud unread marks; the three app-global runners that home exports.
+section with its previews, unread badges and creation popover; the rows' swipe actions (pin, mute,
+leave or delete); pull-to-refresh on the body; the cloud-switcher sheet; the place and cloud unread
+marks; the three app-global runners that home exports.
 
 **Out** — search itself (the header button only navigates to `/search`), the subscribe and IAP flow
 ([subscription](../subscription/README.md)), the profile form ([place](../place/README.md)), invite
@@ -149,15 +150,16 @@ is a known gap, not an intended rule.
 
 ## Folded sections
 
-Places, Chat Rooms and the cloud 1:1 section each fold independently, and the fold is remembered.
-`useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key (`persist: 'local'`),
-and `HomePage` passes each list a controlled `open`/`onOpenChange` under its own id — `places`,
-`channels`, `cloudDm`. The place rooms and the cloud 1:1s are the same `ChannelList`, so the id is
-what keeps folding one from folding the other.
+Places, Chat Rooms and the Self Chat section each fold independently, and the fold is
+remembered. `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key
+(`persist: 'local'`), and `HomePage` passes each list a controlled `open`/`onOpenChange` under its own
+id — `places`, `channels`, `cloudDm`. The place rooms and the notes-to-self room are the same
+`ChannelList`, so the id is what keeps folding one from folding the other. The last id predates the
+section losing its cloud 1:1s and keeps its name because it is a stored key.
 
 It is not left to `CollapsibleSection`'s own state because that state lives only as long as the
 section is mounted, and in ordinary use it is not: a reload, leaving home and coming back, and a
-switch between relay and a cloud (which mounts or drops the Place and cloud 1:1 sections) each start
+switch between relay and a cloud (which mounts or drops the Place and Self Chat sections) each start
 it over. So does a cold cloud switch, where the Chat section gives way to the loading state until a
 place is selected. The skeleton-to-list swap inside the Place section is not one of these — both
 render the same section, so React keeps it — but both branches still forward `open`.
@@ -200,6 +202,89 @@ sheet is open and any row is provisioning, a 30-second poll refetches and a read
 toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
 invited clouds, or subscribe.
 
+## Pull to refresh
+
+The scrolling body under the header is the kit's `PullToRefresh`: from the top of the list, a drag
+down reveals a small disc whose ring fills with the pull, and a release past 64px (after the pull's
+resistance halves finger travel) refreshes. At 64px the ring completes in the accent colour, the
+disc snaps a little larger and the phone gives a light haptic tap — the `impact` kind, see
+[Haptics](#haptics) — so the moment letting go will refresh is both seen and felt. While the refresh
+runs the ring turns as an open arc. It is touch-only — a mouse drag does nothing — and a pull that
+starts below the top, or moves sideways or up first, is an ordinary scroll. The first 6px of travel decide which it is, since
+iOS reports one-pixel moves and the first alone is jitter. A second finger drops the pull.
+The release is heard on the element the finger landed on, not on the list, so a skeleton row that
+gives way to real rows mid-pull still lets the list go back.
+
+A pull adds **no fetch of its own**. It asks, sooner, for what the screen would get anyway:
+
+- `requestBackgroundRefresh()` — one pass of the global background sync, the same one that runs on
+  the verified edge: place snapshot, channel delta (which carries the cloud 1:1s as well), my
+  profile, profile delta (skipped with no place), sent relay invites (relay only, and never for a
+  guest), and the relay self channel. That sync is mounted once under `AppRuntime`, not by home, so
+  the request goes through a registered handler rather than a second copy of the hook. A pull made
+  while an earlier one is still running joins it.
+- `refetchClouds()` and `refetchMembership()` — the two queries behind the header's cloud name and
+  tier pill, which the background sync does not own. The catalog is asked only with a session,
+  because its query is disabled without one and `refetch` does not honour that.
+
+The spinner stays up until all three have settled, or 10 seconds at most, and every part is
+best-effort: a failure ends the pull just as a success does, with whatever the cache already held
+left in place. The cap is for a socket that is dead but not yet known to be — right after a return
+from the background — where a request would otherwise hold the spinner for its full 30-second
+timeout. It stops the waiting, not the work. On a socket that is
+not verified, or mid-switch, the background pass sends nothing and settles at once — it would be
+answered by the wrong session — so the spinner only covers the two queries there.
+
+A pull re-reads lists; it does not re-read message history. Rows' previews follow from the chat
+sync home already registers, which catches a row up whenever the channel delta moves its head.
+
+## Row swipe actions
+
+Every room row in the Chat section, and in the Self Chat section, slides sideways to reveal actions
+behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing else.
+
+| Swipe | Actions                                                                   |
+| ----- | ------------------------------------------------------------------------- |
+| Right | Pin or unpin                                                              |
+| Left  | Notifications off or on, then Leave — or Delete, for a group room you own |
+
+- **Leave or delete is decided per row** by `removalActionFor`, the rule the room's settings screen
+  and the place's bulk remove already share: a 1:1 always leaves, even for the person who opened it,
+  and a group deletes only for its owner (`channel.ownerId`). Both ask first, with the settings
+  screen's own confirmation and copy — a 1:1 has its own wording — and neither runs until confirmed.
+- **Notifications** write my join row's `notify`, as the settings switch does. The write is
+  optimistic, so the bell-off glyph is the answer; only a failure speaks, as a toast.
+- **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin
+  moves the row, often out from under the finger, so it is confirmed with a toast. The Self Chat
+  section has no pin list behind it, so its row has no right swipe — and with no left side either, a
+  cloud's self chat does not swipe at all.
+- **A self chat** in a place's list (relay) has a pin and no left side — its settings offer neither
+  notifications nor an exit. Someone else's self chat, which is only ever a row left over from the
+  previous account, has no actions at all. Sent-invite rows do not swipe.
+
+One row is open at a time: `ChannelList` holds which. A tap on an open row's content, a scroll that
+starts on it and a touch anywhere else all close it, and none of them also does what the tap would
+otherwise have done — the row does not open its room, the button elsewhere is not pressed. A drag
+that crosses the point where letting go opens a side gives a `selection` haptic.
+
+The gesture is touch-only, like the pull, and decides at the pull's own 6px (the kit shares the
+constant): the pull claims a touch leaning down, the row one leaning sideways, and judged on the same
+move those cannot both hold, so the two never share a touch. Before that point a sideways-leaning
+move is already held back, so the WebView cannot start scrolling the list under a row that is about
+to slide. There is no keyboard or screen-reader path to these actions on home: the same actions
+stay in each room's settings.
+
+## Haptics
+
+The page cannot make a haptic itself — WebKit implements no `navigator.vibrate` — so home asks the
+shell, through `haptics.play(kind)` in `app/bridge/haptics.ts`. The kinds name a feel, not a gesture:
+`selection` for a row reaching its actions, `impact` for a pull reaching the refresh point.
+
+The web ships ahead of the app, so an installed app older than the message answers `NOT_FOUND`. One
+such answer settles it for the session and nothing more is sent; a browser is never asked. After the
+first answered request every haptic is a one-way post that the shell plays without replying, so a
+gesture never waits on a round trip. The shell honours the device's own touch-feedback setting.
+
 ## When an invite lands
 
 Home draws neither the accept screen nor the room it leads to. An accepted invite opens its room
@@ -211,12 +296,12 @@ invitee who leaves that form fills it in later.
 
 ## Documents
 
-| File                                                 | What it covers                                                                 |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [last-chat.md](./last-chat.md)                       | The message preview and the list order, and why the server's summary is unused |
-| [unread-dot.md](./unread-dot.md)                     | The unread formula, the place and cloud marks, cross-cloud push resolution     |
-| [place-channel-create.md](./place-channel-create.md) | Creating a place or a group room — gating, caps, the two overlays              |
-| [place-profile.md](./place-profile.md)               | Header identity tiers, the setup nudge, the branded place name                 |
+| File                                                 | What it covers                                                                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [last-chat.md](./last-chat.md)                       | The message preview — text, deleted or attachment kind — the list order, and why the server's summary is unused |
+| [unread-dot.md](./unread-dot.md)                     | The unread formula, the place and cloud marks, cross-cloud push resolution                                      |
+| [place-channel-create.md](./place-channel-create.md) | Creating a place or a group room — gating, caps, the two overlays                                               |
+| [place-profile.md](./place-profile.md)               | Header identity tiers, the setup nudge, the branded place name                                                  |
 
 ## How to verify
 

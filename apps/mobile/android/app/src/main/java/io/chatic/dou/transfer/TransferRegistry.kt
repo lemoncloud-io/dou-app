@@ -3,7 +3,10 @@ package io.chatic.dou.transfer
 import android.os.SystemClock
 import android.util.Log
 import io.chatic.dou.transfer.core.BatchStatus
+import io.chatic.dou.transfer.core.DownloadFiles
+import io.chatic.dou.transfer.core.DownloadedFile
 import io.chatic.dou.transfer.core.TransferCore
+import io.chatic.dou.transfer.core.TransferDirection
 import io.chatic.dou.transfer.core.TransferErrorCode
 import io.chatic.dou.transfer.core.TransferRequest
 import io.chatic.dou.transfer.core.TransferRules
@@ -35,10 +38,15 @@ object TransferRegistry {
      */
     class TransportSpec(
         val transferId: String,
+        val direction: TransferDirection,
         val url: String,
         val headers: Map<String, String>,
+        /** Upload only: the file to read. */
         val fileUri: String,
+        /** Upload only: the declared length. */
         val contentLength: Long,
+        /** Download only: the sanitised name the file is written under. */
+        val nameParts: DownloadFiles.NameParts?,
     ) {
         override fun toString(): String = "TransportSpec(transferId=$transferId)"
     }
@@ -71,14 +79,21 @@ object TransferRegistry {
     /** @throws io.chatic.dou.transfer.core.TransferRejectedException when the core refuses it. */
     fun start(request: TransferRequest): TransferSnapshot = synchronized(lock) {
         val event = core.start(request)
+        val download = event.direction == TransferDirection.DOWNLOAD
         pendingSpecs[event.transferId] = TransportSpec(
             transferId = event.transferId,
+            direction = event.direction,
             url = request.url.orEmpty(),
-            headers = TransferRules.requestHeaders(request.headers, request.contentType),
+            headers = if (download) {
+                TransferRules.downloadHeaders(request.headers)
+            } else {
+                TransferRules.requestHeaders(request.headers, request.contentType)
+            },
             fileUri = request.fileUri.orEmpty(),
             contentLength = event.totalBytes,
+            nameParts = if (download) DownloadFiles.nameParts(request.fileName) else null,
         )
-        Log.i(TAG, "start ${event.transferId} host=${TransferRules.safeHost(request.url)} bytes=${event.totalBytes}")
+        Log.i(TAG, "start ${event.transferId} ${event.direction.wire} host=${TransferRules.safeHost(request.url)} bytes=${event.totalBytes}")
         dispatchLocked(listOf(event))
         event
     }
@@ -93,9 +108,21 @@ object TransferRegistry {
         dispatchLocked(listOfNotNull(core.progress(transferId, bytes)))
     }
 
-    fun response(transferId: String, httpStatus: Int, body: String?) = synchronized(lock) {
-        dispatchLocked(listOfNotNull(core.response(transferId, httpStatus, body)))
+    fun expectLength(transferId: String, contentLength: Long) = synchronized(lock) {
+        core.expectLength(transferId, contentLength)
     }
+
+    /**
+     * Records the response. Returns false when the report no longer counts — the transfer already
+     * ended, typically a cancel that won the race — so a download's transport knows its committed
+     * file is nobody's and deletes it.
+     */
+    fun response(transferId: String, httpStatus: Int, body: String?, file: DownloadedFile? = null): Boolean =
+        synchronized(lock) {
+            val event = core.response(transferId, httpStatus, body, file)
+            dispatchLocked(listOfNotNull(event))
+            event != null
+        }
 
     fun failure(transferId: String, code: TransferErrorCode, message: String?) = synchronized(lock) {
         dispatchLocked(listOfNotNull(core.failure(transferId, code, message)))
@@ -121,6 +148,8 @@ object TransferRegistry {
     fun ack(transferIds: Collection<String>): Int = synchronized(lock) { core.ack(transferIds) }
 
     fun hasRunning(): Boolean = synchronized(lock) { core.hasRunning() }
+
+    fun runningDownloads(): List<String> = synchronized(lock) { core.runningDownloads() }
 
     fun batchStatus(): BatchStatus = synchronized(lock) { core.batchStatus() }
 

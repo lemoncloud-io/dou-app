@@ -3,6 +3,18 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 
 import { publicRoutes } from './PublicRoutes';
 
+const mockReleaseHold = jest.fn();
+const mockUseBootSplashHold = jest.fn();
+jest.mock('../runtime/bootSplash', () => {
+    const { useLayoutEffect } = jest.requireActual('react');
+    return {
+        useBootSplashHold: () => {
+            mockUseBootSplashHold();
+            useLayoutEffect(() => mockReleaseHold, []);
+        },
+    };
+});
+
 // The root entry is now InviteEntryGate, which reads `isFirstRun`. Stubbing the hook keeps this
 // suite about routing rather than the onboarding flag. InviteEntryGate.test.tsx covers the gate's
 // own logic.
@@ -33,4 +45,19 @@ describe('publicRoutes — 비로그인 라우팅', () => {
 
     // NOTE: the '*' catch-all (Navigate to root) is verified by review, not here — exercising a
     // data-router redirect needs the `Request` global, which is absent in the jsdom test env.
+
+    // The signed-out root renders nothing while the guest login runs; lifting the launch splash onto
+    // that blank page is the flicker the boot cover exists to prevent.
+    it('holds the boot cover while the signed-out root waits, and lets go when it unmounts', async () => {
+        mockUseBootSplashHold.mockClear();
+        mockReleaseHold.mockClear();
+        const router = makeRouter('/');
+        const { unmount } = render(<RouterProvider router={router} />);
+
+        await waitFor(() => expect(mockUseBootSplashHold).toHaveBeenCalled());
+        expect(mockReleaseHold).not.toHaveBeenCalled();
+
+        unmount();
+        expect(mockReleaseHold).toHaveBeenCalled();
+    });
 });

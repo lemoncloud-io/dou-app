@@ -28,7 +28,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
 | `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
-| `BK_100`                      | `#EAEAEC` | `--border`, `--hairline`, `--input-border`                       |
+| `BK_100`                      | `#EAEAEC` | `--border`, `--hairline`, `--input-border` (web)                 |
 | `BK_300`                      | `#CFD0D3` | `--control-idle`, `--toast-muted`                                |
 | `BK_400`                      | `#BABCC0` | `--placeholder` (web)                                            |
 | `BK_500`                      | `#9FA2A7` | `--placeholder` (desktop), dark `--label` (web)                  |
@@ -73,7 +73,18 @@ White on `#B0EA10` is 1.6:1, so:
 - **On dark surfaces** the fill already reads as text, so `--primary-ink` equals
   `--primary`.
 
-`libs/block-kit` resolves mentions to `primary-ink`, never `primary`.
+`libs/block-kit` resolves mentions to `primary-ink`, never `primary`. The kit's `link`
+button variant is `primary-ink` and underlined at rest; a checked Switch keeps the lime
+fill but takes a `primary-ink` edge and a `primary-foreground` thumb, so its state does
+not rest on the fill's 1.44:1 against white.
+
+### Control edges versus hairlines
+
+A control's boundary is held to 3:1 against its ground (WCAG 1.4.11): a text field, the
+composer box, an unselected option, the Switch's off track all take `border-control-border`
+(`--input-border` points at it for the kit `Input`). A selected option's edge is
+`border-primary-ink`. Dividers and cards carry no state and keep the `--border` hairline;
+making them 3:1 would draw a grid over the whole shell.
 
 **Links are not the accent.** On desktop a URL in message text takes `text-link`
 (`--link`, light `217 72% 38%` at 7.59:1 on white, dark `212 90% 72%` at 6.84:1 on the
@@ -99,6 +110,7 @@ change every message on mobile, which is a separate decision.
 | `--muted-foreground`                   | `218 5% 40%`   | darker than BK_600 (3.6:1); 4.5:1 on hover and composer tints too    |
 | `--border` / `--hairline`              | `240 5% 92%`   | `#EAEAEC`                                                            |
 | `--input`                              | `240 6% 90%`   | `#E5E5E8` composer box                                               |
+| `--control-border` / `--input-border`  | `220 5% 52%`   | edge of a field, an option, the Switch's off track (3.83:1 on white) |
 | `--well`                               | `0 0% 96%`     | search bar, code block ground                                        |
 | `--destructive`                        | `358 80% 44%`  | deeper than Figma `#FF3B30` (3.58:1 as text and as a fill), ADR-0133 |
 | `--warning`                            | `38 92% 50%`   | connecting banner                                                    |
@@ -120,6 +132,7 @@ Warm near-neutral grays, same lime.
 | `--accent` (hover)                                        | `#38393A`                                                                           |
 | `--border` / `--hairline`                                 | `#424540`                                                                           |
 | `--input`                                                 | `#3D3E3C`                                                                           |
+| `--control-border` / `--input-border`                     | `90 2% 55%` control edges (4.10:1 on a card)                                        |
 | `--focus-border`                                          | `#B0EA10` (composer focus is the lime itself on dark; light mode uses the ink lime) |
 | `--link`                                                  | `212 90% 72%` URLs in message text (6.84:1 on `#252624`)                            |
 | `--toast`                                                 | `#F4F5F5` light card, dark text                                                     |
@@ -229,8 +242,9 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 - **Stacking** (desktop): one named scale in `tailwind.config.js`, no numeric `z-*`.
   `z-raised` (a toolbar or sticky label above its own row), `z-float` (pills, the mention
   list and a drawer's scrim over a pane), `z-overlay` (the drop zone over a whole pane),
-  `z-drawer` (a panel or drawer laid over its neighbour), `z-popover` (fixed to the
-  viewport, level with ui-kit's dialogs and menus at 50).
+  `z-drawer` (a panel or drawer laid over its neighbour), `z-toast` (toasts: over every
+  pane, under an open dialog), `z-popover` (fixed to the viewport, level with ui-kit's
+  dialogs and menus at 50).
 
 ## Layout
 
@@ -331,7 +345,9 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 - **Focus**: `.focus-ring` on every interactive element — a 2px background gap then a
   ring in `--focus-ring` (the ink lime in light mode, the fill lime in dark: 3:1 or more
   on the pane), visible only on `:focus-visible`. Every focus indicator uses it; the
-  token pairs are checked by `apps/desktop-web/src/tokenContrast.spec.ts`.
+  token pairs are checked by `apps/desktop-web/src/tokenContrast.spec.ts`. `libs/ui-kit`'s
+  Button, Switch and dialog close button draw the same geometry (`ring-2` behind a 2px
+  `ring-offset-background` gap) from `--ring`, which points at `--focus-ring`.
 - **Press**: `.tactile` scales to 0.97 over 140ms with `ease-tactile`
   (`cubic-bezier(0.16, 1, 0.3, 1)`). Transform only, no layout.
 - **Transitions**: colour changes use `transition-colors ease-tactile`. Panels animate
@@ -358,7 +374,7 @@ icons from a bold "Solar" style set; in code they are the lucide equivalents.
 | Mine vs theirs        | same row shape, author resolved from profile                                  | navy bubble right / gray bubble left                                           |
 | Sending / failed      | row at 50% opacity, then `text-destructive` caption with retry                | spinner, then red alert icon with retry                                        |
 | Connecting            | amber pill in the header with a pulsing dot                                   | —                                                                              |
-| Empty                 | 56px `bg-primary/10` glyph tile, heading, caption, one action                 | `EmptyState` composite                                                         |
+| Empty                 | 56px `bg-muted` glyph tile, heading, caption, one action                      | `EmptyState` composite                                                         |
 | Loading               | `Skeleton` rows matching the final layout                                     | `RoomSkeleton`                                                                 |
 
 Unread is derived client-side, never read from the server's lagging count (rule in the

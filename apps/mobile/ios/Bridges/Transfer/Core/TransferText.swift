@@ -49,6 +49,16 @@ enum TransferText {
         return result
     }
 
+    /// The headers a download sends: the caller's, minus the platform-owned ones, with
+    /// `Accept-Encoding: identity` in place of any the caller gave. Both HTTP stacks ask for gzip by
+    /// default and inflate the reply on their own, so the bytes kept and the length reported could
+    /// differ from the stored object's. The signature covers the host only, so this does not break it.
+    static func downloadHeaders(_ headers: [String: String]) -> [String: String] {
+        var result = filterHeaders(headers).filter { $0.key.lowercased() != "accept-encoding" }
+        result["Accept-Encoding"] = "identity"
+        return result
+    }
+
     /// The S3 `<Code>` of an error body, or `nil` when the body is not such a document.
     static func providerCode(from body: Data?) -> String? {
         guard let body, !body.isEmpty else { return nil }

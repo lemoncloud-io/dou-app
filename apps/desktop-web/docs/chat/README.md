@@ -15,5 +15,7 @@ stores in `src/app/shared/`.
 - [room-names.md](./room-names.md): one name per room on every surface, and the profile cache behind it.
 - [images.md](./images.md): adding images, the tray, tiles and their states, the viewer, and image
   previews in the sidebar and notifications.
+- [onboarding.md](./onboarding.md): the first-run welcome, shown once per account, the Self Channel
+  row it waits on, and tips that match what the account has.
 - [keyboard.md](./keyboard.md): the feed's single tab stop, hover-revealed controls, which layer owns a
   key, focus on open and close, and the next-unread shortcut.

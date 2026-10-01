@@ -3,17 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 let activeCloudId = 'cloud-1';
+let selectedSiteId: string | null = 'site-1';
 const startDm = vi.fn();
+const getSelfChannel = vi.fn();
 const toast = vi.fn();
 const syncChannels = vi.fn();
 const syncMeta = { getSyncedAt: vi.fn(), setSyncedAt: vi.fn() };
 const warn = vi.fn();
-const repositories = { channel: { startDm, syncChannels }, syncMeta };
+const repositories = { channel: { startDm, getSelfChannel, syncChannels }, syncMeta };
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
-        session: { useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }) },
+        session: {
+            useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
+            useSessionSelection: () => ({ selectedSiteId }),
+        },
     },
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: (...args: unknown[]) => warn(...args) } }));
@@ -26,7 +31,9 @@ import { useStartDm } from './useStartDm';
 describe('useStartDm', () => {
     beforeEach(() => {
         activeCloudId = 'cloud-1';
+        selectedSiteId = 'site-1';
         startDm.mockReset();
+        getSelfChannel.mockReset();
         toast.mockReset();
         usePendingOpenStore.setState({ target: null });
         syncChannels.mockReset().mockResolvedValue({ syncedAt: 200 });
@@ -175,5 +182,123 @@ describe('useStartDm', () => {
         const { result } = renderHook(() => useStartDm());
 
         expect(result.current.isAvailable).toBe(false);
+    });
+
+    describe('openSelf', () => {
+        it('opens my notes-to-self room through get-self, never start-dm', async () => {
+            // start-dm answers 400 for my own id; the self room has its own get-or-create call.
+            getSelfChannel.mockResolvedValue({ id: 'U:me', stereo: 'self', sid: 'site-1' });
+            const { result } = renderHook(() => useStartDm());
+
+            let room: unknown;
+            await act(async () => {
+                room = await result.current.openSelf();
+            });
+
+            expect(getSelfChannel).toHaveBeenCalledWith(undefined, 'site-1');
+            expect(startDm).not.toHaveBeenCalled();
+            expect(room).toEqual({ id: 'U:me', stereo: 'self', sid: 'site-1' });
+            expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: '', channelId: 'U:me' });
+            expect(syncChannels).not.toHaveBeenCalled();
+        });
+
+        it('is unavailable without an open place, which the row has to be tagged with', async () => {
+            selectedSiteId = null;
+            const { result } = renderHook(() => useStartDm());
+
+            expect(result.current.canOpenSelf).toBe(false);
+            let room: unknown = 'unset';
+            await act(async () => {
+                room = await result.current.openSelf();
+            });
+            expect(room).toBeNull();
+            expect(getSelfChannel).not.toHaveBeenCalled();
+        });
+
+        it('is unavailable on the default cloud', () => {
+            activeCloudId = 'default';
+            const { result } = renderHook(() => useStartDm());
+
+            expect(result.current.canOpenSelf).toBe(false);
+        });
+
+        it('shows the failure toast and returns null when get-self fails', async () => {
+            getSelfChannel.mockRejectedValue(new Error('unsupported'));
+            const { result } = renderHook(() => useStartDm());
+
+            let room: unknown = 'unset';
+            await act(async () => {
+                room = await result.current.openSelf();
+            });
+
+            expect(room).toBeNull();
+            expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'dm.start.failed' }));
+            expect(usePendingOpenStore.getState().target).toBeNull();
+        });
+
+        it('shares the one in-flight guard with startDm', async () => {
+            let resolve: (room: unknown) => void = () => undefined;
+            startDm.mockReturnValue(new Promise(r => (resolve = r)));
+            const { result } = renderHook(() => useStartDm());
+
+            let pending: Promise<unknown> = Promise.resolve();
+            act(() => {
+                pending = result.current.startDm('u-1');
+            });
+            let self: unknown = 'unset';
+            await act(async () => {
+                self = await result.current.openSelf();
+            });
+            expect(self).toBeNull();
+            expect(getSelfChannel).not.toHaveBeenCalled();
+
+            await act(async () => {
+                resolve({ id: 'dm-1', sid: 'site-1' });
+                await pending;
+            });
+        });
+
+        it('blocks startDm while it is in flight', async () => {
+            let resolve: (room: unknown) => void = () => undefined;
+            getSelfChannel.mockReturnValue(new Promise(r => (resolve = r)));
+            const { result } = renderHook(() => useStartDm());
+
+            let pending: Promise<unknown> = Promise.resolve();
+            act(() => {
+                pending = result.current.openSelf();
+            });
+            let dm: unknown = 'unset';
+            await act(async () => {
+                dm = await result.current.startDm('u-1');
+            });
+            expect(dm).toBeNull();
+            expect(startDm).not.toHaveBeenCalled();
+
+            await act(async () => {
+                resolve({ id: 'U:me', sid: 'site-1' });
+                await pending;
+            });
+        });
+
+        it('opens nothing when the cloud changed while the call was in flight', async () => {
+            let resolve: (room: unknown) => void = () => undefined;
+            getSelfChannel.mockReturnValue(new Promise(r => (resolve = r)));
+            const { result, rerender } = renderHook(() => useStartDm());
+
+            let pending: Promise<unknown> = Promise.resolve();
+            act(() => {
+                pending = result.current.openSelf();
+            });
+            activeCloudId = 'cloud-2';
+            rerender();
+            let room: unknown = 'unset';
+            await act(async () => {
+                resolve({ id: 'U:me', sid: 'site-1' });
+                room = await pending;
+            });
+
+            expect(room).toBeNull();
+            expect(usePendingOpenStore.getState().target).toBeNull();
+        });
     });
 });

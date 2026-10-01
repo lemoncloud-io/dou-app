@@ -377,6 +377,51 @@ describe('ChatRepository', () => {
             }
         });
 
+        // A video or document has no preview to draw while it is sent; its card needs these instead.
+        it('keeps the name, type and size of a file that is not an image on its slot', async () => {
+            const { repository, chatLocalDataSource } = createPendingRepository();
+
+            const id = await repository.createPendingImageChat({
+                channelId: 'ch-1',
+                localThumbUrls: ['blob:a', 'blob:b'],
+                localFiles: [null, { name: 'a.pdf', contentType: 'application/pdf', size: 42 }],
+            });
+
+            const row = await chatLocalDataSource.cacheRead(id);
+            expect(row?.upload$$).toEqual([
+                { localStatus: 'sending', localThumbUrl: 'blob:a' },
+                {
+                    localStatus: 'sending',
+                    localThumbUrl: 'blob:b',
+                    localName: 'a.pdf',
+                    localContentType: 'application/pdf',
+                    localSize: 42,
+                },
+            ]);
+        });
+
+        it('keeps those details when the row is rewritten with previews only', async () => {
+            const { repository, chatLocalDataSource } = createPendingRepository();
+            const id = await repository.createPendingImageChat({
+                channelId: 'ch-1',
+                localThumbUrls: ['blob:a'],
+                localFiles: [{ name: 'a.pdf', contentType: 'application/pdf', size: 42 }],
+            });
+
+            await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:z'], pendingId: id });
+
+            const row = await chatLocalDataSource.cacheRead(id);
+            expect(row?.upload$$).toEqual([
+                {
+                    localStatus: 'sending',
+                    localThumbUrl: 'blob:z',
+                    localName: 'a.pdf',
+                    localContentType: 'application/pdf',
+                    localSize: 42,
+                },
+            ]);
+        });
+
         it('sends with the stored upload ids and swaps the pending row for the server row', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
             const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });

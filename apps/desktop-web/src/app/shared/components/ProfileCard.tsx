@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, Copy, MessageCircle } from 'lucide-react';
+import { Check, Copy, MessageCircle, StickyNote } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 
@@ -32,9 +32,10 @@ interface ProfileCardContentProps extends Omit<UserProfilePopoverProps, 'childre
     /** Renders a "View full profile" row that hands off to the trailing panel (popover only). */
     onExpand?: () => void;
     /**
-     * Called once "Message" has opened the 1:1, so the surface showing the card gets out of the
-     * way. Both the popover and the panel pass it: opening the 1:1 you are already in selects no
-     * new channel, so nothing else would close them.
+     * Called once "Message" has opened the 1:1 (or, on my own card, "Notes to self" has opened my
+     * room), so the surface showing the card gets out of the way. Both the popover and the panel
+     * pass it: opening the room you are already in selects no new channel, so nothing else would
+     * close them.
      */
     onClose?: () => void;
 }
@@ -43,7 +44,8 @@ interface ProfileCardContentProps extends Omit<UserProfilePopoverProps, 'childre
  * Card body. Rendered only while the popover is open (Radix unmounts closed
  * content), so the user subscription lives only for the open card — never one
  * per message row. Other users expose just avatar/name/nick, so the card stays
- * deliberately minimal: plain banner, identity, a Message action, and a copy-id row. Also reused as
+ * deliberately minimal: plain banner, identity, a Message action ("Notes to self" on my own card),
+ * and a copy-id row. Also reused as
  * the body of the trailing ProfilePanel (without onExpand).
  */
 export const ProfileCardContent = ({
@@ -59,15 +61,17 @@ export const ProfileCardContent = ({
     const { t } = useTranslation();
     const user = useUser(userId || null);
     const [copied, copy] = useCopyToClipboard();
-    const { startDm, isStarting, isAvailable: canStartDm } = useStartDm();
+    const { startDm, openSelf, isStarting, isAvailable: canStartDm, canOpenSelf } = useStartDm();
     // Not every host passes `isMe` (a mention in a message does not), and either of my ids —
     // the account one or this cloud's — can be the one on the card.
     const myUid = runtime.session.useSessionIdentity().userId;
     const myCloudUid = runtime.session.useUidInCloud(runtime.session.useGlobalSession().cloud.cloudId ?? '');
     const isMine = !!isMe || userId === myUid || userId === myCloudUid;
-    const handleMessage = async () => {
-        if (await startDm(userId)) onClose?.();
+    // My own card offers my notes-to-self room where anyone else's offers a 1:1 with them.
+    const handleOpenRoom = async () => {
+        if (await (isMine ? openSelf() : startDm(userId))) onClose?.();
     };
+    const showMessage = isMine ? canOpenSelf : !!userId && canStartDm;
 
     // The trigger's rendered identity wins over the global record: the Place
     // override may be keyed by a different uid than `userId` (own messages
@@ -79,7 +83,11 @@ export const ProfileCardContent = ({
     const nick = user?.nick && user.nick !== name ? user.nick : undefined;
     const initial = name.charAt(0).toUpperCase() || '?';
     const seed = colorSeed || userId || name;
-    const channelCount = user?.channelIds?.length ?? 0;
+    // `channelIds` gathers the channels where this device has seen the person in a member list,
+    // and a member list is only ever loaded for my own channels: these are the channels we share,
+    // as far as this device knows (the list is a union, so a channel one of us left can linger).
+    // On my own card that is just "my channels", which the card has no reason to count.
+    const sharedChannelCount = isMine ? 0 : (user?.channelIds?.length ?? 0);
 
     return (
         <div>
@@ -103,21 +111,21 @@ export const ProfileCardContent = ({
                     )}
                 </div>
                 {nick && <span className="block truncate text-callout text-muted-foreground">@{nick}</span>}
-                {channelCount > 0 && (
+                {sharedChannelCount > 0 && (
                     <span className="mt-0.5 block text-micro text-muted-foreground">
-                        {t('profile.channelCount', { count: channelCount })}
+                        {t('profile.sharedChannelCount', { count: sharedChannelCount })}
                     </span>
                 )}
 
-                {userId && canStartDm && !isMine && (
+                {showMessage && (
                     <button
                         type="button"
-                        onClick={handleMessage}
+                        onClick={handleOpenRoom}
                         disabled={isStarting}
                         className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-micro font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                     >
-                        <MessageCircle size={14} aria-hidden />
-                        {t('dm.start.message')}
+                        {isMine ? <StickyNote size={14} aria-hidden /> : <MessageCircle size={14} aria-hidden />}
+                        {t(isMine ? 'dm.new.self' : 'dm.start.message')}
                     </button>
                 )}
 

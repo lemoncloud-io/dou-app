@@ -25,7 +25,9 @@
         "confirm": "확인",
         "save": "변경사항 저장",
         "saving": "저장 중...",
-        "back": "뒤로"
+        "back": "뒤로",
+        "toastRegion": "알림 ({hotkey})",
+        "loading": "불러오는 중"
     },
     "nav": {
         "authTest": "인증 테스트",
@@ -481,6 +483,7 @@
         "noPlaceTitle": "접속한 플레이스가 없어요",
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요",
         "loadingCloud": "클라우드를 불러오는 중이에요",
+        "refreshing": "새로고침 중",
         "selectPlaceFirst": "플레이스를 먼저 선택해주세요"
     },
     "cloudSessionSheet": {
@@ -563,20 +566,11 @@
             "confirm": "나가기"
         }
     },
-    "cloudDm": {
-        "picker": {
-            "title": "1:1 대화 상대",
-            "searchPlaceholder": "이름으로 검색",
-            "empty": "아직 대화할 수 있는 사람이 없어요",
-            "emptyHint": "같은 방에 있는 사람과 1:1 대화를 시작할 수 있어요.",
-            "noMatch": "검색 결과가 없어요",
-            "failed": "1:1 대화를 열지 못했어요"
-        },
+    "cloudSelf": {
         "section": {
-            "title": "1:1 대화",
-            "empty": "아직 1:1 대화가 없어요"
-        },
-        "startFromProfile": "1:1 대화하기"
+            "title": "나와의 채팅",
+            "empty": "아직 나와의 채팅이 없어요"
+        }
     },
     "channelList": {
         "noDescription": "채널 설명 없음",
@@ -593,7 +587,15 @@
         "emptyInvited": "현재 참여 중인 채팅방이 없어요.\n새로운 채팅방에 초대되면 이곳에 표시됩니다.",
         "emptyInvitedLeaveHint": "이 플레이스를 더 이상 이용하지 않는다면 나갈 수 있어요.",
         "emptyInvitedPlaceInfo": "플레이스 정보 바로가기",
-        "loading": "채팅방을 불러오는 중이에요"
+        "loading": "채팅방을 불러오는 중이에요",
+        "swipe": {
+            "pin": "고정",
+            "unpin": "고정 해제",
+            "mute": "알림 끄기",
+            "unmute": "알림 켜기",
+            "leave": "나가기",
+            "delete": "삭제"
+        }
     },
     "channelManage": {
         "title": "채팅방 관리",
@@ -884,6 +886,11 @@
             },
             "preview": "사진",
             "previewCount": "사진 {{count}}장",
+            "previewVideo": "동영상",
+            "previewVideoCount": "동영상 {{count}}개",
+            "previewFile": "파일",
+            "previewFileCount": "파일 {{count}}개",
+            "previewMixedCount": "첨부 {{count}}개",
             "tile": "사진 {{position}}",
             "viewer": "사진",
             "viewerClose": "닫기",

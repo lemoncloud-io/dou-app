@@ -2,7 +2,7 @@
 
 **A light/dark preference, and the `light` or `dark` class it puts on `<html>`.** Two source files —
 a React context provider that stores the choice and applies it, and the hook that reads it back — plus
-two barrels. 94 lines in total.
+two barrels. 105 lines in total, plus one spec.
 
 The interesting part is not the React. It is that the preference is **shared across apps on one
 machine** through a single `localStorage` key, and that four `index.html` files resolve that key
@@ -156,8 +156,9 @@ Three things the filenames do not tell you.
 - **`useTheme` re-exports the whole context.** It returns `{ ...context, theme, isDarkTheme }`, so
   `setTheme` arrives at consumers exactly as the provider built it; the hook adds one derived boolean
   and changes nothing else.
-- **`isDarkTheme` calls `window.matchMedia` during render, not in an effect.** It is sampled, not
-  subscribed — see [Scenario 3](#3-system-and-why-an-os-toggle-does-nothing-on-its-own).
+- **`isDarkTheme` calls `window.matchMedia` during render, not in an effect.** The hook samples it;
+  the provider's subscription is what re-renders consumers when the OS changes — see
+  [Scenario 3](#3-system-follows-the-os-while-the-app-is-open).
 
 ## Usage
 
@@ -193,8 +194,9 @@ apps/landing            main.tsx      <ThemeProvider defaultTheme="light">
 apps/block-kit-builder  main.tsx      <ThemeProvider defaultTheme="system">
   └─ index.html: no stored value → follow prefers-color-scheme   (agrees with "system")
 
-apps/desktop-web        app.tsx       <ThemeProvider>              → defaults to "light"
-  └─ index.html: no stored value → light, and sets theme-color    (agrees with "light")
+apps/desktop-web        app.tsx       <ThemeProvider defaultTheme="system">
+  └─ index.html: no stored value → follow prefers-color-scheme, and sets theme-color
+                                                                   (agrees with "system")
 ```
 
 ## Scenarios
@@ -215,14 +217,13 @@ three — `setTheme(isDarkTheme ? 'light' : 'dark')` — on the grounds that som
 button has already decided. Both write the same key, so a machine that runs both tools keeps one
 answer.
 
-### 3. `'system'`, and why an OS toggle does nothing on its own
+### 3. `'system'` follows the OS while the app is open
 
-With `theme === 'system'` the provider resolves `prefers-color-scheme` inside its effect, and
-`useTheme` resolves it again during render. Neither subscribes to the media query. Changing the OS
-appearance while the page is open therefore changes nothing until something else causes a re-render —
-and even then only `isDarkTheme` moves, because the provider's effect is keyed on `[theme]`, which did
-not change. `apps/web`'s replacement fixed this with `useSyncExternalStore` over a `matchMedia`
-listener; this module has not.
+While `theme === 'system'` the provider subscribes to the `(prefers-color-scheme: dark)` media query
+and keeps the answer in state; the class effect is keyed on the resolved `light` / `dark`, so an OS
+appearance change re-applies the class and re-renders consumers, whose `isDarkTheme` moves with it.
+The subscription exists only while the choice is `'system'`. Switching back to `'system'` reads the
+query once on subscribe, so a change the OS made while `light` or `dark` was chosen is not missed.
 
 ### 4. Running inside the native shell
 
@@ -264,12 +265,12 @@ symptom is a dead toggle, not an error.
 ```bash
 npx tsc -b libs/theme/tsconfig.json --force   # the whole check
 npx nx typecheck @chatic/theme                # what CI runs
+npx nx run @chatic/theme:test               # ThemeProvider.spec.tsx, jsdom
 ```
 
-**There is no second command.** This lib has no jest config, no `tsconfig.spec.json` and no test file,
-so nx infers no `test` target — `typecheck`, `build`, `build-deps`, `watch-deps` and `lint` is the
-complete list, and `npx nx show project @chatic/theme --json` is what proves it. Do not invent a
-`--config libs/theme/jest.config.js`; there is nothing at that path.
+`vite.config.mts` gives the lib its own vitest runner. The spec stubs `matchMedia` (jsdom has none)
+with a controllable OS appearance, and asserts the class on `<html>` and what `useTheme` returns. Spec
+files are excluded from `tsconfig.lib.json`, so they are not part of `tsc -b`.
 
 - Type checking must be `tsc -b`. Inside this lib, `tsc --noEmit` checks zero files and succeeds, so
   passing it proves nothing.

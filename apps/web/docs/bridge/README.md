@@ -1,6 +1,6 @@
 # bridge — the app-side seam over `@chatic/bridges`
 
-> Scope: `apps/web/src/app/bridge/` (23 files). The transport itself — `webClient`, readiness
+> Scope: `apps/web/src/app/bridge/` (29 files). The transport itself — `webClient`, readiness
 > polling, timeouts, the message vocabulary — is [`@chatic/bridges`](../../../../libs/bridges/README.md);
 > this document covers only the wrapper this app builds on top of it.
 
@@ -24,7 +24,7 @@ folder:
 ## Outbound: `appBridge`
 
 `appBridge` (`appBridge.ts`) wraps every `webClient.post`/`webClient.request` call the app makes —
-53 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
+58 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
 mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.post({ type:
 'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file.
 
@@ -56,6 +56,14 @@ through as an argument, so this file stays the only place that hands it `webClie
 from `@chatic/data`. The first
 `NOT_FOUND` from a shell built before the transfer module switches the page to `xhrPut` for good.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
+
+## Haptics: `haptics`
+
+`haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. The
+first call is a `request`: `NOT_FOUND` (an app built before the message) turns it off for the
+session, and a success switches every later call to a one-way `post`, which the shell plays without
+answering. A browser is never asked. What home uses it for →
+[feature/home/README.md](../feature/home/README.md#haptics).
 
 ## Foreground detection
 

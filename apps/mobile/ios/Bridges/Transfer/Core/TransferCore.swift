@@ -17,7 +17,8 @@ final class TransferCore {
     private final class Entry {
         let transferId: String
         let direction: TransferDirection
-        let totalBytes: Int64
+        /// Known at start for an upload; a download learns it from the response (`expectLength`).
+        var totalBytes: Int64
         let title: String?
         let startSeq: Int
         var state: TransferState = .running
@@ -26,6 +27,7 @@ final class TransferCore {
         var providerCode: String?
         var errorCode: TransferErrorCode?
         var errorMessage: String?
+        var file: DownloadedFile?
         var terminalSeq: Int?
         var lastEmittedAt: Int64?
         var lastProgressAt: Int64?
@@ -49,13 +51,18 @@ final class TransferCore {
                 providerCode: providerCode,
                 errorCode: errorCode,
                 errorMessage: errorMessage,
-                title: title
+                title: title,
+                file: file
             )
         }
     }
 
     /// A batch keeps its own copy of each member's numbers so an acknowledged (removed) member
     /// still counts as settled in the aggregate.
+    ///
+    /// Only uploads join a batch. The batch feeds the system surfaces — the continued-processing
+    /// progress UI and the failure notification — and a download is a few seconds the user waits
+    /// through on screen, where the page reports both its progress and its failure.
     private struct BatchMember {
         let transferId: String
         let totalBytes: Int64
@@ -102,20 +109,33 @@ final class TransferCore {
         guard let direction = TransferDirection(rawValue: request.direction) else {
             throw invalid("unknown direction")
         }
-        if direction == .download {
-            throw invalid("download is not implemented")
-        }
-        if request.method != "PUT" {
-            throw invalid("upload requires PUT")
-        }
-        if !TransferText.isTransferURL(request.url) {
-            throw invalid("url must be an absolute http or https URL")
-        }
-        if request.fileUri.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw invalid("file.uri is required")
-        }
-        guard let length = request.contentLength, length >= 0 else {
-            throw invalid("upload requires file.contentLength >= 0")
+        let hasFileUri = !request.fileUri.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch direction {
+        case .upload:
+            if request.method != "PUT" {
+                throw invalid("upload requires PUT")
+            }
+            if !TransferText.isTransferURL(request.url) {
+                throw invalid("url must be an absolute http or https URL")
+            }
+            if !hasFileUri {
+                throw invalid("file.uri is required")
+            }
+            guard let length = request.contentLength, length >= 0 else {
+                throw invalid("upload requires file.contentLength >= 0")
+            }
+        case .download:
+            if request.method != "GET" {
+                throw invalid("download requires GET")
+            }
+            if !TransferText.isTransferURL(request.url) {
+                throw invalid("url must be an absolute http or https URL")
+            }
+            // The shell picks where a download goes. A caller able to name the path could overwrite
+            // the app's own files, and the page asking is loaded from the network.
+            if hasFileUri {
+                throw invalid("download takes no file.uri; the shell chooses the file")
+            }
         }
     }
 
@@ -146,10 +166,11 @@ final class TransferCore {
     /// it was accepted without waiting for the first progress tick.
     func start(_ request: TransferRequest) throws {
         try validate(request)
+        let direction = TransferDirection(rawValue: request.direction) ?? .upload
         register(
             transferId: request.transferId,
-            direction: .upload,
-            totalBytes: request.contentLength ?? 0,
+            direction: direction,
+            totalBytes: direction == .upload ? request.contentLength ?? 0 : 0,
             transferredBytes: 0,
             title: request.title
         )
@@ -184,11 +205,24 @@ final class TransferCore {
         emit(entry.snapshot)
     }
 
+    /// A download's expected length arrived: `contentLength` (-1 when unknown, as chunked replies
+    /// are) becomes its progress denominator, 0 meaning unknown. Nothing is emitted; the next event
+    /// carries it. Ignored for an upload, whose length was declared at start.
+    func expectLength(_ transferId: String, contentLength: Int64) {
+        guard let entry = runningEntry(transferId), entry.direction == .download else { return }
+        entry.totalBytes = DownloadFiles.totalBytes(contentLength)
+    }
+
     /// An HTTP response of any status is `responded`; what it means is decided above the shell.
-    func response(_ transferId: String, status: Int, body: Data?) {
+    ///
+    /// `file` is the download's committed file. It is kept only for a download answered with a 2xx
+    /// (`DownloadFiles.keepsBody`); the OS layer writes no file otherwise, and this holds the line
+    /// even if it did.
+    func response(_ transferId: String, status: Int, body: Data?, file: DownloadedFile? = nil) {
         guard let entry = runningEntry(transferId) else { return }
         entry.httpStatus = status
         entry.providerCode = status >= 300 ? TransferText.providerCode(from: body) : nil
+        entry.file = entry.direction == .download && DownloadFiles.keepsBody(status) ? file : nil
         finish(entry, as: .responded)
     }
 
@@ -220,10 +254,11 @@ final class TransferCore {
     }
 
     /// The system ended the continued-processing task. It does not say whether the user or the
-    /// system did it, so it is treated as the user's cancel: every running transfer is cancelled
-    /// and the web sees an ordinary `cancelled` it can act on. Returns the ids to stop.
+    /// system did it, so it is treated as the user's cancel: every running upload is cancelled and
+    /// the web sees an ordinary `cancelled` it can act on. A download never joins that task, so its
+    /// expiry leaves one running. Returns the ids to stop.
     func continuedTaskExpired() -> [String] {
-        let running = runningEntriesInOrder()
+        let running = runningEntriesInOrder().filter { Self.joinsSystemProgress($0.direction) }
         running.forEach { finish($0, as: .cancelled) }
         return running.map(\.transferId)
     }
@@ -232,7 +267,7 @@ final class TransferCore {
     /// for a connection). Closing it early keeps an expiration, when one comes, likely to be the
     /// user's own cancel. It never cancels anything: the transfer keeps waiting in the OS session.
     func shouldCloseContinuedTask(now time: Int64) -> Bool {
-        guard !runningEntriesInOrder().isEmpty else { return false }
+        guard shouldStartContinuedTask() else { return false }
         return time - batchLastProgressAt >= Self.stallTimeoutMs
     }
 
@@ -253,6 +288,18 @@ final class TransferCore {
     }
 
     var runningCount: Int { entries.values.filter { $0.state == .running }.count }
+
+    /// Running uploads — what the continued-processing task shows and waits for.
+    var runningUploadCount: Int { runningEntriesInOrder().filter { Self.joinsSystemProgress($0.direction) }.count }
+
+    /// Whether the system progress UI should start: only while an upload runs. A download is a few
+    /// seconds the user waits through on screen, where the page shows its progress.
+    func shouldStartContinuedTask() -> Bool { runningUploadCount > 0 }
+
+    /// Ids of the running downloads, whose folders the sweep must leave alone.
+    func runningDownloads() -> [String] {
+        runningEntriesInOrder().filter { $0.direction == .download }.map(\.transferId)
+    }
 
     func isRunning(_ transferId: String) -> Bool { runningEntry(transferId) != nil }
 
@@ -305,21 +352,26 @@ final class TransferCore {
 
     private func register(transferId: String, direction: TransferDirection, totalBytes: Int64, transferredBytes: Int64, title: String?) {
         let time = now()
-        // A transfer that starts while nothing runs opens a new batch; one that starts while
-        // others run joins theirs, so the progress UI shows the whole set as one bar.
-        if runningEntriesInOrder().isEmpty {
-            batch = []
-            batchLastProgressAt = time
-            batchSequence += 1
+        if Self.joinsSystemProgress(direction) {
+            // An upload that starts while no upload runs opens a new batch; one that starts while
+            // others run joins theirs, so the progress UI shows the whole set as one bar.
+            if runningUploadCount == 0 {
+                batch = []
+                batchLastProgressAt = time
+                batchSequence += 1
+            }
+            batch.append(BatchMember(transferId: transferId, totalBytes: totalBytes, title: title))
         }
         seq += 1
         let entry = Entry(transferId: transferId, direction: direction, totalBytes: totalBytes, title: title, startSeq: seq)
         entry.transferredBytes = transferredBytes
         entry.lastEmittedAt = time
         entries[transferId] = entry
-        batch.append(BatchMember(transferId: transferId, totalBytes: totalBytes, title: title))
         emit(entry.snapshot)
     }
+
+    /// The system surfaces that stand in for the page — the progress task, failure notices — cover uploads only.
+    private static func joinsSystemProgress(_ direction: TransferDirection) -> Bool { direction == .upload }
 
     private func runningEntry(_ transferId: String) -> Entry? {
         guard let entry = entries[transferId], entry.state == .running else { return nil }

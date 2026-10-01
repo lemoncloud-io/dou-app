@@ -22,8 +22,8 @@ interface ProfilePanelState {
  * Global UI state: which user's profile panel is open. Lives in Zustand because
  * the trigger (the profile card popover, anywhere in the tree) and the panel
  * (rendered by HomePage in the trailing pane) sit in different parts of the
- * tree — mirrors useThreadStore / useChannelSettingsStore. The trailing-pane
- * owners are mutually exclusive; HomePage enforces it.
+ * tree — mirrors useThreadStore / useChannelSettingsStore. The profile stacks on
+ * the other trailing-pane owners instead of closing them (useTrailingPanelOwners).
  */
 export const useProfilePanelStore = create<ProfilePanelState>(set => ({
     target: null,

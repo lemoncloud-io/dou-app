@@ -216,15 +216,7 @@ export const ImageViewer = ({
                                     </button>
                                 </header>
                                 <div className="scrollbar-thin flex min-h-0 flex-1 gap-2.5 overflow-y-auto px-4 py-6">
-                                    <Avatar className="h-9 w-9 shrink-0">
-                                        {author.avatar && <AvatarImage src={author.avatar} alt={author.name} />}
-                                        <AvatarFallback
-                                            className="text-caption font-semibold"
-                                            style={avatarStyle(author.colorSeed)}
-                                        >
-                                            {author.name.charAt(0).toUpperCase() || '?'}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                    <AuthorAvatar author={author} />
                                     <div className="flex min-w-0 flex-1 flex-col gap-2">
                                         <div className="flex items-baseline gap-2">
                                             <span className="truncate text-lead font-bold text-foreground">
@@ -315,3 +307,13 @@ export const ImageSetMeta = ({ count, onDownloadAll }: ImageSetMetaProps) => {
         </div>
     );
 };
+
+/** The sender's avatar, as the message header draws it: the picture, or an initial on their color. */
+export const AuthorAvatar = ({ author }: { author: ImageAuthor }) => (
+    <Avatar className="h-9 w-9 shrink-0">
+        {author.avatar && <AvatarImage src={author.avatar} alt={author.name} />}
+        <AvatarFallback className="text-caption font-semibold" style={avatarStyle(author.colorSeed)}>
+            {author.name.charAt(0).toUpperCase() || '?'}
+        </AvatarFallback>
+    </Avatar>
+);

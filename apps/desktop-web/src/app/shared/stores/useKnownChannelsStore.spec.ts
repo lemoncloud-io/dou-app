@@ -33,6 +33,18 @@ describe('useKnownChannelsStore.record', () => {
         });
     });
 
+    // My notes-to-self room is listed in every place too, so the switcher has to know it is one room.
+    it('marks my notes-to-self room', () => {
+        useKnownChannelsStore
+            .getState()
+            .record('cloud-1', 'place-a', [{ id: 'U:me', name: '#self', cid: 'cloud-1', stereo: 'self' }], 'me');
+
+        expect(useKnownChannelsStore.getState().byCloud['cloud-1']['place-a:U:me']).toMatchObject({
+            channelId: 'U:me',
+            self: true,
+        });
+    });
+
     it('waits to file a cloud 1:1 until its members are known', () => {
         useKnownChannelsStore
             .getState()

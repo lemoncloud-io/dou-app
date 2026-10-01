@@ -8,7 +8,19 @@ let isLoading = false;
 let error: Error | null = null;
 let isStarting = false;
 let placeProfiles: Record<string, { nick?: string }> = {};
+let canOpenSelf = true;
+let me: { id: string; name: string } | null = { id: 'me-1', name: 'Louis' };
 const startDm = vi.fn();
+const openSelf = vi.fn();
+
+vi.mock('@chatic/app-runtime', () => ({
+    runtime: {
+        session: {
+            useGlobalSession: () => ({ cloud: { cloudId: 'cloud-1' } }),
+            useUidInCloud: () => 'me-1',
+        },
+    },
+}));
 
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<object>('../../../shared/utils/displayName')),
@@ -16,7 +28,8 @@ vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<object>('../../../shared/components/Skeleton')),
     ...(await vi.importActual<object>('../../../shared/utils/displayProfile')),
     useSiteProfileMap: () => placeProfiles,
-    useStartDm: () => ({ startDm, isStarting, isAvailable: true }),
+    useStartDm: () => ({ startDm, openSelf, isStarting, isAvailable: true, canOpenSelf }),
+    useUser: () => me,
 }));
 vi.mock('../hooks', () => ({
     useInviteCandidates: () => ({ candidates, isLoading, error }),
@@ -40,7 +53,10 @@ describe('NewDmDialog', () => {
         error = null;
         isStarting = false;
         placeProfiles = {};
+        canOpenSelf = true;
+        me = { id: 'me-1', name: 'Louis' };
         startDm.mockReset();
+        openSelf.mockReset();
         onOpenChange.mockReset();
     });
 
@@ -140,5 +156,78 @@ describe('NewDmDialog', () => {
 
         expect(screen.getByRole('button', { name: /Stevie/ })).toBeTruthy();
         expect(screen.queryByRole('button', { name: /Aiden/ })).toBeNull();
+    });
+
+    describe('notes to self', () => {
+        const selfRow = () => screen.queryByRole('button', { name: /Notes to self/ });
+
+        it('offers my own room above the people and opens it through openSelf', async () => {
+            openSelf.mockResolvedValue({ id: 'U:me-1' });
+            mount();
+
+            const row = selfRow();
+            expect(row?.textContent).toContain('Louis');
+            // Pinned first, before anyone from the pool.
+            expect(screen.getAllByRole('button').indexOf(row as HTMLElement)).toBeLessThan(
+                screen.getAllByRole('button').indexOf(screen.getByRole('button', { name: /Aiden/ }))
+            );
+            await act(async () => {
+                fireEvent.click(row as HTMLElement);
+            });
+
+            expect(openSelf).toHaveBeenCalled();
+            expect(startDm).not.toHaveBeenCalled();
+            expect(onOpenChange).toHaveBeenCalledWith(false);
+        });
+
+        it('stays open when my room could not be opened', async () => {
+            openSelf.mockResolvedValue(null);
+            mount();
+
+            await act(async () => {
+                fireEvent.click(selfRow() as HTMLElement);
+            });
+
+            expect(onOpenChange).not.toHaveBeenCalled();
+        });
+
+        it("names me by this place's nick", () => {
+            placeProfiles = { 'me-1': { nick: 'Lou' } };
+            mount();
+
+            expect(selfRow()?.textContent).toContain('Lou');
+        });
+
+        it('is offered while the pool is still loading and when it is empty', () => {
+            isLoading = true;
+            mount();
+            expect(selfRow()).toBeTruthy();
+        });
+
+        it('is hidden where my room cannot be opened', () => {
+            canOpenSelf = false;
+            mount();
+
+            expect(selfRow()).toBeNull();
+        });
+
+        it('follows the search like any other row', () => {
+            mount();
+
+            fireEvent.change(screen.getByPlaceholderText('Search by name or user ID'), { target: { value: 'ste' } });
+            expect(selfRow()).toBeNull();
+
+            fireEvent.change(screen.getByPlaceholderText('Search by name or user ID'), { target: { value: 'lou' } });
+            expect(selfRow()).toBeTruthy();
+            // Only I match, so the list does not also claim that no one does.
+            expect(screen.queryByText('No one matches that search.')).toBeNull();
+        });
+
+        it('falls back to the "You" label before my record loads', () => {
+            me = null;
+            mount();
+
+            expect(selfRow()?.textContent).toBe('YYouNotes to self');
+        });
     });
 });

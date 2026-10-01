@@ -1,6 +1,8 @@
 # ADR-0054: Theme — Pin the Light Default and Make Web↔Native Sync Reliable
 
-> Status: Accepted · Decided: 2026-07-31
+> Status: Accepted · Decided: 2026-07-31 · §5's `--splash-bg` and the "dark variants of splash assets" and
+> "native early-stage theme" non-goals superseded by
+> [ADR-0154](./0154-the-launch-splash-is-the-only-logo-screen-and-the-web-lifts-it.md)
 
 ## Context
 

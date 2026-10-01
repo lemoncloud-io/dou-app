@@ -66,7 +66,7 @@ beforeEach(() => {
     chat.listPendingImageChats.mockResolvedValue([]);
 });
 
-const sent: SendImageResult = { status: 'sent', uploadIds: ['up-1'], failedSlots: 0 };
+const sent: SendImageResult = { status: 'sent', uploadIds: ['up-1'], failedIndexes: [] };
 const failed: SendImageResult = { status: 'failed', reason: 'socket', error: new Error('x') };
 const files = () => [new File(['a'], 'a.jpg'), new File(['b'], 'b.jpg')];
 
@@ -153,6 +153,53 @@ describe('useSendImages', () => {
         expect(result.current.canRetry(pendingId)).toBe(false);
         expect(chat.failPendingImageChat).not.toHaveBeenCalled();
         unmount();
+    });
+
+    // A refused file (a type this cloud does not take) used to vanish with the row the message replaced.
+    it('writes the files a sent message left out as a failed message of their own, which can be retried', async () => {
+        const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
+        mockSendImageMessage.mockResolvedValueOnce(partial).mockResolvedValueOnce(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' })
+        );
+        const picked = [new File(['a'], 'a.jpg'), new File(['%PDF'], 'quote.pdf', { type: 'application/pdf' })];
+
+        await act(() => result.current.sendImages(picked));
+
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(2);
+        expect(chat.createPendingImageChat).toHaveBeenLastCalledWith({
+            channelId: 'ch-1',
+            parentId: 'root-1',
+            localThumbUrls: [expect.stringMatching(/^blob:/)],
+            localFiles: [{ name: 'quote.pdf', contentType: 'application/pdf', size: 4 }],
+        });
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
+        expect(result.current.canRetry(leftover)).toBe(true);
+
+        await act(async () => void (await result.current.retry(leftover)));
+        expect(mockSendImageMessage.mock.calls[1][0]).toEqual([picked[1]]);
+        unmount();
+    });
+
+    it('leaves no files in memory for the left-out files when the screen has gone', async () => {
+        const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
+        let finish: (value: SendImageResult) => void = () => undefined;
+        mockSendImageMessage.mockImplementationOnce(() => new Promise<SendImageResult>(resolve => (finish = resolve)));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages(files())));
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalled());
+        unmount();
+        await act(async () => {
+            finish(partial);
+            await sending;
+        });
+
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
+        expect(result.current.canRetry(leftover)).toBe(false);
     });
 
     it('marks the row failed and keeps the files, then retries the same pictures on the same row', async () => {
@@ -463,6 +510,71 @@ describe('useSendImages — previews while sending', () => {
             order.push(pendingId ? 'rewrite' : 'create');
             return pendingId ?? `row-${++rowSeq}`;
         });
+    });
+
+    // A video or document has nothing to resize and no thumbnail; the server wants its original under
+    // its own type, and a name that ends in the format's extension.
+    it('sends a video or document as its original alone, typed and named the way the server takes it', async () => {
+        const prepared: unknown[] = [];
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                for (const file of picked) prepared.push(await ports.prepare(file));
+                return sent;
+            }
+        );
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() =>
+            result.current.sendImages([
+                new File(['%PDF'], 'report', { type: 'application/pdf' }),
+                new File(['h'], 'a.hwp'),
+            ])
+        );
+
+        expect(prepareChatAttachment).not.toHaveBeenCalled();
+        const [pdf, hwp] = prepared as { original: { file: File; width: number; height: number }; thumbnail: null }[];
+        expect(pdf).toMatchObject({ original: { width: 0, height: 0 }, thumbnail: null });
+        expect(pdf.original.file).toMatchObject({ name: 'report.pdf', type: 'application/pdf', size: 4 });
+        expect(hwp.original.file).toMatchObject({ name: 'a.hwp', type: 'application/x-hwp' });
+        expect(chat.createPendingImageChat.mock.calls[0][0].localFiles).toEqual([
+            { name: 'report.pdf', contentType: 'application/pdf', size: 4 },
+            { name: 'a.hwp', contentType: 'application/x-hwp', size: 1 },
+        ]);
+        unmount();
+    });
+
+    // An image let in by its extension still has the raw type it arrived with; declared as-is, the
+    // server refuses it, and an untyped GIF would get the still thumbnail a GIF must not have.
+    it('prepares an image under its format’s type when it arrived untyped', async () => {
+        runSequence();
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages([new File(['g'], 'a.gif')]));
+
+        expect((prepareChatAttachment as jest.Mock).mock.calls[0][0]).toMatchObject({
+            name: 'a.gif',
+            type: 'image/gif',
+        });
+        unmount();
+    });
+
+    it('writes no file details for an image, which draws its own preview', async () => {
+        runSequence();
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages([new File(['a'], 'a.jpg', { type: 'image/jpeg' })]));
+
+        expect(prepareChatAttachment).toHaveBeenCalledTimes(1);
+        expect(chat.createPendingImageChat.mock.calls[0][0]).not.toHaveProperty('localFiles');
+        unmount();
     });
 
     // A phone photo is several megapixels; the feed must not decode ten of them for small tiles.

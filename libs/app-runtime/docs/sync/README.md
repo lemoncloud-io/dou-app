@@ -285,7 +285,7 @@ is, a minute is the latency to plan for.
 ### Registering from a screen
 
 ```tsx
-runtime.sync.useChatSync(channelId); // register + prime
+const { prime, retryPrime } = runtime.sync.useChatSync(channelId); // register + prime
 runtime.sync.useChannelSync(channelId);
 runtime.sync.usePlaceSync(placeId);
 ```
@@ -331,6 +331,18 @@ the baseline goes to its runtime. That gate replaced an earlier re-prime driven 
 replay path.
 Registration and prime are safe to overlap: chat rows merge idempotently by `chatNo`, so it does not
 matter whether a message arrived by push or by page.
+
+`useChatSync` returns where the prime stands, `{ prime, retryPrime }`. A cold room's cache reads
+empty until its first page is written, so a screen cannot tell "no messages yet" from "not loaded
+yet" by the list alone:
+
+- `pending` — the slot is not verified yet, or the cache read or first page is in flight.
+- `ready` — the cache already held the room, or the first page was written. The list observer
+  re-reads after the write resolves, so a screen still gives an empty list a moment to fill.
+- `failed` — the cache read or the first page threw. `retryPrime` runs the prime again.
+
+The status is per room and cloud: opening another room starts it at `pending`. Callers that only
+need the sync (a sidebar preview) ignore it.
 
 ### What not to do
 

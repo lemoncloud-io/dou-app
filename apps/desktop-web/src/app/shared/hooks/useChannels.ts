@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, isCloudWideChannel, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { cloudDmPlaces, computeChannelUnread, listingPlaces, placeMemberPeers } from '../utils';
@@ -14,6 +14,18 @@ const channelLabel = (channel: DomainChannel): string => (channel.name ?? channe
 
 const sortByName = (list: DomainChannel[]): DomainChannel[] =>
     [...list].sort((a, b) => channelLabel(a).localeCompare(channelLabel(b)));
+
+/**
+ * What a read with no place lists.
+ *
+ * - `nothing`: a place not selected yet — loading, or the site cleared mid cloud switch.
+ * - `cloudDms`: a subscription cloud known to have no place at all, whose 1:1s are all it has.
+ * - `relay`: the Default Cloud (Home). It has no place switcher and nothing selects a site on it
+ *   (only an invite join does), so for most accounts it never has a place, yet it owns rows — the
+ *   Self Channel first of all, which onboarding waits on. Its 1:1s are not cloud-wide (they live in
+ *   the relay's one place), so `cloudDms` would list none of them: every row of the relay is listed.
+ */
+type NoPlaceListing = 'nothing' | 'cloudDms' | 'relay';
 
 // How long a verified socket may report an empty list before we trust it as truly
 // empty — covers list discovery's round trip so the empty state never flashes first.
@@ -56,7 +68,7 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  */
 export const useChannels = (
     placeId: string | undefined,
-    { cloudWideOnly = false }: { cloudWideOnly?: boolean } = {}
+    { whenNoPlace = 'nothing' }: { whenNoPlace?: NoPlaceListing } = {}
 ) => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { userId: myUid } = runtime.session.useSessionIdentity();
@@ -78,10 +90,10 @@ export const useChannels = (
     }
 
     useEffect(() => {
-        // No place: nothing, unless the caller knows the cloud has no place at all — then its 1:1s
-        // are all there is to list. A place merely not selected yet (loading, or the site cleared
+        // No place: nothing, unless the caller says what a read with no place means here (see
+        // `NoPlaceListing`). A place merely not selected yet (loading, or the site cleared
         // mid-switch) must stay empty, or the home screen would auto-select a 1:1 in that window.
-        if (!placeId && !cloudWideOnly) {
+        if (!placeId && whenNoPlace === 'nothing') {
             setCloudRows([]);
             setRawLoading(false);
             return;
@@ -101,7 +113,7 @@ export const useChannels = (
             cancelled = true;
             unsubscribe();
         };
-    }, [channelRepository, placeId, myUid, cloudWideOnly]);
+    }, [channelRepository, placeId, myUid, whenNoPlace]);
 
     const dmPlaces = useMemo(
         () => cloudDmPlaces(cloudRows, { myUid: myUid ?? null, placeIds }),
@@ -113,12 +125,17 @@ export const useChannels = (
         [cloudRows, myUid, placeId, dmPlaces]
     );
     const rawChannels = useMemo(() => {
-        // No place is only read for a cloud that has none, where every 1:1 is all there is.
-        const listed = cloudRows.filter(c =>
-            placeId ? listingPlaces(c, dmPlaces).includes(placeId) : isCloudWideChannel(c)
-        );
+        const listed = cloudRows.filter(c => {
+            // The Self Channel belongs to the account, not a place, so every place of its cloud lists it
+            // (after an invite join the relay has a place selected, and it would otherwise vanish).
+            if (placeId) return c.sid === ACCOUNT_CHANNEL_SID || listingPlaces(c, dmPlaces).includes(placeId);
+            // A row with no cid came from the relay (the same fallback every relay read uses). The
+            // cid check is what keeps a late row of the cloud just left out of Home's list.
+            if (whenNoPlace === 'relay') return (c.cid || RELAY_CLOUD_ID) === RELAY_CLOUD_ID;
+            return isCloudWideChannel(c);
+        });
         return sortByName(listed);
-    }, [cloudRows, dmPlaces, placeId]);
+    }, [cloudRows, dmPlaces, placeId, whenNoPlace]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).

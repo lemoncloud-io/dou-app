@@ -1,5 +1,6 @@
 import { webClient } from '@chatic/bridges';
 import type {
+    HapticKind,
     OnFetchPushMarksPayload,
     OnWebAppReadyPayload,
     PushCloudMarkRecord,
@@ -37,10 +38,23 @@ export const appBridge = {
      * native bridge, which is not an error condition here, and resolves `null` instead.
      */
     notifyWebAppReady(): Promise<OnWebAppReadyPayload | null> {
-        return webClient
-            .request({ type: 'WebAppReady', data: {} })
-            .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
-            .catch(() => null);
+        return (
+            webClient
+                // `holdsBootSplash`: this build sends `FirstScreenReady` (see `runtime/bootSplash`), so a
+                // shell holding its launch splash may wait for it instead of lifting on this handshake.
+                .request({ type: 'WebAppReady', data: { holdsBootSplash: true } })
+                .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
+                .catch(() => null)
+        );
+    },
+
+    /**
+     * Tell native the first screen has painted, so it can lift its launch splash (or the cover it
+     * shows while a crashed WebView reloads). Fire-and-forget: an older shell answers NOT_FOUND and
+     * lifts its splash on its own.
+     */
+    notifyFirstScreenReady(): void {
+        webClient.post({ type: 'FirstScreenReady', data: {} });
     },
 
     /** Ask native to dismiss the resume/cold-start overlay. */
@@ -420,25 +434,49 @@ export const appBridge = {
 
     // In-app photo picker. Raw like their neighbours: the NOT_FOUND learning (an app built before the
     // picker has no handler) and the base64 decoding live in `photoLibrary`, so these stay a facade.
+    //
+    // None of them use the 15s default, because each can be waiting on something other than the
+    // shell. A timed-out request drops the answer that arrives after it, so a clock shorter than the
+    // wait turns a photo that was on its way into a failure.
 
-    /** The albums the in-app picker can switch between. Rejects with NOT_FOUND on an older app. */
-    listPhotoAlbums(): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
-        return webClient.request({ type: 'ListPhotoAlbums', data: {} });
+    /**
+     * The albums the in-app picker can switch between. Rejects with NOT_FOUND on an older app.
+     *
+     * 60s: on first use the OS permission prompt is raised inside this request, as for contacts.
+     */
+    listPhotoAlbums(timeoutMs = 60_000): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
+        return webClient.request({ type: 'ListPhotoAlbums', data: {} }, { timeoutMs });
     },
 
-    /** One page of the library, newest first, with small previews. */
-    listPhotos(payload: Payload<'ListPhotos'>): Promise<WebMessageResponse<'ListPhotos'>> {
-        return webClient.request({ type: 'ListPhotos', data: payload });
+    /** One page of the library, newest first, with small previews. 60s for the same permission prompt. */
+    listPhotos(payload: Payload<'ListPhotos'>, timeoutMs = 60_000): Promise<WebMessageResponse<'ListPhotos'>> {
+        return webClient.request({ type: 'ListPhotos', data: payload }, { timeoutMs });
     },
 
-    /** The bytes of one photo the user is sending. */
-    readPhoto(id: string): Promise<WebMessageResponse<'ReadPhoto'>> {
-        return webClient.request({ type: 'ReadPhoto', data: { id } });
+    /** The bytes of one photo the user is sending. 2 minutes: an original kept only in iCloud is downloaded first. */
+    readPhoto(id: string, timeoutMs = 120_000): Promise<WebMessageResponse<'ReadPhoto'>> {
+        return webClient.request({ type: 'ReadPhoto', data: { id } }, { timeoutMs });
     },
 
-    /** Under iOS limited access, lets the user change which photos are shared. */
-    managePhotoSelection(): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
-        return webClient.request({ type: 'ManagePhotoSelection', data: {} });
+    /**
+     * Under iOS limited access, lets the user change which photos are shared. 5 minutes: the answer
+     * comes when the person closes the system sheet, after however long they spend choosing.
+     */
+    managePhotoSelection(timeoutMs = 300_000): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
+        return webClient.request({ type: 'ManagePhotoSelection', data: {} }, { timeoutMs });
+    },
+
+    /**
+     * Play one short haptic and wait for the shell's answer — the way to learn whether it has the
+     * message at all (an app built before it answers `NOT_FOUND`). Call it through `haptics`.
+     */
+    triggerHaptic(kind: HapticKind): Promise<WebMessageResponse<'TriggerHaptic'>> {
+        return webClient.request({ type: 'TriggerHaptic', data: { kind } });
+    },
+
+    /** Play one short haptic with no answer. Only once `triggerHaptic` has shown the shell has it. */
+    postHaptic(kind: HapticKind): void {
+        webClient.post({ type: 'TriggerHaptic', data: { kind } });
     },
 
     /** Write text to the OS clipboard — the native one, not the browser's. */

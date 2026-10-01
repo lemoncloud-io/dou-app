@@ -1,5 +1,235 @@
 # Changelog
 
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (web,mobile,app-messages) show the launch splash once, held until the web paints (ADR-0154)
+
+## [2026-10-01] - root@0.80.1, @chatic/web@0.61.1
+
+### Features
+
+- (mobile) read the photo library from MediaStore on Android too (ADR-0150)
+- (mobile) read the photo library natively on iOS for the in-app picker (ADR-0150)
+
+### Bug Fixes
+
+- (web) give the photo-library calls timeouts for what they wait on, not 15s
+
+### Other
+
+- test: (mobile) cover where the router registers the photo-library messages
+
+## [2026-10-01] - root@0.80.0, @chatic/web@0.61.0
+
+### Features
+
+- (web) drop the cloud 1:1 from mobile, and from its unread counts (ADR-0153)
+
+## [2026-10-01] - No version updates
+
+### Features
+
+- (mobile) save a downloaded image to the photo library or share it as a file
+- (mobile) download into a folder the shell owns, keeping a file only for a 2xx
+- (app-messages,bridges) let StartFileTransfer download, and add SaveToPhotoLibrary and ShareFile
+
+### Documentation
+
+- (mobile) document native downloads and media export (ADR-0152)
+
+### Other
+
+- test: (scripts) serve download scenarios from the transfer test server
+
+## [2026-10-01] - root@0.79.0, @chatic/web@0.60.0
+
+### Features
+
+- (scripts) let the test push tool send any body loc key, not only the text one
+- (web) preview an attachment-only chat by its kind, not always as a photo
+- (mobile) push an attachment-only chat as what it carries, not {0} (ADR-0151)
+
+## [2026-10-01] - root@0.78.1, @chatic/desktop-web@0.19.1
+
+### Bug Fixes
+
+- (desktop-web) offer Delete on a file-only reply in a thread
+
+## [2026-10-01] - No version updates
+
+### Bug Fixes
+
+- (data,app-runtime) keep files a sent message left out
+
+## [2026-10-01] - root@0.78.0, @chatic/web@0.59.0, @chatic/landing@0.5.3, @chatic/desktop-web@0.19.0
+
+### Features
+
+- (web) list the notes-to-self room with the cloud 1:1s
+- (desktop-web) open sent PDFs and text files in an in-app viewer
+- (desktop-web) name a sent image by the name the server kept
+- (desktop-web) play videos and show documents in the feed
+- (desktop-web,data) attach videos and documents in the composer
+- (app-runtime,data) send a video or document as its original alone
+- (data) know the twelve formats the server takes for a chat upload
+- (desktop-web,data) name the attachment kind in previews and pushes
+
+### Bug Fixes
+
+- (data) give a large upload time in proportion to its size
+- (data,desktop-web) read an upload slot's kind from one rule
+
+### Documentation
+
+- (adr) record ADR-0149, desktop draws PDFs with pdf.js
+- record how desktop sends videos and documents (ADR-0148)
+- (adr) record ADR-0147, desktop names the attachment kind
+
+### Other
+
+- build: (deps) take chatic-socials-api 0.26.903 and lemon-model 1.5.1
+
+## [2026-09-30] - root@0.77.0, @chatic/web@0.58.0
+
+### Features
+
+- (web) list the notes-to-self room with the cloud 1:1s
+
+## [2026-09-30] - No version updates
+
+### Features
+
+- (web/home) swipe a room row to pin, mute, leave or delete; feel the pull and swipe
+- (app-messages,mobile,web) play haptics in the shell on the web's request (ADR-0146)
+- (web-ui-kit) add SwipeActionRow, and let the pull indicator arm at the threshold
+
+### Bug Fixes
+
+- (mobile) ask iOS for the upload progress UI only once a transfer runs 3s (ADR-0145)
+
+## [2026-09-30] - root@0.76.0, @chatic/desktop-web@0.18.0
+
+### Features
+
+- (desktop-web) pin the notes-to-self row to the top of DMs
+
+### Bug Fixes
+
+- (desktop-web) create the notes-to-self room on entering a cloud
+- (desktop-web) draw my photo on the notes-to-self sidebar row
+
+## [2026-09-30] - root@0.75.0, @chatic/desktop-web@0.17.0
+
+### Features
+
+- (desktop-web) offer notes-to-self on my own profile card
+- (desktop-web) list notes-to-self in every place of a cloud
+- (desktop-web) open notes-to-self from the new message picker
+
+### Bug Fixes
+
+- (desktop-web) file every self room in all places, relay included
+- (desktop-web) offer the notes-to-self room once in quick switcher
+
+### Refactor
+
+- (desktop-web) drop the doubled place check in openSelf
+
+## [2026-09-30] - root@0.74.2, @chatic/desktop-web@0.16.6
+
+### Bug Fixes
+
+- (desktop-web) raise the toast limit on mount, not on import
+- (desktop-web) leave a space alone while a composition commits it
+- (desktop-web) list the account's Self Channel in every place
+- (ui-kit,desktop-web) keep sticky errors and stacking to desktop
+- (data) keep the Self Channel that arrives with no place
+- (desktop-web) call a cloud a cloud in the onboarding tips too
+- (desktop-web) show focus on the OAuth hand-off and announce its state
+- (desktop-web) keep create and join dialogs open while they submit
+- (desktop-web) move through radio groups with the arrow keys
+- (desktop-web) let the auth screen scroll instead of clipping the card
+- (shared,web) announce the boot splash as a loading status
+- (desktop-web,ui-kit) keep toasts under an open dialog, not over it
+- (ui-kit,web,desktop-web) cap a centred dialog at the window height
+- (ui-kit,web,desktop-web,admin-v2) require close and toast labels
+- (desktop-web) stop spending the lime accent on identity marks
+- (desktop-web) keep avatar initials at 4.5:1 on every hue
+- (ui-kit,desktop-web) hold control edges and switch states to 3:1
+- (ui-kit,desktop-web) keep error toasts until they are closed
+- (desktop-web) stop the add-members toast printing server wire text
+- (desktop-web) hide the place profile card when no place is selected
+- (desktop-web) refuse invite links that name an unknown backend
+- (desktop-web) show a rejected invite code instead of landing on home
+- (desktop-web) read my place profile before drawing the place card
+- (desktop-web) name a guest account "Guest", not by its UUID
+- (desktop-web,app-runtime) hold the feed until a cold room loads
+- (desktop-web) hold 1:1 rows until their people's names load
+- (desktop-web) fit the thread composer and toolbar to a narrow panel
+- (desktop-web) keep hints shut on focus handed back by a dialog
+- (desktop-web) drop the double space after picking a mention
+- (desktop-web) list me last in mention suggestions, not first
+- (desktop-web) show read receipts on my latest block, not every one
+- (desktop-web) stack the profile panel on the thread, not replace it
+- (desktop-web) stop telling an owner with nobody that all are here
+- (desktop-web) tell a full place from a failed channel create
+- (desktop-web) say on Home where clouds and 1:1s are made
+- (desktop-web) point a lapsed cloud at the mobile app, not a retry
+- (desktop-web) say the profile card counts channels in common
+- (desktop-web) explain an empty message search and offer channels
+- (desktop-web) say channels, not messages, in the empty Home sidebar
+- (desktop-web) call a cloud a cloud and tell its rail tiles apart
+- (theme,desktop-web) follow the OS theme on first run and at runtime
+- (desktop-web) show onboarding once per account, with tips it can use
+- (desktop-web) list Home's rows when it has no place selected
+- (desktop-web) focus the next room after a channel is deleted or left
+- (desktop-web) refocus the nick field after a failed profile save
+- (desktop-web) focus the composer when a dialog has no opener left
+
+### Documentation
+
+- (desktop-web) note that a removal from the drawer keeps focus there
+
+### Other
+
+- test: (desktop-web) align specs with the merged copy and hint rules
+- perf: (desktop-web) re-render only the jumped-to block on a message jump
+- perf: (desktop-web) stop holding first paint on the Pretendard CSS
+
+## [2026-09-30] - No version updates
+
+### Features
+
+- (web/home) refresh home by pulling it down, through the background sync (ADR-0144)
+- (web-ui-kit) add PullToRefresh, a scroll container that refreshes on a pull from the top
+
+## [2026-09-30] - root@0.74.1, @chatic/desktop-web@0.16.5
+
+### Bug Fixes
+
+- (desktop-web) open the profile of a member mentioned by place nick
+
+## [2026-09-30] - root@0.74.0, @chatic/web@0.57.0
+
+### Features
+
+- (web) invite into a place from contacts, as a room invite does (ADR-0139)
+- (web) let a place owner invite someone into the place, not into a room (ADR-0139)
+
+### Bug Fixes
+
+- (web/invite) report a refused clipboard as a missed hand-off, not a failed invite
+
+### Documentation
+
+- (web/invite) record what a batch place invite does on the server, now that it is measured
+
+### Refactor
+
+- (web/channels) split the room invite's contact tab, link sheet and link view from its pages
+
 ## [2026-09-30] - No version updates
 
 ### Bug Fixes

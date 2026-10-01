@@ -7,7 +7,6 @@ import { ChannelSettingsPage } from './ChannelSettingsPage';
 const leaveChannel = jest.fn().mockResolvedValue({});
 const deleteChannel = jest.fn().mockResolvedValue({});
 const updateJoin = jest.fn().mockResolvedValue({});
-const startDmMock = jest.fn().mockResolvedValue({ id: 'dm-1' });
 const navigate = jest.fn();
 const toast = jest.fn();
 
@@ -223,8 +222,6 @@ jest.mock('../hooks', () => ({
     useChannelProfiles: () => profilesValue,
     useDmPeer: () => dmPeerValue,
     useDmInviteState: () => dmInviteStateValue,
-    // Opening a 1:1 from a member's profile — its own contract is held by useStartDm's tests.
-    useStartDm: () => ({ startDm: startDmMock, isStarting: false, isError: false }),
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     // The room's single join observation: my row (nick/notification) and the roster row list come from one source.
     useChannelJoins: () => ({

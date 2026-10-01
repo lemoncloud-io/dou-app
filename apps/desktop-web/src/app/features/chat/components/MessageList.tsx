@@ -70,6 +70,10 @@ interface MessageListProps {
      * the empty state): the channel's "this is the start of …" block. Absent in threads.
      */
     intro?: ReactNode;
+    /** The room's first page failed to load: an empty list is not an empty room, so say so. */
+    loadFailed?: boolean;
+    /** Try the first page again, offered beside `loadFailed`. */
+    onRetryLoad?: () => void;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -113,6 +117,8 @@ export const MessageList = ({
     onReadingPosition,
     readCountOf,
     intro,
+    loadFailed,
+    onRetryLoad,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -175,6 +181,20 @@ export const MessageList = ({
         [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
     );
 
+    // Only my latest block shows its receipt outright; every earlier one shows it on hover or
+    // focus. The newest count is the one people check, and a line under each of my blocks was
+    // the loudest repeated element in a busy channel. Walks back to the first block with a count.
+    let latestReceiptKey: string | null = null;
+    for (let i = rows.length - 1; i >= 0 && readCountOf; i--) {
+        const row = rows[i];
+        if (row.kind !== 'group') continue;
+        const last = row.group.messages[row.group.messages.length - 1];
+        if (last?.chatNo && readCountOf(last.chatNo, last.ownerId)) {
+            latestReceiptKey = row.group.key;
+            break;
+        }
+    }
+
     const dayChunks = useMemo(() => {
         const chunks: { key: string; rows: typeof rows }[] = [];
         for (const row of rows) {
@@ -225,14 +245,23 @@ export const MessageList = ({
     }, [threadMeta, names, placeProfiles, viewer]);
 
     // @name → member, for mentions that open a profile. Stable identity: rows are memo'd.
+    // Autocomplete inserts the resolved display name (place nick over global name), so
+    // that is keyed first; the global name still resolves mentions typed by hand.
     const resolveMention = useMemo<MentionResolver>(() => {
         const byName = new Map<string, { userId: string; name: string }>();
-        names?.forEach((name, userId) => {
-            const key = name.trim().toLowerCase();
-            if (key && !byName.has(key)) byName.set(key, { userId, name });
-        });
+        const people = [...(names ?? [])].map(([userId, name]) => ({
+            userId,
+            global: name,
+            name: resolveDisplay(placeProfiles[userId], name, undefined).name,
+        }));
+        for (const key of ['name', 'global'] as const) {
+            for (const person of people) {
+                const k = person[key].trim().toLowerCase();
+                if (k && !byName.has(k)) byName.set(k, { userId: person.userId, name: person.name });
+            }
+        }
         return name => byName.get(name.toLowerCase());
-    }, [names]);
+    }, [names, placeProfiles]);
 
     // Lowercased "me" names for self-mention highlighting (profile name +
     // place nick under either of my ids — mirrors the notification filter).
@@ -543,6 +572,23 @@ export const MessageList = ({
         );
     }
 
+    if (messages.length === 0 && loadFailed) {
+        return (
+            <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-callout text-foreground">{t('chat.loadFailed')}</p>
+                {onRetryLoad && (
+                    <button
+                        type="button"
+                        onClick={onRetryLoad}
+                        className="focus-ring tactile rounded-lg bg-muted px-3 py-2 text-callout font-medium text-foreground transition-colors hover:bg-accent"
+                    >
+                        {t('chat.retry')}
+                    </button>
+                )}
+            </div>
+        );
+    }
+
     if (messages.length === 0) {
         if (intro) {
             return <div className="flex flex-1 flex-col justify-end overflow-y-auto px-6 py-5">{intro}</div>;
@@ -622,6 +668,12 @@ export const MessageList = ({
                             }
                             const last = row.group.messages[row.group.messages.length - 1];
                             const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
+                            // Only the block holding the target gets it: handed to every row, a
+                            // jump re-rendered the whole feed twice (on the flash and on its clear).
+                            const highlight =
+                                highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
+                                    ? highlightChatNo
+                                    : undefined;
                             return (
                                 <MessageRow
                                     key={row.group.key}
@@ -633,12 +685,14 @@ export const MessageList = ({
                                     onOpenThread={onOpenThread}
                                     selfNames={selfNames}
                                     resolveMention={resolveMention}
-                                    highlightChatNo={highlightChatNo ?? undefined}
+                                    highlightChatNo={highlight}
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}
                                     reactorName={reactorName}
                                     receiptRead={receipt?.readCount}
                                     receiptUnread={receipt?.unreadCount}
+                                    receiptOnReveal={row.group.key !== latestReceiptKey}
+                                    toolbarUnderHeader={threadReplyCount !== undefined}
                                 />
                             );
                         })}

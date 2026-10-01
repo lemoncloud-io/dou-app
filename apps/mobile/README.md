@@ -65,10 +65,11 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 25 handler hooks that answer web messages; the
-19 service domains behind them; the 7 native bridge modules and their Android/Kotlin and iOS/Swift
+**In** — the WebView host and the message router; the 29 handler hooks that answer web messages; the
+20 service domains behind them; the 12 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
-counts and push-tap routing; deep links and universal links; large-file upload; boot metrics; theme
+counts and push-tap routing; deep links and universal links; large-file upload and download, and saving or sharing a downloaded
+image; boot metrics; theme
 and system bars; the build, run and store-deploy pipelines.
 
 **Out** — screens, navigation between them, data fetching, product state and the debug panel UI
@@ -91,9 +92,9 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>25 handlers"]
-    Services["services/<br/>19 domains"]
-    BridgeTS["bridge/<br/>7 native modules"]
+    Handlers["webview/hooks<br/>29 handlers"]
+    Services["services/<br/>20 domains"]
+    BridgeTS["bridge/<br/>10 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
     Boot --> Screen --> WV
@@ -149,11 +150,13 @@ apps/mobile/
 │   ├── main.tsx           AppRegistry.registerComponent('Chatic', App) — four lines, nothing else
 │   ├── main-web.tsx       the web target's entry point
 │   └── app/
-│       ├── App.tsx        safe-area provider, system bars, navigation container, version check
-│       ├── webview/       62 files: AppWebView, SimpleWebView, the router, 25 handlers, injection
-│       ├── services/      97 files across 19 domains, assembled in provider.ts
-│       ├── bridge/        7 modules onto native: app icon, back nav, badge sync, file manager,
-│       │                  push marks, system bars, upload manager
+│       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
+│       │                  startup theme handed to the native splash
+│       ├── webview/       79 files: AppWebView, SimpleWebView, the router, 29 handlers, injection
+│       ├── services/      98 files across 20 domains, assembled in provider.ts
+│       ├── bridge/        12 modules onto native: app icon, back nav, badge sync, boot splash,
+│       │                  file manager, haptics, media export, photo library, push marks,
+│       │                  shared language, system bars, file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
 │       ├── features/      core chrome and features/main — MainScreen and ModalScreen only
@@ -210,7 +213,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 25 handler hooks → useServices() → provider
+                    └── 29 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first
@@ -223,7 +226,7 @@ call, not at boot.
 
 `webClient.request(...)` in the web posts a typed message. `AppWebView`'s `onMessage` drops it unless
 the page is on a trusted origin ([docs/webview](./docs/webview/README.md#trust-boundary)), then hands it
-to `useWebMessageRouter`, which queues it and dispatches by type to one handler hook. The handler calls a
+to `useWebMessageRouter`, which dispatches it by type, without queueing, to one handler hook. The handler calls a
 service and returns a response object; the router posts it back with the original `refId`, and
 `@chatic/bridges` resolves the caller's promise. A message with no handler still gets a reply — that
 is the bridge's job, not this app's.
@@ -270,15 +273,15 @@ the lanes. There are four store apps — iOS and Android, each dev and prod. See
 The detail lives under [`docs/`](./docs/README.md), in seven categories. Each category folder has a
 `README.md` that is either its lead document or a short index.
 
-| Category | What it covers |
-| --- | --- |
+| Category                                  | What it covers                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | [docs/webview/](./docs/webview/README.md) | The message boundary in detail — handlers, the injected runtime, the router, and remote debugging |
-| [docs/boot/](./docs/boot/README.md) | Why the WebView mounts early, what is deferred, and the boot timeline that proves it |
-| [docs/native/](./docs/native/README.md) | The three-way native parity contract, and the execution boundary in `services/` |
-| [docs/push/](./docs/push/README.md) | FCM/APNs registration, notification channels, click routing, and the app icon badge |
-| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload |
-| [docs/system/](./docs/system/README.md) | OS-level state shared with the web — theme sync and deep links |
-| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server |
+| [docs/boot/](./docs/boot/README.md)       | Why the WebView mounts early, what is deferred, and the boot timeline that proves it              |
+| [docs/native/](./docs/native/README.md)   | The three-way native parity contract, and the execution boundary in `services/`                   |
+| [docs/push/](./docs/push/README.md)       | FCM/APNs registration, notification channels, click routing, and the app icon badge               |
+| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload                    |
+| [docs/system/](./docs/system/README.md)   | OS-level state shared with the web — theme sync and deep links                                    |
+| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server            |
 
 Those are the detail, and this README is the map.
 

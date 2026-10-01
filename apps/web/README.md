@@ -290,6 +290,7 @@ main.tsx
 ├── config.init(webConfigPorts)                                    (before any lazy setting read)
 ├── setStorageAdapter(isNative() ? localStorage : sessionStorage)
 ├── runtime.boot.initAppRuntime(...)                               (before any session read)
+├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → runtime.boot.setNativeCacheSupport
 └── render(<App />)

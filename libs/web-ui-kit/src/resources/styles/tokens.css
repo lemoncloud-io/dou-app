@@ -67,6 +67,8 @@
     --verified: 211 100% 50%; /* #007AFF — blue verified/default check */
     --point-blue: 215 90% 56%; /* #2A7EF4 — Figma point_blue, inline text links */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — Figma Colors/Pink, unread count pill */
+    /* ui-kit's dialog, alert-dialog and sheet scrims (bg-overlay/80); mirrors apps/web. */
+    --overlay: 220 20% 10%;
 }
 
 .dark {
@@ -120,4 +122,5 @@
     --verified: 211 100% 50%;
     --point-blue: 215 90% 56%; /* #2A7EF4 — same */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — same */
+    --overlay: 0 0% 0%;
 }

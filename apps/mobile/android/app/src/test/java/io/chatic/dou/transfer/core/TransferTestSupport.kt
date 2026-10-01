@@ -35,6 +35,28 @@ fun upload(
     title = title,
 )
 
+fun download(
+    transferId: String? = "d1",
+    method: String? = "GET",
+    fileUri: String? = null,
+    fileName: String? = "photo.png",
+    headers: Map<String, String> = emptyMap(),
+    url: String? = "https://bucket.example.com/key?X-Amz-Signature=secret",
+) = TransferRequest(
+    transferId = transferId,
+    direction = "download",
+    url = url,
+    method = method,
+    headers = headers,
+    fileUri = fileUri,
+    contentLength = null,
+    fileName = fileName,
+)
+
+/** A committed download's file, as the OS layer would report it. */
+fun downloadedFile(name: String = "photo.png") =
+    DownloadedFile(uri = "file:///data/user/0/app/cache/transfer-download/x/$name", size = 42, contentType = "image/png")
+
 /** Runs [block] and asserts it was refused with [code]. */
 fun assertRejected(code: TransferErrorCode, block: () -> Unit) {
     try {
