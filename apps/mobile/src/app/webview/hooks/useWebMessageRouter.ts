@@ -419,8 +419,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
-            // Registered only where the native module exists (iOS today). Elsewhere the web gets
-            // NOT_FOUND, which is its signal to fall back to the page's own file input.
+            // Registered only where the native module exists. A build without it leaves the web its
+            // NOT_FOUND, which is the signal to fall back to the page's own file input.
             ...(isPhotoLibraryAvailable && {
                 ListPhotoAlbums: () => handlersRef.current.handleListPhotoAlbums(),
                 ListPhotos: message => handlersRef.current.handleListPhotos(message),

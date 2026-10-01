@@ -87,10 +87,10 @@ user lingers — see [../native/media-export.md](../native/media-export.md). Two
 kind can therefore finish out of order; a handler that needs ordering has to provide it itself.
 
 A message is registered only where this build can answer it. The photo-library messages are added to
-the routing map only when the native `PhotoLibrary` module exists, so on Android they stay unregistered
-and `AppBridgeHost` answers `NOT_FOUND` — the answer the web falls back to its file input on
-([../native/photo-library.md](../native/photo-library.md)). A handler that exists but fails would take
-that fallback away.
+the routing map only when the native `PhotoLibrary` module exists, so a JS bundle run over a native
+build without it leaves them unregistered and `AppBridgeHost` answers `NOT_FOUND` — the answer the
+web falls back to its file input on ([../native/photo-library.md](../native/photo-library.md)). A
+handler that exists but fails would take that fallback away.
 
 ## The WebAppReady handshake
 

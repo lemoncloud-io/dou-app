@@ -44,10 +44,10 @@ a failure, so its message cannot hang in "sending".
 The composer's leading button opens the attach menu — photos, camera, files. How photos are picked
 depends on the shell:
 
-| Shell                                                     | Photos                                                               |
-| --------------------------------------------------------- | -------------------------------------------------------------------- |
-| iOS app with the photo-library bridge                     | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
-| Android app, an app built before the bridge, or a browser | the page's own file input, which the WebView hands to the OS chooser |
+| Shell                                   | Photos                                                               |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| app with the photo-library bridge       | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
+| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser |
 
 The page learns which by asking: opening the menu requests the newest photos (`ListPhotos`), and an
 app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A

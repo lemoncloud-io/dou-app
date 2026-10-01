@@ -13,6 +13,7 @@ import io.chatic.dou.bridge.FileManagerPackage
 import io.chatic.dou.bridge.HapticPackage
 import io.chatic.dou.bridge.MediaExportPackage
 import io.chatic.dou.bridge.NativeLoggerPackage
+import io.chatic.dou.bridge.PhotoLibraryPackage
 import io.chatic.dou.bridge.PushMarksPackage
 import io.chatic.dou.bridge.SharedLanguagePackage
 import io.chatic.dou.bridge.SystemBarsPackage
@@ -32,6 +33,7 @@ class MainApplication : Application(), ReactApplication {
             add(HapticPackage())
             add(MediaExportPackage())
             add(NativeLoggerPackage())
+            add(PhotoLibraryPackage())
             add(PushMarksPackage())
             add(SharedLanguagePackage())
             add(SystemBarsPackage())

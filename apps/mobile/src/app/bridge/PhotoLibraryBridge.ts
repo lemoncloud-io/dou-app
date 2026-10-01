@@ -8,12 +8,13 @@ import type {
 } from '@chatic/app-messages';
 
 /**
- * PhotoLibrary — the device photo library, read for the web's in-app picker (Swift `PhotoLibrary`).
+ * PhotoLibrary — the device photo library, read for the web's in-app picker (Swift `PhotoLibrary`
+ * over PhotoKit, Kotlin `PhotoLibraryModule` over MediaStore).
  *
- * iOS only for now. Android has no module yet, so `isAvailable` is false there and the router leaves
- * the photo-library messages unregistered: the web then gets `NOT_FOUND`, which it already reads as
- * "use the page's own file input". A module that answered with an error instead would take that
- * fallback away.
+ * A build whose native side lacks the module — JS run over an older native build — has `isAvailable`
+ * false, and the router then leaves the photo-library messages unregistered: the web gets
+ * `NOT_FOUND`, which it already reads as "use the page's own file input". Answering every call with
+ * an error instead would take that fallback away.
  */
 const { PhotoLibrary } = NativeModules;
 

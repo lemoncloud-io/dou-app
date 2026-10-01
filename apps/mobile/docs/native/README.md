@@ -36,7 +36,7 @@ platform:
 | --------------- | -------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | File transfer   | `TransferManagerBridge.ts` | `transfer/` — `TransferManagerModule.kt`, `TransferService.kt`, `TransferRegistry.kt`, `core/` | `Transfer/` — `TransferManager.swift`, `TransferManager.m`, `TransferSessionOwner.swift`, `Core/` — see [file-transfer.md](./file-transfer.md) |
 | Media export    | `MediaExportBridge.ts`     | `MediaExportModule.kt`, `media/ShareFileProvider.kt`                                           | `MediaExport/` — `MediaExport.swift`, `MediaExport.m` — see [media-export.md](./media-export.md)                                               |
-| Photo library   | `PhotoLibraryBridge.ts`    | none yet — its messages stay unregistered, so the web falls back to its file input             | `PhotoLibrary/` — `PhotoLibrary.swift`, `PhotoLibrary.m`, `Core/` — see [photo-library.md](./photo-library.md)                                 |
+| Photo library   | `PhotoLibraryBridge.ts`    | `PhotoLibraryModule.kt`, `photo/core/` — MediaStore                                            | `PhotoLibrary/` — `PhotoLibrary.swift`, `PhotoLibrary.m`, `Core/` — see [photo-library.md](./photo-library.md)                                 |
 | File            | `FileManagerBridge.ts`     | `FileManagerModule.kt`                                                                         | `FileManager.m`                                                                                                                                |
 | App icon        | `AppIconBridge.ts`         | `AppIconManagerModule.kt`                                                                      | `AppIconManager.m`                                                                                                                             |
 | System bars     | `SystemBarsBridge.ts`      | `SystemBarsModule.kt`                                                                          | no-op — `Platform.OS !== 'android'` short-circuits                                                                                             |
@@ -80,10 +80,7 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
    implementation, and warn rather than throw when `NativeModules.<Name>` is `undefined` — a missing
    module should degrade, not crash a screen that never needed it.
 5. Add both platforms in the same change. A one-platform bridge is the failure mode this contract
-   exists to catch. The one exception is a capability the web already falls back from when its
-   message answers `NOT_FOUND`: the platform without the module leaves the messages unregistered,
-   so the web takes its fallback instead of a runtime failure. The photo library is that case on
-   Android today ([photo-library.md](./photo-library.md)).
+   exists to catch.
 
 ### What not to do
 
@@ -114,6 +111,6 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
 - [service.md](./service.md) — the layer that calls these wrappers and owns the behaviour around them.
 - [file-transfer.md](./file-transfer.md) and [media-export.md](./media-export.md) — downloading a file
   and handing it to the photo library or the share sheet.
-- [photo-library.md](./photo-library.md) — the in-app photo picker's library reads, iOS only so far.
+- [photo-library.md](./photo-library.md) — the in-app photo picker's library reads, PhotoKit and MediaStore.
 - [../push/badge.md](../push/badge.md) — the badge-count flow `BadgeSyncBridge` and `PushMarksBridge` both feed.
 - [../push/README.md](../push/README.md) — the push-delivery path with no TypeScript wrapper of its own.
