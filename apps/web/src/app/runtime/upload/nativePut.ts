@@ -1,6 +1,12 @@
 import type { OnFileTransferStatePayload } from '@chatic/app-messages';
 import type { IWebBridgeClient } from '@chatic/bridges';
-import type { PutPort, PutResult } from '@chatic/data';
+import {
+    chatAttachmentFormat,
+    type PutPort,
+    type PutResult,
+    type ShellFilePutPort,
+    type UploadPutTarget,
+} from '@chatic/data';
 
 export type TransferBridge = Pick<IWebBridgeClient, 'request' | 'onEvent'>;
 
@@ -42,8 +48,13 @@ const readBase64 = (file: File) =>
     });
 
 export interface NativeTransfers {
-    /** PUTs through the shell's transfer module, or through `fallback` on a shell without one. */
+    /**
+     * PUTs a page file: an image through the shell's transfer module (or through `fallback` on a shell
+     * without one), a video or document through `fallback` always.
+     */
     put: PutPort;
+    /** PUTs a file the shell keeps, from where it lies. */
+    putShellFile: ShellFilePutPort;
     /** Settles a waiting `put` from a terminal state learned some other way. Returns whether one was waiting. */
     settle(state: OnFileTransferStatePayload): boolean;
     /** Transfer ids this page is still waiting on, counting only those the shell accepted. */
@@ -124,8 +135,47 @@ export const createNativeTransfers = ({
         fallbackOnly = true;
     };
 
+    /** Starts the transfer of a local file the shell can read and waits for its one terminal state. */
+    const startTransfer = async (
+        target: UploadPutTarget,
+        file: { uri: string; contentType: string; contentLength: number },
+        label: string
+    ): Promise<PutResult | 'fallback'> => {
+        const transferId = newTransferId();
+        // Registered before the start request: the first state can arrive before its reply does.
+        const result = new Promise<PutResult>(resolve => waiters.set(transferId, resolve));
+        try {
+            await bridge.request({
+                type: 'StartFileTransfer',
+                data: {
+                    transferId,
+                    direction: 'upload',
+                    url: target.url,
+                    method: 'PUT',
+                    headers: target.headers,
+                    // The shell requires the length for an upload, rejects the start without it, and
+                    // checks it against the file.
+                    file,
+                },
+            });
+            if (waiters.has(transferId)) accepted.add(transferId);
+        } catch (error) {
+            waiters.delete(transferId);
+            if (isNotFound(error)) return 'fallback';
+            log('native transfer: start refused', { label, code: codeOf(error) });
+            // iOS refuses a source file that is gone at the start; Android fails it once it reads it.
+            // Either way it is the same lost file, which a retry cannot send.
+            return { kind: 'no-response', reason: codeOf(error) === 'SOURCE' ? 'source' : 'system' };
+        }
+        return result;
+    };
+
     const put: PutPort = async (target, file, label) => {
         if (fallbackOnly) return fallback(target, file, label);
+        // Only an image crosses the bridge. A page video or document would have to go over whole, as
+        // base64 in one message, and a WebView does not survive that for a 300MB file. The page PUT
+        // streams the picked file from disk instead — at the cost of stopping with the page.
+        if (chatAttachmentFormat(file)?.kind !== 'image') return fallback(target, file, label);
 
         const written = await oneWriteAtATime(async (): Promise<{ uri: string } | PutResult | 'fallback'> => {
             let base64: string;
@@ -152,39 +202,31 @@ export const createNativeTransfers = ({
             return fallback(target, file, label);
         }
         if (!('uri' in written)) return written;
-        const { uri } = written;
+        const started = await startTransfer(
+            target,
+            { uri: written.uri, contentType: file.type, contentLength: file.size },
+            label
+        );
+        if (started !== 'fallback') return started;
+        switchToFallback();
+        return fallback(target, file, label);
+    };
 
-        const transferId = newTransferId();
-        // Registered before the start request: the first state can arrive before its reply does.
-        const result = new Promise<PutResult>(resolve => waiters.set(transferId, resolve));
-        try {
-            await bridge.request({
-                type: 'StartFileTransfer',
-                data: {
-                    transferId,
-                    direction: 'upload',
-                    url: target.url,
-                    method: 'PUT',
-                    headers: target.headers,
-                    // The shell requires the length for an upload and rejects the start without it.
-                    file: { uri, contentType: file.type, contentLength: file.size },
-                },
-            });
-            if (waiters.has(transferId)) accepted.add(transferId);
-        } catch (error) {
-            waiters.delete(transferId);
-            if (isNotFound(error)) {
-                switchToFallback();
-                return fallback(target, file, label);
-            }
-            log('native transfer: start refused', { label, code: codeOf(error) });
-            return { kind: 'no-response', reason: 'system' };
-        }
-        return result;
+    // A shell file exists only in an app whose shell has the transfer module, so there is no page
+    // fallback to fall to: a shell file reaching an old shell fails its slot.
+    const putShellFile: ShellFilePutPort = async (target, file, label) => {
+        if (fallbackOnly) return { kind: 'no-response', reason: 'system' };
+        const started = await startTransfer(
+            target,
+            { uri: file.uri, contentType: file.type, contentLength: file.size },
+            label
+        );
+        return started === 'fallback' ? { kind: 'no-response', reason: 'system' } : started;
     };
 
     return {
         put,
+        putShellFile,
         settle,
         waiting: () => [...accepted],
         usesFallback: () => fallbackOnly,

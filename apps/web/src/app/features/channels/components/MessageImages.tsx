@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isPendingUploadSlot, type DomainChat } from '@chatic/data';
-import { ImageViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageImageTiles } from '@chatic/web-ui-kit';
+import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/data';
+import { ImageViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
 
 import { useCachedImages, type CachedImage, type CachedImageRequest } from '../hooks/useCachedImages';
+import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageAddressRefresh } from '../hooks/useImageAddressRefresh';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
-import { imageOriginalAt, toImageTiles } from '../utils/imageTiles';
 
 interface MessageImagesProps {
     uploads: DomainChat['upload$$'];
@@ -19,7 +19,10 @@ interface MessageImagesProps {
 }
 
 /**
- * A chat message's images: the tiles in the row, and the full-screen viewer a tap opens.
+ * A chat message's attachments: its photos and videos as tiles in the order they were sent, the
+ * full-screen viewer a tap opens, and its documents as cards below them. A video tile draws its poster
+ * (or a plain panel) with a play mark; nothing plays in the feed, where every video would start a
+ * request just by scrolling past.
  *
  * The addresses are signed and expire, and a cached row keeps them. An image that fails to load is
  * drawn as a placeholder and the message is read again for fresh addresses; the row then redraws from
@@ -50,18 +53,26 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     // Position in `viewable`, not a tile index.
     const [openAt, setOpenAt] = useState<number | null>(null);
 
+    const split = useMemo(() => chatMediaItems(cid, uploads), [cid, uploads]);
+    const files = useFileDownloads({ cid, chatId });
+    // Tile positions are not `upload$$` positions once documents sit between them.
+    const slotOf = (tile: number) => split.mediaSlots[tile];
+
     const tiles = useMemo(
         () =>
-            toImageTiles(uploads).map(tile =>
-                tile.src && dead.has(tile.src) ? { ...tile, state: 'broken' as const } : tile
+            split.media.map(item =>
+                item.preview && dead.has(item.preview) ? { ...item, state: 'broken' as const } : item
             ),
-        [uploads, dead]
+        [split, dead]
     );
 
-    // What the viewer can page through: tiles that are not broken and have an original to open, with
+    // What the viewer can page through: photos that are not broken and have an original to open, with
     // the tile each one came from.
     const viewable = tiles
-        .map((tile, index) => ({ index, src: tile.state === 'broken' ? undefined : imageOriginalAt(uploads, index) }))
+        .map((tile, index) => ({
+            index,
+            src: tile.kind === 'image' && tile.state !== 'broken' ? tile.src : undefined,
+        }))
         .filter((item): item is { index: number; src: string } => !!item.src);
 
     // The viewer's position, dropped when the list shrank under it — the same value closes the viewer,
@@ -72,8 +83,8 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     // when they sit behind the "+n" tile.
     const around = new Set(viewable.filter((_, at) => nearOpen(at)).map(item => item.index));
     // A server head, never a local slot: a message still on its way has nothing to key or keep.
-    const sentSlot = (index: number) => {
-        const slot = uploads?.[index];
+    const sentSlot = (tile: number) => {
+        const slot = uploads?.[slotOf(tile)];
         return slot && !isPendingUploadSlot(slot) ? slot : undefined;
     };
     const requestFor = (index: number, url: string | undefined, variant: ImageVariant) => {
@@ -85,7 +96,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
         tiles.map((tile, index) => {
             if (tile.state !== 'ready' || (index >= MESSAGE_IMAGE_VISIBLE_MAX && !around.has(index))) return undefined;
             // The tile draws the original when the server made no thumbnail; keep it under that name.
-            return requestFor(index, tile.src, sentSlot(index)?.thumbUrl ? 'thumb' : 'org');
+            return requestFor(index, tile.preview, sentSlot(index)?.thumbUrl ? 'thumb' : 'org');
         })
     );
     const { images: originals, reject: rejectOriginal } = useCachedImages(
@@ -98,10 +109,10 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     const drawn = (image: CachedImage | undefined, fallback: string | undefined) =>
         !image ? fallback : image.status === 'pending' ? undefined : image.src;
 
-    if (tiles.length === 0) return null;
+    if (tiles.length === 0 && split.files.length === 0) return null;
 
     const reportDead = (src: string | undefined, index: number) => {
-        const slot = uploads?.[index];
+        const slot = uploads?.[slotOf(index)];
         if (!src || !slot || isPendingUploadSlot(slot)) return;
         setDead(previous => new Set(previous).add(src));
         if (chatId) void refresh({ cid, chatId, src });
@@ -109,19 +120,47 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
 
     return (
         <>
-            <MessageImageTiles
-                items={tiles.map((tile, index) => ({ ...tile, src: drawn(thumbs[index], tile.src) }))}
-                onOpen={index => {
-                    // A broken tile has nothing to open.
-                    const at = viewable.findIndex(item => item.index === index);
-                    if (at >= 0) setOpenAt(at);
-                }}
-                onImageError={index => {
-                    if (!rejectThumb(index)) reportDead(tiles[index]?.src, index);
-                }}
-                tileLabel={position => t('chat.attach.tile', { position })}
-                className={align === 'end' ? 'self-end' : 'self-start'}
-            />
+            {tiles.length > 0 && (
+                <MessageMediaTiles
+                    items={tiles.map((tile, index) => ({ ...tile, preview: drawn(thumbs[index], tile.preview) }))}
+                    onOpen={index => {
+                        // A broken tile has nothing to open.
+                        const at = viewable.findIndex(item => item.index === index);
+                        if (at >= 0) setOpenAt(at);
+                    }}
+                    onImageError={index => {
+                        if (!rejectThumb(index)) reportDead(tiles[index]?.preview, index);
+                    }}
+                    tileLabel={(position, kind) =>
+                        t(kind === 'video' ? 'chat.attach.tileVideo' : 'chat.attach.tile', { position })
+                    }
+                    className={align === 'end' ? 'self-end' : 'self-start'}
+                />
+            )}
+            {split.files.map(file => {
+                const name = file.name ?? t('chat.attach.fileCard.fallbackName');
+                return (
+                    <MessageFileCard
+                        key={file.key}
+                        name={file.name}
+                        size={file.size}
+                        state={file.state}
+                        download={files.stateOf(file)}
+                        onPress={() => void files.download(file)}
+                        onDownload={() => void files.download(file)}
+                        onCancel={() => files.cancel(file)}
+                        labels={{
+                            untitled: t('chat.attach.fileCard.fallbackName'),
+                            download: t('chat.attach.fileCard.download', { name }),
+                            cancel: t('chat.attach.fileCard.cancel', { name }),
+                            open: t('chat.attach.fileCard.open', { name }),
+                            unavailable: t('chat.attach.fileCard.unavailable'),
+                            broken: t('chat.attach.fileCard.broken'),
+                        }}
+                        className={align === 'end' ? 'self-end' : 'self-start'}
+                    />
+                );
+            })}
             <ImageViewer
                 images={viewable.map((item, at) => drawn(originals[at], item.src))}
                 placeholders={viewable.map(item => drawn(thumbs[item.index], undefined))}
@@ -131,7 +170,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                 onError={at => {
                     if (rejectOriginal(at)) return;
                     const item = viewable[at];
-                    const slot = item ? uploads?.[item.index] : undefined;
+                    const slot = item ? uploads?.[slotOf(item.index)] : undefined;
                     if (!item || !chatId || !slot || isPendingUploadSlot(slot)) return;
                     void refresh({ cid, chatId, src: item.src });
                 }}

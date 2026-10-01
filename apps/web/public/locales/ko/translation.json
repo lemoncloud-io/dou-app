@@ -872,10 +872,17 @@
             "limitedNotice": "선택한 사진만 보여요",
             "limitedMore": "더 선택",
             "rejected": {
-                "unsupported": "PNG, JPEG, GIF, WEBP 사진만 보낼 수 있어요",
-                "too-large": "20MB가 넘는 사진은 보낼 수 없어요",
-                "duplicate": "같은 사진이 두 번 선택됐어요",
-                "limit": "사진은 한 번에 {{max}}장까지 보낼 수 있어요"
+                "unsupported": "보낼 수 없는 파일 형식이에요",
+                "unsupportedImage": "PNG, JPEG, GIF, WEBP 사진만 보낼 수 있어요",
+                "unsupportedVideo": "이 동영상 형식은 보낼 수 없어요",
+                "too-large": {
+                    "image": "20MB가 넘는 사진은 보낼 수 없어요",
+                    "video": "동영상은 300MB까지 보낼 수 있어요",
+                    "file": "파일은 50MB까지 보낼 수 있어요"
+                },
+                "unreadable": "읽을 수 없는 파일이 있어요",
+                "duplicate": "같은 항목이 두 번 선택됐어요",
+                "limit": "한 번에 {{max}}개까지 보낼 수 있어요"
             },
             "permission": {
                 "cameraTitle": "카메라에 대한 액세스 권한이 없어요",
@@ -896,8 +903,30 @@
             "viewerClose": "닫기",
             "viewerPrevious": "이전 사진",
             "viewerNext": "다음 사진",
-            "sendFailed": "사진을 보내지 못했어요",
-            "cannotRetry": "다시 보낼 수 없는 사진이에요. 삭제해 주세요"
+            "sendFailed": "첨부를 보내지 못했어요",
+            "cannotRetry": "다시 보낼 수 없는 첨부예요. 삭제해 주세요",
+            "videoRefused": {
+                "too-large": "동영상은 약 4분까지 보낼 수 있어요",
+                "unsupported": "이 동영상 형식은 보낼 수 없어요"
+            },
+            "source": {
+                "title": "파일",
+                "album": "앨범에서 선택",
+                "files": "파일에서 선택",
+                "videoNeedsUpdate": "앱을 업데이트하면 동영상을 보낼 수 있어요",
+                "videoInApp": "동영상은 DoU 앱에서 보낼 수 있어요"
+            },
+            "tapAgain": "다시 눌러 주세요",
+            "tileVideo": "동영상 {{position}}",
+            "fileCard": {
+                "fallbackName": "파일",
+                "download": "{{name}} 다운로드",
+                "cancel": "{{name}} 다운로드 취소",
+                "open": "{{name}} 열기",
+                "unavailable": "앱을 업데이트하면 받을 수 있어요",
+                "broken": "열 수 없음",
+                "downloadFailed": "파일을 받지 못했어요"
+            }
         }
     },
     "search": {

@@ -872,10 +872,17 @@
             "limitedNotice": "Only the photos you chose are shown",
             "limitedMore": "Choose more",
             "rejected": {
-                "unsupported": "Only PNG, JPEG, GIF and WEBP photos can be sent",
-                "too-large": "Photos over 20MB can't be sent",
-                "duplicate": "The same photo was picked twice",
-                "limit": "You can send up to {{max}} photos at a time"
+                "unsupported": "This file type can't be sent",
+                "unsupportedImage": "Only PNG, JPEG, GIF and WEBP photos can be sent",
+                "unsupportedVideo": "This video format can't be sent",
+                "too-large": {
+                    "image": "Photos over 20MB can't be sent",
+                    "video": "Videos can be up to 300MB",
+                    "file": "Files can be up to 50MB"
+                },
+                "unreadable": "A file couldn't be read",
+                "duplicate": "The same item was picked twice",
+                "limit": "You can send up to {{max}} at a time"
             },
             "permission": {
                 "cameraTitle": "No access to the camera",
@@ -896,8 +903,30 @@
             "viewerClose": "Close",
             "viewerPrevious": "Previous photo",
             "viewerNext": "Next photo",
-            "sendFailed": "Couldn't send the photos",
-            "cannotRetry": "These photos can't be resent. Please delete them"
+            "sendFailed": "Couldn't send the attachments",
+            "cannotRetry": "These attachments can't be resent. Please delete them",
+            "videoRefused": {
+                "too-large": "Videos can be up to about 4 minutes long",
+                "unsupported": "This video format can't be sent"
+            },
+            "source": {
+                "title": "Files",
+                "album": "Choose from album",
+                "files": "Choose from files",
+                "videoNeedsUpdate": "Update the app to send videos",
+                "videoInApp": "Videos can be sent from the DoU app"
+            },
+            "tapAgain": "Please tap again",
+            "tileVideo": "Video {{position}}",
+            "fileCard": {
+                "fallbackName": "File",
+                "download": "Download {{name}}",
+                "cancel": "Cancel downloading {{name}}",
+                "open": "Open {{name}}",
+                "unavailable": "Update the app to download",
+                "broken": "Can't open",
+                "downloadFailed": "Couldn't download the file"
+            }
         }
     },
     "search": {
