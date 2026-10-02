@@ -32,11 +32,21 @@ export interface ChatRefreshResult {
     total: number;
 }
 
+export interface ChatRefreshOptions {
+    /**
+     * Called once the server page has arrived, before it is written to the cache. A caller timing the
+     * refresh can then tell the server round trip from the local write, which awaiting the whole call
+     * cannot. It must not throw: it runs between the fetch and the write, so a throw would drop the
+     * page it was told about.
+     */
+    onFetched?: () => void;
+}
+
 export interface IChatRepository extends DisposableRepository {
     observeList(query: ChatFeedInput, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
     observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
-    refreshList(query: ChatFeedInput): Promise<ChatRefreshResult>;
+    refreshList(query: ChatFeedInput, options?: ChatRefreshOptions): Promise<ChatRefreshResult>;
     getChat(payload: ChatGetInput): Promise<DomainChat>;
     sendChat(payload: ChatSendInput): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
@@ -157,11 +167,12 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.chatLocalDataSource.cacheClearByChannelId(channelId, this.getRepositoryContext());
     }
 
-    public async refreshList(query: ChatFeedInput): Promise<ChatRefreshResult> {
+    public async refreshList(query: ChatFeedInput, options: ChatRefreshOptions = {}): Promise<ChatRefreshResult> {
         this.assertRequiredString(query.channelId, 'channelId');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.chatSocketDataSource.fetchChat(query, normalizedContext);
+        options.onFetched?.();
         const domainList = remote.list || [];
         await this.chatLocalDataSource.cacheWriteMany(domainList, requestContext);
 

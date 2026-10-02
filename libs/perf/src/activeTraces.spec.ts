@@ -1,4 +1,10 @@
-import { clearActivePerfTrace, endActivePerfTrace, getActivePerfTrace, setActivePerfTrace } from './activeTraces';
+import {
+    clearActivePerfTrace,
+    endActivePerfTrace,
+    endPerfTrace,
+    getActivePerfTrace,
+    setActivePerfTrace,
+} from './activeTraces';
 import { createPerfTrace, NOOP_PERF_TRACE_BACKEND } from './PerfTrace';
 
 const traceFor = (id: string, backend = NOOP_PERF_TRACE_BACKEND) =>
@@ -45,5 +51,33 @@ describe('active perf traces', () => {
         endActivePerfTrace('chat_room_sync', 'ch_1', 'synced');
         expect(backend.stop).toHaveBeenCalledWith(expect.objectContaining({ attributes: { outcome: 'synced' } }));
         expect(getActivePerfTrace('chat_room_sync', 'ch_1')).toBeUndefined();
+    });
+
+    it('ends the trace it is handed, leaving a newer one in the slot running', () => {
+        const backend = { start: jest.fn(), stop: jest.fn() };
+        const older = traceFor('a', backend);
+        setActivePerfTrace('chat_room_sync', 'ch_1', older);
+        const newer = traceFor('b', backend);
+        setActivePerfTrace('chat_room_sync', 'ch_1', newer);
+
+        endPerfTrace('chat_room_sync', older, 'error');
+
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'a', attributes: { outcome: 'error' } })
+        );
+        expect(getActivePerfTrace('chat_room_sync', 'ch_1')).toBe(newer);
+    });
+
+    it('does not rewrite the outcome of a trace that already ended', () => {
+        const backend = { start: jest.fn(), stop: jest.fn() };
+        const trace = traceFor('a', backend);
+        setActivePerfTrace('chat_room_sync', 'ch_1', trace);
+        endActivePerfTrace('chat_room_sync', 'ch_1', 'synced');
+
+        endPerfTrace('chat_room_sync', trace, 'error');
+
+        expect(backend.stop).toHaveBeenCalledTimes(1);
+        expect(backend.stop).toHaveBeenCalledWith(expect.objectContaining({ attributes: { outcome: 'synced' } }));
     });
 });

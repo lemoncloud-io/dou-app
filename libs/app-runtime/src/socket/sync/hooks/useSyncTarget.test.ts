@@ -172,7 +172,7 @@ describe('useChatSync — prime', () => {
                 { cid: 'default' }
             )
         );
-        expect(mockRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1' });
+        expect(mockRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1' }, expect.anything());
     });
 
     it('웜 캐시면 max chatNo로 정렬하고 재fetch하지 않는다', async () => {
@@ -207,7 +207,7 @@ describe('useChatSync — prime', () => {
         verifiedSlots = new Set(['cloud-a']);
         renderHook(() => useChatSync('ch-1'));
 
-        await waitFor(() => expect(mockRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1' }));
+        await waitFor(() => expect(mockRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1' }, expect.anything()));
         expect(mockGetScopedRepositories).toHaveBeenCalledWith('cloud-a');
         expect(mockUpdateLocalSnapshot).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' }, expect.anything(), {
             cid: 'cloud-a',
@@ -350,6 +350,46 @@ describe('useChatSync — chat_room_sync phases', () => {
 
         await waitFor(() => expect(backend.stop).toHaveBeenCalledTimes(1));
         expect(backend.stop.mock.calls[0][0].attributes).toMatchObject({ outcome: 'error' });
+    });
+
+    it('marks when the page arrived, apart from when it was written', async () => {
+        mockRefreshList.mockClear().mockImplementation(async (_query, options) => {
+            options?.onFetched?.();
+            return { fetchedCount: 20 };
+        });
+        const trace = beginSync();
+
+        renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(trace.hasMetric('feed_done')).toBe(true));
+        expect(trace.hasMetric('feed_received')).toBe(true);
+    });
+
+    it('leaves the trace running when the cache read fails before any fetch took it', async () => {
+        mockCacheReadList.mockRejectedValue(new Error('bridge timeout'));
+        mockRefreshList.mockClear();
+        const trace = beginSync();
+        // A warm room's foreground refresh already owns this trace.
+        trace.mark('feed_sent');
+
+        const { result } = renderHook(() => useChatSync('ch-1'));
+
+        // `failed` is settled in the same catch that used to end the trace, so it is checked after.
+        await waitFor(() => expect(result.current.prime).toBe('failed'));
+        expect(backend.stop).not.toHaveBeenCalled();
+    });
+
+    it('does not end a trace an earlier fetch took when its own fetch fails', async () => {
+        mockRefreshList.mockClear().mockRejectedValue(new Error('socket closed'));
+        const trace = beginSync();
+        // A first prime already requested the page for this trace; this one is a re-verification.
+        trace.mark('feed_sent');
+
+        const { result } = renderHook(() => useChatSync('ch-1'));
+
+        await waitFor(() => expect(result.current.prime).toBe('failed'));
+        expect(mockRefreshList).toHaveBeenCalled();
+        expect(backend.stop).not.toHaveBeenCalled();
     });
 
     it('leaves a warm room alone — its sync is the foreground refresh', async () => {

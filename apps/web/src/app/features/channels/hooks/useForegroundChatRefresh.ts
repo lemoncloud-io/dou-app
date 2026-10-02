@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { endActivePerfTrace, getActivePerfTrace } from '@chatic/perf';
+import { endPerfTrace, getActivePerfTrace } from '@chatic/perf';
 
 import { useAppForeground } from '../../../bridge';
 import { readSelectedCloudId } from '../../../hooks/useCloudScope';
@@ -56,11 +56,20 @@ export const useForegroundChatRefresh = (channelId: string): void => {
         const trace = active && !active.hasMetric('feed_sent') ? active : undefined;
         trace?.putAttribute('cache', 'hit');
         trace?.mark('feed_sent');
-        const result = await chatRepository.refreshList({ channelId });
+        let result;
+        try {
+            // `feed_received` splits the wait into the server round trip and the cache write after it.
+            result = await chatRepository.refreshList({ channelId }, { onFetched: () => trace?.mark('feed_received') });
+        } catch (error) {
+            // Only the fetch that took the trace ends it. A foreground refresh failing while the entry's
+            // own fetch is still running would otherwise close that trace as an error it never had.
+            if (trace) endPerfTrace('chat_room_sync', trace, 'error');
+            throw error;
+        }
         trace?.putMetric('fetched', result.fetchedCount);
         trace?.putMetric('latest_no', result.latestNo);
         trace?.mark('feed_done');
-        if (trace && result.fetchedCount === 0) endActivePerfTrace('chat_room_sync', channelId, 'synced');
+        if (trace && result.fetchedCount === 0) endPerfTrace('chat_room_sync', trace, 'synced');
     }, [chatRepository, channelId]);
 
     // Entry (and re-verification): a warm room may hide a missed-push gap behind its cache.
@@ -68,7 +77,6 @@ export const useForegroundChatRefresh = (channelId: string): void => {
         if (!isVerified) return;
         getActivePerfTrace('chat_room_sync', channelId)?.mark('verified');
         refreshIfWarm().catch(error => {
-            endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('CHAT', '[useForegroundChatRefresh] entry refresh failed', {
                 error,
                 data: { channelId },
@@ -85,7 +93,6 @@ export const useForegroundChatRefresh = (channelId: string): void => {
     // entry effect refetches on the next verified rising edge.
     useAppForeground(() => {
         refreshIfWarm().catch(error => {
-            endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('CHAT', '[useForegroundChatRefresh] foreground refresh failed', {
                 error,
                 data: { channelId },
