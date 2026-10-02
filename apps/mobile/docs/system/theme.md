@@ -186,6 +186,28 @@ Orientation detection filters `Dimensions`' `'change'` event down to an actual l
 flip: the raw event also fires on Android `adjustResize` keyboard open/close, and reapplying on every
 keyboard toggle would cross the native bridge for no reason.
 
+**Bar colors are React Native's, only icon appearance is ours.** The app runs edge-to-edge
+(`edgeToEdgeEnabled=true`), and `ReactActivityDelegate` sets the status and navigation bars
+transparent when the activity is created. So `SystemBars` passes `<StatusBar>` only a `barStyle`.
+Under edge-to-edge React Native ignores `backgroundColor` and `translucent`, and it still sends its
+default color on every update, which the native side drops with a warning. `SystemBarsModule` sets
+icon appearance and turns contrast enforcement off.
+
+It touches the navigation bar color only below Android 10. From Android 10 on, React Native has
+already made the bar transparent, and Android 15 deprecates the setter anyway. On Android 8-9,
+React Native paints a scrim that follows the OS dark mode rather than the app theme. Without the
+override, a dark-theme user on a light OS would get light icons on a light scrim, and the reverse.
+Android 7 is overridden too, as it always was. That version cannot tint navigation bar icons, so
+there the override is not what keeps them readable.
+
+Play Console still reports these deprecated APIs (`Window.setStatusBarColor`,
+`setNavigationBarColor`, the display cutout modes) as used by the app. Its scan is static, and the
+call sites it names are in React Native (`StatusBarModule`, `WindowUtil`) and Material Components
+(`BottomSheetDialog`, `SheetDialog`, `EdgeToEdgeUtils`, pulled in by `react-native-screens`). On
+Android 15 with edge-to-edge on, those calls either sit behind a guard that skips them or run with
+no effect. The warning goes away only when those libraries drop the references, not through a
+change in this app.
+
 Background color is unified at three call sites: [`webview/AppWebView.tsx`](../../src/app/webview/AppWebView.tsx),
 [`features/core/components/ResumeOverlay.tsx`](../../src/app/features/core/components/ResumeOverlay.tsx)
 and [`features/main/screens/MainScreen.tsx`](../../src/app/features/main/screens/MainScreen.tsx) all read
@@ -265,6 +287,7 @@ the very first frame cannot follow it is in [../boot/boot-splash.md](../boot/boo
 | Legacy migration, per-format `'system'` handling, rewrite conditions                                 | [`themeStorage.test.ts`](../../src/app/stores/themeStorage.test.ts)                                  |
 | Synchronous init at module evaluation; init alone does not write                                     | [`themeStore.test.ts`](../../src/app/stores/themeStore.test.ts)                                      |
 | Resume/rotation reapplication, stale closures, keyboard-resize filtering, iOS branch, unsubscription | [`SystemBars.test.tsx`](../../src/app/features/core/components/SystemBars.test.tsx)                  |
+| `<StatusBar>` gets only `barStyle`, none of the props edge-to-edge ignores                           | [`SystemBars.test.tsx`](../../src/app/features/core/components/SystemBars.test.tsx)                  |
 | Injection script carries mode, escaping                                                              | [`injectionScripts.test.ts`](../../src/app/webview/utils/injectionScripts.test.ts)                   |
 | Bridge `theme` write, invalid/escape-payload rejection, legacy-envelope acceptance                   | [`usePreferenceCacheHandler.test.ts`](../../src/app/webview/hooks/usePreferenceCacheHandler.test.ts) |
 | Light default, native-store confirm-and-retry, three-channel write                                   | [`useTheme.test.tsx`](../../../web/src/app/hooks/useTheme.test.tsx)                                  |
@@ -285,7 +308,9 @@ combination is what reproduces every symptom above.
 5. First load after clearing the WebView cache: the stored theme applies from the first paint —
    check this one specifically on Android, given the injection race noted above.
 6. Android: the navigation bar icon color follows too.
-7. Open and close a modal (`ModalScreen`): the status bar should not reset — unverified on iOS; if it
+7. Android 8-9: with the OS dark and the app light (and the reverse), the navigation bar stays
+   transparent and its icons stay readable — the versions where the app's override is what does it.
+8. Open and close a modal (`ModalScreen`): the status bar should not reset — unverified on iOS; if it
    reproduces, add an `applySystemBars` trigger there too.
 
 A browser-only check is possible against the dev server: with the OS set to dark and
