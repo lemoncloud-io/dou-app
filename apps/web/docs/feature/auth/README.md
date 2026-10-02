@@ -149,6 +149,13 @@ login entry and keeps everything before it. It also means `returnTo` is read pur
 "did we arrive from inside the app" — and no string ever reaches the router, so there is no redirect
 surface to reason about.
 
+**Whatever the login screen opens is pushed, never replaced.** The Terms and Privacy links go to the
+in-app policy pages on top of the login entry, so their back button returns to it with `returnTo`
+intact and the stack above still reads as it did. A replace there would overwrite the login entry and
+its router state, and a later sign-in would fall back to home. Those links, like every other control
+on the screen, are disabled while a social round trip is open: the credential is delivered to the
+login screen's subscriber, and leaving would drop a sign-in the user already finished.
+
 The fallback is home with `replace`, used when there is no `returnTo` (a deeplink, a refresh) or
 nothing behind this screen in the app's own stack — the router's index is 0, or cannot be read at
 all. That judgement belongs to `app/navigation/stackDepth`, and it deliberately does not ask

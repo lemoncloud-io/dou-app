@@ -1,10 +1,11 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, Smartphone } from 'lucide-react';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { BrandWordmark } from '@chatic/web-ui-kit';
+import { cn } from '@chatic/lib/utils';
+import { BrandMark } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
@@ -14,7 +15,6 @@ import { PageHeader } from '../../../ui/components';
 import { appBridge, useOnOAuthLogin } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
-import { isDevBuild } from '../../../utils/buildEnv';
 import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
@@ -30,12 +30,6 @@ export const LoginPage = () => {
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
-    /**
-     * Phone sign-in is a development-build affordance for now: production keeps social as the only way
-     * in. Held back rather than removed because the flow itself is wired and tested — flipping this is
-     * how it ships once the account-split guidance and the subscription/email coupling are settled.
-     */
-    const showPhoneLogin = isDevBuild();
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
         runtime.session.useLoginRelaySocial();
 
@@ -142,16 +136,21 @@ export const LoginPage = () => {
 
     const isLoading = isOAuthPending || isLoginRelaySocialPending;
 
+    // Pushed, so the policy page's back button lands here again with this entry's `returnTo` intact.
+    const openPolicy = (path: string) => navigate(path);
+
+    const policyLinkClass = 'font-medium text-foreground underline underline-offset-2 disabled:opacity-50';
+
     return (
         <div className="flex h-full flex-col bg-background">
             <PageHeader title="" />
 
             <div className="flex flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">
                 <div className="flex flex-col items-center pb-10">
-                    <BrandWordmark height={32} />
+                    <BrandMark height={40} />
                 </div>
 
-                {isOnMobileApp ? (
+                {isOnMobileApp && (
                     <div className="flex flex-col gap-3">
                         <button
                             onClick={() => handleOAuthLogin('google')}
@@ -184,60 +183,79 @@ export const LoginPage = () => {
                             </button>
                         )}
                     </div>
-                ) : (
-                    // Which copy is true depends on whether anything else is offered below: with phone
-                    // login hidden the app really is the only way in, but where it shows, only SOCIAL is.
-                    <p className="text-center text-[14px] text-muted-foreground">
-                        {showPhoneLogin
-                            ? t('mypageLogin.socialMobileOnly', {
-                                  defaultValue: 'Social sign-in is available in the mobile app.',
-                              })
-                            : t('mypageLogin.mobileOnly', { defaultValue: 'Please use the mobile app to sign in.' })}
-                    </p>
                 )}
 
                 {/*
-                 * Phone login is held to development builds.
+                 * Phone sits BELOW social on purpose. This screen is where `PhoneVerifyBanner` sends a
+                 * user who might already have a social account, and the account-split hazard is one-way:
+                 * proving a number on a fresh device mints a SEPARATE user that can never be merged.
+                 * Seeing social first, with the warning directly above the number, is the whole
+                 * defense — the server cannot prevent this.
                  *
-                 * Where it IS shown it sits BELOW social on purpose. This screen is where
-                 * `PhoneVerifyBanner` sends a user who might already have a social account, and the
-                 * account-split hazard is one-way: proving a number on a fresh device mints a SEPARATE
-                 * user that can never be merged. Seeing social first, with the warning directly above
-                 * the number, is the whole defense — the server cannot prevent this (ADR-0042 §9).
+                 * A phone-only user cannot hold a subscription (it attaches to a cloud, and cloud
+                 * ownership follows the social account). That is enforced where it costs money — the
+                 * purchase refuses before opening the store — so it does not need to gate sign-in here.
                  *
-                 * It also needs no `isNative()` gate — a socket call works in a browser — but production
-                 * keeps it hidden anyway, so social remains the only production sign-in and the
-                 * mobile-only copy above stays the whole truth there.
+                 * It needs no `isNative()` gate either: the verification is a socket call, so in a
+                 * browser it is the one way in. There the warning is also the only mention of social,
+                 * which is why the browser drops the divider and folds "social is app-only" into it.
                  */}
-                {showPhoneLogin && (
-                    <div className="mt-8 flex flex-col gap-3">
+                <div className={cn('flex flex-col gap-3', isOnMobileApp && 'mt-8')}>
+                    {isOnMobileApp && (
                         <div className="flex items-center gap-3">
                             <span className="h-px flex-1 bg-border" />
                             <span className="text-[13px] text-muted-foreground">{t('mypageLogin.or')}</span>
                             <span className="h-px flex-1 bg-border" />
                         </div>
+                    )}
 
-                        <p className="text-center text-[13px] leading-[1.5] text-description">
-                            {isOnMobileApp
-                                ? t('mypageLogin.socialFirstNotice')
-                                : t('mypageLogin.socialFirstNoticeBrowser')}
-                        </p>
+                    <p className="text-center text-[13px] leading-[1.5] text-description">
+                        {isOnMobileApp ? t('mypageLogin.socialFirstNotice') : t('mypageLogin.socialFirstNoticeBrowser')}
+                    </p>
 
-                        <button
-                            onClick={() => setIsPhoneOpen(true)}
-                            disabled={isLoading}
-                            data-testid="login-phone"
-                            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
-                        >
-                            {t('mypageLogin.continueWithPhone')}
-                        </button>
-                    </div>
-                )}
+                    <button
+                        onClick={() => setIsPhoneOpen(true)}
+                        disabled={isLoading}
+                        data-testid="login-phone"
+                        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
+                    >
+                        <Smartphone size={20} aria-hidden />
+                        {t('mypageLogin.continueWithPhone')}
+                    </button>
+                </div>
 
+                {/* The translation marks which words are the links, since they sit in a different
+                    place in each language's sentence. It is a new key rather than new text under
+                    `termsAgreement`: a bundle already running in a WebView refetches the locale file
+                    after its cache expires, and would print the tags literally through `t()`.
+
+                    Disabled during OAuth like every other control: the credential is delivered to this
+                    screen's subscriber, and leaving would unmount it and drop a completed sign-in. */}
                 <p className="mt-6 text-center text-[12px] leading-[1.5] text-description">
-                    {t('mypageLogin.termsAgreement', {
-                        defaultValue: 'By continuing, you agree\nto our Terms & Privacy Policy',
-                    })}
+                    <Trans
+                        i18nKey="mypageLogin.termsAgreementLinks"
+                        defaults="By continuing, you agree to our <terms>Terms</terms> & <privacy>Privacy Policy</privacy>"
+                        components={{
+                            terms: (
+                                <button
+                                    type="button"
+                                    data-testid="login-terms"
+                                    disabled={isLoading}
+                                    onClick={() => openPolicy(ROUTES.mypage.policy.terms)}
+                                    className={policyLinkClass}
+                                />
+                            ),
+                            privacy: (
+                                <button
+                                    type="button"
+                                    data-testid="login-privacy"
+                                    disabled={isLoading}
+                                    onClick={() => openPolicy(ROUTES.mypage.policy.privacy)}
+                                    className={policyLinkClass}
+                                />
+                            ),
+                        }}
+                    />
                 </p>
             </div>
 

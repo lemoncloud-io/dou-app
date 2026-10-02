@@ -8,16 +8,6 @@ import type { ConfigRegistryModule } from '../types';
  * truth to the server's product catalogue; putting them here would give product limits two owners.
  */
 export const featureModule: ConfigRegistryModule = {
-    'feature.auth.phoneLogin': {
-        title: 'Phone login',
-        description: 'Shows the phone number login screen.',
-        type: 'boolean',
-        defaultValue: false,
-        byStage: { LOCAL: true, DEV: true },
-        surface: 'dev',
-        writableBy: ['local', 'server'],
-        persist: 'session',
-    },
     'feature.auth.phoneDevSwitches': {
         title: 'Phone auth dev switches',
         description: 'Shows developer shortcuts on the phone verification screen.',

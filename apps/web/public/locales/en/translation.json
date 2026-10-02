@@ -1163,6 +1163,7 @@
         "oauthFailed": "Social login failed.",
         "mobileOnly": "Please use the mobile app to sign in.",
         "termsAgreement": "By continuing, you agree\nto our Terms & Privacy Policy",
+        "termsAgreementLinks": "By continuing, you agree to our <terms>Terms</terms> & <privacy>Privacy Policy</privacy>",
         "signup": "Sign Up",
         "forgotPassword": "Forgot Password",
         "or": "or",
