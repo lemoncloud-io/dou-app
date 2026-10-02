@@ -89,8 +89,8 @@ android {
         applicationId "io.chatic.dou"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 79
-        versionName "0.26.0"
+        versionCode 80
+        versionName "0.27.0"
         resValue "string", "build_config_package", "io.chatic.dou"
     }
 
