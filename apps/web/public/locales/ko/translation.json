@@ -1163,6 +1163,7 @@
         "oauthFailed": "소셜 로그인에 실패했습니다.",
         "mobileOnly": "모바일 앱에서 로그인해 주세요.",
         "termsAgreement": "계속 진행하시면 이용약관 및\n개인정보처리방침에 동의하게 됩니다",
+        "termsAgreementLinks": "계속 진행하시면 <terms>이용약관</terms> 및 <privacy>개인정보처리방침</privacy>에 동의하게 됩니다",
         "signup": "회원가입",
         "forgotPassword": "비밀번호 찾기",
         "or": "또는",

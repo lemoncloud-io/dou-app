@@ -186,10 +186,14 @@ the user presses the CTA again. Nothing is auto-resubmitted, which would run on 
 - **The banner routes through `useNavigateToLogin`**, closing the verification flow first so the
   dialog is not left mounted under the login page. See the login-return section in
   [README.md](./README.md).
-- **Phone login on the mypage login screen is dev-only**, behind `isDevBuild()`
-  (`apps/web/src/app/utils/buildEnv.ts`). Social sits above it, because an account split happens in
-  one direction: proving a number first on a fresh device mints the separate user. That screen uses
-  inline copy rather than the banner — it _is_ the banner's destination.
+- **Phone login on the mypage login screen shows in every build**, in the app and in a browser —
+  in a browser it is the only way in, since social needs the native shell. Social sits above it,
+  because an account split happens in one direction: proving a number first on a fresh device mints
+  the separate user. That screen uses inline copy rather than the banner — it _is_ the banner's
+  destination. A phone-only user can do everything but subscribe: a subscription attaches to a cloud,
+  and cloud ownership follows the social account. That is enforced at the purchase rather than at
+  sign-in — it refuses before the store opens once the profile says social is `'absent'`, and while
+  the answer is still `'unknown'` it leaves the refusal to the server's validation.
 - **There is a dev bypass code.** It is not a client-side skip: it goes through the same calls and
   the server decides, so a release backend rejects it as a wrong code. Nothing can be forged, because
   the `$token` comes from the server.

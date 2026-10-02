@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
@@ -7,7 +10,19 @@ import { LoginPage } from './LoginPage';
 const navigate = jest.fn();
 let currentLocation: { state: unknown } = { state: null };
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+// `Trans` renders its key followed by the elements it was given, so the policy links stay reachable
+// by test id the way the real component would wrap translated words in them.
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string) => k }),
+    Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, JSX.Element> }) => (
+        <>
+            {i18nKey}
+            {Object.entries(components ?? {}).map(([name, element]) => (
+                <span key={name}>{element}</span>
+            ))}
+        </>
+    ),
+}));
 jest.mock('react-router-dom', () => ({ useLocation: () => currentLocation }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
@@ -21,9 +36,10 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-// Native so the social buttons render; the browser branch shows only copy.
+// Native by default so the social buttons render; the browser tests flip it.
+let mockIsNative = true;
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => true,
+    isNative: () => mockIsNative,
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
@@ -46,8 +62,6 @@ jest.mock('../../../bridge', () => ({
     },
 }));
 
-// Phone login is dev-only; keeping it visible lets the onVerified path be exercised here.
-jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => true }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
 jest.mock('../components', () => ({ AppleIcon: () => null, GoogleIcon: () => null }));
 
@@ -60,6 +74,7 @@ jest.mock('../../auth/components/PhoneVerifySheet', () => ({
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockIsNative = true;
     withStackDepth(0);
     currentLocation = { state: null };
     deliverOAuthResult = null;
@@ -271,5 +286,79 @@ describe('LoginPage — 로그인 후 복귀', () => {
         fireEvent.click(screen.getByTestId('phone-verified'));
 
         expect(navigate).toHaveBeenCalledWith(-1);
+    });
+});
+
+describe('LoginPage — sign-in options', () => {
+    // Phone sign-in used to be held to development builds. Nothing here reads the build stage any more,
+    // so the button is on screen in a release build exactly as in this test.
+    it('offers phone sign-in below social in the app', () => {
+        render(<LoginPage />);
+
+        expect(screen.getByTestId('login-google')).toBeTruthy();
+        expect(screen.getByTestId('login-phone')).toBeTruthy();
+        expect(screen.getByText('mypageLogin.or')).toBeTruthy();
+        expect(screen.getByText('mypageLogin.socialFirstNotice')).toBeTruthy();
+    });
+
+    // Social is native-only, so in a browser the account-split warning is the only mention of it —
+    // one line that also says where social lives, with no divider separating phone from nothing.
+    it('offers only phone sign-in in a browser, with the app-only social warning', () => {
+        mockIsNative = false;
+        render(<LoginPage />);
+
+        expect(screen.queryByTestId('login-google')).toBeNull();
+        expect(screen.queryByText('mypageLogin.or')).toBeNull();
+        expect(screen.getByText('mypageLogin.socialFirstNoticeBrowser')).toBeTruthy();
+        expect(screen.getByTestId('login-phone')).toBeTruthy();
+    });
+});
+
+describe('LoginPage — policy links', () => {
+    // Pushed, not replaced: the policy page's back must land on this login entry with its returnTo.
+    it('pushes the in-app terms page', () => {
+        render(<LoginPage />);
+
+        fireEvent.click(screen.getByTestId('login-terms'));
+
+        expect(navigate).toHaveBeenCalledWith('/mypage/policy/terms');
+    });
+
+    it('pushes the in-app privacy page', () => {
+        mockIsNative = false;
+        render(<LoginPage />);
+
+        fireEvent.click(screen.getByTestId('login-privacy'));
+
+        expect(navigate).toHaveBeenCalledWith('/mypage/policy/privacy');
+    });
+
+    // The `Trans` mock renders every link whatever the text says, so it cannot see a tag the
+    // translation lost or misspelled — production would then show plain words with no link. This
+    // reads the shipped resources and checks each language marks both words, under the key the
+    // screen actually asks for.
+    it.each(['en', 'ko'])('marks both links in the %s translation of the key the screen uses', lang => {
+        render(<LoginPage />);
+        const key = 'mypageLogin.termsAgreementLinks';
+        expect(screen.getByText(key)).toBeTruthy();
+
+        const resources = JSON.parse(
+            readFileSync(join(__dirname, '../../../../../public/locales', lang, 'translation.json'), 'utf8')
+        );
+        const text: string = resources.mypageLogin.termsAgreementLinks;
+
+        expect(text).toMatch(/<terms>[^<]+<\/terms>/);
+        expect(text).toMatch(/<privacy>[^<]+<\/privacy>/);
+    });
+
+    // The credential arrives on this screen's subscriber; leaving mid-flow would unmount it and drop
+    // a sign-in the user already finished in the provider's UI.
+    it('stays put while an OAuth round trip is open', () => {
+        render(<LoginPage />);
+
+        tapGoogle();
+        fireEvent.click(screen.getByTestId('login-terms'));
+
+        expect(navigate).not.toHaveBeenCalled();
     });
 });
