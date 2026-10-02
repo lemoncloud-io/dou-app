@@ -218,11 +218,12 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                             compact-on-focus layout CreateChannelDialog documents in full: the
                             keyboard rises over a WebView that is never resized, so the field is kept
                             readable by moving it UP rather than by scrolling to it. Animated through
-                            a 0fr<->1fr grid row, the CollapsibleSection idiom. */}
+                            a 0fr<->1fr grid row, the CollapsibleSection idiom, and faded alongside so
+                            the text dissolves rather than being cut off by the shrinking row. */}
                         <div
                             className={cn(
-                                'grid transition-[grid-template-rows] duration-200 ease-out',
-                                editing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+                                'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+                                editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
                             )}
                             aria-hidden={editing}
                         >
@@ -243,7 +244,9 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
 
                         {/* Avatar + name. The paddings tighten with the same compact mode: folding
                             the header alone is not enough on a short screen, so the avatar block
-                            gives up its generous spacing (and the avatar its size) while typing. */}
+                            gives up its generous spacing and its caption while typing. The avatar
+                            keeps its size — the folded text frees enough height, and a photo that
+                            shrank on every focus read as the screen changing under the user. */}
                         <div
                             className={cn(
                                 'flex flex-col transition-all duration-200 ease-out',
@@ -265,16 +268,14 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                                     <ProfileAvatar
                                         src={thumbnail || undefined}
                                         glyph="place"
-                                        size={editing ? 56 : 86}
                                         onSelect={handleImageClick}
                                         selectLabel={t('createPlace.photoLabel')}
-                                        className="transition-[width,height] duration-200 ease-out"
                                     />
                                 </span>
                                 <div
                                     className={cn(
-                                        'grid transition-[grid-template-rows] duration-200 ease-out',
-                                        editing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+                                        'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+                                        editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
                                     )}
                                     aria-hidden={editing}
                                 >

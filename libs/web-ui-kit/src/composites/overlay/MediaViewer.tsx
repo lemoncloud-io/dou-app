@@ -62,6 +62,11 @@ export interface MediaViewerProps {
     index: number | null;
     /** Asks to show another item. The host owns the index. */
     onIndexChange: (index: number) => void;
+    /**
+     * Asks to close; the host closes by setting `index` to `null`. A pull-down close leaves the viewer
+     * where the finger let go and slides on from there once `index` turns `null`, so a host that does
+     * not close leaves it pulled down.
+     */
     onClose: () => void;
     /**
      * Fired with the index of a photo or video that fails to load — a signed address may have
@@ -198,12 +203,34 @@ const DOUBLE_TAP_SLOP_PX = 30;
  * all. A drag that starts there is scrubbing, not paging, so the strip leaves it alone.
  */
 const VIDEO_CONTROLS_PX = 72;
+/**
+ * A downward drag released past this — or past a sixth of the height, whichever is more — closes the
+ * viewer. Further than a page turn needs: closing loses the place in the message, turning does not.
+ */
+const DISMISS_MIN_PX = 96;
+/** A quick downward flick closes with less travel, inside the same `FLICK_MAX_MS` as a page turn. */
+const DISMISS_FLICK_MIN_PX = 48;
+/** How far down the backdrop has faded out completely — the photo pulled clear shows what is behind. */
+const DISMISS_FADE_PX = 480;
+
+/** The backdrop's opacity while the viewer is pulled `offset` px down. */
+const dismissBackdropOpacity = (offset: number): number => Math.max(0, 1 - offset / DISMISS_FADE_PX);
+
+/**
+ * Whether a downward drag that ends `offset` px down, `elapsedMs` after it started, on a viewer
+ * `height` px tall, closes it rather than settling back.
+ */
+const shouldDismiss = (offset: number, elapsedMs: number, height: number): boolean =>
+    offset >= Math.max(DISMISS_MIN_PX, height / 6) || (elapsedMs <= FLICK_MAX_MS && offset >= DISMISS_FLICK_MIN_PX);
 
 interface Press {
     x: number;
     y: number;
     at: number;
-    /** Which way the drag went once it passed the slop — only a horizontal one moves the strip. */
+    /**
+     * Which way the drag went once it passed the slop: sideways moves the strip, downward pulls the
+     * viewer away to close it.
+     */
     axis: 'x' | 'y' | null;
 }
 
@@ -304,12 +331,36 @@ const ViewerVideo = ({ src, poster, playOnMount, playLabel, videoRef, onError }:
 export const MEDIA_VIEWER_FOOTER_TOAST_LIFT = 76;
 
 /**
+ * Timing of the slide in and out, the settle after a short pull and the backdrop fade. The curve is
+ * the app's slide-up dialog's, so the viewer moves like every other sheet that rises from the bottom.
+ *
+ * The duration is set twice on purpose. `duration-300` times the settle (a transition), but it loses
+ * to the 150ms `data-[state=…]:animate-in`/`animate-out` carry for the slide: an attribute selector
+ * outranks a bare class. The `data-[state=…]:` copies match that and win; reduced motion is scoped
+ * the same way for the same reason. A scale value, not an arbitrary one, because only the scale
+ * utility reaches `animation-duration` at all.
+ */
+const VIEWER_MOTION = [
+    'duration-300 data-[state=open]:duration-300 data-[state=closed]:duration-300',
+    // Spelled as properties: an arbitrary `ease` value is claimed by both Tailwind and
+    // tailwindcss-animate, and a class that matches two utilities emits no rule at all.
+    '[animation-timing-function:cubic-bezier(0.32,0.72,0,1)] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]',
+    'motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none motion-reduce:transition-none',
+].join(' ');
+
+/**
  * A chat message's photos and videos, full screen: the original on black, a close button, and a tap
  * anywhere outside it to leave. When the message carries more than one they sit side by side on a
  * strip: a horizontal drag moves the strip under the finger, and on release it slides on to the next
  * item or back to the same one. The arrow buttons at the sides and the arrow keys slide it the same
  * way, and a count says where it is ("2 / 3"). It stops at the ends rather than wrapping: a count that
- * jumps from the last back to "1" reads as a different message. The host may put buttons for the
+ * jumps from the last back to "1" reads as a different message.
+ *
+ * The viewer slides up from the bottom edge as it opens and back down as it closes, and a downward
+ * drag pulls it after the finger, fading the black behind it: let go far enough down (or flick) and
+ * it carries on down and closes, otherwise it settles back. The close slides on from wherever the
+ * finger let go, not from the top, so the photo never jumps back before it leaves. A zoomed photo
+ * pans instead, and a drag on a video's controls is left to them. The host may put buttons for the
  * showing item in a bar along the bottom (`renderFooter`) — the chat puts share and save there. A
  * `broken` item is a placeholder page, counted like the rest.
  *
@@ -352,7 +403,11 @@ export const MediaViewer = ({
 }: MediaViewerProps) => {
     const text = { ...DEFAULT_LABELS, ...labels };
     const open = index !== null && index >= 0 && index < items.length;
-    const current = open ? index : 0;
+    // The item last shown, kept through the close: the viewer is still on screen while it slides
+    // away, and falling back to the first item there would swap the photo under the user.
+    const [lastShown, setLastShown] = React.useState(open ? index : 0);
+    if (open && lastShown !== index) setLastShown(index);
+    const current = open ? index : Math.min(lastShown, Math.max(items.length - 1, 0));
     const many = items.length > 1;
     const hasPrevious = many && current > 0;
     const hasNext = many && current < items.length - 1;
@@ -362,6 +417,8 @@ export const MediaViewer = ({
     useToastLift(open && renderFooter !== undefined ? MEDIA_VIEWER_FOOTER_TOAST_LIFT : null);
 
     const go = (step: -1 | 1) => {
+        // Sliding away: a page turn now would hand the host an index and open the viewer again.
+        if (!open) return;
         const target = current + step;
         if (target >= 0 && target < items.length) onIndexChange(target);
     };
@@ -369,8 +426,14 @@ export const MediaViewer = ({
     // The item the viewer opened on, while it is still the one showing — the only one `autoPlay`
     // starts. Paging away gives it up, so coming back to it does not start it again.
     const [session, setSession] = React.useState<{ open: boolean; at: number | null }>({ open: false, at: null });
-    if (session.open !== open) setSession({ open, at: open ? current : null });
-    else if (session.at !== null && session.at !== current) setSession({ open, at: null });
+    // How far the viewer is pulled down. Not reset when a pull closes it — the slide out has to start
+    // where the finger left it — so it is reset as the viewer opens again instead.
+    const [dismissY, setDismissY] = React.useState(0);
+    const [dismissHeld, setDismissHeld] = React.useState(false);
+    if (session.open !== open) {
+        setSession({ open, at: open ? current : null });
+        if (open) setDismissY(0);
+    } else if (session.at !== null && session.at !== current) setSession({ open, at: null });
 
     // The addresses that have finished loading, so their preview can go. Kept by address rather
     // than by position: a refreshed address has to load again before it covers the preview.
@@ -414,8 +477,10 @@ export const MediaViewer = ({
     const tapStartRef = React.useRef<Point | null>(null);
     const lastTapRef = React.useRef<{ at: number; point: Point } | null>(null);
 
-    // Another page, or the viewer closing, starts from the photo fitting the page.
+    // Another page, or the viewer opening again, starts from the photo fitting the page. Not the close:
+    // a zoomed photo slides away as it was rather than springing back to fit on the way out.
     React.useEffect(() => {
+        if (!open) return;
         zoomRef.current = IDENTITY_ZOOM;
         setZoomState(IDENTITY_ZOOM);
         pinchRef.current = null;
@@ -460,6 +525,8 @@ export const MediaViewer = ({
         pressRef.current = null;
         setDragging(false);
         setDragX(0);
+        setDismissHeld(false);
+        setDismissY(0);
     };
 
     const onPointerDown = (event: React.PointerEvent) => {
@@ -497,7 +564,7 @@ export const MediaViewer = ({
             pressRef.current = null;
             return;
         }
-        pressRef.current = many ? { x: event.clientX, y: event.clientY, at: Date.now(), axis: null } : null;
+        pressRef.current = { x: event.clientX, y: event.clientY, at: Date.now(), axis: null };
     };
 
     const onPointerMove = (event: React.PointerEvent) => {
@@ -538,12 +605,20 @@ export const MediaViewer = ({
         if (!press.axis) {
             if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_SLOP_PX) return;
             press.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-            if (press.axis === 'x') {
-                setDragging(true);
-                capture(event);
+            // Only a sideways drag with somewhere to go, or a downward one, is ours; the rest of the
+            // gesture is let be.
+            if ((press.axis === 'x' && !many) || (press.axis === 'y' && dy <= 0)) {
+                pressRef.current = null;
+                return;
             }
+            if (press.axis === 'x') setDragging(true);
+            else setDismissHeld(true);
+            capture(event);
         }
-        if (press.axis !== 'x') return;
+        if (press.axis === 'y') {
+            setDismissY(Math.max(0, dy));
+            return;
+        }
         const pastEdge = (dx > 0 && !hasPrevious) || (dx < 0 && !hasNext);
         setDragX(pastEdge ? dx * EDGE_RESISTANCE : dx);
     };
@@ -600,6 +675,20 @@ export const MediaViewer = ({
         }
 
         const press = pressRef.current;
+        if (press?.axis === 'y') {
+            swipedRef.current = true;
+            const offset = Math.max(0, event.clientY - press.y);
+            if (shouldDismiss(offset, Date.now() - press.at, contentRef.current?.clientHeight ?? 0)) {
+                // Left where it is: the close slides on from here.
+                pressRef.current = null;
+                setDismissHeld(false);
+                setDismissY(offset);
+                onClose();
+            } else {
+                endDrag();
+            }
+            return;
+        }
         if (!press || press.axis !== 'x') {
             pressRef.current = null;
             if (wasTap) onTap(event, point);
@@ -656,7 +745,14 @@ export const MediaViewer = ({
             }}
         >
             <Dialog.Portal>
-                <Dialog.Overlay className="fixed inset-0 z-50 bg-black" />
+                <Dialog.Overlay
+                    className={cn(
+                        'fixed inset-0 z-50 bg-black data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+                        VIEWER_MOTION,
+                        !dismissHeld && 'transition-opacity'
+                    )}
+                    style={{ opacity: dismissBackdropOpacity(dismissY) }}
+                />
                 <Dialog.Content
                     ref={contentRef}
                     aria-describedby={undefined}
@@ -687,7 +783,18 @@ export const MediaViewer = ({
                         if (target === event.currentTarget || target.dataset.backdrop !== undefined) onClose();
                     }}
                     // The drag is all ours: no browser pan or pinch fights the strip.
-                    className="fixed inset-0 z-50 touch-none overflow-hidden outline-none"
+                    className={cn(
+                        'fixed inset-0 z-50 touch-none overflow-hidden outline-none',
+                        // Nothing on it is pressable while it slides away — a swipe, an arrow or a
+                        // host button there would act on a viewer the user has already left.
+                        // Important, because Radix's modal layer sets `pointer-events: auto` inline.
+                        'data-[state=closed]:!pointer-events-none',
+                        'data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom-full data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full',
+                        VIEWER_MOTION,
+                        // Settles back with the same ease once a pull is let go short of closing.
+                        !dismissHeld && 'transition-transform'
+                    )}
+                    style={dismissY > 0 ? { transform: `translate3d(0, ${dismissY}px, 0)` } : undefined}
                 >
                     <Dialog.Title className="sr-only">{text.title}</Dialog.Title>
                     <div
@@ -700,7 +807,7 @@ export const MediaViewer = ({
                         style={{ transform: `translate3d(calc(${-current * 100}% + ${dragX}px), 0, 0)` }}
                     >
                         {items.map((item, i) => {
-                            const drawn = open && Math.abs(i - current) <= 1;
+                            const drawn = Math.abs(i - current) <= 1;
                             const showing = i === current;
                             const { src, preview } = item;
                             const broken = item.state === 'broken';
@@ -717,7 +824,8 @@ export const MediaViewer = ({
                                             {drawn && broken && brokenPlaceholder}
                                             {drawn &&
                                                 !broken &&
-                                                (showing && src && item.state === 'ready' ? (
+                                                // Not while it slides away: closing stops the sound at once.
+                                                (open && showing && src && item.state === 'ready' ? (
                                                     <ViewerVideo
                                                         src={src}
                                                         poster={preview}

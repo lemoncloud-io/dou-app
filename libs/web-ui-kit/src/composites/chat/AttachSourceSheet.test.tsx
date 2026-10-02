@@ -5,14 +5,14 @@ import { AttachSourceSheet } from './AttachSourceSheet';
 const labels = { album: '앨범에서 선택', files: '파일에서 선택' };
 
 describe('AttachSourceSheet', () => {
-    it('offers the album then the files and fires each', () => {
+    it('offers the files then the album and fires each', () => {
         const onAlbum = jest.fn();
         const onFiles = jest.fn();
         render(<AttachSourceSheet open onOpenChange={jest.fn()} onAlbum={onAlbum} onFiles={onFiles} labels={labels} />);
 
         expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual([
-            '앨범에서 선택',
             '파일에서 선택',
+            '앨범에서 선택',
         ]);
 
         fireEvent.click(screen.getByRole('button', { name: '앨범에서 선택' }));
@@ -48,7 +48,17 @@ describe('AttachSourceSheet', () => {
         expect(screen.getByText('Update the app to send videos')).toBeInTheDocument();
     });
 
-    it('is still named for assistive tech without a drawn title', () => {
+    it('draws its title above the sources', () => {
+        render(
+            <AttachSourceSheet open onOpenChange={jest.fn()} title="파일" onAlbum={jest.fn()} onFiles={jest.fn()} />
+        );
+
+        // Drawn once for the eye (hidden from assistive tech) and once, hidden, as the sheet's name.
+        expect(screen.getAllByText('파일')).toHaveLength(2);
+        expect(screen.getByRole('dialog', { name: '파일' })).toBeInTheDocument();
+    });
+
+    it('is named for assistive tech by its title', () => {
         render(
             <AttachSourceSheet
                 open

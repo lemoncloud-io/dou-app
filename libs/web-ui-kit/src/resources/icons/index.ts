@@ -104,6 +104,8 @@ export { IconStarsSolid, type IconStarsSolidProps } from './IconStarsSolid';
 export { IconGalleryWideSolid, type IconGalleryWideSolidProps } from './IconGalleryWideSolid';
 export { IconCameraSolid, type IconCameraSolidProps } from './IconCameraSolid';
 export { IconFileSolid, type IconFileSolidProps } from './IconFileSolid';
+export { IconFileCheck, type IconFileCheckProps } from './IconFileCheck';
+export { IconGalleryWide, type IconGalleryWideProps } from './IconGalleryWide';
 // Chat attachment glyphs drawn for the message feed: the play mark a video tile carries, and the
 // file-kind sheets a document card leads with. Both fill `currentColor`; the tile or card colours them.
 export { IconPlaySolid, type IconPlaySolidProps } from './IconPlaySolid';

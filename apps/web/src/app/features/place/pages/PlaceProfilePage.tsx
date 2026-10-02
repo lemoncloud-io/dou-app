@@ -11,9 +11,9 @@ import { PageHeader } from '../../../ui';
  * {@link PlaceProfileForm} and `setMyProfile` save path as the home dropdown's dialog, rendered as a
  * full page here (settings hub entry). Both the read (`useMyProfile`) and the write (`setMyProfile`)
  * target the session-active place; the hub is only reached for the active place. The screen title
- * ("내 프로필") lives in the page header (PlaceProfileForm's page container renders it there). It uses
- * the page-only `placeProfileEdit.header` key so the edit dialog's place-interpolated `title` heading
- * (shared copy) stays untouched.
+ * ("내 프로필") lives in the page header (PlaceProfileForm's page container renders it there), from
+ * `placeProfileEdit.header` — the same label the edit dialog puts in its top bar. Only the dialog adds
+ * the place-interpolated `title` as an in-body heading; this page has no heading under its header.
  */
 export const PlaceProfilePage = () => {
     const { t } = useTranslation();

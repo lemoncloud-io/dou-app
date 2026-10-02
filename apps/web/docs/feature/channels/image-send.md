@@ -56,8 +56,9 @@ belongs to the viewer's save or share, which acknowledges it once the file is us
 ## Picking — `useChatImageAttach`
 
 The composer's leading button opens the attach menu — photos, camera, files. "Files" opens a second
-sheet (`AttachSourceSheet`): choose from the album (photos and videos) or from files (documents). How
-photos are picked from the photos entry depends on the shell:
+sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and then from the album
+(photos and videos). The design also shows a third row, document scan; it is not drawn, since no
+shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
 
 | Shell                                   | Photos                                                               |
 | --------------------------------------- | -------------------------------------------------------------------- |
@@ -166,6 +167,15 @@ tile drew it — until the original has arrived, so a large original opens on a 
 black. The viewer reaches the images behind the "+n" tile too, and skips
 broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
+The viewer slides up from the bottom edge as it opens and back down as it closes. A downward drag
+pulls it after the finger while the black behind it fades; released past a sixth of the screen height
+(at least 96 px), or flicked down past 48 px, it carries on down and closes, otherwise it settles back.
+The close slides on from wherever the finger let go rather than from the top, so the photo does not
+jump back before it leaves, and the photo it was showing stays on screen until it is gone — the
+viewer keeps its last position through the close instead of falling back to the first item. A video
+stops the moment the close starts. A zoomed photo pans on a downward drag instead of closing, and a
+drag on a video's controls is left to them.
+
 The showing photo zooms, in the kit's `MediaViewer` with its arithmetic in `imageZoom.ts`. A pinch
 scales it around the point between the fingers, up to four times. A double tap on it zooms to 2.5
 times at that point, or back out. While it is zoomed, a one-finger drag pans it instead of turning
@@ -180,10 +190,11 @@ bar. It does not zoom. A horizontal drag still turns the page, except one that s
 72 px, where the player's seek bar is. Opening a video from its tile tries `play()` within that tap —
 Android refuses a play that comes about five seconds after the gesture, so nothing is awaited first, not
 even a fresh address; when the play is refused a large play button takes the next tap. Turning away
-pauses it, rewinds it and detaches its address, so the download stops; closing pauses it. The player
-streams from the signed address with range requests, so no video is cached or fetched ahead — only its
-poster is. A player error asks for fresh addresses, as a photo's does. Inside an iOS app built before
-inline playback, the play opens the OS full-screen player instead.
+pauses it, rewinds it and detaches its address, so the download stops; closing stops it at once,
+before the viewer has slid away. The player streams from the signed address with range requests,
+so no video is cached or fetched ahead — only its poster is. A player error asks for fresh
+addresses, as a photo's does. Inside an iOS app built before inline playback, the play opens the OS
+full-screen player instead.
 
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
