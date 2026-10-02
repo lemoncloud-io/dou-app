@@ -286,6 +286,11 @@ export const ChannelRoomPage = () => {
     const activeCount = activeMemberIds.length;
     const showReadReceipt = channelKind !== 'self' && !isPeerGone && activeCount >= 2;
 
+    // Whether the reader is away from the bottom, reading history: written by useChatScroll on every
+    // scroll and list change, read by useChats to decide whether arriving rows may push the oldest
+    // rows out of the window. A ref, because nothing renders off it.
+    const readingHistoryRef = useRef(false);
+
     // `joinedNo` windows the feed to my CURRENT membership (ADR-0067) — cached rows from before a
     // leave stay in the chat cache, and the server stops serving them after a re-join.
     const memoizedChatParams = useMemo(
@@ -293,6 +298,7 @@ export const ChannelRoomPage = () => {
             channelId: stableChannelId,
             limit: 100,
             joinedNo: myJoin?.joinedNo,
+            readingHistoryRef,
         }),
         [stableChannelId, myJoin?.joinedNo]
     );
@@ -303,8 +309,8 @@ export const ChannelRoomPage = () => {
         isLoading: isChatLoading,
         isEmpty: isChatEmpty,
         isLoadingMore,
-        isError: isChatError,
         hasMore,
+        canLoadMore,
         loadMore,
         loadUntil,
     } = useChats(memoizedChatParams);
@@ -471,11 +477,12 @@ export const ChannelRoomPage = () => {
     });
 
     // Auto-scroll to bottom is paused while a jump to this channel is pending — if both are alive
-    // at once, the bottom pin overwrites the jump (docs/specs/search/message-jump.md, "conflict with the bottom pin").
+    // at once, the bottom pin overwrites the jump (`suppressAutoScroll` in
+    // apps/web/docs/feature/channels/chat-room.md).
     const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
 
-    // Scrolling (auto-scroll to bottom, position preservation for loadMore, resize/focus
-    // correction, infinite loading) is owned by useChatScroll.
+    // Scrolling (following new messages to the bottom, holding a reader in history in place,
+    // resize/focus correction, prefetching older pages) is owned by useChatScroll.
     const { containerRef: messagesEndRef, handleScroll: handleChatScroll } = useChatScroll({
         messages,
         hasMore,
@@ -488,11 +495,13 @@ export const ChannelRoomPage = () => {
         // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
         // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,
+        readingHistoryRef,
     });
 
     // When entering via a message click from search results (?chatNo=), a request is registered
     // in the jump store and the query is removed (to prevent re-jumping on refresh). The actual
-    // scroll/highlight/older-page loading is owned by useMessageJump (docs/specs/search/message-jump.md).
+    // scroll/highlight/older-page loading is owned by useMessageJump
+    // (apps/web/docs/feature/channels/data-layer.md).
     useEffect(() => {
         const raw = searchParams.get('chatNo');
         if (!raw || !channelId) return;
@@ -516,6 +525,7 @@ export const ChannelRoomPage = () => {
         hasMore,
         isLoadingMore,
         loadMore,
+        canLoadMore,
         loadUntil,
         // The same cursor the feed is windowed by, so a jump cannot aim at a row this screen is
         // never going to render.
@@ -800,7 +810,9 @@ export const ChannelRoomPage = () => {
         );
     }, [messages]);
 
-    if (isChannelError || isChatError) {
+    // Only the channel itself failing to resolve takes the room down. An older page that does not
+    // arrive is retried by useChats while the conversation stays on screen.
+    if (isChannelError) {
         return (
             <div className="flex h-full items-center justify-center bg-background">
                 <div className="text-center">

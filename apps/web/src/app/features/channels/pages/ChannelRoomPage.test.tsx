@@ -142,7 +142,6 @@ jest.mock('../hooks', () => ({
         isLoading: false,
         isEmpty: mockMessages.length === 0,
         isLoadingMore: false,
-        isError: false,
         hasMore: false,
         loadMore: jest.fn(),
         loadUntil: jest.fn(),

@@ -117,7 +117,7 @@ export const ThreadPage = () => {
         () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
         [stableChannelId, myJoin?.joinedNo]
     );
-    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
+    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore, canLoadMore } = useChats(chatParams);
 
     /**
      * Is the root this URL names from before my current membership?
@@ -440,8 +440,11 @@ export const ThreadPage = () => {
                                 {hasMore && !rootOutsideJoinWindow && (
                                     <button
                                         type="button"
-                                        onClick={() => void loadMore()}
-                                        disabled={isLoadingMore}
+                                        // A press is a person asking: sent at once, past a failed
+                                        // page's retry wait. Disabled while the socket cannot carry
+                                        // it, so a press is never silently dropped.
+                                        onClick={() => void loadMore({ immediate: true })}
+                                        disabled={isLoadingMore || !canLoadMore}
                                         className="text-primary underline"
                                     >
                                         {isLoadingMore ? (

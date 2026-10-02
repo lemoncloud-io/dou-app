@@ -224,7 +224,13 @@ Four things the filenames do not tell you.
 - **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds
   `@lemoncloud/react-page-transition` a platform from `@chatic/device-utils`. It is by far the
   most-imported symbol in the lib, and the file also holds the private `usePageTransitionConfig` that
-  builds that platform.
+  builds that platform. The wrapper also puts `data-page-transition` on `<html>` for as long as a
+  navigation runs, cleared when the last overlapping one settles. That attribute is a DOM contract, not
+  an import: WebKit paints no `backdrop-filter` inside a view transition's snapshots, and web-ui-kit's
+  `HeaderGlass` reads it to keep a glass header opaque through the slide instead of frosting in one
+  frame at its end. The name is spelled out in both libs and pinned by both libs' tests. It is not set
+  on Android — the WebView there is Blink, which paints the frost inside the snapshots (measured in
+  Chrome 154), so holding a header opaque there would only delay its glass.
 
 ## Usage
 
@@ -355,7 +361,7 @@ dependency, whether or not the code is ever run there.
 
 ```bash
 npx tsc -b libs/shared/tsconfig.lib.json     # the lib
-npx tsc -b libs/shared/tsconfig.spec.json    # the six test files
+npx tsc -b libs/shared/tsconfig.spec.json    # the spec files
 npx jest --config libs/shared/jest.config.js
 ```
 
@@ -367,9 +373,9 @@ does — it builds `./tsconfig.json` with no argument, and that config reference
 - **The two projects are separate on purpose.** `tsconfig.lib.json` excludes `*.test.ts`, and jest does
   not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the second
   command a broken fixture surfaces only as `… is not a function` at run time.
-- **Six suites is not six covered modules.** Three cover `preferences/`, one `membershipOverride`, one
-  the loader store — and `hooks/websocket-worker-queue.test.ts` declares the queue it tests inside the
-  test file, so it exercises nothing in this lib. No component has a test.
+- **A suite is not a covered module.** `hooks/websocket-worker-queue.test.ts` declares the queue it
+  tests inside the test file, so it exercises nothing in this lib, and `LoadingFallback` is the only
+  component with a test.
 - `tsconfig.spec.json` must not set `module: "commonjs"`. The base sets `moduleResolution: bundler`,
   which rejects it with TS5095, and the config then cannot compile at all.
 - Its `references` must mirror `tsconfig.lib.json`'s, or the siblings arrive as unlisted files (TS6307).

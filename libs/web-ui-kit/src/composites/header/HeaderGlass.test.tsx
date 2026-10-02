@@ -76,4 +76,47 @@ describe('HeaderGlass', () => {
         expect(frost().className).toContain('rounded-t-2xl');
         expect(warmup().className).not.toContain('rounded-t-2xl');
     });
+
+    describe('mounted inside a page transition', () => {
+        const ATTRIBUTE = 'data-page-transition';
+
+        afterEach(() => {
+            document.documentElement.removeAttribute(ATTRIBUTE);
+        });
+
+        it('stays opaque for the whole transition and frosts only once it is over', async () => {
+            document.documentElement.setAttribute(ATTRIBUTE, '');
+            render(<HeaderGlass />);
+
+            // WebKit paints no frost inside the transition's snapshots: faded in now, it would be
+            // invisible through the slide and arrive in one frame at its end.
+            flushFrame();
+            act(() => void jest.advanceTimersByTime(400));
+            expect(warmup().className).toContain('opacity-100');
+            expect(frost().className).toContain('opacity-0');
+
+            // The marker coming off is observed in a microtask; the fade then starts on a frame.
+            await act(async () => {
+                document.documentElement.removeAttribute(ATTRIBUTE);
+                await Promise.resolve();
+            });
+            flushFrame();
+
+            expect(warmup().className).toContain('opacity-0');
+            expect(frost().className).toContain('opacity-100');
+        });
+
+        it('does not stay opaque for good when the marker is never cleared', () => {
+            document.documentElement.setAttribute(ATTRIBUTE, '');
+            render(<HeaderGlass />);
+
+            act(() => void jest.advanceTimersByTime(1400));
+            expect(frost().className).toContain('opacity-0');
+
+            // Past the 1.5s cap the fade starts anyway. (A frame requested from inside a timer lands 1ms
+            // later under fake timers; advancing past the fade's own fallback covers both.)
+            act(() => void jest.advanceTimersByTime(100 + 100));
+            expect(frost().className).toContain('opacity-100');
+        });
+    });
 });

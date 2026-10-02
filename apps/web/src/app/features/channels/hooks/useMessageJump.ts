@@ -7,8 +7,9 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import type { ClientChatView } from '../types';
+import type { LoadMoreOptions } from './useChats';
 
-/** See docs/specs/search/message-jump.md — matches desktop-web's MessageList jump budget. */
+/** Matches desktop-web's MessageList jump budget. */
 const MAX_JUMP_PAGES = 8;
 const HIGHLIGHT_MS = 1600;
 const HIGHLIGHT_CLASSNAMES = ['bg-primary/10', 'transition-colors'];
@@ -19,7 +20,12 @@ interface UseMessageJumpParams {
     messages: ClientChatView[];
     hasMore: boolean;
     isLoadingMore: boolean;
-    loadMore: () => void;
+    loadMore: (options?: LoadMoreOptions) => void;
+    /**
+     * Whether an older page can be sent right now (see useChats). Omitted, it can. A call that sends
+     * nothing would still spend a unit of the paging budget, so the jump waits instead.
+     */
+    canLoadMore?: boolean;
     /** Widens the cache window to reach a target without a server round trip (see useChats). */
     loadUntil: (targetNo: number) => boolean;
     /**
@@ -47,6 +53,7 @@ export const useMessageJump = ({
     hasMore,
     isLoadingMore,
     loadMore,
+    canLoadMore = true,
     loadUntil,
     joinedNo,
 }: UseMessageJumpParams) => {
@@ -106,21 +113,40 @@ export const useMessageJump = ({
         // a target that genuinely isn't cached.
         if (loadUntil(target.chatNo)) return;
 
-        // Still missing → page older until found or the budget/history runs out.
-        if (hasMore && !isLoadingMore && progressRef.current.pages < MAX_JUMP_PAGES) {
+        // Still missing → page older until found or the budget/history runs out. Only when a page can
+        // actually be sent (the effect re-runs when that changes), and as a person's request: someone
+        // asked to see this message, so a failed page's retry wait — kept for the room's own prefetch —
+        // does not hold the jump.
+        if (hasMore && !isLoadingMore && canLoadMore && progressRef.current.pages < MAX_JUMP_PAGES) {
             progressRef.current.pages += 1;
-            loadMore();
+            loadMore({ immediate: true });
             return;
         }
 
         // Exhausted: no older history left or the budget was hit — stop re-firing and
-        // tell the user rather than leaving them on an unrelated scroll position silently.
-        if (!hasMore || progressRef.current.pages >= MAX_JUMP_PAGES) {
+        // tell the user rather than leaving them on an unrelated scroll position silently. Never
+        // while a page is still landing: its rows may hold the target, and giving up the render
+        // before they appear is how a jump into the oldest page, or the last page of the budget,
+        // used to fail.
+        if (!isLoadingMore && (!hasMore || progressRef.current.pages >= MAX_JUMP_PAGES)) {
             progressRef.current.done = true;
             toast({ title: t('search.messageJumpFailed') });
             clear();
         }
-    }, [target, channelId, messages, hasMore, isLoadingMore, loadMore, loadUntil, containerRef, clear, t, joinedNo]);
+    }, [
+        target,
+        channelId,
+        messages,
+        hasMore,
+        isLoadingMore,
+        loadMore,
+        canLoadMore,
+        loadUntil,
+        containerRef,
+        clear,
+        t,
+        joinedNo,
+    ]);
 
     useEffect(
         () => () => {
