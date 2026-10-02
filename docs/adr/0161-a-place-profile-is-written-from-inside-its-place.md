@@ -1,4 +1,4 @@
-# ADR-0142: A place profile is written from inside its place, and asked for where a person enters one
+# ADR-0161: A place profile is written from inside its place, and asked for where a person enters one
 
 > Status: Accepted · Decided: 2026-09-30 · Implemented: `feat/place-profile-setup`
 > · Scope: `libs/data/src/repositories/ProfileRepository.ts` · `apps/web/src/app/hooks/useSetMyPlaceProfile.ts`
