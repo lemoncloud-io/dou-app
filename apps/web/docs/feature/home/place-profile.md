@@ -2,11 +2,11 @@
 
 A profile is **per place**: a nick and a photo scoped to one site, not to the account. Home is where
 that profile is _read_ — the top-right avatar, the name in the profile dropdown — and where its
-absence is announced. Home does not contain the form that creates or edits one.
+absence is announced: in the empty name slot, and by a banner that opens the create form.
 
-This document owns home's two rules: which source the header identity comes from, and how a place's
-name is turned into something a user should see. The form, its two entry points and the room-settings
-nudge belong to [place](../place/README.md) and [channels](../channels/README.md).
+This document owns home's three rules: which source the header identity comes from, when the banner
+shows, and how a place's name is turned into something a user should see. The form itself and the
+room-settings nudge belong to [place](../place/README.md) and [channels](../channels/README.md).
 
 ## Header identity — one tier, chosen whole
 
@@ -36,7 +36,8 @@ and `ProfileAvatar` draws its own default glyph when that is empty.
 `kind === 'setup'` renders `homePage.setupProfile` ("프로필을 설정해주세요" / "Set up your profile")
 in place of the name, in the header pill and at the top of the profile dropdown.
 
-Outside one flow, that is home's **entire** involvement in profile setup, and deliberately so:
+It is one of two signals on home; the other is [the banner](#the-banner--a-missing-profile-on-home)
+below.
 
 - **Entering a place forces nothing.** Switching into an existing place does not open a setup dialog.
   A user with no place profile uses the app normally; the nudge sits in a name slot that was empty
@@ -45,9 +46,7 @@ Outside one flow, that is home's **entire** involvement in profile setup, and de
   for the place it enters ([invite](../invite/README.md#cloud-invites-the-profile-comes-after-the-place)).
 - **This label reads the cache.** It shows while my row has not reached the device, too. It is a
   fallback for an empty name slot, not a verdict — the prompts that act on "no profile" ask the
-  server instead (see channels' room settings).
-- **The nudge never grows a surface of its own.** No banner, no toast. It appears only where a name
-  was going to be printed and there is none.
+  server instead (the banner below, and channels' room settings).
 - **Only my own profile is nudged.** Someone else's missing profile is not something I can fix, so
   there is nowhere for a tap to go. Other people's rows keep their normal fallbacks.
 
@@ -60,6 +59,38 @@ The other place a missing profile is announced is my own member row in room sett
 straight through to the create dialog. That row and the dialog are owned by
 [channels](../channels/README.md); it prompts only on the server's answer that I have no profile in
 the active place, never on a local cache that does not hold my row yet.
+
+## The banner — a missing profile on home
+
+The entry steps ask whoever enters a place from now on. They leave people behind: members from
+before they existed, anyone who left the step (a cloud invite is already accepted when it asks, and
+a failed save makes the form closable), and anyone whose profile read failed open at that moment. The
+banner is where they are asked again. `usePlaceProfileNudge` decides; `PlaceProfileBanner` renders.
+
+- **It shows only on the server's answer.** `usePlaceProfileAbsent` — `profile.get-mine` answering
+  `active: false` with no nick — as room settings uses. A cache without my row shows nothing.
+- **The read waits for the socket and for a settled place.** Home mounts before the socket is
+  verified on a cold start, and mid-switch the session can still be on the place being left. A read
+  sent then fails or answers for the wrong place, the judgement fails open, and the banner would be
+  missing on the cold start it exists for. A switch is any in flight app-wide (the shared mutation
+  keys), not only home's own: a push tap or the search screen switches places while home stays
+  mounted.
+- **A cached nick holds the read as well as the banner.** Someone with a profile can never see it, and
+  re-asking on every return to home and every reconnect would only cost requests — or, on a read
+  that fails open after a reconnect, take down a banner that was right.
+- **A nick in the cache hides it at once**, so a save from anywhere (the banner's form, place
+  settings) takes it down without another read.
+- **The form outlives the card.** That optimistic nick hides the card before the server answers, so
+  the form is mounted beside it, not inside it — a failed save keeps its error on screen. The form can
+  be left, with the unsaved-changes guard: the banner is an invitation, not a gate.
+- **Closing it lasts until the app starts again**, per place and person (`${sid}@${uid}`, in an
+  in-memory store). Persisted, it would become a one-time notice and leave the people it is for
+  without a name; in component state, leaving home for a room would bring it back.
+- **One banner at a time on the relay.** It sits above the first section in both homes, and on the
+  relay it takes the cloud promo's slot while it shows.
+
+Places I never open are not asked about. The server writes a profile to the place the session is in,
+so the banner can only ask about the active one.
 
 ## Place display name — never the backend string
 
@@ -95,6 +126,8 @@ drifting apart.
 ## Further reading
 
 - [README](./README.md) — the header, dropdown and place rail these values feed
+- [ADR-0162](../../../../../docs/adr/0162-home-asks-for-a-missing-place-profile-with-a-banner.md) — why
+  a banner, and why it is not a gate
 - [place](../place/README.md) — the profile form, the settings hub and its routes
 - [channels](../channels/README.md) — the room-settings member row and its nudge
 - [`libs/data`](../../../../../libs/data/README.md) — the profile cache and `setMyProfile`

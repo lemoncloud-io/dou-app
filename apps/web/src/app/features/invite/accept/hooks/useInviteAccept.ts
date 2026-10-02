@@ -86,7 +86,7 @@ const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
  * room. When one is missing the pipeline stops with `profilePending` set and the caller shows the
  * form; `finishProfile` resumes into the channel. The accept is already committed at that point, so
  * leaving the app mid-form leaves a member without a name — the missing-profile prompts elsewhere
- * (the room-settings nudge, home's profile menu) pick that up, not this flow.
+ * (home's banner, the room-settings nudge) pick that up, not this flow.
  */
 export const useInviteAccept = ({ params, info }: InviteContext) => {
     const { t } = useTranslation();

@@ -110,9 +110,9 @@ profile edit dialog opened blank the same way and kept the blank after the profi
 - Creating a place, finishing the wizard and accepting a cloud invite end with a profile in the place,
   verified end to end on the dev server for the invite (a person without a profile gets the form, one
   with a profile goes straight in) and for the first write after a switch (404 → get-mine → ok).
-- Someone who leaves an app mid-form, or a place created before this, still has no profile. Nothing on
-  home says so visibly yet — the only prompts are in room settings and inside the header menu. A
-  visible, non-blocking prompt on home is the follow-up, and it must use the same server verdict.
+- Someone who leaves an app mid-form, or a place created before this, still has no profile. The
+  entry steps do not reach them; home's banner does, on the same server verdict
+  ([ADR-0162](./0162-home-asks-for-a-missing-place-profile-with-a-banner.md)).
 - Room settings sends one more `profile.get-mine` per open. Several screens send it; they are not
   deduplicated.
 - On web, `auth.switch` intermittently fails with `403 invalid sign` in dev. Where it fails, the switch

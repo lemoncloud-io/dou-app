@@ -126,4 +126,48 @@ describe('usePlaceProfileAbsent', () => {
 
         expect(result.current.absent).toBe(false);
     });
+
+    // The effect that starts the next read runs after the render that moved the key. Without the key
+    // kept beside the verdict, that render answered with the previous place's verdict.
+    it('answers pending, not the previous place, on the render that moves the key', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        // Every render's answer, tagged with the site it was rendered for: `rerender` flushes the
+        // effect before returning, so only a per-render record can see the render in between.
+        const answers: Array<[string | null, boolean | undefined]> = [];
+        const { result, rerender } = renderHook(() => {
+            const gate = usePlaceProfileAbsent();
+            answers.push([mockSid, gate.absent]);
+            return gate;
+        });
+        await waitFor(() => expect(result.current.absent).toBe(true));
+
+        isPlaceProfileAbsent.mockReturnValue(new Promise(() => undefined));
+        mockSid = 'site-2';
+        rerender();
+
+        expect(answers.filter(([sid]) => sid === 'site-2').map(([, absent]) => absent)).not.toContain(true);
+        expect(result.current.absent).toBeUndefined();
+    });
+
+    it('holds the read while disabled, and makes it once enabled', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        let enabled = false;
+        const { result, rerender } = renderHook(() => usePlaceProfileAbsent({ enabled }));
+
+        expect(result.current.absent).toBeUndefined();
+        expect(isPlaceProfileAbsent).not.toHaveBeenCalled();
+
+        enabled = true;
+        rerender();
+
+        await waitFor(() => expect(result.current.absent).toBe(true));
+        expect(isPlaceProfileAbsent).toHaveBeenCalledTimes(1);
+    });
+
+    it('still settles to present with no site while disabled', () => {
+        mockSid = null;
+        const { result } = renderHook(() => usePlaceProfileAbsent({ enabled: false }));
+
+        expect(result.current.absent).toBe(false);
+    });
 });

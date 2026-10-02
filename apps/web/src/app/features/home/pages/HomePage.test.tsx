@@ -223,6 +223,8 @@ jest.mock('../components', () => ({
                 <button data-testid="limit-add-cloud" onClick={onAddCloud} />
             </div>
         ) : null,
+    PlaceProfileBanner: ({ visible }: { visible: boolean }) =>
+        visible ? <div data-testid="place-profile-banner" /> : null,
     SubscriptionRequiredDialog: ({ open }: { open: boolean }) =>
         open ? <div data-testid="subscription-required" /> : null,
 }));
@@ -241,6 +243,13 @@ let activeCloudChannels: unknown[] = [];
 const useHomePlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
+// Whether the profile banner is up is the nudge hook's call; the page only places it.
+let isProfileNudgeVisible = false;
+const usePlaceProfileNudge = jest.fn((_options: { nick?: string | null }) => ({
+    isVisible: isProfileNudgeVisible,
+    dismiss: jest.fn(),
+    markPresent: jest.fn(),
+}));
 
 // Folded sections, as the stored record reports them. Mutable so a test can start with one folded.
 let collapsedSections: Record<string, true> = {};
@@ -251,6 +260,7 @@ jest.mock('../hooks', () => ({
     useHomeSections: () => ({ isOpen: (id: string) => !collapsedSections[id], setOpen: setSectionOpenMock }),
     useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
+    usePlaceProfileNudge: (options: { nick?: string | null }) => usePlaceProfileNudge(options),
 }));
 jest.mock('../lib', () => ({ resolveHeaderProfile: () => ({ kind: 'site', name: 'me' }) }));
 // Relay invite rows (added to the page independently of this change).
@@ -276,6 +286,7 @@ beforeEach(() => {
     isPlacesLoading = false;
     selectedPlaceId = 'site-1';
     isSwitchingPlace = false;
+    isProfileNudgeVisible = false;
     activeCloudChannels = [];
     selectedSiteId = 'site-1';
     membership = { isValid: false };
@@ -823,5 +834,41 @@ describe('HomePage — pull to refresh', () => {
 
         expect(requestBackgroundRefreshMock).toHaveBeenCalledTimes(1);
         expect(refetchMembershipMock).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('HomePage — place profile banner', () => {
+    it('shows the banner in a cloud, above the Place section', () => {
+        selectedCloudId = 'cloud-1';
+        isProfileNudgeVisible = true;
+        render(<HomePage />);
+
+        const banner = screen.getByTestId('place-profile-banner');
+        expect(banner.compareDocumentPosition(screen.getByTestId('place-list'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    // One banner at a time on the relay: naming yourself comes before the cloud upsell.
+    it('takes the cloud promo turn on the relay while it shows', () => {
+        selectedCloudId = 'default';
+        isProfileNudgeVisible = true;
+        render(<HomePage />);
+
+        expect(screen.getByTestId('place-profile-banner')).toBeInTheDocument();
+        expect(screen.queryByTestId('promo-banner')).not.toBeInTheDocument();
+    });
+
+    it('gives the promo its slot back once the banner is gone', () => {
+        selectedCloudId = 'default';
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('place-profile-banner')).not.toBeInTheDocument();
+        expect(screen.getByTestId('promo-banner')).toBeInTheDocument();
+    });
+
+    // The nick is what hides the banner the moment a save writes it, from wherever it was saved.
+    it('hands the nudge my cached nick', () => {
+        render(<HomePage />);
+
+        expect(usePlaceProfileNudge).toHaveBeenLastCalledWith({ nick: 'me' });
     });
 });

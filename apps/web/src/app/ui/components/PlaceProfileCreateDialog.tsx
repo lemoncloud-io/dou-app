@@ -34,8 +34,8 @@ interface PlaceProfileCreateDialogProps {
  * ProfileRepository.setMyProfile.
  *
  * Opened where a missing profile actually blocks something useful: the room-settings nudge on my own
- * member row, the relay invite paths (before the accept), and — right after the session switches
- * into the place — the cloud invite pipeline and the place-create overlay. Those two pass
+ * member row, home's missing-profile banner, the relay invite paths (before the accept), and — right
+ * after the session switches into the place — the cloud invite pipeline and the place-create overlay. Those two pass
  * `dismissible={false}` until a save has failed, so the step is required without being a trap.
  */
 export const PlaceProfileCreateDialog = ({

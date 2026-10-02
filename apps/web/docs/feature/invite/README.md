@@ -164,8 +164,8 @@ first moment the profile can be written, and the last before the invitee is seen
 - **Required, but not a trap.** The form has no way out until a save has failed once. Saved or
   skipped, leaving it continues into the room.
 - **The accept is already committed.** Someone who quits on the form is a member with no name in
-  that place. This flow does not recover that state; the missing-profile prompts elsewhere do (the
-  room-settings nudge, and home's profile menu).
+  that place. This flow does not recover that state; the missing-profile prompts elsewhere do (home's
+  banner, and the room-settings nudge).
 
 ## Leaving the accept screen, and opening the room
 

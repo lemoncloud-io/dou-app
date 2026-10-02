@@ -51,10 +51,10 @@ What it owns of each is the entry point and nothing behind it.
 
 ## Scope
 
-**In** — the header and its profile dropdown; the cloud promo banner; the Place section; the Chat
-section with its previews, unread badges and creation popover; the rows' swipe actions (pin, mute,
-leave or delete); pull-to-refresh on the body; the cloud-switcher sheet; the place and cloud unread
-marks; the three app-global runners that home exports.
+**In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; the
+Place section; the Chat section with its previews, unread badges and creation popover; the rows'
+swipe actions (pin, mute, leave or delete); pull-to-refresh on the body; the cloud-switcher sheet;
+the place and cloud unread marks; the three app-global runners that home exports.
 
 **Out** — search itself (the header button only navigates to `/search`), the subscribe and IAP flow
 ([subscription](../subscription/README.md)), the profile form ([place](../place/README.md)), invite
@@ -110,8 +110,10 @@ grep -rn "features/home'\|'\.\./\.\./home'" --include='*.ts' --include='*.tsx' a
 **Relay** (`selectedCloudId === 'default'`). The header is `kind="no-cloud"`. **No Place section is
 rendered** — the relay has one place and it is auto-selected, so the list would add nothing; the slot
 goes to `CloudPromoBanner`, which appears only while the account owns no cloud and has not dismissed
-it within the last 24 hours. The banner is **off by default**: it is not rendered at all until the
-relay cloud catalog has answered once (`hasCloudCatalog`). Before that the catalog's `clouds` is an
+it within the last 24 hours, and gives way to the missing-profile banner
+([place-profile](./place-profile.md#the-banner--a-missing-profile-on-home)) while that one shows.
+The promo is **off by default**: it is not rendered at all until the relay cloud catalog has answered
+once (`hasCloudCatalog`). Before that the catalog's `clouds` is an
 empty stand-in that reads as "owns no cloud", so gating on it alone showed an owner the pitch on every
 cold start and pulled it away a beat later; a failed first fetch keeps it off for the same reason —
 no answer is not "no cloud". The Chat section still fills normally, because place selection happens
@@ -301,7 +303,7 @@ invitee who leaves that form fills it in later.
 | [last-chat.md](./last-chat.md)                       | The message preview — text, deleted or attachment kind — the list order, and why the server's summary is unused |
 | [unread-dot.md](./unread-dot.md)                     | The unread formula, the place and cloud marks, cross-cloud push resolution                                      |
 | [place-channel-create.md](./place-channel-create.md) | Creating a place or a group room — gating, caps, the two overlays                                               |
-| [place-profile.md](./place-profile.md)               | Header identity tiers, the setup nudge, the branded place name                                                  |
+| [place-profile.md](./place-profile.md)               | Header identity tiers, the setup nudge and the missing-profile banner, the branded place name                   |
 
 ## How to verify
 
