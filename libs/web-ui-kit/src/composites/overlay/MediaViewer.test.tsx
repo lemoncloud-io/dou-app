@@ -246,6 +246,136 @@ describe('MediaViewer', () => {
         expect(page.querySelector('img')).toBeNull();
     });
 
+    describe('pull down to close', () => {
+        // An 800px-tall viewer, so a release has to travel a sixth of it — 133px — to close.
+        beforeEach(() => {
+            jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
+        });
+        afterEach(() => jest.restoreAllMocks());
+
+        const viewer = () => screen.getByRole('dialog');
+        const backdrop = () => document.querySelector('.bg-black') as HTMLElement;
+        // Slow enough that the release is judged by distance alone, not as a flick.
+        const slowDrag = (target: Element, from: [number, number], to: [number, number]) => {
+            const now = jest.spyOn(Date, 'now').mockReturnValue(1000);
+            press(target, from, to);
+            now.mockReturnValue(2000);
+            fireEvent(target, pointer('pointerup', to));
+        };
+
+        it('follows the finger down and fades the backdrop while held', () => {
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            press(shown(), [200, 300], [205, 420]);
+
+            expect(viewer().style.transform).toBe('translate3d(0, 120px, 0)');
+            expect(Number(backdrop().style.opacity)).toBeCloseTo(0.75);
+            // No transition while held, so the viewer keeps up with the finger.
+            expect(viewer()).not.toHaveClass('transition-transform');
+        });
+
+        it('closes on a release far enough down, and leaves the viewer there to slide on from', () => {
+            const onClose = jest.fn();
+            const onIndexChange = jest.fn();
+            render(<MediaViewer items={items} index={1} onIndexChange={onIndexChange} onClose={onClose} />);
+
+            slowDrag(shown(), [200, 300], [210, 450]);
+
+            expect(onClose).toHaveBeenCalledTimes(1);
+            expect(onIndexChange).not.toHaveBeenCalled();
+            expect(viewer().style.transform).toBe('translate3d(0, 150px, 0)');
+        });
+
+        it('settles back on a short slow pull, and its closing click does not close', () => {
+            const onClose = jest.fn();
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={onClose} />);
+
+            slowDrag(viewer(), [200, 300], [200, 400]);
+            fireEvent.click(viewer());
+
+            expect(onClose).not.toHaveBeenCalled();
+            expect(viewer().style.transform).toBe('');
+            expect(viewer()).toHaveClass('transition-transform');
+            expect(Number(backdrop().style.opacity)).toBe(1);
+        });
+
+        it('closes on a quick flick with less travel', () => {
+            const onClose = jest.fn();
+            const now = jest.spyOn(Date, 'now').mockReturnValue(1000);
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={onClose} />);
+
+            press(shown(), [200, 300], [200, 360]);
+            now.mockReturnValue(1150);
+            fireEvent(shown(), pointer('pointerup', [200, 360]));
+
+            expect(onClose).toHaveBeenCalledTimes(1);
+        });
+
+        it('ignores an upward drag', () => {
+            const onClose = jest.fn();
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={onClose} />);
+
+            press(shown(), [200, 500], [200, 300]);
+            expect(viewer().style.transform).toBe('');
+            fireEvent(shown(), pointer('pointerup', [200, 300]));
+
+            expect(onClose).not.toHaveBeenCalled();
+        });
+
+        // A single image has no strip to drag, but it still closes by pulling down.
+        it('closes a single image too', () => {
+            const onClose = jest.fn();
+            render(<MediaViewer items={[items[0]]} index={0} onIndexChange={jest.fn()} onClose={onClose} />);
+
+            slowDrag(shown(), [200, 300], [200, 500]);
+
+            expect(onClose).toHaveBeenCalledTimes(1);
+        });
+
+        it('pans a zoomed photo instead of closing', () => {
+            jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+            jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(800);
+            const onClose = jest.fn();
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={onClose} />);
+            zoomIn(viewer());
+
+            slowDrag(viewer(), [0, 0], [0, 300]);
+
+            expect(onClose).not.toHaveBeenCalled();
+            expect(viewer().style.transform).toBe('');
+        });
+
+        it('opens again at rest after a pull closed it', () => {
+            const { rerender } = render(
+                <MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />
+            );
+            slowDrag(shown(), [200, 300], [200, 500]);
+
+            rerender(<MediaViewer items={items} index={null} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+            rerender(<MediaViewer items={items} index={0} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            expect(viewer().style.transform).toBe('');
+            expect(Number(backdrop().style.opacity)).toBe(1);
+        });
+
+        it('slides up from the bottom as it opens and back down as it closes', () => {
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            expect(viewer()).toHaveClass(
+                'data-[state=open]:slide-in-from-bottom-full',
+                'data-[state=closed]:slide-out-to-bottom-full'
+            );
+        });
+
+        // jsdom runs no exit animation, so the closing viewer is gone at once here; in a browser it
+        // stays for the slide, and a swipe or a button pressed then must not reach it.
+        it('takes no presses while it slides away', () => {
+            render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+
+            expect(viewer()).toHaveClass('data-[state=closed]:!pointer-events-none');
+        });
+    });
+
     describe('actions', () => {
         it("draws the host's buttons for the showing item, and follows it to the next", () => {
             const renderFooter = jest.fn((index: number) => <button type="button">save {index}</button>);
