@@ -95,6 +95,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useInvitedCloudNameSync',
         'useRuntimeRepositories',
         'useSendImages',
+        'waitForCloudSocket',
     ],
     sync: [
         'getSyncManager',

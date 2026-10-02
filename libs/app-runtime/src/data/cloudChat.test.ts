@@ -1,9 +1,23 @@
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { backgroundClouds, resetBackgroundClouds } from '../socket/backgroundClouds';
-import { getCloudRepositories, runInCloud, sendChatInCloud } from './cloudChat';
+import { slotKeyOf } from '../socket/utils/slotKey';
+import {
+    CLOUD_SOCKET_WAIT_MS,
+    getCloudRepositories,
+    runInCloud,
+    sendChatInCloud,
+    waitForCloudSocket,
+} from './cloudChat';
 
 const mockGetScopedRepositories = jest.fn();
 jest.mock('./runtime', () => ({
     getDataManager: () => ({ getScopedRepositories: mockGetScopedRepositories }),
+}));
+
+const mockWaitUntilSlotVerified = jest.fn();
+jest.mock('../socket/runtime', () => ({
+    getSocketManager: () => ({ waitUntilSlotVerified: mockWaitUntilSlotVerified }),
 }));
 
 jest.mock('../session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
@@ -129,5 +143,24 @@ describe('runInCloud', () => {
             })
         ).rejects.toThrow('upload failed');
         expect(backgroundClouds.getHeld()).toEqual([]);
+    });
+});
+
+describe('waitForCloudSocket', () => {
+    it("waits on the named cloud's own slot, ten seconds unless told otherwise", async () => {
+        mockWaitUntilSlotVerified.mockResolvedValue(true);
+
+        await expect(waitForCloudSocket('cloud-a')).resolves.toBe(true);
+
+        expect(mockWaitUntilSlotVerified).toHaveBeenCalledWith(slotKeyOf('cloud-a'), CLOUD_SOCKET_WAIT_MS);
+        expect(CLOUD_SOCKET_WAIT_MS).toBe(10_000);
+    });
+
+    it('reads a missing cloud id as the relay, and passes on a socket that did not come back', async () => {
+        mockWaitUntilSlotVerified.mockResolvedValue(false);
+
+        await expect(waitForCloudSocket('', 50)).resolves.toBe(false);
+
+        expect(mockWaitUntilSlotVerified).toHaveBeenCalledWith(slotKeyOf(RELAY_CLOUD_ID), 50);
     });
 });

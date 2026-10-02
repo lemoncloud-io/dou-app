@@ -9,7 +9,9 @@ import { useAppForeground } from '../../../bridge/useAppForeground';
 import { getShellPut, syncShellTransfers } from '../../../bridge/shellUpload';
 import { useSendImages } from './useSendImages';
 
-jest.mock('@chatic/app-runtime', () => ({ runtime: { data: { useSendImages: jest.fn(() => ({})) } } }));
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: { data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() } },
+}));
 const shellPut = jest.fn();
 const shellFilePut = jest.fn();
 jest.mock('../../../bridge/shellUpload', () => ({
@@ -30,7 +32,7 @@ beforeEach(() => {
 });
 
 describe('useSendImages (web shell)', () => {
-    it("binds the runtime's send to this shell's PUT and catch-up", () => {
+    it("binds the runtime's send to this shell's PUT, catch-up and socket wait", () => {
         renderHook(() => useSendImages({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' }));
 
         expect(getShellPut).toHaveBeenCalled();
@@ -43,6 +45,7 @@ describe('useSendImages (web shell)', () => {
             prepareVideo: attachmentPicker.prepareVideo,
             onVideoRefused: expect.any(Function),
             beforeSweep: syncShellTransfers,
+            waitForConnection: runtime.data.waitForCloudSocket,
         });
     });
 

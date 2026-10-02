@@ -6,7 +6,7 @@
 > thread composers (`useComposerSend`, which binds `xhrPut`), and `apps/web`'s shell binding
 > ([image-send.md](../../../../apps/web/docs/feature/channels/image-send.md)).
 
-`data.useSendImages({ cid, channelId, parentId?, put, putShellFile?, prepareVideo?, onVideoRefused?, beforeSweep? })`
+`data.useSendImages({ cid, channelId, parentId?, put, putShellFile?, prepareVideo?, onVideoRefused?, beforeSweep?, waitForConnection? })`
 sends picked attachments — page files, and in the mobile app shell files too — as one
 message and returns `{ sendImages, retry, canRetry, discard }`. It holds no rules about uploads
 itself. It binds the data layer's `sendImageMessage` to the room's cloud and to the PUT the shell
@@ -14,12 +14,21 @@ passes in, and it keeps the picked files for as long as a retry could still need
 
 What differs between shells enters as two ports, so every shell runs the same orchestration:
 
-| Port           | Browser and desktop          | Mobile app (`apps/web` inside the native shell)                     |
-| -------------- | ---------------------------- | ------------------------------------------------------------------- |
-| `put`          | `xhrPut` from `@chatic/data` | the native transfer module, falling back to `xhrPut` in old builds  |
-| `beforeSweep`  | none                         | catch up with transfers the app finished while the page was away    |
-| `putShellFile` | none                         | the transfer module, sending a file the shell keeps from its folder |
-| `prepareVideo` | none                         | `PrepareVideo`: the shell converts a video and makes its poster     |
+| Port                | Browser and desktop          | Mobile app (`apps/web` inside the native shell)                     |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| `put`               | `xhrPut` from `@chatic/data` | the native transfer module, falling back to `xhrPut` in old builds  |
+| `beforeSweep`       | none                         | catch up with transfers the app finished while the page was away    |
+| `putShellFile`      | none                         | the transfer module, sending a file the shell keeps from its folder |
+| `prepareVideo`      | none                         | `PrepareVideo`: the shell converts a video and makes its poster     |
+| `waitForConnection` | none                         | `data.waitForCloudSocket`: wait up to 10 s for the cloud's socket   |
+
+`waitForConnection` runs inside the cloud's hold, before the sequence's first request. A send can
+start the moment the page comes back to the front — an OS picker answers as the person returns, and
+the page's socket closed while it sat behind the picker for more than a few seconds. The socket comes
+back within about a second, but a request sent in that second fails at once. The port resolves `true`
+once the slot is signed in again or `false` after ten seconds, never rejects; either way the sequence
+then runs, so a socket that stays down fails the send as before, retryably. `waitForCloudSocket`
+answers at once when the socket is already up. Desktop passes none and starts at once.
 
 `sendImages` resolves once the send has settled, sent or failed — a caller that has to follow the
 message with another one awaits it. Desktop sends the composer's text first, at the press, and the

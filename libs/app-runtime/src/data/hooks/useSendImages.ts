@@ -278,6 +278,13 @@ export interface UseSendImagesInput {
      * catches up here, so a row it finished is not failed as a leftover.
      */
     beforeSweep?: () => Promise<void>;
+    /**
+     * Waits for `cid`'s socket before the sequence's first request — `true` once it is back, `false`
+     * when it did not come back in time, never a rejection. A shell whose pickers send the page to the
+     * background passes one (`waitForCloudSocket`): the pick is answered as the app comes back, while
+     * the socket is still reconnecting. Without one the sequence starts at once, as before.
+     */
+    waitForConnection?: (cid: string) => Promise<boolean>;
 }
 
 /**
@@ -301,6 +308,7 @@ export const useSendImages = ({
     prepareVideo,
     onVideoRefused,
     beforeSweep,
+    waitForConnection,
 }: UseSendImagesInput) => {
     // Whether this screen is still attached. A send that finishes creating its row after the screen
     // left must not park its files in the page map, where no cleanup would ever reach them.
@@ -314,6 +322,8 @@ export const useSendImages = ({
     prepareVideoRef.current = prepareVideo;
     const onVideoRefusedRef = useRef(onVideoRefused);
     onVideoRefusedRef.current = onVideoRefused;
+    const waitForConnectionRef = useRef(waitForConnection);
+    waitForConnectionRef.current = waitForConnection;
     const beforeSweepRef = useRef(beforeSweep);
     beforeSweepRef.current = beforeSweep;
     const currentVersion = useSyncExternalStore(subscribe, getVersion);
@@ -373,7 +383,11 @@ export const useSendImages = ({
             const sending = entry.files.map((_, index) => index).filter(index => !refused.includes(index));
             let result: SendImageResult = { status: 'failed', reason: 'no-stored-upload', failedSlots: refused.length };
             if (sending.length > 0) {
-                result = await runInCloud(entry.cid, ({ chat: repository }) => {
+                result = await runInCloud(entry.cid, async ({ chat: repository }) => {
+                    // Inside the hold, so the slot it waits on is kept: a pick answered as the app comes back to
+                    // the front starts the send while the socket is still reconnecting.
+                    const wait = waitForConnectionRef.current;
+                    if (wait && !(await wait(entry.cid))) log('image message: socket not back in time');
                     // Collected as each file is prepared; when the last one is, the row switches to them.
                     const previews: (Blob | null)[] = entry.files.map(
                         (_, index) => converted.get(index)?.poster?.preview ?? null

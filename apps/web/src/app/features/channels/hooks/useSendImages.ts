@@ -37,5 +37,8 @@ export const useSendImages = (room: Room) => {
         ...(isNative() ? { prepareVideo: attachmentPicker.prepareVideo } : {}),
         onVideoRefused,
         beforeSweep: syncShellTransfers,
+        // A send can start the moment the page comes back to the front — from an OS picker above all —
+        // while its socket is still reconnecting.
+        waitForConnection: runtime.data.waitForCloudSocket,
     });
 };

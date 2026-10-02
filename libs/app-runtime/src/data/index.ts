@@ -9,7 +9,7 @@ export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
 // Writes addressed to a named cloud rather than the selected one: the chat send and any longer write
 // (both keep that cloud's socket for as long as they are in flight), and the graph a resend queue
 // reads its cloud through.
-export { getCloudRepositories, runInCloud, sendChatInCloud } from './cloudChat';
+export { getCloudRepositories, runInCloud, sendChatInCloud, waitForCloudSocket } from './cloudChat';
 // Image messages: one send sequence for every shell, addressed to the room's cloud like the chat send.
 export { useSendImages } from './hooks/useSendImages';
 export type { PreparedShellVideo, PrepareVideoPort, UseSendImagesInput, VideoRefusal } from './hooks/useSendImages';

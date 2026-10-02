@@ -14,7 +14,10 @@
 shell's PUT for page files (below), `putShellFile` and `prepareVideo` send and convert the files the
 app keeps (inside the app only), `onVideoRefused` shows why the app would not convert a video, and
 `beforeSweep` — also run whenever the app comes back to the front — catches up with the transfers the
-native shell finished while the page was away. It returns `{ sendImages, retry, canRetry, discard }`.
+native shell finished while the page was away. `waitForConnection` (`runtime.data.waitForCloudSocket`)
+holds the send for up to ten seconds until the room's socket is back: a pick from an OS picker is
+answered as the app returns, while the socket that closed behind the picker is still reconnecting,
+and the first request would otherwise fail. It returns `{ sendImages, retry, canRetry, discard }`.
 
 ## Which PUT
 

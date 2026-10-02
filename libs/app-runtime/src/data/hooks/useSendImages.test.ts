@@ -91,6 +91,43 @@ describe('useSendImages', () => {
         unmount();
     });
 
+    it('waits for the cloud\u2019s socket to come back, inside the hold, before the first request', async () => {
+        let reconnect: (verified: boolean) => void = () => undefined;
+        const waitForConnection = jest.fn(() => new Promise<boolean>(resolve => (reconnect = resolve)));
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', waitForConnection })
+        );
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(files());
+        });
+        await waitFor(() => expect(waitForConnection).toHaveBeenCalledWith('cloud-a'));
+        expect(held).toEqual(['cloud-a']);
+        expect(mockSendImageMessage).not.toHaveBeenCalled();
+
+        await act(async () => {
+            reconnect(true);
+            await sending;
+        });
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('still sends when the socket does not come back in time, so the failure is the request\u2019s own', async () => {
+        const waitForConnection = jest.fn().mockResolvedValue(false);
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', waitForConnection })
+        );
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
     it('keeps a send addressed to the cloud it was written in when the screen moves to another cloud', async () => {
         let finish: (value: SendImageResult) => void = () => undefined;
         mockSendImageMessage.mockImplementation(() => new Promise(resolve => (finish = resolve)));
