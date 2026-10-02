@@ -188,7 +188,11 @@
             "heading": "A place for what's next",
             "description": "Explore early ideas and experiments as they take shape.",
             "developerTools": "Developer tools",
-            "openDebug": "Open debug mode"
+            "openDebug": "Open debug mode",
+            "experiments": "Experiments",
+            "placeInvite": "Place invite",
+            "placeInviteSubtitle": "Invite into a place, no chat room needed",
+            "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own."
         },
         "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",

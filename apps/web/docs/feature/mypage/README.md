@@ -1,7 +1,8 @@
 # mypage — the account hub and everything one depth below it
 
 `apps/web/src/app/features/mypage` owns the MY tab and the tree behind it: **14 pages** across three
-depths, from the identity card at `/mypage` down to policy text and the developer Lab. It is the
+depths, from the identity card at `/mypage` down to policy text and the Lab (experiments and the debug
+unlock). It is the
 app's settings surface, and it is also where three different kinds of profile meet — which is the
 single thing most likely to be got wrong here.
 
@@ -46,6 +47,9 @@ cloud management, and the policy screens.
   page belongs to [feedback](../feedback/README.md).
 - **The debug panel.** Lab hosts the unlock gesture; [debug](../debug/README.md) owns the gate and
   everything behind it.
+- **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
+  the switch, belong to that feature — the place invite's to
+  [invite/place-invite.md](../invite/place-invite.md).
 - **Logout itself.** The row opens a dialog and navigates to `ROUTES.auth.logout`;
   [auth](../auth/README.md)'s `LogoutPage` does the cache teardown and session end.
 - **Social link detail.** [account](../account/README.md) is the canon; `useSocialLinks` here is the
@@ -147,6 +151,21 @@ counting and the code challenge; see [debug](../debug/README.md).
 
 Once unlocked, Lab shows a single destructive row that opens the panel at full size.
 
+### Lab is where experiments are switched on
+
+An experiment is a feature that works but is not ready to be on for everyone. Each one is a config
+key on the registry's `labs` surface — default off, and declared killable by the server — and Lab
+draws a hand-built row for it in the **Experiments** card. No renderer walks the registry; a new
+experiment adds its own row, as a `user` key does in Settings.
+
+Today there is one: **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment`.
+The row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what
+the switch does and where it applies is the note under the card.
+
+The switch only lets the feature in. Who may use it, and where, is still the feature's own rule —
+turning on Place invite does not give a non-owner the menu entry. The value lives in this device's
+local storage, so another device of the same person starts with it off.
+
 ### UI comes from web-ui-kit, and missing pieces are added there first
 
 `MenuCard` (rounded card with an optional section header), `ListRow` (leading/trailing/subtitle
@@ -214,6 +233,7 @@ session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for th
 - [shell/layout-shell.md](../../shell/layout-shell.md) — the nav, safe areas and
   keyboard insets these screens sit inside.
 - [account](../account/README.md) — social links and the account-credential story.
+- [invite/place-invite.md](../invite/place-invite.md) — the place invite, Lab's one experiment so far.
 - [debug](../debug/README.md) · [feedback](../feedback/README.md) — the two features Lab and
   Settings hand off to.
 - [subscription](../subscription/README.md) — where the subscription row goes.

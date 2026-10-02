@@ -4,6 +4,7 @@ const owned = { id: 'site-1', isOwner: true };
 
 const gate = (overrides: Partial<PlaceInviteGateInput> = {}) =>
     resolvePlaceInviteGate({
+        isExperimentEnabled: true,
         isDefaultCloud: false,
         isGuest: false,
         place: owned,
@@ -14,6 +15,10 @@ const gate = (overrides: Partial<PlaceInviteGateInput> = {}) =>
 describe('resolvePlaceInviteGate', () => {
     it('is ready for the owner while the session sits on that place', () => {
         expect(gate()).toBe('ready');
+    });
+
+    it('is hidden until the Lab experiment is turned on, even for the owner on that place', () => {
+        expect(gate({ isExperimentEnabled: false })).toBe('hidden');
     });
 
     it('is hidden on the relay, whose single place has no owner', () => {

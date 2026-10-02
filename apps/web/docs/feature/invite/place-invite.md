@@ -5,6 +5,28 @@ The entry is **"Invite to place"** in the home header's profile dropdown, under 
 opens `/invite/place/:placeId` (`pages/PlaceInvitePage.tsx`). Accepting the invite lands the
 recipient in that place with no room.
 
+## It is a Lab experiment, off by default
+
+Nobody sees the entry until they turn on **Lab → Experiments → Place invite** on that device. The
+switch is the `feature.placeInvite` config key (`labs` surface, default off, persisted to local
+storage), read through `app/hooks/usePlaceInviteExperiment`.
+
+It ships behind a switch because it works and still leaves its user stuck one step later. Once
+someone is in the place, the owner cannot add them to a room: the room invite's "place members" tab
+is built from the rosters of the rooms the owner is in, and a place-only member is in none of them
+(see [What this does not solve](#what-this-does-not-solve)). Until the backend can list a place's
+members, the feature is opt-in rather than on every owner's menu.
+
+The switch gates issuing, not joining. Turning it off hides the entry, sends a direct visit home
+without waiting for the place row, and makes a page already open in the same tab leave and refuse to
+send. Another tab keeps the value it read until it reloads — the config store does not listen for
+storage changes from other tabs. An invite already issued can still be accepted; the accept side
+reads no switch.
+
+The server is meant to be able to kill the experiment — the registry requires every `labs` key to
+be writable by it — but apps/web wires no remote config adapter yet, so nothing can turn it off
+remotely today.
+
 ## Same screens as the room invite
 
 It is the group room's contact invite, bound to the place instead of a room. The two share their
@@ -51,13 +73,15 @@ text says is not visible from the client.
 ## Who sees the entry, and when it works
 
 `app/utils/placeInviteGate.ts` is the one rule, shared by the menu entry and the page — it lives
-outside both features because both read it. The two must never disagree about the same place.
+outside both features because both read it. The two must never disagree about the same place, which
+is why the Lab switch is one of the rule's inputs (`isExperimentEnabled`, required) rather than a
+second check each caller makes.
 
-| Gate       | When                                                                                                                                                            | Menu entry   |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `hidden`   | relay (its single place has no owner), a guest, or a place row without `isOwner: true` — a row not loaded yet included, because `isOwner` is the only authority | not rendered |
-| `disabled` | a place switch in flight, or the place on screen and the session's place disagree                                                                               | greyed out   |
-| `ready`    | the owner, with the session on that place                                                                                                                       | enabled      |
+| Gate       | When                                                                                                                                                                                   | Menu entry   |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `hidden`   | the Lab switch is off; relay (its single place has no owner), a guest, or a place row without `isOwner: true` — a row not loaded yet included, because `isOwner` is the only authority | not rendered |
+| `disabled` | a place switch in flight, or the place on screen and the session's place disagree                                                                                                      | greyed out   |
+| `ready`    | the switch on, and the owner, with the session on that place                                                                                                                           | enabled      |
 
 The session decides because the server stamps the session's site on the invite. For the same reason
 the page re-reads the gate **on every send** — the contact confirm and the link sheet alike — not
@@ -65,7 +89,12 @@ only when it renders. Another tab or a push can move the session while the page 
 would invite people into a place the screen never named, so the send throws
 `placeInvite.placeChanged`, which the contact tab and the sheet toast as they would any failure. A
 direct visit whose gate resolves to `hidden` is sent home, the same backstop the place edit screen
-keeps for non-owners.
+keeps for non-owners — and with the switch off that includes the owner, so an old link or the back
+stack cannot reopen the flow.
+
+Two windows follow from the rule. While a place switch moves the session the entry is greyed —
+briefly, on a warm switch. Right after a cloud switch it is absent until that cloud's place rows
+load, because a row not loaded yet reads as not owned.
 
 ## On the recipient's side
 
@@ -84,10 +113,15 @@ state `ChannelEmptyState variant="invited"` already drew.
 
 ## What this does not solve
 
-- **The owner cannot find the person afterwards.** There is no place member list. Member pickers are
-  built from the rosters of rooms the owner shares with people, so someone who is only in the place
-  appears in none of them until they join a room some other way. Closing this needs a place member
-  listing from the backend.
+- **The owner cannot find the person afterwards, so cannot add them to a room.** There is no place
+  member list. The room invite's "place members" tab (`useInviteCandidates`) is the union of the
+  rosters of the rooms the owner is in, so someone who is only in the place appears in none of them
+  until they join a room some other way. The backend lists no place's members, and no cloud's either:
+  the list-shaped calls are per room (`channel.list-user`, `channel.sync-users`), per place but only
+  for people with a place profile (`profile.sync`), or about the caller (`user.my-site`).
+  `profile.sync` is not a substitute — on the dev servers one place's rooms held six people and it
+  returned two. Closing this needs a place member listing from the backend; it is the main reason the
+  feature is a Lab experiment.
 - **An unaccepted invite cannot be taken back.** The member row exists from the moment of issue, and
   the cloud invite lane has neither a list of sent invites nor a cancel.
 - **The recipient cannot leave.** The empty state says they can, and the place settings hub has no
@@ -96,12 +130,13 @@ state `ChannelEmptyState variant="invited"` already drew.
 ## How to verify
 
 ```bash
-npx jest --config apps/web/jest.config.js --testPathPatterns "PlaceInvite|placeInviteGate|resolveCloudInviteTargetKind|InviteAcceptScreen|useCreateInviteBatch|InvitePage|AddFriendSheet|HomePage"
+npx jest --config apps/web/jest.config.js --testPathPatterns "PlaceInvite|placeInviteGate|usePlaceInviteExperiment|resolveCloudInviteTargetKind|InviteAcceptScreen|useCreateInviteBatch|InvitePage|AddFriendSheet|HomePage"
 ```
 
 End to end on the web it needs two sessions that do not share storage. On a local dev server:
 
-1. Sign in as the owner of a cloud place at `localhost`, and make that place active.
+1. Sign in as the owner of a cloud place at `localhost`, turn on **Lab → Place invite** under
+   My → Settings, and make that place active.
 2. Open the invite from the profile menu, send a link from the sheet, and land on the link page.
 3. Open the link at `[::1]` (another origin, so another guest) and accept.
 4. Check that home shows the place as invited, with no rooms.

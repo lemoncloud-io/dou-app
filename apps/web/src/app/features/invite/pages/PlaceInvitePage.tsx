@@ -9,6 +9,9 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { resolvePlaceInviteGate } from '../../../utils/placeInviteGate';
+// Direct path, not the `hooks` barrel: the barrel reaches web-core's transport, whose `import.meta`
+// jest cannot parse.
+import { usePlaceInviteExperiment } from '../../../hooks/usePlaceInviteExperiment';
 // Direct paths, not the channels barrels: the room invite's contact picker, link sheet and hook are
 // what this page reuses, and the barrels would pull the whole room feature in with them.
 import { AddFriendSheet } from '../../channels/components/AddFriendSheet';
@@ -40,6 +43,7 @@ export const PlaceInvitePage = () => {
     const { isGuest } = runtime.session.useRuntimeProfile();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const { createPlaceInvite, createBatchInvite, requestInviteLink } = useCreateInviteBatch();
+    const { isEnabled: isExperimentEnabled } = usePlaceInviteExperiment();
     const [addFriendOpen, setAddFriendOpen] = useState(false);
 
     // `undefined` until the cache has answered once, so "not loaded" and "no such place" differ.
@@ -54,6 +58,7 @@ export const PlaceInvitePage = () => {
     }, [placeRepository, placeId]);
 
     const gate = resolvePlaceInviteGate({
+        isExperimentEnabled,
         isDefaultCloud: selectedCloudId === 'default',
         isGuest,
         place,
@@ -61,10 +66,15 @@ export const PlaceInvitePage = () => {
     });
 
     // The menu entry is hidden for anyone who cannot invite here; a direct visit is sent back, the
-    // same defensive backstop PlaceEditPage keeps for its owner-only screen.
+    // same defensive backstop PlaceEditPage keeps for its owner-only screen. Ownership has to wait
+    // for the place row — an unloaded row is not a non-owner — but the Lab switch does not: with the
+    // experiment off, an old link or the back stack is sent home at once rather than showing the form
+    // until the cache answers.
     useEffect(() => {
-        if (place !== undefined && gate === 'hidden') navigate(ROUTES.home, { replace: true });
-    }, [place, gate, navigate]);
+        if ((place !== undefined || !isExperimentEnabled) && gate === 'hidden') {
+            navigate(ROUTES.home, { replace: true });
+        }
+    }, [place, gate, isExperimentEnabled, navigate]);
 
     /**
      * Refuses to send unless the session is on this place right now. It throws rather than returning

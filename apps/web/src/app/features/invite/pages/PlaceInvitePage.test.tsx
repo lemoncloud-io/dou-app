@@ -18,6 +18,7 @@ const emitPlace = (row: PlaceRow) => act(() => placeListener?.(row));
 
 let selectedCloudId = 'cloud-1';
 let selectedSiteId: string | null = 'site-1';
+let isExperimentEnabled = true;
 
 /** The props the page handed the shared contact tab and link sheet, captured on each render. */
 let tab: any = null;
@@ -48,6 +49,9 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'site-1' }) }));
 // The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
+jest.mock('../../../hooks/usePlaceInviteExperiment', () => ({
+    usePlaceInviteExperiment: () => ({ isEnabled: isExperimentEnabled, setEnabled: jest.fn() }),
+}));
 jest.mock('../../channels/hooks/useCreateInviteBatch', () => ({
     useCreateInviteBatch: () => ({ createPlaceInvite, createBatchInvite, requestInviteLink }),
 }));
@@ -74,6 +78,7 @@ describe('PlaceInvitePage', () => {
         placeListener = null;
         selectedCloudId = 'cloud-1';
         selectedSiteId = 'site-1';
+        isExperimentEnabled = true;
         tab = null;
         sheet = null;
         createPlaceInvite.mockResolvedValue({ inviteView: {}, channel: 'sms' });
@@ -138,6 +143,36 @@ describe('PlaceInvitePage', () => {
         render(<PlaceInvitePage />);
 
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('sends the owner back home while the Lab experiment is off, and refuses to send', async () => {
+        isExperimentEnabled = false;
+        render(<PlaceInvitePage />);
+
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        await expect(tab.sendBatch(['p'])).rejects.toThrow('placeInvite.placeChanged');
+        expect(createBatchInvite).not.toHaveBeenCalled();
+    });
+
+    it('sends the owner home at once with the experiment off, before the place row has loaded', () => {
+        isExperimentEnabled = false;
+        placeRow = 'pending';
+        render(<PlaceInvitePage />);
+
+        // Ownership waits for the row; the switch is already known, so there is nothing to wait for.
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('leaves and stops sending when the experiment is turned off under an open page', async () => {
+        const { rerender } = render(<PlaceInvitePage />);
+        expect(navigate).not.toHaveBeenCalled();
+
+        isExperimentEnabled = false;
+        rerender(<PlaceInvitePage />);
+
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        await expect(tab.sendBatch(['p'])).rejects.toThrow('placeInvite.placeChanged');
+        expect(createBatchInvite).not.toHaveBeenCalled();
     });
 
     it('sends a relay session back home, where no place can be invited into', () => {
