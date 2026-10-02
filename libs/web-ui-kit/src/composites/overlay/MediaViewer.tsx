@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as React from 'react';
 
 import { cn } from '@chatic/lib/utils';
+import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 
 import { IconBack, IconChevronRight, IconClose, IconImage, IconPlaySolid, IconSpinner } from '../../resources/icons';
 import {
@@ -79,8 +80,9 @@ export interface MediaViewerProps {
      * what it returns from edge to edge, so two buttons sit at the two ends. Without it there is no
      * bar. Use `MediaViewerActionButton` so they match the close button.
      *
-     * The bottom rather than the top bar: a toast slides in at the top of the screen, and one there
-     * would cover the buttons the user is about to press again.
+     * The snackbar also rests at the bottom, so while the bar shows the viewer lifts it clear of the
+     * buttons (`MEDIA_VIEWER_FOOTER_TOAST_LIFT`): the result toast a press raises must not land on
+     * the buttons the user is about to press again.
      */
     renderFooter?: (index: number) => React.ReactNode;
     labels?: Partial<MediaViewerLabels>;
@@ -294,6 +296,14 @@ const ViewerVideo = ({ src, poster, playOnMount, playLabel, videoRef, onError }:
 };
 
 /**
+ * The action bar's height above the bottom inset — 24px of gradient lead-in (`pt-6`), a 36px button
+ * (`size-9`), 16px under it — published through `useToastLift` while the bar is on screen. The app's
+ * snackbar is mounted above every screen and reads the variable to rest above whatever bar a screen
+ * pins to the bottom; this one would otherwise sit right on the share and save buttons.
+ */
+export const MEDIA_VIEWER_FOOTER_TOAST_LIFT = 76;
+
+/**
  * A chat message's photos and videos, full screen: the original on black, a close button, and a tap
  * anywhere outside it to leave. When the message carries more than one they sit side by side on a
  * strip: a horizontal drag moves the strip under the finger, and on release it slides on to the next
@@ -348,6 +358,8 @@ export const MediaViewer = ({
     const hasNext = many && current < items.length - 1;
     const showingItem = open ? items[current] : undefined;
     const showingVideo = showingItem?.kind === 'video';
+
+    useToastLift(open && renderFooter !== undefined ? MEDIA_VIEWER_FOOTER_TOAST_LIFT : null);
 
     const go = (step: -1 | 1) => {
         const target = current + step;

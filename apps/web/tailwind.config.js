@@ -188,6 +188,19 @@ module.exports = {
                     '0%': { opacity: '1' },
                     '100%': { opacity: '0' },
                 },
+                // The ui-kit Toaster's snackbar. The off-screen end of each slide is the toast's own
+                // height plus `--snackbar-offset`, so it enters and leaves from fully below the
+                // screen edge, not from just below its resting spot. The exit starts from wherever a swipe let
+                // go (`--radix-toast-swipe-end-y`, unset on a timed close), so a swiped toast keeps
+                // moving down instead of jumping back up first.
+                'snackbar-in': {
+                    '0%': { transform: 'translateY(calc(100% + var(--snackbar-offset, 16px)))' },
+                    '100%': { transform: 'translateY(0)' },
+                },
+                'snackbar-out': {
+                    '0%': { transform: 'translateY(var(--radix-toast-swipe-end-y, 0px))' },
+                    '100%': { transform: 'translateY(calc(100% + var(--snackbar-offset, 16px)))' },
+                },
                 'cloud-bounce': {
                     '0%': { transform: 'scale(1) rotate(0deg)' },
                     '20%': { transform: 'scale(1.2) rotate(-10deg)' },
@@ -204,6 +217,8 @@ module.exports = {
                 'slide-out-to-top': 'slide-out-to-top 0.3s ease-in',
                 'fade-in': 'fade-in 0.2s ease-out',
                 'fade-out': 'fade-out 0.2s ease-in',
+                'snackbar-in': 'snackbar-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1)',
+                'snackbar-out': 'snackbar-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards',
                 'cloud-bounce': 'cloud-bounce 600ms ease-out',
             },
             spacing: {

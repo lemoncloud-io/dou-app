@@ -64,6 +64,7 @@
     --bubble-other-foreground: 220 7% 14%; /* #222325 */
     --toast: 222 75% 12%; /* #081837 — dark snackbar */
     --toast-foreground: 0 0% 98%; /* #FAFAFA */
+    --toast-muted: 220 3% 81%; /* #CFD0D3 — mirrors apps/web */
     --verified: 211 100% 50%; /* #007AFF — blue verified/default check */
     --point-blue: 215 90% 56%; /* #2A7EF4 — Figma point_blue, inline text links */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — Figma Colors/Pink, unread count pill */
@@ -117,8 +118,9 @@
     --bubble-mine-foreground: 0 0% 100%;
     --bubble-other: 0 0% 15%;
     --bubble-other-foreground: 0 0% 98%;
-    --toast: 0 0% 96%; /* light snackbar on dark bg */
-    --toast-foreground: 220 7% 14%;
+    --toast: 220 5% 24%; /* #3A3C40 BK_800 — raised dark snackbar; mirrors apps/web */
+    --toast-foreground: 210 6% 96%;
+    --toast-muted: 220 3% 81%;
     --verified: 211 100% 50%;
     --point-blue: 215 90% 56%; /* #2A7EF4 — same */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — same */

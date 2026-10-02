@@ -66,6 +66,11 @@ be restyled to suit one of them.** A phone-shaped dialog and an admin table live
 [Regenerating a component](#regenerating-a-component), and they are all overlays, because an element
 portalled to `document.body` is the one thing a call site cannot correct.
 
+`toaster.tsx` is the one file here shaped for a single app — it is `apps/web`'s bottom snackbar,
+and it reads that app's insets and keyframes. It stays because it is the same kind of overlay: the
+toasts are portalled into one viewport mounted above the router, so no screen can restyle them,
+and desktop-web, the other app that raises toasts, no longer renders it.
+
 ## Design principles
 
 1. **Regenerable by default.** A file under `components/ui/` is the generator's output and stays
@@ -84,8 +89,11 @@ portalled to `document.body` is the one thing a call site cannot correct.
    repo's own `font-size` scale. Without that registration `twMerge` reads `text-callout` as a text
    _colour_ and drops it whenever a span also carries `text-foreground`, collapsing the type scale to
    the 16px browser default. desktop-web's named `z-*` scale is registered the same way, or
-   `z-toast` would not override the toast viewport's `z-[100]`. Import `cn` from `@chatic/lib/utils`;
-   never call `twMerge` directly.
+   `z-toast` would not override the toast viewport's `z-[100]`. The hosts' named animations
+   (`animate-snackbar-in`, `animate-toast-in`, the `fade-*` and `slide-*` set) are registered for the
+   same reason: a toaster swaps the toast primitive's own animations for its own, and unregistered
+   both would survive the merge and the config's declaration order would pick the winner. Import
+   `cn` from `@chatic/lib/utils`; never call `twMerge` directly.
 6. **English only.** A Korean literal in a primitive is a bug — this lib is rendered by an admin
    console that does not load the app's i18n catalogue.
 
@@ -144,7 +152,7 @@ Those five counts are files reaching a `components/ui/` path — 154 in all. Nin
 ```text
 libs/ui-kit/src/
 ├── index.ts            public barrel — one line, and it exports `cn` only
-├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size and z-index scales
+├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size, z-index and animation names
 ├── utils/openerFocus.tsx  focus back to whatever opened a dialog (dialog, alert-dialog)
 └── components/ui/      29 primitives, one file each, plus use-toast.ts
 ```
@@ -154,12 +162,27 @@ Three files hold something the name does not give away:
 - `use-toast.ts` is not a component. It is the toast store — a reducer, a module-level listener list
   and a toast limit of 1 that an app can raise with `setToastLimit` — and it is the single most
   imported module here, at 79 files.
-- `toaster.tsx` is the mount point, rendered once per app in `AppRuntime` / `DesktopRuntime`. It is
+- `toaster.tsx` is the mount point `apps/web` renders once in `AppRuntime`; desktop-web builds its own
+  `AppToaster` from `toast.tsx` and takes only `TOAST_DURATION_MS` from here. It is
   fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
   sets the dismiss timer for every app at once (5s): long enough to read a sentence and press an
   Undo, which the earlier 1.5s was not. A toast is `default` (success check), `destructive`, or
-  `info` (a notice that is neither, which must not wear the check). `viewportClassName` lets an app
-  hold toasts clear of its own header.
+  `info` (a notice that is neither, which must not wear the check). `viewportClassName` adds classes
+  to the bottom-anchored viewport (no app passes it today).
+
+    It is the mobile web app's snackbar: anchored to the bottom, it slides up into place, slides back
+    down when its timer runs out, and can be swiped down to dismiss early. It rests 16px above the
+    taller of `--safe-bottom` and `--keyboard-height`, plus `--toast-lift` — the height of the tallest bar
+    a screen keeps pinned to the bottom. The toaster sits above the router and cannot see what is
+    showing, so each bar asks for its own lift with `useToastLift(px)` while it is mounted (the
+    tab bar, `web-ui-kit`'s `FloatingButton` and `MediaViewer`); the hook keeps them in one registry
+    so bars can mount and unmount in any order. The sum is exported as `SNACKBAR_OFFSET` and set on the viewport as
+    `--snackbar-offset`, which the host's `snackbar-in` / `snackbar-out` keyframes read so the slide
+    starts and ends fully below the screen edge. The exit keyframe starts from Radix's
+    `--radix-toast-swipe-end-y`, so a swiped toast keeps moving instead of snapping back first; the
+    toast is `touch-none`, without which a WebView claims the vertical drag as a scroll and Radix never
+    sees the swipe finish.
+
 - `utils/index.ts` is where the `font-size` class group is registered with `tailwind-merge`, which
   is the reason `cn` is a wrapper rather than a re-export.
 
@@ -250,7 +273,7 @@ done
 | `dialog.tsx`       | `dialogVariants` (`default` · `fullscreen` · `bare` · `slide-up`), `hideClose`, `overlayClassName`, the `--app-width` cap, `default`'s own `--dialog-width` and its viewport height cap (`VIEWPORT_HEIGHT_CAP`: `max-h-[calc(100dvh-2rem)]`, scrolling the panel; a full-height caller passes `max-h-none`), the safe-area padding, the return of focus to the opener (`utils/openerFocus.tsx`), and `grid-cols-[minmax(0,1fr)]` — without that column the grid's implicit `auto` track takes a `truncate` line's unwrapped width, and the content spills past the panel, the `CloseButtonProps` contract (a rendered close button requires the caller's `closeLabel`; the generator hard-codes `Close`), and `bg-overlay/80` where the generator writes `bg-black/80` |
 | `toast.tsx`        | The whole surface: `bg-toast` tokens, left accent border, viewport pinned to the top under `pt-safe-top`, custom enter/exit animations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `sheet.tsx`        | `hideClose`, and `mx-auto max-w-[var(--app-width,100%)]` on the `bottom` side, the same `CloseButtonProps` contract and `bg-overlay/80` scrim as `dialog.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `toaster.tsx`      | Status icons, `duration={1500}`, `swipeDirection="up"`, and the two-column body layout, and the required `label` naming the toast region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `toaster.tsx`      | Status icons, `TOAST_DURATION_MS`, the bottom-anchored snackbar (`swipeDirection="down"`, `SNACKBAR_OFFSET`, the `snackbar-*` animations, `touch-none`), the two-column body layout, and the required `label` naming the toast region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `alert-dialog.tsx` | The same `--dialog-width` rule and viewport height cap as `DialogContent`'s `default` variant, the return of focus to the opener, focus on the first control when there is no Cancel, and the same `grid-cols-[minmax(0,1fr)]`, and the `bg-overlay/80` scrim                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -302,13 +325,13 @@ Nothing is assembled here. A host supplies three things, in this order:
 Five primitive families resolve tokens that are not part of shadcn's default palette, so a host that renders
 them and has not declared the tokens gets a transparent, unstyled element and no error:
 
-| Primitive                      | Requires                                                 |
-| ------------------------------ | -------------------------------------------------------- |
-| `Input`                        | `surface`, `input-border`, `placeholder`, `focus-border` |
-| `Toast`/`Toaster`              | `toast` (with `foreground` and `muted`), `main-accent`   |
-| `Switch`                       | `control-border`, `primary-ink`                          |
-| `Dialog`/`AlertDialog`/`Sheet` | `overlay` (the scrim, drawn at 80%)                      |
-| `Button` (`link` only)         | `primary-ink`                                            |
+| Primitive                      | Requires                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `Input`                        | `surface`, `input-border`, `placeholder`, `focus-border`                                                                             |
+| `Toast`/`Toaster`              | `toast` (with `foreground` and `muted`), `main-accent`, `primary`, and the `snackbar-in` / `snackbar-out` keyframes (`Toaster` only) |
+| `Switch`                       | `control-border`, `primary-ink`                                                                                                      |
+| `Dialog`/`AlertDialog`/`Sheet` | `overlay` (the scrim, drawn at 80%)                                                                                                  |
+| `Button` (`link` only)         | `primary-ink`                                                                                                                        |
 
 `Switch` is held to WCAG 1.4.11's 3:1 for a control's state: its off track is the host's
 `control-border` (the edge it gives interactive controls), and its on state keeps the `primary`

@@ -74,6 +74,35 @@ inset produces something like `undefinedpx`, and a single invalid `calc()` colla
 used to erase the fixed 224px along with the inset. Splitting the two means a bad inset only costs
 the inset.
 
+## Snackbar clearance (`--toast-lift`)
+
+The snackbar (`@chatic/ui-kit`'s `Toaster`, mounted once in `AppRuntime`) rests at the bottom, 16px
+above the taller of `--safe-bottom` and `--keyboard-height`. `AppRuntime` sits above the router, so
+the toaster cannot tell what is pinned to the bottom. Each bar tells it instead, by calling the
+kit's `useToastLift(px)` with its own height while it is mounted:
+
+| Bar                                | Lift                                   |
+| ---------------------------------- | -------------------------------------- |
+| `BottomNavigation` (home, my page) | 80px — the 62 + 18 geometry            |
+| `FloatingButton`'s CTA panel       | its measured height (`ResizeObserver`) |
+| `MediaViewer`'s share and save bar | 76px, while the bar shows              |
+
+The hook keeps every active lift in one registry and writes the tallest to `--toast-lift` on
+`<html>`, so bars can come and go in any order: a dialog's CTA that opens over the tab bar keeps its
+lift when the tab bar steps aside for the keyboard. While the keyboard is up (`useKeyboardOpen`) the
+nav asks for nothing — the WebView does not shrink, so the bar is behind the keyboard and the
+snackbar already rides on `--keyboard-height`. The CTA panel sits on `KeyboardSafeAreaSpacer`, whose
+height never exceeds `max(--safe-bottom, --keyboard-height)`, so its own height is enough to clear it
+with the keyboard up or down.
+
+Unlike `BottomNavSpacer`, the offset is one `calc()` — the keyframes need the whole sum as a single
+`--snackbar-offset`. A malformed inset collapses it to `0`, which leaves the snackbar flush with
+the bottom edge: worse-placed, still visible.
+
+On screens with a bottom composer (the chat room) nothing publishes a lift, so the snackbar sits
+over the composer until it times out or is swiped away. The decision and its alternatives are
+ADR-0160.
+
 ## The app-width contract (`--app-width`)
 
 `apps/web` runs in a WebView on a phone-class device; the same bundle is also reachable from a

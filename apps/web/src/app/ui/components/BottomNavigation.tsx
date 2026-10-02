@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
+import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 import { FloatingTabBar } from '@chatic/web-ui-kit';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { ROUTES } from '../../routes/paths';
+import { useKeyboardOpen } from '../hooks/useKeyboardOpen';
 
 const IconChat = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -30,6 +32,14 @@ const IconMy = () => (
     </svg>
 );
 
+/**
+ * The floating tab bar's height above the bottom inset: a 62px pill on an 18px offset. While the
+ * bar is on screen, the snackbar rests this much higher so it lands above the bar instead of over
+ * the tabs. The toaster is mounted above the router and cannot tell which screen is showing, so the
+ * bar announces itself through `useToastLift`.
+ */
+export const BOTTOM_NAV_TOAST_LIFT = 80;
+
 const isActivePath = (pathname: string, path: string): boolean =>
     path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(path + '/');
 
@@ -48,6 +58,10 @@ export const BottomNavigation = ({ unreadTotal = 0 }: BottomNavigationProps) => 
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
+
+    // The WebView does not shrink under the keyboard, so the bar is behind it then and lifts
+    // nothing — the snackbar already rides on the keyboard height.
+    useToastLift(useKeyboardOpen() ? null : BOTTOM_NAV_TOAST_LIFT);
 
     const items = [
         {
