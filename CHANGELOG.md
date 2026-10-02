@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-10-02] - root@0.82.0, @chatic/web@0.63.0, @chatic/landing@0.5.4, @chatic/desktop-web@0.19.2
+
+### Features
+
+- (web) play, save and share videos in the viewer, and open or save documents in the app
+- (web-ui-kit) turn the image viewer into a media viewer that plays videos
+- (mobile) relay the attachment picker, open and save, registered only where native has them
+- (mobile/android) pick, keep and check chat videos and documents, and open or save a download
+- (mobile/ios) pick, keep and convert chat videos and documents, and open or save a download
+- (web) send videos and documents from the app's picker, and show documents as cards
+- (web-ui-kit) draw a message's videos among its photos, and its documents as cards
+- (data,app-runtime,app-messages) split media from documents, pull picked photos one by one
+- (app-messages,bridges) declare the attachment picker, video prep, open and save
+- (app-runtime) send shell files, converting a shell video before the sequence
+- (data) judge and send shell files, across all twelve formats
+
+### Bug Fixes
+
+- (app-runtime,web) wait for the room's socket before an attachment send starts
+- (mobile/android) answer a prepared video by its written path so its upload is allowed
+- (web) stack a message's document cards instead of setting them side by side
+
+### Documentation
+
+- record the shared media viewer and document cards (ADR-0159), renumber ADR-0157 to 0158
+- record how mobile picks, keeps and sends videos and documents (ADR-0157)
+
 ## [2026-10-01] - No version updates
 
 ### Features
