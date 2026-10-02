@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/data';
+import { cn } from '@chatic/ui-kit';
 import { MediaViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
 
 import { useCachedImages, type CachedImage, type CachedImageRequest } from '../hooks/useCachedImages';
@@ -148,49 +149,55 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
 
     return (
         <>
-            {tiles.length > 0 && (
-                <MessageMediaTiles
-                    items={tiles.map((tile, index) => ({ ...tile, preview: drawn(thumbs[index], tile.preview) }))}
-                    onOpen={index => {
-                        // A broken tile has nothing to open.
-                        const at = viewable.findIndex(item => item.index === index);
-                        if (at >= 0) setOpenAt(at);
-                    }}
-                    onImageError={index => {
-                        if (!rejectThumb(index)) reportDead(tiles[index]?.preview, index);
-                    }}
-                    tileLabel={(position, kind) =>
-                        t(kind === 'video' ? 'chat.attach.tileVideo' : 'chat.attach.tile', { position })
-                    }
-                    className={align === 'end' ? 'self-end' : 'self-start'}
-                />
-            )}
-            {split.files.map(file => {
-                const name = file.name ?? t('chat.attach.fileCard.fallbackName');
-                return (
-                    <MessageFileCard
-                        key={file.key}
-                        name={file.name}
-                        size={file.size}
-                        state={file.state}
-                        download={files.stateOf(file)}
-                        progress={files.progressOf(file) ?? undefined}
-                        onPress={() => void files.open(file)}
-                        onDownload={() => void files.download(file)}
-                        onCancel={() => files.cancel(file)}
-                        onOpen={() => void files.open(file)}
-                        labels={{
-                            untitled: t('chat.attach.fileCard.fallbackName'),
-                            download: t('chat.attach.fileCard.download', { name }),
-                            cancel: t('chat.attach.fileCard.cancel', { name }),
-                            open: t('chat.attach.fileCard.open', { name }),
-                            unavailable: t('chat.attach.fileCard.unavailable'),
-                            broken: t('chat.attach.fileCard.broken'),
+            {/* One column: the row's wrapper lays its children out in a row, which would set several
+                document cards side by side and squeeze their names. */}
+            <div
+                className={cn('flex min-w-0 max-w-full flex-col gap-1', align === 'end' ? 'items-end' : 'items-start')}
+            >
+                {tiles.length > 0 && (
+                    <MessageMediaTiles
+                        items={tiles.map((tile, index) => ({ ...tile, preview: drawn(thumbs[index], tile.preview) }))}
+                        onOpen={index => {
+                            // A broken tile has nothing to open.
+                            const at = viewable.findIndex(item => item.index === index);
+                            if (at >= 0) setOpenAt(at);
                         }}
+                        onImageError={index => {
+                            if (!rejectThumb(index)) reportDead(tiles[index]?.preview, index);
+                        }}
+                        tileLabel={(position, kind) =>
+                            t(kind === 'video' ? 'chat.attach.tileVideo' : 'chat.attach.tile', { position })
+                        }
                         className={align === 'end' ? 'self-end' : 'self-start'}
                     />
-                );
-            })}
+                )}
+                {split.files.map(file => {
+                    const name = file.name ?? t('chat.attach.fileCard.fallbackName');
+                    return (
+                        <MessageFileCard
+                            key={file.key}
+                            name={file.name}
+                            size={file.size}
+                            state={file.state}
+                            download={files.stateOf(file)}
+                            progress={files.progressOf(file) ?? undefined}
+                            onPress={() => void files.open(file)}
+                            onDownload={() => void files.download(file)}
+                            onCancel={() => files.cancel(file)}
+                            onOpen={() => void files.open(file)}
+                            labels={{
+                                untitled: t('chat.attach.fileCard.fallbackName'),
+                                download: t('chat.attach.fileCard.download', { name }),
+                                cancel: t('chat.attach.fileCard.cancel', { name }),
+                                open: t('chat.attach.fileCard.open', { name }),
+                                unavailable: t('chat.attach.fileCard.unavailable'),
+                                broken: t('chat.attach.fileCard.broken'),
+                            }}
+                            className={align === 'end' ? 'self-end' : 'self-start'}
+                        />
+                    );
+                })}
+            </div>
             <MediaViewer
                 items={viewable.map((item, at) => ({
                     key: tiles[item.index]?.key ?? `tile-${item.index}`,
