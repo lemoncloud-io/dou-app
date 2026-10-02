@@ -188,7 +188,11 @@
             "heading": "다음 기능을 준비하는 곳",
             "description": "개발 중인 아이디어와 실험적인 기능을 미리 살펴볼 수 있어요.",
             "developerTools": "개발자 도구",
-            "openDebug": "디버그 모드 열기"
+            "openDebug": "디버그 모드 열기",
+            "experiments": "실험 기능",
+            "placeInvite": "플레이스 초대",
+            "placeInviteSubtitle": "채팅방 없이 플레이스로 초대해요",
+            "placeInviteNote": "켜면 홈 프로필 메뉴에 '플레이스에 초대하기'가 생겨요. 내 플레이스에서만 보여요."
         },
         "notificationSettings": "알림 설정",
         "pushNotifications": "푸시 알림",

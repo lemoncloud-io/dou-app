@@ -130,11 +130,12 @@ first and the relay catalog second, so a rename shows immediately. On a cold sta
 header shows a loading placeholder rather than a nameless circle. The Place section lists the cloud's
 places, the selected one carrying a badge and the others a dot when they have unread.
 
-**The profile menu** holds "Place settings" and, for the owner of the active cloud place, "Invite to
-place". Both act on the session's place — there is no per-row action on the place list. That
+**The profile menu** holds "Place settings" and, for the owner of the active cloud place who has
+turned on the Lab experiment, "Invite to place". Both act on the session's place — there is no
+per-row action on the place list. That
 matters for the invite: the server files it under the site the session is on, so the entry is held
 (disabled) while a place switch is moving the session, and hidden outright where the user can never
-invite (the relay, a place they do not own, a guest). The rule and the page behind it — the room invite's contact invite, bound to the place — belong to
+invite (the relay, a place they do not own, a guest) or has not opted in. The rule and the page behind it — the room invite's contact invite, bound to the place — belong to
 [invite](../invite/place-invite.md).
 
 **The tier pill** (header, and the profile menu on a cloud) is FREE or PRO: PRO when the membership

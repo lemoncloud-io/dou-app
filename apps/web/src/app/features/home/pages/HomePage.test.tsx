@@ -26,6 +26,9 @@ let catalog: { clouds: { id: string; status?: string }[]; hasCloudCatalog: boole
     hasCloudCatalog: true,
     isPendingClouds: false,
 };
+// The Lab switch behind "Invite to place". On by default here so the menu's own gate is what the
+// invite tests drive; one test turns it off.
+let isPlaceInviteEnabled = true;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 const navigateMock = jest.fn();
@@ -139,6 +142,7 @@ jest.mock('../../../hooks', () => ({
     // an open menu finishes leaving before the page transition snapshots the screen. Here it is
     // just the navigate spy: the waiting is `menuDismissal`'s to test, not home's.
     useMenuNavigate: () => navigateMock,
+    usePlaceInviteExperiment: () => ({ isEnabled: isPlaceInviteEnabled, setEnabled: jest.fn() }),
 }));
 jest.mock('../stores/useCloudPushMarkStore', () => ({
     useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),
@@ -294,6 +298,7 @@ beforeEach(() => {
     catalog = { clouds: [], hasCloudCatalog: true, isPendingClouds: false };
     collapsedSections = {};
     isAuthenticated = true;
+    isPlaceInviteEnabled = true;
     refetchCloudsMock.mockResolvedValue(undefined);
     refetchMembershipMock.mockResolvedValue(undefined);
     requestBackgroundRefreshMock.mockResolvedValue(undefined);
@@ -586,6 +591,13 @@ describe('HomePage — invite to place (profile menu)', () => {
         fireEvent.click(screen.getByText('homePage.menuPlaceInvite'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.place('site-1'));
+    });
+
+    it('is absent until the Lab experiment is turned on, even for the owner', () => {
+        isPlaceInviteEnabled = false;
+        render(<HomePage />);
+
+        expect(screen.queryByText('homePage.menuPlaceInvite')).not.toBeInTheDocument();
     });
 
     it('is absent on the relay, whose place has no owner', () => {

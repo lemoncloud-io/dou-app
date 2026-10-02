@@ -6,7 +6,7 @@ the other person opens that link, proves the number is theirs, and lands in a DM
 exist a moment earlier.
 
 It also issues the **place invite**: a cloud place's owner brings someone into the place with no
-room ([place-invite.md](./place-invite.md)).
+room ([place-invite.md](./place-invite.md)). It is a Lab experiment, off until the owner turns it on.
 
 The two ends share almost nothing but the code shape, so each has its own document. This one holds
 what both obey.

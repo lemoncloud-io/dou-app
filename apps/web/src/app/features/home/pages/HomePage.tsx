@@ -67,6 +67,7 @@ import {
     useInvitedClouds,
     useJoinSyncRegistration,
     useOtherCloudUnread,
+    usePlaceInviteExperiment,
 } from '../../../hooks';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
@@ -293,8 +294,11 @@ export const HomePage = () => {
     const hasActivePlace = !!selectedSiteId;
     // "Invite to place" targets the place the session sits on — the server stamps that site, the
     // packet names none — so it is gated on the session's place, and held while a switch is moving
-    // it. Hidden, not disabled, for anyone who can never invite here (relay, member, guest).
+    // it. Hidden, not disabled, for anyone who can never invite here (relay, member, guest), and
+    // for everyone until the Lab experiment is turned on.
+    const { isEnabled: isPlaceInviteEnabled } = usePlaceInviteExperiment();
     const placeInviteGate = resolvePlaceInviteGate({
+        isExperimentEnabled: isPlaceInviteEnabled,
         isDefaultCloud,
         isGuest,
         place: places.find(place => place.id === selectedSiteId),
