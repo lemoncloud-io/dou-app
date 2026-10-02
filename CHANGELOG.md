@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-10-02] - root@0.83.0, @chatic/web@0.64.0, @chatic/desktop-web@0.19.3
+
+### Features
+
+- (web/home) ask for a missing place profile with a banner, not only the header (ADR-0162)
+- (web) ask for a place profile where a person enters a place, from inside it (ADR-0142)
+
+### Bug Fixes
+
+- (desktop-web) name the place selected at the time of a profile save, not the first one
+- (data) save a place profile where it can land, and create its row on the first write
+
+### Documentation
+
+- (adr) renumber the place-profile adr to 0161, not the 0142 develop already holds
+
 ## [2026-10-02] - No version updates
 
 ### Features
