@@ -88,6 +88,9 @@ session is in. It is shared by all three stereos; the home feature owns the wide
 something true to seed the form with — my row in the cache, or the server's "no profile" handed
 down from this page. The form seeds once, on open, so opened any earlier it latched an empty name
 and kept it after my profile arrived.
+Its top bar reads "내 프로필", and the heading under it names the place the profile applies to
+("<place>에 적용 중인 프로필 입니다."), since editing it changes nothing in any other place. The
+loading screen shows the same top bar, so swapping to the form does not jump.
 
 The screen reports **member divergence** on unmount: how many roster ids have no join row, and how
 many active join rows the roster does not list. On unmount specifically, because the join cache

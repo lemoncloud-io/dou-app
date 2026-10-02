@@ -1110,7 +1110,7 @@
     },
     "placeProfileEdit": {
         "loading": "프로필을 불러오는 중...",
-        "title": "플레이스 프로필",
+        "title": "<{{place}}>에\n적용 중인 프로필 입니다.",
         "header": "내 프로필",
         "nameLabel": "이름",
         "nameHint": "20글자 이내로 입력해 주세요.",

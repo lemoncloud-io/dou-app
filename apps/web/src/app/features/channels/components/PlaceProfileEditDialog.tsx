@@ -12,7 +12,7 @@ import { PlaceProfileFormDialog } from '../../../ui/components/PlaceProfileFormD
 interface PlaceProfileEditDialogProps {
     /** Controls visibility (owned by the caller). */
     open: boolean;
-    /** Active place name, interpolated into the title. */
+    /** Active place name, interpolated into the in-body heading. */
     placeName: string;
     /** Called when the dialog should close (after save or on exit). */
     onClose: () => void;
@@ -26,7 +26,9 @@ interface PlaceProfileEditDialogProps {
 
 /**
  * Full-screen overlay to EDIT the per-place profile (nick + optional photo) for the active place.
- * Opened from the member-profile sheet in room settings. Thin wrapper over
+ * Opened from the member-profile sheet in room settings. The top bar says what the screen is
+ * ("내 프로필"); the heading under it names the place the profile applies to, because a profile
+ * belongs to one place and editing it changes nothing in the others. Thin wrapper over
  * {@link PlaceProfileFormDialog} — seeds the current profile from {@link useMyProfile} and supplies
  * edit-specific copy. Persists via ProfileRepository.setMyProfile.
  *
@@ -43,6 +45,7 @@ export const PlaceProfileEditDialog = ({ open, placeName, onClose, profileAbsent
     const setMyPlaceProfile = useSetMyPlaceProfile();
 
     const title = t('placeProfileEdit.title', { place: placeName });
+    const header = t('placeProfileEdit.header');
     const canSeed = !!myProfile || profileAbsent === true;
 
     if (open && !canSeed) {
@@ -57,7 +60,7 @@ export const PlaceProfileEditDialog = ({ open, placeName, onClose, profileAbsent
                 >
                     <DialogTitle className="sr-only">{title}</DialogTitle>
                     <DialogDescription className="sr-only">{t('placeProfileEdit.loading')}</DialogDescription>
-                    <ModalTopBar onClose={onClose} closeLabel={t('placeProfileEdit.close')} />
+                    <ModalTopBar title={header} onClose={onClose} closeLabel={t('placeProfileEdit.close')} />
                     <div
                         role="status"
                         aria-label={t('placeProfileEdit.loading')}
@@ -74,6 +77,7 @@ export const PlaceProfileEditDialog = ({ open, placeName, onClose, profileAbsent
         <PlaceProfileFormDialog
             open={open}
             title={title}
+            header={header}
             initialNick={myProfile?.nick ?? ''}
             initialThumbnail={myProfile?.thumbnail ?? ''}
             submitLabel={t('placeProfileEdit.done')}

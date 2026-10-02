@@ -1110,7 +1110,7 @@
     },
     "placeProfileEdit": {
         "loading": "Loading your profile...",
-        "title": "Place Profile",
+        "title": "The profile you use in\n<{{place}}>",
         "header": "My profile",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",

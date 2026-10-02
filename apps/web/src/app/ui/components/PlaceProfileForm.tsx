@@ -53,6 +53,12 @@ export interface PlaceProfileFormProps {
      * short label like "내 프로필"), so the in-body heading is dialog-only.
      */
     title: string;
+    /**
+     * Short label centred in the dialog's top bar (e.g. "내 프로필"), above the in-body `title`.
+     * Omitted, the bar shows only the close button — the create flow, whose heading already says
+     * what the screen is. Dialog container only: the page container's header carries `title`.
+     */
+    header?: string;
     /** Optional subtitle under the title. Omitted in the edit flow. */
     subtitle?: string;
     /** Initial nick — empty for create, current profile nick for edit. */
@@ -109,6 +115,7 @@ export const PlaceProfileForm = ({
     container = 'dialog',
     open,
     title,
+    header,
     subtitle,
     initialNick = '',
     initialThumbnail = '',
@@ -332,7 +339,11 @@ export const PlaceProfileForm = ({
                     screens so the layout (and the full-width CTA) never stretches. */}
                 <div className="flex h-full w-full flex-col">
                     {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button. */}
-                    <ModalTopBar onClose={dismissible ? requestClose : undefined} closeLabel={closeLabel} />
+                    <ModalTopBar
+                        title={header}
+                        onClose={dismissible ? requestClose : undefined}
+                        closeLabel={closeLabel}
+                    />
                     {body}
                     {noticeEl}
                     {footer}

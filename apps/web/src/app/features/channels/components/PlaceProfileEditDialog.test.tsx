@@ -71,6 +71,20 @@ describe('PlaceProfileEditDialog', () => {
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('placeProfileEdit.title|북클럽');
     });
 
+    it('names the screen in the top bar, apart from the place heading under it', () => {
+        render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
+
+        expect(screen.getByRole('banner')).toHaveTextContent('placeProfileEdit.header');
+        expect(screen.getByRole('heading', { level: 1 })).not.toHaveTextContent('placeProfileEdit.header');
+    });
+
+    it('keeps the top-bar title on the loading screen, so the swap to the form does not jump', () => {
+        mockProfile = null;
+        render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
+
+        expect(screen.getByRole('banner')).toHaveTextContent('placeProfileEdit.header');
+    });
+
     // Reproduced in the browser: opened before my profile reached the device, the form latched an
     // empty name and kept it after the profile arrived.
     it('shows a loading screen, not a blank form, while my profile has not arrived', () => {
