@@ -45,8 +45,6 @@ export const useChannelProfiles = (
     const uid = runtime.session.useUidInCloud(cid);
 
     const [profiles, setProfiles] = useState<DomainProfile[]>([]);
-    // Whether this hook has produced a reading yet — see `hasSnapshot` in the return.
-    const [hasSnapshot, setHasSnapshot] = useState(false);
 
     // Join into a stable dependency so the registration effect only re-runs on a real membership
     // change, not on every render's new array identity.
@@ -56,15 +54,10 @@ export const useChannelProfiles = (
     useEffect(() => {
         if (!sid) {
             setProfiles([]);
-            setHasSnapshot(false);
             return;
         }
-        // A site switch invalidates the previous site's reading; callers must not treat the old
-        // answer as this site's.
-        setHasSnapshot(false);
         return profileRepository.observeList({ sid }, result => {
             setProfiles(result?.list ?? []);
-            setHasSnapshot(true);
         });
     }, [profileRepository, sid]);
 
@@ -103,46 +96,36 @@ export const useChannelProfiles = (
                 );
             } catch {
                 // Without a reading, nobody can be told apart: register everyone and let the poll sort it.
-                try {
-                    activeMemberIds.forEach(register);
-                } finally {
-                    if (!disposed) setHasSnapshot(true);
-                }
+                activeMemberIds.forEach(register);
                 return;
             }
 
             const uncached = activeMemberIds.filter(userId => !cachedUserIds.has(userId));
 
-            try {
-                activeMemberIds.filter(userId => cachedUserIds.has(userId)).forEach(register);
+            activeMemberIds.filter(userId => cachedUserIds.has(userId)).forEach(register);
 
-                // The app graph fetches through whichever cloud is selected when the call starts. If
-                // the selection moved during the read, a refresh would ask the next cloud for this
-                // cloud's members — so register them unread, and the re-run for that cloud does its
-                // own bootstrap anyway.
-                if (disposed || readSelectedCloudId() !== cid) {
-                    uncached.forEach(register);
-                    return;
-                }
-                await Promise.all(
-                    uncached.map(userId =>
-                        profileRepository.refreshItem(`${sid}@${userId}`).then(
-                            () => register(userId),
-                            error => {
-                                // Only the server saying "not here" withholds the poll. Anything else
-                                // is the bootstrap failing — a timeout, no socket, or a 403, which a
-                                // re-auth of the same socket answers for a moment — and the poll is
-                                // what recovers from that.
-                                if (getSocketErrorCode(error) !== 404) register(userId);
-                            }
-                        )
-                    )
-                );
-            } finally {
-                // Settle the reading even if the cache held nothing and `observeList` never emitted,
-                // so a caller waiting on `hasSnapshot` cannot wait forever.
-                if (!disposed) setHasSnapshot(true);
+            // The app graph fetches through whichever cloud is selected when the call starts. If
+            // the selection moved during the read, a refresh would ask the next cloud for this
+            // cloud's members — so register them unread, and the re-run for that cloud does its
+            // own bootstrap anyway.
+            if (disposed || readSelectedCloudId() !== cid) {
+                uncached.forEach(register);
+                return;
             }
+            await Promise.all(
+                uncached.map(userId =>
+                    profileRepository.refreshItem(`${sid}@${userId}`).then(
+                        () => register(userId),
+                        error => {
+                            // Only the server saying "not here" withholds the poll. Anything else
+                            // is the bootstrap failing — a timeout, no socket, or a 403, which a
+                            // re-auth of the same socket answers for a moment — and the poll is
+                            // what recovers from that.
+                            if (getSocketErrorCode(error) !== 404) register(userId);
+                        }
+                    )
+                )
+            );
         })();
 
         return () => {
@@ -162,11 +145,11 @@ export const useChannelProfiles = (
     }, [profiles]);
 
     /**
-     * `hasSnapshot` distinguishes "no profile" from "not read yet". `profileMap` starts empty, and
-     * this hook is downstream of the channel row (it needs `sid`), so an empty map is the normal
-     * state for the first renders — a caller that reads absence from it alone will conclude "this
-     * member has no profile" about everyone. Only meaningful for absence; presence in `profileMap`
-     * is self-evident.
+     * Presence only. A member missing from `profileMap` means this device does not hold their row
+     * yet — a cold cache, a fetch in flight or one that failed — not that they have no profile.
+     * This hook used to return a `hasSnapshot` flag for that, but it turned true on the local
+     * cache's first emission, before the server had been asked, so it could not tell the two apart.
+     * Whether I have no profile is the server's answer: `usePlaceProfileAbsent`.
      */
-    return { profileMap, hasSnapshot };
+    return { profileMap };
 };

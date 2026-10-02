@@ -13,8 +13,8 @@ import { ROUTES } from '../../../../routes/paths';
  *
  * When the invite carries a `channelId` it is stashed as the pending invite channel, and
  * `useOpenPendingInviteChannel` in the layout opens that room on whatever screen leaving lands on.
- * The place profile is optional and no longer gates entry, so the flow is: accept → connect place →
- * channel.
+ * The flow is: accept → connect place → (the place profile, when there is none there — see
+ * useInviteAccept) → channel.
  */
 export const useEnterInvitedChannel = () => {
     const enterStack = useStackNavigate();

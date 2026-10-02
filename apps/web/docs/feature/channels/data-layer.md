@@ -235,9 +235,13 @@ observer per cache per screen, not a convenience.
 - **Do not derive display names in a list row with `useChannelTitle`.** It calls `useMyProfile`,
   which triggers a fetch per call. Lists resolve `myNick` once in the parent and call
   `resolveChannelTitle` directly.
-- **Do not read absence out of an empty `profileMap`.** It starts empty and this hook is
-  downstream of the channel row, so the first renders legitimately know nothing. `hasSnapshot`
-  tells "no profile" from "not read yet".
+- **Do not read absence out of `profileMap`.** A member missing from it means this device does not
+  hold their row yet — a cold cache, a fetch still in flight or one that failed — not that they have
+  no profile. The hook once returned a `hasSnapshot` flag for this, but it turned true on the local
+  cache's first emission, before the server had answered; with my row missing from IndexedDB the
+  room settings prompted a user who had a profile to create one, and a save from that blank form
+  overwrites the real nick. Whether _I_ have no profile is the server's answer
+  (`usePlaceProfileAbsent`, which waits for `profile.get-mine`); nobody can act on anyone else's.
 - **Do not treat the first `null` from `observeItem` as a missing channel.** It answers from the
   local cache alone, so a room the device has never seen answers `null` while the fetch is in
   flight. `useChannel` keeps `isLoading` true until a row arrives or a 10s timeout turns it into

@@ -12,7 +12,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useActivePlaceName } from '../../../hooks';
 import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
 import { PlaceProfileEditDialog } from '../components/PlaceProfileEditDialog';
-import { useSetMyPlaceProfile } from '../../../hooks';
+import { usePlaceProfileAbsent, useSetMyPlaceProfile } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -192,10 +192,14 @@ export const ChannelSettingsPage = () => {
 
     // Site profiles (nick/avatar) for the member list; same source as the room.
     const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
-    const { profileMap, hasSnapshot: hasProfileSnapshot } = useChannelProfiles(
-        profilePlaceOf(channel, selectedSiteId),
-        memberUserIds
-    );
+    const profilePlace = profilePlaceOf(channel, selectedSiteId);
+    const { profileMap } = useChannelProfiles(profilePlace, memberUserIds);
+    // Whether I have no profile in the ACTIVE place, as the server answers it (`profile.get-mine`),
+    // never as the local cache happens to hold it — see `needsProfileSetup` below.
+    const { absent: myProfileAbsent, markPresent: markMyProfilePresent } = usePlaceProfileAbsent();
+    // A profile is saved to the place the session is in, whatever place the request names, so the
+    // prompt is only offered where acting on it can work: a room read in the active place.
+    const isRoomInActivePlace = !!profilePlace && profilePlace === selectedSiteId;
 
     // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
     // room title are resolved here; the plain type flags derived from them stay past the return.
@@ -319,14 +323,21 @@ export const ChannelSettingsPage = () => {
             // raw UUID, the very values ADR-0039 kept out of the title chain. Every stereo shares this
             // list, so the nudge is not gated on self-chat (ADR-0040).
             //
-            // `hasProfileSnapshot` is load-bearing, and isMembersLoading CANNOT stand in for it: that
-            // flag flips on the user cache's first emit and knows nothing about profiles, while this
-            // hook is downstream of the channel row (it needs `sid`) and then does its own async
-            // bootstrap. Members routinely arrive first, so reading absence from an empty profileMap
-            // would nudge users who do have a profile — and the row is tappable, so a mistaken tap
-            // opens a blank create form whose save overwrites the real nick.
+            // "No profile" is the SERVER's verdict, never the cache's. An empty `profileMap` means only
+            // that this device has not got my row yet — a cold cache, a new device, a fetch still in
+            // flight or one that failed — and reading that as absence nudged users who do have a
+            // profile (reproduced: with my row missing from IndexedDB the prompt showed until the
+            // fetch landed, and for as long as it stayed away). The row is tappable, so a mistaken
+            // prompt opens a blank create form whose save overwrites the real nick. `myProfileAbsent`
+            // is `true` only once `profile.get-mine` has answered with no profile; pending or failed
+            // reads leave it unset, and no prompt is drawn. The cached nick still wins when present,
+            // so a save made here clears the prompt as soon as the cache updates.
             const needsProfileSetup =
-                !!memberId && memberId === userId && hasProfileSnapshot && !memberProfile?.nick?.trim();
+                !!memberId &&
+                memberId === userId &&
+                isRoomInActivePlace &&
+                myProfileAbsent === true &&
+                !memberProfile?.nick?.trim();
             // The id is NOT a rung in this chain — it used to sit before the label, so an
             // unresolved member showed a raw UUID and the label was unreachable. This now CALLS the
             // shared chain rather than restating it: the copy that lived here re-read `member.name`
@@ -539,6 +550,7 @@ export const ChannelSettingsPage = () => {
                 open={activeDialog === 'profileSettings'}
                 placeName={activePlaceName}
                 onClose={closeDialog}
+                profileAbsent={myProfileAbsent}
             />
             {/* Reached from my own member row when it has no profile yet. `exit` is supplied so a
                 half-typed name still gets the unsaved-changes guard — unlike the invite paths, backing
@@ -547,7 +559,10 @@ export const ChannelSettingsPage = () => {
                 onSubmit={setMyPlaceProfile}
                 open={activeDialog === 'profileCreate'}
                 placeName={activePlaceName}
-                onDone={closeDialog}
+                onDone={() => {
+                    markMyProfilePresent();
+                    closeDialog();
+                }}
                 onExit={closeDialog}
                 exit={{
                     title: t('placeProfileCreate.exitTitle'),

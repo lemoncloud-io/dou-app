@@ -37,7 +37,8 @@ What the server does with it was measured on the dev servers:
   cloud `userId`, and their `<uid>@<sid>` role row dates from the moment of issue, not the moment of
   acceptance.
 - **Accepting needs nothing new.** `auth.switch` into that role succeeds, `user.my-site` lists the
-  place with `isOwner: false`, and no place profile is required.
+  place with `isOwner: false`, and the server requires no place profile. (The client still asks
+  for one after the switch when there is none — see the recipient's side below.)
 
 `user.invite-batch { to }` with no room was measured the same way. It files every number under the
 session's site too, writes a user and a member role per number at issue, and a clean guest accepting
@@ -68,8 +69,12 @@ keeps for non-owners.
 
 ## On the recipient's side
 
-The accept pipeline is unchanged — login with the code, enter the cloud, enter `info.siteId`, and
-enter the room only if there is one (`useEnterInvitedChannel` skips that step when there is not).
+The accept pipeline is the cloud invite's — login with the code, enter the cloud, enter
+`info.siteId`, ask for the place profile when the invitee has none there
+([README § Cloud invites](./README.md#cloud-invites-the-profile-comes-after-the-place)), and enter the
+room only if there is one (`useEnterInvitedChannel` skips that step when there is not). A place
+invite carries its `siteId`, so the profile step is reached without the room-based fallback, which a
+room-less invite could not use.
 What changed is the target card. `CloudInviteAccept` reads an empty `channelId` in the invite
 metadata as the `place` kind (`accept/lib/resolveCloudInviteTargetKind.ts`), captioned "Place
 member", with no room member count. Until the metadata arrives it keeps the group default.

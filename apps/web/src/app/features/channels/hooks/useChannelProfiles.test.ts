@@ -106,16 +106,14 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
     );
 
     it('does not poll a member the bootstrap was told has no profile here', async () => {
-        // No emission, so `hasSnapshot` can only come from the bootstrap settling — the point at
-        // which every registration this run makes has already been made.
-        observeList.mockImplementation(() => () => undefined);
         cacheReadList.mockResolvedValue({ list: [profile('u1')] });
         refreshItem.mockRejectedValue(new Error('404 NOT FOUND - not found @doGet(profiles/s1@u2)'));
 
-        const { result } = renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
+        renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
-        await waitFor(() => expect(result.current.hasSnapshot).toBe(true));
-        expect(refreshItem).toHaveBeenCalledWith('s1@u2');
+        await waitFor(() => expect(refreshItem).toHaveBeenCalledWith('s1@u2'));
+        // Let the rejected read settle: a registration it was going to make has been made by then.
+        await act(async () => undefined);
         expect(registerProfile).toHaveBeenCalledTimes(1);
         expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
     });

@@ -1,21 +1,19 @@
 import { useCallback } from 'react';
 
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-
 import { useSiteSwitch } from '../../../../runtime/useSiteSwitch';
 
 /**
- * Step 2 of invite entry: switch into the invited site when the invite carries a `siteId`.
- * No-ops when absent. Runs after the cloud switch so the target site resolves against the
- * already-active cloud session.
+ * Step 2 of invite entry: switch into the invited place. The caller resolves which place that is
+ * (the invite does not always name one — see useInviteAccept); with none, this does nothing. Runs
+ * after the cloud switch so the target site resolves against the already-active cloud session.
  */
 export const useEnterInvitedSite = () => {
     const { switchSite, isSwitching: isEnteringSite } = useSiteSwitch();
 
     const enterSite = useCallback(
-        async (info?: MyInviteView): Promise<void> => {
-            if (!info?.siteId) return;
-            await switchSite(info.siteId);
+        async (siteId?: string): Promise<void> => {
+            if (!siteId) return;
+            await switchSite(siteId);
         },
         [switchSite]
     );

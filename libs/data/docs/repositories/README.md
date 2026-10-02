@@ -69,7 +69,9 @@ repository that needs a place takes it as an argument (`setMyProfile(body, siteI
 `syncProfiles(since, siteId)`, `createChannel(payload, siteId)`, `getSelfChannel(payload, siteId)`,
 `refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
 `profile.sync`, `channel.mine` and `channel.get-self` return rows carrying no place of their own —
-the caller's value is the only thing that can tag them.
+the caller's value is the only thing that can tag them. For `profile.set` the argument tags the
+optimistic row and checks the answer, but it does not choose the site: the server writes to its
+session's site regardless (see [domains](./domains.md#profile)).
 
 ## The core contract
 

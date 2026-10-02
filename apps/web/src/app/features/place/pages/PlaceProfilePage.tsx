@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
 
 import { PlaceProfileForm } from '../../../ui/components/PlaceProfileForm';
-import { useMyProfile, usePlaceProfileAbsent } from '../../../hooks';
+import { useMyProfile, usePlaceProfileAbsent, useSetMyPlaceProfile } from '../../../hooks';
 import { PageHeader } from '../../../ui';
 
 /**
@@ -19,11 +18,9 @@ import { PageHeader } from '../../../ui';
 export const PlaceProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
-    // The save names its place. `setMyProfile` used to read the active sid off the data context,
-    // which races a site switch (ADR-0085); this page is only reached for the active place, so the
-    // session selection IS that place — it just says so now.
-    const { selectedSiteId } = runtime.session.useSessionSelection();
+    // The one profile write every screen shares: it targets the place the session is in and
+    // refuses while a switch is still committing, which is the only place a profile can be saved.
+    const setMyPlaceProfile = useSetMyPlaceProfile();
     const { profile: myProfile } = useMyProfile();
     // Only a settled signal, not the verdict: `useMyProfile` cannot say whether its null means
     // "loading" or "no profile", and this page must render an empty form in the second case.
@@ -73,9 +70,7 @@ export const PlaceProfilePage = () => {
                 leaveLabel: t('placeProfileEdit.exitLeave'),
                 continueLabel: t('placeProfileEdit.exitContinue'),
             }}
-            onSubmit={async ({ nick, thumbnail }) => {
-                await profileRepository.setMyProfile({ nick, thumbnail }, selectedSiteId ?? '');
-            }}
+            onSubmit={setMyPlaceProfile}
             onDone={close}
             onExit={close}
         />

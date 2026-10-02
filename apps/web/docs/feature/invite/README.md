@@ -26,7 +26,7 @@ what both obey.
 - The place invite: the room invite's contact invite with no room, at `/invite/place/:placeId`, and
   the accept screen's `place` target kind.
 - The cloud acceptance pipeline: the invite login, entering the cloud with its answer, caching the
-  cloud and who accepted it, and the place and room entry after it.
+  cloud and who accepted it, and the place, place-profile and room entry after it.
 
 **Out**
 
@@ -97,8 +97,10 @@ invite with its link screen (`/invite/place/:placeId`, `…/link`).
 ## Accepting a cloud invite
 
 `useInviteAccept` runs one pipeline, in order: log in with the code (`runtime.session.useInviteFlow`),
-enter the cloud, cache it, enter the place, leave for the room. Each step no-ops when the invite
-carries no id for it, and a failure is named by the step it happened in.
+enter the cloud, cache it, enter the place, ask for a place profile if there is none, leave for the
+room. Each step no-ops when the invite carries no id for it, and a failure is named by the step it
+happened in. The profile step and how the place is found are in
+[§ Cloud invites](#cloud-invites-the-profile-comes-after-the-place).
 
 **An invited cloud is entered per device, whatever the relay user is.** The invite login sends the
 `delegatorId` — the device user registered on first launch, which a sign-in does not replace — and
@@ -132,12 +134,38 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   ordinary re-issued switch. That one is relay-signed, and an app opened cold by the invite link has a
   stale relay credential for its first seconds, so a switch that gets no HTTP answer is retried
   three times over seven seconds.
-- **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight, so a
-  second press cannot start a second pipeline.
+- **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight — the
+  place lookup and the profile check included — so a second press cannot start a second pipeline.
 
 `cloudInviteAccept.integration.test.tsx` runs this pipeline through the real hooks against a fake
 server that follows the rules above: a fresh device user, a signed-in one, one whose background
 socket delegated first, another device user's cached cloud, and the cold-start fallback.
+
+## Cloud invites: the profile comes after the place
+
+The place profile is asked for **between the place switch and the room** of the pipeline above, and
+only once the session is in the invited place.
+
+**Which place.** An invite is issued with nothing but a `channelId`. The server does answer a room
+invite with the room's `siteId` and `site$` (checked against the dev server), but the published
+invite view does not declare `siteId` — only the stored model does — so the pipeline does not rely
+on it alone. It takes, in order: the invite's `siteId`, its place card (`site$.id`), then the room itself —
+one cloud-wide `channel.sync` and the room's row from the cache (`sid`). A cloud 1:1 belongs to no
+place. When none of these names one, the invitee enters without the switch or the profile step and a
+warning is logged; the step used to be skipped silently whenever `siteId` was absent.
+
+It cannot move earlier the way the relay lane's precondition does. The server stores a profile on
+the site the session is on and ignores any site the request names, and before the accept the
+invitee is not a member of the place, so the session cannot be there. Right after the switch is the
+first moment the profile can be written, and the last before the invitee is seen in a room.
+
+- **Skipped when a profile exists.** `isPlaceProfileAbsent` decides, and fails open: a read that
+  fails lets the invitee in rather than holding them at the door.
+- **Required, but not a trap.** The form has no way out until a save has failed once. Saved or
+  skipped, leaving it continues into the room.
+- **The accept is already committed.** Someone who quits on the form is a member with no name in
+  that place. This flow does not recover that state; the missing-profile prompts elsewhere do (home's
+  banner, and the room-settings nudge).
 
 ## Leaving the accept screen, and opening the room
 

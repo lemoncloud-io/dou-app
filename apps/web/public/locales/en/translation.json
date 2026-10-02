@@ -1109,6 +1109,7 @@
         "exitContinue": "Keep setting up"
     },
     "placeProfileEdit": {
+        "loading": "Loading your profile...",
         "title": "Place Profile",
         "header": "My profile",
         "nameLabel": "Name",
@@ -1789,6 +1790,11 @@
             "description": "Send a new invite link to try again."
         },
         "cancelFailed": "Couldn't cancel the invite. Please try again shortly"
+    },
+    "placeProfileBanner": {
+        "title": "You have no profile in\n<{{place}}> yet",
+        "action": "Create profile",
+        "dismiss": "Dismiss"
     },
     "cloudPromo": {
         "title": "Create places in your own cloud\nand chat together!",

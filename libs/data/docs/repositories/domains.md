@@ -81,7 +81,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - The per-site user profile domain, **fully separated from the User domain**. It depends only on the dedicated `ProfileGateway` (`get`/`getMine`/`set`/`sync`).
 - `refreshItem(id)` — writes the result of `profile.get` (id = `${sid}:${uid}`) to local.
 - `getMyProfile()` — writes the result of `profile.get-mine` (the current session) to local.
-- `setMyProfile` — optimistic write with rollback on failure.
+- `setMyProfile(body, siteId)` — optimistic write with rollback on failure (a row that did not exist before is deleted, not left behind). The server stores the profile on the site **its session is on** and ignores the payload's `siteId`, so `siteId` cannot steer the write; it is checked against the response instead. When the response names another site the write already happened there: that row is cached as the server now holds it, the optimistic row is rolled back, and the call rejects. `profile.set` is also **update-only**: on a site where I have no row yet (one I just created or just entered) it answers 404, so the repository sends `profile.get-mine` — a get-or-create that makes the row — and retries the write once. It does not retry when `get-mine` answers for another site: the retry would create and fill a row there.
 - `syncProfiles(since)` — upserts/removes the `profile.sync` delta into the local cache. A `null` for a given uid in the response deletes that profile.
 - Cache keys take the form `${sid}:${uid}`.
 

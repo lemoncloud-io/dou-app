@@ -201,6 +201,138 @@ describe('ProfileRepository', () => {
         expect(result).toEqual(expect.objectContaining({ id: 'site-1@me' }));
     });
 
+    it('removes the optimistic row when setMyProfile fails and there was no previous snapshot', async () => {
+        const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
+        profileLocalDataSource.cacheRead.mockResolvedValue(null);
+        profileSocketDataSource.set.mockRejectedValue(new Error('boom'));
+
+        await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow('boom');
+
+        expect(profileLocalDataSource.cacheDelete).toHaveBeenCalledWith('site-1@me', { cid: 'cloud-a', uid: 'me' });
+    });
+
+    describe('when profile.set answers 404 because I have no row on the site yet', () => {
+        // Shape of the server's answer, as the socket library rejects with it.
+        const notFound = () => new Error('404 NOT FOUND - profile/site-1@me @updateSiteProfile(site-1@me)');
+        const saved = { id: 'site-1@me', sid: 'site-1', siteId: 'site-1', uid: 'me', userId: 'me', nick: 'After' };
+
+        it('creates the row with profile.get-mine and retries the write once', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+            profileSocketDataSource.set.mockRejectedValueOnce(notFound()).mockResolvedValueOnce(saved);
+            profileSocketDataSource.getMine.mockResolvedValue({ id: 'site-1@me', active: false });
+
+            const result = await repository.setMyProfile({ nick: 'After' } as any, 'site-1');
+
+            expect(profileSocketDataSource.getMine).toHaveBeenCalledWith(
+                {},
+                expect.objectContaining({ sid: 'site-1', uid: 'me' })
+            );
+            expect(profileSocketDataSource.set).toHaveBeenCalledTimes(2);
+            expect(result).toEqual(saved);
+        });
+
+        it('recognises the 404 by errorCode as well as by message', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+            profileSocketDataSource.set
+                .mockRejectedValueOnce(Object.assign(new Error('not found'), { errorCode: 404 }))
+                .mockResolvedValueOnce(saved);
+            profileSocketDataSource.getMine.mockResolvedValue(null);
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).resolves.toEqual(saved);
+            expect(profileSocketDataSource.getMine).toHaveBeenCalledTimes(1);
+        });
+
+        it('gives up after one retry and removes the optimistic row', async () => {
+            const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
+            profileLocalDataSource.cacheRead.mockResolvedValue(null);
+            profileSocketDataSource.set.mockRejectedValue(notFound());
+            profileSocketDataSource.getMine.mockResolvedValue({ id: 'site-1@me', active: false });
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow(/^404/);
+
+            expect(profileSocketDataSource.set).toHaveBeenCalledTimes(2);
+            expect(profileLocalDataSource.cacheDelete).toHaveBeenCalledWith('site-1@me', { cid: 'cloud-a', uid: 'me' });
+        });
+
+        it('does not retry when the session turns out to be on another site', async () => {
+            const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
+            profileLocalDataSource.cacheRead.mockResolvedValue(null);
+            profileSocketDataSource.set.mockRejectedValueOnce(notFound());
+            profileSocketDataSource.getMine.mockResolvedValue({ id: 'site-2@me', sid: 'site-2', siteId: 'site-2' });
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow(
+                /session is on site site-2, not site-1/
+            );
+
+            expect(profileSocketDataSource.set).toHaveBeenCalledTimes(1);
+            expect(profileLocalDataSource.cacheDelete).toHaveBeenCalledWith('site-1@me', { cid: 'cloud-a', uid: 'me' });
+        });
+
+        it('recognises a 404 whose message has leading whitespace', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+            profileSocketDataSource.set
+                .mockRejectedValueOnce(new Error('  404 NOT FOUND - x'))
+                .mockResolvedValueOnce(saved);
+            profileSocketDataSource.getMine.mockResolvedValue(null);
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).resolves.toEqual(saved);
+        });
+
+        it('does not retry any other failure', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+            profileSocketDataSource.set.mockRejectedValue(new Error('403 NOT ALLOWED - nope'));
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow(/^403/);
+
+            expect(profileSocketDataSource.getMine).not.toHaveBeenCalled();
+            expect(profileSocketDataSource.set).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('when profile.set lands on a site other than the one named', () => {
+        // The server writes to the session's site whatever the payload says, so the response is
+        // where a write that went to the wrong place shows up.
+        const landedElsewhere = {
+            id: 'site-2@me',
+            sid: 'site-2',
+            siteId: 'site-2',
+            uid: 'me',
+            userId: 'me',
+            nick: 'After',
+        };
+
+        it('rejects, caches the row the server actually changed, and removes the optimistic one', async () => {
+            const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
+            profileLocalDataSource.cacheRead.mockResolvedValue(null);
+            profileSocketDataSource.set.mockResolvedValue(landedElsewhere);
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow(
+                /landed on site site-2, not site-1/
+            );
+
+            expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(landedElsewhere, {
+                cid: 'cloud-a',
+                uid: 'me',
+            });
+            expect(profileLocalDataSource.cacheDelete).toHaveBeenCalledWith('site-1@me', {
+                cid: 'cloud-a',
+                uid: 'me',
+            });
+        });
+
+        it('restores the previous snapshot of the named site instead of deleting it', async () => {
+            const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
+            const before = { id: 'site-1@me', sid: 'site-1', uid: 'me', userId: 'me', nick: 'Before' };
+            profileLocalDataSource.cacheRead.mockResolvedValue(before);
+            profileSocketDataSource.set.mockResolvedValue(landedElsewhere);
+
+            await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow(/landed/);
+
+            expect(profileLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(before, { cid: 'cloud-a', uid: 'me' });
+            expect(profileLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+        });
+    });
+
     it('throws when setMyProfile cannot resolve a uid from the context', async () => {
         const { repository } = createRepository({ cid: 'cloud-a', sid: 'site-1' });
 

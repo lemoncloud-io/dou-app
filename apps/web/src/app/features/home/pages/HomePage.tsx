@@ -52,13 +52,14 @@ import {
     CreatePlaceDialog,
     PlaceLimitDialog,
     PlaceList,
+    PlaceProfileBanner,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import { requestBackgroundRefresh } from '../../../runtime/backgroundRefresh';
 import { haptics } from '../../../bridge/haptics';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
-import { useAddCloudFlow, useHomePlaces, useHomeSections, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, useHomePlaces, useHomeSections, usePlaceProfileNudge, useSwitchPlace } from '../hooks';
 import {
     useCachedCloudNames,
     useChatSyncRegistration,
@@ -190,9 +191,8 @@ export const HomePage = () => {
     const invitedCloudIds = new Set(invitedClouds.map(cloud => cloud.id ?? ''));
     const hasOwnedCloud = clouds.some(cloud => !invitedCloudIds.has(cloud.id ?? ''));
 
-    // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
-    // optional at entry; users set it up on their own terms from the place settings hub ("내 프로필").
-    // The header still nudges them via resolveHeaderProfile's `setup` state below.
+    // NOTE: switching into an existing place does not force-open a profile setup dialog. A missing
+    // profile is announced instead — the header's `setup` state, and `PlaceProfileBanner` below.
     // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
 
@@ -283,6 +283,9 @@ export const HomePage = () => {
     // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When
     // the active place has no photo, ProfileAvatar renders its default glyph (default avatar).
     const displayImageUrl = myProfile?.thumbnail ?? undefined;
+
+    // The banner for a place I have no profile in — see usePlaceProfileNudge for when it shows.
+    const profileNudge = usePlaceProfileNudge({ nick: myProfile?.nick });
 
     // The place-settings menu entry needs an active site (its route is keyed by the site id). Works on
     // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
@@ -497,8 +500,18 @@ export const HomePage = () => {
                     on every cold start and vanish a beat later. Hiding is the safe default for a
                     promo — a missed beat costs nothing, a wrong one tells a paying user to go
                     subscribe. */}
+                {/* Above both homes' first section: a missing profile is the same gap on the relay
+                    and in a cloud. One banner at a time, so on the relay it takes the cloud
+                    promo's turn — naming yourself comes before an upsell. */}
+                <PlaceProfileBanner
+                    visible={profileNudge.isVisible}
+                    onDismiss={profileNudge.dismiss}
+                    onSaved={profileNudge.markPresent}
+                    className="pb-2"
+                />
                 {isDefaultCloud ? (
-                    hasCloudCatalog && (
+                    hasCloudCatalog &&
+                    !profileNudge.isVisible && (
                         <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="pb-2" />
                     )
                 ) : (
