@@ -24,7 +24,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | Figma name                    | Hex       | Where it lands                                                   |
 | ----------------------------- | --------- | ---------------------------------------------------------------- |
 | `main color/GR1`              | `#B0EA10` | `--primary` on every surface. The only hue in the system         |
-| (GR2, referenced in comments) | `#90C304` | `--main-accent`: the toast's success check, plus its edge on web |
+| (GR2, referenced in comments) | `#90C304` | `--main-accent`: the desktop toast's success check               |
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
 | `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
@@ -387,7 +387,11 @@ project CLAUDE.md). Optimistic writes render at once; nothing flashes a stale va
   `apps/web` reads `usePreferenceStore` and syncs the native shell (ADR-0054); its shell
   pins `colorScheme: light` on the layout root.
 - Every token is defined in both blocks. A colour that exists only in one theme is a bug.
-- Toasts invert: dark card on light theme, light card on dark theme.
+- Desktop toasts invert: dark card on light theme, light card on dark theme. The mobile web
+  snackbar stays dark in both — navy `#081837` on light, BK_800 `#3A3C40` on dark — so its lime
+  check keeps its contrast.
+- The mobile web snackbar (`Toaster`) is bottom-anchored, 16px above the safe area, the keyboard or
+  any bar a screen pins to the bottom (`--toast-lift`), and is swiped down to dismiss (ADR-0160).
 - Desktop toasts (`AppToaster`) drop the kit's edge bar: a capsule sized to its text, 12px from
   the top over the header's empty middle, with the icon alone carrying the tone.
 

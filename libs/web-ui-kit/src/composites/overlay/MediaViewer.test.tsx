@@ -1,7 +1,12 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createPortal } from 'react-dom';
 
-import { MediaViewer, MediaViewerActionButton, type MediaViewerItem } from './MediaViewer';
+import {
+    MEDIA_VIEWER_FOOTER_TOAST_LIFT,
+    MediaViewer,
+    MediaViewerActionButton,
+    type MediaViewerItem,
+} from './MediaViewer';
 
 const images = ['https://example.com/a.jpg', 'https://example.com/b.jpg', 'https://example.com/c.jpg'];
 const photo = (src: string | undefined, i: number, preview?: string): MediaViewerItem => ({
@@ -757,6 +762,52 @@ describe('MediaViewer', () => {
             );
             expect(screen.getByRole('dialog').querySelector('video')).toBeNull();
             expect(screen.getByRole('dialog').querySelector('[data-broken]')).toBeInTheDocument();
+        });
+    });
+
+    describe('snackbar lift', () => {
+        const lift = () => document.documentElement.style.getPropertyValue('--toast-lift');
+        const footer = () => <button type="button">save</button>;
+
+        it('lifts the snackbar above the action bar while the viewer shows it', () => {
+            const { unmount } = render(
+                <MediaViewer
+                    items={items}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                    renderFooter={footer}
+                />
+            );
+            expect(lift()).toBe(`${MEDIA_VIEWER_FOOTER_TOAST_LIFT}px`);
+            unmount();
+        });
+
+        it('leaves the lift alone when there is no action bar', () => {
+            render(<MediaViewer items={items} index={0} onIndexChange={jest.fn()} onClose={jest.fn()} />);
+            expect(lift()).toBe('');
+        });
+
+        it('drops its lift once the viewer closes', () => {
+            const { rerender } = render(
+                <MediaViewer
+                    items={items}
+                    index={0}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                    renderFooter={footer}
+                />
+            );
+            rerender(
+                <MediaViewer
+                    items={items}
+                    index={null}
+                    onIndexChange={jest.fn()}
+                    onClose={jest.fn()}
+                    renderFooter={footer}
+                />
+            );
+            expect(lift()).toBe('');
         });
     });
 });

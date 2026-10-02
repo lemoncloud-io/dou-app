@@ -10,7 +10,7 @@ A document belongs here if it is about the frame rather than the content. What f
 
 | Document                             | Owns                                                                                                                                                                                    |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [layout-shell.md](./layout-shell.md) | `UnifiedLayout`, the floating bottom nav, trailing clearance, and the `--app-width` cap                                                                                                 |
+| [layout-shell.md](./layout-shell.md) | `UnifiedLayout`, the floating bottom nav, trailing clearance, snackbar clearance (`--toast-lift`), and the `--app-width` cap                                                            |
 | [routing.md](./routing.md)           | The authenticated/unauthenticated route tables and the `ROUTES` builder — the one source of absolute paths — and `app/navigation/`, which owns the history stack and the back judgement |
 | [theme.md](./theme.md)               | Theme state, its DOM application, and the web half of the native sync                                                                                                                   |
 | [boot-cover.md](./boot-cover.md)     | The `index.html` cover over the page until the first screen paints, and the signal that lifts the app's launch splash                                                                   |

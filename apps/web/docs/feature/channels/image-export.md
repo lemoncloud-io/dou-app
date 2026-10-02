@@ -52,11 +52,13 @@ that cannot succeed on an older app; the handshake carries nothing that would te
 apart beforehand.
 
 **Where they sit.** Share at the left end and save at the right end of a bar along the viewer's
-bottom edge (`renderFooter`); the top bar keeps only the position and the close button. The top is
-where a toast slides in, for five seconds, and a toast is pressable: buttons up there would be
-covered by the very toast their last press raised. The viewer also ignores presses on anything drawn
-over it from outside its own dialog — a toast — or pressing a toast's **Settings** would close the
-viewer on the way and never reach the button. A tap on the viewer's own backdrop still closes it.
+bottom edge (`renderFooter`); the top bar keeps only the position and the close button. The
+snackbar rests at the bottom too, and a toast is pressable, so while the bar shows the viewer
+asks for a lift of its height with `useToastLift` (76px: 24px lead-in, a 36px button, 16px under
+it) and the toast a press raises lands above the buttons instead of on them. The viewer also
+ignores presses on anything drawn over it from outside its own dialog — a toast — or pressing a
+toast's **Settings** would close the viewer on the way and never reach the button. A tap on the
+viewer's own backdrop still closes it.
 Keys and drags on a sheet the buttons open stay with the sheet: React events bubble through portals,
 so the viewer acts only on events from its own DOM, and the sheet keeps the photo it was opened on.
 

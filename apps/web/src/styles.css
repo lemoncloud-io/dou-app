@@ -183,10 +183,13 @@
         --media-tile: 220 5% 24%; /* same */
         --media-tile-foreground: 240 4% 92%; /* same */
 
-        /* Toast (light card on dark bg) */
-        --toast: 210 6% 96%; /* #F4F5F5 - light card */
-        --toast-foreground: 220 7% 14%; /* #222325 - dark text */
-        --toast-muted: 220 4% 35%; /* #53555B - muted dark text */
+        /* Toast (raised dark surface on the dark bg). Not the inverted light card it once was:
+           the snackbar's success check is the lime `primary`, which all but vanishes on a light
+           card (under 2:1); on BK_800 it keeps the light theme's contrast, and the navy itself
+           is too close to #121212 to read as a raised surface. */
+        --toast: 220 5% 24%; /* #3A3C40 - BK_800 */
+        --toast-foreground: 210 6% 96%; /* #F4F5F5 - same as light */
+        --toast-muted: 220 3% 81%; /* #CFD0D3 - same as light */
 
         /* Dialog */
         --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */

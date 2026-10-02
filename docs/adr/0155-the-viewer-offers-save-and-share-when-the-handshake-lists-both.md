@@ -1,6 +1,8 @@
 # ADR-0155: The viewer offers save and share when the handshake lists both
 
 > Status: Accepted · Decided: 2026-10-01
+> · Amended by: [ADR-0160](./0160-the-mobile-snackbar-sits-at-the-bottom-and-screens-lift-it-over-their-bars.md)
+> — the snackbar moved to the bottom; the buttons stay there and the viewer lifts it above them
 > · Scope: `apps/web/src/app/bridge/{shellCapabilities,shellDownload,appBridge}.ts` ·
 > `apps/web/src/app/runtime/transfer/` · `apps/web/src/app/runtime/upload/transferSync.ts` ·
 > `apps/web/src/app/features/channels/{lib/imageExport.ts,hooks/useImageExports.tsx,components/SaveShareButtons.tsx,components/MessageImages.tsx}` ·
