@@ -170,7 +170,14 @@ API will not find them:
 - `foundations/avatar/avatarBase.tsx` — `AvatarShell`, the ringed circle `ChatAvatar` and
   `PlaceAvatar` are both drawn on.
 - `foundations/button/floatingPanel.ts` — the shared class string for floating surfaces.
-- `composites/header/HeaderGlass.tsx` — the blurred header backdrop.
+- `composites/header/HeaderGlass.tsx` — the blurred header backdrop. Mounted while `<html>` carries
+  `data-page-transition` (set by `@chatic/shared`'s `useNavigateWithTransition`), it holds its opaque
+  pane until the attribute comes off — 1.5s at most: WebKit paints no `backdrop-filter` inside a view
+  transition's snapshots, so the frost would otherwise arrive in one frame as the slide ends. The
+  attribute is not set on Android, whose Blink WebView paints the frost during the transition. It is
+  the one input in this kit that a component reads in script rather than through a prop, and its name
+  is a string declared in both libs: their tests pin the same literal, and nothing else checks that
+  the two match.
 
 ## Usage
 
@@ -217,6 +224,11 @@ apps/web     src/styles.css          →  re-declares the same custom properties
 `apps/web` does **not** import `tokens.css`. The two files hold the same variables and are kept in
 parity by hand, which is why both carry comments pointing at each other. A token added here without
 being added to `apps/web/src/styles.css` renders correctly in Storybook and transparent in the app.
+
+One optional input arrives outside the token layer: `HeaderGlass` reads `data-page-transition` on
+`<html>`, which `@chatic/shared`'s `useNavigateWithTransition` sets while a navigation runs. A host
+that never sets it — Storybook, or a navigation that does not go through that hook — gets glass
+headers that fade in at mount, as they did before the attribute existed.
 
 ## Scenarios
 
