@@ -2,6 +2,13 @@
 
 ## [2026-10-02] - No version updates
 
+### Bug Fixes
+
+- (shared,web-ui-kit) keep the glass header opaque through the page slide (ADR-0164)
+- (web/channels) load older history before the reader reaches the top, not at it
+
+## [2026-10-02] - No version updates
+
 ### Features
 
 - (web,config) show phone sign-in in production, not only in dev builds (ADR-0163)
