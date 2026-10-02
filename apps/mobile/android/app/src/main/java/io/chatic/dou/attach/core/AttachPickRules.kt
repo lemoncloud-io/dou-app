@@ -184,6 +184,7 @@ object AttachPickRules {
      *
      * The path is judged twice: as written, normalised (a `..` segment is refused outright rather than
      * resolved), and again after links are resolved, so a symbolic link cannot point out of its folder.
+     * The accepted file keeps the written path.
      */
     fun checkPicked(uri: String?, root: File): PickedCheck {
         if (uri.isNullOrBlank()) return PickedCheck.Invalid("uri is required")
@@ -220,7 +221,10 @@ object AttachPickRules {
         }
         if (!isPickedPath(real.path, realRoot)) return PickedCheck.Invalid("resolves outside its pick folder")
         if (!real.isFile) return PickedCheck.Invalid("not a file")
-        return PickedCheck.Accepted(real)
+        // The file as written, not as resolved: what is made from it (the URI a `PrepareVideo` answers,
+        // the poster beside it) goes to the upload rule, which also compares the written path with the
+        // cache directory as Android names it (`/data/user/0/…`, a link to `/data/data/…`).
+        return PickedCheck.Accepted(file)
     }
 
     /**

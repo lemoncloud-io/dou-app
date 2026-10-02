@@ -178,8 +178,23 @@ class AttachPickRulesTest {
         val root = pickRoot()
         val file = File(root, "uuid/IMG_0001.jpg").also { it.parentFile!!.mkdirs(); it.writeText("x") }
         val check = AttachPickRules.checkPicked(file.toURI().toString(), root)
-        assertEquals(PickedCheck.Accepted(file.canonicalFile), check)
-        assertEquals(PickedCheck.Accepted(file.canonicalFile), AttachPickRules.checkPicked("file://${file.path}", root))
+        assertEquals(PickedCheck.Accepted(file), check)
+        assertEquals(PickedCheck.Accepted(file), AttachPickRules.checkPicked("file://${file.path}", root))
+    }
+
+    @Test
+    fun aFileReachedThroughALinkedCacheKeepsItsWrittenPathSoItsUploadIsAllowed() {
+        // Android's cache directory is `/data/user/0/<package>/cache`, a link to `/data/data/<package>/cache`.
+        val realCache = File(temp.root, "data-data/cache").also { it.mkdirs() }
+        val linkedCache = File(temp.root, "data-user-0-cache").also { Files.createSymbolicLink(it.toPath(), realCache.toPath()) }
+        val root = File(linkedCache, AttachPickRules.FOLDER)
+        val file = File(root, "uuid/video-20261001-184217.mp4").also { it.parentFile!!.mkdirs(); it.writeText("x") }
+
+        val check = AttachPickRules.checkPicked("file://${file.path}", root)
+
+        assertEquals(PickedCheck.Accepted(file), check)
+        val accepted = (check as PickedCheck.Accepted).file
+        assertTrue(io.chatic.dou.transfer.core.UploadSources.isAllowed(accepted.toURI().toString(), listOf(root)))
     }
 
     @Test
