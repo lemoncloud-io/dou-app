@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-02] - No version updates
+
+### Features
+
+- (ui-kit,web,web-ui-kit) move the snackbar to the bottom, swiped down to dismiss (ADR-0160)
+
 ## [2026-10-02] - root@0.82.0, @chatic/web@0.63.0, @chatic/landing@0.5.4, @chatic/desktop-web@0.19.2
 
 ### Features
