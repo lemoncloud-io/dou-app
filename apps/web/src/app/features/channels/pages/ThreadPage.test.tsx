@@ -11,6 +11,8 @@ let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' }
 let mockMyJoin: { joinedNo?: number } | null = null;
 let mockChatParams: unknown = null;
 let mockHasMore = false;
+let mockCanLoadMore = true;
+const mockLoadMore = jest.fn();
 const mockSendMessage = jest.fn();
 
 jest.mock('react-router-dom', () => ({
@@ -128,7 +130,8 @@ jest.mock('../hooks', () => ({
             isLoading: mockIsLoading,
             hasMore: mockHasMore,
             isLoadingMore: false,
-            loadMore: jest.fn(),
+            loadMore: mockLoadMore,
+            canLoadMore: mockCanLoadMore,
         };
     },
     useDmPeer: () => null,
@@ -171,6 +174,8 @@ beforeEach(() => {
     mockMyJoin = null;
     mockChatParams = null;
     mockHasMore = false;
+    mockCanLoadMore = true;
+    mockLoadMore.mockReset();
     mockSendMessage.mockReset().mockResolvedValue({});
 });
 
@@ -360,6 +365,28 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         // `content` it is handed, so its JSON is the harness, not the app.
         expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
         expect(screen.getByText('503 upstream timeout')).toBeInTheDocument();
+    });
+});
+
+describe('ThreadPage — load older', () => {
+    it("sends 'load older' as a person's request, past a failed page's retry wait", () => {
+        mockMyJoin = { joinedNo: 0 };
+        mockHasMore = true;
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByText('chat.thread.loadOlder'));
+
+        expect(mockLoadMore).toHaveBeenCalledWith({ immediate: true });
+    });
+
+    it("keeps 'load older' disabled while no page can be sent, so a press is never dropped", () => {
+        mockMyJoin = { joinedNo: 0 };
+        mockHasMore = true;
+        mockCanLoadMore = false;
+
+        render(<ThreadPage />);
+
+        expect(screen.getByText('chat.thread.loadOlder')).toBeDisabled();
     });
 });
 

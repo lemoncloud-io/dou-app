@@ -196,7 +196,9 @@ profile map.
   returned `chatNo`, because a reply consumes a channel chatNo like any other row.
 - **A root that has paged out** shows `chat.thread.unavailable` and, while `hasMore`, a "load older"
   button — the derivation is bounded by the loaded window, so the honest answer is to offer more of
-  it.
+  it. A press is a person asking, so it is sent at once (`loadMore({ immediate: true })`) rather than
+  held behind a failed page's retry wait, and the button is disabled while the socket cannot carry
+  it (`canLoadMore`), so a press is never silently dropped.
 - The room hands the root across in navigation state (`state: { rootChat }`), because the cache's
   first emission is asynchronous even when warm and the thread would otherwise open on a spinner
   under a translucent header.

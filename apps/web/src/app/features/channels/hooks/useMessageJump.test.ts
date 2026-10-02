@@ -138,6 +138,84 @@ describe('useMessageJump', () => {
         expect(useMessageJumpStore.getState().target).toBeNull();
     });
 
+    it('waits for the last page of its budget to land before giving up', () => {
+        const containerRef = setup();
+        useMessageJumpStore.getState().request('ch-1', 999);
+
+        const { rerender } = renderHook(
+            ({ hasMore, isLoadingMore }) =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore,
+                    isLoadingMore,
+                    loadMore,
+                    loadUntil,
+                }),
+            { initialProps: { hasMore: true, isLoadingMore: false } }
+        );
+        for (let i = 0; i < 7; i += 1) rerender({ hasMore: true, isLoadingMore: false });
+        expect(loadMore).toHaveBeenCalledTimes(8);
+
+        // The eighth page is still landing: its rows may hold the target.
+        rerender({ hasMore: true, isLoadingMore: true });
+        expect(toast).not.toHaveBeenCalled();
+
+        rerender({ hasMore: true, isLoadingMore: false });
+        expect(toast).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not give up on the last page of history while it is still landing', () => {
+        const containerRef = setup();
+        useMessageJumpStore.getState().request('ch-1', 999);
+
+        const { rerender } = renderHook(
+            ({ hasMore, isLoadingMore }) =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore,
+                    isLoadingMore,
+                    loadMore,
+                    loadUntil,
+                }),
+            { initialProps: { hasMore: false, isLoadingMore: true } }
+        );
+        expect(toast).not.toHaveBeenCalled();
+
+        rerender({ hasMore: false, isLoadingMore: false });
+        expect(toast).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not spend its budget while no page can be sent, and pages once one can', () => {
+        const containerRef = setup();
+        useMessageJumpStore.getState().request('ch-1', 999);
+
+        const { rerender } = renderHook(
+            ({ canLoadMore }) =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    canLoadMore,
+                    loadUntil,
+                }),
+            { initialProps: { canLoadMore: false } }
+        );
+        expect(loadMore).not.toHaveBeenCalled();
+        expect(toast).not.toHaveBeenCalled();
+
+        rerender({ canLoadMore: true });
+        expect(loadMore).toHaveBeenCalledTimes(1);
+        // Someone asked to see this message: a failed page's retry wait does not hold it.
+        expect(loadMore).toHaveBeenCalledWith({ immediate: true });
+    });
+
     it('widens the cache window before paging, and waits for it', () => {
         // The target normally came from a cache search, so it is already stored locally — only the
         // observe window was too narrow. Paging the server for it wasted the jump budget.
