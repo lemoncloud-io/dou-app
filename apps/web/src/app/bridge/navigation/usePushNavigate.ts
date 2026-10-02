@@ -204,6 +204,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                         await land();
                         return;
                     }
+                    // Each await below is marked as it finishes, so a slow switch says which step held
+                    // it: `switch_done` alone cannot tell this wait from the token exchange or the
+                    // place switch. A step that did not run leaves no mark.
+                    roomOpenTrace.mark(roomChannelId, 'handshake_done');
                     // Native cold-DB eviction can drop an INVITED source cloud from the cache, so a
                     // deep-link / push-tap into it would have nothing to switch to. Re-derive and
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
@@ -211,10 +215,12 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // points behave identically. Relay-backed, so it runs after the handshake gate.
                     if (cid && !isRelayPush && runtime.boot.isNativeApp()) {
                         await runtime.data.recoverInvitedCloudIfMissing(cloud, cid);
+                        roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }
                     // Cloud transition first (it clears the selected site), then site, then route.
                     if (needsRelayReturn) await logoutCloudSession();
                     if (cid && needsCloudSwitch) await switchCloud(cid);
+                    if (needsRelayReturn || needsCloudSwitch) roomOpenTrace.mark(roomChannelId, 'cloud_done');
                     if (sid && needsSiteSwitch) await switchSite(sid);
                     roomOpenTrace.mark(roomChannelId, 'switch_done');
                 }

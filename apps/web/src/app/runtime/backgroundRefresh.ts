@@ -21,6 +21,6 @@ export const registerBackgroundRefresh = (next: RefreshHandler): (() => void) =>
 /**
  * Runs the background sync once, now, and settles when it has. With no runner mounted — signed
  * out, or a test that renders a screen alone — there is nothing to refresh, and it resolves at once
- * rather than leaving a caller's spinner up.
+ * rather than leaving a caller's indicator up.
  */
 export const requestBackgroundRefresh = (): Promise<void> => (handler ? handler() : Promise.resolve());

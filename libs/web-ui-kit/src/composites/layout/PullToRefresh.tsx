@@ -2,14 +2,21 @@ import * as React from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-/** Pull distance, after resistance, at which a release starts a refresh. */
+import { douLogo } from '../../resources/assets';
+
+/** Pull distance, after resistance, at which the gauge is full and the refresh starts. */
 export const PULL_TO_REFRESH_THRESHOLD = 64;
+/**
+ * Steps the gauge fills in. Each one crossed on the way down is a tick, and the last one is the fill
+ * itself — so a full pull is felt as a run of ticks that ends in the stronger tap of the refresh.
+ */
+export const PULL_TO_REFRESH_STEPS = 8;
 /** How far the content can be dragged at most, so a long pull does not drag the list off screen. */
 const MAX_PULL = 120;
 /** Finger travel is halved on the way down, which is what makes the pull read as elastic. */
 const RESISTANCE = 0.5;
-/** Where the content rests while a refresh is running: the spinner's own slot. */
-const REFRESHING_OFFSET = 56;
+/** Where the content rests while a refresh is running: the indicator's own slot (40px disc, 12px each side). */
+const REFRESHING_OFFSET = 64;
 /**
  * Finger travel before a touch is judged a pull or a scroll. iOS reports moves of a pixel, so the
  * first one alone is jitter — often `dy === 0` or a sideways twitch on what is plainly a pull.
@@ -23,11 +30,14 @@ export const TOUCH_DIRECTION_SLOP = 6;
 const DIRECTION_SLOP = TOUCH_DIRECTION_SLOP;
 /** Default for `maxRefreshMs`. */
 const DEFAULT_MAX_REFRESH_MS = 10_000;
-/** The indicator's ring, in its 24-unit viewBox. */
-const RING_RADIUS = 9;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-/** How much of the ring the running arc leaves open. */
-const RUNNING_ARC_GAP = 0.72;
+/**
+ * How far, in pull pixels, the pull has to fall back below a step it ticked before that step can tick
+ * again. A step is 8px of pull and the pull moves in half pixels, so without this a finger resting on
+ * a boundary would buzz with every tremble.
+ */
+const TICK_HYSTERESIS = 3;
+/** Length of the pop the character gives when the gauge fills; its wobble starts once it is done. */
+const FILL_POP_MS = 320;
 
 /**
  * Finger travel → how far the content moves. Upward travel is no pull at all, and the result is
@@ -36,26 +46,40 @@ const RUNNING_ARC_GAP = 0.72;
 export const resolvePullDistance = (deltaY: number): number =>
     deltaY <= 0 ? 0 : Math.min(deltaY * RESISTANCE, MAX_PULL);
 
+/**
+ * Pull distance → how many of the gauge's {@link PULL_TO_REFRESH_STEPS} steps are filled. Reaching
+ * the last step is reaching the threshold.
+ */
+export const resolvePullStep = (pull: number): number =>
+    Math.min(Math.floor((pull / PULL_TO_REFRESH_THRESHOLD) * PULL_TO_REFRESH_STEPS), PULL_TO_REFRESH_STEPS);
+
 export interface PullToRefreshProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
     /**
-     * Runs when a pull is released past the threshold. The spinner stays up until the returned
-     * promise settles or `maxRefreshMs` passes, and a pull made while it is still up is ignored.
+     * Runs the moment a pull fills the gauge — the finger does not have to let go. The indicator
+     * stays up until the returned promise settles or `maxRefreshMs` passes, and a pull made while it
+     * is still up is ignored.
      */
     onRefresh: () => Promise<unknown>;
     /**
-     * The longest the spinner waits on `onRefresh`. The work itself is not cancelled — only the
-     * spinner stops waiting — so a request stuck on a socket nobody has noticed is dead yet cannot
+     * The longest the indicator waits on `onRefresh`. The work itself is not cancelled — only the
+     * indicator stops waiting — so a request stuck on a socket nobody has noticed is dead yet cannot
      * hold the list down, and the gesture, for as long as that request's own timeout.
      */
     maxRefreshMs?: number;
     /** Turns the gesture off; the container still scrolls. */
     disabled?: boolean;
     /**
-     * Fires when a pull crosses the threshold on the way down — the moment letting go would refresh.
-     * Once per crossing: pulling back above it and down again fires again. The host's hook for
-     * feedback, such as a haptic tick; the kit has no way to make one itself.
+     * Fires each time a pull fills one more step of the gauge on the way down, short of the last.
+     * Pulling back and down again ticks again, like a ratchet. A move that skips several steps at
+     * once ticks once: a burst in a single frame would be felt as one buzz anyway. The host's hook
+     * for feedback, such as a light haptic; the kit has no way to make one itself.
      */
-    onArm?: () => void;
+    onTick?: () => void;
+    /**
+     * Fires when the gauge fills, right before `onRefresh` — once per touch. The host's hook for the
+     * stronger feedback that says the refresh has started.
+     */
+    onFill?: () => void;
     /** Accessible name of the running-refresh status. */
     refreshingLabel?: string;
     /**
@@ -66,11 +90,24 @@ export interface PullToRefreshProps extends Omit<React.HTMLAttributes<HTMLDivEle
     children: React.ReactNode;
 }
 
-type Gesture = { id: number; target: EventTarget; startX: number; startY: number; pulling: boolean };
+type Gesture = {
+    id: number;
+    target: EventTarget;
+    startX: number;
+    startY: number;
+    pulling: boolean;
+    /** The highest step this touch has ticked and not since fallen clear of. */
+    tickedStep: number;
+    /** This touch filled the gauge: it has started its refresh and makes no more ticks. */
+    filled: boolean;
+};
 
 /**
- * Scroll container with pull-to-refresh: at the top of the list, dragging down reveals a spinner,
- * and releasing past {@link PULL_TO_REFRESH_THRESHOLD} calls `onRefresh`.
+ * Scroll container with pull-to-refresh: at the top of the list, dragging down reveals the DoU
+ * character in a disc that fills like a gauge, and filling it — reaching
+ * {@link PULL_TO_REFRESH_THRESHOLD} — calls `onRefresh` there and then, finger still down. Waiting
+ * for the release would make the full gauge a promise rather than the event; starting on the fill
+ * lets the strongest feedback land at the moment the refresh actually begins.
  *
  * It is the scroll container itself rather than a wrapper around one, because the gesture has to
  * know `scrollTop` at the moment the finger lands — a pull only starts from the very top, so a
@@ -79,7 +116,7 @@ type Gesture = { id: number; target: EventTarget; startX: number; startY: number
  *
  * Touch listeners are attached natively. React registers touch handlers as passive, and a passive
  * `touchmove` cannot `preventDefault` — the WebView would then rubber-band the list underneath the
- * spinner instead of letting the pull move it. Only a move that is, or may still become, a pull is
+ * indicator instead of letting the pull move it. Only a move that is, or may still become, a pull is
  * cancelled; every other move scrolls as it always did.
  *
  * Only `touchstart` sits on the container. The rest of a touch is followed on the element the
@@ -96,7 +133,8 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
         {
             onRefresh,
             maxRefreshMs = DEFAULT_MAX_REFRESH_MS,
-            onArm,
+            onTick,
+            onFill,
             disabled = false,
             refreshingLabel = 'Refreshing',
             className,
@@ -111,6 +149,10 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
         const [isRefreshing, setIsRefreshing] = React.useState(false);
         // The finger is on the content: it follows the pull 1:1, with no easing to lag behind.
         const [isDragging, setIsDragging] = React.useState(false);
+        // How full the gauge reads, 0–1. Set only by the finger and the fill, never by the list settling
+        // back, so the indicator keeps the reading it had while it rides up with the collapsing slot
+        // instead of emptying on the first frame.
+        const [gauge, setGauge] = React.useState(0);
         // Mirrors of the state above, for the native listeners: they are attached once, so reading
         // state through the closure would see the values from the render that attached them.
         const pullRef = React.useRef(0);
@@ -119,8 +161,10 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
         onRefreshRef.current = onRefresh;
         const maxRefreshMsRef = React.useRef(maxRefreshMs);
         maxRefreshMsRef.current = maxRefreshMs;
-        const onArmRef = React.useRef(onArm);
-        onArmRef.current = onArm;
+        const onTickRef = React.useRef(onTick);
+        onTickRef.current = onTick;
+        const onFillRef = React.useRef(onFill);
+        onFillRef.current = onFill;
 
         const setRefs = React.useCallback(
             (node: HTMLDivElement | null) => {
@@ -144,11 +188,52 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                 setPull(value);
             };
 
-            // Only a finger's pull arms; the list settling at the refreshing offset or back to 0 does not.
-            const followFinger = (value: number) => {
-                const wasArmed = pullRef.current >= PULL_TO_REFRESH_THRESHOLD;
+            // Where the content goes once no finger holds it: the indicator's slot while a refresh
+            // runs, otherwise back to the top.
+            const restingPull = () => (refreshingRef.current ? REFRESHING_OFFSET : 0);
+
+            const startRefresh = () => {
+                refreshingRef.current = true;
+                setIsRefreshing(true);
+                // A rejected refresh must still put the list back, and so must one that never
+                // answers — the race below stops the waiting, not the work.
+                let timer: ReturnType<typeof setTimeout> | undefined;
+                const cap = new Promise<void>(resolve => {
+                    timer = setTimeout(resolve, maxRefreshMsRef.current);
+                });
+                const work = Promise.resolve()
+                    .then(() => onRefreshRef.current())
+                    .catch(() => undefined);
+                void Promise.race([work, cap]).finally(() => {
+                    clearTimeout(timer);
+                    refreshingRef.current = false;
+                    setIsRefreshing(false);
+                    // Settled with the finger still down: the content stays under it, and the
+                    // release puts it back.
+                    if (!gesture?.pulling) updatePull(0);
+                });
+            };
+
+            // Only a finger's pull ticks and fills; the list settling into its slot or back to 0 does not.
+            const followFinger = (active: Gesture, value: number) => {
                 updatePull(value);
-                if (!wasArmed && value >= PULL_TO_REFRESH_THRESHOLD) onArmRef.current?.();
+                if (active.filled) return;
+                const step = resolvePullStep(value);
+                if (step >= PULL_TO_REFRESH_STEPS) {
+                    active.filled = true;
+                    setGauge(1);
+                    onFillRef.current?.();
+                    startRefresh();
+                    return;
+                }
+                setGauge(value / PULL_TO_REFRESH_THRESHOLD);
+                if (step > active.tickedStep) {
+                    active.tickedStep = step;
+                    onTickRef.current?.();
+                    return;
+                }
+                // Pulling back re-arms a step only once the pull is clear of its boundary.
+                active.tickedStep = Math.min(active.tickedStep, resolvePullStep(value + TICK_HYSTERESIS));
             };
 
             const findTouch = (list: TouchList, id: number): Touch | null => {
@@ -166,14 +251,15 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                 target.removeEventListener('touchcancel', handleCancel);
             };
 
-            // Drops the touch without committing it: the list goes back and nothing refreshes.
+            // Lets go of the touch without a release. Short of the fill nothing refreshes and the list
+            // goes back; past it the refresh already started, and the list settles into its slot.
             const abandon = () => {
                 const wasPulling = gesture?.pulling === true;
                 stopFollowing(gesture?.target);
                 gesture = null;
                 if (!wasPulling) return;
                 setIsDragging(false);
-                updatePull(0);
+                updatePull(restingPull());
             };
 
             const handleStart = (event: TouchEvent) => {
@@ -187,6 +273,8 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                     startX: touch.clientX,
                     startY: touch.clientY,
                     pulling: false,
+                    tickedStep: 0,
+                    filled: false,
                 };
                 // A second finger can land anywhere, so that one is heard on the document.
                 document.addEventListener('touchstart', handleExtraTouch, { passive: true });
@@ -195,8 +283,8 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                 target.addEventListener('touchcancel', handleCancel);
             };
 
-            // A second finger makes it a pinch or a stray touch, not a pull — and there is no single
-            // finger left whose release would mean "refresh".
+            // A second finger makes it a pinch or a stray touch, not a pull: the gauge stops where it is
+            // and, short of full, refreshes nothing.
             const handleExtraTouch = (event: TouchEvent) => {
                 if (event.touches.length > 1) abandon();
             };
@@ -229,7 +317,7 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                     setIsDragging(true);
                 }
                 if (event.cancelable) event.preventDefault();
-                followFinger(resolvePullDistance(deltaY));
+                followFinger(gesture, resolvePullDistance(deltaY));
             };
 
             const handleEnd = (event: TouchEvent) => {
@@ -239,50 +327,21 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                 gesture = null;
                 if (!wasPulling) return;
                 setIsDragging(false);
-                if (pullRef.current < PULL_TO_REFRESH_THRESHOLD) {
-                    updatePull(0);
-                    return;
-                }
-                refreshingRef.current = true;
-                setIsRefreshing(true);
-                updatePull(REFRESHING_OFFSET);
-                // A rejected refresh must still put the list back, and so must one that never
-                // answers — the race below stops the waiting, not the work.
-                let timer: ReturnType<typeof setTimeout> | undefined;
-                const cap = new Promise<void>(resolve => {
-                    timer = setTimeout(resolve, maxRefreshMsRef.current);
-                });
-                const work = Promise.resolve()
-                    .then(() => onRefreshRef.current())
-                    .catch(() => undefined);
-                void Promise.race([work, cap]).finally(() => {
-                    clearTimeout(timer);
-                    refreshingRef.current = false;
-                    setIsRefreshing(false);
-                    updatePull(0);
-                });
+                updatePull(restingPull());
             };
 
-            // The system took the touch (a call, an OS gesture): that is not a release, so the pull
-            // is dropped rather than committed.
+            // The system took the touch (a call, an OS gesture). It is not a release, but the refresh
+            // starts on the fill, not on the release, so all that is left to decide is where the list rests.
             const handleCancel = () => abandon();
 
             node.addEventListener('touchstart', handleStart, { passive: true });
             return () => {
                 node.removeEventListener('touchstart', handleStart);
                 // Disabled or unmounted mid-drag: no release will ever reach us, so put the content
-                // back now. A refresh already running settles on its own.
-                if (refreshingRef.current) {
-                    stopFollowing(gesture?.target);
-                    gesture = null;
-                } else {
-                    abandon();
-                }
+                // where it rests now. A refresh already running settles on its own.
+                abandon();
             };
         }, [disabled]);
-
-        const progress = Math.min(pull / PULL_TO_REFRESH_THRESHOLD, 1);
-        const armed = isDragging && pull >= PULL_TO_REFRESH_THRESHOLD;
 
         return (
             <div ref={setRefs} className={cn('relative overscroll-y-contain', className)} {...rest}>
@@ -297,7 +356,7 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
                     )}
                     style={{ height: pull }}
                 >
-                    <RefreshIndicator progress={progress} armed={armed} refreshing={isRefreshing} />
+                    <RefreshIndicator gauge={gauge} refreshing={isRefreshing} />
                 </div>
                 <div
                     className={cn(!isDragging && 'transition-transform duration-200 ease-out', contentClassName)}
@@ -311,59 +370,71 @@ export const PullToRefresh = React.forwardRef<HTMLDivElement, PullToRefreshProps
 );
 PullToRefresh.displayName = 'PullToRefresh';
 
+const prefersReducedMotion = () =>
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+
 /**
- * A small raised disc with a ring in it. While the finger pulls, the ring fills with the distance
- * still to go and the disc grows into place; at the threshold the ring completes in the accent colour
- * and the disc overshoots a little, so "let go now" is visible as well as felt. While the refresh
- * runs, the ring becomes an open arc that turns. On the way out the disc rides up with the collapsing
- * slot, so the end needs no separate animation.
+ * A small raised disc holding the DoU character, filled from the bottom in the accent colour as the
+ * pull goes on — the gauge. The character grows, straightens and takes on its colour with the fill.
+ * When the gauge fills it pops, and while the refresh runs it wobbles. On the way out the disc rides
+ * up with the collapsing slot, so the end needs no separate animation.
+ *
+ * The pop and the wobble are Web Animations, not Tailwind classes: the kit only uses the animations
+ * every host already has, and these keyframes would otherwise have to be added to each host's
+ * config. A WebView without the API, or a reader who asked for reduced motion, simply gets a still
+ * character in a full disc.
  */
-const RefreshIndicator = ({
-    progress,
-    armed,
-    refreshing,
-}: {
-    progress: number;
-    armed: boolean;
-    refreshing: boolean;
-}) => {
-    const scale = refreshing ? 1 : armed ? 1.08 : 0.6 + 0.4 * progress;
-    const accent = armed || refreshing;
+const RefreshIndicator = ({ gauge, refreshing }: { gauge: number; refreshing: boolean }) => {
+    const characterRef = React.useRef<HTMLImageElement | null>(null);
+    const level = refreshing ? 1 : gauge;
+
+    React.useEffect(() => {
+        const character = characterRef.current;
+        if (!refreshing || !character || typeof character.animate !== 'function' || prefersReducedMotion()) return;
+        const pop = character.animate(
+            [{ transform: 'scale(1)' }, { transform: 'scale(1.22)' }, { transform: 'scale(1)' }],
+            { duration: FILL_POP_MS, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+        );
+        const wobble = character.animate(
+            [
+                { transform: 'translateY(0) rotate(0deg)' },
+                { transform: 'translateY(-2px) rotate(-10deg)' },
+                { transform: 'translateY(0) rotate(0deg)' },
+                { transform: 'translateY(-2px) rotate(10deg)' },
+                { transform: 'translateY(0) rotate(0deg)' },
+            ],
+            { duration: 1100, delay: FILL_POP_MS, iterations: Infinity, easing: 'ease-in-out' }
+        );
+        return () => {
+            pop.cancel();
+            wobble.cancel();
+        };
+    }, [refreshing]);
+
     return (
         <span
-            data-armed={armed || undefined}
-            className="mb-3 flex size-8 items-center justify-center rounded-full border-[0.5px] border-input-border/70 bg-surface shadow-[0_2px_12px_0_rgba(0,0,0,0.08)] transition-transform duration-200"
-            // The overshooting curve is what makes the threshold read as a snap rather than a fade.
-            style={{
-                opacity: refreshing ? 1 : progress,
-                transform: `scale(${scale})`,
-                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}
+            data-filled={refreshing || undefined}
+            className="relative mb-3 flex size-10 items-center justify-center overflow-hidden rounded-full border-[0.5px] border-input-border/70 bg-surface shadow-[0_2px_12px_0_rgba(0,0,0,0.08)]"
+            style={{ opacity: level, transform: `scale(${0.6 + 0.4 * level})` }}
         >
-            <svg viewBox="0 0 24 24" aria-hidden className={cn('size-5', refreshing && 'animate-spin')}>
-                <circle
-                    cx="12"
-                    cy="12"
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    className="text-muted"
-                />
-                <circle
-                    cx="12"
-                    cy="12"
-                    r={RING_RADIUS}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeDasharray={RING_CIRCUMFERENCE}
-                    strokeDashoffset={RING_CIRCUMFERENCE * (refreshing ? RUNNING_ARC_GAP : 1 - progress)}
-                    transform="rotate(-90 12 12)"
-                    className={cn('transition-colors duration-150', accent ? 'text-main-accent' : 'text-description')}
-                />
-            </svg>
+            {/* The fill. Its top edge is the gauge's reading, so it tracks the pull with no easing. */}
+            <span
+                aria-hidden
+                className="absolute inset-0 bg-main-accent"
+                style={{ transform: `translateY(${(1 - level) * 100}%)` }}
+            />
+            <img
+                ref={characterRef}
+                src={douLogo}
+                alt=""
+                aria-hidden
+                draggable={false}
+                className="relative w-7"
+                style={{
+                    filter: `grayscale(${1 - level})`,
+                    transform: `scale(${0.75 + 0.25 * level}) rotate(${-18 * (1 - level)}deg)`,
+                }}
+            />
         </span>
     );
 };

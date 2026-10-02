@@ -70,4 +70,17 @@ describe('haptics', () => {
         expect(triggerHaptic).toHaveBeenCalledTimes(2);
         expect(postHaptic).not.toHaveBeenCalled();
     });
+
+    it('drops haptics while the first request is unanswered, so a burst sends one request', async () => {
+        haptics.play('selection');
+        haptics.play('selection');
+        haptics.play('impact');
+
+        expect(triggerHaptic).toHaveBeenCalledTimes(1);
+        expect(postHaptic).not.toHaveBeenCalled();
+
+        await settle();
+        haptics.play('impact');
+        expect(postHaptic).toHaveBeenCalledWith('impact');
+    });
 });

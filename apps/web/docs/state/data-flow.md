@@ -185,12 +185,12 @@ a cloud switch (already handled by Trigger 1) is not double-fetched.
 `AppRuntime`, so a screen cannot call into it; it registers a handler in
 `app/runtime/backgroundRefresh.ts`, and the screen calls `requestBackgroundRefresh()`, which settles
 when the pass has. The pass is Trigger 1's — lists plus `loadSelfChannel()` — under Trigger 3's
-guards: unverified or mid-switch, nothing is sent and the request settles at once, so a spinner
+guards: unverified or mid-switch, nothing is sent and the request settles at once, so an indicator
 never waits on a socket answering for the wrong session. A request made while one is still running
 joins it instead of starting a second pass, since two passes read the same delta watermark and the
 last to answer writes it. The place snapshot is awaited inside `Promise.all` rather than
 fired and forgotten: the automatic triggers ignore the returned promise either way, but a pull has
-to keep its spinner up until the place rail has been re-asked too.
+to keep its indicator up until the place rail has been re-asked too.
 
 **Chat feed.** The chat plan has no poll — only live push and reconnect catch-up — so a missed push
 does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` complements
