@@ -56,8 +56,9 @@ belongs to the viewer's save or share, which acknowledges it once the file is us
 ## Picking — `useChatImageAttach`
 
 The composer's leading button opens the attach menu — photos, camera, files. "Files" opens a second
-sheet (`AttachSourceSheet`): choose from the album (photos and videos) or from files (documents). How
-photos are picked from the photos entry depends on the shell:
+sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and then from the album
+(photos and videos). The design also shows a third row, document scan; it is not drawn, since no
+shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
 
 | Shell                                   | Photos                                                               |
 | --------------------------------------- | -------------------------------------------------------------------- |
@@ -166,7 +167,6 @@ tile drew it — until the original has arrived, so a large original opens on a 
 black. The viewer reaches the images behind the "+n" tile too, and skips
 broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
-The showing photo zooms, in the kit's `MediaViewer` with its arithmetic in `imageZoom.ts`. A pinch
 The viewer slides up from the bottom edge as it opens and back down as it closes. A downward drag
 pulls it after the finger while the black behind it fades; released past a sixth of the screen height
 (at least 96 px), or flicked down past 48 px, it carries on down and closes, otherwise it settles back.
@@ -176,6 +176,7 @@ viewer keeps its last position through the close instead of falling back to the 
 stops the moment the close starts. A zoomed photo pans on a downward drag instead of closing, and a
 drag on a video's controls is left to them.
 
+The showing photo zooms, in the kit's `MediaViewer` with its arithmetic in `imageZoom.ts`. A pinch
 scales it around the point between the fingers, up to four times. A double tap on it zooms to 2.5
 times at that point, or back out. While it is zoomed, a one-finger drag pans it instead of turning
 the page, and the photo's edge cannot be pulled off the page. A tap beside a zoomed photo does not
