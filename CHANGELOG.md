@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-02] - No version updates
+
+### Features
+
+- (web,config) show phone sign-in in production, not only in dev builds (ADR-0163)
+
 ## [2026-10-02] - root@0.83.0, @chatic/web@0.64.0, @chatic/desktop-web@0.19.3
 
 ### Features
