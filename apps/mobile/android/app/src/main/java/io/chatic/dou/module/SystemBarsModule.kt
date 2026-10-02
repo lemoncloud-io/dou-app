@@ -28,7 +28,15 @@ class SystemBarsModule(reactContext: ReactApplicationContext) : ReactContextBase
                 val window = activity.window
                 val decorView = window.decorView
 
-                window.navigationBarColor = Color.TRANSPARENT
+                // From Q on, React Native's edge-to-edge setup already leaves the navigation bar
+                // transparent, and Android 15 deprecates this setter. On Android 8-9 it paints a
+                // scrim that follows the OS dark mode rather than the app theme, which can put
+                // light icons on a light scrim — that is what the override is for. Android 7 is
+                // overridden too, as it always was, though it cannot tint the icons.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    @Suppress("DEPRECATION")
+                    window.navigationBarColor = Color.TRANSPARENT
+                }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     window.isStatusBarContrastEnforced = false

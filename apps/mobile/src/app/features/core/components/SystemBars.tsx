@@ -50,5 +50,7 @@ export const SystemBars = () => {
         };
     }, [isDark]);
 
-    return <StatusBar barStyle={barStyle} backgroundColor="transparent" translucent={true} />;
+    // No `backgroundColor`/`translucent`: the app runs edge-to-edge, where React Native ignores
+    // both on Android and only logs that it did.
+    return <StatusBar barStyle={barStyle} />;
 };
