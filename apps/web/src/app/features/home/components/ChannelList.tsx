@@ -44,6 +44,7 @@ import { isSomeoneElsesSelfChat } from '../../channels/utils/membership';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChats } from '../../../hooks/useLastChats';
+import { readSelectedCloudId } from '../../../hooks/useCloudScope';
 import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../hooks';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { readMarkRegistry } from '../../../runtime/logging/readMarkRegistry';
@@ -259,8 +260,11 @@ const ChannelItem = ({
             // Hand the row's channel across so the room renders its header instantly instead of
             // re-resolving a row that was just on screen (ADR-0058; same pattern as openThread).
             // The room-open trace starts before the page transition, which is part of the wait.
+            // The room's fetch starts here too, so it is under way while the transition runs instead of
+            // after the room mounts. The trace has to exist first: the fetch takes it.
             onClick={() => {
                 roomOpenTrace.begin(channel.id, 'list');
+                void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
                 navigate(ROUTES.channels.room(channel.id), { state: { channel } });
             }}
         />

@@ -231,7 +231,8 @@ observer per cache per screen, not a convenience.
 - **Do not fetch on mount to fill a screen.** The sync layer primes a cold room
   (`usePrimeChat`) and `useForegroundChatRefresh` covers a warm one. The two conditions are
   mirrored on purpose — cold fetches there, warm fetches here, every entry fetches exactly once.
-  Add a third and every room entry doubles its requests.
+  Add a third and every room entry doubles its requests. The row tap's `prefetchRoomFeed` is not a
+  third: it starts the same `fetchRoomFeed` the two join, so a list entry still sends one request.
 - **Do not derive display names in a list row with `useChannelTitle`.** It calls `useMyProfile`,
   which triggers a fetch per call. Lists resolve `myNick` once in the parent and call
   `resolveChannelTitle` directly.

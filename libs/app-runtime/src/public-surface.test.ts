@@ -98,8 +98,10 @@ const GROUPS: Record<string, readonly string[]> = {
         'waitForCloudSocket',
     ],
     sync: [
+        'fetchRoomFeed',
         'getSyncManager',
         'isChannelRefused',
+        'prefetchRoomFeed',
         'refreshBackgroundClouds',
         'subscribeBackgroundDeltas',
         'subscribeRefusedChannels',

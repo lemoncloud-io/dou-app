@@ -121,8 +121,9 @@ console. The trace's own duration means nothing.
 
 ### Traces several modules contribute to: the active trace
 
-`chat_room_sync` is begun by a tap in the web, has its phases marked by the sync hooks in
-`libs/app-runtime`, and is ended by the room page. None of them can hand the handle to the next, so
+`chat_room_sync` is begun by a tap in the web, has its phases marked by `fetchRoomFeed` in
+`libs/app-runtime` (which the tap itself can start, before the room exists), and is ended by the room
+page. None of them can hand the handle to the next, so
 they meet at `setActivePerfTrace(name, subject, trace)` / `getActivePerfTrace(name, subject)`: one
 trace in progress per name, keyed by what it is about (the channel, here).
 

@@ -197,7 +197,13 @@ does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` co
 `usePrimeChat` (which fetches only a _cold_ room): it re-aligns the plan baseline and refetches the
 latest page, but only for a _warm_ room, on entry (gated on `isVerified`, to protect a cold start)
 and again on every foreground return (not gated — a socket that resumed in a stuck "verified but
-dead" state would otherwise never get a retry). Keep the two conditions mirrored if either changes. The
+dead" state would otherwise never get a retry). Keep the two conditions mirrored if either changes.
+Both send their fetch through `runtime.sync.fetchRoomFeed`, which hands a caller the room's fetch
+already in flight, or one that finished within two seconds. The home list's row tap starts that fetch
+(`runtime.sync.prefetchRoomFeed`), so on a list entry the request is out during the page transition,
+and the hook that applies joins it rather than sending its own. The foreground-return refresh is the
+exception: it passes `fresh` and always sends, because a fetch still in flight may predate the
+suspension whose missed pushes it is there to recover. The
 cache read, the baseline and the fetch are one cloud's: the cloud is read once before the cache read,
 the baseline goes to it by name, and if the selection moved while the read was pending the hook stops
 there rather than hand that cache's baseline to another cloud.

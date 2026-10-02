@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useChatSync, useSyncTarget } from './useSyncTarget';
+import { resetRoomFeeds } from '../roomFeed';
 import {
     clearActivePerfTrace,
     configurePerfTraces,
@@ -62,6 +63,8 @@ jest.mock('../../../data/runtime', () => ({
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
 
 beforeEach(() => {
+    // A fetch is remembered for a moment after it finishes; one test's must not answer the next's.
+    resetRoomFeeds();
     mockSelectedCloudId = 'default';
     mockUids = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
     sessionListeners = [];

@@ -14,16 +14,20 @@ jest.mock('@chatic/shared', () => ({
 }));
 // `channel.get` is rejected with 403 for someone else's self-chat — we need to see which id it registers under.
 const mockUseChannelSync = jest.fn();
+const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
             useChannelSync: (...args: unknown[]) => mockUseChannelSync(...args),
+            prefetchRoomFeed: (...args: unknown[]) => mockPrefetchRoomFeed(...args),
         },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
+            getGlobalSessionContext: () => ({ cloud: { cloudId: 'cloud-a' } }),
         },
     },
 }));
+
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 
 // The rows' preview source — the list-level combined lookup (ADR-0057). Null by default (rows
@@ -821,6 +825,23 @@ describe('ChannelList — room-open trace', () => {
         fireEvent.click(screen.getByText('general'));
 
         expect(roomOpenTrace.claim('g1')?.name).toBe('chat_room_open');
+    });
+
+    it("starts the room's fetch on the tap, with the trace already begun", () => {
+        roomOpenTrace.reset();
+        // The fetch takes the room's trace, so the trace has to exist when the fetch starts.
+        let traceAtFetch: unknown;
+        mockPrefetchRoomFeed.mockClear().mockImplementation(async () => {
+            traceAtFetch = roomOpenTrace.peek('g1');
+        });
+        render(
+            <ChannelList channels={[makeChannel({ id: 'g1', name: 'general', ownerId: 'other' })]} isLoading={false} />
+        );
+
+        fireEvent.click(screen.getByText('general'));
+
+        expect(mockPrefetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'g1');
+        expect(traceAtFetch).toBeDefined();
     });
 });
 

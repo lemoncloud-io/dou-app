@@ -4,6 +4,7 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
             getSyncManager: jest.fn(),
+            fetchRoomFeed: jest.fn(),
         },
         data: {
             useRuntimeRepositories: jest.fn(),
@@ -37,7 +38,7 @@ import {
 const mockUseAppForeground = useAppForeground as jest.Mock;
 
 const cacheReadList = jest.fn();
-const refreshList = jest.fn();
+const fetchRoomFeed = runtime.sync.fetchRoomFeed as jest.Mock;
 const updateLocalSnapshot = jest.fn();
 
 const setVerified = (isVerified: boolean) =>
@@ -59,8 +60,8 @@ const fireForeground = async () => {
 beforeEach(() => {
     jest.clearAllMocks();
     cacheReadList.mockResolvedValue({ list: [] });
-    refreshList.mockResolvedValue({ fetchedCount: 0 });
-    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { cacheReadList, refreshList } });
+    fetchRoomFeed.mockResolvedValue({ fetchedCount: 0, latestNo: 0, total: 0 });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { cacheReadList } });
     (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ updateLocalSnapshot });
     setVerified(true);
     setSelectedCloud('cloud-a');
@@ -79,7 +80,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             { id: 'ch-1', lastNo: 7, minNo: 0, messages: [] },
             { cid: 'cloud-a' }
         );
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-1' }, expect.anything());
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'ch-1', { cache: 'hit', fresh: false });
     });
 
     it('cold 캐시(빈 방)면 fetch하지 않는다 — 첫 fetch는 usePrimeChat 소유', async () => {
@@ -90,7 +91,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         });
 
         expect(updateLocalSnapshot).not.toHaveBeenCalled();
-        expect(refreshList).not.toHaveBeenCalled();
+        expect(fetchRoomFeed).not.toHaveBeenCalled();
     });
 
     it('포그라운드 복귀 신호에서 warm 방을 다시 refetch한다', async () => {
@@ -98,11 +99,11 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         await act(async () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
-        refreshList.mockClear();
+        fetchRoomFeed.mockClear();
 
         await fireForeground();
 
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-1' }, expect.anything());
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'ch-1', { cache: 'hit', fresh: true });
     });
 
     it('미인증이면 진입(entry effect)에서는 refetch하지 않는다 — 콜드스타트 보호', async () => {
@@ -113,7 +114,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        expect(refreshList).not.toHaveBeenCalled();
+        expect(fetchRoomFeed).not.toHaveBeenCalled();
     });
 
     it('미인증이어도 포그라운드 복귀에서는 refetch한다 — 요청 계층이 401/재연결을 자가치유', async () => {
@@ -123,23 +124,23 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         await act(async () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
-        expect(refreshList).not.toHaveBeenCalled(); // entry is gated, so it doesn't run here
+        expect(fetchRoomFeed).not.toHaveBeenCalled(); // entry is gated, so it doesn't run here
 
         await fireForeground();
 
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-1' }, expect.anything());
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'ch-1', { cache: 'hit', fresh: true });
     });
 
     it('refetch 실패는 조용히 로깅만 하고 전파하지 않는다', async () => {
         setCachedChats([7]);
-        refreshList.mockRejectedValue(new Error('boom'));
+        fetchRoomFeed.mockRejectedValue(new Error('boom'));
 
         await act(async () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
         // Reaching here without an unhandled rejection is the assertion.
-        expect(refreshList).toHaveBeenCalledTimes(1);
+        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
     });
 
     it('sends the baseline to the cloud the cache read was made in', async () => {
@@ -165,7 +166,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         });
 
         expect(updateLocalSnapshot).not.toHaveBeenCalled();
-        expect(refreshList).not.toHaveBeenCalled();
+        expect(fetchRoomFeed).not.toHaveBeenCalled();
     });
 });
 
@@ -185,9 +186,9 @@ describe('useForegroundChatRefresh — chat_room_sync phases', () => {
         return trace;
     };
 
-    it('marks verified, the request and the written page of a warm room', async () => {
+    // The fetch phases and the trace's failure ending are fetchRoomFeed's (app-runtime), tested there.
+    it('marks verified when the entry effect runs', async () => {
         setCachedChats([3, 7]);
-        refreshList.mockResolvedValue({ fetchedCount: 30 });
         const trace = beginSync();
 
         await act(async () => {
@@ -195,61 +196,6 @@ describe('useForegroundChatRefresh — chat_room_sync phases', () => {
         });
 
         expect(trace.hasMetric('verified')).toBe(true);
-        expect(trace.hasMetric('feed_done')).toBe(true);
-        trace.stop();
-        expect(backend.stop.mock.calls[0][0]).toMatchObject({
-            attributes: { cache: 'hit' },
-            metrics: expect.objectContaining({ fetched: 30 }),
-        });
-    });
-
-    it('leaves a trace another fetch already owns alone', async () => {
-        setCachedChats([3, 7]);
-        refreshList.mockResolvedValue({ fetchedCount: 30, latestNo: 40 });
-        const trace = beginSync();
-        // The cold room's first page was already requested for this trace.
-        trace.putAttribute('cache', 'miss');
-        trace.mark('feed_sent');
-
-        await act(async () => {
-            renderHook(() => useForegroundChatRefresh('ch-1'));
-        });
-
-        trace.stop();
-        const [result] = backend.stop.mock.calls[0];
-        expect(result.attributes).toMatchObject({ cache: 'miss' });
-        expect(result.metrics).not.toHaveProperty('fetched');
-    });
-
-    it('marks when the page arrived, apart from when it was written', async () => {
-        setCachedChats([3, 7]);
-        refreshList.mockImplementation(async (_query, options) => {
-            options?.onFetched?.();
-            return { fetchedCount: 30 };
-        });
-        const trace = beginSync();
-
-        await act(async () => {
-            renderHook(() => useForegroundChatRefresh('ch-1'));
-        });
-
-        expect(trace.hasMetric('feed_received')).toBe(true);
-        expect(trace.hasMetric('feed_done')).toBe(true);
-    });
-
-    it('does not end a trace another fetch owns when a foreground refresh fails', async () => {
-        setCachedChats([3]);
-        refreshList.mockRejectedValue(new Error('socket closed'));
-        // Not verified, so only the foreground signal fetches; the trace is already another fetch's.
-        setVerified(false);
-        const trace = beginSync();
-        trace.mark('feed_sent');
-        renderHook(() => useForegroundChatRefresh('ch-1'));
-
-        await fireForeground();
-
-        expect(refreshList).toHaveBeenCalled();
-        expect(backend.stop).not.toHaveBeenCalled();
     });
 
     it('leaves the trace running when the cache read fails before the fetch', async () => {
@@ -260,19 +206,7 @@ describe('useForegroundChatRefresh — chat_room_sync phases', () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        expect(refreshList).not.toHaveBeenCalled();
+        expect(fetchRoomFeed).not.toHaveBeenCalled();
         expect(backend.stop).not.toHaveBeenCalled();
-    });
-
-    it('ends the trace as error when the entry refresh fails', async () => {
-        setCachedChats([3]);
-        refreshList.mockRejectedValue(new Error('socket closed'));
-        beginSync();
-
-        await act(async () => {
-            renderHook(() => useForegroundChatRefresh('ch-1'));
-        });
-
-        expect(backend.stop.mock.calls[0][0].attributes).toMatchObject({ outcome: 'error' });
     });
 });

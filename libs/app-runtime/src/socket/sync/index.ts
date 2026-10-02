@@ -17,3 +17,5 @@ export type { BackgroundDelta } from './types';
 // (`recordRefusedChannel` / `clearRefusedChannel`) stay internal: only the sync plans decide what
 // the server refused, and an app that could write this could make the room lie.
 export { isChannelRefused, subscribeRefusedChannels } from './refusedChannels';
+// A room's latest page, fetched once per entry: the tap starts it, and the room's sync hooks join it.
+export { fetchRoomFeed, prefetchRoomFeed } from './roomFeed';
