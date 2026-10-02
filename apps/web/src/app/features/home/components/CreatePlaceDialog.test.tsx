@@ -195,6 +195,20 @@ describe('CreatePlaceDialog', () => {
         expect(header()).toBeInTheDocument();
     });
 
+    // Folding the text alone frees the room; a photo that shrank on every focus read as the screen
+    // changing under the user.
+    it('keeps the photo at full size while the name field has focus', () => {
+        render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
+
+        fireEvent.focus(nameField());
+
+        expect(header()).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'createPlace.photoLabel' })).toHaveStyle({
+            width: '86px',
+            height: '86px',
+        });
+    });
+
     it('키보드의 완료 키(Enter)로도 플레이스를 만든다 — 이름이 없으면 아무 일도 없다', async () => {
         createPlaceMock.mockResolvedValue({ id: 'pl-1' });
         render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);

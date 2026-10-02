@@ -178,11 +178,12 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                             any keyboard, without depending on `--keyboard-height` being reported or
                             on the scroller having room to scroll — the two things that fail on the
                             devices where the field stayed buried. Animated through a 0fr<->1fr grid
-                            row, the CollapsibleSection idiom. */}
+                            row, the CollapsibleSection idiom, and faded alongside so the text dissolves
+                            rather than being cut off by the shrinking row. */}
                         <div
                             className={cn(
-                                'grid transition-[grid-template-rows] duration-200 ease-out',
-                                editing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+                                'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+                                editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
                             )}
                             aria-hidden={editing}
                         >
@@ -203,7 +204,9 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
 
                         {/* Avatar + name. The paddings tighten with the same compact mode: folding
                             the header alone is not enough on a short screen, so the avatar block
-                            gives up its generous spacing (and the avatar its size) while typing. */}
+                            gives up its generous spacing and its caption while typing. The avatar
+                            keeps its size — the folded text frees enough height, and a photo that
+                            shrank on every focus read as the screen changing under the user. */}
                         <div
                             className={cn(
                                 'flex flex-col transition-all duration-200 ease-out',
@@ -225,16 +228,14 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                                     <ProfileAvatar
                                         src={thumbnail || undefined}
                                         glyph="group"
-                                        size={editing ? 56 : 86}
                                         onSelect={handleImageClick}
                                         selectLabel={t('createChannel.photoLabel')}
-                                        className="transition-[width,height] duration-200 ease-out"
                                     />
                                 </span>
                                 <div
                                     className={cn(
-                                        'grid transition-[grid-template-rows] duration-200 ease-out',
-                                        editing ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+                                        'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+                                        editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
                                     )}
                                     aria-hidden={editing}
                                 >

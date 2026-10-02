@@ -38,6 +38,8 @@ jest.mock('../../../ui/layouts', () => ({
         </div>
     ),
 }));
+let mockKeyboardOpen = false;
+jest.mock('../../../ui/hooks', () => ({ useKeyboardOpen: () => mockKeyboardOpen }));
 // The save path is what these tests assert; `useUpdatePlace` has no logic of its own beyond the
 // pending flag, so the page's payload is observed directly at this seam.
 jest.mock('../../home', () => ({ useUpdatePlace: () => ({ updatePlace, isPending: false }) }));
@@ -49,6 +51,7 @@ const OWNED: Partial<MySiteView> = { id: 'p1', name: '우리 플레이스', isOw
 beforeEach(() => {
     jest.clearAllMocks();
     mockPlace = OWNED;
+    mockKeyboardOpen = false;
     updatePlace.mockResolvedValue(undefined);
     // observeItem emits synchronously, the way the local data source does for a warm cache.
     observeItem.mockImplementation((_id: string, cb: (item: unknown) => void) => {
@@ -177,5 +180,20 @@ describe('PlaceEditPage — 저장 실패 기록 (ADR-0099)', () => {
 
         await waitFor(() => expect(updatePlace).toHaveBeenCalled());
         expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+});
+
+describe('PlaceEditPage — photo while typing', () => {
+    // Folding the caption alone frees the room; a photo that shrank whenever the keyboard rose read as
+    // the screen changing under the user.
+    it('keeps the photo at full size and folds only its caption while the keyboard is up', () => {
+        mockKeyboardOpen = true;
+        render(<PlaceEditPage />);
+
+        expect(screen.getByRole('button', { name: 'placeEdit.changeImage' })).toHaveStyle({
+            width: '86px',
+            height: '86px',
+        });
+        expect(screen.getByText('placeEdit.photoLabel').closest('[aria-hidden]')).toHaveClass('grid-rows-[0fr]');
     });
 });

@@ -92,6 +92,18 @@ describe('CreateChannelDialog', () => {
         expect(header()).toBeInTheDocument();
     });
 
+    // Folding the text alone frees the room; a photo that shrank on every focus read as the screen
+    // changing under the user.
+    it('keeps the photo at full size while the name field has focus', () => {
+        render(<CreateChannelDialog open onOpenChange={jest.fn()} />);
+        const photo = () => screen.getByRole('button', { name: 'createChannel.photoLabel' });
+
+        fireEvent.focus(nameField());
+
+        expect(header()).not.toBeInTheDocument();
+        expect(photo()).toHaveStyle({ width: '86px', height: '86px' });
+    });
+
     it('키보드의 완료 키(Enter)로도 방을 만든다 — 이름이 없으면 아무 일도 없다', async () => {
         createChannelMock.mockResolvedValue({ id: 'ch-1' });
         render(<CreateChannelDialog open onOpenChange={jest.fn()} />);

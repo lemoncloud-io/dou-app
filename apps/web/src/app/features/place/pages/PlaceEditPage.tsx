@@ -26,14 +26,10 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 // guessed. At 96px the last line was cut off and a maxed-out field had to be scrolled to reread.
 const DESC_BOX_HEIGHT = 116;
 
-/** Avatar diameter at rest (the ProfileAvatar / Figma default) and while the keyboard is up. */
-const PHOTO_SIZE = 86;
-const PHOTO_SIZE_TYPING = 56;
-
 /**
- * Timing shared by every part of the photo block's collapse, so the avatar, its caption and the
- * padding around them move as one. 250ms is matched to the keyboard's own rise — long enough to
- * read as the photo stepping aside, short enough not to trail behind it.
+ * Timing shared by every part of the photo block's collapse, so the caption and the padding around
+ * the photo move as one. 250ms is matched to the keyboard's own rise — long enough to read as the
+ * block stepping aside, short enough not to trail behind it.
  */
 const SHRINK_TRANSITION = 'duration-[250ms] ease-out motion-reduce:transition-none';
 
@@ -52,8 +48,8 @@ export const PlaceEditPage = () => {
 
     const { updatePlace, isPending } = useUpdatePlace();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    // The photo is the least useful thing on screen while someone is typing into the fields below
-    // it, and on a short phone it is what pushes the introduction box behind the keyboard.
+    // The photo block is the least useful thing on screen while someone is typing into the fields
+    // below it, and on a short phone it is what pushes the introduction box behind the keyboard.
     const isTyping = useKeyboardOpen();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
@@ -200,11 +196,12 @@ export const PlaceEditPage = () => {
             {/* Centered photo above the name field (Figma 3408-27580) — the place profile reads as a
                 profile screen, not a details list, so there is no created-date row.
 
-                The whole block collapses while the keyboard is up: the avatar shrinks, its caption
-                folds away, and the surrounding padding tightens — animated, so it reads as the
-                photo stepping aside rather than the form jumping. Sizes and paddings are what
-                move (not a `scale` transform), because the point is to hand the reclaimed height
-                to the fields below. */}
+                The block tightens while the keyboard is up: the caption folds away and the
+                surrounding padding shrinks — animated, so it reads as the block stepping aside
+                rather than the form jumping. The photo itself keeps its size: folding the text
+                alone frees enough height, and a photo that shrank on every focus read as the
+                screen changing under the user. Heights and paddings are what move (not a `scale`
+                transform), because the point is to hand the reclaimed height to the fields below. */}
             <div
                 className={cn(
                     'flex flex-col transition-[gap,padding]',
@@ -222,29 +219,31 @@ export const PlaceEditPage = () => {
                     <ProfileAvatar
                         src={imageUrl || undefined}
                         glyph="place"
-                        size={isTyping ? PHOTO_SIZE_TYPING : PHOTO_SIZE}
                         onSelect={handleImageClick}
                         selectLabel={t('placeEdit.changeImage')}
-                        // The diameter is an inline width/height, so the transition has to name
-                        // those two properties rather than ride on a class change.
-                        className={cn('transition-[width,height]', SHRINK_TRANSITION)}
                     />
-                    {/* `max-h` + `overflow-hidden` rather than unmounting: a removed node cannot
-                        animate, and the caption has to give its height back as smoothly as it took
-                        it. The cap is generous enough for two wrapped lines. */}
+                    {/* Folded through a 0fr<->1fr grid row rather than unmounted: a removed node
+                        cannot animate, and the caption has to give its height back as smoothly as it
+                        took it. Not a `max-h` cap — that animates toward the cap, not the caption's
+                        real height, so the fold stalled before snapping shut. */}
                     <div
                         className={cn(
-                            'flex flex-col items-center gap-0.5 overflow-hidden transition-all',
+                            'grid transition-[grid-template-rows,opacity]',
                             SHRINK_TRANSITION,
-                            isTyping ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'
+                            isTyping ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
                         )}
+                        aria-hidden={isTyping}
                     >
-                        <Text variant="label" className="text-label">
-                            {t('placeEdit.photoLabel')}
-                        </Text>
-                        <Text variant="caption" className="text-placeholder">
-                            {t('placeEdit.photoOptional')}
-                        </Text>
+                        <div className="min-h-0 overflow-hidden">
+                            <div className="flex flex-col items-center gap-0.5">
+                                <Text variant="label" className="text-label">
+                                    {t('placeEdit.photoLabel')}
+                                </Text>
+                                <Text variant="caption" className="text-placeholder">
+                                    {t('placeEdit.photoOptional')}
+                                </Text>
+                            </div>
+                        </div>
                     </div>
                     {imageSizeError && (
                         <Text variant="caption" className="text-destructive">
