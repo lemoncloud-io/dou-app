@@ -8,6 +8,7 @@ const NAV_LINKS = [
     { to: '/report-logs', label: 'Report Logs' },
     { to: '/users', label: 'Users' },
     { to: '/memberships', label: 'Memberships' },
+    { to: '/cloud-deployments', label: 'Cloud Deployments' },
 ];
 
 const linkClass = ({ isActive }: { isActive: boolean }): string =>

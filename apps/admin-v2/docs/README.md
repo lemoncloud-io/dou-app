@@ -13,9 +13,10 @@ documents cover each console feature in turn.
 
 ## Categories
 
-| Category                                | Answers                                                      |
-| --------------------------------------- | ------------------------------------------------------------ |
-| [auth/](./auth/README.md)               | OAuth login hydration and the token-refresh loop             |
-| [memberships/](./memberships/README.md) | Viewing and overriding a user's subscription                 |
-| [report-logs/](./report-logs/README.md) | Tracing a user report or an app log to a failure             |
-| [socket-lab/](./socket-lab/README.md)   | The multi-client WebSocket lab and its live device-watch tab |
+| Category                                            | Answers                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------ |
+| [auth/](./auth/README.md)                           | OAuth login hydration and the token-refresh loop             |
+| [cloud-deployments/](./cloud-deployments/README.md) | Redeploying the subscription clouds after a server update    |
+| [memberships/](./memberships/README.md)             | Viewing and overriding a user's subscription                 |
+| [report-logs/](./report-logs/README.md)             | Tracing a user report or an app log to a failure             |
+| [socket-lab/](./socket-lab/README.md)               | The multi-client WebSocket lab and its live device-watch tab |
