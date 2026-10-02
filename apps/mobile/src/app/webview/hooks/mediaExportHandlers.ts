@@ -21,7 +21,14 @@ export interface MediaExportPlatform {
 /** API 29 is where an app may add its own images to the shared collection without a permission. */
 const SCOPED_STORAGE_API_LEVEL = 29;
 
-const KNOWN_CODES: MediaExportErrorCode[] = ['PERMISSION_DENIED', 'UNSUPPORTED_TYPE', 'SOURCE', 'INVALID', 'INTERNAL'];
+const KNOWN_CODES: MediaExportErrorCode[] = [
+    'PERMISSION_DENIED',
+    'UNSUPPORTED_TYPE',
+    'SOURCE',
+    'INVALID',
+    'INTERNAL',
+    'NO_HANDLER',
+];
 
 type Failure = { code: MediaExportErrorCode; message: string; details?: MediaExportPermissionDetails };
 
@@ -42,16 +49,21 @@ const toFailure = (e: unknown): Failure => {
     return code === 'PERMISSION_DENIED' ? { code, message, details: { canAskAgain: false } } : { code, message };
 };
 
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+
 const hasUri = (data: unknown): data is { uri: string } =>
-    typeof (data as { uri?: unknown } | undefined)?.uri === 'string' && (data as { uri: string }).uri.length > 0;
+    isNonEmptyString((data as { uri?: unknown } | undefined)?.uri);
 
 /**
- * Relays `SaveToPhotoLibrary` and `ShareFile` to the native MediaExport module.
+ * Relays `SaveToPhotoLibrary`, `ShareFile`, `OpenFile` and `SaveFile` to the native MediaExport module.
  *
- * The one decision made here is the Android storage permission below API 29: asking needs an
- * Activity result, which React Native's `PermissionsAndroid` already handles, so it is asked here
- * before native is called rather than inside the native module. The prompt appears at the moment
- * of saving and nowhere else.
+ * The one decision made here is the Android storage permission below API 29, for both saves: asking
+ * needs an Activity result, which React Native's `PermissionsAndroid` already handles, so it is asked
+ * here before native is called rather than inside the native module. The prompt appears at the
+ * moment of saving and nowhere else.
+ *
+ * None of these calls has a timeout here. `ShareFile`, `OpenFile` and `SaveFile` on iOS answer when
+ * the sheet or preview closes, which is up to the person; the web gives each request its own wait.
  */
 export const createMediaExportHandlers = (
     mediaExport: IMediaExportBridge,
@@ -59,6 +71,24 @@ export const createMediaExportHandlers = (
     logger: ILogService
 ) => {
     const needsStoragePermission = () => platform.os === 'android' && platform.apiLevel < SCOPED_STORAGE_API_LEVEL;
+
+    /** Asks for the storage permission where a save needs it; the failure to answer with, if refused. */
+    const askStoragePermission = async (): Promise<Failure | null> => {
+        if (!needsStoragePermission()) return null;
+        let result: StoragePermissionResult;
+        try {
+            result = await platform.requestStoragePermission();
+        } catch (e) {
+            return toFailure(e);
+        }
+        if (result === 'granted') return null;
+        logger.info('MEDIA', `save refused: storage permission ${result}`);
+        return {
+            code: 'PERMISSION_DENIED',
+            message: 'storage permission is not granted',
+            details: { canAskAgain: result !== 'never_ask_again' },
+        };
+    };
 
     const handleSaveToPhotoLibrary = async (
         message: WebMessageData<'SaveToPhotoLibrary'>
@@ -70,24 +100,8 @@ export const createMediaExportHandlers = (
 
         if (!hasUri(message.data)) return reply({ error: { code: 'INVALID', message: 'uri is required' } });
 
-        if (needsStoragePermission()) {
-            let result: StoragePermissionResult;
-            try {
-                result = await platform.requestStoragePermission();
-            } catch (e) {
-                return reply({ error: toFailure(e) });
-            }
-            if (result !== 'granted') {
-                logger.info('MEDIA', `save refused: storage permission ${result}`);
-                return reply({
-                    error: {
-                        code: 'PERMISSION_DENIED',
-                        message: 'storage permission is not granted',
-                        details: { canAskAgain: result !== 'never_ask_again' },
-                    },
-                });
-            }
-        }
+        const refused = await askStoragePermission();
+        if (refused) return reply({ error: refused });
 
         try {
             return reply({ data: await mediaExport.saveToPhotoLibrary(message.data.uri) });
@@ -120,5 +134,47 @@ export const createMediaExportHandlers = (
         }
     };
 
-    return { handleSaveToPhotoLibrary, handleShareFile };
+    const handleOpenFile = async (
+        message: WebMessageData<'OpenFile'>
+    ): Promise<WebMessageHandlerResponse<'OpenFile'>> => {
+        if (!hasUri(message.data)) {
+            return {
+                type: 'OnOpenFile' as const,
+                success: false,
+                error: { code: 'INVALID', message: 'uri is required' },
+            };
+        }
+        try {
+            const data = await mediaExport.openFile(message.data.uri);
+            return { type: 'OnOpenFile' as const, success: true, data: data ?? {} };
+        } catch (e) {
+            const error = toFailure(e);
+            logger.warn('MEDIA', `open failed: ${error.code}`);
+            return { type: 'OnOpenFile' as const, success: false, error };
+        }
+    };
+
+    const handleSaveFile = async (
+        message: WebMessageData<'SaveFile'>
+    ): Promise<WebMessageHandlerResponse<'SaveFile'>> => {
+        const fail = (error: Failure) => ({ type: 'OnSaveFile' as const, success: false, error });
+
+        if (!hasUri(message.data)) return fail({ code: 'INVALID', message: 'uri is required' });
+        // The extension and path separators are the native side's to judge; only presence is checked here.
+        if (!isNonEmptyString(message.data.name)) return fail({ code: 'INVALID', message: 'name is required' });
+
+        const refused = await askStoragePermission();
+        if (refused) return fail(refused);
+
+        try {
+            const data = await mediaExport.saveFile(message.data.uri, message.data.name);
+            return { type: 'OnSaveFile' as const, success: true, data };
+        } catch (e) {
+            const error = toFailure(e);
+            logger.warn('MEDIA', `save file failed: ${error.code}`);
+            return fail(error);
+        }
+    };
+
+    return { handleSaveToPhotoLibrary, handleShareFile, handleOpenFile, handleSaveFile };
 };

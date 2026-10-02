@@ -1233,6 +1233,7 @@ export const ChannelRoomPage = () => {
 
             <MessageActionSheet
                 open={!!actionMessage && !emojiPickerOpen}
+                fileMessage={actionMessage}
                 onOpenChange={open => !open && setActionMessage(null)}
                 tallies={actionMessage?.id ? reactions.get(actionMessage.id) : undefined}
                 // Persisted rows only (chatNo > 0): a reaction / reply targeting an

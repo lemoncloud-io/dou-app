@@ -1,5 +1,6 @@
 import {
     CHAT_ATTACHMENT_ACCEPT,
+    chatAttachmentAccept,
     CHAT_ATTACHMENT_MAX_BYTES,
     chatAttachmentExtension,
     chatAttachmentFormat,
@@ -106,5 +107,24 @@ describe('chatAttachmentExtension', () => {
         expect(chatAttachmentExtension('application/pdf')).toBe('pdf');
         expect(chatAttachmentExtension('image/jpeg')).toBe('jpg');
         expect(chatAttachmentExtension('application/zip')).toBeUndefined();
+    });
+});
+
+describe('chatAttachmentAccept', () => {
+    it('lists the types and extensions of the kinds asked for only', () => {
+        const documents = chatAttachmentAccept(['file']).split(',');
+
+        expect(documents).toEqual(
+            expect.arrayContaining(['application/pdf', '.pdf', '.hwp', 'application/x-hwp', '.txt'])
+        );
+        expect(documents).not.toContain('video/mp4');
+        expect(documents).not.toContain('image/png');
+        expect(chatAttachmentAccept(['image', 'video']).split(',')).toEqual(
+            expect.arrayContaining(['image/png', 'video/mp4', '.mp4', '.jpeg'])
+        );
+    });
+
+    it('keeps the full list the same as asking for every kind', () => {
+        expect(CHAT_ATTACHMENT_ACCEPT).toBe(chatAttachmentAccept(['image', 'video', 'file']));
     });
 });

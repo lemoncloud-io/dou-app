@@ -179,6 +179,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 allowUniversalAccessFromFileURLs={false}
                 webviewDebuggingEnabled={__DEV__}
                 mixedContentMode="always"
+                // The chat's media viewer plays a video in place. Without this iOS hands every
+                // `play()` to the OS full-screen player, even for a `<video playsinline>`. Playback
+                // still needs a tap: `mediaPlaybackRequiresUserAction` keeps its default.
+                allowsInlineMediaPlayback={true}
                 cacheEnabled={true}
                 cacheMode="LOAD_DEFAULT"
                 {...restProps}

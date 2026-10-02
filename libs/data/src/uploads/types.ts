@@ -157,21 +157,57 @@ export const parseUploadCompleteResult = (value: unknown): CheckedUploadComplete
 });
 
 /**
+ * A file the shell keeps in its own folder. The page holds its address and details, never its bytes:
+ * a 300MB video does not fit through the bridge, so the shell picks it, keeps it, and uploads it
+ * from there. Only an app that has the attachment picker makes one.
+ */
+export interface ShellFileRef {
+    /** `file://` inside the shell's attach-pick folder. */
+    readonly uri: string;
+    /** With the format's extension (`chatAttachmentFormat`), unless `needsExport`. */
+    readonly name: string;
+    /** The declared content type. */
+    readonly type: string;
+    readonly size: number;
+    /**
+     * The attachment this file belongs to. A video's poster carries `'video'` too: it is that slot's
+     * thumbnail, not an attachment of its own.
+     */
+    readonly kind: 'video' | 'file';
+    /**
+     * An iOS video not yet written as an H.264 `mp4`. Its name, type and size are the source's until
+     * the shell has converted it (`PrepareVideo`), so the size is judged again after that.
+     */
+    readonly needsExport?: boolean;
+}
+
+/** What a pick hands the send: a page file, or a file the shell keeps. */
+export type ChatAttachmentSource = File | ShellFileRef;
+
+/** Tells a shell file from a page `File`. A `File` has no `uri`, and a shell file is never a `Blob`. */
+export const isShellFileRef = (source: unknown): source is ShellFileRef =>
+    typeof source === 'object' &&
+    source !== null &&
+    !(typeof Blob !== 'undefined' && source instanceof Blob) &&
+    typeof (source as { uri?: unknown }).uri === 'string';
+
+/**
  * One prepared output — the shape `prepareImage`'s `CHAT_ATTACHMENT` policy returns, mirrored here
  * because this data layer does not depend on the UI library that owns image preparation. The
- * caller binds the real preparer into the `prepare` port.
+ * caller binds the real preparer into the `prepare` port. A shell video's original and poster are
+ * shell files; everything else is a page `File`.
  */
-export interface PreparedFileMirror {
-    file: File;
+export interface PreparedFileMirror<S extends ChatAttachmentSource = File> {
+    file: S;
     /** 0 when the source could not be measured. */
     width: number;
     height: number;
 }
 
-export interface PreparedImageMirror {
-    original: PreparedFileMirror;
+export interface PreparedImageMirror<S extends ChatAttachmentSource = File> {
+    original: PreparedFileMirror<S>;
     /** `null` when no preview could be made, or none is wanted (a GIF); the original still goes up. */
-    thumbnail: PreparedFileMirror | null;
+    thumbnail: PreparedFileMirror<S> | null;
 }
 
 /**
@@ -186,15 +222,22 @@ export type PutResult =
 /** Sends `file` to `target`. `label` is a log-safe name for the payload, e.g. `slot-2/thumbnail`. */
 export type PutPort = (target: UploadPutTarget, file: File, label: string) => Promise<PutResult>;
 
+/** Sends a file the shell keeps, from where it lies. Only the native transfer can. */
+export type ShellFilePutPort = (target: UploadPutTarget, file: ShellFileRef, label: string) => Promise<PutResult>;
+
 /**
  * Everything the send sequence touches outside itself. Binding them is the caller's job — the hook
  * wires repository methods and the shell's PUT sender — so the sequence stays testable with fakes.
+ *
+ * `S` is what a pick and its prepared files are: page files by default, which every shell can PUT.
+ * A caller that also sends shell files widens it to `ChatAttachmentSource`, and its `put` then has to
+ * take both — a shell file's original and poster reach it as the shell files they are.
  */
-export interface SendImagePorts {
-    prepare(file: File): Promise<PreparedImageMirror>;
+export interface SendImagePorts<S extends ChatAttachmentSource = File> {
+    prepare(file: S): Promise<PreparedImageMirror<S>>;
     start(input: UploadStartInput): Promise<PresignedUploadStartResult>;
     complete(input: UploadCompleteInput): Promise<CheckedUploadCompleteResult>;
-    put: PutPort;
+    put: (target: UploadPutTarget, file: S, label: string) => Promise<PutResult>;
     /** Sends the message with the stored uploads, in picking order, and settles the pending row. */
     send(input: { uploadIds: string[] }): Promise<unknown>;
 }

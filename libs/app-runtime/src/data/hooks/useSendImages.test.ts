@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { DomainChat, SendImageResult } from '@chatic/data';
+import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } from '@chatic/data';
 
 import { prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
-import { useSendImages, type UseSendImagesInput } from './useSendImages';
+import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
 jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
 
@@ -91,6 +91,43 @@ describe('useSendImages', () => {
         unmount();
     });
 
+    it('waits for the cloud\u2019s socket to come back, inside the hold, before the first request', async () => {
+        let reconnect: (verified: boolean) => void = () => undefined;
+        const waitForConnection = jest.fn(() => new Promise<boolean>(resolve => (reconnect = resolve)));
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', waitForConnection })
+        );
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(files());
+        });
+        await waitFor(() => expect(waitForConnection).toHaveBeenCalledWith('cloud-a'));
+        expect(held).toEqual(['cloud-a']);
+        expect(mockSendImageMessage).not.toHaveBeenCalled();
+
+        await act(async () => {
+            reconnect(true);
+            await sending;
+        });
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('still sends when the socket does not come back in time, so the failure is the request\u2019s own', async () => {
+        const waitForConnection = jest.fn().mockResolvedValue(false);
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', waitForConnection })
+        );
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
     it('keeps a send addressed to the cloud it was written in when the screen moves to another cloud', async () => {
         let finish: (value: SendImageResult) => void = () => undefined;
         mockSendImageMessage.mockImplementation(() => new Promise(resolve => (finish = resolve)));
@@ -136,7 +173,10 @@ describe('useSendImages', () => {
         expect(sentFiles).toEqual(picked);
         sentFiles.forEach((file: File, i: number) => expect(file).toBe(picked[i]));
         const pendingId = chat.createPendingImageChat.mock.results[0].value;
-        expect(ports.put).toBe(put);
+        // A page file goes to the shell's own PUT, untouched.
+        put.mockResolvedValueOnce({ kind: 'responded', httpStatus: 200 });
+        await ports.put({ url: 'u', headers: {} }, picked[0], 'slot-0/original');
+        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, picked[0], 'slot-0/original');
         await ports.send({ uploadIds: ['up-1'] });
         expect(chat.sendPendingImageChat).toHaveBeenCalledWith(await pendingId, { uploadIds: ['up-1'] });
         unmount();
@@ -666,6 +706,271 @@ describe('useSendImages — previews while sending', () => {
 
         // Two originals, then two thumbnails; the thumbnails were never shown and are revoked.
         expect(revoked).toEqual(expect.arrayContaining([`blob:${created + 3}`, `blob:${created + 4}`]));
+        unmount();
+    });
+});
+
+describe('useSendImages — shell files', () => {
+    const putShellFile = jest.fn();
+    const prepareVideo = jest.fn<Promise<PreparedShellVideo>, [ShellFileRef]>();
+    const onVideoRefused = jest.fn();
+    const useShell = () =>
+        useSendImages({ cid: 'c', channelId: 'ch-1', put, beforeSweep, putShellFile, prepareVideo, onVideoRefused });
+
+    const shellFile = (name: string, type: string, extra: Partial<ShellFileRef> = {}): ShellFileRef => ({
+        uri: `file:///cache/attach-pick/${name}`,
+        name,
+        type,
+        size: 1000,
+        kind: type.startsWith('video/') ? 'video' : 'file',
+        ...extra,
+    });
+    const mov = () => shellFile('IMG_0001.MOV', 'video/quicktime', { needsExport: true, size: 170_000_000 });
+    const exported = (source: ShellFileRef, size = 80_000_000): PreparedShellVideo => ({
+        file: {
+            ...source,
+            uri: `${source.uri}.mp4`,
+            name: 'IMG_0001.mp4',
+            type: 'video/mp4',
+            size,
+            needsExport: false,
+        },
+        width: 1920,
+        height: 1080,
+        poster: {
+            file: { ...source, uri: `${source.uri}.jpg`, name: 'poster.jpg', type: 'image/jpeg', size: 20_000 },
+            width: 400,
+            height: 225,
+            preview: new Blob(['jpeg'], { type: 'image/jpeg' }),
+        },
+    });
+    const prepared: unknown[] = [];
+    /** The mocked sequence runs the real prepare port the hook binds, then answers `result`. */
+    const runSequence = (result: (picked: ChatAttachmentSource[]) => SendImageResult = () => sent) =>
+        mockSendImageMessage.mockImplementation(
+            async (
+                picked: ChatAttachmentSource[],
+                ports: { prepare: (f: ChatAttachmentSource) => Promise<unknown> }
+            ) => {
+                for (const file of picked) prepared.push(await ports.prepare(file));
+                return result(picked);
+            }
+        );
+
+    beforeEach(() => {
+        prepared.length = 0;
+        prepareVideo.mockImplementation(async source => exported(source));
+    });
+
+    it('sends a shell document from where the shell keeps it, named and typed the way the server takes it', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const hwp = shellFile('report.hwp', 'application/octet-stream');
+
+        await act(() => result.current.sendImages([hwp]));
+
+        expect(chat.createPendingImageChat.mock.calls[0][0]).toMatchObject({
+            localThumbUrls: [''],
+            localFiles: [{ name: 'report.hwp', contentType: 'application/x-hwp', size: 1000 }],
+        });
+        const [doc] = prepared as { original: { file: ShellFileRef }; thumbnail: null }[];
+        expect(doc).toMatchObject({ original: { width: 0, height: 0 }, thumbnail: null });
+        expect(doc.original.file).toEqual({ ...hwp, type: 'application/x-hwp' });
+        expect(prepareVideo).not.toHaveBeenCalled();
+        unmount();
+    });
+
+    it('converts an mp4 the shell handed over as a document, as it does any video', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const clip = shellFile('clip.mp4', 'application/octet-stream', { kind: 'file' });
+
+        await act(() => result.current.sendImages([clip]));
+
+        expect(prepareVideo).toHaveBeenCalledWith(clip);
+        unmount();
+    });
+
+    it('routes a shell file to the shell sender and a page file to the page sender', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        await act(() => result.current.sendImages([shellFile('a.pdf', 'application/pdf')]));
+        const ports = mockSendImageMessage.mock.calls[0][1];
+        const doc = shellFile('a.pdf', 'application/pdf');
+        const page = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+        putShellFile.mockResolvedValue({ kind: 'responded', httpStatus: 200 });
+        put.mockResolvedValue({ kind: 'responded', httpStatus: 200 });
+
+        await ports.put({ url: 'u', headers: {} }, doc, 'slot-0/original');
+        await ports.put({ url: 'u', headers: {} }, page, 'slot-1/original');
+
+        expect(putShellFile).toHaveBeenCalledWith({ url: 'u', headers: {} }, doc, 'slot-0/original');
+        expect(put).toHaveBeenCalledTimes(1);
+        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, page, 'slot-1/original');
+        unmount();
+    });
+
+    it('fails a shell file that reaches a shell with no shell sender, without handing it to the page sender', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(() => useSendImages({ cid: 'c', channelId: 'ch-1', put }));
+        await act(() => result.current.sendImages([shellFile('a.pdf', 'application/pdf')]));
+        const ports = mockSendImageMessage.mock.calls[0][1];
+
+        const answer = await ports.put(
+            { url: 'u', headers: {} },
+            shellFile('a.pdf', 'application/pdf'),
+            'slot-0/original'
+        );
+
+        expect(answer).toEqual({ kind: 'no-response', reason: 'system' });
+        expect(put).not.toHaveBeenCalled();
+        unmount();
+    });
+
+    it('converts a shell video before the sequence, sends what it made, and shows its poster meanwhile', async () => {
+        const order: string[] = [];
+        prepareVideo.mockImplementation(async source => {
+            order.push('convert');
+            return exported(source);
+        });
+        chat.createPendingImageChat.mockImplementation(async ({ pendingId }: { pendingId?: string }) => {
+            order.push(pendingId ? 'rewrite' : 'create');
+            return pendingId ?? `row-${++rowSeq}`;
+        });
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const video = mov();
+
+        await act(() => result.current.sendImages([video]));
+
+        expect(order).toEqual(['create', 'convert', 'rewrite']);
+        // Drawn as the mp4 it will be, with no preview the page could not read.
+        expect(chat.createPendingImageChat.mock.calls[0][0]).toMatchObject({
+            localThumbUrls: [''],
+            localFiles: [{ name: 'IMG_0001.mp4', contentType: 'video/mp4', size: 170_000_000 }],
+        });
+        expect(chat.createPendingImageChat.mock.calls[1][0].localThumbUrls).toEqual([expect.stringMatching(/^blob:/)]);
+        const made = exported(video);
+        expect(prepared).toEqual([
+            {
+                original: { file: made.file, width: 1920, height: 1080 },
+                thumbnail: { file: made.poster?.file, width: 400, height: 225 },
+            },
+        ]);
+        unmount();
+    });
+
+    it('leaves a video the shell refused out of the message, says why, and offers only delete for it', async () => {
+        prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'TOO_LARGE' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const photo = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const video = mov();
+
+        await act(() => result.current.sendImages([video, photo]));
+
+        expect(onVideoRefused).toHaveBeenCalledWith('too-large');
+        expect(mockSendImageMessage.mock.calls[0][0]).toEqual([photo]);
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
+        expect(chat.createPendingImageChat.mock.calls[1][0].localFiles).toEqual([
+            { name: 'IMG_0001.mp4', contentType: 'video/mp4', size: 170_000_000 },
+        ]);
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
+        // Converting it again would be refused the same way.
+        expect(result.current.canRetry(leftover)).toBe(false);
+        unmount();
+    });
+
+    it('keeps a video whose conversion failed in passing to retry on its own', async () => {
+        prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'SYSTEM' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const photo = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+        const video = mov();
+
+        await act(() => result.current.sendImages([video, photo]));
+
+        expect(onVideoRefused).not.toHaveBeenCalled();
+        const leftover = await chat.createPendingImageChat.mock.results[1].value;
+        expect(result.current.canRetry(leftover)).toBe(true);
+
+        await act(async () => void (await result.current.retry(leftover)));
+        expect(prepareVideo).toHaveBeenLastCalledWith(video);
+        unmount();
+    });
+
+    it('judges the converted file again and fails a video the estimate let through over the limit', async () => {
+        prepareVideo.mockImplementation(async source => exported(source, 300 * 1024 * 1024 + 1));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([mov()]));
+
+        expect(onVideoRefused).toHaveBeenCalledWith('too-large');
+        expect(mockSendImageMessage).not.toHaveBeenCalled();
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
+        expect(result.current.canRetry(pendingId)).toBe(false);
+        unmount();
+    });
+
+    it('offers only delete for a video the shell no longer has', async () => {
+        prepareVideo.mockRejectedValue(Object.assign(new Error('x'), { code: 'SOURCE' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([mov()]));
+
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
+        expect(onVideoRefused).not.toHaveBeenCalled();
+        expect(result.current.canRetry(pendingId)).toBe(false);
+        unmount();
+    });
+
+    it('splits a left-out shell file the shell has lost into a row of its own that can only be deleted', async () => {
+        const lostDoc = shellFile('lost.pdf', 'application/pdf');
+        const flaky = new File(['b'], 'b.pdf', { type: 'application/pdf' });
+        mockSendImageMessage.mockImplementation(
+            async (picked: ChatAttachmentSource[], ports: { put: (...args: unknown[]) => Promise<unknown> }) => {
+                putShellFile.mockResolvedValueOnce({ kind: 'no-response', reason: 'source' });
+                await ports.put({ url: 'u', headers: {} }, picked[1], 'slot-1/original');
+                return { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1, 2] } satisfies SendImageResult;
+            }
+        );
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() =>
+            result.current.sendImages([new File(['a'], 'a.pdf', { type: 'application/pdf' }), lostDoc, flaky])
+        );
+
+        const [, retryable, deleteOnly] = await Promise.all(chat.createPendingImageChat.mock.results.map(r => r.value));
+        expect(chat.createPendingImageChat.mock.calls[1][0].localFiles).toEqual([
+            { name: 'b.pdf', contentType: 'application/pdf', size: 1 },
+        ]);
+        expect(chat.createPendingImageChat.mock.calls[2][0].localFiles).toEqual([
+            { name: 'lost.pdf', contentType: 'application/pdf', size: 1000 },
+        ]);
+        expect(result.current.canRetry(retryable)).toBe(true);
+        expect(result.current.canRetry(deleteOnly)).toBe(false);
+        unmount();
+    });
+
+    it('gives a page video no preview, which would draw as a broken image', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([new File(['v'], 'clip.mp4', { type: 'video/mp4' })]));
+
+        expect(chat.createPendingImageChat.mock.calls[0][0].localThumbUrls).toEqual(['']);
         unmount();
     });
 });

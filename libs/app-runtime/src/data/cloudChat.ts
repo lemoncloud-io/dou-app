@@ -4,6 +4,8 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DataRepositories, DomainChat } from '@chatic/data';
 
 import { backgroundClouds } from '../socket/backgroundClouds';
+import { getSocketManager } from '../socket/runtime';
+import { slotKeyOf } from '../socket/utils/slotKey';
 import { getDataManager } from './runtime';
 
 /**
@@ -47,6 +49,21 @@ export const runInCloud = async <T>(cid: string, work: (repositories: DataReposi
         release();
     }
 };
+
+/** How long a write waits for its cloud's socket to come back before it goes out regardless. */
+export const CLOUD_SOCKET_WAIT_MS = 10_000;
+
+/**
+ * Resolves once `cid`'s socket is connected and signed in again, or after `timeoutMs`; never rejects.
+ *
+ * For a write that starts the moment the app comes back to the front. Behind an OS picker or the
+ * home screen the page's socket closes; it reconnects within a second of coming back, but a send
+ * started by the picker's answer would otherwise go out in that second and fail at once. Waiting
+ * costs nothing when the socket is already up, and a socket that does not come back in time still
+ * fails the write as before, where the row can be retried.
+ */
+export const waitForCloudSocket = (cid: string, timeoutMs: number = CLOUD_SOCKET_WAIT_MS): Promise<boolean> =>
+    getSocketManager().waitUntilSlotVerified(slotKeyOf(cloudOf(cid)), timeoutMs);
 
 /**
  * Sends a chat to `cid` — the cloud the user was in when they pressed send — holding that cloud's

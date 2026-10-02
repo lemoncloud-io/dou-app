@@ -1,4 +1,12 @@
-import { CHAT_IMAGE_MAX_BYTES, chatAttachmentSummary, chatImageCount, judgeChatImages } from './chatImages';
+import type { ShellFileRef } from '../uploads/types';
+import { CHAT_ATTACHMENT_MAX_BYTES } from './chatAttachments';
+import {
+    CHAT_IMAGE_MAX_BYTES,
+    chatAttachmentSummary,
+    chatImageCount,
+    judgeChatAttachments,
+    judgeChatImages,
+} from './chatImages';
 
 const file = (name: string, type = 'image/jpeg', size = 1024, lastModified = 1): File => {
     const f = new File(['x'], name, { type, lastModified });
@@ -70,6 +78,122 @@ describe('judgeChatImages', () => {
         const picked = [file('a.jpg', 'image/jpeg', 1, 1), file('b.heic', 'image/heic', 1, 2)];
 
         expect(judgeChatImages(picked, 1).rejected.map(r => r.reason)).toEqual(['unsupported']);
+    });
+});
+
+const shell = (name: string, type: string, size = 1024, extra: Partial<ShellFileRef> = {}): ShellFileRef => ({
+    uri: `file:///cache/attach-pick/${name}`,
+    name,
+    type,
+    size,
+    kind: type.startsWith('video/') ? 'video' : 'file',
+    ...extra,
+});
+
+describe('judgeChatAttachments', () => {
+    it('accepts the twelve server formats in pick order', () => {
+        const picked = [
+            file('a.png', 'image/png'),
+            file('b.jpg'),
+            file('c.gif', 'image/gif'),
+            file('d.webp', 'image/webp'),
+            file('e.mp4', 'video/mp4'),
+            file('f.pdf', 'application/pdf'),
+            file('g.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            file('h.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+            file('i.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'),
+            // A system that does not know HWP hands it over untyped; the extension carries it.
+            file('j.hwp', ''),
+            file('k.hwpx', 'application/hwp+zip'),
+            file('l.txt', 'text/plain'),
+        ];
+
+        const { accepted, rejected } = judgeChatAttachments(picked, 12);
+
+        expect(accepted.map(f => f.name)).toEqual(picked.map(f => f.name));
+        expect(rejected).toEqual([]);
+    });
+
+    it('refuses a format the server does not take, such as a QuickTime page file', () => {
+        const { rejected } = judgeChatAttachments(
+            [file('clip.mov', 'video/quicktime'), file('a.zip', 'application/zip')],
+            10
+        );
+
+        expect(rejected.map(r => r.reason)).toEqual(['unsupported', 'unsupported']);
+    });
+
+    it.each([
+        [
+            'image',
+            file('edge.jpg', 'image/jpeg', CHAT_ATTACHMENT_MAX_BYTES.image),
+            file('big.jpg', 'image/jpeg', CHAT_ATTACHMENT_MAX_BYTES.image + 1),
+        ],
+        [
+            'video',
+            file('edge.mp4', 'video/mp4', CHAT_ATTACHMENT_MAX_BYTES.video),
+            file('big.mp4', 'video/mp4', CHAT_ATTACHMENT_MAX_BYTES.video + 1),
+        ],
+        [
+            'file',
+            file('edge.pdf', 'application/pdf', CHAT_ATTACHMENT_MAX_BYTES.file),
+            file('big.pdf', 'application/pdf', CHAT_ATTACHMENT_MAX_BYTES.file + 1),
+        ],
+    ] as const)('takes a %s exactly at its limit and refuses one a byte over, naming the kind', (kind, edge, big) => {
+        const { accepted, rejected } = judgeChatAttachments([big, edge], 10);
+
+        expect(accepted).toEqual([edge]);
+        expect(rejected).toEqual([{ item: big, reason: 'too-large', kind }]);
+    });
+
+    it('judges a video the shell has yet to convert as the mp4 it will become, and not by its source size', () => {
+        const mov = shell('IMG_0001.MOV', 'video/quicktime', 166 * 1024 * 1024, { needsExport: true });
+        const long = shell('IMG_0002.MOV', 'video/quicktime', CHAT_ATTACHMENT_MAX_BYTES.video + 1, {
+            needsExport: true,
+        });
+
+        const { accepted, rejected } = judgeChatAttachments([mov, long], 10);
+
+        expect(accepted).toEqual([mov, long]);
+        expect(rejected).toEqual([]);
+    });
+
+    it('refuses a QuickTime shell video that does not say it will be converted', () => {
+        const { rejected } = judgeChatAttachments([shell('IMG_0001.MOV', 'video/quicktime')], 10);
+
+        expect(rejected.map(r => r.reason)).toEqual(['unsupported']);
+    });
+
+    it('takes a shell file twice only under two addresses', () => {
+        const pdf = shell('a.pdf', 'application/pdf');
+        const copy = { ...pdf, uri: 'file:///cache/attach-pick/other/a.pdf' };
+
+        const { accepted, rejected } = judgeChatAttachments([pdf, { ...pdf }, copy], 10);
+
+        expect(accepted).toEqual([pdf, copy]);
+        expect(rejected.map(r => r.reason)).toEqual(['duplicate']);
+    });
+
+    it('cuts a mixed pick at the limit', () => {
+        const picked = [
+            ...Array.from({ length: 9 }, (_, i) => file(`p${i}.jpg`, 'image/jpeg', 1024, i)),
+            shell('v.mp4', 'video/mp4'),
+            shell('d.pdf', 'application/pdf'),
+        ];
+
+        const { accepted, rejected } = judgeChatAttachments(picked, 10);
+
+        expect(accepted).toHaveLength(10);
+        expect(rejected).toEqual([{ item: picked[10], reason: 'limit' }]);
+    });
+});
+
+describe('judgeChatImages as an image-only judgement', () => {
+    it('refuses a video or document as unsupported', () => {
+        const { accepted, rejected } = judgeChatImages([file('a.mp4', 'video/mp4'), file('b.jpg')], 10);
+
+        expect(accepted.map(f => f.name)).toEqual(['b.jpg']);
+        expect(rejected).toEqual([{ file: expect.objectContaining({ name: 'a.mp4' }), reason: 'unsupported' }]);
     });
 });
 

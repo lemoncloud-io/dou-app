@@ -14,5 +14,12 @@ const currentPlatform = (): MediaExportPlatform => ({
 
 export const useMediaExportHandler = () => {
     const { logService: logger } = useServices();
-    return useMemo(() => createMediaExportHandlers(MediaExportBridge, currentPlatform(), logger), [logger]);
+    return useMemo(
+        () => ({
+            canOpenFile: MediaExportBridge.canOpenFile,
+            canSaveFile: MediaExportBridge.canSaveFile,
+            ...createMediaExportHandlers(MediaExportBridge, currentPlatform(), logger),
+        }),
+        [logger]
+    );
 };

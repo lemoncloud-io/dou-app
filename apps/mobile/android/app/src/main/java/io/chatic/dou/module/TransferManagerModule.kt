@@ -11,12 +11,16 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import io.chatic.dou.attach.core.AttachPickRules
 import io.chatic.dou.service.TransferService
 import io.chatic.dou.transfer.TransferRegistry
+import io.chatic.dou.transfer.core.TransferDirection
 import io.chatic.dou.transfer.core.TransferErrorCode
 import io.chatic.dou.transfer.core.TransferRejectedException
 import io.chatic.dou.transfer.core.TransferRequest
 import io.chatic.dou.transfer.core.TransferSnapshot
+import io.chatic.dou.transfer.core.UploadSources
+import java.io.File
 
 /**
  * TransferManager — the React Native face of the native file-transfer module.
@@ -59,6 +63,14 @@ class TransferManagerModule(reactContext: ReactApplicationContext) : ReactContex
             parseRequest(request)
         } catch (e: Exception) {
             promise.reject(TransferErrorCode.INVALID.name, "the request could not be read")
+            return
+        }
+        // Refused before anything is registered, like every other malformed request. A blank URI is
+        // left to the core, which names the missing field.
+        if (parsed.direction == TransferDirection.UPLOAD.wire && !parsed.fileUri.isNullOrBlank() &&
+            !UploadSources.isAllowed(parsed.fileUri, uploadRoots())
+        ) {
+            promise.reject(TransferErrorCode.INVALID.name, "an upload reads only a file the shell wrote for it")
             return
         }
         val accepted = try {
@@ -119,6 +131,12 @@ class TransferManagerModule(reactContext: ReactApplicationContext) : ReactContex
         } catch (e: Exception) {
             promise.reject(TransferErrorCode.INTERNAL.name, e.message)
         }
+    }
+
+    /** The folders an upload may read from: the attachment picker's copies and `WriteTempFile`'s files. */
+    private fun uploadRoots(): List<File> {
+        val cache = reactApplicationContext.cacheDir
+        return listOf(File(cache, AttachPickRules.FOLDER), File(cache, UploadSources.TEMP_FOLDER))
     }
 
     private fun emit(snapshot: TransferSnapshot) {

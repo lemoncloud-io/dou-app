@@ -4,11 +4,6 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.ImageDecoder
-import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -16,7 +11,6 @@ import android.util.Base64
 import android.util.Log
 import android.util.Size
 import androidx.core.content.ContextCompat
-import androidx.exifinterface.media.ExifInterface
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -27,12 +21,10 @@ import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.PermissionAwareActivity
+import io.chatic.dou.photo.PhotoPreparer
 import io.chatic.dou.photo.core.PhotoLibraryCore
 import io.chatic.dou.photo.core.PhotoLibraryCore.Export
 import io.chatic.dou.R
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -65,6 +57,8 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
     // behind a page of previews.
     private val listExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val readExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    private val preparer = PhotoPreparer(reactContext)
 
     override fun getName(): String = "PhotoLibrary"
 
@@ -386,149 +380,12 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
         }
     }
 
-    /**
-     * The library's bytes in the form [PhotoLibraryCore.export] chose, then checked once more for a
-     * location: one that still has it is redrawn as a new JPEG, which carries no metadata at all, and
-     * refused if even that keeps it. Android 10+ already hides the location from apps without
-     * ACCESS_MEDIA_LOCATION, which this app does not ask for; the check covers older versions and any
-     * copy the redaction missed.
-     */
-    private fun prepare(uri: Uri, export: Export, row: Row): Triple<ByteArray, String, String>? {
-        // The stored bytes are read only when they are what goes up; a photo converted to JPEG is
-        // decoded from the URI instead, so its original is never held alongside the bitmap.
-        val stored = { reactApplicationContext.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
-        val prepared = when (export) {
-            is Export.Original -> stored()?.let { Triple(it, export.mimeType, export.extension) }
-            is Export.StripLocation -> stored()?.let { withoutLocation(it) }?.let { Triple(it, export.mimeType, export.extension) }
-                ?: jpeg(uri, null, row)?.let { Triple(it, "image/jpeg", "jpg") }
-            is Export.Jpeg -> jpeg(uri, export.maxEdge, row)?.let { Triple(it, "image/jpeg", "jpg") }
-        } ?: return null
-        if (!hasLocation(prepared.first)) return prepared
-        val redrawn = jpeg(uri, null, row)?.takeIf { !hasLocation(it) } ?: return null
-        return Triple(redrawn, "image/jpeg", "jpg")
-    }
+    /** The library's bytes in the form [PhotoLibraryCore.export] chose — see [PhotoPreparer.prepare]. */
+    private fun prepare(uri: Uri, export: Export, row: Row): Triple<ByteArray, String, String>? =
+        preparer.prepare(uri, export, row.width, row.height)?.let { Triple(it.bytes, it.mimeType, it.extension) }
 
-    private val gpsTags = listOf(
-        ExifInterface.TAG_GPS_VERSION_ID, ExifInterface.TAG_GPS_LATITUDE_REF, ExifInterface.TAG_GPS_LATITUDE,
-        ExifInterface.TAG_GPS_LONGITUDE_REF, ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_ALTITUDE_REF,
-        ExifInterface.TAG_GPS_ALTITUDE, ExifInterface.TAG_GPS_TIMESTAMP, ExifInterface.TAG_GPS_SATELLITES,
-        ExifInterface.TAG_GPS_STATUS, ExifInterface.TAG_GPS_MEASURE_MODE, ExifInterface.TAG_GPS_DOP,
-        ExifInterface.TAG_GPS_SPEED_REF, ExifInterface.TAG_GPS_SPEED, ExifInterface.TAG_GPS_TRACK_REF,
-        ExifInterface.TAG_GPS_TRACK, ExifInterface.TAG_GPS_IMG_DIRECTION_REF, ExifInterface.TAG_GPS_IMG_DIRECTION,
-        ExifInterface.TAG_GPS_MAP_DATUM, ExifInterface.TAG_GPS_DEST_LATITUDE_REF, ExifInterface.TAG_GPS_DEST_LATITUDE,
-        ExifInterface.TAG_GPS_DEST_LONGITUDE_REF, ExifInterface.TAG_GPS_DEST_LONGITUDE, ExifInterface.TAG_GPS_DEST_BEARING_REF,
-        ExifInterface.TAG_GPS_DEST_BEARING, ExifInterface.TAG_GPS_DEST_DISTANCE_REF, ExifInterface.TAG_GPS_DEST_DISTANCE,
-        ExifInterface.TAG_GPS_PROCESSING_METHOD, ExifInterface.TAG_GPS_AREA_INFORMATION, ExifInterface.TAG_GPS_DATESTAMP,
-        ExifInterface.TAG_GPS_DIFFERENTIAL, ExifInterface.TAG_GPS_H_POSITIONING_ERROR,
-    )
-
-    /**
-     * The same image with its GPS tags removed. ExifInterface rewrites only the metadata of a JPEG or
-     * PNG, so the pixels stay as they were and the orientation tag stays for the web to apply. It
-     * saves only to a file, hence the round trip through the cache directory.
-     */
-    private fun withoutLocation(data: ByteArray): ByteArray? {
-        val file = File.createTempFile("photo-", ".img", reactApplicationContext.cacheDir)
-        return try {
-            file.writeBytes(data)
-            val exif = ExifInterface(file)
-            for (tag in gpsTags) exif.setAttribute(tag, null)
-            if (PhotoLibraryCore.xmpHasLocation(exif.getAttribute(ExifInterface.TAG_XMP))) {
-                exif.setAttribute(ExifInterface.TAG_XMP, null)
-            }
-            exif.saveAttributes()
-            file.readBytes()
-        } catch (e: Exception) {
-            Log.w(TAG, "location removal failed: ${e.javaClass.simpleName}")
-            null
-        } finally {
-            file.delete()
-        }
-    }
-
-    private fun hasLocation(data: ByteArray): Boolean = try {
-        val exif = ExifInterface(ByteArrayInputStream(data))
-        exif.latLong != null || PhotoLibraryCore.xmpHasLocation(exif.getAttribute(ExifInterface.TAG_XMP))
-    } catch (e: Exception) {
-        false
-    }
-
-    /**
-     * The photo decoded upright and encoded as JPEG, its long edge at most [maxEdge] when given, and
-     * never more pixels than one decode may hold. A new bitmap carries no metadata, so the orientation
-     * is in the pixels and nothing else comes along. Out of memory propagates, so the read fails as a
-     * read rather than being mistaken for an image that cannot be decoded.
-     */
-    private fun jpeg(uri: Uri, maxEdge: Int?, row: Row): ByteArray? = try {
-        val bitmap = if (Build.VERSION.SDK_INT >= 28) {
-            val source = ImageDecoder.createSource(reactApplicationContext.contentResolver, uri)
-            ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                PhotoLibraryCore.decodeTarget(info.size.width, info.size.height, maxEdge)?.let { (width, height) ->
-                    decoder.setTargetSize(width, height)
-                }
-            }
-        } else {
-            decodeUpright(uri, maxEdge ?: budgetEdge(row))
-        }
-        bitmap?.let { encodeJpeg(it, PhotoLibraryCore.JPEG_QUALITY).also { _ -> it.recycle() } }
-    } catch (e: Exception) {
-        Log.w(TAG, "jpeg conversion failed: ${e.javaClass.simpleName}")
-        null
-    }
-
-    /** The long edge that keeps a pre-ImageDecoder decode within the pixel budget; null when it fits. */
-    private fun budgetEdge(row: Row): Int? =
-        PhotoLibraryCore.decodeTarget(row.width, row.height, null)?.let { (width, height) -> maxOf(width, height) }
-
-    /**
-     * Before ImageDecoder: BitmapFactory, subsampled toward [maxEdge] and then scaled to it exactly,
-     * rotated by the EXIF orientation.
-     */
-    private fun decodeUpright(uri: Uri, maxEdge: Int?): Bitmap? {
-        val resolver = reactApplicationContext.contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = if (maxEdge != null) PhotoLibraryCore.sampleSize(bounds.outWidth, bounds.outHeight, maxEdge) else 1
-        }
-        var bitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) } ?: return null
-        if (maxEdge != null) {
-            PhotoLibraryCore.decodeTarget(bitmap.width, bitmap.height, maxEdge)?.let { (width, height) ->
-                val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
-                if (scaled !== bitmap) bitmap.recycle()
-                bitmap = scaled
-            }
-        }
-        val degrees = resolver.openInputStream(uri)?.use { ExifInterface(it).rotationDegrees } ?: 0
-        if (degrees == 0) return bitmap
-        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(degrees.toFloat()) }, true)
-        if (rotated !== bitmap) bitmap.recycle()
-        return rotated
-    }
-
-    /**
-     * JPEG has no transparency: a transparent pixel would come out black, so an image with alpha is
-     * drawn over white first, the way a viewer shows it.
-     */
-    private fun encodeJpeg(bitmap: Bitmap, quality: Int): ByteArray {
-        val opaque = if (bitmap.hasAlpha()) {
-            Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888).also { canvasBitmap ->
-                Canvas(canvasBitmap).apply {
-                    drawColor(Color.WHITE)
-                    drawBitmap(bitmap, 0f, 0f, null)
-                }
-            }
-        } else {
-            bitmap
-        }
-        return ByteArrayOutputStream().use { out ->
-            opaque.compress(Bitmap.CompressFormat.JPEG, quality, out)
-            if (opaque !== bitmap) opaque.recycle()
-            out.toByteArray()
-        }
-    }
+    private fun decodeUpright(uri: Uri, maxEdge: Int?): Bitmap? = preparer.decodeUpright(uri, maxEdge)
 
     private fun base64Jpeg(bitmap: Bitmap, quality: Int): String =
-        Base64.encodeToString(encodeJpeg(bitmap, quality), Base64.NO_WRAP)
+        Base64.encodeToString(preparer.encodeJpeg(bitmap, quality), Base64.NO_WRAP)
 }

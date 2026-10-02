@@ -153,6 +153,102 @@ enum DownloadFiles {
         return nil
     }
 
+    // MARK: - Export families
+
+    /// How many leading bytes `exportFamily` reads: enough to look for a NUL in a text file.
+    static let familySniffBytes = 4096
+
+    /// The byte families a downloaded file may leave the app as. A family only gates: DOCX, XLSX, PPTX
+    /// and HWPX are all ZIP files, so which of them a file is comes from its name (`serverFormats`).
+    enum ExportFamily: Equatable {
+        case image(ImageType)
+        /// MP4 and the rest of its family: bytes 4 to 7 are `ftyp`.
+        case isoBmff
+        case pdf
+        /// DOCX, XLSX, PPTX, HWPX.
+        case zip
+        /// HWP, a Compound File Binary.
+        case ole2
+        /// A `.txt` name and no NUL in the first `familySniffBytes`.
+        case text
+    }
+
+    /// The family a file's first bytes (up to `familySniffBytes`) and its name show, or `nil`.
+    static func exportFamily(_ head: Data, fileName: String) -> ExportFamily? {
+        if let image = sniffImage(head) { return .image(image) }
+        let bytes = [UInt8](head.prefix(familySniffBytes))
+        func matches(_ offset: Int, _ expected: [UInt8]) -> Bool {
+            bytes.count >= offset + expected.count && Array(bytes[offset..<(offset + expected.count)]) == expected
+        }
+        if matches(4, Array("ftyp".utf8)) { return .isoBmff }
+        if matches(0, Array("%PDF".utf8)) { return .pdf }
+        if matches(0, [0x50, 0x4B, 0x03, 0x04]) { return .zip }
+        if matches(0, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) { return .ole2 }
+        // Text has no signature: the name says it is one, and binary bytes would say it is not.
+        if serverExtension(of: fileName) == "txt", !bytes.contains(0) { return .text }
+        return nil
+    }
+
+    /// The server's formats by file extension, with the content type each stands for — the same table
+    /// the web judges a picked file by. On iOS the share sheet, QuickLook and the export sheet type a
+    /// file by its URL's extension, so the name is what makes a ZIP a DOCX.
+    static let serverFormats: [String: String] = [
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "gif": "image/gif",
+        "webp": "image/webp",
+        "mp4": "video/mp4",
+        "pdf": "application/pdf",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "hwp": "application/x-hwp",
+        "hwpx": "application/hwp+zip",
+        "txt": "text/plain",
+    ]
+
+    /// The lower-case text after the last dot, unless that dot is the first or last character — the
+    /// server's rule, which the web applies too.
+    static func serverExtension(of name: String) -> String? {
+        guard let dot = name.lastIndex(of: "."), dot > name.startIndex, name.index(after: dot) < name.endIndex else { return nil }
+        return String(name[name.index(after: dot)...]).lowercased()
+    }
+
+    /// The longest name, in UTF-8 bytes, `SaveFile` keeps a file under; file systems stop at 255.
+    static let maxSaveNameBytes = 200
+
+    /// The name `SaveFile` keeps a document under, or `nil` when it may not be saved. The name comes
+    /// from the web, so it is checked once more: path separators and control characters are removed,
+    /// characters some storage refuses replaced with `_`, spaces and dots trimmed at either end, the
+    /// extension lowered and the base cut to fit. A name whose extension is not a server format — none,
+    /// `.exe`, `.html` — is refused rather than renamed: the person would not recognise what it became.
+    /// Android applies the same steps.
+    static func saveFileName(_ name: String) -> String? {
+        var scalars = String.UnicodeScalarView()
+        for scalar in name.unicodeScalars {
+            if isControl(scalar) || scalar == "/" || scalar == "\\" { continue }
+            scalars.append(unsafeCharacters.contains(scalar) ? "_" : scalar)
+        }
+        let cleaned = trimEdges(String(scalars))
+        guard let ext = serverExtension(of: cleaned), serverFormats[ext] != nil,
+              let dot = cleaned.lastIndex(of: ".")
+        else { return nil }
+        let base = trimEdges(String(cleaned[..<dot]))
+        guard !base.isEmpty else { return nil }
+        var cut = String.UnicodeScalarView()
+        var bytes = 0
+        for scalar in base.unicodeScalars {
+            let size = String(scalar).utf8.count
+            if bytes + size > maxSaveNameBytes - ext.count - 1 { break }
+            bytes += size
+            cut.append(scalar)
+        }
+        var kept = String(cut)
+        while let last = kept.unicodeScalars.last, last == " " || last == "." { kept.unicodeScalars.removeLast() }
+        return "\(kept).\(ext)"
+    }
+
     // MARK: - What may leave the app (U19)
 
     /// The answer to "may this URI be saved or shared?".

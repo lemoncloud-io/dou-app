@@ -13,6 +13,11 @@ if (!FileManager) {
 
 export interface IFileManagerBridge {
     DocumentDirectoryPath: string;
+    /**
+     * The folder `writeTempFile` writes into — one of the two an upload may read from. Empty in an app
+     * built before it was exported.
+     */
+    TransferTempPath: string;
     exists(path: string): Promise<boolean>;
     readChunk(path: string, length: number, offset: number): Promise<string>;
     readFile(path: string): Promise<string>;
@@ -34,6 +39,7 @@ export const safeHost = (url: string): string => {
 
 export const FileManagerBridge: IFileManagerBridge = {
     DocumentDirectoryPath: FileManager?.DocumentDirectoryPath ?? '',
+    TransferTempPath: FileManager?.TransferTempPath ?? '',
 
     exists: async (path: string): Promise<boolean> => {
         if (!FileManager) throw new Error('FileManager native module is not available');

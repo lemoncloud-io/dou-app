@@ -97,6 +97,81 @@ describe('toPutResult', () => {
     });
 });
 
+describe('createNativeTransfers — videos and documents', () => {
+    const video = new File(['mp4'], 'clip.mp4', { type: 'video/mp4' });
+    const doc = new File(['%PDF'], 'quote.pdf', { type: 'application/pdf' });
+    const shellVideo = {
+        uri: 'file:///cache/attach-pick/u1/clip.mp4',
+        name: 'clip.mp4',
+        type: 'video/mp4',
+        size: 300 * 1024 * 1024,
+        kind: 'video' as const,
+    };
+
+    it.each([
+        ['video', video],
+        ['document', doc],
+    ])('sends a page %s by the page PUT and never as base64 over the bridge', async (_kind, picked) => {
+        const { transfers, requests, fallback } = setup();
+
+        await expect(transfers.put(target, picked, 'slot-0/original')).resolves.toEqual({
+            kind: 'responded',
+            httpStatus: 200,
+        });
+
+        expect(fallback).toHaveBeenCalledWith(target, picked, 'slot-0/original');
+        expect(requests).toEqual([]);
+        // Not a verdict on the shell: the next image still goes native.
+        expect(transfers.usesFallback()).toBe(false);
+    });
+
+    it('starts a shell file from its own address with its declared length, writing no temp file', async () => {
+        const { transfers, requests, emit } = setup();
+
+        const result = transfers.putShellFile(target, shellVideo, 'slot-0/original');
+        await untilRequested(requests, 'StartFileTransfer');
+        emit({ transferId: 't-1', state: 'responded', httpStatus: 200 });
+
+        await expect(result).resolves.toEqual({ kind: 'responded', httpStatus: 200 });
+        expect(requests.map(request => request.type)).toEqual(['StartFileTransfer', 'AckFileTransfers']);
+        expect(requests[0].data.file).toEqual({
+            uri: shellVideo.uri,
+            contentType: 'video/mp4',
+            contentLength: shellVideo.size,
+        });
+    });
+
+    it('fails a shell file on a shell without the transfer module rather than reach the page PUT', async () => {
+        const { transfers, fallback } = setup({ StartFileTransfer: notFound() });
+
+        await expect(transfers.putShellFile(target, shellVideo, 'slot-0/original')).resolves.toEqual({
+            kind: 'no-response',
+            reason: 'system',
+        });
+        expect(fallback).not.toHaveBeenCalled();
+    });
+
+    it('reports a shell file the shell lost as a source failure', async () => {
+        const { transfers, requests, emit } = setup();
+
+        const result = transfers.putShellFile(target, shellVideo, 'slot-0/original');
+        await untilRequested(requests, 'StartFileTransfer');
+        emit({ transferId: 't-1', state: 'failed', errorCode: 'SOURCE' });
+
+        await expect(result).resolves.toEqual({ kind: 'no-response', reason: 'source' });
+    });
+
+    it('reports a shell file refused at the start as gone as a source failure too', async () => {
+        const gone = Object.assign(new Error('the file no longer exists'), { code: 'SOURCE' });
+        const { transfers } = setup({ StartFileTransfer: gone });
+
+        await expect(transfers.putShellFile(target, shellVideo, 'slot-0/original')).resolves.toEqual({
+            kind: 'no-response',
+            reason: 'source',
+        });
+    });
+});
+
 describe('createNativeTransfers', () => {
     it('writes a temp file, starts an upload with its length, and resolves on the terminal state', async () => {
         const { transfers, requests, emit } = setup();

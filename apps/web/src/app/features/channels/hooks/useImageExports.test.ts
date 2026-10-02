@@ -40,7 +40,22 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
 const file = { uri: 'file:///cache/transfer-download/h/photo.jpg', size: 3, contentType: 'image/jpeg' };
-const image = { uploadId: 'u-1', url: 'https://bucket.s3.amazonaws.com/k', name: 'photo.jpg' };
+const image = { uploadId: 'u-1', url: 'https://bucket.s3.amazonaws.com/k', name: 'photo.jpg', kind: 'image' as const };
+const clip = { uploadId: 'v-1', url: 'https://bucket.s3.amazonaws.com/v', name: 'clip.mp4', kind: 'video' as const };
+const second = { uploadId: 'u-2', url: 'https://bucket.s3.amazonaws.com/k2', name: 'two.jpg', kind: 'image' as const };
+const sending = { uploadId: 'local-2', url: 'blob:https://app/3', kind: 'image' as const };
+const refusedAsFormat = () => Object.assign(new Error('format'), { code: 'UNSUPPORTED_TYPE' });
+/** Every download answers at once with the file, and records its address. */
+const instant =
+    (urls: string[]): Start =>
+    input => {
+        urls.push(input.url);
+        return {
+            transferId: `d-${urls.length}`,
+            result: Promise.resolve<DownloadResult>({ kind: 'file', file }),
+            cancel,
+        };
+    };
 
 const capable = () =>
     shellCapabilities.setReport({
@@ -130,7 +145,7 @@ describe('useImageExports', () => {
         act(() => {
             running = result.current.run('share', image);
         });
-        act(() => result.current.cancelShares());
+        act(() => result.current.stopOnClose());
         expect(cancel).toHaveBeenCalledTimes(1);
 
         await act(async () => {
@@ -209,16 +224,15 @@ describe('useImageExports', () => {
                 cancel,
             };
         };
-        const second = { uploadId: 'u-2', url: 'https://bucket.s3.amazonaws.com/k2', name: 'two.jpg' };
-        const sending = { uploadId: 'local-2', url: 'blob:https://app/3' };
         const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
 
         let running: Promise<void> = Promise.resolve();
         act(() => {
             running = result.current.runAll([image, second, sending]);
         });
-        expect(result.current.busyFor('u-1')).toEqual({ action: 'save', progress: null });
-        expect(result.current.busyFor('u-2')).toEqual({ action: 'save', progress: null });
+        const first = { action: 'save', progress: null, step: { current: 1, total: 2 } };
+        expect(result.current.busyFor('u-1')).toEqual(first);
+        expect(result.current.busyFor('u-2')).toEqual(first);
         await act(() => running);
 
         expect(urls).toEqual([image.url, second.url]);
@@ -240,7 +254,6 @@ describe('useImageExports', () => {
                     : Promise.resolve<DownloadResult>({ kind: 'file', file });
             return { transferId: `d-${urls.length}`, result, cancel };
         };
-        const second = { uploadId: 'u-2', url: 'https://bucket.s3.amazonaws.com/k2', name: 'two.jpg' };
         const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
 
         let single: Promise<void> = Promise.resolve();
@@ -283,5 +296,150 @@ describe('useImageExports', () => {
             finish({ kind: 'file', file });
             await all;
         });
+    });
+
+    it('allows videos with photos, and hides only the video buttons once a video is refused as a format', async () => {
+        capable();
+        saveToPhotoLibrary.mockRejectedValueOnce(refusedAsFormat());
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+        expect(result.current.canExportItem(clip)).toBe(true);
+
+        await act(() => result.current.run('save', clip));
+
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.videoUpdateRequired' });
+        expect(result.current.canExport).toBe(true);
+        expect(result.current.canExportVideos).toBe(false);
+        expect(result.current.canExportItem(clip)).toBe(false);
+        expect(result.current.canExportItem(image)).toBe(true);
+    });
+
+    it('learns the same from a video refused on share', async () => {
+        capable();
+        shareFile.mockRejectedValueOnce(refusedAsFormat());
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('share', clip));
+
+        expect(result.current.canExportVideos).toBe(false);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.videoUpdateRequired' });
+    });
+
+    it('saves a video through the photo library and says it saved a video', async () => {
+        capable();
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('save', clip));
+
+        expect(saveToPhotoLibrary).toHaveBeenCalledWith(file.uri);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedVideo' });
+    });
+
+    it('starts nothing on a video once videos were refused', async () => {
+        capable();
+        shellCapabilities.withdrawVideoExport();
+        const urls: string[] = [];
+        start = instant(urls);
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('share', clip));
+
+        expect(urls).toEqual([]);
+    });
+
+    it('counts as savable only what is sent, drawn, and of a kind the app takes', () => {
+        capable();
+        const broken = { ...second, broken: true };
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        expect(result.current.savable([image, sending, broken, clip])).toEqual([image, clip]);
+
+        act(() => shellCapabilities.withdrawVideoExport());
+
+        expect(result.current.savable([image, sending, broken, clip])).toEqual([image]);
+    });
+
+    it('keeps saving photos after a video is refused mid-run, and says videos need an update', async () => {
+        capable();
+        const urls: string[] = [];
+        start = instant(urls);
+        saveToPhotoLibrary
+            .mockResolvedValueOnce({ data: {} })
+            .mockRejectedValueOnce(refusedAsFormat())
+            .mockResolvedValue({ data: {} });
+        const later = { ...clip, uploadId: 'v-2', url: 'https://bucket.s3.amazonaws.com/v2' };
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.runAll([image, clip, later, second]));
+
+        expect(urls).toEqual([image.url, clip.url, second.url]);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedPhotosVideosNeedUpdate:{"n":2}' });
+        expect(result.current.canExportVideos).toBe(false);
+    });
+
+    it('counts items rather than photos when a save all has a video in it', async () => {
+        capable();
+        start = instant([]);
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.runAll([image, clip]));
+
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedAllItems:{"n":2}' });
+    });
+
+    it('shows which item a save all is on', async () => {
+        capable();
+        const finishes: Array<(result: DownloadResult) => void> = [];
+        start = () => ({
+            transferId: `d-${finishes.length + 1}`,
+            result: new Promise<DownloadResult>(resolve => finishes.push(resolve)),
+            cancel,
+        });
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        let all: Promise<void> = Promise.resolve();
+        act(() => {
+            all = result.current.runAll([image, clip]);
+        });
+        await act(async () => {
+            finishes[0]({ kind: 'file', file });
+            await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        expect(result.current.busyFor('v-1')?.step).toEqual({ current: 2, total: 2 });
+        await act(async () => {
+            finishes[1]({ kind: 'file', file });
+            await all;
+        });
+    });
+
+    it('finishes the current item of a save all when the viewer closes, and stops there', async () => {
+        capable();
+        let finish: (result: DownloadResult) => void = () => undefined;
+        const urls: string[] = [];
+        start = input => {
+            urls.push(input.url);
+            return {
+                transferId: `d-${urls.length}`,
+                result: new Promise<DownloadResult>(resolve => (finish = resolve)),
+                cancel,
+            };
+        };
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        let all: Promise<void> = Promise.resolve();
+        act(() => {
+            all = result.current.runAll([image, second, clip]);
+        });
+        act(() => result.current.stopOnClose());
+        await act(async () => {
+            finish({ kind: 'file', file });
+            await all;
+        });
+
+        expect(cancel).not.toHaveBeenCalled();
+        expect(urls).toEqual([image.url]);
+        expect(saveToPhotoLibrary).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedAll:{"n":1}' });
     });
 });

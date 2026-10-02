@@ -6,17 +6,29 @@
 > thread composers (`useComposerSend`, which binds `xhrPut`), and `apps/web`'s shell binding
 > ([image-send.md](../../../../apps/web/docs/feature/channels/image-send.md)).
 
-`data.useSendImages({ cid, channelId, parentId?, put, beforeSweep? })` sends picked images as one
+`data.useSendImages({ cid, channelId, parentId?, put, putShellFile?, prepareVideo?, onVideoRefused?, beforeSweep?, waitForConnection? })`
+sends picked attachments — page files, and in the mobile app shell files too — as one
 message and returns `{ sendImages, retry, canRetry, discard }`. It holds no rules about uploads
 itself. It binds the data layer's `sendImageMessage` to the room's cloud and to the PUT the shell
 passes in, and it keeps the picked files for as long as a retry could still need them.
 
 What differs between shells enters as two ports, so every shell runs the same orchestration:
 
-| Port          | Browser and desktop          | Mobile app (`apps/web` inside the native shell)                    |
-| ------------- | ---------------------------- | ------------------------------------------------------------------ |
-| `put`         | `xhrPut` from `@chatic/data` | the native transfer module, falling back to `xhrPut` in old builds |
-| `beforeSweep` | none                         | catch up with transfers the app finished while the page was away   |
+| Port                | Browser and desktop          | Mobile app (`apps/web` inside the native shell)                     |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| `put`               | `xhrPut` from `@chatic/data` | the native transfer module, falling back to `xhrPut` in old builds  |
+| `beforeSweep`       | none                         | catch up with transfers the app finished while the page was away    |
+| `putShellFile`      | none                         | the transfer module, sending a file the shell keeps from its folder |
+| `prepareVideo`      | none                         | `PrepareVideo`: the shell converts a video and makes its poster     |
+| `waitForConnection` | none                         | `data.waitForCloudSocket`: wait up to 10 s for the cloud's socket   |
+
+`waitForConnection` runs inside the cloud's hold, before the sequence's first request. A send can
+start the moment the page comes back to the front — an OS picker answers as the person returns, and
+the page's socket closed while it sat behind the picker for more than a few seconds. The socket comes
+back within about a second, but a request sent in that second fails at once. The port resolves `true`
+once the slot is signed in again or `false` after ten seconds, never rejects; either way the sequence
+then runs, so a socket that stays down fails the send as before, retryably. `waitForCloudSocket`
+answers at once when the socket is already up. Desktop passes none and starts at once.
 
 `sendImages` resolves once the send has settled, sent or failed — a caller that has to follow the
 message with another one awaits it. Desktop sends the composer's text first, at the press, and the
@@ -59,6 +71,45 @@ written, and holding the row back until they do would break "the pick is the sen
 is prepared — before the upload starts — the row is rewritten **once**, with a thumbnail preview for
 each image that has one (a GIF keeps its original). One cache write per message, not per image, and
 the feed stops decoding full-size photos for small tiles. A retry keeps the thumbnails it already has.
+
+## Shell files and video conversion
+
+A shell file (`ShellFileRef`, see [the uploads doc](../../../data/docs/uploads/README.md)) is sent from
+the shell's own folder through `putShellFile`. A shell file that reaches a shell with no
+`putShellFile` fails its slot; it is never handed to `put`, which could not read it. A shell document
+is sent under the name and type `chatAttachmentFormat` gives it, so an HWP the OS typed
+`application/octet-stream` goes up as `application/x-hwp`.
+
+**A shell video is converted before the sequence starts, not inside its `prepare` port.** After the
+pending row is written, the hook calls `prepareVideo` for each shell video, one at a time in pick
+order, outside the cloud's socket hold (a conversion can take minutes and needs no socket). A shell
+file is a video by its format (`chatAttachmentSourceFormat`), not by the `kind` the shell gave it, so
+an `.mp4` picked through the documents picker is converted or checked, and gets a poster, like one
+picked from the album. The sequence fails the whole message when its `prepare` throws, and a refused
+video must fail alone, so:
+
+- **A refusal fails only that video.** `TOO_LARGE`, `UNSUPPORTED`, `SOURCE`, `SYSTEM` or a timeout
+  leaves the video out of the list the sequence runs on, and it is reported the way a slot whose upload
+  failed is: written as a failed message of its own. `onVideoRefused` is told `too-large` or
+  `unsupported`, so the screen can say why. Whether that message can be retried depends on the
+  refusal (below).
+- **The result is judged again** with `judgeChatAttachments`, since the shell only estimated its size
+  before converting. A result over the limit is refused like a `TOO_LARGE`.
+- **Inside the sequence, `prepare` passes the converted file and its poster through** as the slot's
+  original and thumbnail, both shell files.
+- **The poster becomes the row's preview.** The shell hands a base64 copy of it, which `prepareVideo`
+  returns as a `Blob`; the one preview rewrite (below) points the video's slot at it. Until then a shell
+  file's slot has no preview, and neither does a page video: an object URL of an `mp4` drawn as an
+  image only breaks.
+
+**A shell file a retry could only fail again cannot be retried.** The file is marked gone for the page
+(`goneShellFiles`) when the shell has lost it — `prepareVideo` answers `SOURCE`, or the shell's PUT
+does, at its start (iOS refuses a missing file there) or once it reads — and when a video was refused
+for what it is: `TOO_LARGE`, `UNSUPPORTED`, or a converted result over the limit, which converting
+again would only repeat. Left out of a sent message, gone files are written as a failed row of their
+own with no files in memory, so delete is all it offers; a failed message whose every file is gone
+lets its files go the same way. Only a failure in passing stays retryable — `SYSTEM` (on iOS, the app
+leaving the screen mid-conversion) or a timeout.
 
 ## Memory, and what it cannot hold
 

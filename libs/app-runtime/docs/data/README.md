@@ -17,7 +17,7 @@ data/                              21 source files, 13 tests
 ├── types.ts                      IDataManager · CacheAssemblyOptions
 ├── cacheStorageRouting.ts        resolveCacheBackend — the one routing decision
 ├── nativeCacheSupport.ts         what the installed shell says it can store
-├── cloudChat.ts                  sendChatInCloud · getCloudRepositories — writes named by cloud
+├── cloudChat.ts                  sendChatInCloud · getCloudRepositories · waitForCloudSocket — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
 ├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot

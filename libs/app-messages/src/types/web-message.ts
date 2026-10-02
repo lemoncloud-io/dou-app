@@ -63,6 +63,11 @@ import type {
     ManagePhotoSelectionPayload,
     SaveToPhotoLibraryPayload,
     ShareFilePayload,
+    OpenFilePayload,
+    SaveFilePayload,
+    PickAttachmentsPayload,
+    PrepareVideoPayload,
+    ReadAttachmentPayload,
     CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
@@ -129,6 +134,15 @@ export type WebMessagePayloadMap = {
     // shows the controls only when the handshake lists both.
     SaveToPhotoLibrary: SaveToPhotoLibraryPayload;
     ShareFile: ShareFilePayload;
+    // Open a downloaded document in the OS preview, or keep it in the device's downloads. Newer than
+    // the two above: the web learns a shell without them from `NOT_FOUND`.
+    OpenFile: OpenFilePayload;
+    SaveFile: SaveFilePayload;
+    // Pick a video or document the shell keeps, and make a picked video ready to upload. A shell
+    // without them answers `NOT_FOUND`, and the web uses its own file input instead.
+    PickAttachments: PickAttachmentsPayload;
+    PrepareVideo: PrepareVideoPayload;
+    ReadAttachment: ReadAttachmentPayload;
     FetchSafeArea: FetchSafeAreaPayload;
     FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;

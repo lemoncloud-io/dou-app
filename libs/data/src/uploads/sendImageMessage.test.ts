@@ -1,12 +1,14 @@
 import type { UploadDirectTransfer } from '@lemoncloud/chatic-socials-api';
 import { sendImageMessage, type SendImageOptions } from './sendImageMessage';
 import type {
+    ChatAttachmentSource,
     PreparedImageMirror,
     PresignedUploadStartResult,
     PresignedUploadTicket,
     PutPort,
     PutResult,
     SendImagePorts,
+    ShellFileRef,
 } from './types';
 
 const SIGNED = 'https://bucket.s3.amazonaws.com/key?X-Amz-Signature=';
@@ -93,6 +95,49 @@ describe('sendImageMessage', () => {
         expect(ports.complete).toHaveBeenCalledTimes(1);
         expect(ports.complete).toHaveBeenCalledWith({ list: [{ id: 'up-0' }, { id: 'up-1' }, { id: 'up-2' }] });
         expect(ports.send).toHaveBeenCalledWith({ uploadIds: ['up-0', 'up-1', 'up-2'] });
+    });
+
+    it('hands a shell file and its poster to the PUT as the shell files they are', async () => {
+        const { ports } = createPorts(0);
+        const video: ShellFileRef = {
+            uri: 'file:///cache/attach-pick/a/clip.mp4',
+            name: 'clip.mp4',
+            type: 'video/mp4',
+            size: 5000,
+            kind: 'video',
+        };
+        const poster: ShellFileRef = {
+            ...video,
+            uri: 'file:///cache/attach-pick/a/poster.jpg',
+            name: 'poster.jpg',
+            type: 'image/jpeg',
+            size: 20,
+        };
+        const put = jest.fn<Promise<PutResult>, [unknown, ChatAttachmentSource, string]>(async () => OK);
+        const shellPorts: SendImagePorts<ChatAttachmentSource> = {
+            ...ports,
+            prepare: async () => ({
+                original: { file: video, width: 1920, height: 1080 },
+                thumbnail: { file: poster, width: 400, height: 225 },
+            }),
+            put,
+        };
+
+        const result = await sendImageMessage([video], shellPorts, noWait);
+
+        expect(result).toEqual({ status: 'sent', uploadIds: ['up-0'], failedIndexes: [] });
+        expect(ports.start.mock.calls[0][0].list[0]).toEqual({
+            name: 'clip.mp4',
+            contentType: 'video/mp4',
+            contentSize: 5000,
+            width: 1920,
+            height: 1080,
+            thumbnail: { contentType: 'image/jpeg', contentSize: 20, width: 400, height: 225 },
+        });
+        expect(put.mock.calls.map(call => [call[1], call[2]])).toEqual([
+            [video, 'slot-0/original'],
+            [poster, 'slot-0/thumbnail'],
+        ]);
     });
 
     it('prepares the files one at a time', async () => {

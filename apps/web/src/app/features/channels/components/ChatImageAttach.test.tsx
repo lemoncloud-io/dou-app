@@ -2,8 +2,11 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
+import type { ChatAttachmentSource } from '@chatic/data';
+
+import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
 import type { PhotoPicker } from '../hooks/usePhotoPicker';
-import { useChatImageAttach } from './ChatImageAttach';
+import { INPUT_CLICK_WINDOW_MS, useChatImageAttach } from './ChatImageAttach';
 
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
@@ -15,6 +18,14 @@ jest.mock('react-i18next', () => ({
 
 const openSettings = jest.fn();
 jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () => openSettings() } }));
+
+let mockNative = false;
+jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+let mockAppleTouch = false;
+jest.mock('../utils/attachSources', () => ({
+    ...jest.requireActual('../utils/attachSources'),
+    isAppleTouchWebKit: () => mockAppleTouch,
+}));
 
 const unsupportedPicker = (): PhotoPicker => ({
     supported: false,
@@ -47,12 +58,16 @@ const Harness = ({
     sendImages,
     disabled,
     picker,
+    shellPicker,
+    now,
 }: {
-    sendImages: (files: File[]) => Promise<void>;
+    sendImages: (files: ChatAttachmentSource[]) => Promise<void>;
     disabled?: boolean;
     picker?: PhotoPicker;
+    shellPicker?: AttachmentPicker;
+    now?: () => number;
 }) => {
-    const { button, overlays } = useChatImageAttach({ sendImages, disabled, picker });
+    const { button, overlays } = useChatImageAttach({ sendImages, disabled, picker, shellPicker, now });
     return (
         <>
             {button}
@@ -234,5 +249,167 @@ describe('useChatImageAttach — in-app grid', () => {
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['p1.jpg']);
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+});
+
+describe('useChatImageAttach — videos and documents', () => {
+    const openSource = (name: 'chat.attach.source.album' | 'chat.attach.source.files') => {
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
+        fireEvent.click(screen.getByRole('button', { name }));
+    };
+    const shellPicker = (answer: () => Promise<AttachmentPick | null>, unsupported = false): AttachmentPicker => ({
+        pick: jest.fn(answer),
+        prepareVideo: jest.fn(),
+        isUnsupported: () => unsupported,
+        reset: jest.fn(),
+    });
+    const shellVideo = {
+        uri: 'file:///c/attach-pick/a/v.mp4',
+        name: 'v.mp4',
+        type: 'video/mp4',
+        size: 9,
+        kind: 'video' as const,
+    };
+    const flush = () => act(async () => undefined);
+
+    it('opens the app’s album picker from the file entry’s second step and sends what it picked', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell = shellPicker(async () => ({ items: [shellVideo, photo('a.jpg')], refused: [] }));
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+
+        openSource('chat.attach.source.album');
+        await flush();
+
+        expect(shell.pick).toHaveBeenCalledWith({ source: 'media', selectionLimit: 10 });
+        expect(sendImages.mock.calls[0][0]).toEqual([shellVideo, expect.objectContaining({ name: 'a.jpg' })]);
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('reports what the shell would not copy, naming the limit of the kind the shell says it was', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        // A name says nothing reliable: a `.mov` is no format the page knows, yet it met the video limit.
+        const shell = shellPicker(async () => ({
+            items: [],
+            refused: [{ name: 'clip.mov', kind: 'video', reason: 'too-large' }],
+        }));
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+
+        openSource('chat.attach.source.album');
+        await flush();
+
+        expect(shell.pick).toHaveBeenCalledWith({ source: 'media', selectionLimit: 10 });
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.too-large.video');
+        expect(sendImages).not.toHaveBeenCalled();
+    });
+
+    it('says nothing when a second tap meets the picker still busy with the first', async () => {
+        const shell = shellPicker(async () => {
+            throw Object.assign(new Error('busy'), { code: 'BUSY' });
+        });
+        render(<Harness sendImages={jest.fn()} shellPicker={shell} />);
+
+        openSource('chat.attach.source.files');
+        await flush();
+
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    describe('on iOS WebKit without the app picker', () => {
+        beforeEach(() => {
+            mockAppleTouch = true;
+        });
+        afterEach(() => {
+            mockAppleTouch = false;
+            mockNative = false;
+        });
+        const openSheet = () => {
+            fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+            fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
+        };
+
+        it('tells an app user that an update sends videos', () => {
+            mockNative = true;
+            render(<Harness sendImages={jest.fn()} shellPicker={shellPicker(async () => null, true)} />);
+
+            openSheet();
+
+            expect(screen.getByText('chat.attach.source.videoNeedsUpdate')).toBeInTheDocument();
+        });
+
+        it('tells a browser user that videos go from the app, not to update one', () => {
+            render(<Harness sendImages={jest.fn()} shellPicker={shellPicker(async () => null, true)} />);
+
+            openSheet();
+
+            expect(screen.getByText('chat.attach.source.videoInApp')).toBeInTheDocument();
+            expect(screen.queryByText('chat.attach.source.videoNeedsUpdate')).not.toBeInTheDocument();
+        });
+    });
+
+    it('opens the page’s own input in the same tap when the shell answers it has no picker', async () => {
+        const shell = shellPicker(async () => null);
+        render(<Harness sendImages={jest.fn()} shellPicker={shell} now={() => 0} />);
+        const click = jest.spyOn(screen.getByTestId('chat-attach-album') as HTMLInputElement, 'click');
+
+        openSource('chat.attach.source.album');
+        await flush();
+
+        expect(click).toHaveBeenCalledTimes(1);
+    });
+
+    // iOS opens a page input only within about a second of the tap; a late click would do nothing.
+    it('asks for another tap instead of a click the page would no longer be allowed', async () => {
+        let clock = 0;
+        const shell = shellPicker(async () => {
+            clock += INPUT_CLICK_WINDOW_MS + 1;
+            return null;
+        });
+        render(<Harness sendImages={jest.fn()} shellPicker={shell} now={() => clock} />);
+        const click = jest.spyOn(screen.getByTestId('chat-attach-files') as HTMLInputElement, 'click');
+
+        openSource('chat.attach.source.files');
+        await flush();
+
+        expect(click).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.tapAgain' });
+    });
+
+    it('opens the page input straight from the tap once the shell is known to have no picker', () => {
+        const shell = shellPicker(async () => null, true);
+        render(<Harness sendImages={jest.fn()} shellPicker={shell} />);
+        const click = jest.spyOn(screen.getByTestId('chat-attach-files') as HTMLInputElement, 'click');
+
+        openSource('chat.attach.source.files');
+
+        expect(shell.pick).not.toHaveBeenCalled();
+        expect(click).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets the album input take an mp4 and the files input a document, outside iOS', () => {
+        render(<Harness sendImages={jest.fn()} />);
+
+        expect((screen.getByTestId('chat-attach-album') as HTMLInputElement).accept).toContain('video/mp4');
+        expect((screen.getByTestId('chat-attach-files') as HTMLInputElement).accept).toContain('application/pdf');
+        expect((screen.getByTestId('chat-attach-files') as HTMLInputElement).accept).not.toContain('image/');
+    });
+
+    it('sends a page video and document through the full judgement, and refuses a QuickTime video by name', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        pick('chat-attach-album', [photo('clip.mov', 'video/quicktime'), photo('clip.mp4', 'video/mp4')]);
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['clip.mp4']);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupportedVideo');
+    });
+
+    it('keeps the photos entry to photos, whatever the system picker let through', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        pick('chat-attach-library', [photo('clip.mp4', 'video/mp4'), photo('a.jpg')]);
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.jpg']);
     });
 });

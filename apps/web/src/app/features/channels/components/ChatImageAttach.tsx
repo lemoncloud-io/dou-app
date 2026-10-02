@@ -1,30 +1,58 @@
 import { useCallback, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { CHAT_IMAGE_TYPES, IMAGE_MESSAGE_SLOT_MAX, judgeChatImages, type ChatImageRejection } from '@chatic/data';
+import type { AttachmentPickSource } from '@chatic/app-messages';
+import { isNative } from '@chatic/bridges';
+import {
+    CHAT_IMAGE_TYPES,
+    type ChatAttachmentJudgement,
+    type ChatAttachmentSource,
+    IMAGE_MESSAGE_SLOT_MAX,
+    judgeChatAttachments,
+    judgeChatImages,
+} from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     AlertDialog,
     AttachMenuSheet,
+    AttachSourceSheet,
     ComposerAttachButton,
     PhotoGridSheet,
     RecentPhotoStrip,
 } from '@chatic/web-ui-kit';
 
 import { appBridge } from '../../../bridge/appBridge';
+import {
+    attachmentPicker as shellAttachmentPicker,
+    type AttachmentPick,
+    type AttachmentPicker,
+} from '../../../bridge/attachmentPicker';
 import { usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
+import { albumAccept, DOCUMENT_ACCEPT, isAppleTouchWebKit, rejectionKey } from '../utils/attachSources';
 
-const ACCEPT = CHAT_IMAGE_TYPES.join(',');
+const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
+
+/**
+ * How long after a tap the page may still open its own file input. iOS WebKit lets `click()` open a
+ * picker only within about a second of the gesture, and a shell without the attachment picker says so
+ * in one bridge round trip (tens of milliseconds). Past this the input would silently not open, so the
+ * user is asked to tap again — by then the page knows, and the next tap opens it at once.
+ */
+export const INPUT_CLICK_WINDOW_MS = 800;
 
 interface UseChatImageAttachInput {
     /** Sends the accepted files as one message — `useSendImages().sendImages`. */
-    sendImages: (files: File[]) => Promise<void>;
+    sendImages: (files: ChatAttachmentSource[]) => Promise<void>;
     /** Same lock as the composer: nobody to send to, or a message being edited. */
     disabled?: boolean;
     /** The composer's textarea, so opening the menu can drop the keyboard it would otherwise keep. */
     inputRef?: RefObject<HTMLTextAreaElement | null>;
     /** Test seam — the in-app picker's state. */
     picker?: PhotoPicker;
+    /** Test seam — the app's video and document picker. */
+    shellPicker?: AttachmentPicker;
+    /** Test seam — the clock the tap window is measured with. */
+    now?: () => number;
 }
 
 interface ChatImageAttach {
@@ -49,50 +77,93 @@ interface ChatImageAttach {
  *   already rely on it) and it returns real bytes, which that older app's own photo bridge does not.
  *
  * The camera entry is a capturing file input in every shell: it opens the camera directly and needs
- * nothing from the app. Files always use the page's input.
+ * nothing from the app.
+ *
+ * The files entry opens a second sheet — choose from the album (photos and videos) or from files
+ * (documents). In an app that has the attachment picker both open the OS pickers through the shell,
+ * which keeps the videos and documents and hands back their addresses: a large video never passes
+ * through the page. Everywhere else they open the page's own inputs, whose files the page uploads
+ * itself. The shell is asked at the tap, since the message itself opens its picker, and a shell
+ * without one answers in time for the page input to open in the same tap.
  */
 export const useChatImageAttach = ({
     sendImages,
     disabled = false,
     inputRef,
     picker: injected,
+    shellPicker = shellAttachmentPicker,
+    now = Date.now,
 }: UseChatImageAttachInput): ChatImageAttach => {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [permissionOpen, setPermissionOpen] = useState(false);
+    const [sourceOpen, setSourceOpen] = useState(false);
     const libraryRef = useRef<HTMLInputElement>(null);
     const cameraRef = useRef<HTMLInputElement>(null);
+    const albumRef = useRef<HTMLInputElement>(null);
+    const filesRef = useRef<HTMLInputElement>(null);
+    const appleTouch = isAppleTouchWebKit();
     const own = usePhotoPicker({ max: IMAGE_MESSAGE_SLOT_MAX, allTitle: t('chat.attach.recentTitle') });
     const picker = injected ?? own;
     const inGrid = picker.supported === true;
 
-    const rejectionText = useCallback(
-        (reason: ChatImageRejection) => t(`chat.attach.rejected.${reason}`, { max: IMAGE_MESSAGE_SLOT_MAX }),
-        [t]
-    );
-
-    /** Judges a pick and sends what passes — shared by the file inputs and the grid. */
+    /**
+     * Judges a pick and sends what passes — shared by the file inputs, the grid and the app's picker.
+     * What the shell would not copy is reported first, under the same one-notice rule. The page judges
+     * the rest again either way rather than trust the shell. The photo entries take photos only, whatever
+     * a system picker let through.
+     */
     const send = useCallback(
-        (files: File[]) => {
-            if (files.length === 0) return;
-            const { accepted, rejected } = judgeChatImages(files, IMAGE_MESSAGE_SLOT_MAX);
+        (
+            items: ChatAttachmentSource[],
+            {
+                refusedByShell = [],
+                photosOnly = false,
+            }: { refusedByShell?: AttachmentPick['refused']; photosOnly?: boolean } = {}
+        ) => {
+            const { accepted, rejected }: ChatAttachmentJudgement<ChatAttachmentSource> = photosOnly
+                ? (() => {
+                      const judged = judgeChatImages(items as File[], IMAGE_MESSAGE_SLOT_MAX);
+                      return {
+                          accepted: judged.accepted,
+                          // The image-only judgement names no kind; a photo's limit is the one it met.
+                          rejected: judged.rejected.map(({ file, reason }) =>
+                              reason === 'too-large'
+                                  ? { item: file, reason, kind: 'image' as const }
+                                  : { item: file, reason }
+                          ),
+                      };
+                  })()
+                : judgeChatAttachments(items, IMAGE_MESSAGE_SLOT_MAX);
             // One notice per pick, for the first reason met — a list of every refused file is noise.
-            if (rejected.length > 0) toast({ title: rejectionText(rejected[0].reason) });
+            const [shellFirst] = refusedByShell;
+            if (shellFirst) {
+                const key =
+                    shellFirst.reason === 'too-large'
+                        ? `chat.attach.rejected.too-large.${shellFirst.kind}`
+                        : `chat.attach.rejected.${shellFirst.reason}`;
+                toast({ title: t(key, { max: IMAGE_MESSAGE_SLOT_MAX }) });
+            } else if (rejected.length > 0) {
+                const [first] = rejected;
+                toast({ title: t(rejectionKey(first, first.item), { max: IMAGE_MESSAGE_SLOT_MAX }) });
+            }
             if (accepted.length === 0) return;
             sendImages(accepted).catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
         },
-        [rejectionText, sendImages, t]
+        [sendImages, t]
     );
 
-    const handlePicked = useCallback(
-        (event: ChangeEvent<HTMLInputElement>) => {
+    const pickedFrom = useCallback(
+        (photosOnly: boolean) => (event: ChangeEvent<HTMLInputElement>) => {
             const files = Array.from(event.target.files ?? []);
             // Cleared at once so picking the same photo again still fires a change.
             event.target.value = '';
-            send(files);
+            send(files, { photosOnly });
         },
         [send]
     );
+    const handlePhotosPicked = pickedFrom(true);
+    const handleAttachmentsPicked = pickedFrom(false);
 
     const openMenu = () => {
         // The composer keeps the caret through taps on its own chrome, this button included — so the
@@ -112,6 +183,39 @@ export const useChatImageAttach = ({
         ref.current?.click();
     };
 
+    /**
+     * Opens the app's picker for this source, or the page's input when the shell has none. Once the page
+     * knows the shell has none it opens the input straight from the tap.
+     */
+    const pickFromShell = (source: AttachmentPickSource, ref: RefObject<HTMLInputElement | null>) => () => {
+        setSourceOpen(false);
+        if (shellPicker.isUnsupported()) {
+            ref.current?.click();
+            return;
+        }
+        const tappedAt = now();
+        shellPicker
+            .pick({ source, selectionLimit: IMAGE_MESSAGE_SLOT_MAX })
+            .then(picked => {
+                if (picked) {
+                    send(picked.items, { refusedByShell: picked.refused });
+                    return;
+                }
+                if (now() - tappedAt <= INPUT_CLICK_WINDOW_MS) ref.current?.click();
+                else toast({ title: t('chat.attach.tapAgain') });
+            })
+            .catch(error => {
+                // A second tap while the picker opens or copies: the first one is still under way.
+                if ((error as { code?: string })?.code === 'BUSY') return;
+                toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' });
+            });
+    };
+
+    const openSources = () => {
+        setOpen(false);
+        setSourceOpen(true);
+    };
+
     const openGrid = (preselect?: { id: string; src: string }) => {
         setOpen(false);
         if (picker.access === 'denied') {
@@ -124,7 +228,7 @@ export const useChatImageAttach = ({
     const sendPicked = () => {
         picker
             .takePicked()
-            .then(send)
+            .then(files => send(files, { photosOnly: true }))
             .catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
     };
 
@@ -168,19 +272,37 @@ export const useChatImageAttach = ({
             <input
                 ref={libraryRef}
                 type="file"
-                accept={ACCEPT}
+                accept={PHOTO_ACCEPT}
                 multiple
                 hidden
-                onChange={handlePicked}
+                onChange={handlePhotosPicked}
                 data-testid="chat-attach-library"
+            />
+            <input
+                ref={albumRef}
+                type="file"
+                accept={albumAccept(appleTouch)}
+                multiple
+                hidden
+                onChange={handleAttachmentsPicked}
+                data-testid="chat-attach-album"
+            />
+            <input
+                ref={filesRef}
+                type="file"
+                accept={DOCUMENT_ACCEPT}
+                multiple
+                hidden
+                onChange={handleAttachmentsPicked}
+                data-testid="chat-attach-files"
             />
             <input
                 ref={cameraRef}
                 type="file"
-                accept={ACCEPT}
+                accept={PHOTO_ACCEPT}
                 capture="environment"
                 hidden
-                onChange={handlePicked}
+                onChange={handlePhotosPicked}
                 data-testid="chat-attach-camera"
             />
             <AttachMenuSheet
@@ -190,8 +312,25 @@ export const useChatImageAttach = ({
                 recent={recent}
                 onPhoto={inGrid ? () => openGrid() : pickFrom(libraryRef)}
                 onCamera={pickFrom(cameraRef)}
-                onFile={pickFrom(libraryRef)}
+                onFile={openSources}
                 labels={{ photo: t('chat.attach.photo'), camera: t('chat.attach.camera'), file: t('chat.attach.file') }}
+            />
+            <AttachSourceSheet
+                open={sourceOpen && !disabled}
+                onOpenChange={setSourceOpen}
+                title={t('chat.attach.source.title')}
+                onAlbum={pickFromShell('media', albumRef)}
+                onFiles={pickFromShell('document', filesRef)}
+                labels={{ album: t('chat.attach.source.album'), files: t('chat.attach.source.files') }}
+                // iOS WebKit's own input cannot send videos (it hands them over as QuickTime), so where
+                // the page input is what opens, say what would.
+                notice={
+                    // iOS WebKit's own input gives photos only. Inside the app an update brings the
+                    // picker; a browser never gets one.
+                    appleTouch && shellPicker.isUnsupported()
+                        ? t(isNative() ? 'chat.attach.source.videoNeedsUpdate' : 'chat.attach.source.videoInApp')
+                        : undefined
+                }
             />
             {inGrid && (
                 <PhotoGridSheet

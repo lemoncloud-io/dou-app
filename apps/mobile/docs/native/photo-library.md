@@ -10,13 +10,13 @@ page's own file input, the same path a browser takes.
 
 ## Files
 
-| Layer             | File                                                                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Messages          | `libs/app-messages/src/types/model/photo-library.ts`                                                                                                 |
-| WebView handler   | `src/app/webview/hooks/photoLibraryHandlers.ts`, `usePhotoLibraryHandler.ts`                                                                         |
-| TS native wrapper | `src/app/bridge/PhotoLibraryBridge.ts`                                                                                                               |
-| iOS               | `ios/Bridges/PhotoLibrary/` — `Core/PhotoLibraryCore.swift` (decisions), `PhotoLibrary.swift` (RN face and PhotoKit)                                 |
-| Android           | `io/chatic/dou/photo/core/PhotoLibraryCore.kt` (decisions), `module/PhotoLibraryModule.kt` (RN face and MediaStore), `bridge/PhotoLibraryPackage.kt` |
+| Layer             | File                                                                                                                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Messages          | `libs/app-messages/src/types/model/photo-library.ts`                                                                                                                                         |
+| WebView handler   | `src/app/webview/hooks/photoLibraryHandlers.ts`, `usePhotoLibraryHandler.ts`                                                                                                                 |
+| TS native wrapper | `src/app/bridge/PhotoLibraryBridge.ts`                                                                                                                                                       |
+| iOS               | `ios/Bridges/PhotoLibrary/` — `Core/PhotoLibraryCore.swift` (decisions), `PhotoLibrary.swift` (RN face and PhotoKit)                                                                         |
+| Android           | `io/chatic/dou/photo/core/PhotoLibraryCore.kt` (decisions), `module/PhotoLibraryModule.kt` (RN face and MediaStore), `photo/PhotoPreparer.kt` (preparation), `bridge/PhotoLibraryPackage.kt` |
 
 ## Messages
 

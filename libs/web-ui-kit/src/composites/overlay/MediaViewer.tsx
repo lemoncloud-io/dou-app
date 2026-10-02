@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { IconBack, IconChevronRight, IconClose, IconSpinner } from '../../resources/icons';
+import { IconBack, IconChevronRight, IconClose, IconImage, IconPlaySolid, IconSpinner } from '../../resources/icons';
 import {
     clampZoom,
     doubleTapZoom,
@@ -17,42 +17,76 @@ import {
     type Zoom,
 } from './imageZoom';
 
-export interface ImageViewerProps {
-    /**
-     * The images that can be shown, in order — a message's images. An entry may be undefined while the
-     * host is still resolving its address; its page then shows the placeholder, if any, or black.
-     */
-    images: (string | undefined)[];
-    /**
-     * A small copy of each image, drawn under it until it has loaded — the tile the viewer was opened
-     * from, which is usually already on hand while the original is still on its way.
-     */
-    placeholders?: (string | undefined)[];
+/**
+ * One page of the viewer.
+ *
+ * - `ready` — a photo draws `src` (the original) over `preview` (the small copy) until the original
+ *   has loaded; a video plays `src` with `preview` as its poster. Without a `src` yet — the host is
+ *   still resolving it — the page draws only the `preview`.
+ * - `sending` — a message still on its way. A photo is drawn as `ready` is (its `src` is the picked
+ *   file); a video has nothing the page can play yet, so only its `preview` is drawn.
+ * - `broken` — nothing can be shown. Drawn as a placeholder rather than left out, so the count still
+ *   matches what was sent.
+ */
+export interface MediaViewerItem {
+    key: string;
+    kind: 'image' | 'video';
+    src?: string;
+    preview?: string;
+    state: 'ready' | 'sending' | 'broken';
+}
+
+export interface MediaViewerLabels {
+    /** Accessible name of the viewer. Not drawn. */
+    title: string;
+    close: string;
+    previous: string;
+    next: string;
+    /** The big play button drawn when the browser would not start a video on its own. */
+    play: string;
+}
+
+const DEFAULT_LABELS: MediaViewerLabels = {
+    title: 'Media',
+    close: 'Close',
+    previous: 'Previous',
+    next: 'Next',
+    play: 'Play video',
+};
+
+export interface MediaViewerProps {
+    /** The photos and videos that can be shown, in order — a message's media. */
+    items: readonly MediaViewerItem[];
     /** Which one is showing. `null` closes the viewer. */
     index: number | null;
-    /** Asks to show another image. The host owns the index. */
+    /** Asks to show another item. The host owns the index. */
     onIndexChange: (index: number) => void;
     onClose: () => void;
-    /** Accessible name of the viewer. Not drawn. */
-    title?: string;
-    closeLabel?: string;
-    previousLabel?: string;
-    nextLabel?: string;
-    /** Fired with the index of an image that fails to load — a signed address may have expired. */
+    /**
+     * Fired with the index of a photo or video that fails to load — a signed address may have
+     * expired.
+     */
     onError?: (index: number) => void;
     /**
-     * Buttons for the showing image, drawn in a bar along the bottom edge — the host decides what
+     * Try to play the video at `index` as the viewer opens — set when a tile tap opened it, so the
+     * browser still counts the start as the user's. Only the item it opened on; one paged to later
+     * waits for its own play control.
+     */
+    autoPlay?: boolean;
+    /**
+     * Buttons for the showing item, drawn in a bar along the bottom edge — the host decides what
      * they do (the viewer knows nothing of chats). Called with the showing index; the bar spreads
      * what it returns from edge to edge, so two buttons sit at the two ends. Without it there is no
-     * bar. Use `ImageViewerActionButton` so they match the close button.
+     * bar. Use `MediaViewerActionButton` so they match the close button.
      *
      * The bottom rather than the top bar: a toast slides in at the top of the screen, and one there
      * would cover the buttons the user is about to press again.
      */
     renderFooter?: (index: number) => React.ReactNode;
+    labels?: Partial<MediaViewerLabels>;
 }
 
-export interface ImageViewerActionButtonProps {
+export interface MediaViewerActionButtonProps {
     /** Accessible name — the button shows an icon only. */
     label: string;
     onClick: () => void;
@@ -68,19 +102,19 @@ const RING_RADIUS = 14;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
 /**
- * A round icon button for the viewer's top bar, the same size and tint as its close button.
+ * A round icon button for the viewer's bars, the same size and tint as its close button.
  *
  * While busy it stays focusable and only ignores presses (`aria-disabled`): disabling the button
  * the user just pressed would drop keyboard and screen-reader focus out of it.
  */
-export const ImageViewerActionButton = ({
+export const MediaViewerActionButton = ({
     label,
     onClick,
     disabled,
     busy,
     progress,
     children,
-}: ImageViewerActionButtonProps) => (
+}: MediaViewerActionButtonProps) => (
     <button
         type="button"
         aria-label={label}
@@ -149,7 +183,7 @@ const SWIPE_MIN_PX = 48;
 /** A quick flick turns the page with less travel. */
 const FLICK_MAX_MS = 300;
 const FLICK_MIN_PX = 24;
-/** Past the first or last image the strip gives only a little, to show there is nothing more. */
+/** Past the first or last item the strip gives only a little, to show there is nothing more. */
 const EDGE_RESISTANCE = 0.3;
 /**
  * Two taps closer together than this, in time and in place, are a double tap. On the generous side:
@@ -157,6 +191,11 @@ const EDGE_RESISTANCE = 0.3;
  */
 const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_SLOP_PX = 30;
+/**
+ * The band along the bottom of a video where the browser draws its own controls — the seek bar above
+ * all. A drag that starts there is scrubbing, not paging, so the strip leaves it alone.
+ */
+const VIDEO_CONTROLS_PX = 72;
 
 interface Press {
     x: number;
@@ -167,63 +206,170 @@ interface Press {
 }
 
 /**
- * A chat message's images, full screen: the original on black, a close button, and a tap anywhere
- * outside the image to leave. When the message carries more than one image they sit side by side on
- * a strip: a horizontal drag moves the strip under the finger, and on release it slides on to the
- * next image or back to the same one. The arrow buttons at the sides and the arrow keys slide it the
- * same way, and a count says where it is ("2 / 3"). It stops at the ends rather than wrapping: a count
- * that jumps from the last back to "1" reads as a different message. The host may put buttons for the
- * showing image in a bar along the bottom (`renderFooter`) — the chat puts share and save there.
+ * Stops a video for good: no sound left playing on a page that slid away, the next visit starts from
+ * the beginning, and without an address the browser drops the download it had going. A paused video
+ * keeps buffering, and one pulled out of the page keeps it all until it is collected.
+ */
+const releaseVideo = (video: HTMLVideoElement) => {
+    video.pause();
+    video.currentTime = 0;
+    video.removeAttribute('src');
+    video.load();
+};
+
+interface ViewerVideoProps {
+    src: string;
+    poster?: string;
+    /** Start playing as soon as it is mounted — the tap that opened the viewer is still current. */
+    playOnMount: boolean;
+    playLabel: string;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
+    onError: () => void;
+}
+
+/**
+ * The showing video. Mounted only while its page is the one showing, so a neighbour never starts a
+ * download, and released when it unmounts — paged away from, or the viewer closed.
  *
- * The showing image zooms: a pinch scales it around the point between the fingers (up to four times),
+ * The address is set here rather than as a prop so that releasing it and setting it again stay in one
+ * place: when the address changes (a refreshed signed address), and when React mounts an effect twice
+ * in development, the cleanup takes the old one away and the setup puts the new one back.
+ */
+const ViewerVideo = ({ src, poster, playOnMount, playLabel, videoRef, onError }: ViewerVideoProps) => {
+    // The browser would not start it without a tap of its own: the big play button asks for one.
+    const [blocked, setBlocked] = React.useState(false);
+
+    const play = (video: HTMLVideoElement, isLive: () => boolean) => {
+        // Called before anything is awaited, so the browser still sees the tap that asked for it.
+        const started = video.play() as Promise<void> | undefined;
+        started?.catch?.((error: unknown) => {
+            // An AbortError is a play the release interrupted, not a refusal.
+            if (isLive() && (error as { name?: string } | null)?.name === 'NotAllowedError') setBlocked(true);
+        });
+    };
+
+    // A layout effect, so a tap's open reaches `play()` in the same task as the tap.
+    React.useLayoutEffect(() => {
+        const video = videoRef.current;
+        if (!video) return undefined;
+        let live = true;
+        video.setAttribute('src', src);
+        if (playOnMount) play(video, () => live);
+        return () => {
+            live = false;
+            releaseVideo(video);
+        };
+        // Only a new address starts over: `playOnMount` is read as an address arrives, not watched,
+        // and `play` reads only the element it is given and a stable setter.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [src, videoRef]);
+
+    return (
+        <>
+            <video
+                ref={videoRef}
+                poster={poster}
+                controls
+                playsInline
+                preload="metadata"
+                className="size-full object-contain"
+                onPlay={() => setBlocked(false)}
+                onError={onError}
+            />
+            {blocked && (
+                <button
+                    type="button"
+                    aria-label={playLabel}
+                    onClick={() => {
+                        const video = videoRef.current;
+                        if (video) play(video, () => true);
+                    }}
+                    className="absolute left-1/2 top-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/50"
+                >
+                    <IconPlaySolid size={36} className="text-white" />
+                </button>
+            )}
+        </>
+    );
+};
+
+/**
+ * A chat message's photos and videos, full screen: the original on black, a close button, and a tap
+ * anywhere outside it to leave. When the message carries more than one they sit side by side on a
+ * strip: a horizontal drag moves the strip under the finger, and on release it slides on to the next
+ * item or back to the same one. The arrow buttons at the sides and the arrow keys slide it the same
+ * way, and a count says where it is ("2 / 3"). It stops at the ends rather than wrapping: a count that
+ * jumps from the last back to "1" reads as a different message. The host may put buttons for the
+ * showing item in a bar along the bottom (`renderFooter`) — the chat puts share and save there. A
+ * `broken` item is a placeholder page, counted like the rest.
+ *
+ * The showing photo zooms: a pinch scales it around the point between the fingers (up to four times),
  * and a double tap on it zooms in on that point or back out. While it is zoomed a one-finger drag
  * pans it — kept from pulling its edge off the page — instead of turning the page, and a tap beside
  * it does not close the viewer. Turning the page or closing resets the zoom. The browser's own pinch
  * cannot do this: the app fixes the page scale, and it would zoom the whole screen, not the photo.
  *
- * Only the showing image and its neighbours are drawn, so ten originals are not loaded at once and a
+ * Only the showing photo and its neighbours are drawn, so ten originals are not loaded at once and a
  * neighbour is ready by the time it slides in. An original can be several megabytes, so while one is
- * on its way its `placeholder` — the small copy the tile drew — stands in for it instead of black.
+ * on its way its `preview` — the small copy the tile drew — stands in for it instead of black.
+ *
+ * A video plays with the browser's own controls, fitted between the top and bottom bars so its seek
+ * bar is never under the host's buttons. It does not zoom — a pinch or a double tap on it does
+ * nothing — and a drag that starts on its controls (the bottom 72px) is left to them; elsewhere a
+ * drag pages as it does on a photo. Only the showing video is a `<video>`: a neighbour draws its
+ * poster and nothing else, since prefetching a video is a download the user may never watch. With
+ * `autoPlay` the video the viewer opened on starts at once; when the browser refuses (no user gesture
+ * it will honour), a big play button stands in for the tap it wants. Leaving a video — paging away
+ * or closing — pauses it, rewinds it and takes its address away so its download stops.
  *
  * Stateless: the index belongs to the host, which is also what lets a refreshed address reach an
- * image that is already open. The drag offset and the zoom are the only things held here.
+ * item that is already open. The drag offset, the zoom and whether a video was refused are the only
+ * things held here.
  *
  * On `@radix-ui/react-dialog` directly rather than `ui-kit`'s styled `dialog`: that wrapper centres a
  * card with padding and its own close mark, and a full-bleed viewer would spend its whole className
  * undoing it. Focus, escape and the portal are what is wanted from the primitive.
  */
-export const ImageViewer = ({
-    images,
-    placeholders,
+export const MediaViewer = ({
+    items,
     index,
     onIndexChange,
     onClose,
-    title = 'Photo',
-    closeLabel = 'Close',
-    previousLabel = 'Previous photo',
-    nextLabel = 'Next photo',
     onError,
+    autoPlay = false,
     renderFooter,
-}: ImageViewerProps) => {
-    const open = index !== null && index >= 0 && index < images.length;
+    labels,
+}: MediaViewerProps) => {
+    const text = { ...DEFAULT_LABELS, ...labels };
+    const open = index !== null && index >= 0 && index < items.length;
     const current = open ? index : 0;
-    const many = images.length > 1;
+    const many = items.length > 1;
     const hasPrevious = many && current > 0;
-    const hasNext = many && current < images.length - 1;
+    const hasNext = many && current < items.length - 1;
+    const showingItem = open ? items[current] : undefined;
+    const showingVideo = showingItem?.kind === 'video';
 
     const go = (step: -1 | 1) => {
         const target = current + step;
-        if (target >= 0 && target < images.length) onIndexChange(target);
+        if (target >= 0 && target < items.length) onIndexChange(target);
     };
 
-    // The addresses that have finished loading, so their placeholder can go. Kept by address rather
-    // than by position: a refreshed address has to load again before it covers the placeholder.
+    // The item the viewer opened on, while it is still the one showing — the only one `autoPlay`
+    // starts. Paging away gives it up, so coming back to it does not start it again.
+    const [session, setSession] = React.useState<{ open: boolean; at: number | null }>({ open: false, at: null });
+    if (session.open !== open) setSession({ open, at: open ? current : null });
+    else if (session.at !== null && session.at !== current) setSession({ open, at: null });
+
+    // The addresses that have finished loading, so their preview can go. Kept by address rather
+    // than by position: a refreshed address has to load again before it covers the preview.
     const [loaded, setLoaded] = React.useState<ReadonlySet<string>>(() => new Set());
-    // Only addresses still in `images` are kept, so a viewer handed a new address per refresh does not
+    // Only addresses still in `items` are kept, so a viewer handed a new address per refresh does not
     // collect every one it was ever given.
     const markLoaded = (src: string) =>
         setLoaded(previous =>
-            previous.has(src) ? previous : new Set([...previous].filter(known => images.includes(known))).add(src)
+            previous.has(src)
+                ? previous
+                : new Set([...previous].filter(known => items.some(item => item.src === known))).add(src)
         );
 
     // How far the strip is pulled off its resting place, while a finger holds it.
@@ -236,8 +382,9 @@ export const ImageViewer = ({
     const stripRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
     const imageRef = React.useRef<HTMLImageElement | null>(null);
+    const videoRef = React.useRef<HTMLVideoElement | null>(null);
 
-    // The showing image's zoom. Mirrored in a ref so a pointer event reads the value the last event
+    // The showing photo's zoom. Mirrored in a ref so a pointer event reads the value the last event
     // set, not the one from the last render.
     const [zoom, setZoomState] = React.useState<Zoom>(IDENTITY_ZOOM);
     const zoomRef = React.useRef<Zoom>(IDENTITY_ZOOM);
@@ -245,7 +392,7 @@ export const ImageViewer = ({
         zoomRef.current = next;
         setZoomState(next);
     };
-    // While fingers move the image it follows them exactly; otherwise a change eases in.
+    // While fingers move the photo it follows them exactly; otherwise a change eases in.
     const [gesturing, setGesturing] = React.useState(false);
     // Every finger down, measured from the centre of the page.
     const pointersRef = React.useRef(new Map<number, Point>());
@@ -255,7 +402,7 @@ export const ImageViewer = ({
     const tapStartRef = React.useRef<Point | null>(null);
     const lastTapRef = React.useRef<{ at: number; point: Point } | null>(null);
 
-    // Another page, or the viewer closing, starts from the image fitting the page.
+    // Another page, or the viewer closing, starts from the photo fitting the page.
     React.useEffect(() => {
         zoomRef.current = IDENTITY_ZOOM;
         setZoomState(IDENTITY_ZOOM);
@@ -274,15 +421,22 @@ export const ImageViewer = ({
         width: contentRef.current?.clientWidth ?? 0,
         height: contentRef.current?.clientHeight ?? 0,
     });
-    // The image as laid out at scale 1. Before the original has loaded there is nothing to measure,
-    // and the placeholder fills the page.
+    // The photo as laid out at scale 1. Before the original has loaded there is nothing to measure,
+    // and the preview fills the page.
     const contentSize = (): Size => {
         const image = imageRef.current;
         return image && image.offsetWidth > 0 ? { width: image.offsetWidth, height: image.offsetHeight } : pageSize();
     };
+    // Whether a press landed on the showing video's own controls.
+    const onVideoControls = (event: React.PointerEvent) => {
+        const video = showingVideo ? videoRef.current : null;
+        if (!video) return false;
+        const rect = video.getBoundingClientRect();
+        return event.clientY <= rect.bottom && event.clientY >= rect.bottom - VIDEO_CONTROLS_PX;
+    };
 
     const capture = (event: React.PointerEvent) => {
-        // Keep the moves coming when the finger leaves the image or the screen edge.
+        // Keep the moves coming when the finger leaves the photo or the screen edge.
         try {
             (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
         } catch {
@@ -302,20 +456,29 @@ export const ImageViewer = ({
         pointers.set(event.pointerId, point);
 
         if (pointers.size === 2) {
-            // A second finger turns whatever the first was doing into a pinch.
-            const [a, b] = [...pointers.values()] as [Point, Point];
-            pinchRef.current = { from: zoomRef.current, start: [a, b] };
+            // A second finger turns whatever the first was doing into a pinch — on a photo. A video
+            // does not zoom, so the second finger only stops the first from paging.
+            pinchRef.current = null;
+            if (!showingVideo) {
+                const [a, b] = [...pointers.values()] as [Point, Point];
+                pinchRef.current = { from: zoomRef.current, start: [a, b] };
+                setGesturing(true);
+                capture(event);
+            }
             panRef.current = null;
             tapStartRef.current = null;
             swipedRef.current = true;
             endDrag();
-            setGesturing(true);
-            capture(event);
             return;
         }
         if (pointers.size > 2) return;
 
         swipedRef.current = false;
+        if (onVideoControls(event)) {
+            tapStartRef.current = null;
+            pressRef.current = null;
+            return;
+        }
         tapStartRef.current = point;
         if (isZoomed(zoomRef.current)) {
             panRef.current = { from: zoomRef.current, start: point };
@@ -335,7 +498,7 @@ export const ImageViewer = ({
         if (pinch) {
             if (pointers.size < 2) return;
             const [a, b] = [...pointers.values()] as [Point, Point];
-            // Not clamped while the fingers are down, so the image stays under them; the release does.
+            // Not clamped while the fingers are down, so the photo stays under them; the release does.
             setZoom(pinchZoom(pinch, [a, b]));
             return;
         }
@@ -373,8 +536,12 @@ export const ImageViewer = ({
         setDragX(pastEdge ? dx * EDGE_RESISTANCE : dx);
     };
 
-    /** A tap that did not move: the second of two close together zooms. */
+    /** A tap that did not move: the second of two close together zooms a photo. */
     const onTap = (event: React.PointerEvent, point: Point) => {
+        if (showingVideo) {
+            lastTapRef.current = null;
+            return;
+        }
         const onImage = (event.target as HTMLElement).dataset?.current !== undefined;
         const last = lastTapRef.current;
         const now = Date.now();
@@ -450,6 +617,22 @@ export const ImageViewer = ({
     };
 
     const arrow = 'absolute top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/20';
+    // Where a video sits: below the close button and the count, and above the host's bar when there
+    // is one, so neither covers the browser's controls along the video's bottom edge. The bar is its
+    // 24px of top padding, a 36px button and 16px below it.
+    const videoFrame = cn(
+        'absolute inset-x-0 top-[calc(var(--safe-top,0px)+56px)] flex items-center justify-center',
+        renderFooter ? 'bottom-[calc(var(--safe-bottom,0px)+76px)]' : 'bottom-[var(--safe-bottom,0px)]'
+    );
+    const brokenPlaceholder = (
+        <span
+            data-broken=""
+            className="flex size-24 items-center justify-center rounded-2xl bg-white/10"
+            aria-hidden="true"
+        >
+            <IconImage className="size-8 text-white/60" />
+        </span>
+    );
 
     return (
         <Dialog.Root
@@ -475,6 +658,8 @@ export const ImageViewer = ({
                     onPointerCancel={event => isOwnEvent(event) && onPointerCancel(event)}
                     onKeyDown={event => {
                         if (!isOwnEvent(event)) return;
+                        // A focused video takes the arrow keys to seek.
+                        if (event.target instanceof HTMLVideoElement) return;
                         if (event.key === 'ArrowLeft') go(-1);
                         if (event.key === 'ArrowRight') go(1);
                     }}
@@ -492,7 +677,7 @@ export const ImageViewer = ({
                     // The drag is all ours: no browser pan or pinch fights the strip.
                     className="fixed inset-0 z-50 touch-none overflow-hidden outline-none"
                 >
-                    <Dialog.Title className="sr-only">{title}</Dialog.Title>
+                    <Dialog.Title className="sr-only">{text.title}</Dialog.Title>
                     <div
                         ref={stripRef}
                         data-backdrop=""
@@ -502,62 +687,97 @@ export const ImageViewer = ({
                         )}
                         style={{ transform: `translate3d(calc(${-current * 100}% + ${dragX}px), 0, 0)` }}
                     >
-                        {images.map((src, i) => {
+                        {items.map((item, i) => {
                             const drawn = open && Math.abs(i - current) <= 1;
-                            const placeholder = placeholders?.[i];
                             const showing = i === current;
+                            const { src, preview } = item;
+                            const broken = item.state === 'broken';
                             return (
                                 <div
-                                    key={i}
+                                    key={item.key}
                                     data-backdrop=""
                                     data-page=""
                                     aria-hidden={!showing || undefined}
                                     className="relative h-full w-full shrink-0"
                                 >
-                                    {/* What zooms: the photo and its placeholder together, around the
-                                        centre of the page. */}
-                                    <div
-                                        data-backdrop=""
-                                        data-zoom-layer={showing || undefined}
-                                        className={cn(
-                                            'absolute inset-0 flex items-center justify-center',
-                                            !gesturing &&
-                                                'transition-transform duration-200 ease-out motion-reduce:transition-none'
-                                        )}
-                                        style={
-                                            showing
-                                                ? {
-                                                      transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
-                                                  }
-                                                : undefined
-                                        }
-                                    >
-                                        {/* Stretched to the page and letterboxed, where the original will
-                                            land. It lets taps through, so a tap beside the photo still
-                                            closes. */}
-                                        {drawn && placeholder && !(src && loaded.has(src)) && (
-                                            <img
-                                                src={placeholder}
-                                                alt=""
-                                                aria-hidden
-                                                data-placeholder=""
-                                                className="pointer-events-none absolute inset-0 size-full select-none object-contain"
-                                                draggable={false}
-                                            />
-                                        )}
-                                        {drawn && src && (
-                                            <img
-                                                ref={showing ? imageRef : undefined}
-                                                src={src}
-                                                alt=""
-                                                data-current={showing || undefined}
-                                                className="relative max-h-full max-w-full select-none object-contain"
-                                                draggable={false}
-                                                onLoad={() => markLoaded(src)}
-                                                onError={() => onError?.(i)}
-                                            />
-                                        )}
-                                    </div>
+                                    {item.kind === 'video' ? (
+                                        <div data-backdrop="" data-video-frame="" className={videoFrame}>
+                                            {drawn && broken && brokenPlaceholder}
+                                            {drawn &&
+                                                !broken &&
+                                                (showing && src && item.state === 'ready' ? (
+                                                    <ViewerVideo
+                                                        src={src}
+                                                        poster={preview}
+                                                        playOnMount={autoPlay && session.at === i}
+                                                        playLabel={text.play}
+                                                        videoRef={videoRef}
+                                                        onError={() => onError?.(i)}
+                                                    />
+                                                ) : (
+                                                    preview && (
+                                                        <img
+                                                            src={preview}
+                                                            alt=""
+                                                            data-poster=""
+                                                            className="pointer-events-none size-full select-none object-contain"
+                                                            draggable={false}
+                                                        />
+                                                    )
+                                                ))}
+                                            {drawn && item.state === 'sending' && (
+                                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                    <IconSpinner className="size-8 animate-spin text-white" />
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        // What zooms: the photo and its preview together, around the
+                                        // centre of the page.
+                                        <div
+                                            data-backdrop=""
+                                            data-zoom-layer={showing || undefined}
+                                            className={cn(
+                                                'absolute inset-0 flex items-center justify-center',
+                                                !gesturing &&
+                                                    'transition-transform duration-200 ease-out motion-reduce:transition-none'
+                                            )}
+                                            style={
+                                                showing
+                                                    ? {
+                                                          transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
+                                                      }
+                                                    : undefined
+                                            }
+                                        >
+                                            {drawn && broken && brokenPlaceholder}
+                                            {/* Stretched to the page and letterboxed, where the original will
+                                                land. It lets taps through, so a tap beside the photo still
+                                                closes. */}
+                                            {drawn && !broken && preview && !(src && loaded.has(src)) && (
+                                                <img
+                                                    src={preview}
+                                                    alt=""
+                                                    aria-hidden
+                                                    data-placeholder=""
+                                                    className="pointer-events-none absolute inset-0 size-full select-none object-contain"
+                                                    draggable={false}
+                                                />
+                                            )}
+                                            {drawn && !broken && src && (
+                                                <img
+                                                    ref={showing ? imageRef : undefined}
+                                                    src={src}
+                                                    alt=""
+                                                    data-current={showing || undefined}
+                                                    className="relative max-h-full max-w-full select-none object-contain"
+                                                    draggable={false}
+                                                    onLoad={() => markLoaded(src)}
+                                                    onError={() => onError?.(i)}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -567,13 +787,13 @@ export const ImageViewer = ({
                             aria-live="polite"
                             className="absolute left-1/2 top-[calc(var(--safe-top,0px)+20px)] -translate-x-1/2 text-[15px] font-medium text-white"
                         >
-                            {current + 1} / {images.length}
+                            {current + 1} / {items.length}
                         </span>
                     )}
                     {hasPrevious && (
                         <button
                             type="button"
-                            aria-label={previousLabel}
+                            aria-label={text.previous}
                             onClick={() => go(-1)}
                             className={cn(arrow, 'left-3')}
                         >
@@ -583,7 +803,7 @@ export const ImageViewer = ({
                     {hasNext && (
                         <button
                             type="button"
-                            aria-label={nextLabel}
+                            aria-label={text.next}
                             onClick={() => go(1)}
                             className={cn(arrow, 'right-3')}
                         >
@@ -596,7 +816,7 @@ export const ImageViewer = ({
                         </div>
                     )}
                     <Dialog.Close
-                        aria-label={closeLabel}
+                        aria-label={text.close}
                         className="absolute right-4 top-[calc(var(--safe-top,0px)+12px)] flex size-9 items-center justify-center rounded-full bg-white/20"
                     >
                         <IconClose className="size-5 text-white" />

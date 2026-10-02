@@ -2,14 +2,16 @@
 
 The web hands the shell a transfer instruction — a signed URL and the headers it covers — and the
 shell moves the bytes: in the background, cancellable, reporting progress and the result. An upload
-reads a local file the web names. A download writes into a folder the shell owns and hands back the
-file it wrote. Both are the same five messages with a different `direction`, so the next consumer of
-a download reuses them rather than a second set of messages, module names and handlers.
+reads a local file the web names, from one of the shell's own upload folders. A download writes into
+a folder the shell owns and hands back the file it wrote. Both are the same five messages with a
+different `direction`, so the next consumer of a download reuses them rather than a second set of
+messages, module names and handlers.
 
 The shell does not talk to the upload API. Asking the server for an upload slot or a message's image
 address, and telling it an upload is done, happen in the web; the shell's part ends when the storage
-endpoint answers. What happens to a downloaded file next — the photo library, the share sheet — is
-[media-export.md](./media-export.md).
+endpoint answers. What happens to a downloaded file next — the photo library, the share sheet, the preview, the
+device's downloads — is [media-export.md](./media-export.md); where a picked video or document comes
+from is [attachment-picker.md](./attachment-picker.md).
 
 ## Files
 
@@ -90,8 +92,19 @@ cases and keep identical behaviour.
 - **Logs carry the host only.** The query string holds the signature.
 - **A malformed request is refused at `start` with `INVALID`** — a reused id, a URL that is not an
   absolute http(s) URL with a host, a method that does not fit the direction (`upload` takes `PUT`,
-  `download` takes `GET`), an upload without a file URI or length, and a download that names a file
-  URI. Nothing is registered, so no event follows.
+  `download` takes `GET`), an upload without a file URI or length, an upload source outside the
+  shell's two upload folders (below), and a download that names a file URI. Nothing is registered, so
+  no event follows.
+- **An upload reads only what the shell itself put down for one.** The source must lie inside
+  `<cache>/attach-pick/` — what the attachment picker copied ([attachment-picker.md](./attachment-picker.md))
+  — or `transfer-temp/`, where `WriteTempFile` writes. Any other path, and on Android any
+  `content://` URI, is `INVALID`. The check is the download folder's, turned around: the URI is
+  normalised so `..` cannot climb out, symbolic links are resolved on both sides, and the result must
+  still be a file strictly inside one of the two folders. The page asking for the upload is loaded
+  from the network; without the limit it could send the app's database or settings to any signed URL.
+  The rule is a pure function in each platform's core, so it is tested with the other core cases.
+  A file inside the two folders that no longer exists is refused `SOURCE` at `start` on iOS; Android
+  accepts it and ends the transfer as `failed(SOURCE)` once it reads the file.
 - **When no `Content-Type` header is given,** the file's `contentType` is sent, or
   `application/octet-stream`. Android would otherwise send a form-encoded type, which storage keeps as
   the object's type.
@@ -149,10 +162,11 @@ handles each the same way on either platform, so neither needs a platform branch
 
 - **When a connection drops,** iOS keeps the transfer `running` and waits; Android reports
   `failed(NETWORK)`. Retry on `NETWORK`, wait on `running`.
-- **When the file is wrong** — missing, unreadable, a different length than declared, or on iOS not a
-  local file (a `file://` URI or an absolute path; Android also reads `content://`) — iOS refuses `start` with `SOURCE`, because the OS reads the file itself once the task
-  is handed over and nothing can be checked after that. Android finds out while streaming and reports
-  `failed(SOURCE)`. Treat `SOURCE` the same whichever way it arrives.
+- **When the file is wrong** — inside an upload folder but missing, unreadable, or a different length
+  than declared — iOS refuses `start` with `SOURCE`, because the OS reads the file itself once the
+  task is handed over and nothing can be checked after that. Android finds out while streaming and
+  reports `failed(SOURCE)`. Treat `SOURCE` the same whichever way it arrives: for a picked file it
+  usually means the OS emptied the cache, and the pending message can only be deleted.
 
 ## Notifications
 
@@ -188,35 +202,45 @@ notification on either platform.
 
 ## Temporary files
 
-Two folders, for opposite reasons. `transfer-temp/` (the cache directory on Android, the temporary
-directory on iOS) holds what the web wrote for an upload; `transfer-download/` (the cache directory,
-`Library/Caches` on iOS) holds what the shell downloaded (see § Downloads). Only the second is
-ever handed to the photo library or the share sheet — the first holds nothing the app needs to give
-out.
+Three folders, kept apart on purpose. `transfer-temp/` (the cache directory on Android, the temporary
+directory on iOS) holds what the web wrote for an upload, and `attach-pick/` (the cache directory,
+`Library/Caches` on iOS) what the attachment picker copied for one; an upload reads from these two and
+nowhere else. `transfer-download/` (the cache directory, `Library/Caches` on iOS) holds what the shell
+downloaded (see § Downloads). Only that one is ever handed to the photo library, the share sheet, the
+preview or the device's downloads — the other two hold nothing the app needs to give out. How
+`attach-pick/` is cleaned, and why not at acknowledgement, is
+[attachment-picker.md](./attachment-picker.md) § Folders and cleanup.
 
 `WriteTempFile` exists because the transfer reads only files, while an image the web resized lives
 only in web memory. The bytes cross the bridge once as base64 and land in the shell's temporary
 directory, where the OS may reclaim them; nothing deletes them eagerly, because a background transfer
-may still be reading the file after the WebView is gone.
+may still be reading the file after the WebView is gone. It is for images only: a video or document
+would cross as one base64 message of its whole size, which is why the shell picks and keeps those
+itself.
 
 ## Verifying
 
 - JS relay: `yarn workspace @chatic/mobile test fileTransferHandlers`.
-- Core, the same numbered cases (`U1`–`U24`) on both platforms. Neither runs in CI.
+- Core, the same numbered cases (`U1`–`U25`) on both platforms; `U25` is the upload-source rule. Neither runs in CI.
     - Android, from `apps/mobile/android`: `./gradlew :app:testDevDebugUnitTest`. The build needs
       `app/src/dev/google-services.json`, which is not in the repo; copy it from a checkout that
       has it and never commit it.
     - iOS, from `apps/mobile/ios`:
       `xcodebuild test -project Chatic.xcodeproj -scheme ChaticTransferCoreTests -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`.
       The `ChaticTransferCoreTests` target has no host app and no Pods — it compiles only
-      `Bridges/Transfer/Core/`, which is why it runs in about a minute. The core files reach it as
-      explicit file references rather than through the synchronized `Bridges` folder, so **a new file
-      in `Core/` has to be added to that target by hand.**
+      `Bridges/Transfer/Core/`, `Bridges/AttachmentPicker/Core/` and `Bridges/PhotoLibrary/Core/`,
+      which is why it runs in about a minute. It also holds the attachment picker's, photo library's
+      and media export's rule tests. The core files reach it as explicit file references rather than
+      through the synchronized `Bridges` folder, so **a new file in any of those `Core/` folders has to
+      be added to that target by hand.**
 - A new core rule gets its test on both platforms under the same `U` number, or a new number on both.
 - End to end on an emulator or simulator: start `node scripts/upload-test-server.js`, forward the
   port on Android (`adb reverse tcp:8080 tcp:8080`), open the debug panel's Upload test screen and pick
   a scenario: `ok`, `expired` (403 + `AccessDenied`), `exists` (412), `slow`, `drop`. The screen
-  targets port 8080 on whatever host the page was loaded from.
+  targets port 8080 on whatever host the page was loaded from. Its dummy file is written into
+  `transfer-temp/` and its in-memory file through `WriteTempFile`, so both pass the upload-source
+  rule; a file picked with the screen's document picker lies outside the two folders and is refused
+  `INVALID`.
 - Downloads use `GET` on the same server: `/s3/image?format=png|jpeg|gif|webp` (with a length; `px`
   sizes the PNG), `/s3/image-chunked` (no length), `/s3/expired` (403 — the folder must stay empty),
   `/s3/slow?bps=N` (to cancel mid-way), `/s3/drop?after=N` (`failed(NETWORK)`, no `.part` left) and
@@ -249,6 +273,8 @@ may still be reading the file after the WebView is gone.
 - Do the Android and iOS cores pass the same numbered cases?
 - Is a status other than 2xx still `responded`, never `failed` — and for a download, is no file left?
 - Does a download write only under `transfer-download/`, whatever id and name hint it was given?
+- Does an upload refuse a source outside `attach-pick/` and `transfer-temp/` — by `..`, a symbolic
+  link, another folder or a `content://` URI — with `INVALID`?
 - Does an ended transfer stay listed until it is acknowledged, and only then disappear?
 - Does anything write the URL or headers to disk, a log line, or `taskDescription`?
 - After a relaunch on iOS, are running transfers restored and the completion handler called?

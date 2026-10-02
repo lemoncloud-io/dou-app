@@ -31,7 +31,9 @@ RCT_EXPORT_MODULE();
 - (NSDictionary *)constantsToExport {
     NSString *docPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
     return @{
-        @"DocumentDirectoryPath": docPath ?: @""
+        @"DocumentDirectoryPath": docPath ?: @"",
+        // The folder an upload may read a `writeTempFile` file from; the debug screen's dummy files go here too.
+        @"TransferTempPath": [NSTemporaryDirectory() stringByAppendingPathComponent:@"transfer-temp"]
     };
 }
 
@@ -143,6 +145,10 @@ RCT_EXPORT_METHOD(createDummyFile:(NSString *)path
         if ([[NSFileManager defaultManager] fileExistsAtPath:cleanPath]) {
             [[NSFileManager defaultManager] removeItemAtPath:cleanPath error:nil];
         }
+        [[NSFileManager defaultManager] createDirectoryAtPath:[cleanPath stringByDeletingLastPathComponent]
+                                  withIntermediateDirectories:YES
+                                                   attributes:nil
+                                                        error:nil];
         
         int fd = open([cleanPath UTF8String], O_RDWR | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {

@@ -79,32 +79,35 @@ Files whose contents the name does not give away:
 - `lib/` holds two kinds of module. Through its barrel, the answers other features are allowed to
   borrow: `resolveChannelTitle`, `resolveChannelAvatar` and `channelStereoPolicy`. Outside it, the image
   cache (`imageCache.ts`) and its IndexedDB store (`imageCacheStore.ts`) — stateful, and reached only
-  through `hooks/useCachedImages` ([image-send.md](./image-send.md)). Everything else that is pure lives
-  in `utils/`.
+  through `hooks/useCachedImages` — and the browser's document download (`fileDownload.ts`), reached
+  only through `hooks/useFileDownloads` ([image-send.md](./image-send.md)). Everything else that is
+  pure lives in `utils/`.
 - `utils/membership.ts` — `hasLeftChannel`, `isChannelMember`, `isSomeoneElsesSelfChat`, three
   questions about a join row that nothing else can answer.
 - `utils/displayName.ts` — the one chain that turns a user id into a name.
 
-Eight native bridge calls are made from this feature: `getContacts`, `openShareSheet`,
-`openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, and the viewer's
-`saveToPhotoLibrary` and `shareFile`. Image sends add the shell's existing file-transfer messages,
-reached through `bridge/shellUpload.ts` rather than from the feature itself
-([image-send.md](./image-send.md)). The viewer's save and share download through
-`bridge/shellDownload.ts`, and show only when the app's handshake lists both messages
-([image-export.md](./image-export.md)).
+Eight native bridge calls are made from this feature directly: `getContacts`, `openShareSheet`,
+`openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, and the viewer's `saveToPhotoLibrary`
+and `shareFile`. Attachments reach the shell through the page's `bridge/` modules rather than from the
+feature itself ([image-send.md](./image-send.md)): the photo grid through `bridge/photoLibrary.ts`, the
+app's own picker through `bridge/attachmentPicker.ts` (`PickAttachments`, `PrepareVideo` and
+`ReadAttachment`; an app built before the picker answers `NOT_FOUND`, and the page opens its own file
+input instead), and the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages).
+The viewer's save and share download through `bridge/shellDownload.ts`, and show only when the app's
+handshake lists both messages ([image-export.md](./image-export.md)).
 
 ## Documents
 
-| File                                                   | What it covers                                                                                            |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                              |
-| [image-send.md](./image-send.md)                       | Photos: the attach menu and pickers, the send, the tiles and viewer, the image cache, retry and leftovers |
-| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts  |
-| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll               |
-| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                      |
-| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                                 |
-| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite                    |
-| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                |
+| File                                                   | What it covers                                                                                                                         |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [data-layer.md](./data-layer.md)                       | the 29 hooks: observing, sync registration, paging, read cursors, the writes                                                           |
+| [image-send.md](./image-send.md)                       | Photos, videos and documents: the attach menu and pickers, the send, the tiles, cards and viewer, the image cache, retry and leftovers |
+| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                               |
+| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                            |
+| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                   |
+| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                                                              |
+| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite                                                 |
+| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                             |
 
 ## How to verify
 

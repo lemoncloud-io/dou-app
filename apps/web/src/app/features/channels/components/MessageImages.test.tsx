@@ -11,6 +11,12 @@ jest.mock('react-i18next', () => ({
         t: (key: string, vars?: { position?: number }) => (vars?.position ? `${key}:${vars.position}` : key),
     }),
 }));
+let mockNative = false;
+jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+const mockDownload = jest.fn();
+jest.mock('../lib/fileDownload', () => ({ downloadInBrowser: (...args: unknown[]) => mockDownload(...args) }));
+const toast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 const refresh = jest.fn().mockResolvedValue(true);
 jest.mock('../hooks/useImageAddressRefresh', () => ({ useImageAddressRefresh: () => refresh }));
 
@@ -47,6 +53,9 @@ const sent = (id: string, thumb: string) =>
     ({ id, status: 'stored', orgUrl: `https://s3/${id}`, thumbUrl: thumb }) as Uploads[number];
 
 beforeEach(() => {
+    mockNative = false;
+    mockDownload.mockReset();
+    toast.mockClear();
     refresh.mockClear();
     cachedKeys.clear();
     rejected.length = 0;
@@ -247,5 +256,74 @@ describe('MessageImages', () => {
             expect(requested.at(-2)).toEqual([undefined]);
             expect(container.querySelector('img')).toHaveAttribute('src', 'blob:local');
         });
+    });
+});
+
+describe('MessageImages — videos and documents', () => {
+    const video = (id: string, poster?: string) =>
+        ({
+            id,
+            status: 'stored',
+            stereo: 'video',
+            orgUrl: `https://s3/${id}`,
+            ...(poster ? { thumbUrl: poster } : {}),
+        }) as Uploads[number];
+    const pdf = (id: string, name?: string) =>
+        ({
+            id,
+            status: 'stored',
+            stereo: 'file',
+            contentSize: 2048,
+            orgUrl: `https://s3/${id}`,
+            ...(name ? { name } : {}),
+        }) as Uploads[number];
+
+    it('draws photos and videos as tiles in sent order and documents as cards below them', () => {
+        const uploads = [
+            sent('p1', 'https://s3/p1-t'),
+            pdf('d1', 'quote.pdf'),
+            sent('p2', 'https://s3/p2-t'),
+            video('v1'),
+        ];
+        const { container } = render(<MessageImages uploads={uploads} chatId="c:1" cid="c" align="start" />);
+
+        expect(
+            screen
+                .getAllByRole('button', { name: /chat\.attach\.tile(Video)?:/ })
+                .map(b => b.getAttribute('aria-label'))
+        ).toEqual(['chat.attach.tile:1', 'chat.attach.tile:2', 'chat.attach.tileVideo:3']);
+        expect(container.querySelector('video')).toBeNull();
+        expect(container.querySelector('[data-video-panel]')).not.toBeNull();
+        expect(screen.getByText('quote')).toBeInTheDocument();
+    });
+
+    it('downloads a document under its own name from the card’s button in a browser', async () => {
+        mockDownload.mockResolvedValue('saved');
+        render(<MessageImages uploads={[pdf('d1', 'quote.pdf')]} chatId="c:1" cid="c" align="start" />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'chat.attach.fileCard.download' }));
+        });
+
+        expect(mockDownload).toHaveBeenCalledWith('https://s3/d1', 'quote.pdf', { signal: expect.any(AbortSignal) });
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('reads the message again when the document’s address has expired, and says it failed', async () => {
+        mockDownload.mockResolvedValue('expired');
+        render(<MessageImages uploads={[pdf('d1', 'quote.pdf')]} chatId="c:1" cid="c" align="start" />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'chat.attach.fileCard.download' }));
+        });
+
+        expect(refresh).toHaveBeenCalledWith({ cid: 'c', chatId: 'c:1', src: 'https://s3/d1' });
+        expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'chat.attach.fileCard.downloadFailed' }));
+    });
+
+    it('names an unnamed document with the generic label', () => {
+        render(<MessageImages uploads={[pdf('d1')]} chatId="c:1" cid="c" align="start" />);
+
+        expect(screen.getAllByText('chat.attach.fileCard.fallbackName').length).toBeGreaterThan(0);
     });
 });

@@ -50,13 +50,19 @@ const ALIASES: Readonly<Record<string, string>> = {
 };
 
 /**
- * The `accept` of a file input for chat attachments: every type and every extension. A picker that
- * does not know a type (HWP, on most systems) only lets the file through by its extension.
+ * The `accept` of a file input for chat attachments of these kinds: every type and every extension. A
+ * picker that does not know a type (HWP, on most systems) only lets the file through by its extension.
  */
-export const CHAT_ATTACHMENT_ACCEPT = [
-    ...FORMATS.map(format => format.type),
-    ...FORMATS.flatMap(format => format.extensions.map(extension => `.${extension}`)),
-].join(',');
+export const chatAttachmentAccept = (kinds: readonly ChatUploadKind[]): string => {
+    const formats = FORMATS.filter(format => kinds.includes(format.kind));
+    return [
+        ...formats.map(format => format.type),
+        ...formats.flatMap(format => format.extensions.map(extension => `.${extension}`)),
+    ].join(',');
+};
+
+/** `chatAttachmentAccept` for every kind. */
+export const CHAT_ATTACHMENT_ACCEPT = chatAttachmentAccept(['image', 'video', 'file']);
 
 /** The extension a saved file of this type should carry, or `undefined` for a type we do not send. */
 export const chatAttachmentExtension = (type: string): string | undefined =>

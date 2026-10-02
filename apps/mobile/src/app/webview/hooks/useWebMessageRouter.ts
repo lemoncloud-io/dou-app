@@ -22,6 +22,7 @@ import {
     useSubscriptionIapHandler,
     useFileTransferHandler,
     useMediaExportHandler,
+    useAttachmentPickerHandler,
     usePhotoLibraryHandler,
     useTestRecordHandler,
     useResumeOverlay,
@@ -117,7 +118,15 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleAckFileTransfers,
         handleWriteTempFile,
     } = useFileTransferHandler(bridge);
-    const { handleSaveToPhotoLibrary, handleShareFile } = useMediaExportHandler();
+    const { canOpenFile, canSaveFile, handleSaveToPhotoLibrary, handleShareFile, handleOpenFile, handleSaveFile } =
+        useMediaExportHandler();
+
+    const {
+        isAvailable: isAttachmentPickerAvailable,
+        handlePickAttachments,
+        handlePrepareVideo,
+        handleReadAttachment,
+    } = useAttachmentPickerHandler();
 
     const {
         isAvailable: isPhotoLibraryAvailable,
@@ -231,6 +240,11 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleWriteTempFile,
         handleSaveToPhotoLibrary,
         handleShareFile,
+        handleOpenFile,
+        handleSaveFile,
+        handlePickAttachments,
+        handlePrepareVideo,
+        handleReadAttachment,
         handleListPhotoAlbums,
         handleListPhotos,
         handleReadPhoto,
@@ -326,6 +340,11 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleWriteTempFile,
             handleSaveToPhotoLibrary,
             handleShareFile,
+            handleOpenFile,
+            handleSaveFile,
+            handlePickAttachments,
+            handlePrepareVideo,
+            handleReadAttachment,
             handleListPhotoAlbums,
             handleListPhotos,
             handleReadPhoto,
@@ -432,6 +451,16 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 ReadPhoto: message => handlersRef.current.handleReadPhoto(message),
                 ManagePhotoSelection: () => handlersRef.current.handleManagePhotoSelection(),
             }),
+            // The same rule for the attachment picker, and for the two export calls an older
+            // MediaExport module lacks: the web learns from NOT_FOUND that this shell cannot, and
+            // uses its own file input, or offers the share sheet, instead.
+            ...(isAttachmentPickerAvailable && {
+                PickAttachments: message => handlersRef.current.handlePickAttachments(message),
+                PrepareVideo: message => handlersRef.current.handlePrepareVideo(message),
+                ReadAttachment: message => handlersRef.current.handleReadAttachment(message),
+            }),
+            ...(canOpenFile && { OpenFile: message => handlersRef.current.handleOpenFile(message) }),
+            ...(canSaveFile && { SaveFile: message => handlersRef.current.handleSaveFile(message) }),
         };
 
         // Register handlers with the bridge
@@ -447,7 +476,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 bridge.unregisterHandler(type);
             });
         };
-    }, [bridge, isPhotoLibraryAvailable]);
+    }, [bridge, isPhotoLibraryAvailable, isAttachmentPickerAvailable, canOpenFile, canSaveFile]);
 
     return { isIapLoading, showResumeOverlay, coverReload };
 };
