@@ -47,8 +47,10 @@ export const useAccountResetOnLogout = () => {
         // would leave the in-memory value alive right up until the reload.
         config.clear('ui.pinnedChannels', { lane: 'local' });
         config.clear('ui.channelOrder', { lane: 'local' });
-        // IndexedDB is uid-isolated, so this is just hygiene — best-effort. The rejection is
-        // swallowed so a failure doesn't block logout. (Old `clearAll()` → v2 `cacheClear()`; the 7
+        // Channel and chat caches are uid-isolated, so clearing them is hygiene. The cloud cache is
+        // not: it is one global partition shared by every account on this profile, so this clear is
+        // what keeps one account's cloud names from showing for the next. Best-effort: the rejection
+        // is swallowed so a failure doesn't block logout. (Old `clearAll()` → v2 `cacheClear()`; the 7
         // repos mapped site→place, inviteCloud→cloud.)
         await Promise.all([
             repos.channel.cacheClear(),

@@ -30,6 +30,26 @@ app. So its hint says that under the name, and a click does not try to switch. I
 with the same line and the App Store and Google Play links (`MobileAppPointer`) instead. A switch
 into it used to be refused and then offer Try again, which could never work.
 
+## Renaming a cloud
+
+The tile's context menu (right-click or the Menu key) offers "Rename cloud" only on the cloud you
+own and are in right now (`canRename`), never on Home, an invited cloud, a lapsed one, or an owned
+cloud you are not in. `cloud.update` goes out on the active slot's socket, so renaming another tile
+would send its id down this cloud's connection and write its row into this cloud's cache; apps/web
+likewise edits only the active cloud. Names are 2 to 30 characters, as on web. It opens
+`RenameCloudDialog`, a one-line field shaped like `RenameChannelDialog`. `useRenameCloud`
+(`shared/hooks/useRenameCloud.ts`) writes through `CloudRepository.updateCloud`, which also rewrites
+the cached cloud row, and patches the new name into the relay catalog query the owned tiles read.
+The tile and its label change at once, without waiting for the broker list to catch up.
+
+A tile's name has two sources, and for an owned cloud the local one wins. The relay catalog lists
+the cloud with a name that can lag a rename by a while, so after a reload it may still show the old
+one. A rename also writes the new name into the local cloud cache (one global partition, kept across
+reloads), which `useClouds` observes: when that row carries a name, the tile uses it instead of the
+catalog's. With no cached name the catalog's name stands, and an invited cloud keeps reading only
+its own cache row. The cache row is overwritten when `cloud.get` runs for that cloud, which the
+app does only to refresh an invited cloud's name.
+
 ## Unread
 
 The active cloud's dot comes from the live socket. Another cloud's dot is a pending cross-cloud push
