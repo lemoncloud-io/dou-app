@@ -153,3 +153,36 @@ describe('useCreateInviteBatch.createBatchInvite', () => {
         expect(requestInviteBatchMock).not.toHaveBeenCalled();
     });
 });
+
+// The sheet and the contact tab hand over E.164 for every country; nothing on the way to the packet
+// or the SMS composer may reshape it back into a local form.
+describe('useCreateInviteBatch with international numbers', () => {
+    beforeEach(() => requestInviteMock.mockResolvedValue({ Location: 'https://dou.link/abc' }));
+
+    it('sends a room invite and its text to the E.164 number as given', async () => {
+        await single()({ channelId: 'ch-1', name: 'Ada', phone: '+14155550123' });
+
+        expect(requestInviteMock).toHaveBeenCalledWith({ channelId: 'ch-1', name: 'Ada', phone: '+14155550123' });
+        expect(sendInviteMessageMock).toHaveBeenCalledWith('+14155550123', expect.any(String));
+    });
+
+    it('sends a place invite and its text to the E.164 number as given', async () => {
+        await place()({ name: '타로', phone: '+819012345678', placeName: '두유 홈' });
+
+        expect(requestInviteMock).toHaveBeenCalledWith({ name: '타로', phone: '+819012345678' });
+        expect(sendInviteMessageMock).toHaveBeenCalledWith('+819012345678', expect.any(String));
+    });
+
+    it('requests a link for the E.164 number as given', async () => {
+        const link = renderHook(() => useCreateInviteBatch()).result.current.requestInviteLink;
+        await link({ channelId: 'ch-1', name: 'Ada', phone: '+14155550123' });
+
+        expect(requestInviteMock).toHaveBeenCalledWith({ channelId: 'ch-1', name: 'Ada', phone: '+14155550123' });
+    });
+
+    it('batches numbers from several countries as given', async () => {
+        await batch()({ phones: ['+821012345678', '+14155550123', '+819012345678'] });
+
+        expect(requestInviteBatchMock).toHaveBeenCalledWith({ to: ['+821012345678', '+14155550123', '+819012345678'] });
+    });
+});

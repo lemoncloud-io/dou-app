@@ -3,6 +3,8 @@ import {
     listPhoneCountries,
     phoneCountryDialCode,
     readInternationalInput,
+    readLocaleCountry,
+    readMobileNumber,
     rememberCountry,
     resolveDefaultCountry,
     toE164,
@@ -135,5 +137,43 @@ describe('phoneCountryDialCode', () => {
         expect(phoneCountryDialCode('KR')).toBe('+82');
         expect(phoneCountryDialCode('JP')).toBe('+81');
         expect(phoneCountryDialCode('ZZ')).toBeNull();
+    });
+});
+
+describe('readMobileNumber', () => {
+    it('answers the E.164, the country and both display forms in one read', () => {
+        expect(readMobileNumber('010-1234-5678', 'KR')).toEqual({
+            country: 'KR',
+            e164: '+821012345678',
+            national: '010-1234-5678',
+            international: '+82 10 1234 5678',
+        });
+    });
+
+    it('reads a + number in its own country, whatever country is passed', () => {
+        expect(readMobileNumber('+1 415 555 0123', 'KR')).toMatchObject({ country: 'US', e164: '+14155550123' });
+    });
+
+    it('lands both Korean international shapes on the same number', () => {
+        expect(readMobileNumber('+82 10-1234-5678', 'KR')?.e164).toBe('+821012345678');
+        expect(readMobileNumber('+82 010-1234-5678', 'KR')?.e164).toBe('+821012345678');
+    });
+
+    it('is null for a landline, a malformed number, or no country to read in', () => {
+        expect(readMobileNumber('02-123-4567', 'KR')).toBeNull();
+        expect(readMobileNumber('+81 3-1234-5678', 'KR')).toBeNull();
+        expect(readMobileNumber('+1 555 0100', 'KR')).toBeNull();
+        expect(readMobileNumber('010-1234-5678', null)).toBeNull();
+    });
+});
+
+describe('readLocaleCountry', () => {
+    afterEach(() => setLanguage('en-US'));
+
+    it("answers the locale's region, and nothing for a region-less locale", () => {
+        setLanguage('ja-JP');
+        expect(readLocaleCountry()).toBe('JP');
+        setLanguage('ko');
+        expect(readLocaleCountry()).toBeNull();
     });
 });
