@@ -20,6 +20,7 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             getActiveServerContext: () => ({ kind: 'cloud', siteId: 'S1' }),
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
+            useSessionSelection: () => ({ selectedSiteId: 'S1' }),
         },
     },
 }));
@@ -159,7 +160,7 @@ describe('ThreadPanel', () => {
 
             render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
 
-            expect(await screen.findByText(/no longer available/)).toBeTruthy();
+            expect(await screen.findByText(/can't be shown here/)).toBeTruthy();
             expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
         });
 

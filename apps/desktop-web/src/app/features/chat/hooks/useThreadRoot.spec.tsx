@@ -5,11 +5,18 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { DomainChat } from '@chatic/data';
 
 const getChat = vi.fn();
+// One object for every render, as the runtime's is: a fresh one would re-run the hook's fetch effect on each.
+const repositories = { chat: { getChat } };
 const warn = vi.fn();
+// The place the session has selected; the server answers a read from the place the session is in.
+const session = vi.hoisted(() => ({ siteId: 'place-a' as string | null }));
 
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
 vi.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: () => ({ chat: { getChat } }) } },
+    runtime: {
+        data: { useRuntimeRepositories: () => repositories },
+        session: { useSessionSelection: () => ({ selectedSiteId: session.siteId }) },
+    },
 }));
 
 import { REPLY_PAGES_PER_BATCH, useThreadRoot } from './useThreadRoot';
@@ -55,6 +62,7 @@ describe('useThreadRoot — the root', () => {
     beforeEach(() => {
         getChat.mockReset().mockResolvedValue(chat(5, { content: 'old root' }));
         warn.mockClear();
+        session.siteId = 'place-a';
     });
 
     it('asks for nothing when the root is already in the window', () => {
@@ -137,6 +145,58 @@ describe('useThreadRoot — the root', () => {
         await waitFor(() => expect(result.current.status).toBe('found'));
         expect(getChat).toHaveBeenCalledTimes(2);
         expect(getChat).toHaveBeenLastCalledWith({ id: 'C1:5' });
+    });
+
+    // A read is answered from the place the session is in, so "not there" and "can't reach it from here"
+    // look the same on the wire. A verdict of that kind has to be taken again when the place changes.
+    it('asks again for a root that was gone once the place changes', async () => {
+        getChat.mockRejectedValueOnce(new Error('404 NOT FOUND'));
+        const { result, rerender, initial } = mount();
+        await waitFor(() => expect(result.current.status).toBe('gone'));
+
+        session.siteId = 'place-b';
+        rerender({ ...initial });
+
+        await waitFor(() => expect(result.current.status).toBe('found'));
+        expect(getChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks again for a root that failed once the place changes', async () => {
+        getChat.mockRejectedValueOnce(new Error('Failed to fetch'));
+        const { result, rerender, initial } = mount();
+        await waitFor(() => expect(result.current.status).toBe('failed'));
+
+        session.siteId = 'place-b';
+        rerender({ ...initial });
+
+        await waitFor(() => expect(result.current.status).toBe('found'));
+        expect(getChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a root it has already got when the place changes', async () => {
+        const { result, rerender, initial } = mount();
+        await waitFor(() => expect(result.current.status).toBe('found'));
+
+        session.siteId = 'place-b';
+        rerender({ ...initial });
+
+        expect(result.current.status).toBe('found');
+        expect(getChat).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops the answer of a fetch the place change overtook, and takes the new one', async () => {
+        const first = deferred<DomainChat>();
+        getChat.mockReturnValueOnce(first.promise);
+        const { result, rerender, initial } = mount();
+        await waitFor(() => expect(getChat).toHaveBeenCalledTimes(1));
+
+        session.siteId = 'place-b';
+        rerender({ ...initial });
+        await waitFor(() => expect(result.current.status).toBe('found'));
+        await act(async () => first.reject(new Error('404 NOT FOUND')));
+
+        expect(result.current.status).toBe('found');
+        expect(getChat).toHaveBeenCalledTimes(2);
     });
 
     it('ignores a late answer for a thread the panel has left', async () => {

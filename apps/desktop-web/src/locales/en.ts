@@ -184,7 +184,7 @@ export const en = {
     'chat.thread.loading': 'Loading thread…',
     'chat.thread.beforeJoin': "This message is from before you joined this channel, so you can't view it.",
     'chat.thread.gone':
-        'This message is no longer available. It may have been deleted, or you may not have access to it.',
+        "This message can't be shown here. It may have been deleted, or you may not have access to it from this place.",
     'chat.thread.failed': "Couldn't load this message.",
     'chat.thread.retry': 'Try again',
     'chat.thread.loadOlder': 'Load earlier replies',

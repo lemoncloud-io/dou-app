@@ -194,7 +194,7 @@ export const ko: EnTranslation = {
     'chat.codeBlock.collapse': '간략히 보기',
     'chat.thread.loading': '스레드를 불러오는 중…',
     'chat.thread.beforeJoin': '이 메시지는 채널에 들어오기 전에 보낸 메시지라 볼 수 없어요.',
-    'chat.thread.gone': '이 메시지를 볼 수 없어요. 삭제됐거나 볼 권한이 없을 수 있어요.',
+    'chat.thread.gone': '여기서는 이 메시지를 볼 수 없어요. 삭제됐거나, 이 플레이스에서는 볼 권한이 없을 수 있어요.',
     'chat.thread.failed': '이 메시지를 불러오지 못했어요.',
     'chat.thread.retry': '다시 시도',
     'chat.thread.loadOlder': '이전 답글 더 불러오기',

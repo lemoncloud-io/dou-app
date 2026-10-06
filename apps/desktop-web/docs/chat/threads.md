@@ -19,6 +19,11 @@ there is untouched. Both instances read and write the same cache. The panel star
 room remembers but does not save its own (`persist: false`), so a thread's paging never widens the
 room the next time it opens.
 
+What the room remembers (depth, and whether older history ran out) is keyed by cloud, account and
+channel. One account in two clouds can show the same uid, and each cloud's Self Channel has the same
+id; without the cloud in the key, a short channel that ran out of history in one cloud told the other
+there was nothing older, and a thread's replies never paged.
+
 ## Finding the root
 
 When the root is not in the window, the panel asks for that one message by id (`<channelId>:<chatNo>`,
@@ -32,12 +37,18 @@ What the panel says while it has no root:
 | ------------ | ------------------------------------------------------ | ---------------------------------------------- |
 | `loading`    | the window or the fetch is still on its way            | a spinner and "Loading thread…"                |
 | `beforeJoin` | the root's number is at or below my current `joinedNo` | "from before you joined", nothing is requested |
-| `gone`       | the server answers not found or not allowed            | "no longer available", no retry                |
+| `gone`       | the server answers not found or not allowed            | "can't be shown here", no retry button         |
 | `failed`     | any other failure (network, timeout)                   | "Couldn't load", with "Try again"              |
 
 `beforeJoin` is decided from the number alone, with `isInJoinWindow`. The server windows reads by the
 same cursor, so the message can never arrive, and asking would leave a spinner that never ends. A
 fetch that answers after the panel moved to another thread or channel is dropped.
+
+The server answers a read from the place the session is in, so "there is no such message" and "it is
+out of reach from this place" look the same on the wire (a saved reply of the Self Channel, which every
+place lists, can be opened from a place that cannot fetch it). The wording says "here" for that reason,
+and a `gone` or `failed` verdict is keyed by the place it was asked from: when the place changes the
+panel asks again, and a fetch still in flight from the old place is dropped. A root that arrived stays.
 
 ## Finding the replies
 

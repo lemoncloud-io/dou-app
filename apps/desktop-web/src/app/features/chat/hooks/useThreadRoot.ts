@@ -58,7 +58,10 @@ interface ThreadRootArgs {
     isLoadingOlder: boolean;
 }
 
-type RootOutcome = { key: string; root: DomainChat } | { key: string; failure: 'gone' | 'failed' };
+/** What a fetch of the root answered, and the place it asked from (a read is answered from the place the session is in). */
+type RootOutcome =
+    | { key: string; site: string; root: DomainChat }
+    | { key: string; site: string; failure: 'gone' | 'failed' };
 
 interface Pager {
     key: string;
@@ -95,15 +98,20 @@ export const useThreadRoot = ({
     isLoadingOlder,
 }: ThreadRootArgs) => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
+    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const site = selectedSiteId ?? '';
 
     const rootNo = parseRootNo(rootId);
     const key = channelId && Number.isInteger(rootNo) && rootNo > 0 ? `${channelId}:${rootNo}` : null;
     const beforeJoin = key !== null && !isInJoinWindow({ chatNo: rootNo }, joinedNo);
 
     // Keyed by the root it answers, so a response that lands after the panel moved to another thread
-    // or channel is never read as the new one's.
+    // or channel is never read as the new one's. A verdict that the root is gone or failed is also keyed
+    // by the place it was asked from: the server answers a read from the place the session is in, so a
+    // root that is out of reach from one place can be fine from the next, and the verdict is taken again
+    // when the place changes. A root that arrived stays.
     const [outcome, setOutcome] = useState<RootOutcome | null>(null);
-    const mine = outcome?.key === key ? outcome : null;
+    const mine = outcome?.key === key && ('root' in outcome || outcome.site === site) ? outcome : null;
     const shouldFetch = !windowRoot && !feedLoading && key !== null && !beforeJoin && !mine;
 
     useEffect(() => {
@@ -111,20 +119,20 @@ export const useThreadRoot = ({
         let cancelled = false;
         chatRepository.getChat({ id: key }).then(
             root => {
-                if (!cancelled) setOutcome({ key, root });
+                if (!cancelled) setOutcome({ key, site, root });
             },
             (error: unknown) => {
                 if (cancelled) return;
                 // Gone for good only when the server says so; anything else may pass, so it offers a retry.
                 const kind = classifyWireError(extractErrorMessage(error));
                 logger.warn('CHAT', '[useThreadRoot] root fetch failed', { key, kind, error });
-                setOutcome({ key, failure: kind === 'notFound' || kind === 'denied' ? 'gone' : 'failed' });
+                setOutcome({ key, site, failure: kind === 'notFound' || kind === 'denied' ? 'gone' : 'failed' });
             }
         );
         return () => {
             cancelled = true;
         };
-    }, [chatRepository, key, shouldFetch]);
+    }, [chatRepository, key, site, shouldFetch]);
 
     const retryRoot = useCallback(() => setOutcome(null), []);
 
