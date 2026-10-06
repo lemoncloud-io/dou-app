@@ -22,9 +22,10 @@ with a channel id. What is described here is only the group case.
 
 Two pages (the tab shell and the link page), five components (the place tab, the contact tab
 `ContactInviteTab`, the add-friend sheet, the link view `InviteLinkView`, the permission banner), and
-two pure modules — `deviceContact.ts` for the name
-and phone chains, the second line, the sort order and the search text, `koreanPhone.ts` for the
-sheet's validation. The pickers, the search input and the link card are `@chatic/web-ui-kit`.
+one pure module — `deviceContact.ts` for the name and phone chains, the second line, the sort order
+and the search text. Numbers are read with the shared `utils/phoneNumber.ts`, the same module the
+relay invite's field uses ([auth/international-phone-input.md](../auth/international-phone-input.md)).
+The pickers, the search input and the link card are `@chatic/web-ui-kit`.
 
 **The contact tab, the sheet and the link view are also the place invite's**
 ([invite/place-invite.md](../invite/place-invite.md)), which binds them to a place instead of a room.
@@ -90,7 +91,7 @@ the contact tab.
 ## The contact tab
 
 Native only, in substance. `getContacts()` returns the device's contacts together with whether the
-read was allowed (`granted` or `denied`); anything without a valid Korean mobile number is
+read was allowed (`granted` or `denied`); anything without a valid mobile number is
 `disabled` rather than hidden, because "saved but not shown" and "cannot be invited" are different
 statements to a reader.
 
@@ -111,9 +112,19 @@ them — the filter of rule 4, the sort of rule 5 and the pinning of selected ro
    a label. The number is a real answer, not filler: it is what the person will be called on, and
    it is how a reader recognises the row. Name parts join without spaces when the script is
    Korean, Han or kana, and with spaces otherwise.
-3. **Every stored number is scanned**, not just the first, and the first valid Korean mobile wins.
+3. **Every stored number is scanned**, not just the first, and the first valid mobile wins.
    Contact apps do not order numbers, so reading only slot one treated anyone with a home number
-   first as having none.
+   first as having none. A number saved with a `+` is read in the country it names; one saved
+   without is read as Korean, then as the device locale's country — Korea first so that no number
+   invitable before international support reads any differently, the locale second because a
+   local number is local to whoever saved it. The phone field's last picked country is not a guess
+   here: it names the last person invited by hand, not the owner's address book. Mobile only, since
+   every invite is a text. The invite carries the number as E.164 (`+821012345678`); a Korean
+   mobile is shown as dialled at home (`010-1234-5678`), any other with its country code
+   (`+1 415 555 0123`) so the row says which country the text will go to. A number Korea took that
+   the locale's country would also have taken — `0171 2345678` on a German device — is still invited
+   as Korean, but shown with its `+82` so the guess is visible. The search text holds the shown
+   form, the number's national form (what the owner typed when saving it) and the digits of both.
 4. **A contact with no number at all is dropped from the list**, using the _same_ function that
    builds the displayed number — "nothing to show" and "not listed" must not disagree. An invite
    goes out by number, so such a row could neither be invited nor recognised. If that empties the
@@ -165,9 +176,14 @@ never showed. The OS settings route stays on the banner.
 ## The invite link
 
 The search bar's link icon (native), the web guide and the permission banner all open
-`AddFriendSheet`: a name and a Korean phone number. Submitting calls the page's `requestLink` —
-here `requestInvite` for this room — and takes the `Location` from the response **without sharing
-it**; the page's `onLinkReady` then navigates to `InviteLinkPage` with the link in route state.
+`AddFriendSheet`: a name, a country and a mobile number. The country opens on the last explicit
+pick, else the device locale's region, else Korea — most invitees are Korean, and a region-less
+locale (`ko`) must not make the common case start with "pick a country". A pasted `+81…` moves the
+picker to its own country, and invisible bidi marks a copied number can carry are dropped. The
+number is validated as a mobile of that country and sent as E.164. Submitting calls the page's
+`requestLink` — here `requestInvite` for this room — and takes the `Location` from the response
+**without sharing it**; the page's `onLinkReady` then navigates to `InviteLinkPage` with the link in
+route state.
 
 There is no general "channel invite link" endpoint, which is why a name and a number always come
 first: the link only exists as the answer to an issued invite.

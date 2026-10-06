@@ -1,5 +1,5 @@
-// Korean mobile number helpers for the phone-verification flow. Same rules as the invite senders
-// (channels/AddFriendSheet, channels/InvitePage keep local copies — a shared util does not exist yet).
+// Korean-only mobile number helpers. No phone field validates with them any more: verification and
+// every invite read numbers through `utils/phoneNumber.ts`, which knows every country.
 
 export const PHONE_DIGITS_MAX = 11;
 

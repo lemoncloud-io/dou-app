@@ -7,15 +7,26 @@ import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { formatKoreanPhone, isValidKoreanPhone } from '../utils/koreanPhone';
+import { CountrySelect } from '../../../ui/components/CountrySelect';
+// Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
+// metadata — see that barrel's comment).
+import {
+    isValidMobileNumber,
+    readInternationalInput,
+    rememberCountry,
+    resolveDefaultCountry,
+    toE164,
+    type PhoneCountry,
+} from '../../../utils/phoneNumber';
 
 interface AddFriendSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /**
-     * Issues an invite for this name and number and answers its link, without sharing it. The host
-     * decides what the invite is for — a room, or a place — so the sheet never names either.
-     * Absent while the host has nothing to invite into yet; the button stays disabled.
+     * Issues an invite for this name and number (E.164, `+821012345678`) and answers its link,
+     * without sharing it. The host decides what the invite is for — a room, or a place — so the
+     * sheet never names either. Absent while the host has nothing to invite into yet; the button
+     * stays disabled.
      */
     requestLink?: (recipient: { name: string; phone: string }) => Promise<string>;
     /** Receives the link once the sheet has closed, to hand it to the host's link screen. */
@@ -54,49 +65,82 @@ const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'te
 );
 
 const NAME_MAX = 20;
-const PHONE_DIGITS_MAX = 11;
+/**
+ * Raw entry is kept as typed, so a cap on characters rather than digits: the right digit count
+ * depends on the country, and validation is what rejects a wrong one.
+ */
+const PHONE_INPUT_MAX = 20;
+/**
+ * Bidi and other invisible format marks (`U+202D` … `U+202C`). A number copied out of another app
+ * can carry them, and the strict parser rejects a number that has them — the Korean-only check this
+ * replaced dropped every non-digit, so the same paste used to pass.
+ */
+const FORMAT_MARKS = /\p{Cf}/gu;
 
 export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, heading }: AddFriendSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [name, setName] = useState('');
-    const [phoneDigits, setPhoneDigits] = useState('');
+    const [phoneInput, setPhoneInput] = useState('');
+    // The last explicit pick, else the device locale's region — the same opening rule as the relay
+    // invite's field. Korea when neither answers: this sheet took Korean numbers alone until now, and
+    // a region-less locale (`ko`) must not turn the default case into "pick a country first".
+    const [country, setCountry] = useState<PhoneCountry>(() => resolveDefaultCountry() ?? 'KR');
     const [phoneError, setPhoneError] = useState('');
     const fieldsRef = useRef<HTMLDivElement>(null);
     useFormKeyboardFlow(fieldsRef);
     const [isPending, setIsPending] = useState(false);
 
     const handlePhoneChange = (value: string) => {
-        const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
-        setPhoneDigits(digits);
+        const next = value.replace(FORMAT_MARKS, '').slice(0, PHONE_INPUT_MAX);
+        // A pasted `+81…` declares its own country, so the picker follows it and the field is
+        // rewritten to the local form — the two never point at different countries.
+        const international = readInternationalInput(next);
+        if (international) {
+            setCountry(international.country);
+            rememberCountry(international.country);
+            setPhoneInput(international.national);
+        } else {
+            setPhoneInput(next);
+        }
         // Clear error when user starts typing again
         if (phoneError) setPhoneError('');
     };
 
-    const validatePhone = (): boolean => {
-        if (!phoneDigits) return false;
-        if (!isValidKoreanPhone(phoneDigits)) {
+    const handleCountryChange = (next: PhoneCountry) => {
+        setCountry(next);
+        rememberCountry(next);
+        if (phoneError) setPhoneError('');
+    };
+
+    /**
+     * The number as the invite carries it, or `null` after showing the error. Mobile only: the
+     * invite reaches the recipient as a text.
+     */
+    const validatePhone = (): string | null => {
+        if (!isValidMobileNumber(phoneInput, country)) {
             setPhoneError(t('addFriend.phoneInvalidFormat'));
-            return false;
+            return null;
         }
-        return true;
+        return toE164(phoneInput, country);
     };
 
     const resetAndClose = () => {
         setName('');
-        setPhoneDigits('');
+        setPhoneInput('');
         setPhoneError('');
         onOpenChange(false);
     };
 
     const handleShare = async () => {
-        if (!requestLink || isPending || !name.trim() || !phoneDigits) return;
-        if (!validatePhone()) return;
+        if (!requestLink || isPending || !name.trim() || !phoneInput.trim()) return;
+        const phone = validatePhone();
+        if (!phone) return;
 
         setIsPending(true);
         try {
             // Obtain the invite link (no auto-share) and hand it to the host's link page.
-            const inviteLink = await requestLink({ name: name.trim(), phone: phoneDigits });
+            const inviteLink = await requestLink({ name: name.trim(), phone });
 
             resetAndClose();
             onLinkReady(inviteLink);
@@ -114,7 +158,7 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
         }
     };
 
-    const isDisabled = !name.trim() || !phoneDigits || !requestLink || isPending || !!phoneError;
+    const isDisabled = !name.trim() || !phoneInput.trim() || !requestLink || isPending || !!phoneError;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -160,18 +204,16 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
                                 {t('addFriend.phoneLabel')}
                             </label>
                             <div
-                                className={`flex items-center rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
+                                className={`flex items-center gap-3 rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
                             >
+                                <CountrySelect value={country} onChange={handleCountryChange} />
                                 <input
-                                    value={formatKoreanPhone(phoneDigits)}
+                                    value={phoneInput}
                                     onChange={e => handlePhoneChange(e.target.value)}
                                     placeholder={t('addFriend.phonePlaceholder')}
                                     type="tel"
-                                    className="flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none bg-transparent"
+                                    className="min-w-0 flex-1 text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground placeholder:text-muted-foreground outline-none bg-transparent"
                                 />
-                                <span className="text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74 shrink-0">
-                                    {phoneDigits.length}/{PHONE_DIGITS_MAX}
-                                </span>
                             </div>
                             {phoneError && <span className="text-[12px] text-destructive">{phoneError}</span>}
                         </div>
