@@ -6,6 +6,9 @@ export * from './package';
 export * from './profiles';
 export * from './types';
 
+// A video's poster frame — the one output here that does not start from an image.
+export * from './videoPoster';
+
 // Strategies — one per output form. Add a form here.
 export * from './strategies';
 

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } from '@chatic/data';
 
-import { prepareChatAttachment } from '@chatic/shared';
+import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
@@ -18,7 +18,7 @@ jest.mock('@chatic/data', () => ({
     sendImageMessage: (...args: unknown[]) => mockSendImageMessage(...args),
 }));
 
-jest.mock('@chatic/shared', () => ({ prepareChatAttachment: jest.fn() }));
+jest.mock('@chatic/shared', () => ({ prepareChatAttachment: jest.fn(), makeVideoPoster: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 
 const put = jest.fn();
@@ -64,6 +64,8 @@ beforeEach(() => {
         async ({ pendingId }: { pendingId?: string }) => pendingId ?? `row-${++rowSeq}`
     );
     chat.listPendingImageChats.mockResolvedValue([]);
+    // A browser that cannot draw the frame, unless a test says otherwise.
+    (makeVideoPoster as jest.Mock).mockResolvedValue(null);
 });
 
 const sent: SendImageResult = { status: 'sent', uploadIds: ['up-1'], failedIndexes: [] };
@@ -971,6 +973,68 @@ describe('useSendImages — shell files', () => {
         await act(() => result.current.sendImages([new File(['v'], 'clip.mp4', { type: 'video/mp4' })]));
 
         expect(chat.createPendingImageChat.mock.calls[0][0].localThumbUrls).toEqual(['']);
+        unmount();
+    });
+
+    it('sends a page video with the poster the browser drew, and shows the poster once it is made', async () => {
+        const poster = new File(['jpeg'], 'clip-poster.jpg', { type: 'image/jpeg' });
+        (makeVideoPoster as jest.Mock).mockResolvedValue({ file: poster, width: 400, height: 225 });
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const video = new File(['v'], 'clip.mp4', { type: 'video/mp4' });
+
+        await act(() => result.current.sendImages([video]));
+
+        expect(makeVideoPoster).toHaveBeenCalledWith(video);
+        expect(prepared).toEqual([
+            {
+                original: { file: video, width: 0, height: 0 },
+                thumbnail: { file: poster, width: 400, height: 225 },
+            },
+        ]);
+        // Grey while the frame is drawn, then the poster.
+        expect(chat.createPendingImageChat.mock.calls[0][0].localThumbUrls).toEqual(['']);
+        expect(chat.createPendingImageChat.mock.calls[1][0]).toMatchObject({
+            localThumbUrls: [expect.stringMatching(/^blob:/)],
+            pendingId: expect.any(String),
+        });
+        unmount();
+    });
+
+    it('sends a page video without a poster when the browser cannot draw one', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const video = new File(['v'], 'clip.mp4', { type: 'video/mp4' });
+
+        await act(() => result.current.sendImages([video]));
+
+        expect(prepared).toEqual([{ original: { file: video, width: 0, height: 0 }, thumbnail: null }]);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        // Nothing to switch to, so the row is written once.
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('never draws a poster for a shell video, whose poster the shell makes', async () => {
+        prepareVideo.mockImplementation(async source => exported(source));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([mov()]));
+
+        expect(prepareVideo).toHaveBeenCalledTimes(1);
+        expect(makeVideoPoster).not.toHaveBeenCalled();
+        unmount();
+    });
+
+    it('draws no poster for a document', async () => {
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })]));
+
+        expect(makeVideoPoster).not.toHaveBeenCalled();
+        expect(prepared).toEqual([expect.objectContaining({ thumbnail: null })]);
         unmount();
     });
 });

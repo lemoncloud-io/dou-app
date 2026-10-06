@@ -20,7 +20,7 @@ import {
     type ShellFileRef,
     type UploadPutTarget,
 } from '@chatic/data';
-import { prepareChatAttachment } from '@chatic/shared';
+import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
 
@@ -130,13 +130,20 @@ const revoke = (url: string) => {
 };
 
 /**
- * An image is resized with a thumbnail beside it. A video or document has nothing to resize and no
- * thumbnail: it goes up as it is, with no dimensions. A shell file is never read here; a shell video
- * reaches this only when it could not be converted first, and then goes up as the shell holds it.
+ * An image is resized with a thumbnail beside it. A video or document has nothing to resize: it goes up
+ * as it is, with no dimensions. A page video gets a poster drawn by the browser as its thumbnail — the
+ * frame a mobile tile shows, which has no other way to show one — and goes without when the browser
+ * cannot draw it (HEVC in most Chromium builds); a poster never holds the send back. A shell file is
+ * never read here; a shell video has its poster from `PrepareVideo`, reaches this only when it could
+ * not be converted first, and then goes up as the shell holds it.
  */
 const prepareAttachment = async (source: ChatAttachmentSource): Promise<PreparedImageMirror<ChatAttachmentSource>> => {
     const sent = asSent(source);
-    return isShellFileRef(sent.file) || (sent.kind && sent.kind !== 'image')
+    if (isShellFileRef(sent.file)) return { original: { file: sent.file, width: 0, height: 0 }, thumbnail: null };
+    if (sent.kind === 'video') {
+        return { original: { file: sent.file, width: 0, height: 0 }, thumbnail: await makeVideoPoster(sent.file) };
+    }
+    return sent.kind && sent.kind !== 'image'
         ? { original: { file: sent.file, width: 0, height: 0 }, thumbnail: null }
         : prepareChatAttachment(sent.file);
 };
