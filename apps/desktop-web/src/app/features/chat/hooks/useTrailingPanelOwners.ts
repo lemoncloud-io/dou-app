@@ -24,13 +24,14 @@ import { useThreadStore } from '../stores';
  * render would ask the server about the old thread's number in the wrong room, or about the same room
  * again when it comes back with the list after a place switch.
  *
- * One mismatch is not a verdict: a thread opened while the list has not arrived yet (the restored
+ * One mismatch is not a verdict: a thread opened while the list is still loading (the restored
  * selection is known before its channels are) has no channel to match yet. That is held — not drawn and
- * not closed — until the list answers. What tells "not known yet" from "no longer here" is whether the
- * thread's channel has been shown since the thread was opened: a place switch empties the list under a
- * thread that was shown, so that thread closes; one that was never shown is still waiting for its list.
+ * not closed — until the list answers; `listLoading` is that answer's absence. A list that has loaded
+ * without the channel is a verdict and closes the thread. A place switch is not held either: it empties
+ * the list under a thread that was shown, and a thread whose channel has been shown since it was opened
+ * closes whether or not the list is loading again.
  */
-export const useTrailingPanelOwners = (shownChannelId: string | undefined) => {
+export const useTrailingPanelOwners = (shownChannelId: string | undefined, listLoading: boolean) => {
     const openRootId = useThreadStore(s => s.openRootId);
     const openChannelId = useThreadStore(s => s.openChannelId);
     const closeThread = useThreadStore(s => s.close);
@@ -38,7 +39,8 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined) => {
     const threadRootId = threadHere ? openRootId : null;
     const threadKey = openRootId === null ? null : `${openChannelId}:${openRootId}`;
     const [shownKey, setShownKey] = useState<string | null>(null);
-    const awaitingList = openRootId !== null && !threadHere && shownChannelId === undefined && shownKey !== threadKey;
+    const awaitingList =
+        openRootId !== null && !threadHere && shownChannelId === undefined && listLoading && shownKey !== threadKey;
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);

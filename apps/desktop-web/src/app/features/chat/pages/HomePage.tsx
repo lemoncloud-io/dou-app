@@ -154,7 +154,7 @@ export const HomePage = () => {
         profileTarget,
         savedOpen,
         activityOpen,
-    } = useTrailingPanelOwners(channels.find(channel => channel.id === selectedChannelId)?.id);
+    } = useTrailingPanelOwners(channels.find(channel => channel.id === selectedChannelId)?.id, isLoading);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
