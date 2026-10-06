@@ -6,6 +6,7 @@ import { PhotoGridTile } from './PhotoGridTile';
 import { RecentPhotoStrip } from './RecentPhotoStrip';
 import { SelectedPhotoStrip } from './SelectedPhotoStrip';
 import type { PhotoItem } from './types';
+import { formatVideoDuration } from './VideoMark';
 
 const photos = (count: number, prefix = 'p'): PhotoItem[] =>
     Array.from({ length: count }, (_, i) => ({ id: `${prefix}${i}`, src: `data:image/jpeg;base64,${prefix}${i}` }));
@@ -211,5 +212,117 @@ describe('PhotoGridSheet', () => {
             expect(screen.queryByTestId('photo-grid-sentinel')).not.toBeInTheDocument();
             expect(callback).toBeUndefined();
         });
+    });
+});
+
+describe('video items', () => {
+    const clip: PhotoItem = { id: 'v1', src: 'data:image/jpeg;base64,v1', kind: 'video', durationMs: 42_500 };
+
+    it('marks a video tile with a play mark and its length', () => {
+        const { container } = render(
+            <PhotoGridTile src="x" kind="video" durationMs={42_500} onToggle={jest.fn()} label="v" />
+        );
+
+        expect(container.querySelector('[data-video-mark]')).toHaveTextContent('0:42');
+    });
+
+    it('draws no video mark on a photo tile', () => {
+        const { container } = render(<PhotoGridTile src="x" onToggle={jest.fn()} label="p" />);
+
+        expect(container.querySelector('[data-video-mark]')).toBeNull();
+    });
+
+    it('names a video in the recent strip with the video label', () => {
+        render(
+            <RecentPhotoStrip
+                title="t"
+                seeAllLabel="s"
+                onSeeAll={jest.fn()}
+                photos={[...photos(1), clip]}
+                onSelect={jest.fn()}
+                photoLabel={p => `photo ${p}`}
+                videoLabel={p => `video ${p}`}
+            />
+        );
+
+        expect(screen.getByRole('button', { name: 'photo 1' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'video 2' })).toHaveTextContent('0:42');
+    });
+
+    it('keeps the play mark, without the length, on a picked video', () => {
+        const { container } = render(<SelectedPhotoStrip photos={[clip]} onRemove={jest.fn()} />);
+
+        const mark = container.querySelector('[data-video-mark]');
+        expect(mark).toBeInTheDocument();
+        expect(mark).not.toHaveTextContent('0:42');
+    });
+
+    it('labels a video tile in the grid with the video label and keeps photo labels for photos', () => {
+        render(
+            <PhotoGridSheet
+                open
+                onOpenChange={jest.fn()}
+                albumTitle="All"
+                albumsOpen={false}
+                onToggleAlbums={jest.fn()}
+                albums={[]}
+                onSelectAlbum={jest.fn()}
+                photos={[...photos(1), clip]}
+                picked={[]}
+                onToggle={jest.fn()}
+                max={10}
+                sendLabel="Send"
+                onSend={jest.fn()}
+                labels={{ photo: p => `photo ${p}`, video: p => `video ${p}` }}
+            />
+        );
+
+        expect(screen.getByRole('button', { name: 'photo 1' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'video 2' })).toBeInTheDocument();
+    });
+});
+
+describe('formatVideoDuration', () => {
+    it.each([
+        [0, '0:00'],
+        [999, '0:00'],
+        [59_900, '0:59'],
+        [60_000, '1:00'],
+        [605_000, '10:05'],
+        [3_600_000, '1:00:00'],
+        [3_725_000, '1:02:05'],
+        [-5, '0:00'],
+        [Number.NaN, '0:00'],
+    ])('formats %p ms as %p', (ms, text) => {
+        expect(formatVideoDuration(ms)).toBe(text);
+    });
+});
+
+describe('PhotoGridSheet — while the pick is read', () => {
+    it('greys the send button out with the host label and takes no tap', () => {
+        const onSend = jest.fn();
+        render(
+            <PhotoGridSheet
+                open
+                onOpenChange={jest.fn()}
+                albumTitle="All"
+                albumsOpen={false}
+                onToggleAlbums={jest.fn()}
+                albums={[]}
+                onSelectAlbum={jest.fn()}
+                photos={photos(1)}
+                picked={photos(1)}
+                onToggle={jest.fn()}
+                max={10}
+                sendLabel="Preparing"
+                sending
+                onSend={onSend}
+            />
+        );
+
+        const button = screen.getByRole('button', { name: 'Preparing' });
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(onSend).not.toHaveBeenCalled();
     });
 });

@@ -8,6 +8,7 @@ export const useAttachmentPickerHandler = () => {
     return useMemo(
         () => ({
             isAvailable: AttachmentPickerBridge.isAvailable,
+            canReadVideoFrame: AttachmentPickerBridge.canReadVideoFrame,
             ...createAttachmentPickerHandlers(AttachmentPickerBridge, logger),
         }),
         [logger]

@@ -4,6 +4,7 @@ import { AttachmentPickerBridge } from './AttachmentPickerBridge';
 const mockPick = jest.fn();
 const mockPrepareVideo = jest.fn();
 const mockReadAttachment = jest.fn();
+const mockReadVideoFrame = jest.fn();
 
 jest.mock('react-native', () => ({
     NativeModules: {
@@ -11,6 +12,7 @@ jest.mock('react-native', () => ({
             pick: (...args: unknown[]) => mockPick(...args),
             prepareVideo: (...args: unknown[]) => mockPrepareVideo(...args),
             readAttachment: (...args: unknown[]) => mockReadAttachment(...args),
+            readVideoFrame: (...args: unknown[]) => mockReadVideoFrame(...args),
         },
     },
 }));
@@ -57,6 +59,17 @@ describe('AttachmentPickerBridge', () => {
     });
 });
 
+describe('AttachmentPickerBridge — video frames', () => {
+    it('knows the module has readVideoFrame and passes its arguments through', async () => {
+        mockReadVideoFrame.mockResolvedValue({ base64: '', contentType: 'image/jpeg', width: 1, height: 1 });
+
+        expect(AttachmentPickerBridge.canReadVideoFrame).toBe(true);
+        await AttachmentPickerBridge.readVideoFrame('https://s3/v.mp4', 500, 400);
+
+        expect(mockReadVideoFrame).toHaveBeenCalledWith('https://s3/v.mp4', 500, 400);
+    });
+});
+
 describe('AttachmentPickerBridge without the native module', () => {
     it('is unavailable and rejects every call with INTERNAL', async () => {
         jest.resetModules();
@@ -68,6 +81,21 @@ describe('AttachmentPickerBridge without the native module', () => {
         await expect(bridge.pick('media', 1, maxBytes)).rejects.toMatchObject({ code: 'INTERNAL' });
         await expect(bridge.prepareVideo('file:///x')).rejects.toMatchObject({ code: 'INTERNAL' });
         await expect(bridge.readAttachment('file:///x')).rejects.toMatchObject({ code: 'INTERNAL' });
+
+        jest.dontMock('react-native');
+    });
+});
+
+describe('AttachmentPickerBridge on a module from before readVideoFrame', () => {
+    it('says it cannot read a frame and rejects one with INTERNAL', async () => {
+        jest.resetModules();
+        jest.doMock('react-native', () => ({ NativeModules: { AttachmentPicker: { pick: jest.fn() } } }));
+
+        const { AttachmentPickerBridge: bridge } = await import('./AttachmentPickerBridge');
+
+        expect(bridge.isAvailable).toBe(true);
+        expect(bridge.canReadVideoFrame).toBe(false);
+        await expect(bridge.readVideoFrame('https://s3/v', 500, 400)).rejects.toMatchObject({ code: 'INTERNAL' });
 
         jest.dontMock('react-native');
     });

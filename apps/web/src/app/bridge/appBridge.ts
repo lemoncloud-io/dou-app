@@ -451,8 +451,11 @@ export const appBridge = {
      *
      * 60s: on first use the OS permission prompt is raised inside this request, as for contacts.
      */
-    listPhotoAlbums(timeoutMs = 60_000): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
-        return webClient.request({ type: 'ListPhotoAlbums', data: {} }, { timeoutMs });
+    listPhotoAlbums(
+        payload: Payload<'ListPhotoAlbums'> = {},
+        timeoutMs = 60_000
+    ): Promise<WebMessageResponse<'ListPhotoAlbums'>> {
+        return webClient.request({ type: 'ListPhotoAlbums', data: payload }, { timeoutMs });
     },
 
     /** One page of the library, newest first, with small previews. 60s for the same permission prompt. */
@@ -463,6 +466,28 @@ export const appBridge = {
     /** The bytes of one photo the user is sending. 2 minutes: an original kept only in iCloud is downloaded first. */
     readPhoto(id: string, timeoutMs = 120_000): Promise<WebMessageResponse<'ReadPhoto'>> {
         return webClient.request({ type: 'ReadPhoto', data: { id } }, { timeoutMs });
+    },
+
+    /**
+     * Copies one library video into the shell's pick folder and answers with the reference the send
+     * uploads from. 10 minutes, the same bound as `PrepareVideo`: a video kept only in iCloud is
+     * downloaded first, with no progress to report. Rejects with NOT_FOUND on an app from before it.
+     */
+    keepLibraryVideo(id: string, timeoutMs = 10 * 60_000): Promise<WebMessageResponse<'KeepLibraryVideo'>> {
+        return webClient.request({ type: 'KeepLibraryVideo', data: { id } }, { timeoutMs });
+    },
+
+    /**
+     * A received video's frame as a JPEG, made by the shell from the video's signed address. The shell
+     * gives up after 20s of its own; the page waits a little longer, so the shell's answer — a frame or
+     * `UNREADABLE` — is what settles it, and a read the shell is still running is never taken for done
+     * while the next one starts. Rejects with NOT_FOUND on an app from before it.
+     */
+    readVideoFrame(
+        payload: Payload<'ReadVideoFrame'>,
+        timeoutMs = 25_000
+    ): Promise<WebMessageResponse<'ReadVideoFrame'>> {
+        return webClient.request({ type: 'ReadVideoFrame', data: payload }, { timeoutMs });
     },
 
     /**

@@ -2,14 +2,15 @@ import CoreGraphics
 import Foundation
 
 /// The rules of the attachment picker that need neither UIKit nor AVFoundation: where picked copies
-/// live and when they go, which file a later call may name, what is refused at pick time, when a video
-/// is converted and at what size, and the poster's shape. Kept apart so the ChaticTransferCoreTests bundle can compile and test them
-/// without an app host.
+/// live and when they go, which file a later call may name, what is refused at pick time, which
+/// resource of a library video is kept and under what name, when a video is converted and at what
+/// size, the poster's shape, and which remote frame reads are accepted. Kept apart so the
+/// ChaticTransferCoreTests bundle can compile and test them without an app host.
 ///
 /// Layout, under the app's caches directory:
 ///
 ///     attach-pick/
-///       └ <uuid>/              one per picked item
+///       └ <uuid>/              one per picked item, or per video kept from the in-app grid
 ///           ├ IMG_0001.MOV     the copy, under its own name (a photo: prepared, `IMG_0002.jpg`)
 ///           ├ IMG_0001.mp4     what PrepareVideo wrote, when it converted
 ///           └ poster.jpg       PrepareVideo's poster frame
@@ -76,6 +77,48 @@ enum AttachmentPickerCore {
         return "\(base.isEmpty ? sourceName : base).mp4"
     }
 
+    // MARK: - Library videos
+
+    /// One of a library video's PhotoKit resources, restated without importing Photos.
+    struct LibraryVideoResource: Equatable {
+        enum Kind: Equatable {
+            /// The video as recorded (`PHAssetResourceType.video`).
+            case video
+            /// The edited rendering (`.fullSizeVideo`), present only when the video was edited.
+            case fullSizeVideo
+            /// Anything else: adjustment data, a paired still.
+            case other
+        }
+
+        let kind: Kind
+        let originalFilename: String?
+    }
+
+    /// Which resource `KeepLibraryVideo` copies, and the name the copy gets in its pick folder.
+    struct LibraryVideoCopy: Equatable {
+        let index: Int
+        let name: String
+    }
+
+    /// The resource to copy for a library video, `nil` when it has none that holds video.
+    ///
+    /// An edited video goes as edited — what the person sees in Photos is what they picked — so its
+    /// rendering wins. That rendering is always named `FullSizeRender.mov`, so the copy takes the
+    /// recorded file's name instead, with `.mov`: a rendering is QuickTime whatever the original was,
+    /// and the extension is what makes `needsExport` true and PrepareVideo write an `.mp4` beside it.
+    /// An unedited video is copied under its own name. Either way the name is made safe for the disk
+    /// first, and a video with no usable name is `video.mov`.
+    static func libraryVideoCopy(_ resources: [LibraryVideoResource]) -> LibraryVideoCopy? {
+        let recorded = resources.firstIndex { $0.kind == .video }
+        let recordedName = recorded.map { diskName(resources[$0].originalFilename, fallback: "") } ?? ""
+        if let edited = resources.firstIndex(where: { $0.kind == .fullSizeVideo }) {
+            let base = diskName((recordedName as NSString).deletingPathExtension, fallback: "video")
+            return LibraryVideoCopy(index: edited, name: "\(base).mov")
+        }
+        guard let recorded else { return nil }
+        return LibraryVideoCopy(index: recorded, name: recordedName.isEmpty ? "video.mov" : recordedName)
+    }
+
     /// The type of a picked photo as kept, from its extension: one of the four `PhotoLibraryCore.prepare`
     /// writes. `nil` for anything else — a video or document in the same folders is not a photo to read.
     static func photoMimeType(fileExtension: String) -> String? {
@@ -103,7 +146,8 @@ enum AttachmentPickerCore {
     }
 
     /// Whether a picked item is refused as too large. A video that will be converted is never refused
-    /// here: its size is the conversion's, which PrepareVideo estimates before it starts.
+    /// here: its size is the conversion's, which PrepareVideo estimates before it starts (and which
+    /// `KeepLibraryVideo` estimates straight away, with the same `sizeStep`).
     static func isTooLarge(kind: Kind, size: Int64, needsExport: Bool, max: MaxBytes) -> Bool {
         let limit: Int64
         switch kind {
@@ -230,6 +274,45 @@ enum AttachmentPickerCore {
             if data.count <= maxBytes { return data }
         }
         return nil
+    }
+
+    // MARK: - Remote video frame
+
+    /// How long `ReadVideoFrame` waits for the network and the decoder together before it gives up.
+    /// The web waits longer than this, so the shell's own answer arrives first and the frame read is
+    /// cancelled rather than left downloading for a request nobody is waiting on.
+    static let frameTimeoutSeconds: Double = 20
+
+    /// How many frame reads run at once. Each one opens its own connection and decoder; the web asks
+    /// for a screenful of posters at a time, and two keep that moving without holding many decoders.
+    static let frameReadsAtOnce = 2
+
+    /// A frame request whose arguments passed.
+    struct FrameRequest: Equatable {
+        let url: URL
+        let atMs: Double
+        let maxEdge: Double
+    }
+
+    /// The request as given, or `nil` (`INVALID`) when the URL is not an `https` URL with a host, or
+    /// a number is not finite, or `atMs` is negative, or `maxEdge` is not above zero. `atMs` may be 0:
+    /// the first frame is a fair thing to ask for. Only `https` is read because the shell fetches it
+    /// with nothing the page could not have fetched itself — a signed storage URL — and never a local
+    /// file, which this call must not become a way to read.
+    static func frameRequest(url raw: String, atMs: Double, maxEdge: Double) -> FrameRequest? {
+        guard let url = URL(string: raw), url.scheme?.lowercased() == "https",
+              let host = url.host, !host.isEmpty
+        else { return nil }
+        guard atMs.isFinite, atMs >= 0, maxEdge.isFinite, maxEdge > 0 else { return nil }
+        return FrameRequest(url: url, atMs: atMs, maxEdge: maxEdge)
+    }
+
+    /// Where the frame is taken: `atMs`, or the first frame when the video is not longer than that —
+    /// the poster's rule (`posterTimeSeconds`) with the time given. A duration that is unknown (nil,
+    /// not finite, or not above zero) leaves `atMs` as asked.
+    static func frameTimeMs(atMs: Double, durationMs: Double?) -> Double {
+        guard let duration = durationMs, duration.isFinite, duration > 0 else { return atMs }
+        return duration > atMs ? atMs : 0
     }
 
     /// A track's display size: its natural size turned by its preferred transform, so a portrait

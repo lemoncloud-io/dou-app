@@ -45,7 +45,8 @@ const unsupportedPicker = (): PhotoPicker => ({
     loadMore: jest.fn(),
     picked: [],
     toggle: jest.fn(),
-    takePicked: jest.fn().mockResolvedValue([]),
+    takePicked: jest.fn().mockResolvedValue({ items: [], refused: [] }),
+    preparing: false,
     manageSelection: jest.fn().mockResolvedValue(undefined),
 });
 // The component's own picker is the browser/old-app one unless a test injects another.
@@ -240,7 +241,9 @@ describe('useChatImageAttach — in-app grid', () => {
             gridOpen: true,
             picked: [{ id: 'p1', src: 'data:p1' }],
             photos: [{ id: 'p1', src: 'data:p1' }],
-            takePicked: jest.fn().mockResolvedValue([photo('p1.jpg'), photo('p2.heic', 'image/heic')]),
+            takePicked: jest
+                .fn()
+                .mockResolvedValue({ items: [photo('p1.jpg'), photo('p2.heic', 'image/heic')], refused: [] }),
         });
         render(<Harness sendImages={sendImages} picker={picker} />);
 
@@ -249,6 +252,49 @@ describe('useChatImageAttach — in-app grid', () => {
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['p1.jpg']);
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+
+    it('sends the photos and videos the grid kept, and names a video the shell would not keep', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const kept = {
+            uri: 'file:///c/attach-pick/a/v.mp4',
+            name: 'v.mp4',
+            type: 'video/mp4',
+            size: 9,
+            kind: 'video' as const,
+        };
+        const picker = gridPicker({
+            gridOpen: true,
+            picked: [{ id: 'p1', src: 'data:p1' }],
+            photos: [{ id: 'p1', src: 'data:p1' }],
+            takePicked: jest.fn().mockResolvedValue({
+                items: [photo('p1.jpg'), kept],
+                refused: [{ name: '', kind: 'video', reason: 'unsupported' }],
+            }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":1}' }));
+        await act(async () => undefined);
+
+        expect(sendImages.mock.calls[0][0]).toEqual([expect.objectContaining({ name: 'p1.jpg' }), kept]);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupportedVideo');
+    });
+
+    it('says the grid is preparing and takes no second send meanwhile', () => {
+        const picker = gridPicker({
+            gridOpen: true,
+            preparing: true,
+            picked: [{ id: 'v', src: 'data:v', kind: 'video' }],
+            photos: [{ id: 'v', src: 'data:v', kind: 'video' }],
+        });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        const button = screen.getByRole('button', { name: 'chat.attach.preparing' });
+        fireEvent.click(button);
+
+        expect(picker.takePicked).not.toHaveBeenCalled();
     });
 });
 

@@ -17,6 +17,8 @@ const mockAttachmentPicker = {
     handlePickAttachments: jest.fn().mockResolvedValue({ type: 'OnPickAttachments', success: true }),
     handlePrepareVideo: jest.fn().mockResolvedValue({ type: 'OnPrepareVideo', success: true }),
     handleReadAttachment: jest.fn().mockResolvedValue({ type: 'OnReadAttachment', success: true }),
+    canReadVideoFrame: true,
+    handleReadVideoFrame: jest.fn().mockResolvedValue({ type: 'OnReadVideoFrame', success: true }),
 };
 
 const ATTACHMENT_PICKER_MESSAGES = ['PickAttachments', 'PrepareVideo', 'ReadAttachment'];
@@ -27,6 +29,8 @@ const mockPhotoLibrary = {
     handleListPhotos: jest.fn().mockResolvedValue({ type: 'OnListPhotos', success: true }),
     handleReadPhoto: jest.fn().mockResolvedValue({ type: 'OnReadPhoto', success: true }),
     handleManagePhotoSelection: jest.fn().mockResolvedValue({ type: 'OnManagePhotoSelection', success: true }),
+    canKeepVideo: true,
+    handleKeepLibraryVideo: jest.fn().mockResolvedValue({ type: 'OnKeepLibraryVideo', success: true }),
 };
 
 const PHOTO_LIBRARY_MESSAGES = ['ListPhotoAlbums', 'ListPhotos', 'ReadPhoto', 'ManagePhotoSelection'];
@@ -131,6 +135,67 @@ describe('useWebMessageRouter', () => {
             expect(registered(bridge)).toEqual(expect.arrayContaining(['SaveToPhotoLibrary', 'ShareFile']));
         });
     });
+    describe('methods newer than their module', () => {
+        afterEach(() => {
+            mockPhotoLibrary.isAvailable = true;
+            mockPhotoLibrary.canKeepVideo = true;
+            mockAttachmentPicker.isAvailable = true;
+            mockAttachmentPicker.canReadVideoFrame = true;
+        });
+        const handlerFor = (bridge: jest.Mocked<IAppBridgeHost>, type: string) =>
+            bridge.registerHandler.mock.calls.find(call => call[0] === type)?.[1] as any;
+
+        it('registers KeepLibraryVideo and ReadVideoFrame where native has the methods, and routes them', async () => {
+            const bridge = createBridgeMock();
+            renderHook(() => useWebMessageRouter({ bridge }));
+            const keep = { type: 'KeepLibraryVideo', data: { id: 'v:1' } };
+            const frame = { type: 'ReadVideoFrame', data: { url: 'https://s3/v', atMs: 500, maxEdge: 400 } };
+
+            await handlerFor(bridge, 'KeepLibraryVideo')(keep);
+            await handlerFor(bridge, 'ReadVideoFrame')(frame);
+
+            expect(mockPhotoLibrary.handleKeepLibraryVideo).toHaveBeenCalledWith(keep);
+            expect(mockAttachmentPicker.handleReadVideoFrame).toHaveBeenCalledWith(frame);
+        });
+
+        // The module is there, the method is not: the web must get NOT_FOUND for that one message
+        // while the rest of the module keeps working.
+        it('leaves each unregistered where its module lacks the method', () => {
+            mockPhotoLibrary.canKeepVideo = false;
+            mockAttachmentPicker.canReadVideoFrame = false;
+            const bridge = createBridgeMock();
+
+            renderHook(() => useWebMessageRouter({ bridge }));
+
+            expect(registered(bridge)).not.toContain('KeepLibraryVideo');
+            expect(registered(bridge)).not.toContain('ReadVideoFrame');
+            expect(registered(bridge)).toEqual(
+                expect.arrayContaining([...PHOTO_LIBRARY_MESSAGES, ...ATTACHMENT_PICKER_MESSAGES])
+            );
+        });
+
+        it('leaves them unregistered where the module itself is missing', () => {
+            mockPhotoLibrary.isAvailable = false;
+            mockAttachmentPicker.isAvailable = false;
+            const bridge = createBridgeMock();
+
+            renderHook(() => useWebMessageRouter({ bridge }));
+
+            expect(registered(bridge)).not.toContain('KeepLibraryVideo');
+            expect(registered(bridge)).not.toContain('ReadVideoFrame');
+        });
+
+        it('hands ListPhotoAlbums its message, so the media types reach the handler', async () => {
+            const bridge = createBridgeMock();
+            renderHook(() => useWebMessageRouter({ bridge }));
+            const albums = { type: 'ListPhotoAlbums', data: { mediaTypes: ['image', 'video'] } };
+
+            await handlerFor(bridge, 'ListPhotoAlbums')(albums);
+
+            expect(mockPhotoLibrary.handleListPhotoAlbums).toHaveBeenCalledWith(albums);
+        });
+    });
+
     describe('attachment picker', () => {
         afterEach(() => {
             mockAttachmentPicker.isAvailable = true;

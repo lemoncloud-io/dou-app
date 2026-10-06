@@ -15,6 +15,8 @@ export interface PhotoGridSheetLabels {
     close: string;
     /** Accessible name for a grid tile; receives the 1-based position in the grid. */
     photo: (position: number) => string;
+    /** Accessible name for a video's tile; receives the 1-based position in the grid. Default: `photo`. */
+    video?: (position: number) => string;
     /** Accessible name for a picked-strip remove chip; receives the 1-based pick position. */
     remove: (position: number) => string;
 }
@@ -47,6 +49,13 @@ export interface PhotoGridSheetProps {
     /** The send button label, already carrying the count (e.g. "3장 보내기"). */
     sendLabel: string;
     onSend: () => void;
+    /**
+     * The host is still reading the pick — a video copied out of iCloud can take minutes. The send
+     * button greys out with whatever `sendLabel` says meanwhile (a spinner alone would not say what is
+     * going on) and takes no second tap; the sheet stays, so the screen is never empty while the
+     * message is on its way to existing.
+     */
+    sending?: boolean;
     /** A row above the grid — the host's "only some photos are shared" notice on a limited library. */
     notice?: React.ReactNode;
     labels?: Partial<PhotoGridSheetLabels>;
@@ -85,6 +94,7 @@ export const PhotoGridSheet = ({
     hasMore = false,
     sendLabel,
     onSend,
+    sending = false,
     notice,
     labels,
 }: PhotoGridSheetProps) => {
@@ -121,7 +131,9 @@ export const PhotoGridSheet = ({
             // The upward shadow is the design's (Figma 3767:31025): on a white page the sheet has no other edge.
             className="h-[calc(90vh-var(--keyboard-height,0px))] rounded-t-[20px] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]"
             footer={
-                picked.length > 0 && !albumsOpen ? <FloatingButton label={sendLabel} onClick={onSend} /> : undefined
+                picked.length > 0 && !albumsOpen ? (
+                    <FloatingButton label={sendLabel} onClick={onSend} disabled={sending} aria-busy={sending} />
+                ) : undefined
             }
         >
             <div className="relative flex items-center justify-end px-4 py-3.5">
@@ -177,10 +189,12 @@ export const PhotoGridSheet = ({
                             <PhotoGridTile
                                 key={photo.id}
                                 src={photo.src}
+                                kind={photo.kind}
+                                durationMs={photo.durationMs}
                                 order={order.get(photo.id)}
                                 onToggle={() => onToggle(photo)}
                                 disabled={full}
-                                label={text.photo(index + 1)}
+                                label={(photo.kind === 'video' ? (text.video ?? text.photo) : text.photo)(index + 1)}
                             />
                         ))}
                     </div>

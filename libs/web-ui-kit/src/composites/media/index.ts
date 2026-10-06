@@ -4,3 +4,4 @@ export * from './PhotoGridSheet';
 export * from './PhotoGridTile';
 export * from './RecentPhotoStrip';
 export * from './SelectedPhotoStrip';
+export * from './VideoMark';

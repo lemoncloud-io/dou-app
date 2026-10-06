@@ -62,11 +62,15 @@ const prepared: OnPrepareVideoPayload = {
     },
 };
 
+const frame = { base64: 'anBlZw==', contentType: 'image/jpeg' as const, width: 400, height: 225 };
+
 const createPickerMock = (): jest.Mocked<IAttachmentPickerBridge> => ({
     isAvailable: true,
     pick: jest.fn().mockResolvedValue(picked),
     prepareVideo: jest.fn().mockResolvedValue(prepared),
     readAttachment: jest.fn().mockResolvedValue(photo),
+    canReadVideoFrame: true,
+    readVideoFrame: jest.fn().mockResolvedValue(frame),
 });
 
 const maxBytes = { image: 20 * 1024 * 1024, video: 300 * 1024 * 1024, file: 50 * 1024 * 1024 };
@@ -274,5 +278,69 @@ describe('createAttachmentPickerHandlers', () => {
 
             expect(reply.error?.code).toBe('INTERNAL');
         });
+    });
+});
+
+describe('createAttachmentPickerHandlers — ReadVideoFrame', () => {
+    let picker: jest.Mocked<IAttachmentPickerBridge>;
+    let logger: jest.Mocked<ILogService>;
+    const url = 'https://bucket.example/v.mp4?X-Amz-Signature=secret';
+
+    beforeEach(() => {
+        picker = createPickerMock();
+        logger = createLoggerMock();
+    });
+
+    const read = (data: unknown) =>
+        createAttachmentPickerHandlers(picker, logger).handleReadVideoFrame(message('ReadVideoFrame', data));
+
+    it('passes the address, time and edge to native and answers with the frame', async () => {
+        const reply = await read({ url, atMs: 500, maxEdge: 400 });
+
+        expect(picker.readVideoFrame).toHaveBeenCalledWith(url, 500, 400);
+        expect(reply).toEqual({ type: 'OnReadVideoFrame', success: true, data: frame });
+    });
+
+    it('takes the first frame at zero', async () => {
+        await read({ url, atMs: 0, maxEdge: 400 });
+
+        expect(picker.readVideoFrame).toHaveBeenCalledWith(url, 0, 400);
+    });
+
+    // Native reads whatever it is given; a local address would make it a reader of the app's files.
+    it.each([
+        ['file:///data/user/0/app/files/secret.mp4', 500, 400],
+        ['http://bucket.example/v.mp4', 500, 400],
+        [undefined, 500, 400],
+        [url, -1, 400],
+        [url, Number.NaN, 400],
+        [url, 500, 0],
+        [url, 500, undefined],
+    ])('refuses %p, %p, %p as INVALID without asking native', async (u, atMs, maxEdge) => {
+        const reply = await read({ url: u, atMs, maxEdge });
+
+        expect(picker.readVideoFrame).not.toHaveBeenCalled();
+        expect(reply).toMatchObject({ type: 'OnReadVideoFrame', success: false, error: { code: 'INVALID' } });
+    });
+
+    it.each(['INVALID', 'UNREADABLE'])('keeps native’s %s', async code => {
+        picker.readVideoFrame.mockRejectedValueOnce(rejection(code));
+
+        await expect(read({ url, atMs: 500, maxEdge: 400 })).resolves.toMatchObject({ error: { code } });
+    });
+
+    it.each(['NOT_FOUND', 'INTERNAL', undefined])('reports %s from native as UNREADABLE', async code => {
+        picker.readVideoFrame.mockRejectedValueOnce(rejection(code));
+
+        await expect(read({ url, atMs: 500, maxEdge: 400 })).resolves.toMatchObject({ error: { code: 'UNREADABLE' } });
+    });
+
+    it('logs the code and never the signed address', async () => {
+        picker.readVideoFrame.mockRejectedValueOnce(rejection('UNREADABLE', `403 for ${url}`));
+
+        await read({ url, atMs: 500, maxEdge: 400 });
+
+        expect(logger.warn).toHaveBeenCalledWith('DEVICE', 'ReadVideoFrame failed: UNREADABLE');
+        expect(JSON.stringify(logger.warn.mock.calls)).not.toContain('secret');
     });
 });

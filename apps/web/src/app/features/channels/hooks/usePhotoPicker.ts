@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { PhotoLibraryAccess } from '@chatic/app-messages';
+import type { PhotoLibraryAccess, PhotoLibraryItem, RefusedAttachment } from '@chatic/app-messages';
+import type { ChatAttachmentSource } from '@chatic/data';
 import type { PhotoAlbum, PhotoItem } from '@chatic/web-ui-kit';
 
 import { photoLibrary, photoPreviewSrc, type PhotoLibrary } from '../../../bridge/photoLibrary';
@@ -37,15 +38,46 @@ export interface PhotoPicker {
 
     picked: PhotoItem[];
     toggle(photo: PhotoItem): void;
-    /** Reads the picked photos, in pick order, and clears the pick. */
-    takePicked(): Promise<File[]>;
+    /**
+     * Reads the picked photos and keeps the picked videos in the shell, one at a time in pick order,
+     * then clears the pick and closes the grid. An item that cannot be read or kept is refused alone;
+     * the rest still go.
+     */
+    takePicked(): Promise<PickedFromGrid>;
+    /** Whether `takePicked` is still reading — the grid stays open, saying so, until it is done. */
+    preparing: boolean;
 
     /** iOS limited access: let the user share more, then list again. */
     manageSelection(): Promise<void>;
 }
 
-const toItems = (items: { id: string; thumbBase64: string }[]): PhotoItem[] =>
-    items.map(item => ({ id: item.id, src: photoPreviewSrc(item.thumbBase64) }));
+/** What the grid hands to the send: what was read or kept, and what was not, in pick order. */
+export interface PickedFromGrid {
+    items: ChatAttachmentSource[];
+    refused: RefusedAttachment[];
+}
+
+const toItems = (items: PhotoLibraryItem[]): PhotoItem[] =>
+    items.map(item =>
+        item.mediaType === 'video'
+            ? {
+                  id: item.id,
+                  src: photoPreviewSrc(item.thumbBase64),
+                  kind: 'video',
+                  ...(item.durationMs !== undefined ? { durationMs: item.durationMs } : {}),
+              }
+            : { id: item.id, src: photoPreviewSrc(item.thumbBase64) }
+    );
+
+const isVideo = (item: PhotoItem) => item.kind === 'video';
+
+/** How a video the shell would not keep is reported — in the words the attach menu already uses. */
+const refusalOf = (error: unknown): RefusedAttachment['reason'] => {
+    const code = (error as { code?: string } | null)?.code;
+    if (code === 'UNSUPPORTED') return 'unsupported';
+    if (code === 'TOO_LARGE') return 'too-large';
+    return 'unreadable';
+};
 
 /**
  * The in-app photo picker's state: what the attach menu previews, which album the grid shows and how
@@ -74,6 +106,9 @@ export const usePhotoPicker = ({
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
     const [next, setNext] = useState<string | undefined>(undefined);
     const [picked, setPicked] = useState<PhotoItem[]>([]);
+    const [preparing, setPreparing] = useState(false);
+    // Read by `toggle` and `closeGrid` in the same tick `takePicked` starts, before the state lands.
+    const preparingRef = useRef(false);
 
     // One page in flight at a time. The grid asks again every time a page lands while its end is
     // still in view, and two overlapping requests for the same cursor would append the same page twice.
@@ -170,23 +205,57 @@ export const usePhotoPicker = ({
     }, [album.id, loadPage, next]);
 
     // Picks survive an album switch on purpose: choosing across albums is the point of the list.
+    // Picks are frozen while a send reads them: a pick changed meanwhile would be dropped when the read
+    // ends and clears it, without a word.
     const toggle = useCallback(
-        (photo: PhotoItem) =>
+        (photo: PhotoItem) => {
+            if (preparingRef.current) return;
             setPicked(previous => {
                 if (previous.some(p => p.id === photo.id)) return previous.filter(p => p.id !== photo.id);
                 return previous.length >= max ? previous : [...previous, photo];
-            }),
+            });
+        },
         [max]
     );
 
-    const takePicked = useCallback(async () => {
+    const takePicked = useCallback(async (): Promise<PickedFromGrid> => {
         const chosen = picked;
-        setPicked([]);
-        setGridOpen(false);
-        // One at a time: each read holds a whole photo as base64 in page memory.
-        const files: File[] = [];
-        for (const photo of chosen) files.push(await library.read(photo));
-        return files;
+        // The grid stays open while the pick is read: a video can take minutes to come down from
+        // iCloud, and a sheet that closed at once would leave nothing on screen until the row appears.
+        preparingRef.current = true;
+        setPreparing(true);
+        const items: ChatAttachmentSource[] = [];
+        const refused: RefusedAttachment[] = [];
+        try {
+            // One at a time: each photo read holds a whole photo as base64 in page memory, and the shell
+            // copies one video at a time.
+            for (const item of chosen) {
+                if (isVideo(item)) {
+                    try {
+                        items.push(await library.keepVideo(item));
+                    } catch (error) {
+                        refused.push({ name: '', kind: 'video', reason: refusalOf(error) });
+                    }
+                    continue;
+                }
+                try {
+                    items.push(await library.read(item));
+                } catch {
+                    refused.push({ name: '', kind: 'image', reason: 'unreadable' });
+                }
+            }
+        } finally {
+            preparingRef.current = false;
+            setPreparing(false);
+            setPicked([]);
+            setGridOpen(false);
+        }
+        // An app that turned out unable to keep a video: what it listed of them cannot be picked again.
+        if (!library.videosSupported()) {
+            setPhotos(previous => previous.filter(item => !isVideo(item)));
+            setRecent(previous => previous.filter(item => !isVideo(item)));
+        }
+        return { items, refused };
     }, [library, picked]);
 
     const manageSelection = useCallback(async () => {
@@ -210,7 +279,10 @@ export const usePhotoPicker = ({
         probe,
         gridOpen,
         openGrid,
-        closeGrid: () => setGridOpen(false),
+        // The grid stays while a send reads the pick; it closes itself when the read is done.
+        closeGrid: () => {
+            if (!preparingRef.current) setGridOpen(false);
+        },
         albumsOpen,
         toggleAlbums: () => setAlbumsOpen(value => !value),
         albums,
@@ -222,6 +294,7 @@ export const usePhotoPicker = ({
         picked,
         toggle,
         takePicked,
+        preparing,
         manageSelection,
     };
 };

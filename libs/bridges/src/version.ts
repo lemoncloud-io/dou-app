@@ -10,7 +10,9 @@
 //        TriggerHaptic landed while 2.2.0 was current, so this is the first version that has it.
 // 2.4.0: added PickAttachments, PrepareVideo, OpenFile and SaveFile (web -> app); SaveToPhotoLibrary
 //        takes MP4 and ShareFile the server's document formats.
-export const BRIDGE_VERSION = '2.4.0' as const;
+// 2.5.0: added KeepLibraryVideo and ReadVideoFrame (web -> app); ListPhotos and ListPhotoAlbums take
+//        `mediaTypes`, and a library item carries `mediaType` and `durationMs`.
+export const BRIDGE_VERSION = '2.5.0' as const;
 
 /**
  * Protocol version currently spoken by this bridge runtime.

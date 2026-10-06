@@ -51,8 +51,13 @@ whichever cloud is on screen by the time it ends.
    place of a preview. A send of images only passes none and writes the row it always has.
 2. **The sequence runs** on ports the hook binds: `prepare` is `prepareChatAttachment(file)` for an
    image. A video or document (`chatAttachmentFormat` in `@chatic/data`) is not redrawn: it goes up
-   as its original with no dimensions and no thumbnail, under the server's content type and a name
-   that ends in its format's extension. The other ports:
+   as its original with no dimensions, under the server's content type and a name that ends in its
+   format's extension. A document has no thumbnail. A page video gets the poster the browser draws
+   (`makeVideoPoster` in `@chatic/shared`: 0.5 s in, 400 px on the long side, at most 200,000 bytes —
+   the shells' own rule, so the server keeps it) as its thumbnail. It goes without one when the
+   browser cannot draw it (HEVC in most Chromium builds, no frame within ten seconds); a poster never
+   holds a send back. This is what gives a video sent from the desktop or a phone's browser a frame on
+   the mobile feed, whose tiles draw thumbnails only. The other ports:
    `start` / `complete` / `send` are the chat repository's `startUploads` / `completeUploads` /
    `sendPendingImageChat(pendingId, …)`, and `put` is the sender the shell passed in.
 3. **Sent** — the repository has already swapped in the server's row and read it back once for the
@@ -69,7 +74,7 @@ whichever cloud is on screen by the time it ends.
 The row starts from the original files' object URLs: the thumbnails do not exist yet when it is
 written, and holding the row back until they do would break "the pick is the send". Once every image
 is prepared — before the upload starts — the row is rewritten **once**, with a thumbnail preview for
-each image that has one (a GIF keeps its original). One cache write per message, not per image, and
+each image that has one (a GIF keeps its original) and each video poster. One cache write per message, not per image, and
 the feed stops decoding full-size photos for small tiles. A retry keeps the thumbnails it already has.
 
 ## Shell files and video conversion
@@ -98,9 +103,10 @@ video must fail alone, so:
 - **Inside the sequence, `prepare` passes the converted file and its poster through** as the slot's
   original and thumbnail, both shell files.
 - **The poster becomes the row's preview.** The shell hands a base64 copy of it, which `prepareVideo`
-  returns as a `Blob`; the one preview rewrite (below) points the video's slot at it. Until then a shell
-  file's slot has no preview, and neither does a page video: an object URL of an `mp4` drawn as an
-  image only breaks.
+  returns as a `Blob`; the one preview rewrite (below) points the video's slot at it. A page video's
+  poster is switched in the same way. Until then a video's slot has no preview: an object URL of an
+  `mp4` drawn as an image only breaks. A shell video never gets a browser poster — the page cannot read
+  a shell file, and `PrepareVideo` made one already.
 
 **A shell file a retry could only fail again cannot be retried.** The file is marked gone for the page
 (`goneShellFiles`) when the shell has lost it — `prepareVideo` answers `SOURCE`, or the shell's PUT

@@ -79,17 +79,20 @@ Files whose contents the name does not give away:
 - `lib/` holds two kinds of module. Through its barrel, the answers other features are allowed to
   borrow: `resolveChannelTitle`, `resolveChannelAvatar` and `channelStereoPolicy`. Outside it, the image
   cache (`imageCache.ts`) and its IndexedDB store (`imageCacheStore.ts`) — stateful, and reached only
-  through `hooks/useCachedImages` — and the browser's document download (`fileDownload.ts`), reached
+  through `hooks/useCachedImages` — the frame maker for videos sent without a poster (`videoFrames.ts`),
+  reached only through `hooks/useVideoFrames`, and the browser's document download (`fileDownload.ts`), reached
   only through `hooks/useFileDownloads` ([image-send.md](./image-send.md)). Everything else that is
   pure lives in `utils/`.
 - `utils/membership.ts` — `hasLeftChannel`, `isChannelMember`, `isSomeoneElsesSelfChat`, three
   questions about a join row that nothing else can answer.
 - `utils/displayName.ts` — the one chain that turns a user id into a name.
 
-Eight native bridge calls are made from this feature directly: `getContacts`, `openShareSheet`,
-`openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, and the viewer's `saveToPhotoLibrary`
-and `shareFile`. Attachments reach the shell through the page's `bridge/` modules rather than from the
-feature itself ([image-send.md](./image-send.md)): the photo grid through `bridge/photoLibrary.ts`, the
+Nine native bridge calls are made from this feature directly: `getContacts`, `openShareSheet`,
+`openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, the viewer's `saveToPhotoLibrary`
+and `shareFile`, and `readVideoFrame` for a received video's first frame (`hooks/useVideoFrames`; an
+app built before it answers `NOT_FOUND`). Attachments reach the shell through the page's `bridge/` modules rather than from the
+feature itself ([image-send.md](./image-send.md)): the photo grid through `bridge/photoLibrary.ts`
+(`ListPhotos`, `ReadPhoto`, and `KeepLibraryVideo` for a picked video), the
 app's own picker through `bridge/attachmentPicker.ts` (`PickAttachments`, `PrepareVideo` and
 `ReadAttachment`; an app built before the picker answers `NOT_FOUND`, and the page opens its own file
 input instead), and the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages).

@@ -356,7 +356,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.3.0')
+       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.5.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -473,7 +473,7 @@ npx nx run-many -t typecheck --exclude=desktop-web,block-kit-builder,@chatic/lan
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.3.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.5.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. `BRIDGE_PROTOCOL_VERSION` is an alias of it today, kept separate so a future
 compatibility layer can run a newer bridge that still speaks an older protocol.
@@ -489,4 +489,6 @@ reporting a protocol problem.
 The version is a record, not a switch: no caller decides what a peer can do by comparing it. `2.3.0`
 opened `StartFileTransfer` to downloads and added `SaveToPhotoLibrary` and `ShareFile`; a web build
 that needs those asks whether the handshake's `supportedWebMessages` lists the message names, which
-says what the installed shell actually handles.
+says what the installed shell actually handles. `2.5.0` added `KeepLibraryVideo` and `ReadVideoFrame`
+and the opt-in `mediaTypes` on the photo-library lists; the web learns a shell without them from
+`NOT_FOUND`, and a shell that predates the field simply ignores it.

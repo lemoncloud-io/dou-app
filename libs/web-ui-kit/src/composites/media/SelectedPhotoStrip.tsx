@@ -2,6 +2,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { IconClose } from '../../resources/icons';
 import type { PhotoItem } from './types';
+import { VideoMark } from './VideoMark';
 
 export interface SelectedPhotoStripProps {
     /** Picked photos, in pick order. */
@@ -14,8 +15,9 @@ export interface SelectedPhotoStripProps {
 
 /**
  * The picked photos above the grid (Figma `3767:31297`): 64px thumbnails in pick order, each with a
- * remove chip on its corner. Removing here is the same as un-picking in the grid. Draws nothing when
- * nothing is picked.
+ * remove chip on its corner. Removing here is the same as un-picking in the grid. A picked video keeps
+ * its play mark, without its length, which a 64px tile has no room for. Draws nothing when nothing is
+ * picked.
  */
 export const SelectedPhotoStrip = ({
     photos,
@@ -35,6 +37,7 @@ export const SelectedPhotoStrip = ({
                             className="size-full rounded-[8px] object-cover"
                             draggable={false}
                         />
+                        {photo.kind === 'video' && <VideoMark className="bottom-1 left-1 pr-1" />}
                         <button
                             type="button"
                             aria-label={removeLabel(index + 1)}

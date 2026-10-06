@@ -123,7 +123,7 @@ describe('MessageMediaTiles', () => {
         });
 
         // Playing belongs to the viewer; a <video> per tile would fetch every video scrolled past.
-        it('never puts a video element in the feed', () => {
+        it('puts no video element in the feed unless the host hands a tile a frame address', () => {
             const { container } = render(
                 <MessageMediaTiles
                     items={[video('ready'), video('ready', null), video('sending', null)].map((item, i) => ({
@@ -131,6 +131,51 @@ describe('MessageMediaTiles', () => {
                         key: `v${i}`,
                     }))}
                     onOpen={jest.fn()}
+                />
+            );
+
+            expect(container.querySelector('video')).toBeNull();
+        });
+
+        it('draws the first frame of a video with no poster from its frame address, without playing it', () => {
+            const { container } = render(
+                <MessageMediaTiles
+                    items={[{ ...video('ready', null), frameUrl: 'https://bucket.example/v.mp4?sig=1' }]}
+                />
+            );
+
+            const element = container.querySelector('video') as HTMLVideoElement;
+            expect(element).toHaveAttribute('src', 'https://bucket.example/v.mp4?sig=1#t=0.5');
+            expect(element).toHaveAttribute('preload', 'metadata');
+            expect(element.muted).toBe(true);
+            expect(element).not.toHaveAttribute('autoplay');
+            expect(container.querySelector('[data-play-mark]')).toBeInTheDocument();
+        });
+
+        it('prefers the poster to a frame address', () => {
+            const { container } = render(
+                <MessageMediaTiles items={[{ ...video('ready'), frameUrl: 'https://bucket.example/v.mp4' }]} />
+            );
+
+            expect(container.querySelector('video')).toBeNull();
+            expect(container.querySelector('img')).toHaveAttribute('src', 'https://example.com/poster.jpg');
+        });
+
+        it('falls back to the grey panel when the frame cannot be loaded', () => {
+            const { container } = render(
+                <MessageMediaTiles items={[{ ...video('ready', null), frameUrl: 'https://bucket.example/v.mp4' }]} />
+            );
+
+            fireEvent.error(container.querySelector('video') as HTMLVideoElement);
+
+            expect(container.querySelector('video')).toBeNull();
+            expect(container.querySelector('[data-video-panel]')).toBeInTheDocument();
+        });
+
+        it('draws no frame for a broken video', () => {
+            const { container } = render(
+                <MessageMediaTiles
+                    items={[{ key: 'v', kind: 'video', state: 'broken', frameUrl: 'https://bucket.example/v.mp4' }]}
                 />
             );
 

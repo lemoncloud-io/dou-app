@@ -1,8 +1,8 @@
 import Foundation
 import ImageIO
 
-/// The rules of the photo-library bridge that do not need PhotoKit: paging, access, albums, and the
-/// form a picked photo leaves the device in. Kept apart so the ChaticTransferCoreTests bundle can
+/// The rules of the photo-library bridge that do not need PhotoKit: paging, access, albums, which
+/// media a list holds, and the form a picked photo leaves the device in. Kept apart so the ChaticTransferCoreTests bundle can
 /// compile and test them without an app host.
 enum PhotoLibraryCore {
     /// The largest page the shell hands back. A page is base64 thumbnails held in page memory, and the
@@ -35,6 +35,29 @@ enum PhotoLibraryCore {
         case .limited: return "limited"
         case .notDetermined, .restricted, .denied: return "denied"
         }
+    }
+
+    // MARK: - Media types
+
+    /// What a list may hold. The web asks for videos only where it can send them; everything else
+    /// (the profile-photo picker, an older web) asks for nothing and gets the still images it always got.
+    enum MediaType: String {
+        case image, video
+    }
+
+    /// The `mediaTypes` a list request names. Entries this shell does not know are ignored, and a
+    /// request that names none it knows — absent, empty, not a list — lists still images only, so an
+    /// unexpected value never widens the grid.
+    static func mediaTypes(_ raw: Any?) -> Set<MediaType> {
+        let named = Set((raw as? [Any] ?? []).compactMap { ($0 as? String).flatMap(MediaType.init(rawValue:)) })
+        return named.isEmpty ? [.image] : named
+    }
+
+    /// A video's length as the grid shows it, in whole milliseconds. PhotoKit reports seconds as a
+    /// double; anything it cannot measure reads as 0 rather than an invalid number in the reply.
+    static func durationMs(seconds: Double) -> Int {
+        guard seconds.isFinite, seconds > 0 else { return 0 }
+        return Int((seconds * 1000).rounded())
     }
 
     // MARK: - Albums

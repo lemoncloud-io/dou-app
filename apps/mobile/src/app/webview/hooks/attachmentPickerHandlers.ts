@@ -4,6 +4,7 @@ import type {
     PickAttachmentsErrorCode,
     PrepareVideoErrorCode,
     ReadAttachmentErrorCode,
+    ReadVideoFrameErrorCode,
     WebMessageData,
     WebMessageHandlerResponse,
 } from '@chatic/app-messages';
@@ -13,6 +14,7 @@ import type { ILogService } from '../../services';
 const PICK_CODES: readonly string[] = ['BUSY', 'INVALID', 'INTERNAL'];
 const PREPARE_CODES: readonly string[] = ['TOO_LARGE', 'UNSUPPORTED', 'SOURCE', 'SYSTEM', 'INVALID'];
 const READ_CODES: readonly string[] = ['INVALID', 'SOURCE', 'INTERNAL'];
+const FRAME_CODES: readonly string[] = ['INVALID', 'UNREADABLE'];
 
 const SOURCES: readonly string[] = ['media', 'document'];
 
@@ -128,5 +130,34 @@ export const createAttachmentPickerHandlers = (picker: IAttachmentPickerBridge, 
         }
     };
 
-    return { handlePickAttachments, handlePrepareVideo, handleReadAttachment };
+    /**
+     * Relays `ReadVideoFrame`. Only an `https:` address reaches native code: the frame is read from the
+     * network, and a `file:` or other local address here would make it a reader of the app's own files.
+     */
+    const handleReadVideoFrame = async (
+        message: WebMessageData<'ReadVideoFrame'>
+    ): Promise<WebMessageHandlerResponse<'ReadVideoFrame'>> => {
+        const { url, atMs, maxEdge } = (message.data ?? {}) as Partial<WebMessageData<'ReadVideoFrame'>['data']>;
+        const invalid = (text: string) => ({
+            type: 'OnReadVideoFrame' as const,
+            success: false,
+            error: { code: 'INVALID' as const, message: text },
+        });
+        if (typeof url !== 'string' || !url.startsWith('https:')) return invalid('url must be an https address');
+        if (typeof atMs !== 'number' || !Number.isFinite(atMs) || atMs < 0) {
+            return invalid('atMs must be a number of zero or more');
+        }
+        if (!isPositiveNumber(maxEdge)) return invalid('maxEdge must be a positive number');
+        try {
+            const data = await picker.readVideoFrame(url, atMs, maxEdge);
+            return { type: 'OnReadVideoFrame' as const, success: true, data };
+        } catch (e) {
+            const error = toError<ReadVideoFrameErrorCode>(e, FRAME_CODES, 'UNREADABLE');
+            // The code only: the address is signed, and a log is no place for a working signature.
+            logger.warn('DEVICE', `ReadVideoFrame failed: ${error.code}`);
+            return { type: 'OnReadVideoFrame' as const, success: false, error };
+        }
+    };
+
+    return { handlePickAttachments, handlePrepareVideo, handleReadAttachment, handleReadVideoFrame };
 };

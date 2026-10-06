@@ -1,7 +1,13 @@
 import { cn } from '@chatic/lib/utils';
 
+import type { PhotoItemKind } from './types';
+import { VideoMark } from './VideoMark';
+
 export interface PhotoGridTileProps {
     src: string;
+    /** A video draws its poster with a play mark and its length. Default `image`. */
+    kind?: PhotoItemKind;
+    durationMs?: number;
     /** 1-based pick order when picked; absent when not. */
     order?: number;
     onToggle: () => void;
@@ -15,9 +21,19 @@ export interface PhotoGridTileProps {
 /**
  * One square in the photo grid (Figma `3766:30801` / `3767:30959`). Unpicked: an empty ring in the
  * top-right corner. Picked: the photo dims and the ring becomes a lime badge carrying the pick order,
- * so the order the message will send in is visible while choosing it.
+ * so the order the message will send in is visible while choosing it. A video is its poster frame with
+ * a play mark and its length in the bottom-left corner, clear of the ring.
  */
-export const PhotoGridTile = ({ src, order, onToggle, label, disabled = false, className }: PhotoGridTileProps) => {
+export const PhotoGridTile = ({
+    src,
+    kind = 'image',
+    durationMs,
+    order,
+    onToggle,
+    label,
+    disabled = false,
+    className,
+}: PhotoGridTileProps) => {
     const picked = order !== undefined;
     return (
         <button
@@ -32,6 +48,7 @@ export const PhotoGridTile = ({ src, order, onToggle, label, disabled = false, c
             )}
         >
             <img src={src} alt="" className="size-full object-cover" draggable={false} />
+            {kind === 'video' && <VideoMark durationMs={durationMs} />}
             {picked && <span aria-hidden className="absolute inset-0 bg-black/[0.52]" />}
             <span
                 aria-hidden

@@ -870,9 +870,12 @@
             "recentTitle": "최근 사진",
             "seeAll": "전체 보기",
             "recentPhoto": "최근 사진 {{position}}",
+            "recentVideo": "최근 동영상 {{position}}",
             "gridPhoto": "사진 {{position}}",
+            "gridVideo": "동영상 {{position}}",
             "removePicked": "{{position}}번째 사진 빼기",
             "send": "{{count}}장 보내기",
+            "preparing": "준비 중…",
             "limitedNotice": "선택한 사진만 보여요",
             "limitedMore": "더 선택",
             "rejected": {
