@@ -32,6 +32,8 @@ export { RELAY_SLOT } from '../socket/utils/slotKey';
 // The clouds that keep a socket session in the background. The app hands over membership; the cap
 // and the order are the runtime's (`socket/backgroundClouds`).
 export { useBackgroundClouds } from './hooks/useBackgroundClouds';
+// The clouds the account owns, so one held as an invitee on this device is re-issued as the owner.
+export { useReclaimOwnedClouds } from './hooks/useReclaimOwnedClouds';
 
 // Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
 // `useSocketWakeRecovery`; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.

@@ -70,6 +70,15 @@ export const tokensFromInviteLogin = (cloudId: string, entry: InviteLoginEntry):
     };
 };
 
+/**
+ * Whether these tokens are an invite login's answer rather than a `delegate-cloud` issue. The
+ * assembled delegation half above carries an empty JWT, and nothing else writes one: every
+ * delegate-cloud issue returns a signed token. That empty string is the only trace the stored copy
+ * keeps of HOW the cloud was entered, so it is what tells an invitee's session apart.
+ */
+export const isInviteLoginEntry = (delegationToken?: CloudDelegationTokenView | null): boolean =>
+    delegationToken?.delegationToken === '';
+
 /** One exchange per cloud at a time — see `issueCloudTokens`. */
 const exchangesInFlight = new Map<string, Promise<IssuedCloudTokens>>();
 
@@ -147,14 +156,24 @@ export const reissueCloudTokens = async (cloudId: string): Promise<IssuedCloudTo
 
     // One observable change (ADR-0076 decision 2): a renewal is not a cloud CHANGE, so observers must
     // not see a window where the delegation token moved but the cloud token had not.
+    //
+    // A committed invite entry is the one case where the re-issue names a DIFFERENT user: the invitee
+    // was entered with the invite login's answer, and `delegate-cloud` answers for the relay user —
+    // the owner, when an owned cloud is being reclaimed. That is an identity change, not a renewal.
+    const replacesInvitee = isInviteLoginEntry(cloudStore.getDelegationToken());
     sessionSignal.batch(() => {
         cloudStore.saveDelegationToken(issued.delegationToken);
         // Merge, mirroring switchCloudSession's same-cloud branch: a re-issue is not guaranteed to
-        // carry every field the stored view holds (profile fields notably).
-        const existing = cloudStore.getCloudToken();
+        // carry every field the stored view holds (profile fields notably). Not over the invitee,
+        // though — a field the new answer omits would keep the invitee's value (its `$user`, its role).
+        const existing = replacesInvitee ? null : cloudStore.getCloudToken();
         cloudStore.saveCloudToken(
             existing ? ({ ...existing, ...issued.cloudToken } as UserTokenView) : issued.cloudToken
         );
+        // The selected place was the invitee's, and the new socket session does not start there. Kept,
+        // a later switch into it would no-op as "already there" and site-scoped writes would land on
+        // whatever site the new token names — the same reason a commit of issued tokens drops it.
+        if (replacesInvitee) cloudStore.clearSelectedSite();
 
         // Re-derive uid/identity from the freshly written token, same as every other commit path.
         rebuildSessionIdentity();
