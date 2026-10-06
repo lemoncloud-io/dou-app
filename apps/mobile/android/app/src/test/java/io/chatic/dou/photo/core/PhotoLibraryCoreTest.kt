@@ -3,7 +3,9 @@ package io.chatic.dou.photo.core
 import io.chatic.dou.photo.core.PhotoLibraryCore.Export
 import io.chatic.dou.photo.core.PhotoLibraryCore.Grants
 import io.chatic.dou.photo.core.PhotoLibraryCore.MediaTypes
+import io.chatic.dou.photo.core.PhotoLibraryCore.OffsetPage
 import io.chatic.dou.photo.core.PhotoLibraryCore.PageKey
+import io.chatic.dou.photo.core.PhotoLibraryCore.Square
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -270,6 +272,105 @@ class PhotoLibraryCoreTest {
 
         assertEquals("bucket_id = ? AND (date_added < ? OR (date_added = ? AND _id < ?))", selection)
         assertArrayEquals(arrayOf("b1", "100", "100", "7"), args)
+    }
+
+    @Test
+    fun anOffsetIsAFlooredNonNegativeFiniteNumber() {
+        assertEquals(0, PhotoLibraryCore.offset(0.0))
+        assertEquals(120, PhotoLibraryCore.offset(120.0))
+        assertEquals(2, PhotoLibraryCore.offset(2.7))
+        assertEquals(0, PhotoLibraryCore.offset(-0.0))
+    }
+
+    @Test
+    fun anAbsentNegativeOrNonFiniteOffsetPagesByCursor() {
+        assertNull(PhotoLibraryCore.offset(null))
+        assertNull(PhotoLibraryCore.offset(-1.0))
+        assertNull(PhotoLibraryCore.offset(-0.5))
+        assertNull(PhotoLibraryCore.offset(Double.NaN))
+        assertNull(PhotoLibraryCore.offset(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun anOffsetPageIsThePageSizeFromTheOffset() {
+        assertEquals(OffsetPage(0, 60), PhotoLibraryCore.offsetPage(0, 60, 1000))
+        assertEquals(OffsetPage(120, 180), PhotoLibraryCore.offsetPage(120, 60, 1000))
+        // The limit is held to the page size the shell serves.
+        assertEquals(OffsetPage(0, PhotoLibraryCore.MAX_PAGE_SIZE), PhotoLibraryCore.offsetPage(0, 5000, 1000))
+        assertEquals(OffsetPage(10, 11), PhotoLibraryCore.offsetPage(10, 0, 1000))
+    }
+
+    @Test
+    fun anOffsetPageStopsAtTheEndOfTheList() {
+        assertEquals(OffsetPage(980, 1000), PhotoLibraryCore.offsetPage(980, 60, 1000))
+    }
+
+    @Test
+    fun anOffsetPastTheEndIsAnEmptyPageAtTheTotal() {
+        assertEquals(OffsetPage(1000, 1000), PhotoLibraryCore.offsetPage(1000, 60, 1000))
+        assertEquals(OffsetPage(1000, 1000), PhotoLibraryCore.offsetPage(5000, 60, 1000))
+        assertEquals(OffsetPage(0, 0), PhotoLibraryCore.offsetPage(30, 60, 0))
+    }
+
+    // --- Sized previews ---
+
+    @Test
+    fun aThumbSizeIsRoundedAndClampedToTheRange() {
+        assertEquals(240, PhotoLibraryCore.thumbSize(240.0))
+        assertEquals(241, PhotoLibraryCore.thumbSize(240.6))
+        assertEquals(PhotoLibraryCore.MIN_THUMB_SIZE, PhotoLibraryCore.thumbSize(1.0))
+        assertEquals(PhotoLibraryCore.MIN_THUMB_SIZE, PhotoLibraryCore.thumbSize(0.1))
+        assertEquals(PhotoLibraryCore.MAX_THUMB_SIZE, PhotoLibraryCore.thumbSize(4000.0))
+        assertEquals(PhotoLibraryCore.MAX_THUMB_SIZE, PhotoLibraryCore.thumbSize(Double.MAX_VALUE))
+    }
+
+    @Test
+    fun anAbsentNonPositiveOrNonFiniteThumbSizeKeepsTheLegacyPreviews() {
+        assertNull(PhotoLibraryCore.thumbSize(null))
+        assertNull(PhotoLibraryCore.thumbSize(0.0))
+        assertNull(PhotoLibraryCore.thumbSize(-240.0))
+        assertNull(PhotoLibraryCore.thumbSize(Double.NaN))
+        assertNull(PhotoLibraryCore.thumbSize(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun theFitBoxBringsTheShortSideToTheSizeWhicheverSideIsLong() {
+        assertEquals(400, PhotoLibraryCore.fitBox(4032, 3024, 300))
+        assertEquals(400, PhotoLibraryCore.fitBox(3024, 4032, 300))
+        assertEquals(300, PhotoLibraryCore.fitBox(1000, 1000, 300))
+        // Rounded up, so the short side never comes out under the size.
+        assertEquals(534, PhotoLibraryCore.fitBox(1920, 1080, 300))
+    }
+
+    @Test
+    fun theFitBoxOfAPanoramaIsCappedAtThreeTimesTheSize() {
+        assertEquals(900, PhotoLibraryCore.fitBox(10000, 1000, 300))
+        assertEquals(900, PhotoLibraryCore.fitBox(1000, 10000, 300))
+        assertEquals(900, PhotoLibraryCore.fitBox(3000, 1000, 300))
+    }
+
+    @Test
+    fun anUnknownDimensionGivesAFitBoxOfTheSize() {
+        assertEquals(300, PhotoLibraryCore.fitBox(0, 3024, 300))
+        assertEquals(300, PhotoLibraryCore.fitBox(4032, 0, 300))
+        assertEquals(300, PhotoLibraryCore.fitBox(-1, -1, 300))
+    }
+
+    @Test
+    fun theCenterSquareIsCutFromTheMiddleOfTheLongSide() {
+        assertEquals(Square(67, 0, 300), PhotoLibraryCore.centerSquare(434, 300))
+        assertEquals(Square(0, 67, 300), PhotoLibraryCore.centerSquare(300, 434))
+        assertEquals(Square(0, 0, 256), PhotoLibraryCore.centerSquare(256, 256))
+        // An odd remainder leaves the extra pixel at the far edge.
+        assertEquals(Square(0, 0, 100), PhotoLibraryCore.centerSquare(101, 100))
+    }
+
+    @Test
+    fun theSquareSideNeverUpscalesPastTheDecodedImage() {
+        assertEquals(300, PhotoLibraryCore.squareSide(300, 400, 400))
+        assertEquals(200, PhotoLibraryCore.squareSide(300, 200, 200))
+        assertEquals(200, PhotoLibraryCore.squareSide(300, 400, 200))
+        assertEquals(300, PhotoLibraryCore.squareSide(300, 0, 200))
     }
 
     // --- Export ---

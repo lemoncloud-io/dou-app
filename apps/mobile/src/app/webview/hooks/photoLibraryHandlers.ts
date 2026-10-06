@@ -41,6 +41,22 @@ export const readMediaTypes = (value: unknown): PhotoLibraryMediaType[] | undefi
 };
 
 /**
+ * A number field the web may send (`thumbSize`, `offset`), or `undefined` for anything that is not a
+ * finite number. Native code judges the range; it only ever sees a number or nothing.
+ */
+export const readNumber = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+/** The optional number fields of a list request, with the ones that are not numbers left out. */
+const numbers = (fields: Record<string, unknown>): Record<string, number> =>
+    Object.fromEntries(
+        Object.entries(fields).flatMap(([key, value]) => {
+            const number = readNumber(value);
+            return number === undefined ? [] : [[key, number]];
+        })
+    );
+
+/**
  * Relays the in-app photo picker's messages to the native PhotoLibrary module. The library is read
  * natively on each request; nothing is cached here, so a photo taken while the grid is open shows up
  * on the next list.
@@ -49,7 +65,10 @@ export const createPhotoLibraryHandlers = (photoLibrary: IPhotoLibraryBridge, lo
     const handleListPhotoAlbums = async (message?: WebMessageData<'ListPhotoAlbums'>) => {
         const mediaTypes = readMediaTypes(message?.data?.mediaTypes);
         try {
-            const data = await photoLibrary.listAlbums(mediaTypes ? { mediaTypes } : {});
+            const data = await photoLibrary.listAlbums({
+                ...(mediaTypes ? { mediaTypes } : {}),
+                ...numbers({ thumbSize: message?.data?.thumbSize }),
+            });
             return { type: 'OnListPhotoAlbums' as const, success: true, data };
         } catch (e) {
             const error = toError(e);
@@ -64,6 +83,8 @@ export const createPhotoLibraryHandlers = (photoLibrary: IPhotoLibraryBridge, lo
             after,
             limit,
             mediaTypes: requested,
+            thumbSize,
+            offset,
         } = message.data ?? ({} as WebMessageData<'ListPhotos'>['data']);
         const mediaTypes = readMediaTypes(requested);
         if (typeof limit !== 'number' || !Number.isFinite(limit)) {
@@ -79,6 +100,7 @@ export const createPhotoLibraryHandlers = (photoLibrary: IPhotoLibraryBridge, lo
                 after,
                 limit,
                 ...(mediaTypes ? { mediaTypes } : {}),
+                ...numbers({ thumbSize, offset }),
             });
             return { type: 'OnListPhotos' as const, success: true, data };
         } catch (e) {

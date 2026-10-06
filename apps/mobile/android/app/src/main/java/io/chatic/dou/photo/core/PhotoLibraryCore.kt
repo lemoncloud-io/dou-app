@@ -2,8 +2,8 @@ package io.chatic.dou.photo.core
 
 /**
  * The rules of the photo-library bridge that need no Android framework: which media a list covers,
- * access, paging, item ids, the form a picked photo leaves the device in, and file names. Kept apart so
- * plain JVM tests cover them; the MediaStore, Bitmap and EXIF calls live in
+ * access, paging, item ids, preview sizes, the form a picked photo leaves the device in, and file names.
+ * Kept apart so plain JVM tests cover them; the MediaStore, Bitmap and EXIF calls live in
  * [io.chatic.dou.module.PhotoLibraryModule].
  */
 object PhotoLibraryCore {
@@ -226,6 +226,81 @@ object PhotoLibraryCore {
         }
         return (if (clauses.isEmpty()) null else clauses.joinToString(" AND ")) to args.toTypedArray()
     }
+
+    /**
+     * `request.offset`: where a page cut by index starts. Null — page by cursor, as before — when it is
+     * absent, not a finite number, or negative; a fractional one is floored.
+     */
+    fun offset(raw: Double?): Int? {
+        if (raw == null || !raw.isFinite() || raw < 0) return null
+        return kotlin.math.floor(raw).toInt()
+    }
+
+    /** The indices of a page cut by offset: [start] inclusive, [end] exclusive. */
+    data class OffsetPage(val start: Int, val end: Int)
+
+    /**
+     * The page [offset] asks for in a list of [total] items: from [offset] clamped to [total], at most
+     * [pageSize] of [limit] long. An offset past the end is an empty page at [total].
+     */
+    fun offsetPage(offset: Int, limit: Int, total: Int): OffsetPage {
+        val count = maxOf(total, 0)
+        val start = offset.coerceIn(0, count)
+        val end = minOf(start.toLong() + pageSize(limit), count.toLong()).toInt()
+        return OffsetPage(start, end)
+    }
+
+    // --- Sized previews ---
+
+    /** The range a requested `thumbSize` is clamped to, in pixels. */
+    const val MIN_THUMB_SIZE = 64
+    const val MAX_THUMB_SIZE = 720
+
+    /** JPEG quality of a square preview: they are drawn at full tile size, where 70 shows its blocks. */
+    const val SIZED_JPEG_QUALITY = 80
+
+    /**
+     * Most a preview's decode box is stretched for a long photo. A 10:1 panorama would otherwise decode
+     * at ten times the tile; past 3:1 its square comes out a little under the size asked for instead.
+     */
+    const val MAX_FIT_RATIO = 3
+
+    /**
+     * `request.thumbSize`: the side of a square preview, clamped to [MIN_THUMB_SIZE]..[MAX_THUMB_SIZE].
+     * Null — the uncropped [THUMBNAIL_EDGE] previews of before — when it is absent, not a finite
+     * number, or not positive.
+     */
+    fun thumbSize(raw: Double?): Int? {
+        if (raw == null || !raw.isFinite() || raw <= 0) return null
+        return kotlin.math.round(raw.coerceIn(MIN_THUMB_SIZE.toDouble(), MAX_THUMB_SIZE.toDouble())).toInt()
+    }
+
+    /**
+     * The side of the square box a fit-within decode is asked for so that the image's short side comes
+     * out at [size]: `size * long / short`, rounded up, the ratio capped at [MAX_FIT_RATIO]. Which side
+     * is long does not matter — a square box serves either — so width and height reported unrotated
+     * still give the right box. An unknown dimension gives [size].
+     */
+    fun fitBox(width: Int, height: Int, size: Int): Int {
+        if (width <= 0 || height <= 0) return size
+        val long = maxOf(width, height).toLong()
+        val short = minOf(width, height).toLong()
+        if (long >= short * MAX_FIT_RATIO) return size * MAX_FIT_RATIO
+        return ((size * long + short - 1) / short).toInt()
+    }
+
+    /** A square crop: its top-left corner and side, in the pixels of the image it is cut from. */
+    data class Square(val x: Int, val y: Int, val side: Int)
+
+    /** The centred square of a [width] × [height] image — the one actually decoded, not the library's. */
+    fun centerSquare(width: Int, height: Int): Square {
+        val side = maxOf(minOf(width, height), 0)
+        return Square((width - side) / 2, (height - side) / 2, side)
+    }
+
+    /** The side a square preview is drawn at: [size], never past what the decoded image holds. */
+    fun squareSide(size: Int, width: Int, height: Int): Int =
+        if (width <= 0 || height <= 0) size else minOf(size, minOf(width, height))
 
     // --- Export ---
 

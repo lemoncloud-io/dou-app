@@ -119,12 +119,17 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
     @ReactMethod
     fun listAlbums(request: ReadableMap?, promise: Promise) {
         val requested = mediaTypesOf(request)
+        val thumbSize = PhotoLibraryCore.thumbSize(numberOf(request, "thumbSize"))
         withAccess(promise, requested.videos) { access ->
             val reply = Arguments.createMap()
             reply.putString("access", access.photos)
             reply.putArray(
                 "albums",
-                if (access.photos == "denied") Arguments.createArray() else albums(PhotoLibraryCore.listable(requested, access.videoReadable)),
+                if (access.photos == "denied") {
+                    Arguments.createArray()
+                } else {
+                    albums(PhotoLibraryCore.listable(requested, access.videoReadable), thumbSize)
+                },
             )
             promise.resolve(reply)
         }
@@ -146,6 +151,8 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
         }
         val (albumId, after, limit) = parsed
         val requested = mediaTypesOf(request)
+        val thumbSize = PhotoLibraryCore.thumbSize(numberOf(request, "thumbSize"))
+        val offset = PhotoLibraryCore.offset(numberOf(request, "offset"))
 
         withAccess(promise, requested.videos) { access ->
             if (access.photos == "denied") {
@@ -154,7 +161,8 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
                     putArray("items", Arguments.createArray())
                 })
             } else {
-                promise.resolve(photos(albumId, after, limit, access.photos, PhotoLibraryCore.listable(requested, access.videoReadable)))
+                val types = PhotoLibraryCore.listable(requested, access.videoReadable)
+                promise.resolve(photos(albumId, after, offset, limit, thumbSize, access.photos, types))
             }
         }
     }
@@ -177,6 +185,16 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
             null
         }
         return PhotoLibraryCore.mediaTypes(entries)
+    }
+
+    /**
+     * A numeric field of [request], or null when it is absent, null or not a number — the core parsers
+     * then treat it as not asked for, as a shell from before the field would.
+     */
+    private fun numberOf(request: ReadableMap?, key: String): Double? = try {
+        if (request != null && request.hasKey(key) && request.getType(key) == ReadableType.Number) request.getDouble(key) else null
+    } catch (e: Exception) {
+        null
     }
 
     @ReactMethod
@@ -337,36 +355,49 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
             Source(imagesCollection, null, false)
         }
 
-    private data class Bucket(val id: String, val title: String, var count: Int, val coverId: Long, val coverIsVideo: Boolean)
+    /** An album's cover: the item, and its library dimensions, which size a square preview's decode. */
+    private data class Cover(val id: Long, val isVideo: Boolean, val width: Int, val height: Int)
+
+    private data class Bucket(val id: String, val title: String, var count: Int, val cover: Cover)
 
     /**
      * "All photos" first, under the fixed id the web hands back, then one album per folder (bucket),
      * ordered by its newest item. One pass over the library collects all of them; counts and covers
-     * cover what the list serves, videos included when it serves them.
+     * cover what the list serves, videos included when it serves them. Covers are square at
+     * [thumbSize] when it is set, the uncropped previews of before when not.
      */
-    private fun albums(types: MediaTypes): WritableArray {
+    private fun albums(types: MediaTypes, thumbSize: Int?): WritableArray {
         val source = sourceOf(types)
         val projection = listOfNotNull(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.BUCKET_ID,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+            MediaStore.Images.Media.WIDTH,
+            MediaStore.Images.Media.HEIGHT,
             if (source.readsFiles) MediaStore.Files.FileColumns.MEDIA_TYPE else null,
         ).toTypedArray()
         var total = 0
-        var newest: Pair<Long, Boolean>? = null
+        var newest: Cover? = null
         val buckets = LinkedHashMap<String, Bucket>()
         reactApplicationContext.contentResolver.query(source.uri, projection, source.mediaTypeClause, null, PhotoLibraryCore.SORT_ORDER)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
+            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
             val typeColumn = if (source.readsFiles) cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE) else -1
+            // The row the cursor is on, as a cover — read only for the newest item of the library or an album.
+            fun cover() = Cover(
+                cursor.getLong(idColumn),
+                typeColumn >= 0 && cursor.getInt(typeColumn) == PhotoLibraryCore.MEDIA_TYPE_VIDEO,
+                cursor.getInt(widthColumn),
+                cursor.getInt(heightColumn),
+            )
             while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn)
-                val isVideo = typeColumn >= 0 && cursor.getInt(typeColumn) == PhotoLibraryCore.MEDIA_TYPE_VIDEO
                 total += 1
-                if (newest == null) newest = id to isVideo
+                if (newest == null) newest = cover()
                 val bucketId = cursor.getString(bucketColumn) ?: continue
-                val bucket = buckets.getOrPut(bucketId) { Bucket(bucketId, cursor.getString(nameColumn) ?: "", 0, id, isVideo) }
+                val bucket = buckets.getOrPut(bucketId) { Bucket(bucketId, cursor.getString(nameColumn) ?: "", 0, cover()) }
                 bucket.count += 1
             }
         }
@@ -376,14 +407,14 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
             putString("id", PhotoLibraryCore.ALL_PHOTOS_ALBUM_ID)
             putString("title", reactApplicationContext.getString(R.string.photo_library_all_photos))
             putInt("count", total)
-            newest?.let { (id, isVideo) -> thumbnail(id, isVideo)?.let { putString("coverBase64", it) } }
+            newest?.let { cover -> coverThumbnail(cover, thumbSize)?.let { putString("coverBase64", it) } }
         })
         for (bucket in buckets.values) {
             albums.pushMap(Arguments.createMap().apply {
                 putString("id", bucket.id)
                 putString("title", bucket.title)
                 putInt("count", bucket.count)
-                thumbnail(bucket.coverId, bucket.coverIsVideo)?.let { putString("coverBase64", it) }
+                coverThumbnail(bucket.cover, thumbSize)?.let { putString("coverBase64", it) }
             })
         }
         return albums
@@ -393,11 +424,27 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
 
     private data class PageRow(val id: Long, val isVideo: Boolean, val width: Int, val height: Int, val durationMs: Long?)
 
-    private fun photos(albumId: String?, after: String?, limit: Int, access: String, types: MediaTypes): WritableMap {
+    /**
+     * One page of the list. By cursor ([after]) when [offset] is null, as it always was: the rows older
+     * than the key, an item without a preview left out, `next` when more follow. By [offset] otherwise:
+     * the same query with no key, the rows at those indices, every one listed — one without a preview
+     * with an empty one, so each item stays at its own index — and the page's start and the list's
+     * count in place of `next`.
+     */
+    private fun photos(
+        albumId: String?,
+        after: String?,
+        offset: Int?,
+        limit: Int,
+        thumbSize: Int?,
+        access: String,
+        types: MediaTypes,
+    ): WritableMap {
         val size = PhotoLibraryCore.pageSize(limit)
         val bucketId = if (PhotoLibraryCore.isAllPhotos(albumId)) null else albumId
         val source = sourceOf(types)
-        val (selection, args) = PhotoLibraryCore.pageSelection(bucketId, PhotoLibraryCore.decode(after), source.mediaTypeClause)
+        val key = if (offset == null) PhotoLibraryCore.decode(after) else null
+        val (selection, args) = PhotoLibraryCore.pageSelection(bucketId, key, source.mediaTypeClause)
         // The duration column is MediaStore's from API 29; below that it is read from the video table.
         val readsDuration = source.readsFiles && Build.VERSION.SDK_INT >= 29
         val projection = listOfNotNull(
@@ -412,8 +459,12 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
         val rows = mutableListOf<PageRow>()
         var last: PhotoLibraryCore.PageKey? = null
         var hasMore = false
-        // No LIMIT clause: API 30+ rejects one in the sort order, and reading one row past the page
-        // tells whether another page follows without counting the whole result.
+        // An album that is gone, or a query that answers nothing, is an empty list: offset 0 of 0.
+        var page = PhotoLibraryCore.OffsetPage(0, 0)
+        var total = 0
+        // No LIMIT clause: API 30+ rejects one in the sort order. A cursor page reads one row past the
+        // page to tell whether another follows without counting the whole result; an offset page moves
+        // the cursor to its start, which works on every API level.
         reactApplicationContext.contentResolver.query(source.uri, projection, selection, args, PhotoLibraryCore.SORT_ORDER)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
@@ -421,26 +472,42 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
             val typeColumn = if (source.readsFiles) cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE) else -1
             val durationColumn = if (readsDuration) cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION) else -1
-            var read = 0
-            while (cursor.moveToNext()) {
-                if (read == size) {
-                    hasMore = true
-                    break
-                }
-                read += 1
+            // Reads the row the cursor is on.
+            fun readRow() {
                 val id = cursor.getLong(idColumn)
                 last = PhotoLibraryCore.PageKey(cursor.getLong(dateColumn), id)
                 val isVideo = typeColumn >= 0 && cursor.getInt(typeColumn) == PhotoLibraryCore.MEDIA_TYPE_VIDEO
                 val duration = if (isVideo && durationColumn >= 0 && !cursor.isNull(durationColumn)) cursor.getLong(durationColumn) else null
                 rows += PageRow(id, isVideo, cursor.getInt(widthColumn), cursor.getInt(heightColumn), PhotoLibraryCore.durationMs(duration))
             }
+            if (offset != null) {
+                total = cursor.count
+                page = PhotoLibraryCore.offsetPage(offset, limit, total)
+                if (page.start < page.end && cursor.moveToPosition(page.start)) {
+                    do {
+                        readRow()
+                    } while (rows.size < page.end - page.start && cursor.moveToNext())
+                }
+            } else {
+                var read = 0
+                while (cursor.moveToNext()) {
+                    if (read == size) {
+                        hasMore = true
+                        break
+                    }
+                    read += 1
+                    readRow()
+                }
+            }
         }
         val olderDurations = if (source.readsFiles && !readsDuration) videoDurations(rows.filter { it.isVideo }.map { it.id }) else emptyMap()
 
         val items = Arguments.createArray()
         for (row in rows) {
-            // An item whose preview cannot be made is skipped rather than drawn as a blank tile.
-            val thumb = thumbnail(row.id, row.isVideo) ?: continue
+            // A cursor page skips an item whose preview cannot be made rather than drawing a blank
+            // tile; an offset page keeps it, since every index there has to be the item at it.
+            val thumb = thumbnail(row.id, row.isVideo, thumbSize, row.width, row.height)
+                ?: if (offset != null) "" else continue
             items.pushMap(Arguments.createMap().apply {
                 putString("id", PhotoLibraryCore.itemId(row.id, row.isVideo))
                 putString("mediaType", if (row.isVideo) "video" else "image")
@@ -456,8 +523,13 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
         return Arguments.createMap().apply {
             putString("access", access)
             putArray("items", items)
-            val key = last
-            if (hasMore && key != null) putString("next", PhotoLibraryCore.encode(key))
+            if (offset != null) {
+                putInt("offset", page.start)
+                putInt("total", total)
+            } else {
+                val lastKey = last
+                if (hasMore && lastKey != null) putString("next", PhotoLibraryCore.encode(lastKey))
+            }
         }
     }
 
@@ -483,18 +555,62 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
         return durations
     }
 
-    /** A small JPEG preview, upright — a video's is its system thumbnail, a frame chosen by the OS. */
-    private fun thumbnail(id: Long, isVideo: Boolean): String? = try {
-        val edge = PhotoLibraryCore.THUMBNAIL_EDGE
-        val bitmap = when {
-            Build.VERSION.SDK_INT >= 29 ->
-                reactApplicationContext.contentResolver.loadThumbnail(if (isVideo) videoUriOf(id) else uriOf(id), Size(edge, edge), null)
-            isVideo -> legacyVideoThumbnail(id, edge)
-            else -> decodeUpright(uriOf(id), edge)
+    private fun coverThumbnail(cover: Cover, thumbSize: Int?): String? =
+        thumbnail(cover.id, cover.isVideo, thumbSize, cover.width, cover.height)
+
+    /**
+     * A small JPEG preview, upright — a video's is its system thumbnail, a frame chosen by the OS.
+     *
+     * Without [thumbSize], the preview every list answered before the field: [PhotoLibraryCore.THUMBNAIL_EDGE]
+     * on the long edge, uncropped. With it, the centre square at that side: decoded to fit a box whose
+     * side brings the short edge to [thumbSize] ([PhotoLibraryCore.fitBox], from the library's [width]
+     * and [height]), then cropped and scaled by what was actually decoded.
+     */
+    private fun thumbnail(id: Long, isVideo: Boolean, thumbSize: Int?, width: Int, height: Int): String? = try {
+        if (thumbSize == null) {
+            loadPreview(id, isVideo, PhotoLibraryCore.THUMBNAIL_EDGE)?.let { base64Jpeg(it, 70).also { _ -> it.recycle() } }
+        } else {
+            loadPreview(id, isVideo, PhotoLibraryCore.fitBox(width, height, thumbSize))?.let { decoded ->
+                val square = squarePreview(decoded, thumbSize)
+                base64Jpeg(square, PhotoLibraryCore.SIZED_JPEG_QUALITY).also { _ -> square.recycle() }
+            }
         }
-        bitmap?.let { base64Jpeg(it, 70).also { _ -> it.recycle() } }
     } catch (e: Exception) {
         null
+    }
+
+    /** The item decoded upright to fit within an [edge] × [edge] box. */
+    private fun loadPreview(id: Long, isVideo: Boolean, edge: Int): Bitmap? = when {
+        Build.VERSION.SDK_INT >= 29 ->
+            reactApplicationContext.contentResolver.loadThumbnail(if (isVideo) videoUriOf(id) else uriOf(id), Size(edge, edge), null)
+        isVideo -> legacyVideoThumbnail(id, edge)
+        else -> decodeUpright(uriOf(id), edge)
+    }
+
+    /**
+     * The centre square of [decoded], at [size] a side or the square's own side when that is smaller.
+     * Takes [decoded] over: every bitmap but the one returned is recycled, [decoded] included.
+     */
+    private fun squarePreview(decoded: Bitmap, size: Int): Bitmap {
+        val crop = PhotoLibraryCore.centerSquare(decoded.width, decoded.height)
+        val side = PhotoLibraryCore.squareSide(size, crop.side, crop.side)
+        // Either call may hand back the bitmap it was given when there is nothing to change.
+        val cropped = try {
+            Bitmap.createBitmap(decoded, crop.x, crop.y, crop.side, crop.side)
+        } catch (e: Throwable) {
+            decoded.recycle()
+            throw e
+        }
+        val scaled = try {
+            Bitmap.createScaledBitmap(cropped, side, side, true)
+        } catch (e: Throwable) {
+            if (cropped !== decoded) cropped.recycle()
+            decoded.recycle()
+            throw e
+        }
+        if (cropped !== scaled && cropped !== decoded) cropped.recycle()
+        if (decoded !== scaled) decoded.recycle()
+        return scaled
     }
 
     /**

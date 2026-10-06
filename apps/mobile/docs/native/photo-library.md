@@ -25,7 +25,7 @@ page's own file input, the same path a browser takes.
 | Request                | Reply                    | What it does                                                               |
 | ---------------------- | ------------------------ | -------------------------------------------------------------------------- |
 | `ListPhotoAlbums`      | `OnListPhotoAlbums`      | Albums with a count and a cover preview, "all photos" first                |
-| `ListPhotos`           | `OnListPhotos`           | One page of previews, newest first, with a `next` cursor                   |
+| `ListPhotos`           | `OnListPhotos`           | One page of previews, newest first, by `next` cursor or by `offset`        |
 | `ReadPhoto`            | `OnReadPhoto`            | The photo itself, as base64, in a format the server takes                  |
 | `ManagePhotoSelection` | `OnManagePhotoSelection` | Under limited access, the system "select more photos" sheet; else a no-op  |
 | `KeepLibraryVideo`     | `OnKeepLibraryVideo`     | Copies one library video into `attach-pick` and answers with its reference |
@@ -106,17 +106,54 @@ takes none, and React Native rejects a call with the wrong count.
 
     A cursor the shell did not write starts over from the top.
 
+    **By offset.** A `ListPhotos` with `offset` (a number ≥ 0; a fraction is floored) ignores `after`
+    and answers the page starting at that index of the same list — same album, types and order — with
+    `offset` (the start actually used, clamped to the end) and `total` (the list's count now), and no
+    `next`. iOS indexes the fetch result; Android runs the cursor page's query without its key and
+    moves the cursor to the start (no `LIMIT`/`OFFSET`, which API 30+ rejects in the sort order). Every
+    index answers its own item: one whose preview could not be made comes with an empty `thumbBase64`
+    instead of being left out, or every index after it would be one off. A gone album answers an empty
+    page at `offset: 0, total: 0`.
+
+    Offsets are what let the grid lay out an album at its full length and fill any stretch of it
+    directly — a fast-scroll to the end of a 10,000-photo album would otherwise page through all of it.
+    They give up the cursor's guarantee: a photo taken between two pages moves every index after it, so
+    a page can repeat or skip one at its edge. `total` is how the web notices: a count different from
+    the one it laid out for makes it lay out again. The echoed `offset` is how it knows the field was
+    read at all — an app from before offsets ignores it and answers the first page, with neither field,
+    and the web then pages by cursor for the session.
+
 - **One list at a time; reads apart.** Lists run on one serial queue (one thread on Android): the web
   drops a page it no longer wants (an album switched away from) but cannot cancel it, so overlapping
   pages would only compete. Reads have their own, so sending a photo does not wait behind a page of
   previews.
-- **Previews never wait on the network.** They are JPEG, about 256 px on the long edge. iOS makes them
-  from what Photos keeps on the device — the sharp rendition if it is there, the fast one if not;
-  waiting on iCloud for each of 60 would outlast the web's request timeout. Android's MediaStore is
-  local, and its system thumbnail is used from Android 10. A photo with no preview is left out of its
-  page rather than drawn as a blank tile. A video's preview is its poster frame: the same local-only
-  request on iOS, `loadThumbnail` on the video's URI on Android 10+, and the Video table's
-  `MINI_KIND` thumbnail below.
+- **Preview size.** `ListPhotos` and `ListPhotoAlbums` (its covers) take `thumbSize`: the side of a
+  square, in pixels — the tile's size on screen times the device pixel ratio. The shell rounds and
+  clamps it to 64–720 (720 covers two columns on a 440pt phone at 3×) and answers the photo's centre
+  square at that side, JPEG quality 0.8. It asks the library for the photo fitted in a box whose side
+  brings the short edge to `thumbSize` (`fitBox`: `thumbSize × long ÷ short`, rounded up), then crops
+  the middle square of what came back and scales it to `thumbSize` — never up: a library image smaller
+  than that stays its own size. The ratio is capped at 3:1, so a panorama is decoded at three times the
+  size rather than ten, and its square comes out a little under. The box is a square whichever side is
+  long, so width and height metadata that ignores rotation cannot shrink it. Square, because every
+  place the web draws a preview (grid, recent strip, picked strip, album cover) fills a square, and
+  sending the rest would be bytes cropped away on arrival. iOS asks PhotoKit with `resizeMode .exact`
+  (`.fast` may return any size at or above the target) and draws the crop with `UIGraphicsImageRenderer`,
+  which also applies the image's orientation. Android's `loadThumbnail` is served from the system's
+  own thumbnail and does not go past it: on API 35 a request for 544 px came back 500 px, so the
+  two-column square is that size and the tile draws it about 7% larger. Decoding the original instead
+  would cost a full image decode per tile, for a difference hard to see. Without `thumbSize` the preview is what it was before
+  the field — about 256 px on the long edge, uncropped, quality 0.7 — which is what a web from before it
+  gets, and what an app from before it answers anyway.
+- **Previews never wait on the network.** iOS makes them from what Photos keeps on the device — the
+  sharp rendition if it is there, the fast one if not; waiting on iCloud for each of 60 would
+  outlast the web's request timeout. The fast rendition can come back smaller than asked; its square
+  is then smaller too, and the tile draws it larger — a soft tile is better than none. Android's
+  MediaStore is local, and its system thumbnail is used from Android 10. A photo with no preview is
+  left out of a cursor page rather than drawn as a blank tile (an offset page keeps it, empty — see
+  Paging). A video's preview is its poster frame: the same local-only request on iOS,
+  `loadThumbnail` on the video's URI on Android 10+, and the Video table's `MINI_KIND` thumbnail
+  below.
 - **What `ReadPhoto` sends.** The original — downloaded from iCloud first on iOS if it has to be — and
   not resized: the web decides sizes (`prepareImage`), with one exception below. Only the form changes:
 
@@ -180,16 +217,17 @@ takes none, and React Native rejects a call with the wrong count.
   has no photo library" and drops the picker for the rest of the session.
 
 Why the shell, not the web, prepares the form — and what the Android permission costs at release —
-is ADR-0150. Why videos are kept in the shell rather than read across the bridge is ADR-0171.
+is ADR-0150. Why videos are kept in the shell rather than read across the bridge is ADR-0171. Why
+previews are square at the tile's size, and why pages can be cut by offset, is ADR-0174.
 `READ_MEDIA_VIDEO` falls under Play's photo and video permissions policy like `READ_MEDIA_IMAGES`: the
 app's Play declaration has to name it before an Android release that lists videos ships.
 
 ## Verifying
 
 - JS relay: `yarn workspace @chatic/mobile test photoLibraryHandlers PhotoLibraryBridge useWebMessageRouter`.
-- Core rules, the same cases on both platforms (access, albums, cursor, paging, the export choice,
-  file names, media types, video duration, and the library video's name on iOS and its `v:` id and
-  video access on Android). Neither runs in CI.
+- Core rules, the same cases on both platforms (access, albums, cursor, paging, offsets, preview size,
+  fit box and centre square, the export choice, file names, media types, video duration, and the
+  library video's name on iOS and its `v:` id and video access on Android). Neither runs in CI.
     - iOS: the `PhotoLibraryCoreTests` case in the `ChaticTransferCoreTests` bundle, run as in
       [file-transfer.md](./file-transfer.md#verifying). It also covers the ImageIO export itself
       (location removed from JPEG, PNG and HEIC, orientation kept, GIF byte for byte, RAW scaling),
