@@ -113,6 +113,13 @@ class CloudSession implements ICloudSession {
                     existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken
                 );
                 cloudStore.saveSelectedCloudId(cloudId);
+                // Issued tokens are signed for whatever site the server chose (an invite login's
+                // names the cloud's default site), and the socket that registers with them lands
+                // there. Into the cloud already selected, the selected site would otherwise keep
+                // naming the place the session just left — a later switch into that place then
+                // no-ops as "already there", and every site-scoped write lands on the default site.
+                // A cloud change already dropped the site above.
+                if (issuedTokens && !isCloudChange) cloudStore.clearSelectedSite();
                 // The order background socket sessions are kept in when there are more clouds than
                 // the cap allows (see socket/backgroundClouds).
                 cloudStore.recordCloudUse(cloudId);

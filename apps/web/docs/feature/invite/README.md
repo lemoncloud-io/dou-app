@@ -123,7 +123,12 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   nothing re-issues it under the entry.
 - **An invite into the cloud already selected is still entered** — the user the session holds there
   may not be the invitee. The answer replaces that cloud's token rather than merging into it, and a
-  background socket already up for the cloud is re-registered with it.
+  background socket already up for the cloud is re-registered with it. **That entry also drops the
+  selected place.** The answer is signed for the cloud's default place, so the socket lands there;
+  a kept selection would still name the place the session just left, the place step would no-op as
+  "already there", and the profile check and save would run against the default place — asking a
+  member who already has a profile for one, then failing the save because the server wrote it to
+  the default place.
 - **Who accepted is written on the cached cloud** as `acceptedBy`, the `delegatorId` of every device
   user that accepted it here, and **`useInvitedClouds` leaves out a row other device users
   accepted.** The cloud cache is one partition per device, not per user — each web tab starts its
