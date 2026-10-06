@@ -55,3 +55,40 @@ Try again calls the latest `switchCloud` through a ref, not the closure
 from the moment of failure. By the time it is pressed, the reader may already be on that cloud, or
 another switch may be running, and the stale closure would skip both guards and drop the open channel.
 It used to say only "Couldn't switch cloud".
+
+## Removing a cloud, and a failed delete
+
+A tile's menu removes it. An invited cloud is only forgotten on this device. An owned cloud is
+deleted on the backend (`useRemoveCloud`, `releaseCloud` with `cascade`) after a confirm dialog.
+
+A delete that fails keeps the dialog open and says why inside it (`deleteCauseKey`, over
+`classifyWireError`). It used to stay open with nothing said:
+
+| Cause   | The dialog says                      |
+| ------- | ------------------------------------ |
+| denied  | only the cloud's owner can delete it |
+| network | the server could not be reached      |
+| other   | the cloud was not deleted, try again |
+
+A cloud that was already released is not a failure. The backend answers a release of an expired
+cloud with `409 CONFLICT - already expired` (and a missing one with `404`), which
+`classifyWireError` reads as `expired` and `notFound`. Retrying can only fail the same way, and the
+switch wording for `expired` ("you no longer have access") would be wrong for someone deleting it,
+so `isCloudAlreadyGone` takes both out of the failures (an `expired` counts only with the 409, since an
+expired token reads as `expired` too, and a 404 only when it names the cloud; both others are reported): the hook still forgets the cache row and
+refreshes the list, the dialog closes, and a toast says the cloud had already ended. A cloud whose
+subscription lapsed is also `expired` on the backend, so its tile can stay on the rail, labelled
+"(expired)", after this toast; that tile is the list as the backend has it.
+
+## When the cloud list cannot be loaded
+
+Owned clouds come from the relay catalog (`useCloudSessionCatalog`); invited ones do not. When that
+read fails, `isCloudsError` is true, and the owned clouds used to drop off the rail with nothing to
+say they had not loaded. The rail now ends with a dashed reload tile (the look of a cloud that cannot
+be opened), whose label says the list could not be loaded and some clouds may be missing. It
+retries the read (`refetchClouds`), and stays on the rail, spinning, while the retry runs: the
+failure is reported until a read succeeds, not only while no read is in flight.
+
+The tiles stay as they are. react-query keeps the last good list when a refresh fails, so a cloud
+that was shown keeps showing, and the reload tile says the list may be out of date. Only a first
+read that fails leaves the owned clouds out, and then the reload tile is the only sign.

@@ -278,6 +278,13 @@ export const ko: EnTranslation = {
     'cloud.delete.confirm': '삭제',
     'cloud.delete.deleting': '삭제 중...',
     'cloud.delete.cancel': '취소',
+    'cloud.delete.alreadyGone': '이 클라우드는 이미 종료되어 삭제할 것이 없어요.',
+    'cloud.deleteCause.denied': '클라우드 소유자만 삭제할 수 있어요.',
+    'cloud.deleteCause.network': '서버에 연결하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.',
+    'cloud.deleteCause.other': '클라우드를 삭제하지 못했어요. 잠시 뒤에 다시 시도해 주세요.',
+    'cloud.loadFailed.retry': '클라우드 목록을 불러오지 못했어요. 다시 시도',
+    'cloud.loadFailed.hint':
+        '클라우드 목록을 불러오지 못했어요. 일부가 보이지 않을 수 있어요. 눌러서 다시 시도해 주세요.',
     'mobileApp.planAndCloud': '구독과 클라우드 만들기는 DoU 모바일 앱에서 할 수 있어요.',
     'mobileApp.invite': '새로운 사람은 DoU 모바일 앱에서 초대할 수 있어요.',
     'mobileApp.homeDm': '홈의 1:1 대화는 DoU 모바일 앱에서 전화번호로 시작할 수 있어요.',

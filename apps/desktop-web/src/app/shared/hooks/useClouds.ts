@@ -39,7 +39,7 @@ export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
  */
 export const useClouds = () => {
     const { t } = useTranslation();
-    const { clouds: rawClouds, isFetchingClouds } = useCloudSessionCatalog();
+    const { clouds: rawClouds, isFetchingClouds, isCloudsError, refetchClouds } = useCloudSessionCatalog();
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const joinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
     const session = runtime.session.useGlobalSession();
@@ -93,5 +93,5 @@ export const useClouds = () => {
         return [home, ...byId.values()];
     }, [rawClouds, cachedClouds, joinedClouds, activeCloudId, t]);
 
-    return { clouds, activeCloudId, isFetchingClouds };
+    return { clouds, activeCloudId, isFetchingClouds, isCloudsError, refetchClouds };
 };

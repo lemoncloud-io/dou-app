@@ -89,7 +89,7 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
 };
 
 export const HomePage = () => {
-    const { clouds, activeCloudId } = useClouds();
+    const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
     const { places, isLoading: placesLoading } = usePlaces();
     // Unread is aggregated once in the always-mounted shell (ShellUnreadSync) and
     // published to the store — read it here for the rail/place switcher.
@@ -674,6 +674,9 @@ export const HomePage = () => {
                             void switchCloud(cloudId);
                         }}
                         isSwitching={railLocked}
+                        isCatalogError={isCloudsError}
+                        isRetryingCatalog={isFetchingClouds}
+                        onRetryCatalog={() => void refetchClouds()}
                     />
                 }
                 rail2={
