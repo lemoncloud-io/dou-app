@@ -19,7 +19,8 @@ export interface MessageViewer {
 // An id is "mine" when it matches either my account id (optimistic messages carry it)
 // or my per-channel cloud user id (the server rewrites the owner to this once the
 // message persists) — so my own rows stay identified across the optimistic→persisted
-// swap. Every surface that asks "is this me" goes through here; the rule is subtle
-// enough that a second copy would drift.
+// swap. A surface that asks "is this message mine" should go through here; the rule is subtle
+// enough that a second copy would drift. Message rows, the mentions inbox and the OS
+// notifications do; some older checks still compare the account id alone.
 export const isViewerId = (userId: string | undefined, viewer: MessageViewer): boolean =>
     (!!viewer.uid && userId === viewer.uid) || (!!viewer.cloudUid && userId === viewer.cloudUid);

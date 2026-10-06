@@ -9,6 +9,7 @@ import {
     findPushChannel,
     isDndActive,
     isMentioned,
+    isViewerId,
     messagePlainText,
     pushBody,
     readCacheRecords,
@@ -54,8 +55,11 @@ const presentPush = async (
     const prefs = useNotificationPrefsStore.getState();
     if (isDndActive(prefs)) return;
 
+    // My own message. The push names its author by the owner id of the cloud it came from, and
+    // `data.uid` is the recipient — me — in that same id space, so either that or my account id
+    // marks it as mine.
     const myUid = runtime.session.getGlobalSessionContext().identity.userId;
-    if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
+    if (data.ownerId && isViewerId(String(data.ownerId), { uid: myUid, name: '', cloudUid: data.uid ?? null })) return;
     // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
     const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
     // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space

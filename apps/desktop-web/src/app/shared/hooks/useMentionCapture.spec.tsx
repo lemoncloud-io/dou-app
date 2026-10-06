@@ -33,9 +33,9 @@ import { useMentionCapture } from './useMentionCapture';
 
 const channel = (joinUserId?: string) => ({ id: 'ch-1', $join: joinUserId ? { userId: joinUserId } : undefined });
 
-const feed = (chat: Record<string, unknown>, joinUserId: string | undefined = CLOUD_UID) => ({
+const feed = (chat: Record<string, unknown>, joinUserId: string | null = CLOUD_UID) => ({
     placeId: 'place-1',
-    channel: channel(joinUserId),
+    channel: channel(joinUserId ?? undefined),
     chat: { id: 'ch-1:5', chatNo: 5, content: 'hello @Me', ownerId: 'someone-else', ...chat },
 });
 
@@ -67,6 +67,15 @@ describe('useMentionCapture', () => {
 
     it('skips my own message when the embedded owner carries my cloud user id', () => {
         feedHandler?.(feed({ ownerId: undefined, owner$: { id: CLOUD_UID, name: 'Me' } }));
+        expect(captured()).toEqual([]);
+    });
+
+    it('compares only my account id when the channel has no join of mine', () => {
+        feedHandler?.(feed({ ownerId: CLOUD_UID }, null));
+        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+
+        useMentionsStore.setState({ items: {} });
+        feedHandler?.(feed({ ownerId: ACCOUNT_UID }, null));
         expect(captured()).toEqual([]);
     });
 
