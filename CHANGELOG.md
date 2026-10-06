@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-06] - root@0.85.0, @chatic/web@0.66.0
+
+### Features
+
+- (web) let go of photo grid previews far from the screen
+- (web) page the photo grid by offset and size its previews to the tile (ADR-0174)
+- (web-ui-kit,config) virtualize the photo grid, pin its header, add fast scroll and pinch
+- (mobile) answer square previews at the asked size and pages cut by offset (ADR-0174)
+- (app-messages) ask for previews at the tile size and pages by offset
+
 ## [2026-10-06] - root@0.84.0, @chatic/web@0.65.0
 
 ### Features
