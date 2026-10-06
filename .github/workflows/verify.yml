@@ -84,7 +84,7 @@ jobs:
             - name: Test
               run: >
                   npx nx run-many -t test
-                  --exclude=block-kit,@chatic/landing
+                  --exclude=@chatic/landing
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
@@ -111,7 +111,4 @@ jobs:
             #   lib, spec AND storybook. Source, tests and stories are all type checked.
             #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
-            #   test        block-kit                     6 spec files, but no jest config and no
-            #                                             test script, so nothing runs them. Giving
-            #                                             it one is a decision, not a fix.
-            #               @chatic/landing               red
+            #   test        @chatic/landing               red
