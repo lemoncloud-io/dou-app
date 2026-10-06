@@ -106,10 +106,20 @@ means the app does not know — so it does not refuse. The server says no if the
 Reasons are suppressed while the inputs are still loading: a "subscription required" line over a
 half-loaded membership is worse than a moment of silence.
 
-`findExcessClouds` names the clouds past the allowance after a downgrade, ordered by `cloudNo` (the
-owner's own creation sequence) so the newest are the ones over the line. That ordering is the app's
-guess at what a server-side cleanup would choose, and `ExcessCloudBanner` says so rather than
-presenting it as settled. The banner has no delete button.
+After a downgrade the relay decides which clouds go on hold, and the app never guesses it. It asks
+the user first: `POST /memberships/0/drops` (`useMarkDrops`) records the clouds to give up when the
+allowance shrinks, and `KeepCloudsPage` asks the opposite question — which to keep — and sends the
+rest (`lib/keepClouds.ts`). The list is the final state: owned clouds not listed lose their mark,
+an empty list clears them all, so the screen never sends one. A mark is read from
+`state$.plan === 'drop'` only — `plannedAt` is stamped when a mark is set and left behind when it is
+cleared. Unmarked clouds are held in the relay's own order if the user never chooses.
+
+What the relay then holds is reported from `state$.hold === 'downgrade'` (`HeldCloudsBanner`), not
+worked out from the allowance. A held cloud is still a candidate on the keep screen: the relay lets a
+mark be withdrawn during the hold, which is how a held cloud is chosen back. After seven days a held
+cloud that was marked loses its slot — it leaves the membership's `cloudIds`, and nothing on this
+side brings it back, so no screen promises that. The banner has no delete button; releasing a cloud
+stays in cloud management.
 
 ### 4. Buying a tier, and replacing one
 
@@ -159,10 +169,33 @@ store has taken the money — failing there would leave a paid subscription with
 
 ## Boundaries
 
-**`guide` and `plans` are two screens on purpose.** The first argues _why_ a cloud, the second asks
-_which tier_. The MyPage card and the home promo banner land on `guide`, because someone reading a
-banner does not yet know what a cloud is. The cloud switcher sheet goes straight to `plans` — that
-user is already managing clouds, so the pitch would be a step backwards (ADR-0091 §4).
+**Six screens, one walk.** `/subscription` lists the running subscription (or an empty state),
+`detail` shows it with one status banner, `guide` argues _why_ a cloud, `plans` asks _which tier_,
+`confirm` states what the change does before the store opens, and `keep` asks which clouds stay after
+a downgrade. MyPage always lands on the list; the list's empty state leads to `guide`; the home promo
+banner still lands on `guide` and the cloud switcher still goes straight to `plans` (ADR-0091 §4,
+narrowed by ADR-0173).
+
+**Only `confirm` talks to the store.** The picker chooses and nothing else, so the purchase answer
+has exactly one listener. `confirm` shows current against new, when it applies and the amount, and
+only then opens the sheet — an upgrade charges now and a downgrade waits for renewal, and that has to
+be read before paying, not on a receipt. `purchaseTier` resolves to the membership the relay just
+validated, and the completion dialog draws from it instead of waiting on the refetch. Leaving the
+dialog replaces the flow in history, so back from the detail never returns to a confirm button.
+
+**The status banner is one judgement.** `deriveBanner` (`lib/scene.ts`) picks a single banner by
+priority — block, expiry, scheduled ending, restored, renewal reminder — and the info table's rows
+come from `deriveInfoRows`, because `validUntil` is the next charge, the last day or the expiry date
+depending on the state, and showing all three makes the reader work out which. Tapping the banner
+opens the store's subscription management. The "restored" banner has no relay signal behind it: the
+app shows it only when it saw the state go from an ending to running within the session
+(`stores/useRestoredSignal`), so a reinstall or another device never shows it. The expired banner
+promises the old clouds back only within the relay's 30-day hold (`EXPIRED_HOLD_MS`, a copy of the
+relay's own constant).
+
+**What is not drawn.** The design also has a payment-failure banner, past subscriptions in the list
+and a refunded amount. The relay has no grace-period signal, no history a user may read, and no
+amounts on a membership, so none of the three is rendered.
 
 **A purchase provisions exactly one cloud.** Every cloud past the first on a multi-cloud tier is
 created by `useAddCloud`. The affordances for that live on other screens and features do not import
@@ -205,7 +238,11 @@ validation never landed — and is a hook because two screens reach it.
 - **Do not disable a refused tier card with HTML `disabled`.** It swallows the tap and reads as a
   broken button. `PlanCard` stays tappable with `aria-disabled`, and the tap opens
   `TierRefusalDialog` with the actual rule.
-- **Do not add a second plan picker.** `SubscriptionPlansPage` is the only screen that sells a tier.
+- **Do not add a second plan picker.** `SubscriptionPlansPage` is the only screen that picks a tier,
+  and `SubscriptionConfirmPage` the only one that buys it.
+- **Do not judge a keep choice by `plannedAt`.** It outlives the mark. Read `state$.plan`.
+- **Do not read the drops response's `excess` as "pick more".** It counts owned clouds against the
+  current plan's allowance, not against the marks; the selection count is what makes a choice complete.
 
 ## Traps that the tests do not cover
 
@@ -213,9 +250,10 @@ validation never landed — and is a hook because two screens reach it.
 npx jest --config apps/web/jest.config.js --testPathPatterns="features/subscription"
 ```
 
-Fifteen suites cover the pure modules by value comparison — the five states and the admin override,
+The suites cover the pure modules by value comparison — the five states and the admin override,
 the `limit=null` rule, the `#` join and the Apple/Google key confusion, the parent-SKU regression,
-the Android replacement payload, and the i18n interpolations. What they cannot catch:
+the Android replacement payload, the banner and keep-choice rules, the keep screen's request, and the i18n
+interpolations. What they cannot catch:
 
 | Trap                       | What happens                                                                                                                                                                                                                                                                   |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

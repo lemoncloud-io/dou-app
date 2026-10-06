@@ -152,7 +152,7 @@ export const useSubscriptionIap = () => {
                 });
             });
 
-            await validate(result, email);
+            const membership = await validate(result, email);
             try {
                 await appBridge.finishPurchaseTransaction(result);
             } catch (error) {
@@ -173,6 +173,9 @@ export const useSubscriptionIap = () => {
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
             await queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
             logger.info('IAP', 'purchase completed', { productId: product.id });
+            // Handed back so the caller can show what was bought without waiting on the refetch above —
+            // the confirmation screen draws straight from the membership the relay just validated.
+            return membership;
         },
         [isIOS, validate, queryClient, isGuest, isMissingSocialForCloud, t]
     );

@@ -218,3 +218,17 @@ at a screen that no longer existed. The implementation was out of step with the 
 **What is accepted**: the three subscription benefits are stated on two screens. The judgement that
 the two screens are separate came first, and the namespaces were kept apart so each screen's copy can
 be refined independently.
+
+### 3. MyPage lands on the subscription list, not the guide (2026-10-06)
+
+**Narrowed decision**: from decision 4, "the ListRow of the Subscription MenuCard on My Page" as an
+entry point to `/subscription/guide`.
+
+**After the change**: the MyPage row always opens `/subscription`, the subscription list. Its empty
+state's "Subscribe" leads to the guide, so a first-time subscriber still reads the pitch, one tap
+later. The home banner and the switch sheet are unchanged. See
+[ADR-0173](./0173-subscription-changes-are-confirmed-before-the-store-opens.md).
+
+**Why**: the row branched on `membership.isValid`, which is false throughout a scheduled
+cancellation — a user who had paid for the month was sent to the sales pitch. The list has a state
+for everyone, so the branch is no longer needed.

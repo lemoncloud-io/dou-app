@@ -244,23 +244,13 @@
         "subscription": {
             "title": "구독 관리",
             "currentPlan": "현재 구독 상품",
-            "period": "기간",
-            "currentPayment": "이번 결제",
-            "nextPayment": "다음 결제 예정",
             "pricePerMonth": "{{price}}/월",
             "vatIncluded": "(VAT 포함)",
-            "empty": "구독 중인 상품이 없어요",
-            "emptyDescription": "구독 상품을 확인해 보세요",
-            "viewPlans": "구독 상품 보기",
             "loginRequired": "구독은 로그인 후에 이용할 수 있어요",
             "loginCta": "로그인하고 구독하기",
-            "plans": "구독 상품",
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
             "noProducts": "구독 상품을 불러오지 못했어요",
-            "purchasing": "결제 중...",
-            "purchaseSuccess": "구독이 완료되었어요",
-            "purchaseSuccessDescription": "클라우드 설정에 최대 10분이 소요될 수 있어요",
             "purchaseFailed": "결제에 실패했어요",
             "notice": {
                 "title": "꼭 확인해 주세요.",
@@ -271,32 +261,16 @@
                     "google": "구독 관리는 Google Play > 프로필 > 결제 및 정기 결제 > 정기 결제에서 가능"
                 }
             },
-            "notice1": "구독 변경하면 즉시 적용되며, 남은 기간을 반영해 추가 요금이 청구됩니다.",
-            "notice2": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
-            "noticeTerms": "구매 정책과 관련한 자세한 내용은 <terms>이용약관</terms>을 확인해 주세요.",
             "platform": "플랫폼",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
-            "canceledNotice": "{{date}}에 구독이 종료됩니다",
-            "pendingChange": "다음 갱신 시 {{product}}로 변경됩니다",
-            "manageSubscription": "구독 관리",
-            "status": "상태",
-            "statusActive": "구독 중",
-            "statusCanceled": "해지 예정",
-            "statusExpired": "만료됨",
             "adminGrant": "관리자 부여",
             "adminGrantIndefinite": "무기한",
-            "statusBlocked": "이용 제한",
             "blockedNotice": "관리자에 의해 이용이 제한되었습니다. 스토어 결제는 계속되니 고객센터로 문의해 주세요.",
             "restore": "구매 복원",
             "restoreSuccess": "{{count}}건 복원 완료",
             "restoreEmpty": "복원할 구매가 없습니다",
             "restoreFailed": "복원에 실패했습니다",
-            "canceledAt": "해지일",
-            "renewal": "갱신 상태",
-            "renewal_auto": "자동 갱신",
-            "renewal_pending_cancel": "해지 예정",
-            "renewal_canceled": "취소됨",
             "autoRenewNotice": "본 구독은 자동 갱신 구독입니다. 구독 기간이 종료되면 동일한 가격으로 자동 갱신되며, 갱신일 최소 24시간 전에 구독을 해지하지 않으면 요금이 청구됩니다.",
             "termsOfService": "이용약관",
             "privacyPolicy": "개인정보처리방침",
@@ -307,15 +281,11 @@
             "socialLinkRequired": "구독은 소셜 계정 연동이 필요해요. 마이페이지 > 내 정보에서 연동해 주세요.",
             "maxClouds": "계정 {{count}}개 구독 가능",
             "trialBadge": "{{days}}일 무료",
-            "currentBadge": "이용 중",
-            "changeTier": "등급 변경",
             "adjacentTierOnly": "한 단계씩만 변경할 수 있어요",
             "productNotFound": "스토어에서 이 상품을 찾을 수 없어요",
             "offerTokenMissing": "스토어 결제 정보를 불러오지 못했어요",
             "trialRemaining": "무료 체험 {{days}}일 남음",
             "excess": {
-                "title": "클라우드 {{count}}개가 한도({{max}}개)를 넘었어요",
-                "description": "아래 클라우드가 정리 대상이 될 수 있어요. 클라우드 관리에서 직접 해지해 주세요.",
                 "manage": "클라우드 관리로 이동"
             },
             "emailRequired": {
@@ -323,28 +293,9 @@
                 "description": "이메일은 기기를 바꾸거나 앱을 다시 설치했을 때 클라우드를 되찾는 데 쓰여요. 등록해 두지 않으면 이 클라우드를 복원할 수 없어요.",
                 "action": "이메일 등록하기"
             },
-            "allowance": "보유 한도",
             "price": "요금",
             "guideTitle": "구독 안내",
-            "pickTitle": "구독제 선택",
-            "later": "다음에 하기",
             "loginRequiredTitle": "구독을 진행하려면\n로그인이 필요해요",
-            "hero": {
-                "trialLead": "DoU가 처음이라면,",
-                "trialAccent": "{{days}}일 무료 사용 혜택",
-                "trialSub": "첫 사용자 한해 1회 무료 혜택,\n무료 사용이 끝나면 월 정기 결제",
-                "plain": "나만의 클라우드를\n만들어 보세요",
-                "plainSub": "플레이스를 만들고 여러 친구와\n함께 대화할 수 있어요"
-            },
-            "benefits": {
-                "title": "구독 혜택",
-                "item1Title": "나만의 클라우드",
-                "item1Description": "플레이스를 만들고 그룹 대화를 자유롭게 관리",
-                "item2Title": "플레이스 만들기",
-                "item2Description": "주제별 공간 만들기",
-                "item3Title": "그룹 대화방",
-                "item3Description": "플레이스 안에서 여러 친구와 대화하기"
-            },
             "cloudGuide": {
                 "heroAccent": "나만의 클라우드",
                 "heroRest": "에서\n플레이스를 만들고\n여러 친구와 함께 대화해요",
@@ -372,13 +323,8 @@
                 "ctaPlain": "지금 시작하기"
             },
             "complete": {
-                "title": "구독이 완료되었습니다.",
-                "trialEndsOn": "{{date}} 이후 무료 사용 종료",
-                "renewsOn": "{{date}}에 다음 결제",
                 "autoChargeAfter": "무료 사용 종료 후 월 {{price}} 자동 결제",
-                "cancelAnytime": "구독 취소는 언제든지 가능합니다.",
-                "setUpPlace": "플레이스 설정 후 서비스를 이용해 주세요.",
-                "cta": "시작하기"
+                "cancelAnytime": "구독 취소는 언제든지 가능합니다."
             },
             "startAtEntryTier": "첫 구독은 1단계부터 시작할 수 있어요",
             "refusal": {
@@ -397,7 +343,112 @@
                 "pickInstead": "지금은 {{plan}}을 선택할 수 있어요.",
                 "selectInstead": "{{plan}} 선택하기"
             },
-            "guideEntry": "나만의 클라우드 알아보기"
+            "state": {
+                "active": "구독 중",
+                "ending": "종료 예정",
+                "expired": "구독 만료",
+                "blocked": "이용 제한",
+                "scheduled": "구독 예정"
+            },
+            "info": {
+                "status": "구독 상태",
+                "price": "결제 금액",
+                "period": "구독 기간",
+                "nextPayment": "다음 결제 예정일",
+                "endsOn": "이용 종료일",
+                "expiredOn": "만료일",
+                "scheduledPrice": "결제 예정 금액",
+                "platform": "결제 수단",
+                "adminGrant": "관리자 부여",
+                "current": "현재 구독 상품",
+                "next": "변경 후 구독 상품",
+                "applyOn": "변경 적용일",
+                "chargeOn": "결제 예정일",
+                "paidOn": "결제일",
+                "trialEndsOn": "무료 사용 종료일"
+            },
+            "banner": {
+                "autoRenew": {
+                    "title": "자동 결제 예정",
+                    "description": "{{date}} 결제일에 {{price}} 자동 결제될 예정입니다."
+                },
+                "ending": {
+                    "title": "구독 종료 예정",
+                    "description": "{{date}}까지 클라우드를 이용할 수 있어요.\n이후에는 클라우드 이용이 종료됩니다.",
+                    "chip": "종료까지 D-{{days}}"
+                },
+                "expired": {
+                    "title": "구독 만료",
+                    "description": "구독 기간이 종료되어 클라우드 이용이 제한되었어요.\n다시 구독하면 기존 클라우드를 계속 이용할 수 있어요.",
+                    "descriptionPastHold": "구독 기간이 종료되어 클라우드 이용이 제한되었어요."
+                },
+                "restored": {
+                    "title": "구독 복구",
+                    "description": "구독이 다시 시작되었어요.\n기존 클라우드를 이어서 이용할 수 있어요."
+                },
+                "blocked": {
+                    "title": "이용 제한"
+                }
+            },
+            "list": {
+                "emptyTitle": "이용 중인 구독이 없습니다.",
+                "emptyDescription": "구독하고 새로운 클라우드를 만들어 보세요.",
+                "changeLine": "{{date}}부터 {{product}}으로 변경됩니다.",
+                "endsLine": "이용 종료일 {{date}}",
+                "expiredLine": "만료일 {{date}}",
+                "heldTitle": "한도를 넘은 클라우드 {{count}}개가 보류 중이에요",
+                "heldDescription": "선택하지 않은 클라우드는 이용이 제한돼요. 클라우드 관리에서 정리할 수 있어요."
+            },
+            "detail": {
+                "title": "구독 정보",
+                "infoTitle": "구독 정보",
+                "changePlan": "구독 상품 변경하기",
+                "resubscribe": "다시 구독하기",
+                "manageInStore": "구독 관리로 이동하기",
+                "pendingTitle": "변경 예정 구독 상품",
+                "pendingHeader": "다음 결제일부터 변경 적용",
+                "pendingDescription": "{{date}}부터 {{product}} 구독으로 적용될 예정입니다. 변경 전까지는 현재 구독을 그대로 이용할 수 있어요.",
+                "keepPick": "유지할 클라우드 선택하기",
+                "keepReview": "유지할 클라우드 확인하기"
+            },
+            "picker": {
+                "productsTitle": "구독 상품",
+                "intro": "첫 구독은 가장 낮은 단계부터 시작해요.\n구독 후에는 현재 상품에서 한 단계씩 변경할 수 있어요.",
+                "next": "확인"
+            },
+            "confirm": {
+                "selected": "선택한 구독 상품",
+                "reserve": "구독 예약하기",
+                "processing": "결제 처리 중",
+                "downgradeHeadline": "낮은 단계의 구독 상품으로 변경하면\n다음 결제일부터 적용돼요",
+                "downgradeDescription": "{{date}}부터 {{product}} 구독으로 적용될 예정입니다. 변경 전까지는 현재 구독을 그대로 이용할 수 있어요.",
+                "upgradeApple1": "{{product}}로 변경하면 즉시 결제되고 구독이 바로 시작됩니다. 기존 {{current}}의 남은 이용 기간에 해당하는 금액은 Apple 정책에 따라 환불됩니다.",
+                "upgradeApple2": "환불 금액과 처리 시점은 남은 구독 기간 및 Apple 정책에 따라 달라질 수 있어요.",
+                "upgradeGoogle1": "{{product}}로 변경하면 즉시 적용됩니다. 기존 {{current}}의 남은 기간에 해당하는 차액만 청구되고 결제일은 그대로 유지돼요.",
+                "upgradeGoogle2": "청구 금액은 남은 구독 기간 및 Google Play 정책에 따라 달라질 수 있어요.",
+                "unavailable": "스토어에서 상품 정보를 불러오지 못해 지금은 진행할 수 없어요."
+            },
+            "done": {
+                "newTitle": "구독이 완료되었습니다.",
+                "changedTitle": "{{product}} 상품으로\n구독 변경이 완료되었습니다.",
+                "scheduledDescription": "{{date}}부터 {{product}}\n구독으로 적용될 예정입니다.",
+                "addCloud": "새로운 클라우드 추가하기"
+            },
+            "keep": {
+                "title": "유지할 클라우드 선택",
+                "headline": "구독 변경후에 계속 이용할\n클라우드 {{count}}개를 선택해 주세요",
+                "description": "{{date}}부터 선택한 클라우드만 이용할 수 있어요.",
+                "section": "클라우드",
+                "selected": "선택됨",
+                "notice": "선택하지 않은 클라우드는 변경 전까지 이용할 수 있으며, 이후에는 이용이 제한됩니다.",
+                "confirm": "확인",
+                "change": "변경",
+                "keepTitle": "선택한 클라우드로 유지하시겠어요?",
+                "changeTitle": "선택한 클라우드로 변경하시겠어요?",
+                "dialogDescription": "{{date}} 이전까지 클라우드 변경이 가능하며,\n선택하지 않은 클라우드는 이용이 제한됩니다.",
+                "saved": "유지할 클라우드를 저장했어요.",
+                "failed": "저장하지 못했어요. 다시 시도해 주세요."
+            }
         },
         "cloudManage": {
             "title": "클라우드 관리",

@@ -56,3 +56,21 @@ describe('PlanCard — 결제 진행 중', () => {
         expect(onSelect).not.toHaveBeenCalled();
     });
 });
+
+describe('PlanCard — trial badge', () => {
+    it('advertises the trial only when the catalog gives one', () => {
+        renderCard({ trialDays: 7 });
+        expect(screen.getByText('mypage.subscription.trialBadge')).toBeInTheDocument();
+    });
+
+    it('stays silent without a trial, and on the plan already owned', () => {
+        renderCard({ trialDays: 0 });
+        expect(screen.queryByText('mypage.subscription.trialBadge')).not.toBeInTheDocument();
+    });
+
+    it('marks the owned plan as subscribed instead of advertising a trial', () => {
+        renderCard({ trialDays: 7, isCurrent: true });
+        expect(screen.getByText('mypage.subscription.state.active')).toBeInTheDocument();
+        expect(screen.queryByText('mypage.subscription.trialBadge')).not.toBeInTheDocument();
+    });
+});

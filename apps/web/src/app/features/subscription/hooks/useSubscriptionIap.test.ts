@@ -206,6 +206,17 @@ describe('useSubscriptionIap — 결제 기록', () => {
         expect(JSON.stringify((logger.error as jest.Mock).mock.calls)).not.toContain('RECEIPT-SECRET');
     });
 
+    it('resolves to the membership the relay validated', async () => {
+        const validated = { isValid: true, productId: '#pro-tier-02', pendingProductId: '#pro-tier-01' };
+        membershipMutate.mockResolvedValueOnce(validated);
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        const pending = result.current.purchaseAndValidate(product);
+        mockPushHandlers.success?.({ data: { purchase: { productId: 'plan-1', purchaseToken: 't' } } });
+
+        await expect(pending).resolves.toBe(validated);
+    });
+
     it('60초 안에 스토어 결과가 없으면 타임아웃을 에러로 남긴다', async () => {
         jest.useFakeTimers();
         try {
