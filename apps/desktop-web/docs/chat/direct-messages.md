@@ -160,6 +160,14 @@ photo. The same 1:1 can therefore look different from one place to another: that
 profiles being per place (ADR-0113 decision 4), and ADR-0127 records why the cloud profile is the
 fallback.
 
+**Staying current.** A peer's place nick or photo edit reaches this window without waiting for the
+60s background poll: the server pushes a `profile.sync` frame to everyone who shares a room with the
+editor, and `useRealtimeProfileSync` answers it with the same profile delta pull the poll makes, on
+the same `profile-sync:<cid>:<sid>` cursor. The frame is only a nudge — its payload is not read, and
+an edit made in another place just costs one idempotent pull. Focusing the window pulls too, to catch
+what was missed while it was in the background. The older `channel.sync-site-profile` name is a deprecated
+request alias of the pull; the server never pushes it.
+
 **Filling the cache.** Only an opened room loads its members, so a peer nobody has opened a room with
 has no cached name. The sidebar loads the members of each listed 1:1 whose peer has neither a place
 nick nor a cached name (`useHydrateDmPeers`): once per room per mount, after the socket is verified,

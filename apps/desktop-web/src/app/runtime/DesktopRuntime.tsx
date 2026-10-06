@@ -39,7 +39,7 @@ startSocketFrameLog();
 /** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
-    // Realtime place-profile sync — re-pull on the server's sync-site-profile broadcast so a
+    // Realtime place-profile sync — re-pull on the server's profile.sync broadcast so a
     // peer's nick/photo edit surfaces live (v2 dropped the engine's realtime profile:sync path).
     useRealtimeProfileSync();
     // Cross-cloud push: register this device's FCM token with the broker.

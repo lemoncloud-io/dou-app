@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
-// Inbound socket message pushed by the server when a reachable member edits their
-// place profile (nick / photo). Same channel-domain broadcast the v1 engine consumed
-// via ProfileRepository's `profile:sync` listener (commit f9d4186c).
-const SYNC_SITE_PROFILE_TYPE = 'channel.sync-site-profile';
+// Inbound socket frame the server pushes when a reachable member edits their place profile
+// (nick / photo / active). It is a bare nudge: the payload is the changed profile, but the hook
+// does not read it — the delta pull below is idempotent and already knows which site to ask for.
+// (`channel.sync-site-profile` is a deprecated request name for the pull itself, never a pushed frame.)
+const PROFILE_SYNC_TYPE = 'profile.sync';
 
 /**
  * Realtime place-profile sync.
@@ -13,10 +14,11 @@ const SYNC_SITE_PROFILE_TYPE = 'channel.sync-site-profile';
  * v2's plan-based sync only PULLS profiles (the 60s background `syncProfiles` poll in
  * `useBackgroundSync`), so a peer's nick/photo edit would not surface until the next
  * poll — the "other user's profile doesn't change live / reverts on reload" bug that
- * v1 fixed in the engine. v2 dropped that realtime path (no plan consumes the
- * `channel.sync-site-profile` broadcast), so we restore it here at the runtime layer:
+ * v1 fixed in the engine. v2 dropped that realtime path (the SDK's profile plan re-pulls on this
+ * broadcast only for profiles registered with it, and desktop-web registers none — nothing does
+ * the place-wide delta pull), so we restore it here at the runtime layer:
  *
- *  - on the server's `sync-site-profile` broadcast → re-pull immediately (realtime), and
+ *  - on the server's `profile.sync` broadcast → re-pull immediately (realtime), and
  *  - on window `focus` → catch up edits made by others while the window was backgrounded.
  *
  * Both re-pulls are idempotent and share the background-sync watermark
@@ -46,7 +48,7 @@ export const useRealtimeProfileSync = (): void => {
 
         const offBroadcast = runtime.connection
             .getSocketManager()
-            .onType(SYNC_SITE_PROFILE_TYPE, () => void pullProfileDelta());
+            .onType(PROFILE_SYNC_TYPE, () => void pullProfileDelta());
         const onFocus = () => void pullProfileDelta();
         window.addEventListener('focus', onFocus);
 
