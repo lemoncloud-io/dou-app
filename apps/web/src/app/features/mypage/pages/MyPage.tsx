@@ -4,7 +4,6 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
-import { useMembershipInfo } from '../../../hooks/useMembership';
 
 import { BottomNavSpacer } from '../../../ui/components';
 import { useIsAccountGuest, useMyUser } from '../../../hooks';
@@ -27,7 +26,6 @@ export const MyPage = () => {
     // header's name does, which is the relay account whichever cloud is connected. `useRuntimeProfile`
     // would answer for the delegated cloud user instead (see useIsAccountGuest).
     const isGuest = useIsAccountGuest();
-    const { data: membership } = useMembershipInfo();
     // Owned clouds only (the relay catalog); invited clouds are deliberately absent — you cannot
     // release someone else's cloud, so they must not summon the cloud info row.
     const { clouds } = useCloudSessionCatalog();
@@ -46,10 +44,6 @@ export const MyPage = () => {
         </span>
     );
 
-    // A membership decides the destination, not the label: the row is "Subscription info" either way, but
-    // someone who has never subscribed wants to know what a cloud even is, so they get the guide
-    // rather than the plan picker or an empty membership screen.
-    const hasSubscription = membership?.isValid === true;
     // Gate on OWNERSHIP, not on `isCloudActive`. The latter means "currently switched into a
     // non-default cloud", which hid the only release path whenever the user sat on DoU Home — including
     // the exact case ExcessCloudBanner deep-links here for (over the allowance after a downgrade),
@@ -110,9 +104,10 @@ export const MyPage = () => {
                         <ListRow
                             title={t('mypage.subscription.hubEntry')}
                             trailing={<Chevron />}
-                            onClick={() =>
-                                navigate(hasSubscription ? ROUTES.subscription.root : ROUTES.subscription.guide)
-                            }
+                            // Always the subscription list: it has a state for everyone, including an
+                            // empty one whose call to action leads to the cloud guide. Branching here on
+                            // `isValid` sent a scheduled cancellation — still paid for — to the pitch.
+                            onClick={() => navigate(ROUTES.subscription.root)}
                         />
                     </MenuCard>
                 )}

@@ -3,6 +3,7 @@ import type {
     CloudView,
     CreateMembershipBody,
     MembershipBody,
+    MembershipDropsBody,
     MembershipView,
     ProductView,
 } from '@lemoncloud/chatic-backend-api';
@@ -10,6 +11,7 @@ import type {
     AdminEndpointOptions,
     AdminOverrideOptions,
     ISubscriptionHttpDataSource,
+    MembershipDropsResult,
 } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -18,6 +20,12 @@ export interface ISubscriptionRepository extends DisposableRepository {
     fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
     fetchMembershipInfo(): Promise<MembershipView>;
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
+    /**
+     * Records which owned clouds go when the quota shrinks. `cloudIds` is the final state — an
+     * owned cloud left out is unmarked, and an empty list clears every mark. Remote-only and
+     * uncached like the rest of this repository; callers refresh what they render afterwards.
+     */
+    markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult>;
 
     /**
      * Admin console surface (ADR-0101). Remote-only like the rest of this repository, which is the
@@ -73,6 +81,10 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         params?: Record<string, unknown>
     ): Promise<MembershipView> {
         return this.requireHttp().validateMembership(body, params);
+    }
+
+    public async markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult> {
+        return this.requireHttp().markDrops(body);
     }
 
     public async fetchAdminMemberships(

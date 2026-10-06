@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
-import type { ProductView } from '@lemoncloud/chatic-backend-api';
+import type { MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
 
@@ -18,8 +18,11 @@ export interface TierPurchase {
     changeKindOf: (plan: ProductView) => TierChangeKind;
     /** Looks the plan up in the store catalog. Rejects with a user-facing message when absent. */
     resolveNativeProduct: (plan: ProductView) => Promise<IapProductSubscription>;
-    /** Buys (or replaces) the plan. `email` is optional — skipping it still validates the purchase. */
-    purchaseTier: (plan: ProductView, matched: IapProductSubscription, email?: string) => Promise<void>;
+    /**
+     * Buys (or replaces) the plan and resolves to the membership the relay validated. `email` is
+     * optional — skipping it still validates the purchase.
+     */
+    purchaseTier: (plan: ProductView, matched: IapProductSubscription, email?: string) => Promise<MembershipView>;
 }
 
 /**
@@ -80,7 +83,7 @@ export const useTierPurchase = (): TierPurchase => {
 
             setPageState(PageState.Purchasing);
             try {
-                await purchaseAndValidate(product, email);
+                return await purchaseAndValidate(product, email);
             } finally {
                 setPageState(PageState.Idle);
             }

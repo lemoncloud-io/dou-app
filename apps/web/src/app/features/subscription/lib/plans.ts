@@ -50,6 +50,17 @@ export const resolveMaxClouds = (plans: ProductView[], productId?: string | null
 export const ENTRY_TIER_SORT = 1;
 
 /**
+ * Whether `target` is sold on a different store from the one that bills `current`.
+ *
+ * A subscription can only be changed on the store that bills it. The other store knows nothing of
+ * it: a "tier change" there is a second, unrelated subscription, and the user ends up paying both
+ * stores every month. The ids differ between the stores as well, so without this the plan a user
+ * is on reads as some other tier and its neighbours as upgrades and downgrades.
+ */
+export const isOtherStorePlan = (current: ProductView, target: ProductView): boolean =>
+    !!current.platform && !!target.platform && current.platform !== target.platform;
+
+/**
  * Adjacency is purely an app policy — neither store enforces it, and the backend's `calcNeededClouds`
  * only does the arithmetic. The reason is that every cloud carries its own email verification, so a
  * tier1 → tier3 jump would ask for two verifications back to back; downgrades are locked to one step
@@ -62,6 +73,8 @@ export const ENTRY_TIER_SORT = 1;
 export const getTierChangeKind = (current: ProductView | undefined, target: ProductView): TierChangeKind => {
     if (!current) return (target.sort ?? 0) === ENTRY_TIER_SORT ? 'new' : 'blocked';
     if (stripPlanId(current.id) === stripPlanId(target.id)) return 'current';
+    // The other store's tiers are recognised by rank, never sold — see `isOtherStorePlan`.
+    if (isOtherStorePlan(current, target)) return current.sort === target.sort ? 'current' : 'blocked';
     const step = (target.sort ?? 0) - (current.sort ?? 0);
     if (step === 1) return 'upgrade';
     if (step === -1) return 'downgrade';
@@ -73,19 +86,25 @@ export const isSelectableTier = (kind: TierChangeKind): boolean =>
     kind === 'new' || kind === 'upgrade' || kind === 'downgrade';
 
 /** Why a tier cannot be picked. The discriminant the refusal dialog turns into copy. */
-export type TierRefusal = 'current' | 'tierJump' | 'entryTier';
+export type TierRefusal = 'current' | 'tierJump' | 'entryTier' | 'otherStore';
 
 /**
  * The refusal behind an unpickable tier, or `undefined` when the tier can be picked.
  *
- * `blocked` covers two different refusals that read nothing alike to the user: with a running
- * subscription it is a tier jump, without one it is the entry-tier rule (see `getTierChangeKind`).
- * Splitting them here is what lets the dialog explain the actual rule instead of one blanket line.
+ * `blocked` covers three different refusals that read nothing alike to the user: without a running
+ * subscription it is the entry-tier rule, with one bought on the other store it is that store's to
+ * change, and otherwise it is a tier jump (see `getTierChangeKind`). Splitting them here is what
+ * lets the dialog explain the actual rule instead of one blanket line.
  */
-export const getTierRefusal = (current: ProductView | undefined, kind: TierChangeKind): TierRefusal | undefined => {
+export const getTierRefusal = (
+    current: ProductView | undefined,
+    kind: TierChangeKind,
+    target: ProductView
+): TierRefusal | undefined => {
     if (kind === 'current') return 'current';
     if (kind !== 'blocked') return undefined;
-    return current ? 'tierJump' : 'entryTier';
+    if (!current) return 'entryTier';
+    return isOtherStorePlan(current, target) ? 'otherStore' : 'tierJump';
 };
 
 /**

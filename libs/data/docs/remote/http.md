@@ -1,6 +1,6 @@
 # remote/http — the HTTP axis
 
-> Status: Live · Last updated: 2026-09-23 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
+> Status: Live · Last updated: 2026-10-06 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
 
 The remote axis that uses HTTP transport. It has 5 domains. For the socket axis see
 [socket.md](./socket.md).
@@ -27,7 +27,7 @@ remote/
 | `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 12: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `delegateCloud` · `exchangeToken` | `AuthHttpDataSource`         |
 | `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile`                                                                                                                                                                                       | `UserHttpDataSource`         |
 | `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `verifyEmail`                                                                                                                                                     | `CloudHttpDataSource`        |
-| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `membership` · `validateMembership`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0101)                                                   | `SubscriptionHttpDataSource` |
+| `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `membership` · `validateMembership` · `markDrops`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0101)                                     | `SubscriptionHttpDataSource` |
 | `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                              | `ReportHttpDataSource`       |
 
 The point of `Pick<>` is that the consumer owns the contract. The socket bundle goes further and uses
@@ -59,7 +59,7 @@ comment: `gateways/refreshAbsence.spec.ts` in `@chatic/http`.
 | `AuthHttpDataSource`         | `registerUser()` · `registerUserV2()` (the only two that map to `DomainUser`) · `findAlias()` · `verifyAlias()` · `loginWithInviteCode()` (`loginInvite`) · `fetchInviteInfo()` (`inviteInfo`) · `registerDevice()` · `login()` · `verifyNativeToken()` · `exchangeCode()` · `delegateCloud()` · `exchangeToken()` |
 | `UserHttpDataSource`         | `listRelayUsers()` (`list`) · `tryFetchProfile()` (`tryProfile`)                                                                                                                                                                                                                                                   |
 | `CloudHttpDataSource`        | `listClouds()` · `updateCloud()` · `makeCloud()` (`make`) · `releaseCloud()` (`release`) · `verifyEmail()`                                                                                                                                                                                                         |
-| `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `fetchAdminClouds()`                                                                                                                                        |
+| `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `markDrops()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `fetchAdminClouds()`                                                                                                                        |
 | `ReportHttpDataSource`       | `submitIssue()` (`reportIssue`) · `uploadLogBatch()`                                                                                                                                                                                                                                                               |
 
 In `AuthHttpDataSource`, only `registerUser` and `registerUserV2` map to `DomainUser`. The rest **pass
