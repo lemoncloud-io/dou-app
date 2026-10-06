@@ -32,6 +32,11 @@ export const ko: EnTranslation = {
     'auth.invite.failed.network': '서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
     'auth.invite.failed.backend':
         'DoU가 알지 못하는 서버로 연결되는 링크라서 열지 않았어요. 초대한 사람에게 새 링크를 받아 주세요.',
+    'auth.invite.failed.relay':
+        '휴대폰 간 대화 초대라서 데스크톱에서는 아직 열 수 없어요. 모바일 앱이나 웹에서 링크를 열어 주세요.',
+    'auth.invite.failed.unmarked':
+        '어느 서버의 초대인지 알 수 없는 링크라서 열지 않았어요. 초대한 사람에게 새 링크를 받아 주세요.',
+    'auth.invite.failed.loggedIn': '계정으로 로그인된 상태예요. 먼저 로그아웃한 뒤 초대로 참여해 주세요.',
     'auth.invite.failed.generic': '이 코드로 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요.',
     'auth.debug.title': '디버그 로그인',
     'auth.debug.subtitle': '개발용 이메일·비밀번호 로그인이에요.',
