@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import { useQuery } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
@@ -34,9 +36,16 @@ export const useCloudSessionCatalog = () => {
         refetchOnMount: 'always',
     });
 
+    // The outcome of the last read that settled. A retry in flight keeps it, so a failure stays on
+    // screen while it is retried instead of dropping out and coming back.
+    const [lastReadFailed, setLastReadFailed] = useState(false);
+    useEffect(() => {
+        if (!isFetching) setLastReadFailed(isFetchError);
+    }, [isFetching, isFetchError]);
+
     return {
         clouds: data?.list ?? [],
-        isCloudsError: !isFetching && !isPending && isFetchError,
+        isCloudsError: lastReadFailed,
         isFetchingClouds: isFetching,
         isPendingClouds: isPending,
         refetchClouds: refetch,

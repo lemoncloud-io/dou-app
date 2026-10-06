@@ -10,6 +10,8 @@ let catalogClouds: Array<Record<string, unknown>> = [];
 let cachedClouds: Array<Record<string, unknown>> = [];
 let joinedClouds: Record<string, { id: string; name?: string }> = {};
 let activeCloudId = '';
+let catalogFailed = false;
+const refetchClouds = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -33,7 +35,12 @@ vi.mock('@chatic/app-runtime', () => ({
 // down so each app owns the read's cache policy. Mocking it on `@chatic/app-runtime`
 // left the real one running against a mock that has no `useSessionAuth`.
 vi.mock('./useCloudCatalog', () => ({
-    useCloudSessionCatalog: () => ({ clouds: catalogClouds, isFetchingClouds: false }),
+    useCloudSessionCatalog: () => ({
+        clouds: catalogClouds,
+        isFetchingClouds: false,
+        isCloudsError: catalogFailed,
+        refetchClouds,
+    }),
 }));
 
 vi.mock('../stores', () => ({
@@ -50,6 +57,17 @@ describe('useClouds', () => {
         cachedClouds = [];
         joinedClouds = {};
         activeCloudId = '';
+        catalogFailed = false;
+    });
+
+    // `isCloudsError` had no reader: a failed catalog read dropped every owned cloud from the rail unannounced.
+    it('reports a failed catalog read and hands over the retry', () => {
+        catalogFailed = true;
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.isCloudsError).toBe(true);
+        expect(result.current.refetchClouds).toBe(refetchClouds);
     });
 
     it('shows an invited cloud held only in the local cache', () => {
