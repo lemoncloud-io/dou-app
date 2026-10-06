@@ -14,8 +14,7 @@ import { runtime } from '@chatic/app-runtime';
  *
  * The socket half is the whole point, and the import is load-bearing: `@chatic/web-core` exports
  * a hook of the same name that re-issues only the HTTP token. Channels come over the socket, so
- * under that one the server kept answering for the previous place and the sidebar read empty
- * (.claude/20260804/DEBUG-14-20-13.md).
+ * under that one the server kept answering for the previous place and the sidebar read empty.
  */
 export const useSelectPlace = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();

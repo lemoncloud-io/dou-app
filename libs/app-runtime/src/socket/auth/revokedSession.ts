@@ -15,8 +15,7 @@ import { relaySession } from '../../session/auth/relaySession';
  * in the store, so `useRelaySessionKeepAlive` never re-logs in and every screen shows its own
  * generic failure ("Couldn't switch cloud. Try again.") while nothing recovers. The session ends
  * some 30s later anyway, through `RelayCredentialRenewer.onTerminalExpiry`, but with no attribution
- * — the user sees their session vanish after a string of unrelated errors
- * (`.claude/20260910/DEBUG-17-30-25.md`).
+ * — the user sees their session vanish after a string of unrelated errors.
  *
  * **Only `auth.switch` can carry this verdict today.** `AuthSwitchError` keeps the server error as
  * its `cause`, so the message survives to us. The other two candidate surfaces cannot:

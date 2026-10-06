@@ -4,7 +4,7 @@ import { renderHook } from '@testing-library/react';
 
 // An invited cloud's only durable record is its local cache row. Without one it stays on the rail
 // just while the session is inside it and disappears on the next switch or reload, so the row has
-// to be rebuilt from the live session (.claude/20260804/DEBUG-14-50-00.md).
+// to be rebuilt from the live session.
 const recoverInvitedCloudIfMissing = vi.fn(() => Promise.resolve());
 const syncInvitedCloudName = vi.fn(() => Promise.resolve());
 const cloudRepository = { id: 'cloud-repo' };

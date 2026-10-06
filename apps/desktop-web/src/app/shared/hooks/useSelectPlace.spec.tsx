@@ -6,7 +6,7 @@ import { act, renderHook } from '@testing-library/react';
  * There used to be TWO hooks called `useSiteSwitch` — app-runtime's moved the SOCKET session
  * (SDK `auth.switch`), web-core's only re-issued the HTTP token. Importing the wrong one made every
  * switch show the previous place's channels, filtered out by sid, hence an empty sidebar until a
- * reload (.claude/20260804/DEBUG-14-20-13.md).
+ * reload.
  *
  * ADR-0070 step 3 merged the pair — the socket-notifying version won and the other is gone, so the
  * "which one is wired" hazard no longer exists. What still needs pinning is the behavior that made

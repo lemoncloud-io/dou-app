@@ -10,7 +10,7 @@
  * grounds that the type checker owns this class. And a test only catches it if
  * something renders the offending line, which for a memo in a component nobody
  * has a spec for means never. That combination shipped a chat pane that crashed
- * behind an error boundary — see `.claude/20260804/DEBUG-10-36-17.md`.
+ * behind an error boundary.
  *
  * The obvious gate, a plain `tsc -b`, is unusable here: project references
  * cascade pre-existing errors across the whole graph, so the signal drowns.

@@ -18,7 +18,7 @@ import { runtime } from '@chatic/app-runtime';
  * back, so the chip appears and vanishes on its own; without `failedId` the reader sees
  * a flicker and no reason for it. That is not hypothetical — the dev stage answers
  * `@action[reaction] is not supported`, and the feature looked simply broken until a
- * temporary probe surfaced it (`.claude/20260804/DEBUG-11-12-00.md`).
+ * temporary probe surfaced it.
  *
  * Keyed by message id rather than a plain boolean for the same reason as
  * `useMessageActions`: one hook instance serves a whole author block, so the flag has
