@@ -50,12 +50,18 @@ const sortByChatNo = (messages: DomainChat[]): DomainChat[] => [...messages].sor
  * while already connected. The channel record, by contrast, is kept live by the
  * channel plan's poll — so when it runs ahead of the cache, fetch the newest page.
  *
+ * `persist: false` keeps this instance from saving its window depth (see the first line of the hook).
+ *
  * `isLoading` holds over an empty cache until the room's prime settles: a cold room reads empty
  * before its first page lands, and taking that at its word showed the "write the first message"
  * intro over a room that had messages. `loadFailed` is that first page failing (or never starting,
  * on a socket that does not verify), with `retryLoad` to try again.
  */
-export const useChats = (channelId: string | null, latestChatNo?: number) => {
+export const useChats = (channelId: string | null, latestChatNo?: number, options: { persist?: boolean } = {}) => {
+    // A second consumer of the same channel (the thread panel) starts from the depth the room remembers
+    // but must not save its own: paging a thread's replies back would otherwise widen the room the next
+    // time it opens.
+    const { persist = true } = options;
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     // Part of the cache observer's scope key ({cid, uid}); channel ids are per-cloud and
     // collide across clouds, so uid is what keeps the feed bound to the right partition.
@@ -102,8 +108,8 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
 
     // Persist the channel's window so re-opening restores its scroll depth.
     useEffect(() => {
-        if (scopeKey) channelMemo.set(scopeKey, { pageLimit, hasMore });
-    }, [scopeKey, pageLimit, hasMore]);
+        if (scopeKey && persist) channelMemo.set(scopeKey, { pageLimit, hasMore });
+    }, [scopeKey, pageLimit, hasMore, persist]);
 
     // Widening pageLimit re-subscribes and re-reads cached older pages into view.
     useEffect(() => {
@@ -191,8 +197,11 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
         retryPrime();
     }, [retryPrime]);
 
-    const loadOlder = useCallback(async () => {
-        if (!channelId || isLoadingOlder || !hasMore) return;
+    // Resolves false only when the page fetch failed — everything else (nothing to load, a channel
+    // switch, a page that landed) is not an error. The thread panel pages by this, and a failure it
+    // cannot see would read as a thread that never finishes loading.
+    const loadOlder = useCallback(async (): Promise<boolean> => {
+        if (!channelId || isLoadingOlder || !hasMore) return true;
         // Read the oldest cached row from the ref so the cursor reflects the live
         // list without making `chats` a dependency. observeList is chat_no-descending,
         // so the smallest chatNo is the page boundary to fetch before.
@@ -205,7 +214,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
         for (const chat of chatsRef.current) {
             if (chat.chatNo != null && chat.chatNo > 0 && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
         }
-        if (!Number.isFinite(oldestNo)) return;
+        if (!Number.isFinite(oldestNo)) return true;
 
         const reqChannel = channelId;
         setIsLoadingOlder(true);
@@ -216,11 +225,13 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
                 limit: LOAD_MORE_SIZE,
             });
             // Channel switched while the request was in flight — drop the result.
-            if (reqChannel !== channelIdRef.current) return;
+            if (reqChannel !== channelIdRef.current) return true;
             if (result.fetchedCount === 0) setHasMore(false);
             else setPageLimit(prev => prev + LOAD_MORE_SIZE);
+            return true;
         } catch {
             // Leave hasMore set so a later scroll retries.
+            return false;
         } finally {
             if (reqChannel === channelIdRef.current) setIsLoadingOlder(false);
         }

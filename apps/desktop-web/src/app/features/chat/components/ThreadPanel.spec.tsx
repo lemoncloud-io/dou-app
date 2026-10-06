@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+import type { useThreadRoot as UseThreadRoot } from '../hooks/useThreadRoot';
+
+const getChat = vi.fn();
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({
-                chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
+                chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn(), getChat },
             }),
         },
         session: {
@@ -22,7 +25,11 @@ vi.mock('@chatic/app-runtime', () => ({
 }));
 
 let messages: DomainChat[] = [];
-vi.mock('../../../shared/hooks/useChats', () => ({ useChats: () => ({ messages }) }));
+const loadOlder = vi.fn();
+let hasMore = false;
+vi.mock('../../../shared/hooks/useChats', () => ({
+    useChats: () => ({ messages, isLoading: false, loadOlder, hasMore, isLoadingOlder: false }),
+}));
 const composerSend = vi.fn();
 const useComposerSend = vi.fn((_target: unknown) => ({ send: composerSend }));
 const clearTray = vi.fn();
@@ -30,7 +37,10 @@ vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => n
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
     usePanelWidth: () => ({ width: 384, minWidth: 280, maxWidth: 640, panelRef: { current: null } }),
 }));
-vi.mock('../hooks', () => ({
+// The hook under the panel is the real one — the panel's states are what it reports.
+vi.mock('../hooks', async () => ({
+    useThreadRoot: (await vi.importActual<{ useThreadRoot: typeof UseThreadRoot }>('../hooks/useThreadRoot'))
+        .useThreadRoot,
     useMentionables: () => [],
     useMessageViewer: () => ({ uid: 'me', name: 'Me', cloudUid: 'me-cloud' }),
     useMessageActions: () => ({ editMessage: vi.fn(), deleteMessage: vi.fn(), failedId: null }),
@@ -93,6 +103,165 @@ const THREAD_WITH_REACTION: DomainChat[] = [
 ];
 
 describe('ThreadPanel', () => {
+    beforeEach(() => {
+        getChat.mockReset();
+        loadOlder.mockReset().mockResolvedValue(true);
+        hasMore = false;
+        useComposerSend.mockClear();
+    });
+
+    describe('a root older than the loaded window', () => {
+        // Newest page of a long channel: the thread's root (chat 5) is far below it.
+        const WINDOW: DomainChat[] = [chat(100, { content: 'recent' }), chat(101, { content: 'recent too' })];
+
+        it('fetches the root itself and shows it with its composer, without asking the reader to scroll', async () => {
+            messages = WINDOW;
+            getChat.mockResolvedValue(chat(5, { content: 'an old question' }));
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+
+            expect(await screen.findByText('an old question')).toBeTruthy();
+            expect(getChat).toHaveBeenCalledWith({ id: 'C1:5' });
+            expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'default', channelId: 'C1', parentId: 'C1:5' });
+            expect(screen.queryByText(/Scroll up in the channel/)).toBeNull();
+        });
+
+        it('shows a loading state while the root is on its way', async () => {
+            messages = WINDOW;
+            getChat.mockReturnValue(new Promise(() => undefined));
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+
+            await waitFor(() => expect(getChat).toHaveBeenCalled());
+            expect(screen.getByRole('status').textContent).toMatch(/loading/i);
+            expect(screen.queryByText(/Scroll up in the channel/)).toBeNull();
+        });
+    });
+
+    describe('a root the panel cannot show', () => {
+        const WINDOW: DomainChat[] = [chat(100, { content: 'recent' })];
+        const withJoin = (joinedNo: number) => ({ ...CHANNEL, $join: { joinedNo } }) as unknown as DomainChannel;
+
+        it('says a message from before I joined cannot be viewed, and asks for nothing', () => {
+            messages = WINDOW;
+
+            render(<ThreadPanel channel={withJoin(10)} rootId="5" members={[]} />, { wrapper });
+
+            expect(screen.getByRole('status').textContent).toMatch(/before you joined/);
+            expect(getChat).not.toHaveBeenCalled();
+            expect(loadOlder).not.toHaveBeenCalled();
+            expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+        });
+
+        it('says a deleted or forbidden message is gone, with no retry', async () => {
+            messages = WINDOW;
+            getChat.mockRejectedValue(new Error('404 NOT FOUND'));
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+
+            expect(await screen.findByText(/no longer available/)).toBeTruthy();
+            expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+        });
+
+        it('offers a retry after a network failure, and the retry asks again', async () => {
+            messages = WINDOW;
+            getChat.mockRejectedValueOnce(new Error('Failed to fetch')).mockResolvedValue(chat(5, { content: 'back' }));
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+            fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+
+            expect(await screen.findByText('back')).toBeTruthy();
+            expect(getChat).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('replies below the loaded window', () => {
+        // The window starts at 500; the root is 5, so the replies in between are still out there.
+        const FAR_WINDOW: DomainChat[] = [
+            chat(500, { content: 'recent reply', parentId: '5' }),
+            chat(501, { content: 'later chatter' }),
+        ];
+
+        it('shows the root, the replies so far and the composer while loading earlier replies', async () => {
+            messages = FAR_WINDOW;
+            hasMore = true;
+            getChat.mockResolvedValue(chat(5, { content: 'the root' }));
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+
+            expect(await screen.findByText('the root')).toBeTruthy();
+            expect(screen.getByText('recent reply')).toBeTruthy();
+            expect(screen.getByText('Loading earlier replies…')).toBeTruthy();
+            expect(loadOlder).toHaveBeenCalledTimes(1);
+            expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'default', channelId: 'C1', parentId: 'C1:5' });
+        });
+
+        it('stops after a batch and loads one more batch per press', async () => {
+            const windowFrom = (oldest: number): DomainChat[] => [
+                chat(oldest, { content: `window starts at ${oldest}` }),
+                chat(900, { content: 'recent reply', parentId: '5' }),
+            ];
+            messages = windowFrom(800);
+            hasMore = true;
+            getChat.mockResolvedValue(chat(5, { content: 'the root' }));
+            // A fresh element each time: React skips a re-render for the very same one.
+            const panel = () => <ThreadPanel channel={CHANNEL} rootId="5" members={[]} />;
+
+            const view = render(panel(), { wrapper });
+            await screen.findByText('the root');
+            // Each landed page re-emits the window 50 messages further back.
+            const land = (from: number) => {
+                messages = windowFrom(from);
+                view.rerender(panel());
+            };
+            land(750);
+            land(700);
+            land(650);
+            land(600);
+            land(550);
+
+            const more = await screen.findByRole('button', { name: 'Load earlier replies' });
+            expect(loadOlder).toHaveBeenCalledTimes(5);
+            expect(screen.getByText('the root')).toBeTruthy();
+            expect(screen.getByText('recent reply')).toBeTruthy();
+            // The root being there, replying stays possible however much is still out.
+            expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'default', channelId: 'C1', parentId: 'C1:5' });
+
+            fireEvent.click(more);
+            expect(loadOlder).toHaveBeenCalledTimes(6);
+            expect(screen.queryByRole('button', { name: 'Load earlier replies' })).toBeNull();
+        });
+
+        it('keeps what is shown when an earlier page fails, and the row retries', async () => {
+            messages = FAR_WINDOW;
+            hasMore = true;
+            loadOlder.mockResolvedValueOnce(false).mockResolvedValue(true);
+            getChat.mockResolvedValue(chat(5, { content: 'the root' }));
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+            const retry = await screen.findByRole('button', { name: 'Try again' });
+
+            expect(screen.getByText('the root')).toBeTruthy();
+            expect(screen.getByText('recent reply')).toBeTruthy();
+            expect(screen.getByText("Couldn't load earlier replies.")).toBeTruthy();
+            expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'default', channelId: 'C1', parentId: 'C1:5' });
+
+            fireEvent.click(retry);
+            expect(loadOlder).toHaveBeenCalledTimes(2);
+        });
+
+        it('has no row when the root is in the window', () => {
+            messages = [chat(5, { content: 'the root' }), chat(6, { content: 'a reply', parentId: '5' })];
+            hasMore = true;
+
+            render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+
+            expect(screen.queryByText('Loading earlier replies…')).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Load earlier replies' })).toBeNull();
+            expect(getChat).not.toHaveBeenCalled();
+        });
+    });
+
     it('shows the reactions on a threaded message', () => {
         // The server keeps no reaction state: the tallies are folded out of the loaded feed. The
         // panel renders the same messages as the feed, so a message with reactions has to carry
@@ -182,6 +351,7 @@ describe('ThreadPanel', () => {
 
     it('binds no room for pictures until the root has loaded, so it is not taken for the chat pane', () => {
         messages = [];
+        getChat.mockReturnValue(new Promise(() => undefined));
 
         render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
             wrapper,
