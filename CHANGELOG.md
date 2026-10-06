@@ -2,6 +2,12 @@
 
 ## [2026-10-06] - No version updates
 
+### Features
+
+- (bridges,perf,web) time sampled bridge requests before splitting the bridge (ADR-0167)
+
+## [2026-10-06] - No version updates
+
 ### Bug Fixes
 
 - (web/channels) let the page's files input pick HWP and HWPX on iOS, not only the other five
