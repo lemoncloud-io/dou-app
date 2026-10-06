@@ -107,6 +107,7 @@ export const bootstrapSocketConnection = async ({
             if (state === 'authenticated') {
                 // Healthy again — the next terminal expiry gets a fresh resume budget.
                 resumeThrottle.reset();
+                void delegate.onAuthenticated?.(key);
             }
             if (state === 'expired') {
                 void delegate.onAuthExpired?.(key);

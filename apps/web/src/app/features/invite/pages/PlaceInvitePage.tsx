@@ -83,6 +83,11 @@ export const PlaceInvitePage = () => {
      */
     const ensureReady = () => {
         if (gate !== 'ready') throw new Error(t('placeInvite.placeChanged'));
+        // The gate reads the selection. The session itself can sit on another place for a moment — a
+        // credential renewal re-registers it wherever the server picks, until it is switched back —
+        // and the server files the invite there, so ask the token as well. Unknown is not a refusal.
+        const sessionSiteId = runtime.session.getCommittedSessionSiteId();
+        if (sessionSiteId && sessionSiteId !== placeId) throw new Error(t('placeInvite.placeChanged'));
     };
     const placeName = place?.name ?? '';
 

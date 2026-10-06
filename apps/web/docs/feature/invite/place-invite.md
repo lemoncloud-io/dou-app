@@ -87,7 +87,11 @@ The session decides because the server stamps the session's site on the invite. 
 the page re-reads the gate **on every send** — the contact confirm and the link sheet alike — not
 only when it renders. Another tab or a push can move the session while the page is open. Sending then
 would invite people into a place the screen never named, so the send throws
-`placeInvite.placeChanged`, which the contact tab and the sheet toast as they would any failure. A
+`placeInvite.placeChanged`, which the contact tab and the sheet toast as they would any failure.
+The gate reads the selection, so each send also asks the token: `getCommittedSessionSiteId()` must
+name this place too. The two can disagree for a moment — a credential renewal re-registers the
+session wherever the server picks until the runtime switches it back — and the server would file the
+invite there. A token that names no place does not refuse the send. A
 direct visit whose gate resolves to `hidden` is sent home, the same backstop the place edit screen
 keeps for non-owners — and with the switch off that includes the owner, so an old link or the back
 stack cannot reopen the flow.

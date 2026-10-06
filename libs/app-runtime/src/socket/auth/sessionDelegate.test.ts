@@ -1,6 +1,8 @@
 import { createSocketSessionDelegate } from './sessionDelegate';
 import { credentialRenewers } from './renewers';
 import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import { sessionAuthAdapter } from '../../session/auth/sessionAuthAdapter';
+import { alignSessionSite, alignStoredSessionSite } from './alignSessionSite';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -31,6 +33,14 @@ jest.mock('./renewers', () => {
     };
 });
 
+jest.mock('../../session/auth/sessionAuthAdapter', () => ({
+    sessionAuthAdapter: { commitRefreshedToken: jest.fn().mockResolvedValue(undefined) },
+}));
+jest.mock('./alignSessionSite', () => ({
+    alignSessionSite: jest.fn().mockResolvedValue(undefined),
+    alignStoredSessionSite: jest.fn().mockResolvedValue(undefined),
+}));
+
 const forSlot = credentialRenewers.forSlot as jest.Mock;
 
 describe('createSocketSessionDelegate — onAuthExpired', () => {
@@ -54,5 +64,30 @@ describe('createSocketSessionDelegate — onAuthExpired', () => {
         expect(forSlot).toHaveBeenCalledWith(RELAY_SLOT);
         expect(mockRelayExpiry).toHaveBeenCalledTimes(1);
         expect(mockCloudExpiry).not.toHaveBeenCalled();
+    });
+});
+
+describe('createSocketSessionDelegate — keeping the session on the selected place', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('commits a written-back token, then checks the place it names against the selection', async () => {
+        const delegate = createSocketSessionDelegate();
+        const view = { $site: { id: 'site-default' }, Token: {} };
+
+        await delegate.commitRefreshedToken(slotKeyOf('cloud-1'), view);
+
+        expect(sessionAuthAdapter.commitRefreshedToken).toHaveBeenCalledWith('cloud-1', view);
+        expect(alignSessionSite).toHaveBeenCalledWith('cloud-1', 'site-default');
+        expect((sessionAuthAdapter.commitRefreshedToken as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+            (alignSessionSite as jest.Mock).mock.invocationCallOrder[0]
+        );
+    });
+
+    it('checks the stored token each time a slot authenticates — a connect writes nothing back', async () => {
+        const delegate = createSocketSessionDelegate();
+
+        await delegate.onAuthenticated?.(slotKeyOf('cloud-1'));
+
+        expect(alignStoredSessionSite).toHaveBeenCalledWith('cloud-1');
     });
 });
