@@ -20,8 +20,8 @@ import { relaySession } from '../../session/auth/relaySession';
  * **Only `auth.switch` can carry this verdict today.** `AuthSwitchError` keeps the server error as
  * its `cause`, so the message survives to us. The other two candidate surfaces cannot:
  *  - `auth.refresh()` rejects with a bare `Error('auth.refresh failed: server')` — the SDK's
- *    `doRefresh` drops the server error,
- *    which is why `requestRelaySessionRefresh` has nothing to branch on.
+ *    `doRefresh` drops the server error, which is why `requestRelaySessionRefresh` has nothing to
+ *    branch on.
  *  - signed HTTP (`clouds/0/list`, `delegate-cloud`) never sees a status at all: the API Gateway 403
  *    carrying it has no CORS header, so the browser reports a network failure — the case
  *    `HttpManager`'s `CredentialStalenessPort` doc already names.
