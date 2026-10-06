@@ -1,6 +1,6 @@
-import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { issueCloudTokens, reissueCloudTokens, tokensFromInviteLogin } from './cloudTokens';
+import { isInviteLoginEntry, issueCloudTokens, reissueCloudTokens, tokensFromInviteLogin } from './cloudTokens';
 
 const mockDelegateCloud = jest.fn();
 const mockExchangeToken = jest.fn();
@@ -224,6 +224,23 @@ describe('reissueCloudTokens', () => {
         });
     });
 
+    it("replaces, not merges, a committed invite entry, and drops the invitee's selected place", async () => {
+        // The store holds an invitee entered with the invite login's answer; the re-issue names the owner.
+        mockGetDelegationToken.mockReturnValue({ ...delegation(), delegationToken: '' });
+        mockGetCloudToken.mockReturnValue({
+            Token: { identityToken: 'invitee-identity' },
+            $user: { id: 'invitee', userRole: 'member' },
+        } as unknown as UserTokenView);
+
+        await reissueCloudTokens('cloud-1');
+
+        expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
+        // Nothing of the invitee survives, `$user` and its role included.
+        expect(mockSaveCloudToken).toHaveBeenCalledWith({ Token: { identityToken: 'fresh-identity' } });
+        expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
+        expect(mockSaveSelectedCloudId).not.toHaveBeenCalled();
+    });
+
     it('선택 상태(cid·sid·place order)는 건드리지 않는다 — 사용자는 아무 데도 이동하지 않았다', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
 
@@ -320,5 +337,30 @@ describe('tokensFromInviteLogin', () => {
         expect(tokensFromInviteLogin('cloud-1', { cloudToken: answer(), backend: endpoints.backend })).toBeNull();
         expect(tokensFromInviteLogin('cloud-1', { cloudToken: answer(), wss: endpoints.wss })).toBeNull();
         expect(tokensFromInviteLogin('', { cloudToken: answer(), ...endpoints })).toBeNull();
+    });
+});
+
+describe('isInviteLoginEntry', () => {
+    it('recognises the delegation half an invite login entry is assembled with', () => {
+        const cloudToken = {
+            id: 'invitee',
+            Token: { identityToken: 'invitee-identity' },
+        } as unknown as UserTokenView;
+        const tokens = tokensFromInviteLogin('cloud-1', {
+            cloudToken,
+            backend: 'https://cloud.example.com',
+            wss: 'wss://cloud.example.com',
+        });
+
+        expect(tokens).not.toBeNull();
+        expect(isInviteLoginEntry(tokens?.delegationToken)).toBe(true);
+    });
+
+    it('does not take a delegate-cloud issue, or nothing at all, for one', () => {
+        expect(isInviteLoginEntry({ cloudId: 'cloud-1', delegationToken: 'signed.jwt', expiredAt: 0 })).toBe(false);
+        // A view with the field missing is not an invite entry: only the assembled empty string is.
+        expect(isInviteLoginEntry({ cloudId: 'cloud-1' } as unknown as CloudDelegationTokenView)).toBe(false);
+        expect(isInviteLoginEntry(null)).toBe(false);
+        expect(isInviteLoginEntry(undefined)).toBe(false);
     });
 });

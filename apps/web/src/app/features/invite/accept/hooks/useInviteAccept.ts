@@ -8,6 +8,7 @@ import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
 import { useEnterInvitedSite } from './useEnterInvitedSite';
 import type { InviteContext } from '../types';
+import { useCloudSessionCatalog } from '../../../../hooks/useCloudCatalog';
 import { withAcceptor } from '../../../../utils/invitedCloudAcceptance';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
 import { runtime } from '@chatic/app-runtime';
@@ -100,6 +101,12 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
     const { cloud, profile, channel } = runtime.data.useRuntimeRepositories();
     // The guest the invite login binds the acceptance to — recorded on the cached cloud below.
     const { delegatorId } = runtime.session.useSessionIdentity();
+    // The clouds the signed-in account owns — an invite into one of them is not entered as the invitee.
+    // Read through a ref: the pipeline awaits the invite login first, and an app opened cold by the
+    // link resolves its catalog during that wait — the list `accept` closed over would still be empty.
+    const { clouds: ownedClouds } = useCloudSessionCatalog();
+    const ownedCloudsRef = useRef(ownedClouds);
+    ownedCloudsRef.current = ownedClouds;
     const [missingDelegator, setMissingDelegator] = useState(false);
     const [profilePending, setProfilePending] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -159,8 +166,17 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             // background sockets prepare a socket for — by re-issuing through `delegate-cloud`. Once
             // the cloud is committed it is left out of that list, so nothing can re-issue it under
             // the entry and land the cloud's socket on a user other than the invitee.
+            //
+            // The login's answer is what it is entered with, unless the account owns the cloud. The
+            // owner opening their own invite link still binds the device's guest as a member on the
+            // server, but entering with that answer would put the member's token in the one slot the
+            // device keeps per cloud, and the owner would walk into their own cloud as the member
+            // from then on. The ordinary entry asks `delegate-cloud`, which answers an owner as the
+            // owner. A catalog that has not resolved even by now misses this check; the owned-cloud
+            // reclaim in `BackgroundCloudsRunner` re-issues the cloud when the catalog arrives.
             step = 'enter-cloud';
-            await enterCloud(info, inviteToken);
+            const ownsInvitedCloud = !!info?.cloudId && ownedCloudsRef.current.some(owned => owned.id === info.cloudId);
+            await enterCloud(info, ownsInvitedCloud ? undefined : inviteToken);
 
             // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
             // the cloud sheet. Skipped when the invite carries no cloudId. Both id and cid are keyed

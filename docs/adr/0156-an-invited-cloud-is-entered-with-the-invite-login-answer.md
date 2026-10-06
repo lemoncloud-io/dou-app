@@ -7,6 +7,8 @@
 > `libs/app-messages/src/types/model/cache.ts` (`CacheCloudView.acceptedBy`)
 > · Amends: [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) decision 1 — the invited
 > clouds handed to the background sockets are the ones the device user accepted, not the whole cache
+> · Amended by: [ADR-0169](./0169-an-owned-cloud-is-never-held-as-its-invitee.md) —
+> not for a cloud the account owns
 > · The module doc is [apps/web invite](../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)
 
 ## Context

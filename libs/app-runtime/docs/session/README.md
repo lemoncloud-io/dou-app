@@ -206,7 +206,10 @@ An exchange runs **once per cloud at a time**: a call that finds one in flight f
 joins it, so a switch, the background-slot preparer and a renewal can never leave the cache and what
 the cloud's socket registered with holding different tokens.
 `reissueCloudTokens` decides at write time whether the result also lands in the session store: it
-does when `cloudId` is the committed cloud at that moment, and stays in the cache otherwise. Both
+does when `cloudId` is the committed cloud at that moment, and stays in the cache otherwise. A
+committed renewal merges into the stored view, except over an invite entry (an empty delegation
+JWT): that re-issue names another user, so it replaces the view and drops the selected place
+([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)). Both
 record the cloud's uid through [`cloudIdentity.ts`](../../src/session/auth/cloudIdentity.ts), a
 module of its own so the writeback path can record it without reaching the data runtime.
 

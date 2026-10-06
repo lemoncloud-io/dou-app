@@ -16,7 +16,7 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              36 source files, 26 tests
+socket/                              39 source files, 31 tests
 ├── SocketManager.ts   853 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
@@ -24,10 +24,10 @@ socket/                              36 source files, 26 tests
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
-├── auth/          18 files        → docs/auth/
+├── auth/          19 files        → docs/auth/
 └── sync/           8 files        → docs/sync/
 
-connection/                          18 source files
+connection/                          19 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
 ├── SocketBinder.tsx               reconciles the slots and the active pointer
 ├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
@@ -38,7 +38,8 @@ connection/                          18 source files
 └── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
                                    useRuntimeSocketState · useSlotVerified · useCloudVerified ·
                                    useVerifiedClouds · useConnectivity · useBackgroundClouds ·
-                                   useBackgroundCloudTokens · useBackgroundReceive
+                                   useBackgroundCloudTokens · useBackgroundReceive ·
+                                   useReclaimOwnedClouds
 ```
 
 `socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
@@ -290,13 +291,14 @@ kept cloud finds its list already cached ([docs/sync/](../sync/README.md#backgro
 
 The pieces, and who owns each:
 
-| Piece                                                                     | Owner                              | Does                                                                                                                                                      |
-| ------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connection.useBackgroundClouds(cids)`                                    | the app (`BackgroundCloudsRunner`) | hands over membership — the owned catalog plus the invited-cloud cache — which only the app can see                                                       |
-| [`selectBackgroundClouds`](../../src/socket/backgroundClouds.ts)          | runtime                            | drops relay and the committed cloud, orders the rest by recent use (`cloudStore.getRecentClouds`, then the app's order), caps at 5, then adds held clouds |
-| [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts) | runtime                            | issues a cloud's tokens before its slot boots ([docs/auth/](../auth/README.md))                                                                           |
-| [`readyBackgroundConfigs`](../../src/connection/utils/backgroundSlots.ts) | runtime                            | one `cloud` config per selected cloud whose cached entry is ready, URL from the cached delegation token                                                   |
-| `SocketBinder`                                                            | runtime                            | binds them beside relay and the committed cloud; never makes one active                                                                                   |
+| Piece                                                                     | Owner                              | Does                                                                                                                                                                 |
+| ------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connection.useBackgroundClouds(cids)`                                    | the app (`BackgroundCloudsRunner`) | hands over membership — the owned catalog plus the invited-cloud cache — which only the app can see                                                                  |
+| `connection.useReclaimOwnedClouds(cids)`                                  | the app (`BackgroundCloudsRunner`) | hands over the owned catalog alone; an owned cloud held as an invitee is re-issued as the owner ([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)) |
+| [`selectBackgroundClouds`](../../src/socket/backgroundClouds.ts)          | runtime                            | drops relay and the committed cloud, orders the rest by recent use (`cloudStore.getRecentClouds`, then the app's order), caps at 5, then adds held clouds            |
+| [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts) | runtime                            | issues a cloud's tokens before its slot boots ([docs/auth/](../auth/README.md))                                                                                      |
+| [`readyBackgroundConfigs`](../../src/connection/utils/backgroundSlots.ts) | runtime                            | one `cloud` config per selected cloud whose cached entry is ready, URL from the cached delegation token                                                              |
+| `SocketBinder`                                                            | runtime                            | binds them beside relay and the committed cloud; never makes one active                                                                                              |
 
 **The cap is five** — the largest subscription tier's allowance of owned clouds, so an account that
 only owns clouds never reaches it. Invited clouds are not bounded by any plan; past five in total,

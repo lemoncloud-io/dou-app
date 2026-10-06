@@ -15,6 +15,7 @@ const mockObserveChannel = jest.fn();
 const mockLoggerWarn = jest.fn();
 const mockToast = jest.fn();
 const mockLoggerError = jest.fn();
+const mockOwnedClouds = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('@chatic/bridges', () => ({
@@ -46,6 +47,9 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => mockUseSessionIdentity() ?? {},
         },
     },
+}));
+jest.mock('../../../../hooks/useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ clouds: mockOwnedClouds() ?? [] }),
 }));
 jest.mock('./useEnterInvitedCloud', () => ({
     useEnterInvitedCloud: () => ({ enterCloud: mockEnterCloud, isEnteringCloud: false }),
@@ -84,6 +88,7 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         mockEnterSite.mockResolvedValue(undefined);
         mockCacheRead.mockResolvedValue(null);
         mockUseSessionIdentity.mockReturnValue({ delegatorId: 'guest-1' });
+        mockOwnedClouds.mockReturnValue([]);
     });
 
     it('logs in, enters the cloud with the login answer, then caches it, enters the place and the room', async () => {
@@ -103,6 +108,50 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         expect(result.current.errorKey).toBeNull();
         expect(result.current.missingDelegator).toBe(false);
         expect(mockToast).not.toHaveBeenCalled();
+    });
+
+    it('enters a cloud the account owns as the owner, not with the invitee token, and still caches it', async () => {
+        mockRunInviteFlow.mockResolvedValue({ id: 'invitee-1', Token: { identityToken: 'idt' } });
+        mockOwnedClouds.mockReturnValue([{ id: 'cloud-1' }]);
+        const context = ctx();
+
+        await runAccept(context);
+
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, undefined);
+        expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'cloud-1', cloudType: 'invited' }));
+        expect(mockEnterChannel).toHaveBeenCalled();
+    });
+
+    it('checks ownership against the catalog as it is when the cloud is entered, not when Accept was pressed', async () => {
+        // Cold start from the link: the catalog is empty at the press and resolves during the login.
+        let finishLogin: (token: unknown) => void = () => undefined;
+        mockRunInviteFlow.mockReturnValue(new Promise(resolve => (finishLogin = resolve)));
+        const context = ctx();
+        const { result, rerender } = renderHook(() => useInviteAccept(context));
+
+        let accepting: Promise<void> = Promise.resolve();
+        act(() => {
+            accepting = result.current.accept();
+        });
+        mockOwnedClouds.mockReturnValue([{ id: 'cloud-1' }]);
+        rerender();
+        await act(async () => {
+            finishLogin({ id: 'invitee-1', Token: { identityToken: 'idt' } });
+            await accepting;
+        });
+
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, undefined);
+    });
+
+    it('still enters with the invitee token when the account owns some other cloud', async () => {
+        const inviteToken = { id: 'invitee-1', Token: { identityToken: 'idt' } };
+        mockRunInviteFlow.mockResolvedValue(inviteToken);
+        mockOwnedClouds.mockReturnValue([{ id: 'cloud-9' }]);
+        const context = ctx();
+
+        await runAccept(context);
+
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, inviteToken);
     });
 
     it('backend도 relay 마커도 없으면 missingServerInfo 토스트를 띄우고 login을 시도하지 않는다', async () => {

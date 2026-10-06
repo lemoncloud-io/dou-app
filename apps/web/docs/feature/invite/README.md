@@ -135,6 +135,19 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   own device user — and a listed cloud is one the background sockets delegate into, minting the empty
   user above. A row with no `acceptedBy` was written before the field existed; it cannot be
   attributed and is kept, because invited clouds have no server list to refill from.
+- **An invite into a cloud the account owns is entered as the owner.** The owner opening their own
+  invite link still binds the device's guest as a member on the server, but the device keeps one
+  token per cloud, so entering with the invitee's answer would hold the owner's own cloud as that
+  member from then on: every later entry, the sheet's owned row included, replays it. The pipeline
+  checks the owned catalog as it is at entry — read through a ref, since an app opened cold by the
+  link resolves its catalog while the invite login is in flight — and enters through the ordinary
+  `delegate-cloud` switch instead, which answers an owner as the owner. The invited row is still
+  cached; `useInvitedClouds` hides it. A catalog that has not resolved even by then, a device that
+  already holds an invitee token, and a guest that accepted and later signed in to the owning account
+  are all caught by `BackgroundCloudsRunner`, which hands the owned catalog to
+  `runtime.connection.useReclaimOwnedClouds`: an owned cloud whose held token came from an invite
+  login is re-issued as the owner, socket included (`libs/app-runtime` docs/auth, "An owned cloud
+  held as its invitee").
 - **An answer that cannot be entered with** (no identity token, no endpoint) falls back to the
   ordinary re-issued switch. That one is relay-signed, and an app opened cold by the invite link has a
   stale relay credential for its first seconds, so a switch that gets no HTTP answer is retried
