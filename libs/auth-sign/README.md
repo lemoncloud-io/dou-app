@@ -242,6 +242,6 @@ Traps:
   what the `tsconfig.spec.json` reference in `tsconfig.json` is for.
 - A stale `dist` / `out-tsc` produces phantom errors after a file moves. `rm -rf` and look again.
 - **Downstream**: the only project that imports this barrel is `@chatic/app-runtime`, and
-  `verify.yml` covers its typecheck and its tests. The apps behind it do not all get that — `web`,
-  `desktop-web` and `@chatic/mobile` are excluded from the typecheck gate, so a change to an
-  exported type needs those three run by hand.
+  `verify.yml` covers its typecheck and its tests. The apps behind it do not all get that — `web`
+  and `@chatic/mobile` are excluded from the typecheck gate, so a change to an
+  exported type needs those two run by hand.

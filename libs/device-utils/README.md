@@ -299,8 +299,8 @@ add a `--config libs/device-utils/jest.config.js` invocation; there is nothing a
   again.
 - Downstream: a changed barrel identifier reaches `apps/web`, `libs/shared` and `apps/mobile` —
   and through `libs/shared` it reaches `apps/desktop-web` and `apps/admin-v2` as well.
-  `.github/workflows/verify.yml` excludes `@chatic/mobile` and `desktop-web` from its typecheck step,
-  so those two are the ones to run by hand.
+  `.github/workflows/verify.yml` excludes `@chatic/mobile` from its typecheck step,
+  so that one is for you to run by hand.
 - **The `apps/web` suites will not catch a changed hook signature.** All three test files that touch
   this lib — `FeedbackPage.test.tsx`, `usePushRegistration.test.ts` and
   `DeviceInfoScreen.operations.test.tsx` — `jest.mock('@chatic/device-utils')` wholesale with a hand

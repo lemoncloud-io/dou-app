@@ -340,9 +340,8 @@ npx tsc -b libs/app-messages/tsconfig.json --force     # the whole gate
   `libs/device-utils`, `apps/desktop` and `apps/desktop-web`. (`apps/admin-v2`, `libs/shared` and
   `libs/config` name the package in comments only — `libs/config` declares its own `Stage` and
   `Platform` rather than importing them.) `.github/workflows/verify.yml` type checks all nine except
-  `@chatic/mobile` and `desktop-web` — those two are the ones to run by hand, and `desktop-web`
-  carries a long-standing 21-error baseline, so compare against it rather than expecting zero.
+  `@chatic/mobile` — that one is for you to run by hand.
 
 ```bash
-npx nx run-many -t typecheck --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 ```

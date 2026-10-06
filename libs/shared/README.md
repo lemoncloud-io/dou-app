@@ -387,11 +387,9 @@ does — it builds `./tsconfig.json` with no argument, and that config reference
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both —
   `rm -rf libs/shared/out-tsc dist/out-tsc` — and look again.
 - Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin-v2`
-  and `@chatic/app-runtime`; `desktop-web` and `@chatic/mobile` are on its exclusion list, so those two
-  are the ones to run by hand. Its test step excludes `web` alone of this lib's consumers.
-- **`desktop-web` fails its type check either way.** Its baseline is 21 errors, none of them in a file
-  that imports this barrel, and the workflow records the same number. Diff the error list against that
-  baseline rather than reading a red run as your own — and remember that `@chatic/mobile` reports a
+  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin-v2`,
+  `desktop-web` and `@chatic/app-runtime`; `@chatic/mobile` is on its exclusion list, so that one
+  is for you to run by hand. Its test step excludes `web` alone of this lib's consumers.
+- **`@chatic/mobile` fails its type check either way.** Remember that it reports a
   `TS6053` for `@nx/react-native/typings/svg.d.ts` when it runs from a git worktree, because the
   script's literal `node_modules` path does not resolve upward the way Node does.
