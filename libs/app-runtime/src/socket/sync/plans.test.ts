@@ -305,3 +305,129 @@ describe('createSyncPlans — 채널 거절 관찰이 중단 시점을 바꾸지
         expect(isChannelRefused('ch-2')).toBe(false);
     });
 });
+
+/**
+ * A plan callback hands its cache write off and moves on, so a rejected write used to vanish as an
+ * unhandled rejection: somebody else's edit, delete or new message was lost with nothing in the log.
+ * The write itself is still not retried here (the plan has already advanced its snapshot), so what
+ * these pin down is that the failure reaches the log, and that it does so for every hand-off.
+ */
+describe('plan cache writes — a failed write is logged, not lost', () => {
+    // Installed in `beforeAll`, not at collection time: the suite above restores the same spy in its
+    // own `afterAll`, which would take this one down with it.
+    let errorSpy: jest.SpyInstance;
+    beforeAll(() => {
+        errorSpy = jest.spyOn(logger, 'error').mockImplementation();
+    });
+    const failure = new Error('disk full');
+
+    // The hand-off settles on a later microtask turn.
+    const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    beforeEach(() => {
+        errorSpy.mockClear();
+        mockScopedContext.current = cid => ({ cid, uid: 'me', socketCid: cid });
+    });
+
+    afterAll(() => errorSpy.mockRestore());
+
+    const optionsOf = (domain: string) =>
+        (
+            createSyncPlans(CLOUD_1).find(candidate => candidate.domain === domain) as unknown as {
+                options: Record<string, (...args: unknown[]) => void>;
+            }
+        ).options;
+
+    const CHAT_VIEW = { id: 'ch-1:7', channelId: 'ch-1', chatNo: 7 };
+
+    it('logs a rejected batch write of arriving messages', async () => {
+        mockRepositories.current = { chat: { cacheWriteMany: jest.fn().mockRejectedValue(failure) } };
+
+        optionsOf('chat').onApply({ type: 'chat', id: 'ch-1' }, [CHAT_VIEW], {});
+        await flush();
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(errorSpy.mock.calls[0][0]).toBe('SYNC');
+        expect(errorSpy.mock.calls[0][1]).toContain('chat apply');
+        expect((errorSpy.mock.calls[0][2] as { error: unknown }).error).toBe(failure);
+    });
+
+    it("logs a rejected write of somebody else's edit or delete", async () => {
+        mockRepositories.current = { chat: { cacheWrite: jest.fn().mockRejectedValue(failure) } };
+
+        optionsOf('chat').onUpdate({ type: 'chat', id: 'ch-1' }, { ...CHAT_VIEW, hidden: true }, {});
+        await flush();
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(errorSpy.mock.calls[0][1]).toContain('chat update');
+    });
+
+    it('logs a repository that throws before it returns a promise', async () => {
+        mockRepositories.current = {
+            chat: {
+                cacheWrite: () => {
+                    throw failure;
+                },
+            },
+        };
+
+        expect(() => optionsOf('chat').onUpdate({ type: 'chat', id: 'ch-1' }, CHAT_VIEW, {})).not.toThrow();
+        await flush();
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs the other domains the same way', async () => {
+        mockRepositories.current = {
+            channel: {
+                cacheWrite: jest.fn().mockRejectedValue(failure),
+                cacheDelete: jest.fn().mockRejectedValue(failure),
+            },
+            place: {
+                cacheWrite: jest.fn().mockRejectedValue(failure),
+                cacheDelete: jest.fn().mockRejectedValue(failure),
+            },
+            profile: {
+                cacheWrite: jest.fn().mockRejectedValue(failure),
+                cacheDelete: jest.fn().mockRejectedValue(failure),
+            },
+            join: {
+                cacheWrite: jest.fn().mockRejectedValue(failure),
+                cacheDelete: jest.fn().mockRejectedValue(failure),
+            },
+            chat: { cacheClearByChannelId: jest.fn().mockRejectedValue(failure) },
+        };
+
+        optionsOf('channel').onUpdate({ type: 'channel', id: 'ch-1' }, { id: 'ch-1' });
+        optionsOf('channel').onRemove({ type: 'channel', id: 'ch-1' });
+        optionsOf('place').onUpdate({ type: 'place', id: 'pl-1' }, { id: 'pl-1' });
+        optionsOf('place').onRemove({ type: 'place', id: 'pl-1' });
+        optionsOf('profile').onUpdate({ type: 'profile', id: 'u-1' }, { id: 'u-1' });
+        optionsOf('profile').onRemove({ type: 'profile', id: 'u-1' });
+        optionsOf('join').onUpdate({ type: 'join', id: 'ch-1@me' }, { id: 'ch-1@me' });
+        optionsOf('join').onRemove({ type: 'join', id: 'ch-1@me' });
+        await flush();
+
+        // The join removal is mine, so it also clears the room's cached messages.
+        expect(errorSpy.mock.calls.map(call => call[1])).toEqual([
+            expect.stringContaining('channel update'),
+            expect.stringContaining('channel remove'),
+            expect.stringContaining('place update'),
+            expect.stringContaining('place remove'),
+            expect.stringContaining('profile update'),
+            expect.stringContaining('profile remove'),
+            expect.stringContaining('join update'),
+            expect.stringContaining('join remove'),
+            expect.stringContaining('chat clear on leave'),
+        ]);
+    });
+
+    it('stays quiet when the writes succeed', async () => {
+        mockRepositories.current = { chat: { cacheWriteMany: jest.fn().mockResolvedValue(undefined) } };
+
+        optionsOf('chat').onApply({ type: 'chat', id: 'ch-1' }, [CHAT_VIEW], {});
+        await flush();
+
+        expect(errorSpy).not.toHaveBeenCalled();
+    });
+});

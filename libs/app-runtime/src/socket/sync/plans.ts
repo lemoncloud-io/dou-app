@@ -72,6 +72,28 @@ const reportStop = <TPlan extends DomainSyncPlan<any>>(plan: TPlan): TPlan => {
 };
 
 /**
+ * Runs one cache write a plan callback hands off, and makes its failure visible.
+ *
+ * The library's callbacks are synchronous and the plan has already advanced its snapshot before it
+ * calls them, so the write cannot be retried from here and the plan will not deliver the same
+ * payload again. A bare `void` therefore turned a failed write into an unhandled rejection: the
+ * other person's edit, delete or new message was lost with nothing in the log. This keeps the
+ * hand-off as it was (fire and forget, no new queue) and only records the failure. Only a NEW chat
+ * message has a way back: the next `chat.feed` refetch pulls a message the cache is missing, and the
+ * desktop room's freshness check starts one when the channel's newest `chatNo` runs ahead of the
+ * cache. A failed edit or delete of an older message, and a failed channel, place, profile or join
+ * write, stay stale until the server changes that record again.
+ *
+ * The write runs inside an async wrapper so a synchronous throw from the repository is caught the
+ * same way as a rejection, and a repository answering with a plain value is accepted.
+ */
+const persist = (what: string, write: () => unknown): void => {
+    void (async () => write())().catch((error: unknown) => {
+        logger.error('SYNC', `cache write failed — ${what}`, { error, data: { what } });
+    });
+};
+
+/**
  * The scheduler's stop rule, restated so a refusal can be observed without changing when it stops.
  *
  * Supplying `decide` REPLACES the library's default, so the default is reproduced here exactly —
@@ -146,12 +168,13 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
                         // restores the join), and a remembered "no" must not outlive it.
                         if (target.id) clearRefusedChannel(target.id);
                         const { channel } = getRepositories();
-                        void channel.cacheWrite(toDomainChannel(view, getContext()));
+                        persist('channel update', () => channel.cacheWrite(toDomainChannel(view, getContext())));
                     },
                     onRemove: target => {
-                        if (!target.id) return;
+                        const { id } = target;
+                        if (!id) return;
                         const { channel } = getRepositories();
-                        void channel.cacheDelete(target.id);
+                        persist('channel remove', () => channel.cacheDelete(id));
                     },
                 })
             )
@@ -164,12 +187,13 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
                 ...KEEP_SNAPSHOT_ON_RECONNECT,
                 onUpdate: (_target, view) => {
                     const { place } = getRepositories();
-                    void place.cacheWrite(toDomainPlace(view, getContext()));
+                    persist('place update', () => place.cacheWrite(toDomainPlace(view, getContext())));
                 },
                 onRemove: target => {
-                    if (!target.id) return;
+                    const { id } = target;
+                    if (!id) return;
                     const { place } = getRepositories();
-                    void place.cacheDelete(target.id);
+                    persist('place remove', () => place.cacheDelete(id));
                 },
             })
         ),
@@ -178,12 +202,13 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
                 ...KEEP_SNAPSHOT_ON_RECONNECT,
                 onUpdate: (_target, view) => {
                     const { profile } = getRepositories();
-                    void profile.cacheWrite(toDomainProfile(view, getContext()));
+                    persist('profile update', () => profile.cacheWrite(toDomainProfile(view, getContext())));
                 },
                 onRemove: target => {
-                    if (!target.id) return;
+                    const { id } = target;
+                    if (!id) return;
                     const { profile } = getRepositories();
-                    void profile.cacheDelete(target.id);
+                    persist('profile remove', () => profile.cacheDelete(id));
                 },
             })
         ),
@@ -199,7 +224,7 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
                     if (!applied.length) return;
                     const { chat } = getRepositories();
                     const scope = getContext();
-                    void chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope)));
+                    persist('chat apply', () => chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope))));
                 },
                 /**
                  * An edit or delete made by someone else. Without this, a change that arrives through
@@ -219,7 +244,7 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
                  */
                 onUpdate: (_target, changed) => {
                     const { chat } = getRepositories();
-                    void chat.cacheWrite(toDomainChat(changed, getContext()));
+                    persist('chat update', () => chat.cacheWrite(toDomainChat(changed, getContext())));
                 },
             })
         ),
@@ -231,25 +256,28 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
                 ...KEEP_SNAPSHOT_ON_RECONNECT,
                 onUpdate: (_target, view) => {
                     const { join } = getRepositories();
-                    void join.cacheWrite(toDomainJoin(view, getContext()));
+                    persist('join update', () => join.cacheWrite(toDomainJoin(view, getContext())));
                 },
                 // A removed join (membership dropped: leave/kick) tombstones the local cache row so
                 // read-state observers (home unread, room read positions) stop counting it.
                 onRemove: target => {
-                    if (!target.id) return;
+                    const { id } = target;
+                    if (!id) return;
                     const { join, chat } = getRepositories();
-                    void join.cacheDelete(target.id);
+                    persist('join remove', () => join.cacheDelete(id));
 
                     // When the dropped row is MINE, I am out of that room and its cached messages must
                     // go with it (ADR-0067). `leaveChannel` covers only the leave I initiate here; a
                     // kick or a leave from another device arrives as this removal and nothing else.
                     // "Mine" is judged by the uid this account has in the slot's cloud — the uid of the
                     // partition this clears.
-                    const separator = target.id.lastIndexOf('@');
+                    const separator = id.lastIndexOf('@');
                     if (separator <= 0) return;
-                    const channelId = target.id.slice(0, separator);
-                    const userId = target.id.slice(separator + 1);
-                    if (userId && userId === getContext().uid) void chat.cacheClearByChannelId(channelId);
+                    const channelId = id.slice(0, separator);
+                    const userId = id.slice(separator + 1);
+                    if (userId && userId === getContext().uid) {
+                        persist('chat clear on leave', () => chat.cacheClearByChannelId(channelId));
+                    }
                 },
             })
         ),
