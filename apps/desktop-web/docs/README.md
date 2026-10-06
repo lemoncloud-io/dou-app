@@ -8,6 +8,7 @@ are in [`docs/adr/`](../../../docs/adr/).
 
 | Category                   | What belongs there                                                                      |
 | -------------------------- | --------------------------------------------------------------------------------------- |
+| [`auth/`](./auth/)         | How a person gets signed in, and what the app refuses to take as a sign-in              |
 | [`chat/`](./chat/)         | The home screen's conversation surfaces: the sidebar lists, 1:1s, the room and composer |
 | [`shell/`](./shell/)       | The frame around the conversation: rails, sidebar drawer, trailing panels, stacking     |
 | [`settings/`](./settings/) | The Settings page: appearance, notifications, About and reporting a problem             |

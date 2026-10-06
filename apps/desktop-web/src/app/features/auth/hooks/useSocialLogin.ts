@@ -1,10 +1,19 @@
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { isNative, logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { toError } from '../../../shared';
-import { buildAuthorizeUrl } from '../utils';
+import {
+    buildAuthorizeUrl,
+    createOAuthLoginStart,
+    evaluateOAuthDeeplink,
+    saveOAuthLoginStart,
+    takeOAuthLoginStart,
+    type OAuthDeeplinkPayload,
+} from '../utils';
 
 /**
  * Social Login (ADR 0009). `start` sends the OAuth Relay authorize URL to a
@@ -14,8 +23,13 @@ import { buildAuthorizeUrl } from '../utils';
  * `complete` exchanges the relay code for credentials then hydrates the relay
  * session — replacing whatever session (e.g. a Guest Session) was on the device.
  * Mirrors apps/web useOAuthLogin — runtime.session.createCredentialsByProvider commits the session by itself.
+ *
+ * `start` records that this app began the login, and `completeFromHandoff` is the only way a code that
+ * arrived from outside (the deeplink, the hand-off page) gets exchanged: it needs that record. Without
+ * it, any link opened on the machine could sign the person in as someone else.
  */
 export const useSocialLogin = () => {
+    const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isError, setIsError] = useState(false);
     // The relay code is single-use: guard against double completion
@@ -23,6 +37,8 @@ export const useSocialLogin = () => {
     const completingRef = useRef(false);
 
     const start = useCallback((provider: string) => {
+        // Written before the browser opens: the deeplink can come back before this call returns control.
+        saveOAuthLoginStart(createOAuthLoginStart(provider, Date.now()));
         const url = buildAuthorizeUrl(provider);
         if (isNative()) window.open(url, '_blank');
         else window.location.assign(url);
@@ -56,5 +72,31 @@ export const useSocialLogin = () => {
         }
     }, []);
 
-    return { start, complete, isSubmitting, isError };
+    /**
+     * Exchange a code that arrived from outside the app, only if this app started the login.
+     * The start record is consumed whatever the verdict, so a link is good once. A refusal never reaches
+     * the exchange; it is logged and told to the person, since a login they did start failing silently
+     * would read as a broken button.
+     */
+    const completeFromHandoff = useCallback(
+        async (payload: OAuthDeeplinkPayload): Promise<boolean> => {
+            // A second delivery of a link already being exchanged must not consume a record it has no claim on.
+            if (completingRef.current) return false;
+            const verdict = evaluateOAuthDeeplink(takeOAuthLoginStart(), payload, Date.now());
+            if (!verdict.ok) {
+                logger.warn('AUTH', '[useSocialLogin] ignored an OAuth deeplink', { reason: verdict.reason });
+                setIsError(true);
+                toast({
+                    variant: 'destructive',
+                    description: t(verdict.reason === 'expired' ? 'auth.social.expired' : 'auth.social.notStarted'),
+                });
+                return false;
+            }
+            return complete(payload.provider, payload.code);
+        },
+        [complete, t]
+    );
+
+    // `complete` stays private: exposing the ungated exchange would let a caller skip the start check.
+    return { start, completeFromHandoff, isSubmitting, isError };
 };
