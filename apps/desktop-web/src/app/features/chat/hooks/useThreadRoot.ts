@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useIsMutating } from '@tanstack/react-query';
+
 import { logger } from '@chatic/bridges';
 import { isInJoinWindow } from '@chatic/data';
 import type { DomainChat } from '@chatic/data';
@@ -100,6 +102,13 @@ export const useThreadRoot = ({
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const site = selectedSiteId ?? '';
+    // The selected site flips at the start of a switch and the socket session follows when `auth.switch`
+    // returns, so for that stretch a read is still answered from the old place. The runtime's own
+    // in-flight signal (the one background sync pauses on) says when that is.
+    const switching =
+        useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
+            useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
+        0;
 
     const rootNo = parseRootNo(rootId);
     const key = channelId && Number.isInteger(rootNo) && rootNo > 0 ? `${channelId}:${rootNo}` : null;
@@ -109,10 +118,11 @@ export const useThreadRoot = ({
     // or channel is never read as the new one's. A verdict that the root is gone or failed is also keyed
     // by the place it was asked from: the server answers a read from the place the session is in, so a
     // root that is out of reach from one place can be fine from the next, and the verdict is taken again
-    // when the place changes. A root that arrived stays.
+    // when the place changes, once the switch has finished (nothing is sent while one is in flight, and a
+    // refusal that lands then belongs to the old place). A root that arrived stays.
     const [outcome, setOutcome] = useState<RootOutcome | null>(null);
     const mine = outcome?.key === key && ('root' in outcome || outcome.site === site) ? outcome : null;
-    const shouldFetch = !windowRoot && !feedLoading && key !== null && !beforeJoin && !mine;
+    const shouldFetch = !windowRoot && !feedLoading && !switching && key !== null && !beforeJoin && !mine;
 
     useEffect(() => {
         if (!shouldFetch || !key) return;

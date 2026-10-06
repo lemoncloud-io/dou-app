@@ -9,13 +9,21 @@ const getChat = vi.fn();
 const repositories = { chat: { getChat } };
 const warn = vi.fn();
 // The place the session has selected; the server answers a read from the place the session is in.
-const session = vi.hoisted(() => ({ siteId: 'place-a' as string | null }));
+const session = vi.hoisted(() => ({ siteId: 'place-a' as string | null, switching: 0 }));
 
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
+// The runtime's own signal that a place or cloud switch is in flight: the selected site flips first, and
+// the socket session (`auth.switch`) follows, so the selection alone says nothing about which place a read
+// will be answered from.
+vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => session.switching }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
-        session: { useSessionSelection: () => ({ selectedSiteId: session.siteId }) },
+        session: {
+            useSessionSelection: () => ({ selectedSiteId: session.siteId }),
+            SWITCH_SITE_MUTATION_KEY: ['switch-site'],
+            SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
+        },
     },
 }));
 
@@ -63,6 +71,7 @@ describe('useThreadRoot — the root', () => {
         getChat.mockReset().mockResolvedValue(chat(5, { content: 'old root' }));
         warn.mockClear();
         session.siteId = 'place-a';
+        session.switching = 0;
     });
 
     it('asks for nothing when the root is already in the window', () => {
@@ -167,6 +176,46 @@ describe('useThreadRoot — the root', () => {
         await waitFor(() => expect(result.current.status).toBe('failed'));
 
         session.siteId = 'place-b';
+        rerender({ ...initial });
+
+        await waitFor(() => expect(result.current.status).toBe('found'));
+        expect(getChat).toHaveBeenCalledTimes(2);
+    });
+
+    // The selection flips first and the socket session follows ~hundreds of ms later; a read sent in
+    // between is answered from the old place and its refusal would pin the panel on "can't be shown here".
+    it('sends nothing while a switch is in flight, and asks once after it ends', async () => {
+        getChat.mockRejectedValueOnce(new Error('403 NOT ALLOWED - action[read] is invalid'));
+        const { result, rerender, initial } = mount();
+        await waitFor(() => expect(result.current.status).toBe('gone'));
+
+        session.switching = 1;
+        session.siteId = 'place-b';
+        rerender({ ...initial });
+
+        expect(result.current.status).toBe('loading');
+        expect(getChat).toHaveBeenCalledTimes(1);
+
+        session.switching = 0;
+        rerender({ ...initial });
+
+        await waitFor(() => expect(result.current.status).toBe('found'));
+        expect(getChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not take a refusal that lands during a switch as the verdict', async () => {
+        const first = deferred<DomainChat>();
+        getChat.mockReturnValueOnce(first.promise);
+        const { result, rerender, initial } = mount();
+        await waitFor(() => expect(getChat).toHaveBeenCalledTimes(1));
+
+        session.switching = 1;
+        session.siteId = 'place-b';
+        rerender({ ...initial });
+        await act(async () => first.reject(new Error('403 NOT ALLOWED - action[read] is invalid')));
+        expect(result.current.status).toBe('loading');
+
+        session.switching = 0;
         rerender({ ...initial });
 
         await waitFor(() => expect(result.current.status).toBe('found'));

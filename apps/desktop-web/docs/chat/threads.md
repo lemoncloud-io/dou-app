@@ -50,6 +50,13 @@ place lists, can be opened from a place that cannot fetch it). The wording says 
 and a `gone` or `failed` verdict is keyed by the place it was asked from: when the place changes the
 panel asks again, and a fetch still in flight from the old place is dropped. A root that arrived stays.
 
+"Changes" means the switch has finished, not that the selection moved. The selected place flips at the
+start of a switch and the socket session follows when `auth.switch` returns, so a read sent in between is
+still answered from the old place, and its refusal would pin the panel on the text above. The panel
+therefore sends nothing while the runtime reports a place or cloud switch in flight (the
+`SWITCH_SITE_MUTATION_KEY` / `SWITCH_CLOUD_MUTATION_KEY` signal that background sync also pauses on),
+shows "Loading thread…" for that stretch, and asks once when it ends.
+
 ## Finding the replies
 
 A root fetched from outside the window leaves every message between it and the window's oldest one
