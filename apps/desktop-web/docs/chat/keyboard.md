@@ -27,6 +27,13 @@ The message toolbar is `inert` unless its message is hovered, focused, or has so
 emoji grid, the delete dialog). Whether the device can hover is a live media query
 (`useMediaQuery('(hover: hover)')`). It used to be read once at import.
 
+A row gets a toolbar only when it has something to draw, and `MessageRow` decides that from the same
+three flags the toolbar renders from: reactions (any settled row), Reply (a settled row where the feed
+passes `onOpenThread`), and the "More" menu (the row has text, or it is mine to edit or delete). The
+thread panel passes no Reply, so a file or photo someone else sent there without text still gets the
+reaction buttons, and nothing else. A row still in flight or failed has no reactions or Reply, so
+without text it has no toolbar; a deleted row never has one.
+
 ## Hover-revealed controls
 
 A control that waits for hover (an image's save bar, the tray's "×", a Mentions or Saved row's
