@@ -10,10 +10,12 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { getAppVersionInfo } from '../../../shared/utils/getAppVersion';
+
 /**
- * Safety nets, not product limits: a report also carries a device snapshot, so an unbounded paste
- * could fail the whole submission at the server instead of just being long. The body cap matches
- * the one the web feedback screen uses.
+ * Safety nets, not product limits: an unbounded paste could fail the whole submission at the
+ * server instead of just being long. The body cap matches the one the web feedback screen uses; the
+ * title cap is lower on purpose, since a title is a single line.
  */
 const TITLE_MAX = 100;
 const BODY_MAX = 5000;
@@ -25,7 +27,7 @@ interface ReportIssueDialogProps {
 
 /**
  * "Report a problem": a title and a description, sent through `runtime.report.reportIssue`, which
- * adds who sent it, the cloud, the page URL and the environment. Both fields are required. A
+ * adds who sent it, the cloud, the page URL and the environment; the dialog adds the app version. Both fields are required. A
  * failure keeps the dialog open with what was typed, so the report is not lost.
  */
 export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps) => {
@@ -55,6 +57,9 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
         setErrorMsg(null);
         try {
             await runtime.report.reportIssue(trimmedTitle, trimmedBody, {
+                // The sender label is stamped "web" by the runtime; the version and platform are what
+                // tell this app's reports apart.
+                version: { ...getAppVersionInfo() },
                 online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
                 viewport: { width: window.innerWidth, height: window.innerHeight },
                 path: window.location.pathname,

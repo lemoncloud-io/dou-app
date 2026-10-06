@@ -51,7 +51,13 @@ describe('ReportIssueDialog', () => {
         fireEvent.click(submit);
 
         await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
-        expect(reportIssue).toHaveBeenCalledWith('Broken', 'It crashes', expect.any(Object));
+        expect(reportIssue).toHaveBeenCalledWith(
+            'Broken',
+            'It crashes',
+            expect.objectContaining({
+                version: expect.objectContaining({ desktopWebVersion: expect.any(String), isElectron: false }),
+            })
+        );
         expect(toast).toHaveBeenCalledWith({ title: i18next.t('settings.report.success') });
     });
 
@@ -84,5 +90,61 @@ describe('ReportIssueDialog', () => {
 
         finish();
         await waitFor(() => expect(reportIssue).toHaveBeenCalledTimes(1));
+    });
+
+    it('ignores attempts to close while sending and allows it again afterwards', async () => {
+        let finish: () => void = () => undefined;
+        reportIssue.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
+        const { onOpenChange, title, body, submit } = setup();
+        fireEvent.change(title, { target: { value: 'Broken' } });
+        fireEvent.change(body, { target: { value: 'It crashes' } });
+        fireEvent.click(submit);
+        await waitFor(() => expect(submit.disabled).toBe(true));
+
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+        expect(screen.getByRole('button', { name: i18next.t('settings.report.cancel') })).toHaveProperty(
+            'disabled',
+            true
+        );
+        expect(onOpenChange).not.toHaveBeenCalled();
+
+        finish();
+        await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    });
+
+    it('re-enables the form after a failed send', async () => {
+        reportIssue.mockRejectedValue(new Error('network down'));
+        const { title, body, submit } = setup();
+        fireEvent.change(title, { target: { value: 'Broken' } });
+        fireEvent.change(body, { target: { value: 'It crashes' } });
+        fireEvent.click(submit);
+
+        await screen.findByRole('alert');
+        await waitFor(() => expect(submit.disabled).toBe(false));
+        expect(title.disabled).toBe(false);
+        expect(body.disabled).toBe(false);
+    });
+
+    it('starts from an empty form each time it is opened', async () => {
+        reportIssue.mockRejectedValue(new Error('network down'));
+        const onOpenChange = vi.fn();
+        const view = render(<ReportIssueDialog open onOpenChange={onOpenChange} />);
+        fireEvent.change(screen.getByLabelText(i18next.t('settings.report.titleLabel')), {
+            target: { value: 'Broken' },
+        });
+        fireEvent.change(screen.getByLabelText(i18next.t('settings.report.bodyLabel')), {
+            target: { value: 'It crashes' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: i18next.t('settings.report.submit') }));
+        await screen.findByRole('alert');
+
+        view.rerender(<ReportIssueDialog open={false} onOpenChange={onOpenChange} />);
+        view.rerender(<ReportIssueDialog open onOpenChange={onOpenChange} />);
+
+        const title = (await screen.findByLabelText(i18next.t('settings.report.titleLabel'))) as HTMLInputElement;
+        const body = screen.getByLabelText(i18next.t('settings.report.bodyLabel')) as HTMLTextAreaElement;
+        expect(title.value).toBe('');
+        expect(body.value).toBe('');
+        expect(screen.queryByRole('alert')).toBeNull();
     });
 });

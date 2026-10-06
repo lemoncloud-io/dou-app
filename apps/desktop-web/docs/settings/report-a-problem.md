@@ -7,7 +7,8 @@ opens `ReportIssueDialog` (`features/settings/components/ReportIssueDialog.tsx`)
 
 A title and a description, both required (blank or whitespace-only text cannot be sent). They go out
 through `runtime.report.reportIssue`, the same call the web feedback screen uses. That call adds who
-sent it, the active cloud, the page address and the environment; the dialog adds whether the browser
+sent it, the active cloud, the page address and the environment; the dialog adds the app version
+(`getAppVersionInfo()`: desktop-web version, Electron app version and platform), whether the browser
 is online, the window size and the current path. There are no attachments. Titles stop at 100
 characters and descriptions at 5000, so an unbounded paste cannot fail the whole submission at the
 server.
@@ -23,4 +24,5 @@ server.
 ## Known limit
 
 `reportIssue` labels the sender "web" unless the app is native or the project name contains
-"admin", so a report from this app is not told apart from one sent by the web app itself.
+"admin", so a report from this app is stamped as web like the web app's own. Tell them apart by the
+version and platform in the report's `version` field.
