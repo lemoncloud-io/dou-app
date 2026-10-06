@@ -63,6 +63,10 @@ jobs:
             - name: Code comment language
               run: yarn check:code-korean
 
+            # AGENTS.md's public-surface rule, for internal document paths left in comments and docs.
+            - name: Internal paths
+              run: yarn check:internal-paths
+
             # Green across all 26 projects, so no exclusions here.
             - name: Lint
               run: npx nx run-many -t lint
