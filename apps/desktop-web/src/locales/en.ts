@@ -164,6 +164,8 @@ export const en = {
     'chat.thread.replyAction': 'Reply in thread',
     'chat.thread.replyCount_one': '{{count}} reply',
     'chat.thread.replyCount_other': '{{count}} replies',
+    'chat.thread.replyCountLoaded_one': '{{count}} reply loaded',
+    'chat.thread.replyCountLoaded_other': '{{count}} replies loaded',
     'chat.thread.openThread_one': 'Open thread · {{count}} reply',
     'chat.thread.openThread_other': 'Open thread · {{count}} replies',
     'chat.thread.lastReplyAt': 'Last reply at {{time}}',

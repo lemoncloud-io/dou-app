@@ -196,6 +196,40 @@ describe('ThreadPanel', () => {
             expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'default', channelId: 'C1', parentId: 'C1:5' });
         });
 
+        it('counts only what is loaded while earlier replies are out, and the whole thread once they are in', async () => {
+            messages = FAR_WINDOW;
+            hasMore = true;
+            getChat.mockResolvedValue(chat(5, { content: 'the root' }));
+            const panel = () => <ThreadPanel channel={CHANNEL} rootId="5" members={[]} />;
+
+            const view = render(panel(), { wrapper });
+            await screen.findByText('the root');
+
+            expect(screen.getByText('1 reply loaded')).toBeTruthy();
+            expect(screen.queryByText('1 reply')).toBeNull();
+
+            // The window reaches the root: the thread is whole, so the count is the thread's.
+            messages = [chat(5, { content: 'the root' }), ...FAR_WINDOW];
+            view.rerender(panel());
+
+            expect(await screen.findByText('1 reply')).toBeTruthy();
+        });
+
+        it('does not ask again when the channel record is replaced by an equal one', async () => {
+            messages = FAR_WINDOW;
+            hasMore = true;
+            getChat.mockResolvedValue(chat(5, { content: 'the root' }));
+
+            const view = render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
+            await screen.findByText('the root');
+            // A place switch hands the panel a fresh object for the same channel when the list returns.
+            view.rerender(<ThreadPanel channel={{ ...CHANNEL }} rootId="5" members={[]} />);
+
+            expect(screen.getByText('the root')).toBeTruthy();
+            expect(getChat).toHaveBeenCalledTimes(1);
+            expect(loadOlder).toHaveBeenCalledTimes(1);
+        });
+
         it('stops after a batch and loads one more batch per press', async () => {
             const windowFrom = (oldest: number): DomainChat[] => [
                 chat(oldest, { content: `window starts at ${oldest}` }),

@@ -204,6 +204,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         membersLoading={membersLoading}
                         threadReplyCount={replyCount}
                         olderReplies={olderReplies}
+                        repliesPartial={repliesStatus !== 'complete'}
                         onRetry={composer.retry}
                         canRetry={composer.canRetry}
                         onDiscard={composer.discard}

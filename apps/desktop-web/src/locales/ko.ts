@@ -175,6 +175,8 @@ export const ko: EnTranslation = {
     'chat.thread.replyAction': '스레드에 답글 달기',
     'chat.thread.replyCount_one': '답글 {{count}}개',
     'chat.thread.replyCount_other': '답글 {{count}}개',
+    'chat.thread.replyCountLoaded_one': '불러온 답글 {{count}}개',
+    'chat.thread.replyCountLoaded_other': '불러온 답글 {{count}}개',
     'chat.thread.openThread_one': '스레드 열기 · 답글 {{count}}개',
     'chat.thread.openThread_other': '스레드 열기 · 답글 {{count}}개',
     'chat.thread.lastReplyAt': '마지막 답글 {{time}}',

@@ -60,19 +60,27 @@ states, and a new reply appears at once, since it arrives in the newest part of 
 
 The thread store records the channel a thread was opened in, because the root id is a bare `chatNo`
 and means nothing without it. `useTrailingPanelOwners` hands the panel the thread only while that
-channel is the one the pane is showing, resolved from the loaded channel list, and closes the thread
-as soon as they stop matching. The list is empty or replaced while a place switch is in flight, so a
-thread does not survive one: the panel is not rebuilt for the same channel when the list comes back.
-The close runs in an effect after the render that first sees the new channel, which is why the match
-is checked in the hook's return value as well; a panel drawn in that one render would otherwise
-fetch the old thread's number in the new channel.
+channel is the one the pane is showing, and closes the thread as soon as they stop matching. The close
+runs in an effect after the render that first sees the new channel, which is why the match is checked
+in the hook's return value as well; a panel drawn in that one render would otherwise fetch the old
+thread's number in the new channel.
 
-One case is held instead of closed: a thread opened while the channel list is still loading (the
-restored selection is known before its channels, and a saved or mentioned reply in that channel can be
-clicked in the gap). It has no channel to match yet, so nothing is drawn and nothing is closed until the
-list answers. Once the list has loaded, the thread shows if the channel is there and closes if it is
-not. A place switch is not held: it empties the list under a thread that was shown, and a thread whose
-channel has been shown since it was opened closes whether or not the list is loading again.
+A place switch is not leaving the channel. The channel list is replaced under an unchanged selection
+(a Self Channel is in every place, so the reader is still looking at it), and the lookup of the
+selected channel finds nothing for a moment. `useHeldChannel` keeps the last channel resolved for the
+same id while the list is loading, so the panel stays mounted and nothing is fetched again; once the
+list has loaded, the lookup is the truth, and a channel that is not in it closes the thread. A
+different selection never borrows the old channel.
+
+A thread opened while the list is still loading and no channel has been resolved yet (a saved or
+mentioned reply clicked right after start, in the restored selection) is held: not drawn and not
+closed until the list answers. It shows if the channel is there and closes if it is not.
+
+## The reply count
+
+While older replies are still out, the "N replies" divider says "N replies loaded" ("불러온 답글 N개"),
+because the number is what the window holds, not the thread's size. It goes back to "N replies" once
+the window reaches the root.
 
 ## What this does not do
 

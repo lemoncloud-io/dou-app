@@ -43,6 +43,8 @@ interface MessageListProps {
      * on its own when none are.
      */
     olderReplies?: ReactNode;
+    /** Thread panel only: older replies are still out, so the divider counts what is loaded, not the thread. */
+    repliesPartial?: boolean;
     onRetry?: (message: DomainChat) => void;
     /** Whether a failed message offers Retry (a picture message only while its pictures are in memory). */
     canRetry?: (message: DomainChat) => boolean;
@@ -109,6 +111,7 @@ export const MessageList = ({
     baselineReadNo,
     threadReplyCount,
     olderReplies,
+    repliesPartial,
     onRetry,
     canRetry,
     onDiscard,
@@ -668,7 +671,14 @@ export const MessageList = ({
                                     <div key={row.key} className="my-2 flex flex-col gap-2">
                                         <div className="flex items-center gap-3 px-1">
                                             <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
-                                                {t('chat.thread.replyCount', { count: row.count })}
+                                                {t(
+                                                    repliesPartial
+                                                        ? 'chat.thread.replyCountLoaded'
+                                                        : 'chat.thread.replyCount',
+                                                    {
+                                                        count: row.count,
+                                                    }
+                                                )}
                                             </span>
                                             <span className="h-px flex-1 bg-hairline" />
                                         </div>

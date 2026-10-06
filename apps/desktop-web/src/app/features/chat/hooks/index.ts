@@ -13,3 +13,4 @@ export * from './useNextUnreadShortcut';
 export * from './useComposerSend';
 export * from './useTrailingPanelOwners';
 export * from './useThreadRoot';
+export * from './useHeldChannel';

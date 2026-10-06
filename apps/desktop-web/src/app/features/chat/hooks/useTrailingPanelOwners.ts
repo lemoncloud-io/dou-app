@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { useChannelSettingsStore } from '../../channels';
 import { useMentionsPanelStore, useProfilePanelStore, useSavedPanelStore } from '../../../shared';
@@ -18,18 +18,16 @@ import { useThreadStore } from '../stores';
  * who stopped to check a name lost the conversation they were in.
  *
  * A thread belongs to the channel it was opened in. `shownChannelId` is the channel the pane is showing
- * right now, resolved from the loaded list; it is undefined when the list has no such channel. The thread
- * is handed out only while the two match. When they stop matching it is closed, because the close runs in
- * an effect after the render that first sees the new channel: without the match a panel drawn in that
- * render would ask the server about the old thread's number in the wrong room, or about the same room
- * again when it comes back with the list after a place switch.
+ * right now (see `useHeldChannel`, which keeps it through a place switch); it is undefined when the list
+ * has no such channel. The thread is handed out only while the two match. When they stop matching it is
+ * closed, because the close runs in an effect after the render that first sees the new channel: without
+ * the match a panel drawn in that render would ask the server about the old thread's number in the wrong
+ * room.
  *
  * One mismatch is not a verdict: a thread opened while the list is still loading (the restored
  * selection is known before its channels are) has no channel to match yet. That is held — not drawn and
  * not closed — until the list answers; `listLoading` is that answer's absence. A list that has loaded
- * without the channel is a verdict and closes the thread. A place switch is not held either: it empties
- * the list under a thread that was shown, and a thread whose channel has been shown since it was opened
- * closes whether or not the list is loading again.
+ * without the channel is a verdict and closes the thread.
  */
 export const useTrailingPanelOwners = (shownChannelId: string | undefined, listLoading: boolean) => {
     const openRootId = useThreadStore(s => s.openRootId);
@@ -37,10 +35,7 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined, listL
     const closeThread = useThreadStore(s => s.close);
     const threadHere = openRootId !== null && openChannelId === shownChannelId;
     const threadRootId = threadHere ? openRootId : null;
-    const threadKey = openRootId === null ? null : `${openChannelId}:${openRootId}`;
-    const [shownKey, setShownKey] = useState<string | null>(null);
-    const awaitingList =
-        openRootId !== null && !threadHere && shownChannelId === undefined && listLoading && shownKey !== threadKey;
+    const awaitingList = openRootId !== null && !threadHere && shownChannelId === undefined && listLoading;
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
@@ -50,9 +45,6 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined, listL
     const activityOpen = useMentionsPanelStore(s => s.isOpen);
     const closeActivity = useMentionsPanelStore(s => s.close);
 
-    useEffect(() => {
-        setShownKey(threadHere ? threadKey : null);
-    }, [threadHere, threadKey]);
     useEffect(() => {
         if (openRootId && !threadHere && !awaitingList) closeThread();
     }, [openRootId, threadHere, awaitingList, closeThread]);

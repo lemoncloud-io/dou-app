@@ -92,13 +92,11 @@ describe('useTrailingPanelOwners', () => {
             expect(useThreadStore.getState().openRootId).toBeNull();
         });
 
-        it('closes a thread that was shown when the channel goes away, even while the list loads again', () => {
+        it('closes a thread whose channel is gone once the list has loaded without it', () => {
             const { result, rerender } = renderOwners({ channelId: 'ch-1', loading: false });
             act(() => useThreadStore.getState().open('9', 'ch-1'));
 
-            // A place switch: the list is replaced, so the channel is gone and the list is loading again.
-            rerender({ channelId: undefined, loading: true });
-            rerender({ channelId: 'ch-1', loading: false });
+            rerender({ channelId: undefined, loading: false });
 
             expect(result.current.threadRootId).toBeNull();
             expect(useThreadStore.getState().openRootId).toBeNull();
@@ -135,20 +133,6 @@ describe('useTrailingPanelOwners', () => {
 
             expect(result.current.threadRootId).toBeNull();
             expect(useThreadStore.getState().openRootId).toBeNull();
-        });
-
-        it('holds again for a thread reopened while the list loads, not on the strength of an earlier open', () => {
-            const { result, rerender } = renderOwners({ channelId: 'ch-1', loading: false });
-            act(() => useThreadStore.getState().open('9', 'ch-1'));
-            act(() => useThreadStore.getState().close());
-            rerender({ channelId: undefined, loading: true });
-            act(() => useThreadStore.getState().open('9', 'ch-1'));
-
-            expect(useThreadStore.getState().openRootId).toBe('9');
-
-            rerender({ channelId: 'ch-1', loading: false });
-
-            expect(result.current.threadRootId).toBe('9');
         });
 
         it('keeps a thread opened in the channel that is showing', () => {
