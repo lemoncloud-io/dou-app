@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-06] - root@0.83.1, @chatic/web@0.64.1
+
+### Bug Fixes
+
+- (web) enter an owned cloud as the owner when accepting its invite (ADR-0169)
+- (app-runtime) re-issue an owned cloud held as its invitee, not replay the invite token
+
 ## [2026-10-06] - No version updates
 
 ### Features
