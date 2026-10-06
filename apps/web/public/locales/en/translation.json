@@ -327,6 +327,7 @@
                 "cancelAnytime": "You can cancel at any time."
             },
             "startAtEntryTier": "A first subscription starts on the entry plan",
+            "otherStoreOnly": "Can only be changed on the store you subscribed with",
             "refusal": {
                 "current": {
                     "title": "You are already on this plan",
@@ -339,6 +340,10 @@
                 "entryTier": {
                     "title": "A first subscription starts on plan 1",
                     "description": "Subscribe to plan 1 first, then move up one step at each renewal."
+                },
+                "otherStore": {
+                    "title": "Change it on the store you subscribed with",
+                    "description": "You subscribe through {{store}}. Changing the plan here would start a second subscription, and both stores would bill you. Change it on a device that uses {{store}}."
                 },
                 "pickInstead": "You can pick {{plan}} right now.",
                 "selectInstead": "Select {{plan}}"
@@ -405,6 +410,7 @@
                 "changePlan": "Change plan",
                 "resubscribe": "Subscribe again",
                 "manageInStore": "Manage in store",
+                "otherStore": "You subscribe through {{store}}. Change or manage it on a device that uses {{store}}.",
                 "pendingTitle": "Upcoming plan",
                 "pendingHeader": "Applies from your next payment",
                 "pendingDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",

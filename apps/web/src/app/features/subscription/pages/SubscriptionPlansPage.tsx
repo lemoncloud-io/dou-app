@@ -20,7 +20,7 @@ import {
 } from '../components';
 import { POLICY_BASE_URL } from '../consts';
 import { usePlanCatalog, usePlanOptions, type PlanOption } from '../hooks';
-import { nearestSelectablePlan, productStatusWord } from '../lib';
+import { nearestSelectablePlan, platformLabelKey, productStatusWord } from '../lib';
 
 /**
  * "구독 안내" — the tier picker (Figma 4541-17522 · 4541-17971 · 4550-19003).
@@ -38,7 +38,7 @@ export const SubscriptionPlansPage = () => {
     const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
 
-    const { sellablePlans, summary, currentPlan, isOnMobileApp, isIOS } = usePlanCatalog();
+    const { sellablePlans, summary, currentPlan, replaceablePlan, isOnMobileApp, isIOS } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const { isGuest } = runtime.session.useRuntimeProfile();
 
@@ -52,6 +52,7 @@ export const SubscriptionPlansPage = () => {
     const trialDays = summary.state === 'none' ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const hasCurrent = summary.state !== 'none' && !!currentPlan;
     const currentWord = productStatusWord(summary.state);
+    const billingStoreKey = platformLabelKey(replaceablePlan?.platform);
 
     const handlePick = (option: PlanOption) => {
         if (!option.isSelectable) {
@@ -187,6 +188,7 @@ export const SubscriptionPlansPage = () => {
                     setRefused(null);
                 }}
                 isKo={isKo}
+                store={billingStoreKey ? t(billingStoreKey) : undefined}
             />
 
             <LoginRequiredDialog

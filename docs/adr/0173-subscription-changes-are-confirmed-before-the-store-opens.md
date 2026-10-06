@@ -63,6 +63,15 @@ longer branches on `isValid` (see ADR-0091, revision 3).
 The payment-failure banner, past subscriptions and the refunded amount are left out, not stubbed. They
 return when the relay exposes the data.
 
+### 6. A subscription is changed only on the store that bills it
+
+Opened on the other store's device (bought on Google Play, opened on iOS, or the reverse), the
+picker recognises the plan in force by its tier and refuses every other tier with the `otherStore`
+refusal. The detail screen drops "Change plan" and "Manage in store" for a note that names the
+billing store, and its banners stop opening this device's store management. The other store has no
+record of the subscription, so a "change" there would be a second subscription, billed by both
+stores. An expired subscription has no live receipt and may be bought again on either store.
+
 ### Out of scope
 
 - Tier adjacency is unchanged: one step either way (ADR-0060 §2). The keep screen is the release UI
@@ -100,3 +109,5 @@ return when the relay exposes the data.
 - Four presentational composites join `web-ui-kit`. The `scheduled`/`warning` tone uses a fallback
   colour because the kit has no `warning` token yet.
 - About fifty retired copy keys are removed with the screens that read them.
+- Someone who moved from Android to iPhone (or back) has to cancel on the old store and subscribe again
+  once it ends, rather than change tier where they are. That is the store's limit, now said out loud.

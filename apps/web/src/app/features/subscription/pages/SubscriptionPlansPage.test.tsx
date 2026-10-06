@@ -42,11 +42,22 @@ const option = (plan: typeof tier1, kind: string, extra: Record<string, unknown>
     ...extra,
 });
 
-const show = ({ state, current, options }: { state: string; current?: typeof tier1; options: unknown[] }) => {
+const show = ({
+    state,
+    current,
+    options,
+    replaceable = current,
+}: {
+    state: string;
+    current?: typeof tier1;
+    options: unknown[];
+    replaceable?: Record<string, unknown>;
+}) => {
     (usePlanCatalog as jest.Mock).mockReturnValue({
         sellablePlans: [tier1, tier2, tier3],
         summary: { state, isEntitled: state !== 'none' },
         currentPlan: current,
+        replaceablePlan: replaceable,
         isOnMobileApp: true,
         isIOS: true,
     });
@@ -117,6 +128,25 @@ describe('Subscription picker — scenarios', () => {
 
         expect(screen.getByText(`${K}.refusal.tierJump.title`)).toBeInTheDocument();
         // The dialog hides the page behind it from the accessibility tree; the button is still off.
+        expect(screen.getByRole('button', { name: `${K}.picker.next`, hidden: true })).toBeDisabled();
+    });
+
+    it('bought on the other store: every other tier points back to that store, with nothing to pick instead', () => {
+        show({
+            state: 'active',
+            current: tier2,
+            replaceable: { ...tier2, platform: 'google' },
+            options: [
+                option(tier1, 'blocked', { refusal: 'otherStore', disabledReason: 'x' }),
+                option(tier2, 'current', { refusal: 'current' }),
+                option(tier3, 'blocked', { refusal: 'otherStore', disabledReason: 'x' }),
+            ],
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /DoU Cloud 3/ }));
+
+        expect(screen.getByText(`${K}.refusal.otherStore.title`)).toBeInTheDocument();
+        expect(screen.queryByText(/refusal\.selectInstead/)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: `${K}.picker.next`, hidden: true })).toBeDisabled();
     });
 

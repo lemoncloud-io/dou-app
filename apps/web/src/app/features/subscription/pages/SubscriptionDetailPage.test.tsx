@@ -46,6 +46,7 @@ interface Scene {
     membership?: Record<string, unknown>;
     clouds?: unknown[];
     price?: string;
+    isOtherStore?: boolean;
 }
 
 const cloud = (id: string, plan?: 'drop') => ({
@@ -55,7 +56,7 @@ const cloud = (id: string, plan?: 'drop') => ({
     state$: { provision: 'active', ...(plan && { plan }) },
 });
 
-const show = ({ summary, membership = {}, clouds = [], price = '₩17,600' }: Scene) => {
+const show = ({ summary, membership = {}, clouds = [], price = '₩17,600', isOtherStore = false }: Scene) => {
     const full: SubscriptionSummary = {
         state: 'active',
         isEntitled: true,
@@ -79,6 +80,7 @@ const show = ({ summary, membership = {}, clouds = [], price = '₩17,600' }: Sc
         currentPlan: tier2,
         pendingPlan: full.pendingProductId ? tier1 : undefined,
         isIOS: true,
+        isOtherStore,
     });
     (usePlanPrice as jest.Mock).mockReturnValue(() => (mockNative ? price : undefined));
     (useClouds as jest.Mock).mockReturnValue({ data: { list: clouds } });
@@ -185,6 +187,21 @@ describe('Subscription detail — scenarios', () => {
         show({ summary: { pendingProductId: tier1.id }, clouds: [cloud('a')] });
 
         expect(screen.queryByRole('button', { name: `${K}.detail.keepPick` })).not.toBeInTheDocument();
+    });
+
+    it('bought on the other store: says where to change it, and offers nothing that would open this store', () => {
+        show({
+            summary: { state: 'cancelScheduled', validUntil: NOW + 3 * DAY },
+            membership: { platform: 'google' },
+            isOtherStore: true,
+        });
+
+        expect(screen.getByText(`${K}.detail.otherStore`)).toBeInTheDocument();
+        expect(screen.getByText(`${K}.banner.ending.title`)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: new RegExp(`${K}.banner.ending.title`) })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.changePlan` })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
+        expect(screen.getByText(`${K}.notice.manageAt.google`)).toBeInTheDocument();
     });
 
     it('free trial: shows the days left', () => {

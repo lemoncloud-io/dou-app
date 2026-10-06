@@ -71,7 +71,7 @@ export const SubscriptionDetailPage = () => {
     const isKo = i18n.language.startsWith('ko');
 
     const { data: membership, isLoading } = useMembershipInfo();
-    const { summary, currentPlan, pendingPlan, isIOS } = usePlanCatalog();
+    const { summary, currentPlan, pendingPlan, isIOS, isOtherStore } = usePlanCatalog();
     const priceOf = usePlanPrice();
     const { data: cloudsData } = useClouds({ limit: -1 });
     const { observe, restored, dismiss } = useRestoredSignal();
@@ -89,10 +89,15 @@ export const SubscriptionDetailPage = () => {
     const hasPendingChange = summary.isEntitled && !!summary.pendingProductId;
     const validUntil = formatDate(membership?.validUntil);
     const banner = deriveBanner({ summary, autoRenewing: membership?.autoRenewing, hasPrice: !!price, restored });
-    const openStore = isOnMobileApp ? () => appBridge.openSubscriptionManagement() : undefined;
+    // This device's store management lists only its own subscriptions, so it has nothing to offer
+    // for one the other store bills — the banners stay informational and the buttons give way to a
+    // note (`isOtherStore`).
+    const canManageHere = isOnMobileApp && !isOtherStore;
+    const openStore = canManageHere ? () => appBridge.openSubscriptionManagement() : undefined;
     // Where to manage it is the store it was bought on, not this device's — fall back to the device
     // only when the membership does not say.
     const storeKey = membership?.platform === 'google' || (!membership?.platform && !isIOS) ? 'google' : 'apple';
+    const platformKey = platformLabelKey(membership?.platform);
 
     const candidates = keepCandidates(cloudsData?.list ?? []);
     const owesKeepChoice = hasPendingChange && needsKeepChoice(candidates.length, pendingPlan?.maxClouds);
@@ -122,10 +127,8 @@ export const SubscriptionDetailPage = () => {
                 return membership?.validUntil ? { key: row, label, value: validUntil } : undefined;
             case 'scheduledPrice':
                 return price ? { key: row, label, value: price, tone: 'accent' } : undefined;
-            case 'platform': {
-                const platformKey = platformLabelKey(membership?.platform);
+            case 'platform':
                 return platformKey ? { key: row, label, value: t(platformKey) } : undefined;
-            }
             case 'adminGrant':
                 return {
                     key: row,
@@ -333,7 +336,7 @@ export const SubscriptionDetailPage = () => {
                     </section>
 
                     <div className="flex flex-col gap-4 px-4">
-                        {isOnMobileApp ? (
+                        {canManageHere ? (
                             <>
                                 {summary.state !== 'blocked' && (
                                     <Button size="lg" fullWidth onClick={() => navigate(ROUTES.subscription.plans)}>
@@ -353,7 +356,11 @@ export const SubscriptionDetailPage = () => {
                             </>
                         ) : (
                             <p className="text-center text-[14px] text-description">
-                                {t('mypage.subscription.mobileOnly')}
+                                {isOnMobileApp
+                                    ? t('mypage.subscription.detail.otherStore', {
+                                          store: platformKey ? t(platformKey) : '',
+                                      })
+                                    : t('mypage.subscription.mobileOnly')}
                             </p>
                         )}
                     </div>

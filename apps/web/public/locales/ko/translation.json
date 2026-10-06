@@ -327,6 +327,7 @@
                 "cancelAnytime": "구독 취소는 언제든지 가능합니다."
             },
             "startAtEntryTier": "첫 구독은 1단계부터 시작할 수 있어요",
+            "otherStoreOnly": "구독한 스토어에서만 변경할 수 있어요",
             "refusal": {
                 "current": {
                     "title": "이미 이용 중인 구독이에요",
@@ -339,6 +340,10 @@
                 "entryTier": {
                     "title": "첫 구독은 1단계부터 시작해요",
                     "description": "1단계를 구독한 뒤, 다음 갱신일마다 한 단계씩 올릴 수 있어요."
+                },
+                "otherStore": {
+                    "title": "구독한 스토어에서 변경해 주세요",
+                    "description": "{{store}}에서 구독 중이에요. 여기서 등급을 바꾸면 구독이 하나 더 생겨 두 스토어에서 모두 결제돼요. 구독한 스토어의 기기에서 변경해 주세요."
                 },
                 "pickInstead": "지금은 {{plan}}을 선택할 수 있어요.",
                 "selectInstead": "{{plan}} 선택하기"
@@ -405,6 +410,7 @@
                 "changePlan": "구독 상품 변경하기",
                 "resubscribe": "다시 구독하기",
                 "manageInStore": "구독 관리로 이동하기",
+                "otherStore": "{{store}}에서 구독 중이에요. 구독 변경과 관리는 구독한 스토어의 기기에서 할 수 있어요.",
                 "pendingTitle": "변경 예정 구독 상품",
                 "pendingHeader": "다음 결제일부터 변경 적용",
                 "pendingDescription": "{{date}}부터 {{product}} 구독으로 적용될 예정입니다. 변경 전까지는 현재 구독을 그대로 이용할 수 있어요.",

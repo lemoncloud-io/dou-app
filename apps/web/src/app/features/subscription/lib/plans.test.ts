@@ -132,6 +132,13 @@ describe('getTierChangeKind', () => {
         expect(getTierChangeKind(googlePlan(1), googlePlan(3))).toBe('blocked');
         expect(getTierChangeKind(googlePlan(5), googlePlan(1))).toBe('blocked');
     });
+
+    it('recognises the plan bought on the other store by its tier, and sells none of that store’s neighbours', () => {
+        expect(getTierChangeKind(googlePlan(2), applePlan(2))).toBe('current');
+        expect(getTierChangeKind(googlePlan(2), applePlan(1))).toBe('blocked');
+        expect(getTierChangeKind(googlePlan(2), applePlan(3))).toBe('blocked');
+        expect(getTierChangeKind(applePlan(1), googlePlan(2))).toBe('blocked');
+    });
 });
 
 describe('isSelectableTier', () => {
@@ -146,20 +153,25 @@ describe('isSelectableTier', () => {
 
 describe('getTierRefusal', () => {
     it('구독 중인 등급은 current 거절이다', () => {
-        expect(getTierRefusal(applePlan(1), 'current')).toBe('current');
+        expect(getTierRefusal(applePlan(1), 'current', applePlan(1))).toBe('current');
     });
 
     it('구독이 있는 상태의 blocked는 단계 점프다', () => {
-        expect(getTierRefusal(applePlan(1), 'blocked')).toBe('tierJump');
+        expect(getTierRefusal(applePlan(1), 'blocked', applePlan(3))).toBe('tierJump');
     });
 
     it('구독이 없는 상태의 blocked는 1단계 시작 규칙이다 — 같은 blocked, 다른 이유', () => {
-        expect(getTierRefusal(undefined, 'blocked')).toBe('entryTier');
+        expect(getTierRefusal(undefined, 'blocked', applePlan(2))).toBe('entryTier');
+    });
+
+    it('a subscription billed by the other store is that store’s to change', () => {
+        expect(getTierRefusal(googlePlan(2), 'blocked', applePlan(3))).toBe('otherStore');
+        expect(getTierRefusal(googlePlan(2), 'current', applePlan(2))).toBe('current');
     });
 
     it('고를 수 있는 등급은 거절 사유가 없다', () => {
-        expect(getTierRefusal(applePlan(1), 'upgrade')).toBeUndefined();
-        expect(getTierRefusal(undefined, 'new')).toBeUndefined();
+        expect(getTierRefusal(applePlan(1), 'upgrade', applePlan(2))).toBeUndefined();
+        expect(getTierRefusal(undefined, 'new', applePlan(1))).toBeUndefined();
     });
 });
 

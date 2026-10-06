@@ -125,19 +125,27 @@ stays in cloud management.
 
 Adjacency is **app policy**, not a store or backend rule. A tier change may move one step:
 
-| Current        | Target              | Kind                    |
-| -------------- | ------------------- | ----------------------- |
-| none           | `sort === 1`        | `new`                   |
-| none           | any other           | `blocked` (`entryTier`) |
-| a running tier | the same tier       | `current`               |
-| a running tier | one step up or down | `upgrade` / `downgrade` |
-| a running tier | two or more steps   | `blocked` (`tierJump`)  |
+| Current                | Target              | Kind                     |
+| ---------------------- | ------------------- | ------------------------ |
+| none                   | `sort === 1`        | `new`                    |
+| none                   | any other           | `blocked` (`entryTier`)  |
+| a running tier         | the same tier       | `current`                |
+| a running tier         | one step up or down | `upgrade` / `downgrade`  |
+| a running tier         | two or more steps   | `blocked` (`tierJump`)   |
+| the other store's tier | the same tier       | `current`                |
+| the other store's tier | any other           | `blocked` (`otherStore`) |
 
 The reason is that each cloud carries its own email verification: a tier 1 → 3 jump would collect
 two verifications before either cloud is usable, and a multi-step drop would strand clouds that no
-UI can release yet. `getTierRefusal` splits the two `blocked` cases because they read nothing alike
-to the user, and `nearestSelectablePlan` offers the closest pickable tier instead (ties go to the
+UI can release yet. `getTierRefusal` splits the `blocked` cases because they read nothing alike to
+the user, and `nearestSelectablePlan` offers the closest pickable tier instead (ties go to the
 cheaper one).
+
+**A subscription is changed only on the store that bills it** (ADR-0173 §6). The two stores' plan
+ids differ, so `isOtherStorePlan` matches the plan in force by `sort` and refuses every other tier:
+the other store has no record of the subscription, and a "change" there is a second one billed by
+both. `usePlanCatalog.isOtherStore` tells the detail screen to replace "Change plan" and "Manage in
+store" with a note naming the billing store — this device's store management cannot see it either.
 
 The plan a change replaces is `replaceablePlan` — the **receipt's** plan, and only while
 `hasLiveReceipt` holds. An admin grant must never be named as the plan the store is replacing.
