@@ -40,7 +40,10 @@ const cloud = (id: string, name: string, plan?: 'drop') => ({
 const setup = ({ clouds, pendingPlan = tier1 }: { clouds: unknown[]; pendingPlan?: unknown }) => {
     (usePlanCatalog as jest.Mock).mockReturnValue({ pendingPlan, sellablePlans: [tier1], isLoading: false });
     (useClouds as jest.Mock).mockReturnValue({ data: { list: clouds }, isLoading: false });
-    (useMembershipInfo as jest.Mock).mockReturnValue({ data: { validUntil: Date.now() + 86_400_000 }, isLoading: false });
+    (useMembershipInfo as jest.Mock).mockReturnValue({
+        data: { validUntil: Date.now() + 86_400_000 },
+        isLoading: false,
+    });
     (useMarkDrops as jest.Mock).mockReturnValue({ mutateAsync, isPending: false });
     render(<KeepCloudsPage />);
 };

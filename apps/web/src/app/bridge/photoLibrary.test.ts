@@ -176,3 +176,55 @@ describe('photoLibrary — videos', () => {
         expect(keepLibraryVideo).not.toHaveBeenCalled();
     });
 });
+
+describe('photoLibrary — preview size and offset', () => {
+    it('sends the preview size and offset it is given, and nothing it is not', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], offset: 120, total: 500 } });
+        listPhotoAlbums.mockResolvedValue({ data: { access: 'granted', albums: [] } });
+
+        await photoLibrary.photos({ limit: 60, offset: 120, thumbSize: 400, after: undefined });
+        await photoLibrary.albums({ thumbSize: 192 });
+
+        expect(listPhotos).toHaveBeenCalledWith({
+            limit: 60,
+            offset: 120,
+            thumbSize: 400,
+            mediaTypes: ['image', 'video'],
+        });
+        expect(listPhotoAlbums).toHaveBeenCalledWith({ thumbSize: 192, mediaTypes: ['image', 'video'] });
+    });
+
+    it('keeps paging by offset while the app echoes the offset', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], offset: 0, total: 3 } });
+
+        await photoLibrary.photos({ limit: 60, offset: 0 });
+
+        expect(photoLibrary.pagesByOffset()).toBe(true);
+    });
+
+    // An app from before offsets answers the first page and says nothing about where it starts.
+    it('stops paging by offset once an app answers an offset page without echoing it', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], next: 'c1' } });
+
+        await photoLibrary.photos({ limit: 60, offset: 0 });
+
+        expect(photoLibrary.pagesByOffset()).toBe(false);
+    });
+
+    // Every app answers a denied list empty, with no echo — that says nothing about offsets.
+    it('does not judge offsets from a denied answer', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'denied', items: [] } });
+
+        await photoLibrary.photos({ limit: 60, offset: 0 });
+
+        expect(photoLibrary.pagesByOffset()).toBe(true);
+    });
+
+    it('does not judge offsets from a page asked for by cursor', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], next: 'c2' } });
+
+        await photoLibrary.photos({ limit: 60, after: 'c1' });
+
+        expect(photoLibrary.pagesByOffset()).toBe(true);
+    });
+});

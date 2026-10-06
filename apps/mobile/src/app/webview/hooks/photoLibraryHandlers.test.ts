@@ -2,7 +2,7 @@ import type { OnListPhotoAlbumsPayload, OnListPhotosPayload, OnReadPhotoPayload 
 import type { IPhotoLibraryBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 
-import { createPhotoLibraryHandlers, readMediaTypes } from './photoLibraryHandlers';
+import { createPhotoLibraryHandlers, readMediaTypes, readNumber } from './photoLibraryHandlers';
 
 // The real bridge barrel loads every native module wrapper; the handlers receive the photo library
 // by injection and need nothing else from it at runtime.
@@ -246,5 +246,53 @@ describe('createPhotoLibraryHandlers — videos', () => {
         const reply = await handlers().handleKeepLibraryVideo(message('KeepLibraryVideo', { id: 'v' }));
 
         expect(reply).toMatchObject({ success: false, error: { code: 'READ_FAILED' } });
+    });
+});
+
+describe('createPhotoLibraryHandlers — preview size and offset', () => {
+    let library: jest.Mocked<IPhotoLibraryBridge>;
+
+    beforeEach(() => {
+        library = createLibraryMock();
+    });
+
+    const handlers = () => createPhotoLibraryHandlers(library, createLoggerMock());
+
+    it('passes thumbSize and offset through to the page and thumbSize to the albums', async () => {
+        await handlers().handleListPhotos(message('ListPhotos', { limit: 60, thumbSize: 390, offset: 120 }));
+        await handlers().handleListPhotoAlbums(message('ListPhotoAlbums', { thumbSize: 192 }));
+
+        expect(library.listPhotos).toHaveBeenCalledWith({
+            albumId: undefined,
+            after: undefined,
+            limit: 60,
+            thumbSize: 390,
+            offset: 120,
+        });
+        expect(library.listAlbums).toHaveBeenCalledWith({ thumbSize: 192 });
+    });
+
+    it('leaves out a size or offset that is not a finite number', async () => {
+        await handlers().handleListPhotos(message('ListPhotos', { limit: 60, thumbSize: '390', offset: Infinity }));
+        await handlers().handleListPhotoAlbums(message('ListPhotoAlbums', { thumbSize: null }));
+
+        expect(library.listPhotos).toHaveBeenCalledWith({ albumId: undefined, after: undefined, limit: 60 });
+        expect(library.listAlbums).toHaveBeenCalledWith({});
+    });
+
+    it('keeps an offset of zero, which is a request for the first page by offset', async () => {
+        await handlers().handleListPhotos(message('ListPhotos', { limit: 60, offset: 0 }));
+
+        expect(library.listPhotos).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }));
+    });
+});
+
+describe('readNumber', () => {
+    it('keeps finite numbers and drops everything else', () => {
+        expect(readNumber(0)).toBe(0);
+        expect(readNumber(2.5)).toBe(2.5);
+        expect(readNumber(NaN)).toBeUndefined();
+        expect(readNumber('3')).toBeUndefined();
+        expect(readNumber(undefined)).toBeUndefined();
     });
 });

@@ -7,10 +7,10 @@ import type { ConfigRegistryModule } from '../types';
  * of what its localStorage key stored, which needed a comment to warn readers. This key's name
  * matches what it holds.
  *
- * `channelSort`/`pinnedChannels`/`homeSectionsCollapsed`/`recentSearches` are `'internal'` on purpose
- * even though a person changes them — the place they change is a sort picker, a pin gesture, a
- * section header, a search box, not a settings screen, so a generic settings UI must not render a
- * row for them.
+ * `channelSort`/`pinnedChannels`/`homeSectionsCollapsed`/`recentSearches`/`photoGridColumns` are
+ * `'internal'` on purpose even though a person changes them — the place they change is a sort picker,
+ * a pin gesture, a section header, a search box, a pinch on the photo grid, not a settings screen, so a
+ * generic settings UI must not render a row for them.
  */
 export const uiModule: ConfigRegistryModule = {
     'ui.theme': {
@@ -86,6 +86,15 @@ export const uiModule: ConfigRegistryModule = {
         description: "The sidebar's channel/DM display order per place (changed by dragging).",
         type: 'json',
         defaultValue: {},
+        surface: 'internal',
+        writableBy: ['local'],
+        persist: 'local',
+    },
+    'ui.photoGridColumns': {
+        title: 'Photo grid columns',
+        description: "The in-app photo picker's column count (2–5), changed by pinching the grid.",
+        type: 'number',
+        defaultValue: 3,
         surface: 'internal',
         writableBy: ['local'],
         persist: 'local',

@@ -14,6 +14,11 @@ import type { PickedShellAttachment } from './attachment-picker';
 // The web ships before the app. A shell without these handlers answers `NOT_FOUND`, and the web
 // learns from that once and falls back to the page's own file input. A shell from before videos drops
 // `mediaTypes` and lists photos only, which is why the field is opt-in.
+//
+// `thumbSize` and `offset` are opt-in the same way. A shell from before them ignores both: without the
+// first it answers its old previews, which are only smaller; without the second it answers the first
+// page, which is why a page paged by offset says so (`OnListPhotosPayload.offset`) and the web trusts
+// an offset only when it is echoed.
 
 /**
  * Whether the page may read the library.
@@ -30,7 +35,7 @@ export type PhotoLibraryAlbum = {
     id: string;
     title: string;
     count: number;
-    /** A small base64 JPEG of the album's newest photo, when it has one. */
+    /** A small base64 JPEG of the album's newest photo, when it has one — square at `thumbSize` when asked for. */
     coverBase64?: string;
 };
 
@@ -44,7 +49,12 @@ export type PhotoLibraryItem = {
      * Android prefixes a video's with `v:`, which an older shell's `ReadPhoto` refuses as `INVALID`.
      */
     id: string;
-    /** A small base64 JPEG preview, about 256px on the long edge. Not the photo itself; a video's poster frame. */
+    /**
+     * A small base64 JPEG preview. Not the photo itself; a video's poster frame. With `thumbSize` it is
+     * the centre square of the photo, `thumbSize` pixels a side (smaller only when the photo is); without
+     * it, about 256px on the long edge, uncropped. Empty only on a page asked for by `offset`, for an
+     * item whose preview could not be made — its place in the list is still its own.
+     */
     thumbBase64: string;
     width?: number;
     height?: number;
@@ -63,6 +73,8 @@ export type ListPhotoAlbumsPayload = {
      * ignores it; one that has them adds a "Videos" album where the platform has one (iOS).
      */
     mediaTypes?: PhotoLibraryMediaType[];
+    /** The covers' size, as `ListPhotosPayload.thumbSize`. */
+    thumbSize?: number;
 };
 
 /** [Response] Albums, newest-first "all photos" first. Empty when access is `denied`. */
@@ -85,13 +97,35 @@ export type ListPhotosPayload = {
      * Android lists videos only once the user has granted video access as well.
      */
     mediaTypes?: PhotoLibraryMediaType[];
+    /**
+     * The previews' size: the side of a square, in device pixels — what the tile is drawn at. The shell
+     * clamps it to 64–720. Omitted, the shell answers the uncropped ~256px previews it always did.
+     */
+    thumbSize?: number;
+    /**
+     * Where the page starts, as an index into the list (0 = newest). Lets the grid fill any stretch of a
+     * long album without paging up to it. Set, `after` is ignored and the reply carries `offset` and
+     * `total`. A shell from before it ignores it and answers the first page with neither.
+     */
+    offset?: number;
 };
 
-/** [Response] A page of photos. `next` is absent on the last page. */
+/** [Response] A page of photos. `next` is absent on the last page and on a page asked for by `offset`. */
 export type OnListPhotosPayload = {
     access: PhotoLibraryAccess;
     items: PhotoLibraryItem[];
     next?: string;
+    /**
+     * The index of `items[0]` — present exactly when the page was cut by `offset`. Clamped to `total`,
+     * so an offset past the end answers an empty page at `total`. Every item of such a page is the one at
+     * its index: none is left out, even one without a preview.
+     */
+    offset?: number;
+    /**
+     * How many items the list holds as this page was cut — with `offset`. A count that differs from the
+     * one the grid laid out for means the library changed, and the indices with it.
+     */
+    total?: number;
 };
 
 /**

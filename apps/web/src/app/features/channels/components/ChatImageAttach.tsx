@@ -27,6 +27,7 @@ import {
     type AttachmentPick,
     type AttachmentPicker,
 } from '../../../bridge/attachmentPicker';
+import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
 import { usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
 import { albumAccept, DOCUMENT_ACCEPT, isAppleTouchWebKit, rejectionKey } from '../utils/attachSources';
 
@@ -103,7 +104,12 @@ export const useChatImageAttach = ({
     const albumRef = useRef<HTMLInputElement>(null);
     const filesRef = useRef<HTMLInputElement>(null);
     const appleTouch = isAppleTouchWebKit();
-    const own = usePhotoPicker({ max: IMAGE_MESSAGE_SLOT_MAX, allTitle: t('chat.attach.recentTitle') });
+    const gridColumns = usePhotoGridColumns();
+    const own = usePhotoPicker({
+        max: IMAGE_MESSAGE_SLOT_MAX,
+        allTitle: t('chat.attach.recentTitle'),
+        columns: gridColumns.columns,
+    });
     const picker = injected ?? own;
     const inGrid = picker.supported === true;
 
@@ -348,7 +354,11 @@ export const useChatImageAttach = ({
                     albums={picker.albums}
                     onSelectAlbum={picker.selectAlbum}
                     formatAlbumCount={count => count.toLocaleString()}
-                    photos={picker.photos}
+                    count={picker.count}
+                    photoAt={picker.photoAt}
+                    onVisibleRangeChange={picker.setVisibleRange}
+                    columns={gridColumns.columns}
+                    onColumnsChange={gridColumns.setColumns}
                     picked={picker.picked}
                     onToggle={picker.toggle}
                     max={IMAGE_MESSAGE_SLOT_MAX}
@@ -356,8 +366,6 @@ export const useChatImageAttach = ({
                         picker.closeGrid();
                         cameraRef.current?.click();
                     }}
-                    hasMore={picker.hasMore}
-                    onLoadMore={picker.loadMore}
                     sendLabel={
                         picker.preparing
                             ? t('chat.attach.preparing')

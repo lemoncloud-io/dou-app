@@ -10,6 +10,12 @@
 > · Related: [ADR-0123](./0123-picking-a-photo-sends-it-and-the-shell-decides-how-it-is-picked.md)
 > (the in-app grid and its `NOT_FOUND` fallback) ·
 > [ADR-0111](./0111-the-destination-decides-how-a-picked-image-is-prepared.md) (who prepares a picked image)
+>
+> **Amended by [ADR-0174](./0174-the-photo-grid-is-virtual-pages-by-offset-and-asks-for-previews-at-its-tile-size.md)
+> (2026-10-06):** previews are asked for at the grid's tile size and answered as a centre square
+> (`thumbSize`, 64–720 px, JPEG 0.8). The ~256 px preview stays only for a request without that field.
+> Pages can also be asked for by `offset`. On such a page a preview that cannot be made is sent empty
+> rather than skipped.
 
 ## Context
 

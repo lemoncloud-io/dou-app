@@ -162,7 +162,7 @@ libs/app-messages/src/
     └── model/                    22 files — 21 payload files, grouped by domain, and their barrel
 ```
 
-28 files, 3,704 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+28 files, 3,738 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -175,7 +175,7 @@ The payload files, with what is in each:
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                          |
 | `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes               |
 | `attachment-picker.ts` | 214   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame) |
-| `photo-library.ts`     | 155   | The in-app photo picker — albums, a page of previews (photos, and videos when asked), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                               |
+| `photo-library.ts`     | 189   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                    |
 | `device.ts`            | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file                                                                                                     |
 | `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                |
 | `notification.ts`      | 133   | FCM token, badge count and base, push marks, OS notification                                                                                                                       |

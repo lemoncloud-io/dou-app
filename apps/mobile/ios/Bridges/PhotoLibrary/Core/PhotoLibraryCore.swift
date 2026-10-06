@@ -9,8 +9,16 @@ enum PhotoLibraryCore {
     /// web asks for 60; a runaway `limit` should not turn into the whole library in one reply.
     static let maxPageSize = 200
 
-    /// Long edge of a grid preview, in pixels.
+    /// Long edge of a grid preview, in pixels, when the request names no `thumbSize`.
     static let thumbnailEdge = 256
+
+    /// The range a requested `thumbSize` is clamped to, so a runaway size cannot turn a page of base64
+    /// previews into a page of photos. Android clamps to the same range.
+    static let minThumbSize = 64
+    static let maxThumbSize = 720
+
+    /// JPEG quality of a sized preview. The legacy preview keeps its 0.7.
+    static let sizedJpegQuality = 0.8
 
     /// Long edge a camera RAW photo is rendered at. A 48 MP ProRAW decoded at full size holds about
     /// 200 MB and its JPEG passes the server's 20 MB ceiling, so it would be read, carried across the
@@ -113,6 +121,61 @@ enum PhotoLibraryCore {
         let lower = min(max(start, 0), total)
         let upper = min(lower + size, total)
         return (lower..<upper, upper < total)
+    }
+
+    /// A request's `offset`: where a page cut by index starts. Nil — page by cursor, as before — when it
+    /// is absent, not a number, not finite or negative. A fractional offset is floored, and one past any
+    /// list's length is capped well inside `Int` rather than trapping on the conversion.
+    static func offset(_ raw: Any?) -> Int? {
+        guard let value = number(raw), value.isFinite, value >= 0 else { return nil }
+        return Int(min(value.rounded(.down), Double(Int32.max)))
+    }
+
+    // MARK: - Sized previews
+
+    /// A request's `thumbSize`: the side of the square preview, in pixels. Nil — the legacy uncropped
+    /// preview — when it is absent, not a number, not finite or not positive; otherwise rounded and
+    /// clamped to `minThumbSize...maxThumbSize`.
+    static func thumbSize(_ raw: Any?) -> Int? {
+        guard let value = number(raw), value.isFinite, value > 0 else { return nil }
+        let clamped = min(max(value.rounded(), Double(minThumbSize)), Double(maxThumbSize))
+        return Int(clamped)
+    }
+
+    /// The side of the square box a fit-within image is requested in, so that the image's short side
+    /// comes out at `size` and its centre square can be cut at full sharpness: `size * long / short`,
+    /// rounded up.
+    ///
+    /// The ratio is capped at 3: a 10:1 panorama would otherwise be decoded 7200 px long for a 720 px
+    /// tile. Past 3:1 its square comes out a little under `size`, which a tile of a panorama can afford.
+    /// Which side is the long one does not matter — a square box fits either way — so width and height
+    /// stored unrotated give the same box. Unknown dimensions ask for `size` itself.
+    static func fitBox(width: Int, height: Int, size: Int) -> Int {
+        guard width > 0, height > 0 else { return size }
+        let long = max(width, height)
+        let short = min(width, height)
+        guard long < 3 * short else { return 3 * size }
+        return (size * long + short - 1) / short
+    }
+
+    /// The centred square of an image `width` × `height` pixels: its side is the short side, and the
+    /// long side loses the same amount at each end (the odd pixel at the far end).
+    static func centerSquare(width: Int, height: Int) -> (x: Int, y: Int, side: Int) {
+        let side = min(width, height)
+        return ((width - side) / 2, (height - side) / 2, side)
+    }
+
+    /// The side the preview is finally drawn at: `size`, or the image's short side when the image is
+    /// smaller — a preview is never upscaled. Unknown dimensions keep `size`.
+    static func squareSide(size: Int, width: Int, height: Int) -> Int {
+        guard width > 0, height > 0 else { return size }
+        return min(size, min(width, height))
+    }
+
+    /// A JSON number from the bridge. A boolean crosses as an `NSNumber` too, and is not one.
+    private static func number(_ raw: Any?) -> Double? {
+        guard let number = raw as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        return number.doubleValue
     }
 
     // MARK: - Export

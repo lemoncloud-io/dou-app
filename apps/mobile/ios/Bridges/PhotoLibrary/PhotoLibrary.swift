@@ -41,11 +41,12 @@ final class PhotoLibrary: NSObject {
     @objc(listAlbums:resolve:reject:)
     func listAlbums(_ request: NSDictionary?, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         let types = PhotoLibraryCore.mediaTypes(request?["mediaTypes"])
+        let size = PhotoLibraryCore.thumbSize(request?["thumbSize"])
 
         Self.withAccess { authorization in
             let access = PhotoLibraryCore.access(authorization)
             guard access != "denied" else { return resolve(["access": access, "albums": []]) }
-            resolve(["access": access, "albums": Self.albums(types)])
+            resolve(["access": access, "albums": Self.albums(types, size: size)])
         }
     }
 
@@ -55,11 +56,16 @@ final class PhotoLibrary: NSObject {
         let after = request["after"] as? String
         let limit = (request["limit"] as? NSNumber)?.intValue ?? 0
         let types = PhotoLibraryCore.mediaTypes(request["mediaTypes"])
+        let size = PhotoLibraryCore.thumbSize(request["thumbSize"])
+        let offset = PhotoLibraryCore.offset(request["offset"])
 
         Self.withAccess { authorization in
             let access = PhotoLibraryCore.access(authorization)
             guard access != "denied" else { return resolve(["access": access, "items": []]) }
-            resolve(Self.photos(albumId: albumId, types: types, after: after, limit: limit, access: access))
+            if let offset {
+                return resolve(Self.photos(albumId: albumId, types: types, offset: offset, limit: limit, size: size, access: access))
+            }
+            resolve(Self.photos(albumId: albumId, types: types, after: after, limit: limit, size: size, access: access))
         }
     }
 
@@ -187,7 +193,7 @@ final class PhotoLibrary: NSObject {
         PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: .smartAlbumUserLibrary, options: nil).firstObject
     }
 
-    private static func albums(_ types: Set<PhotoLibraryCore.MediaType>) -> [[String: Any]] {
+    private static func albums(_ types: Set<PhotoLibraryCore.MediaType>, size: Int?) -> [[String: Any]] {
         let library = userLibrary()
         let all = library.map { PHAsset.fetchAssets(in: $0, options: fetchOptions(types)) } ?? PHAsset.fetchAssets(with: fetchOptions(types))
         var first: [String: Any] = [
@@ -195,7 +201,7 @@ final class PhotoLibrary: NSObject {
             "title": library?.localizedTitle ?? NSLocalizedString("photo_library_all_photos", comment: ""),
             "count": all.count,
         ]
-        if let newest = all.firstObject, let cover = thumbnail(newest) { first["coverBase64"] = cover }
+        if let newest = all.firstObject, let cover = thumbnail(newest, size: size) { first["coverBase64"] = cover }
 
         var collections: [PHAssetCollection] = []
         for subtype in smartAlbums(types) {
@@ -220,7 +226,7 @@ final class PhotoLibrary: NSObject {
                 "title": collection.localizedTitle ?? "",
                 "count": assets.count,
             ]
-            if let newest = assets.firstObject, let cover = thumbnail(newest) { album["coverBase64"] = cover }
+            if let newest = assets.firstObject, let cover = thumbnail(newest, size: size) { album["coverBase64"] = cover }
             return album
         }
         return [first] + rest
@@ -243,7 +249,7 @@ final class PhotoLibrary: NSObject {
     }
 
     private static func photos(
-        albumId: String?, types: Set<PhotoLibraryCore.MediaType>, after: String?, limit: Int, access: String
+        albumId: String?, types: Set<PhotoLibraryCore.MediaType>, after: String?, limit: Int, size: Int?, access: String
     ) -> [String: Any] {
         guard let assets = assets(albumId: albumId, types: types) else { return ["access": access, "items": []] }
 
@@ -263,16 +269,8 @@ final class PhotoLibrary: NSObject {
             last = asset
             // A photo with no preview on the device is skipped rather than drawn as a blank tile. A
             // video's preview is a frame PhotoKit renders the same way, so the rule holds for both.
-            guard let thumb = thumbnail(asset) else { continue }
-            var item: [String: Any] = [
-                "id": asset.localIdentifier,
-                "thumbBase64": thumb,
-                "width": asset.pixelWidth,
-                "height": asset.pixelHeight,
-                "mediaType": (asset.mediaType == .video ? PhotoLibraryCore.MediaType.video : .image).rawValue,
-            ]
-            if asset.mediaType == .video { item["durationMs"] = PhotoLibraryCore.durationMs(seconds: asset.duration) }
-            items.append(item)
+            guard let thumb = thumbnail(asset, size: size) else { continue }
+            items.append(item(asset, thumb: thumb))
         }
 
         var reply: [String: Any] = ["access": access, "items": items]
@@ -282,22 +280,102 @@ final class PhotoLibrary: NSObject {
         return reply
     }
 
+    /// A page cut by index: the items at `offset` onward in the same list the cursor pages walk. Every
+    /// index answers its own item — one without a preview is listed with an empty one rather than left
+    /// out, because the web places each item by its index. The reply echoes where the page starts and
+    /// how long the list is now, and never carries `next`.
+    private static func photos(
+        albumId: String?, types: Set<PhotoLibraryCore.MediaType>, offset: Int, limit: Int, size: Int?, access: String
+    ) -> [String: Any] {
+        guard let assets = assets(albumId: albumId, types: types) else {
+            return ["access": access, "items": [], "offset": 0, "total": 0]
+        }
+
+        let total = assets.count
+        let page = PhotoLibraryCore.page(start: offset, limit: limit, total: total)
+        let items = page.range.map { index -> [String: Any] in
+            let asset = assets.object(at: index)
+            return item(asset, thumb: thumbnail(asset, size: size) ?? "")
+        }
+        return ["access": access, "items": items, "offset": page.range.lowerBound, "total": total]
+    }
+
+    private static func item(_ asset: PHAsset, thumb: String) -> [String: Any] {
+        var item: [String: Any] = [
+            "id": asset.localIdentifier,
+            "thumbBase64": thumb,
+            "width": asset.pixelWidth,
+            "height": asset.pixelHeight,
+            "mediaType": (asset.mediaType == .video ? PhotoLibraryCore.MediaType.video : .image).rawValue,
+        ]
+        if asset.mediaType == .video { item["durationMs"] = PhotoLibraryCore.durationMs(seconds: asset.duration) }
+        return item
+    }
+
     /// A preview from what is already on the device. iCloud is never asked: a page is 60 synchronous
     /// requests in a row, and on a slow or absent network each one would wait out its own download
     /// until the web's request timed out. Photos keeps small renditions of every photo locally, so the
     /// fast rendition is the fallback when a sharper one is not there.
-    private static func thumbnail(_ asset: PHAsset) -> String? {
-        let edge = CGFloat(PhotoLibraryCore.thumbnailEdge)
-        let image = localImage(asset, size: CGSize(width: edge, height: edge), mode: .highQualityFormat)
-            ?? localImage(asset, size: CGSize(width: edge, height: edge), mode: .fastFormat)
-        return image?.jpegData(compressionQuality: 0.7)?.base64EncodedString()
+    ///
+    /// Without `size` the preview is the one this bridge always answered: about 256 px on the long edge,
+    /// uncropped. With it, the preview is the photo's centre square, `size` pixels a side.
+    private static func thumbnail(_ asset: PHAsset, size: Int?) -> String? {
+        // One pool per preview: a page makes up to 200 in a row on one queue, and the decoded image,
+        // the drawn square and the JPEG data are autoreleased — without a pool here they would all
+        // stay alive until the whole page is done.
+        autoreleasepool {
+            guard let size else {
+                let edge = CGFloat(PhotoLibraryCore.thumbnailEdge)
+                let image = localImage(asset, size: CGSize(width: edge, height: edge), mode: .highQualityFormat, resize: .fast)
+                    ?? localImage(asset, size: CGSize(width: edge, height: edge), mode: .fastFormat, resize: .fast)
+                return image?.jpegData(compressionQuality: 0.7)?.base64EncodedString()
+            }
+            return squareThumbnail(asset, size: size)
+        }
     }
 
-    private static func localImage(_ asset: PHAsset, size: CGSize, mode: PHImageRequestOptionsDeliveryMode) -> UIImage? {
+    /// The centre square of the photo at `size` pixels a side, cut from an image requested just large
+    /// enough that its short side is `size`. `.exact` is asked for so PhotoKit scales to that box rather
+    /// than handing back whichever cached rendition is nearest, which can be smaller than the tile.
+    /// The crop is measured on the image PhotoKit returned, not on the asset's dimensions: the fast
+    /// rendition is smaller, and a stored size need not match the orientation it is drawn in.
+    private static func squareThumbnail(_ asset: PHAsset, size: Int) -> String? {
+        let box = PhotoLibraryCore.fitBox(width: asset.pixelWidth, height: asset.pixelHeight, size: size)
+        let target = CGSize(width: box, height: box)
+        guard let image = localImage(asset, size: target, mode: .highQualityFormat, resize: .exact)
+            ?? localImage(asset, size: target, mode: .fastFormat, resize: .exact) else { return nil }
+
+        // `size` already accounts for the image's orientation; times `scale`, it is the upright pixels.
+        let width = Int((image.size.width * image.scale).rounded())
+        let height = Int((image.size.height * image.scale).rounded())
+        guard width > 0, height > 0 else { return nil }
+        let crop = PhotoLibraryCore.centerSquare(width: width, height: height)
+        let side = PhotoLibraryCore.squareSide(size: size, width: crop.side, height: crop.side)
+
+        // Drawing the whole image scaled into an aspect-fill rect cuts the crop and the scale in one
+        // pass, and `draw(in:)` applies the image's orientation, so the square comes out upright.
+        let factor = CGFloat(side) / CGFloat(crop.side)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let square = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+            image.draw(in: CGRect(
+                x: -CGFloat(crop.x) * factor,
+                y: -CGFloat(crop.y) * factor,
+                width: CGFloat(width) * factor,
+                height: CGFloat(height) * factor
+            ))
+        }
+        return square.jpegData(compressionQuality: PhotoLibraryCore.sizedJpegQuality)?.base64EncodedString()
+    }
+
+    private static func localImage(
+        _ asset: PHAsset, size: CGSize, mode: PHImageRequestOptionsDeliveryMode, resize: PHImageRequestOptionsResizeMode
+    ) -> UIImage? {
         let options = PHImageRequestOptions()
         options.isSynchronous = true
         options.deliveryMode = mode
-        options.resizeMode = .fast
+        options.resizeMode = resize
         options.isNetworkAccessAllowed = false
 
         var image: UIImage?

@@ -129,6 +129,136 @@ final class PhotoLibraryCoreTests: XCTestCase {
         XCTAssertFalse(page.hasMore)
     }
 
+    // MARK: - Offset
+
+    func testOffsetTakesANonNegativeNumberFloored() {
+        XCTAssertEqual(PhotoLibraryCore.offset(0), 0)
+        XCTAssertEqual(PhotoLibraryCore.offset(120), 120)
+        XCTAssertEqual(PhotoLibraryCore.offset(2.7), 2)
+        XCTAssertEqual(PhotoLibraryCore.offset(NSNumber(value: 60)), 60)
+    }
+
+    func testMissingOrInvalidOffsetPagesByCursor() {
+        XCTAssertNil(PhotoLibraryCore.offset(nil))
+        XCTAssertNil(PhotoLibraryCore.offset(-1))
+        XCTAssertNil(PhotoLibraryCore.offset(-0.5))
+        XCTAssertNil(PhotoLibraryCore.offset("60"), "a string is not a number")
+        XCTAssertNil(PhotoLibraryCore.offset(true), "a boolean is not a number")
+        XCTAssertNil(PhotoLibraryCore.offset(Double.nan))
+        XCTAssertNil(PhotoLibraryCore.offset(Double.infinity))
+        XCTAssertNil(PhotoLibraryCore.offset(NSNull()))
+    }
+
+    func testHugeOffsetIsCappedRatherThanTrapping() {
+        XCTAssertEqual(PhotoLibraryCore.offset(1e300), Int(Int32.max))
+    }
+
+    func testOffsetReadsTheNumberTheBridgeHandsOver() {
+        let fromBridge: NSDictionary = ["offset": NSNumber(value: 240.0)]
+
+        XCTAssertEqual(PhotoLibraryCore.offset(fromBridge["offset"]), 240)
+    }
+
+    func testOffsetPageCoversTheIndicesFromTheOffset() {
+        let page = PhotoLibraryCore.page(start: 120, limit: 60, total: 1_000)
+
+        XCTAssertEqual(page.range, 120..<180)
+    }
+
+    func testOffsetPageStopsAtTheEnd() {
+        let page = PhotoLibraryCore.page(start: 980, limit: 60, total: 1_000)
+
+        XCTAssertEqual(page.range, 980..<1_000)
+    }
+
+    func testOffsetPastTheEndIsAnEmptyPageAtTheTotal() {
+        let page = PhotoLibraryCore.page(start: 1_200, limit: 60, total: 1_000)
+
+        XCTAssertEqual(page.range, 1_000..<1_000, "the echoed offset is the clamped start")
+        XCTAssertEqual(PhotoLibraryCore.page(start: 5, limit: 60, total: 0).range, 0..<0)
+    }
+
+    // MARK: - Thumb size
+
+    func testThumbSizeIsRoundedAndClamped() {
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(300), 300)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(299.5), 300)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(299.4), 299)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(10), PhotoLibraryCore.minThumbSize)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(0.2), PhotoLibraryCore.minThumbSize)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(4_000), PhotoLibraryCore.maxThumbSize)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(1e300), PhotoLibraryCore.maxThumbSize)
+    }
+
+    func testMissingOrInvalidThumbSizeKeepsTheLegacyPreview() {
+        XCTAssertNil(PhotoLibraryCore.thumbSize(nil))
+        XCTAssertNil(PhotoLibraryCore.thumbSize(0))
+        XCTAssertNil(PhotoLibraryCore.thumbSize(-200))
+        XCTAssertNil(PhotoLibraryCore.thumbSize("300"), "a string is not a number")
+        XCTAssertNil(PhotoLibraryCore.thumbSize(true), "a boolean is not a number")
+        XCTAssertNil(PhotoLibraryCore.thumbSize(Double.nan))
+        XCTAssertNil(PhotoLibraryCore.thumbSize(Double.infinity))
+    }
+
+    func testThumbSizeReadsTheNumberTheBridgeHandsOver() {
+        let fromBridge: NSDictionary = ["thumbSize": NSNumber(value: 360)]
+
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(fromBridge["thumbSize"]), 360)
+    }
+
+    func testFitBoxMakesTheShortSideTheSize() {
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 4_032, height: 3_024, size: 300), 400)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 1_000, height: 1_000, size: 300), 300)
+        // 300 * 16 / 9 = 533.33, rounded up so the short side is never under the size.
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 1_920, height: 1_080, size: 300), 534)
+    }
+
+    func testFitBoxIgnoresWhichSideIsLong() {
+        XCTAssertEqual(
+            PhotoLibraryCore.fitBox(width: 3_024, height: 4_032, size: 300),
+            PhotoLibraryCore.fitBox(width: 4_032, height: 3_024, size: 300)
+        )
+    }
+
+    func testFitBoxCapsAPanoramaAtThreeToOne() {
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 10_000, height: 1_000, size: 720), 2_160)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 3_000, height: 1_000, size: 720), 2_160)
+    }
+
+    func testFitBoxWithUnknownDimensionsIsTheSize() {
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 0, height: 3_024, size: 300), 300)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 4_032, height: 0, size: 300), 300)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: -1, height: -1, size: 300), 300)
+    }
+
+    func testCenterSquareCutsTheLongSideEvenly() {
+        let landscape = PhotoLibraryCore.centerSquare(width: 400, height: 300)
+        XCTAssertEqual([landscape.x, landscape.y, landscape.side], [50, 0, 300])
+
+        let portrait = PhotoLibraryCore.centerSquare(width: 300, height: 400)
+        XCTAssertEqual([portrait.x, portrait.y, portrait.side], [0, 50, 300])
+
+        let square = PhotoLibraryCore.centerSquare(width: 256, height: 256)
+        XCTAssertEqual([square.x, square.y, square.side], [0, 0, 256])
+    }
+
+    func testCenterSquareLeavesTheOddPixelAtTheFarEnd() {
+        let odd = PhotoLibraryCore.centerSquare(width: 401, height: 300)
+
+        XCTAssertEqual([odd.x, odd.y, odd.side], [50, 0, 300])
+    }
+
+    func testSquareSideNeverUpscales() {
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 400, height: 400), 300)
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 200, height: 200), 200)
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 500, height: 120), 120)
+    }
+
+    func testSquareSideWithUnknownDimensionsIsTheSize() {
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 0, height: 200), 300)
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 200, height: -1), 300)
+    }
+
     // MARK: - Export
 
     func testServerFormatsKeepTheirBytes() {

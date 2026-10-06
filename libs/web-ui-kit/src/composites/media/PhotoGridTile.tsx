@@ -4,6 +4,7 @@ import type { PhotoItemKind } from './types';
 import { VideoMark } from './VideoMark';
 
 export interface PhotoGridTileProps {
+    /** Empty for an item the library could make no preview of: the tile is drawn bare. */
     src: string;
     /** A video draws its poster with a play mark and its length. Default `image`. */
     kind?: PhotoItemKind;
@@ -47,7 +48,8 @@ export const PhotoGridTile = ({
                 className
             )}
         >
-            <img src={src} alt="" className="size-full object-cover" draggable={false} />
+            {/* An empty `src` would make the browser fetch the page itself as an image. */}
+            {src && <img src={src} alt="" className="size-full object-cover" draggable={false} />}
             {kind === 'video' && <VideoMark durationMs={durationMs} />}
             {picked && <span aria-hidden className="absolute inset-0 bg-black/[0.52]" />}
             <span
