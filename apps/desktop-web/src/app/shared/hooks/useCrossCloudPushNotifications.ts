@@ -25,8 +25,8 @@ import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useS
  * Otherwise fall back to the server's own `channel?channelId=` link — best-effort, opens in the
  * current cloud only.
  *
- * No thread root: the server's push payload carries no `parentId` (chatic-socials-api
- * build-chat-push.ts), so a cross-cloud push for a reply can only open the channel until it does.
+ * No thread root: the server's push payload carries no `parentId`, so a cross-cloud push for a
+ * reply can only open the channel until it does.
  */
 const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, string>): string | undefined => {
     if (cloudId && data.channelId) {

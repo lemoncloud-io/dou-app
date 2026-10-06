@@ -11,7 +11,7 @@ const MY_UID = 'U-me';
  * silently changing what the case asserts.
  */
 type ChannelFields = Omit<Partial<DomainChannel>, '$join' | 'lastChat$'> & {
-    $join?: { chatNo?: number; joinedNo?: number; metaNo?: number };
+    $join?: { chatNo?: number; joinedNo?: number; metaNo?: number; userId?: string };
     lastChat$?: { stereo?: string; subType?: string; ownerId?: string };
 };
 
@@ -81,6 +81,40 @@ describe('computeChannelUnread', () => {
             $join: { chatNo: 3, metaNo: 0 },
         });
         expect(computeChannelUnread(ch, MY_UID)).toBe(0);
+    });
+
+    // Outside the relay a persisted message is owned by my per-channel cloud user id, which is not
+    // my account id — the channel's `$join.userId` carries it.
+    it('clears when my own latest message is owned by my cloud user id', () => {
+        const ch = channel({
+            chatNo: 12,
+            metaNo: 0,
+            lastChat$: { stereo: 'user', ownerId: 'cloud-me' },
+            $join: { chatNo: 3, metaNo: 0, userId: 'cloud-me' },
+        });
+        expect(computeChannelUnread(ch, MY_UID)).toBe(0);
+    });
+
+    it('does not clear when the latest message is another member of the same cloud', () => {
+        const ch = channel({
+            chatNo: 12,
+            metaNo: 0,
+            lastChat$: { stereo: 'user', ownerId: 'cloud-other' },
+            $join: { chatNo: 3, metaNo: 0, userId: 'cloud-me' },
+        });
+        expect(computeChannelUnread(ch, MY_UID)).toBe(9);
+    });
+
+    // A channel with no `$join` (not joined, or not yet synced) has no cloud id to match, so only
+    // the account id counts — the behavior before the cloud id was read.
+    it('does not treat a cloud-owned latest message as mine without a $join', () => {
+        const ch = channel({
+            chatNo: 12,
+            metaNo: 0,
+            unreadCount: 4,
+            lastChat$: { stereo: 'user', ownerId: 'cloud-me' },
+        });
+        expect(computeChannelUnread(ch, MY_UID)).toBe(4);
     });
 
     // My reaction is the head too, but reacting is not reading — the messages below it are
