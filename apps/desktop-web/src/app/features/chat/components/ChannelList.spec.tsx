@@ -1048,7 +1048,11 @@ describe('ChannelList place members without a 1:1', () => {
         { peerId: 'u-a', channelId: 'C1' },
         { peerId: 'u-new', channelId: 'C1' },
     ];
-    const renderWith = (props: { onStartDm?: (peerId: string) => void; query?: string }) =>
+    const renderWith = (props: {
+        onStartDm?: (peerId: string) => void;
+        query?: string;
+        startingPeerId?: string | null;
+    }) =>
         render(
             <ChannelList
                 channels={[general, dm]}
@@ -1059,6 +1063,7 @@ describe('ChannelList place members without a 1:1', () => {
                 isDefaultMode={false}
                 memberPeers={memberPeers}
                 onStartDm={props.onStartDm}
+                startingPeerId={props.startingPeerId}
             />,
             { wrapper }
         );
@@ -1112,6 +1117,58 @@ describe('ChannelList place members without a 1:1', () => {
         renderWith({});
 
         expect(screen.queryByText('Alice')).toBeNull();
+    });
+
+    // The row's visible text is only a name; a screen reader has to hear that pressing it starts a 1:1.
+    it('names each row for the 1:1 it starts', () => {
+        renderWith({ onStartDm: vi.fn() });
+
+        expect(screen.getByRole('button', { name: 'Start a direct message with Bob' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Start a direct message with Alice' })).toBeTruthy();
+    });
+
+    describe('while a 1:1 is starting', () => {
+        it('marks the starting row busy and shows progress on it only', () => {
+            renderWith({ onStartDm: vi.fn(), startingPeerId: 'u-b' });
+
+            const bob = screen.getByRole('button', { name: 'Start a direct message with Bob' });
+            const alice = screen.getByRole('button', { name: 'Start a direct message with Alice' });
+            expect(bob.getAttribute('aria-busy')).toBe('true');
+            expect(within(bob).getByRole('status')).toBeTruthy();
+            expect(alice.getAttribute('aria-busy')).toBeNull();
+            expect(within(alice).queryByRole('status')).toBeNull();
+        });
+
+        it('does not start another 1:1 from any person row, the starting one included', () => {
+            const onStartDm = vi.fn();
+            renderWith({ onStartDm, startingPeerId: 'u-b' });
+
+            fireEvent.click(screen.getByText('Bob'));
+            fireEvent.click(screen.getByText('Alice'));
+
+            expect(onStartDm).not.toHaveBeenCalled();
+        });
+
+        // A native `disabled` would drop the pressed row out of the tab order and lose its focus.
+        it('keeps every person row focusable for the arrow-key walk', () => {
+            renderWith({ onStartDm: vi.fn(), startingPeerId: 'u-b' });
+
+            const alice = screen.getByRole('button', { name: 'Start a direct message with Alice' });
+            expect(alice.hasAttribute('disabled')).toBe(false);
+            expect(alice.getAttribute('aria-disabled')).toBe('true');
+        });
+
+        it('shows no progress and starts normally once it is over', () => {
+            const onStartDm = vi.fn();
+            renderWith({ onStartDm, startingPeerId: null });
+
+            screen.getAllByRole('button', { name: /^Start a direct message with/ }).forEach(row => {
+                expect(within(row).queryByRole('status')).toBeNull();
+                expect(row.getAttribute('aria-busy')).toBeNull();
+            });
+            fireEvent.click(screen.getByText('Alice'));
+            expect(onStartDm).toHaveBeenCalledWith('u-a');
+        });
     });
 });
 
