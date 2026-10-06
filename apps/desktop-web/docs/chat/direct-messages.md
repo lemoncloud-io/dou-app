@@ -33,9 +33,14 @@ elsewhere.
 - **Everyone else in the place is listed too.** After the 1:1s, the section lists the place's
   members I have no 1:1 with there yet (`placeMemberPeers`, the same group-channel membership), by
   name. Clicking one starts the 1:1 through `useStartDm`, and the new room then takes the person's
-  place among the 1:1s. These rows have no room, so they cannot be dragged or starred, and a person
-  whose name has not loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the
-  members of a group channel they are in. Without them, a place where no one has a 1:1 with me
+  place among the 1:1s. Until the server answers, the clicked row shows a spinner and reads as
+  busy, and every person row ignores clicks (`aria-disabled`, not `disabled`, so the pressed row
+  keeps its focus for the arrow-key walk). `HomePage` keeps which row asked and passes it down with
+  the hook's `isStarting`; a failure is the hook's usual toast. Each row's accessible name says what
+  pressing it does — "Start a direct message with {name}" — since the visible text is only the name.
+  These rows have no room, so they cannot be dragged or starred, and a person whose name has not
+  loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the members of a group
+  channel they are in. Without them, a place where no one has a 1:1 with me
   showed an empty section.
 - **My notes-to-self room is listed in every place,** relay included. It belongs to the account and
   the server returns it whichever place is asked about. Two rules carry that: the sidebar lists a

@@ -62,6 +62,8 @@ interface ChannelListProps {
     memberPeers?: ReadonlyArray<{ peerId: string; channelId: string }>;
     /** Starts the 1:1 with one of `memberPeers`. Passed only where a 1:1 can be started. */
     onStartDm?: (peerId: string) => void;
+    /** The person whose 1:1 is being started, while one is: that row shows progress and every person row waits. */
+    startingPeerId?: string | null;
 }
 
 const ChannelSkeleton = () => {
@@ -275,29 +277,54 @@ const personAvatar = (seed: string, display: { name: string; thumbnail?: string 
     </Avatar>
 );
 
-/** A person of this place with no 1:1 yet. It reads like a 1:1 row and starts one when clicked. */
+/**
+ * A person of this place with no 1:1 yet. It reads like a 1:1 row and starts one when clicked.
+ * While any start is in flight (`blocked`) no person row starts another; the one being started
+ * (`starting`) also shows progress. `aria-disabled`, not `disabled`: a disabled button leaves the
+ * tab order, so the row just pressed would lose focus and the arrow-key walk would stop on it.
+ */
 const MemberRow = ({
     peerId,
     label,
     icon,
+    starting,
+    blocked,
     onStart,
 }: {
     peerId: string;
     label: string;
     icon: ReactNode;
+    starting: boolean;
+    blocked: boolean;
     onStart: (peerId: string) => void;
-}) => (
-    <button
-        type="button"
-        onClick={() => onStart(peerId)}
-        // Arrow keys walk every row through this attribute, 1:1s and people alike.
-        data-channel-row={`member:${peerId}`}
-        className="focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile hover:bg-accent"
-    >
-        <span className="flex shrink-0 items-center text-foreground">{icon}</span>
-        <span className="min-w-0 flex-1 truncate text-callout text-sidebar-foreground">{label}</span>
-    </button>
-);
+}) => {
+    const { t } = useTranslation();
+    return (
+        <button
+            type="button"
+            onClick={() => !blocked && onStart(peerId)}
+            aria-label={t('sidebar.startDm', { name: label })}
+            aria-busy={starting || undefined}
+            aria-disabled={blocked || undefined}
+            // Arrow keys walk every row through this attribute, 1:1s and people alike.
+            data-channel-row={`member:${peerId}`}
+            className={cn(
+                'focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
+                blocked ? 'cursor-default opacity-60' : 'hover:bg-accent'
+            )}
+        >
+            <span className="flex shrink-0 items-center text-foreground">{icon}</span>
+            <span className="min-w-0 flex-1 truncate text-callout text-sidebar-foreground">{label}</span>
+            {starting && (
+                <span
+                    role="status"
+                    aria-label={t('sidebar.startingDm')}
+                    className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none"
+                />
+            )}
+        </button>
+    );
+};
 
 /** A section header's "+" — the Channels and Direct messages sections share it. */
 const SectionAddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
@@ -327,6 +354,7 @@ export const ChannelList = ({
     onCreateDm,
     memberPeers,
     onStartDm,
+    startingPeerId,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
@@ -761,6 +789,8 @@ export const ChannelList = ({
                           peerId={peerId}
                           label={display.name}
                           icon={personAvatar(peerId, display)}
+                          starting={startingPeerId === peerId}
+                          blocked={!!startingPeerId}
                           onStart={peerId => onStartDm?.(peerId)}
                       />
                   ),

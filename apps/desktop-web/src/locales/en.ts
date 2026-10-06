@@ -312,6 +312,8 @@ export const en = {
     // Sidebar tombstone. Shorter than the feed's sentence on purpose — this slot
     // is one truncated line next to a channel name.
     'sidebar.deletedPreview': 'Message deleted',
+    'sidebar.startDm': 'Start a direct message with {{name}}',
+    'sidebar.startingDm': 'Opening the conversation',
     'sidebar.unread': 'Unread',
     'sidebar.unreadCount_one': '{{count}} unread message',
     'sidebar.unreadCount_other': '{{count}} unread messages',

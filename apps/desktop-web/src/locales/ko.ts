@@ -317,6 +317,8 @@ export const ko: EnTranslation = {
     'sidebar.notifications': '알림',
     'sidebar.noMatches': '검색과 일치하는 채널이 없어요',
     'sidebar.deletedPreview': '삭제된 메시지',
+    'sidebar.startDm': '{{name}}님과 1:1 대화 시작',
+    'sidebar.startingDm': '대화를 여는 중',
     'sidebar.unread': '안 읽음',
     'sidebar.unreadCount_one': '안 읽은 메시지 {{count}}개',
     'sidebar.unreadCount_other': '안 읽은 메시지 {{count}}개',

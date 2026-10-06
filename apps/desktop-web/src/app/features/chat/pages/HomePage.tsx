@@ -144,7 +144,9 @@ export const HomePage = () => {
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
-    const { isAvailable: canStartDm, startDm } = useStartDm();
+    const { isAvailable: canStartDm, startDm, isStarting } = useStartDm();
+    // Which sidebar person row asked for the 1:1 in flight; `isStarting` says whether it still is.
+    const [startingPeerId, setStartingPeerId] = useState<string | null>(null);
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const {
         threadRootId: openThreadRootId,
@@ -722,7 +724,15 @@ export const HomePage = () => {
                                 // with no place would only ever offer no one.
                                 onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
                                 memberPeers={memberPeers}
-                                onStartDm={canStartDm && !hasNoPlace ? peerId => void startDm(peerId) : undefined}
+                                onStartDm={
+                                    canStartDm && !hasNoPlace
+                                        ? peerId => {
+                                              setStartingPeerId(peerId);
+                                              void startDm(peerId);
+                                          }
+                                        : undefined
+                                }
+                                startingPeerId={isStarting ? startingPeerId : null}
                             />
                         </div>
                     </>
