@@ -84,7 +84,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     // chips are what the fold makes of them. The panel renders the same messages as the feed, so it
     // has to fold them too — from the UNFILTERED list, since `threadMessages` is exactly the set
     // with those events removed.
-    const reactions = useMemo(() => foldReactions(messages, viewer.uid), [messages, viewer.uid]);
+    const reactions = useMemo(() => foldReactions(messages, viewer), [messages, viewer]);
 
     // Resolve author names the same way as the chat pane: cached author names
     // first, channel roster as fallback (own messages name from the viewer).
