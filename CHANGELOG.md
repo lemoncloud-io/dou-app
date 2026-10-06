@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-06] - No version updates
+
+### Bug Fixes
+
+- (web/channels) let the page's files input pick HWP and HWPX on iOS, not only the other five
+
 ## [2026-10-02] - No version updates
 
 ### Bug Fixes
