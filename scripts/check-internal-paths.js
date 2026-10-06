@@ -19,8 +19,13 @@ const SCOPE = ['apps', 'libs', 'scripts', 'docs'];
 
 const { status, stdout } = spawnSync('git', ['grep', '-nE', PATTERN, '--', ...SCOPE], { cwd: ROOT, encoding: 'utf8' });
 
-if (status === 0) {
-    console.error(`${stdout}\nInternal path reference(s) above. Write the reasoning into the repo instead.`);
+// `git grep` exits 1 for "no match"; anything else (a match, or git failing to run) must not pass.
+if (status !== 1) {
+    console.error(
+        status === 0
+            ? `${stdout}\nInternal path reference(s) above. Write the reasoning into the repo instead.`
+            : `git grep did not run cleanly (exit ${status}).`
+    );
     process.exit(1);
 }
 console.log(`No internal path references under ${SCOPE.join(', ')}.`);
