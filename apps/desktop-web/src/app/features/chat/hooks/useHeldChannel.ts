@@ -20,8 +20,10 @@ export const useHeldChannel = (
 ): DomainChannel | undefined => {
     const [held, setHeld] = useState<DomainChannel | undefined>(resolved);
     useEffect(() => {
+        // A loaded list is the truth: what it lacks is gone, and must not come back with the next load.
         if (resolved) setHeld(resolved);
-    }, [resolved]);
+        else if (!listLoading) setHeld(undefined);
+    }, [resolved, listLoading]);
 
     if (resolved) return resolved;
     return listLoading && held && held.id === selectedChannelId ? held : undefined;

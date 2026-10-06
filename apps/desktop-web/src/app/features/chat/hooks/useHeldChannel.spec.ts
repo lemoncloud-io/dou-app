@@ -44,6 +44,17 @@ describe('useHeldChannel', () => {
         expect(result.current).toBeUndefined();
     });
 
+    it('does not bring back a channel the loaded list already lacked', () => {
+        const { result, rerender } = renderHeld({ resolved: channel('ch-1'), wantedId: 'ch-1', loading: false });
+
+        rerender({ resolved: undefined, wantedId: 'ch-1', loading: true });
+        rerender({ resolved: undefined, wantedId: 'ch-1', loading: false });
+        // The next load (another place switch) must not hand the gone channel's old object back.
+        rerender({ resolved: undefined, wantedId: 'ch-1', loading: true });
+
+        expect(result.current).toBeUndefined();
+    });
+
     it('never lends one channel to another selection', () => {
         const { result, rerender } = renderHeld({ resolved: channel('ch-1'), wantedId: 'ch-1', loading: false });
 
