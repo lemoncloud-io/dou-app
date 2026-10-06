@@ -159,8 +159,7 @@ describe('MessageList', () => {
     });
 
     // `blocks$` (server field) outranks the `content` JSON fallback above. Fixture is the
-    // server's own sample payload
-    // (resolveChatBlocks.spec.ts uses the same two files).
+    // shared webhook sample (resolveChatBlocks.spec.ts uses the same two constants).
     it('draws blocks$ ahead of content — header, sections and context all reach the DOM', () => {
         const withBlocksField = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
