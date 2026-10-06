@@ -11,6 +11,7 @@ import {
     isDndActive,
     isMentioned,
     isNotifiableChat,
+    isViewerId,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
@@ -77,8 +78,11 @@ export const useDesktopNotifications = (): void => {
         const cursor = useReadCursorStore.getState().cursors[channel.id] ?? 0;
         if (top <= cursor) return;
 
-        // ownerId is the author's global uid (same space as profile.uid). Don't notify my own.
-        if (chat.ownerId && chat.ownerId === myUidRef.current) return;
+        // Don't notify my own message. Optimistic copies carry my account id as the owner, but a
+        // persisted message outside the relay is owned by my per-channel cloud user id, so "mine"
+        // is either id — the same rule the message list and the mentions inbox use.
+        const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
+        if (isViewerId(chat.ownerId, viewer)) return;
 
         // Mentions-only channels: drop anything that doesn't @-mention me
         // (global profile name + this place's nick, plus @channel/@here).

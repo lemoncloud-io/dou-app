@@ -1,6 +1,11 @@
 import type { DomainChat } from '@chatic/data';
 
-import { isPlaceholderName, resolveDisplay } from '../../../shared/utils';
+import { isPlaceholderName, isViewerId, resolveDisplay, type MessageViewer } from '../../../shared/utils';
+
+// The viewer rule lives in shared (the mention inbox needs it too); chat code keeps importing it
+// from here.
+export { isViewerId };
+export type { MessageViewer };
 
 export interface MessageGroup {
     key: string;
@@ -36,38 +41,12 @@ export type MessageRowItem =
     | { kind: 'system'; key: string; chat: DomainChat; authorName: string }
     | { kind: 'group'; group: MessageGroup };
 
-/** Identity of the signed-in user, used to name their own (and optimistic) messages. */
-export interface MessageViewer {
-    uid: string | null;
-    name: string;
-    /**
-     * My per-channel cloud user id (`channel.$join.userId`). Optimistic messages
-     * carry my account id as `ownerId`, but the server rewrites it to this cloud
-     * id once the message persists — so both ids identify my own messages.
-     */
-    cloudUid?: string | null;
-    /**
-     * My account photo. A message read back from the cache carries no embedded
-     * `owner$.thumbnail`, so after a reload my own rows showed an initial while
-     * the rail showed my photo.
-     */
-    photo?: string;
-}
-
 /** Split a run of same-author messages when they are more than this far apart. */
 const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 
 // A blank or UUID-style name (guest auto-name) is not a real name — treat it as
 // unresolved so it never shows, falling back to "You" / the roster / a skeleton.
 const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
-
-// An id is "mine" when it matches either my account id (optimistic messages carry it)
-// or my per-channel cloud user id (the server rewrites the owner to this once the
-// message persists) — so my own rows stay identified across the optimistic→persisted
-// swap. Every surface that asks "is this me" goes through here; the rule is subtle
-// enough that a second copy would drift.
-export const isViewerId = (userId: string | undefined, viewer: MessageViewer): boolean =>
-    (!!viewer.uid && userId === viewer.uid) || (!!viewer.cloudUid && userId === viewer.cloudUid);
 
 export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean => isViewerId(chat.ownerId, viewer);
 
