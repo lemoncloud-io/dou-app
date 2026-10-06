@@ -52,6 +52,53 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({ 'too-large': 2 });
     });
 
+    // The server refuses a name over 255 UTF-8 bytes with a 400; a retry can only fail the same way.
+    describe('a name over the server’s byte limit', () => {
+        it('refuses a long Hangul name that fits in characters', () => {
+            const name = `${'가'.repeat(84)}.png`;
+            expect(name.length).toBeLessThan(255);
+            const result = validateAttachments([], [file(name), file('a.png')]);
+            expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
+            expect(result.rejected).toEqual({ 'name-too-long': 1 });
+        });
+
+        it('allows exactly 255 bytes and refuses 256, for ASCII, Hangul and emoji', () => {
+            const ok = [`${'a'.repeat(251)}.png`, `${'가'.repeat(83)}ab.png`, `${'😀'.repeat(62)}abc.png`];
+            const long = [`${'a'.repeat(252)}.png`, `${'가'.repeat(83)}abc.png`, `${'😀'.repeat(62)}abcd.png`];
+            expect(
+                validateAttachments(
+                    [],
+                    ok.map(name => file(name))
+                ).rejected
+            ).toEqual({});
+            const result = validateAttachments(
+                [],
+                long.map(name => file(name))
+            );
+            expect(result.accepted).toEqual([]);
+            expect(result.rejected).toEqual({ 'name-too-long': 3 });
+        });
+
+        // The name that goes up carries the extension a document without one is given.
+        it('measures the name as it is sent, with an added extension', () => {
+            const pdf = (name: string) => file(name, 'application/pdf');
+            expect(validateAttachments([], [pdf('a'.repeat(251))]).rejected).toEqual({});
+            expect(validateAttachments([], [pdf('a'.repeat(252))]).rejected).toEqual({ 'name-too-long': 1 });
+        });
+
+        it('measures a decomposed name composed, as the server does', () => {
+            const name = `${'가'.repeat(83)}.png`.normalize('NFD');
+            expect(validateAttachments([], [file(name)]).rejected).toEqual({});
+        });
+
+        it('does not take a place in the tray', () => {
+            const existing = Array.from({ length: MAX_ATTACHMENTS - 1 }, (_, i) => `k${i}`);
+            const result = validateAttachments(existing, [file(`${'가'.repeat(90)}.png`), file('a.png')]);
+            expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
+            expect(result.rejected).toEqual({ 'name-too-long': 1 });
+        });
+    });
+
     // A re-pick of a file already in the tray, and the same file twice in one drop.
     it('refuses duplicates against the tray and within the batch', () => {
         const a = file('a.png');

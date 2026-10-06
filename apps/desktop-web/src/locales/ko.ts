@@ -165,6 +165,10 @@ export const ko: EnTranslation = {
         '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서는 {{file}}까지 보낼 수 있어요.',
     'chat.attach.rejected.too-large_other':
         '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서는 {{file}}까지 보낼 수 있어요.',
+    'chat.attach.rejected.name-too-long_one':
+        '파일 이름이 너무 길어 {{count}}개는 추가하지 않았어요. 이름을 줄여서 다시 시도해 주세요.',
+    'chat.attach.rejected.name-too-long_other':
+        '파일 이름이 너무 길어 {{count}}개는 추가하지 않았어요. 이름을 줄여서 다시 시도해 주세요.',
     'chat.thread.close': '스레드 닫기',
     'chat.thread.replyAction': '스레드에 답글 달기',
     'chat.thread.replyCount_one': '답글 {{count}}개',

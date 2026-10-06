@@ -153,6 +153,10 @@ export const en = {
         '{{count}} file was too large. Images can be up to {{image}}, videos {{video}} and documents {{file}}.',
     'chat.attach.rejected.too-large_other':
         '{{count}} files were too large. Images can be up to {{image}}, videos {{video}} and documents {{file}}.',
+    'chat.attach.rejected.name-too-long_one':
+        "{{count}} file wasn't added because its name is too long. Shorten the name and try again.",
+    'chat.attach.rejected.name-too-long_other':
+        "{{count}} files weren't added because their names are too long. Shorten the names and try again.",
     'chat.thread.close': 'Close thread',
     'chat.thread.replyAction': 'Reply in thread',
     'chat.thread.replyCount_one': '{{count}} reply',

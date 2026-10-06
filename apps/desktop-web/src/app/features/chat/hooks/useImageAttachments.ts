@@ -27,7 +27,7 @@ export interface ComposerAttachment extends ChatImage {
 
 let nextId = 0;
 
-const REASONS = ['limit', 'duplicate', 'unsupported', 'too-large'] as const;
+const REASONS = ['limit', 'duplicate', 'unsupported', 'too-large', 'name-too-long'] as const;
 
 /**
  * The composer's attachment tray: add (pick / drop / paste), remove, clear.
