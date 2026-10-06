@@ -25,6 +25,12 @@ const RECENT_TILE = 90;
 const COVER_TILE = 64;
 /** One page of the grid. Pages by offset start at multiples of it, so a page is also an index. */
 export const PAGE_SIZE = 60;
+/**
+ * How many pages either side of the visible ones keep their previews, on a list laid out by offset.
+ * Two is about seven screens at three columns — a scroll back over that is drawn from memory — and
+ * caps what the grid holds at a few hundred previews however far it has been scrolled.
+ */
+export const KEEP_PAGES = 2;
 
 export interface PhotoPicker {
     /**
@@ -161,6 +167,31 @@ export const pageToLoad = ({
 };
 
 /**
+ * The pages whose previews are kept: the ones the visible range touches and `keep` either side, as
+ * `[first, last]`, clamped to the list. Previews of every other page are let go — their positions stay
+ * laid out, and the page is asked for again when it comes back into view.
+ */
+export const keptPages = ({
+    range,
+    total,
+    keep = KEEP_PAGES,
+    pageSize = PAGE_SIZE,
+}: {
+    range: PhotoGridRange;
+    total: number;
+    keep?: number;
+    pageSize?: number;
+}): { first: number; last: number } => {
+    const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+    const start = Math.max(0, Math.min(range.start, total));
+    const end = Math.max(start + 1, Math.min(range.end, total));
+    return {
+        first: Math.max(0, Math.floor(start / pageSize) - keep),
+        last: Math.min(lastPage, Math.floor((end - 1) / pageSize) + keep),
+    };
+};
+
+/**
  * The in-app photo picker's state: what the attach menu previews, which album the grid shows and which
  * of it has loaded, and what is picked. The library itself is read through the shell (`photoLibrary`);
  * this hook only holds what the screen needs of it.
@@ -170,6 +201,10 @@ export const pageToLoad = ({
  * first answer and any stretch of it can be filled directly — which is what lets a fast-scroll jump to
  * the far end of a long album without paging through it. An older app pages by cursor and the grid
  * grows as it scrolls, as it always did.
+ *
+ * On a list laid out by offset, previews of pages far from the visible range are let go as new pages
+ * land (`keptPages`): a long scroll would otherwise keep every preview it passed. An older app's list
+ * keeps them — its pages can only be asked for in order, and its previews are the small ones.
  *
  * `max` caps the pick — the per-message image limit, passed in so the grid and the send agree on it.
  * `columns` is the grid's column count, used to size the first page's previews before the grid has
@@ -195,6 +230,9 @@ export const usePhotoPicker = ({
     const [albums, setAlbums] = useState<PhotoAlbum[]>([]);
     const [album, setAlbum] = useState<{ id?: string; title: string }>({ title: allTitle });
     const [slots, setSlots] = useState<(Slot | undefined)[]>([]);
+    // The same positions, for the page loop: eviction needs the ids of the pages it keeps the moment a
+    // page lands, before the state carrying them has rendered.
+    const slotsRef = useRef<(Slot | undefined)[]>([]);
     const [thumbs, setThumbs] = useState<ReadonlyMap<string, string>>(new Map());
     const [picked, setPicked] = useState<PhotoItem[]>([]);
     const [preparing, setPreparing] = useState(false);
@@ -253,6 +291,7 @@ export const usePhotoPicker = ({
         nextRef.current = undefined;
         loadedRef.current = new Map();
         loadingRef.current = false;
+        slotsRef.current = [];
         setSlots([]);
         setThumbs(new Map());
         return ++albumTokenRef.current;
@@ -287,14 +326,31 @@ export const usePhotoPicker = ({
         layoutRef.current = 'offset';
         slotCountRef.current = page.total;
         if (page.offset === requested) loadedRef.current.set(Math.floor(requested / PAGE_SIZE), size);
-        setSlots(previous => {
-            const next = changed ? new Array<Slot | undefined>(page.total) : previous.slice();
-            page.items.forEach((item, i) => {
-                if (page.offset + i < next.length) next[page.offset + i] = toSlot(item);
-            });
-            return next;
+        const next = changed ? new Array<Slot | undefined>(page.total) : slotsRef.current.slice();
+        page.items.forEach((item, i) => {
+            if (page.offset + i < next.length) next[page.offset + i] = toSlot(item);
         });
-        addThumbs(page.items);
+        slotsRef.current = next;
+        setSlots(next);
+
+        // Let go of the previews far from what is on screen, and forget those pages were loaded so they
+        // are asked for again when they come back. Kept by id: whatever sits in the kept pages now —
+        // which, after a count change, still holds the previews placed before it.
+        const { first, last } = keptPages({ range: rangeRef.current, total: page.total });
+        for (const loadedPage of [...loadedRef.current.keys()]) {
+            if (loadedPage < first || loadedPage > last) loadedRef.current.delete(loadedPage);
+        }
+        const keep = new Set<string>();
+        for (let i = first * PAGE_SIZE; i < Math.min(next.length, (last + 1) * PAGE_SIZE); i += 1) {
+            const id = next[i]?.id;
+            if (id) keep.add(id);
+        }
+        setThumbs(previous => {
+            const kept = new Map<string, string>();
+            for (const [id, src] of previous) if (keep.has(id)) kept.set(id, src);
+            for (const item of page.items) if (keep.has(item.id)) kept.set(item.id, thumbOf(item));
+            return kept;
+        });
     };
 
     const placeByCursor = (page: OnListPhotosPayload, append: boolean) => {
@@ -302,7 +358,8 @@ export const usePhotoPicker = ({
         nextRef.current = page.next;
         slotCountRef.current = (append ? slotCountRef.current : 0) + page.items.length;
         const added = page.items.map(toSlot);
-        setSlots(previous => (append ? [...previous, ...added] : added));
+        slotsRef.current = append ? [...slotsRef.current, ...added] : added;
+        setSlots(slotsRef.current);
         addThumbs(page.items);
     };
 

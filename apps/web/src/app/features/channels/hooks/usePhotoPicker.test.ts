@@ -3,7 +3,14 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { OnListPhotosPayload } from '@chatic/app-messages';
 
 import type { PhotoLibrary } from '../../../bridge/photoLibrary';
-import { needsSharperThumbs, PAGE_SIZE, pageToLoad, usePhotoPicker, type PickedFromGrid } from './usePhotoPicker';
+import {
+    keptPages,
+    needsSharperThumbs,
+    PAGE_SIZE,
+    pageToLoad,
+    usePhotoPicker,
+    type PickedFromGrid,
+} from './usePhotoPicker';
 
 jest.mock('../../../bridge/photoLibrary', () => ({
     photoLibrary: {},
@@ -307,6 +314,60 @@ describe('usePhotoPicker', () => {
         expect(photos.mock.calls.map(([request]) => request.offset)).toEqual([0, 120, 60]);
     });
 
+    // A long scroll must not keep every preview it passed: far pages let theirs go and come back on view.
+    it('lets go of previews far from the screen and asks for them again when they come back', async () => {
+        const photos = jest.fn(async ({ offset = 0 }: { offset?: number }) => offsetPage(offset, 3000));
+        const { result } = setup(fakeLibrary({ photos }));
+        act(() => result.current.openGrid());
+        await waitFor(() => expect(result.current.photoAt(0)?.src).toBe('data:t0'));
+
+        await act(async () => result.current.setVisibleRange({ start: 2400, end: 2430, thumbSize: 400 }));
+        await waitFor(() => expect(result.current.photoAt(2400)?.src).toBe('data:t2400'));
+
+        // Page 0 is far from page 40: its photos keep their place, without a preview.
+        expect(result.current.count).toBe(3000);
+        expect(result.current.photoAt(0)).toEqual({ id: 'p0', src: '' });
+
+        await act(async () => result.current.setVisibleRange({ start: 0, end: 30, thumbSize: 400 }));
+        await waitFor(() => expect(result.current.photoAt(0)?.src).toBe('data:t0'));
+        expect(photos.mock.calls.map(([request]) => request.offset)).toEqual([0, 2400, 0]);
+        // And page 40 has gone in its turn.
+        expect(result.current.photoAt(2400)).toEqual({ id: 'p2400', src: '' });
+    });
+
+    it('keeps the previews of nearby pages, so a short scroll back asks for nothing', async () => {
+        const photos = jest.fn(async ({ offset = 0 }: { offset?: number }) => offsetPage(offset, 3000));
+        const { result } = setup(fakeLibrary({ photos }));
+        act(() => result.current.openGrid());
+        await waitFor(() => expect(result.current.count).toBe(3000));
+
+        await act(async () => result.current.setVisibleRange({ start: 120, end: 150, thumbSize: 400 }));
+        await waitFor(() => expect(result.current.photoAt(120)?.src).toBe('data:t120'));
+        await act(async () => result.current.setVisibleRange({ start: 0, end: 30, thumbSize: 400 }));
+
+        expect(result.current.photoAt(0)?.src).toBe('data:t0');
+        expect(photos).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps every preview on an app that pages by cursor, which cannot ask for a page again', async () => {
+        const photos = jest
+            .fn()
+            .mockResolvedValueOnce(
+                page(
+                    Array.from({ length: 60 }, (_, i) => `a${i}`),
+                    'c1'
+                )
+            )
+            .mockResolvedValue(page(Array.from({ length: 60 }, (_, i) => `b${i}`)));
+        const { result } = setup(fakeLibrary({ photos }));
+        act(() => result.current.openGrid());
+        await waitFor(() => expect(result.current.count).toBe(120));
+        await act(async () => result.current.setVisibleRange({ start: 110, end: 120, thumbSize: 400 }));
+
+        expect(result.current.photoAt(0)?.src).toBe('data:a0');
+        expect(result.current.photoAt(119)?.src).toBe('data:b59');
+    });
+
     it('asks nothing while the grid is closed', async () => {
         const library = fakeLibrary();
         const { result } = setup(library);
@@ -566,5 +627,21 @@ describe('needsSharperThumbs', () => {
         expect(needsSharperThumbs(400, 481)).toBe(true);
         expect(needsSharperThumbs(0, 400)).toBe(true);
         expect(needsSharperThumbs(400, undefined)).toBe(false);
+    });
+});
+
+describe('keptPages', () => {
+    it('keeps the visible pages and two either side', () => {
+        expect(keptPages({ range: { start: 600, end: 640 }, total: 3000 })).toEqual({ first: 8, last: 12 });
+    });
+
+    it('stops at either end of the list', () => {
+        expect(keptPages({ range: { start: 0, end: 30 }, total: 3000 })).toEqual({ first: 0, last: 2 });
+        expect(keptPages({ range: { start: 2990, end: 3000 }, total: 3000 })).toEqual({ first: 47, last: 49 });
+    });
+
+    it('keeps the first page of an empty or not yet measured range', () => {
+        expect(keptPages({ range: { start: 0, end: 0 }, total: 3000 })).toEqual({ first: 0, last: 2 });
+        expect(keptPages({ range: { start: 0, end: 60 }, total: 0 })).toEqual({ first: 0, last: 0 });
     });
 });

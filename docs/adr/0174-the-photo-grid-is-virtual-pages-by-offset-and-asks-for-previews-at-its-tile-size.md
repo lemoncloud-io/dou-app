@@ -54,8 +54,11 @@ things it does not know.
 4. **The grid is virtual.** It is laid out at full height from `total` and renders the rows on screen
    plus four either side. The host gets told which photo indices those rows show. It asks for the
    60-photo pages that cover them one request at a time, nearest the middle first. Positions with no
-   data yet draw as empty tiles. The hook holds ids per position apart from previews by id, so previews
-   can be released later without losing the layout. They are not released yet. A `total` that changes
+   data yet draw as empty tiles. The hook holds ids per position apart from previews by id. As each
+   page lands, the previews of pages more than two from the visible ones are released and those pages
+   forgotten, so they are asked for again on the way back; the positions stay laid out. An older app's
+   cursor list keeps its previews: its pages can only come in order, and they are the small ones. A
+   `total` that changes
    between pages means the library changed: the layout is remade and the pages on screen are asked for
    again.
 5. **The title row and the picked strip are fixed.** The limited-access notice and the grid scroll in
@@ -81,9 +84,12 @@ things it does not know.
 - **A preview page is heavier.** A 400 px square holds about 3.3 times the pixels of a 256 × 192
   preview, at a higher quality, and its base64 string grows with it. ADR-0123 counted a page of 60
   as a few hundred KB over the bridge; it is now several MB. Virtualization bounds the decoded
-  bitmaps to what is on screen. It does not bound the strings held in state: an album scrolled end
-  to end keeps every preview it loaded. Releasing them is left for when a measurement says it is
-  needed. The id/preview split exists so that can be done without touching the layout.
+  bitmaps to what is on screen, and releasing far pages bounds the strings to a few hundred previews.
+  The first measurement, before the release, showed why it is needed: an album scrolled end to end
+  kept every preview it loaded and ended up where the unvirtualized grid did.
+- **Scrolling back past two pages asks again.** A page released on the way down is an empty tile on
+  the way back until it is fetched once more, about a page per round trip. Keeping more pages would
+  hide that for longer scrolls, at the memory this release exists to save.
 - **Offsets give up the cursor's guarantee.** A photo taken between two pages shifts every index after
   it. `total` catches an addition or a deletion. An addition and a deletion between the same two pages
   leave the count equal and can show one photo twice or miss one until the grid is reopened. Picks are

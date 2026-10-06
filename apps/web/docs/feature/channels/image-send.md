@@ -135,9 +135,11 @@ same title row.
 
 **A virtual grid, paged by position.** `PhotoGridSheet` renders only the rows on screen and four either
 side, and tells the hook which photos those are (`onVisibleRangeChange`). The hook keeps two things
-apart: which photo sits at each position (ids, small) and the previews (base64, by id), so the previews
-of a stretch long scrolled past can be let go later without losing the layout — they are not let go
-yet. Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of
+apart: which photo sits at each position (ids, small) and the previews (base64, by id). As each page
+lands, the previews of pages more than two away from the visible ones (`keptPages`) are let go and
+those pages forgotten, so a long scroll holds a few hundred previews rather than every one it passed;
+the positions stay laid out, and a page scrolled back to is asked for again. A list paged by cursor
+(an older app) keeps its previews: its pages cannot be asked for out of order, and they are small. Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of
 the range first: a fast-scroll drag passes many pages, and only the one it stops on is still wanted.
 The first answer carries the album's `total`, so the grid is its full height from the start and any
 stretch of it can be filled directly. A position whose page has not come is an empty tile; so is a photo
