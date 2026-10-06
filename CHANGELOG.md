@@ -2,6 +2,15 @@
 
 ## [2026-10-06] - No version updates
 
+### Features
+
+- (web,web-ui-kit) pick videos from the photo grid and draw the first frame of a posterless video
+- (mobile) list library videos, keep a picked one, and read a received video's frame (ADR-0171)
+- (shared,app-runtime) send a browser-picked video with a poster the browser draws (ADR-0172)
+- (app-messages,bridges) add grid videos and received-video frames to the bridge contract
+
+## [2026-10-06] - No version updates
+
 ### Bug Fixes
 
 - (app-runtime,web) switch the session back to the selected place (ADR-0170)
