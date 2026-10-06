@@ -32,8 +32,15 @@ export interface ChatRefreshResult {
     total: number;
 }
 
+/**
+ * Feed query plus the desktop opt-in `includeUnsent`: `chat_no: 0` rows (sending / failed) sort
+ * lowest in the pagination index, so a newest-N page drops them unless the reader asks for them.
+ * Read by the local source and the query executor; the socket request never carries it.
+ */
+export type ChatObserveQuery = ChatFeedInput & { includeUnsent?: boolean };
+
 export interface IChatRepository extends DisposableRepository {
-    observeList(query: ChatFeedInput, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
+    observeList(query: ChatObserveQuery, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
     observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
     refreshList(query: ChatFeedInput): Promise<ChatRefreshResult>;
@@ -119,7 +126,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     }
 
     public observeList(
-        query: ChatFeedInput,
+        query: ChatObserveQuery,
         callback: (result: DomainListResult<DomainChat> | null) => void
     ): () => void {
         return this.chatLocalDataSource.observeList(query, callback, this.getRepositoryContext());
