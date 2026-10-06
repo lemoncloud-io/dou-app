@@ -2,6 +2,12 @@
 
 ## [2026-10-06] - No version updates
 
+### Bug Fixes
+
+- (app-runtime) drop the selected place when an invite re-enters the current cloud
+
+## [2026-10-06] - No version updates
+
 ### Features
 
 - (bridges,perf,web) time sampled bridge requests before splitting the bridge (ADR-0167)
