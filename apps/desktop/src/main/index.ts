@@ -20,6 +20,7 @@ import {
     Tray,
 } from 'electron';
 import { resolveAppLanguage } from './appLanguage';
+import { bringToFront } from './bringToFront';
 import { menuLabels } from './menuLabels';
 import {
     applyCustomUi,
@@ -191,8 +192,7 @@ let mainHost: AppBridgeHost | null = null;
 const openInWeb = (target: 'settings' | 'shortcuts' | 'switcher' | 'search'): void => {
     const win = trayWindow;
     if (win && !win.isDestroyed()) {
-        win.show();
-        win.focus();
+        bringToFront(win);
     }
     if (mainHost) pushDeeplink(mainHost, `chatic-ui:${target}`);
 };
@@ -229,9 +229,7 @@ const showOsNotification = (
     if (Notification.isSupported()) {
         const notification = new Notification({ title, body });
         notification.on('click', () => {
-            if (win.isMinimized()) win.restore();
-            win.show();
-            win.focus();
+            bringToFront(win);
             if (deeplink) pushDeeplink(host, deeplink);
         });
         notification.show();
@@ -492,7 +490,7 @@ const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => 
 
 const buildTrayMenu = (win: BrowserWindow): Menu =>
     Menu.buildFromTemplate([
-        { label: 'Open DoU', click: () => (win.isVisible() ? win.focus() : win.show()) },
+        { label: 'Open DoU', click: () => bringToFront(win) },
         ...customUiTrayItems(win),
         { type: 'separator' },
         {
@@ -529,7 +527,7 @@ const createTray = (win: BrowserWindow): void => {
     trayWindow = win;
     tray.setToolTip('DoU');
     tray.setContextMenu(buildTrayMenu(win));
-    tray.on('click', () => (win.isVisible() ? win.focus() : win.show()));
+    tray.on('click', () => bringToFront(win));
 };
 
 // Minimal dark splash (matches the app's rail chrome + lime accent) shown until
@@ -1024,9 +1022,7 @@ let powerResumeBound = false;
 
 const handleDeeplink = (url: string): void => {
     if (deeplinkHost && deeplinkWindow) {
-        if (deeplinkWindow.isMinimized()) deeplinkWindow.restore();
-        deeplinkWindow.show();
-        deeplinkWindow.focus();
+        bringToFront(deeplinkWindow);
         pushDeeplink(deeplinkHost, url);
     } else {
         pendingDeeplink = url;
@@ -1051,7 +1047,7 @@ if (!singleInstanceLock) {
     app.on('second-instance', (_event, argv) => {
         const url = extractDeeplink(argv);
         if (url) handleDeeplink(url);
-        else if (deeplinkWindow) deeplinkWindow.show();
+        else if (deeplinkWindow) bringToFront(deeplinkWindow);
     });
 
     // macOS: deeplink arrives via open-url.
@@ -1127,8 +1123,7 @@ if (!singleInstanceLock) {
             }
             // Close-to-tray hides (does not destroy) the window, so it still counts
             // in getAllWindows — a macOS dock-icon click must explicitly reshow it.
-            if (!existing.isVisible()) existing.show();
-            existing.focus();
+            bringToFront(existing);
         });
     });
 
