@@ -2,6 +2,12 @@
 
 ## [2026-10-06] - No version updates
 
+### Features
+
+- (web,adr) take international numbers in the cloud invite, not korean ones only (ADR-0168)
+
+## [2026-10-06] - No version updates
+
 ### Bug Fixes
 
 - (app-runtime) drop the selected place when an invite re-enters the current cloud
