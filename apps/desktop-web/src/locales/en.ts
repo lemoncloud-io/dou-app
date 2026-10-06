@@ -47,6 +47,9 @@ export const en = {
     'auth.social.failedTitle': 'Sign-in failed',
     'auth.social.failed': "We couldn't complete the sign-in. Please try again.",
     'auth.social.backToWelcome': 'Back to start',
+    'auth.social.notStarted':
+        "That sign-in link didn't come from a sign-in started here, so it was ignored. Start again from DoU.",
+    'auth.social.expired': 'That sign-in took too long and has expired. Start again from DoU.',
     'profile.signInGoogle': 'Sign in with Google',
     'profile.signInGoogleHint': 'Use your account across devices. Replaces this guest session.',
     'welcome.title': 'Welcome to DoU',
