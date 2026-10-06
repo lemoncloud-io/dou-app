@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
     rows: [] as Row[],
     prime: 'pending' as 'pending' | 'ready' | 'failed',
     isVerified: true,
+    cloudId: 'cloud-a',
     retryPrime: vi.fn(),
     emit: (_rows: Row[]) => undefined,
 }));
@@ -26,7 +27,10 @@ vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
-        session: { useSessionIdentity: () => ({ userId: 'me' }) },
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionSelection: () => ({ selectedCloudId: state.cloudId }),
+        },
         connection: { useRuntimeSocketState: () => ({ isVerified: state.isVerified }) },
         sync: { useChatSync: () => ({ prime: state.prime, retryPrime: state.retryPrime }) },
     },
@@ -235,6 +239,7 @@ describe('useChats window depth', () => {
         state.prime = 'ready';
         refreshList.mockReset().mockResolvedValue({ fetchedCount: 50 });
         observeList.mockClear();
+        state.cloudId = 'cloud-a';
     });
 
     const lastLimit = () => (observeList.mock.calls.at(-1)?.[0] as { limit: number }).limit;
@@ -262,5 +267,23 @@ describe('useChats window depth', () => {
         renderHook(() => useChats('C-panel'));
 
         expect(lastLimit()).toBe(50);
+    });
+
+    // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
+    // so the remembered window cannot be keyed by uid and channel alone: a short channel in one cloud that
+    // ran out of history would tell the same-named channel of another cloud there is nothing older.
+    it('does not carry a window from the same channel id in another cloud', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 0 });
+        const inA = renderHook(() => useChats('C-self'));
+        await act(async () => {
+            await inA.result.current.loadOlder();
+        });
+        expect(inA.result.current.hasMore).toBe(false);
+        inA.unmount();
+
+        state.cloudId = 'cloud-b';
+        const inB = renderHook(() => useChats('C-self'));
+
+        expect(inB.result.current.hasMore).toBe(true);
     });
 });

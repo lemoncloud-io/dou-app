@@ -64,15 +64,18 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     const { persist = true } = options;
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     // Part of the cache observer's scope key ({cid, uid}); channel ids are per-cloud and
-    // collide across clouds, so uid is what keeps the feed bound to the right partition.
+    // collide across clouds, so the feed is bound to the right partition by both.
     const { userId: myUid } = runtime.session.useSessionIdentity();
+    // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
+    // so uid and channel id alone may not name a room. The cloud is the third part.
+    const { selectedCloudId } = runtime.session.useSessionSelection();
 
     const { prime, retryPrime } = runtime.sync.useChatSync(channelId ?? undefined);
     const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // Memo/reset key, not just the channel id: the same id names different channels in
-    // different clouds, and uid is what separates their cache partitions.
-    const scopeKey = channelId ? `${myUid ?? ''}:${channelId}` : null;
+    // different clouds (and uid alone does not tell the clouds apart).
+    const scopeKey = channelId ? `${selectedCloudId ?? 'default'}:${myUid ?? ''}:${channelId}` : null;
     const initial = scopeKey ? channelMemo.get(scopeKey) : undefined;
     const [chats, setChats] = useState<DomainChat[]>([]);
     const [isLoading, setIsLoading] = useState(true);
