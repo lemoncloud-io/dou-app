@@ -94,3 +94,52 @@ describe('NativeBridgeAdapter — 로깅 경로 제약', () => {
         });
     });
 });
+
+/**
+ * The lengths are what request timing reads its sizes from. They come from the string the adapter
+ * already holds, so a measured run does not serialize a payload twice.
+ */
+describe('NativeBridgeAdapter payload lengths', () => {
+    beforeEach(() => {
+        delete (window as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+        delete (window as { ChaticMessageHandler?: unknown }).ChaticMessageHandler;
+        delete (window as { webkit?: unknown }).webkit;
+    });
+
+    afterAll(() => {
+        delete (window as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+    });
+
+    it('returns the length of the string it sent', () => {
+        const sent: string[] = [];
+        (window as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+            postMessage: (message: string) => sent.push(message),
+        };
+
+        const length = new NativeBridgeAdapter().postMessage({ type: 'Ping', data: { payload: 'hi' } } as never);
+
+        expect(sent).toHaveLength(1);
+        expect(length).toBe(sent[0].length);
+    });
+
+    it('returns nothing when there was no interface to send through', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+
+        const length = new NativeBridgeAdapter().postMessage({ type: 'Ping' } as never);
+
+        expect(length).toBeUndefined();
+        warn.mockRestore();
+    });
+
+    it('passes the raw inbound length beside the decoded message', () => {
+        const adapter = new NativeBridgeAdapter();
+        const received: Array<{ type: string; length?: number }> = [];
+        const off = adapter.onMessage((message, meta) => received.push({ type: message.type, length: meta?.length }));
+        const raw = JSON.stringify({ type: 'OnPing', refId: 'r1', success: true, data: {} });
+
+        window.dispatchEvent(new MessageEvent('message', { data: raw }));
+        off();
+
+        expect(received).toEqual([{ type: 'OnPing', length: raw.length }]);
+    });
+});

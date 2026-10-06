@@ -438,3 +438,191 @@ describe('WebBridgeClient Buffering & Detection', () => {
         });
     });
 });
+
+describe('WebBridgeClient request observer', () => {
+    let clock: number;
+    let mockAdapter: jest.Mocked<BridgeAdapter>;
+    let reply: (message: ResponseMessage, length?: number) => void;
+
+    const sentRefIds = () => mockAdapter.postMessage.mock.calls.map(call => (call[0] as { refId: string }).refId);
+
+    const createClient = (options: { timeoutMs?: number } = {}) => {
+        const client = new WebBridgeClient({ adapter: mockAdapter, now: () => clock, ...options });
+        const onMessage = mockAdapter.onMessage.mock.calls[0][0];
+        reply = (message, length) => onMessage(message, length === undefined ? undefined : { length });
+        return client;
+    };
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        clock = 1000;
+        mockAdapter = {
+            postMessage: jest.fn().mockReturnValue(42),
+            onMessage: jest.fn(),
+        } as any;
+        (window as any).ReactNativeWebView = { postMessage: jest.fn() };
+    });
+
+    afterEach(() => {
+        delete (window as any).ReactNativeWebView;
+        jest.useRealTimers();
+    });
+
+    it('reports a resolved request with its round trip and both payload lengths', async () => {
+        const client = createClient();
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        clock += 30;
+        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} }, 512);
+        await promise;
+
+        expect(observer).toHaveBeenCalledWith({
+            type: 'Ping',
+            outcome: 'ok',
+            queuedMs: 0,
+            roundTripMs: 30,
+            requestLength: 42,
+            responseLength: 512,
+            inFlightAtDispatch: 0,
+        });
+    });
+
+    it('separates the time a request waited for the channel from its round trip', async () => {
+        delete (window as any).ReactNativeWebView;
+        const client = createClient();
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        clock += 200;
+        (window as any).ReactNativeWebView = { postMessage: jest.fn() };
+        jest.advanceTimersByTime(50);
+        clock += 10;
+        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} });
+        await promise;
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ queuedMs: 200, roundTripMs: 10 }));
+    });
+
+    it('counts the requests already waiting for a reply when one leaves', async () => {
+        const client = createClient();
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        const first = client.request({ type: 'Ping', data: { payload: '1' } });
+        const second = client.request({ type: 'Ping', data: { payload: '2' } });
+        const [firstRef, secondRef] = sentRefIds();
+        reply({ type: 'Pong' as any, refId: firstRef, success: true, data: {} });
+        reply({ type: 'Pong' as any, refId: secondRef, success: true, data: {} });
+        await Promise.all([first, second]);
+
+        expect(observer.mock.calls.map(call => call[0].inFlightAtDispatch)).toEqual([0, 1]);
+    });
+
+    it('reports a timeout without a response length', async () => {
+        const client = createClient({ timeoutMs: 1000 });
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        clock += 1000;
+        jest.advanceTimersByTime(1000);
+
+        await expect(promise).rejects.toMatchObject({ code: 'TIMEOUT' });
+        expect(observer).toHaveBeenCalledWith(
+            expect.objectContaining({ outcome: 'TIMEOUT', roundTripMs: 1000, responseLength: undefined })
+        );
+    });
+
+    it('reports the host error code and a response type mismatch as outcomes', async () => {
+        const client = createClient();
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        const failed = client.request({ type: 'Ping', data: { payload: '1' } });
+        const mismatched = client.request({ type: 'Ping', data: { payload: '2' } });
+        const [failedRef, mismatchedRef] = sentRefIds();
+        reply({
+            type: 'Pong' as any,
+            refId: failedRef,
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'no handler' },
+        } as any);
+        reply({ type: 'OnSomethingElse' as any, refId: mismatchedRef, success: true, data: {} });
+
+        await expect(failed).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        await expect(mismatched).rejects.toMatchObject({ code: 'RESPONSE_TYPE_MISMATCH' });
+        expect(observer.mock.calls.map(call => call[0].outcome)).toEqual(['NOT_FOUND', 'RESPONSE_TYPE_MISMATCH']);
+    });
+
+    it('measures nothing for a request that left before an observer was attached', async () => {
+        const client = createClient();
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} });
+        await promise;
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+
+    it('leaves the queue time out for a request called before the observer was attached', async () => {
+        delete (window as any).ReactNativeWebView;
+        const client = createClient();
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        (window as any).ReactNativeWebView = { postMessage: jest.fn() };
+        jest.advanceTimersByTime(50);
+        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} });
+        await promise;
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ queuedMs: undefined }));
+    });
+
+    it('does not count a simulated outbound delay as queue time', async () => {
+        const client = createClient();
+        client.configureEnvironment({ rttDelayMs: 400 });
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        clock += 200;
+        jest.advanceTimersByTime(200);
+        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} });
+        jest.advanceTimersByTime(200);
+        await promise;
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ queuedMs: 0 }));
+    });
+
+    it('stops reporting once the observer is removed', async () => {
+        const client = createClient();
+        const observer = jest.fn();
+        client.setRequestObserver(observer);
+        client.setRequestObserver(undefined);
+
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} });
+        await promise;
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+
+    it('still resolves the caller when the observer throws', async () => {
+        const client = createClient();
+        client.setRequestObserver(() => {
+            throw new Error('observer broke');
+        });
+
+        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
+        const response = { type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} };
+        reply(response);
+
+        await expect(promise).resolves.toEqual(response);
+    });
+});

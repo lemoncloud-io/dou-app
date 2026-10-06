@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { isNative, logger, setupBridgeLogger } from '@chatic/bridges';
+import { isNative, logger, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
@@ -23,7 +23,7 @@ import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
-import { configureWebPerfTraces } from './app/runtime/perf';
+import { configureWebPerfTraces, observeBridgeRequests } from './app/runtime/perf';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
@@ -131,6 +131,11 @@ initLongTasks();
 // Only ordering that matters: this precedes `initWebVitals` below, whose
 // FCP/LCP are recorded through it.
 const webPerfTraces = configureWebPerfTraces({ logger, runId: readInjectedRunId() });
+
+// Times every bridge request of a sampled run, from here on so the boot burst — the WebAppReady
+// handshake included — is in it. Samples are held with the other traces until the report says
+// where they go, and only a few of them, so they cannot crowd the boot traces out of that hold.
+observeBridgeRequests({ client: webClient, runId: readInjectedRunId(), isHeld: webPerfTraces.isHeld });
 
 // Initialize Web Vitals monitoring
 initWebVitals();
