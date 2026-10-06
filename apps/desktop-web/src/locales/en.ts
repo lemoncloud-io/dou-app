@@ -19,6 +19,11 @@ export const en = {
     'auth.invite.failed.network': "Couldn't reach the server. Check your connection and try again.",
     'auth.invite.failed.backend':
         "This link points to a server DoU doesn't recognize, so it wasn't opened. Ask whoever invited you for a new link.",
+    'auth.invite.failed.relay':
+        "This invite is for a phone-to-phone chat, which DoU for desktop can't open yet. Open the link in the DoU mobile app or on the web.",
+    'auth.invite.failed.unmarked':
+        "This link doesn't say which server it belongs to, so it wasn't opened. Ask whoever invited you for a new link.",
+    'auth.invite.failed.loggedIn': "You're signed in with an account. Log out first, then join with the invite.",
     'auth.invite.failed.generic': "Couldn't join with that code. Check it and try again.",
     'auth.debug.title': 'Debug sign-in',
     'auth.debug.subtitle': 'Email + password login for development.',

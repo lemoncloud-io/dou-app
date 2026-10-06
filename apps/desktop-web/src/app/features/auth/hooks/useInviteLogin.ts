@@ -47,9 +47,9 @@ export const useInviteLogin = () => {
         /** Resolves to the failure, or null once the invited cloud is entered. */
         async (input: string): Promise<InviteLoginError | null> => {
             const parsed = parseInviteInput(input);
-            if (!parsed) {
-                // Unparseable paste — previously failed silently; tell the user why.
-                const failure: InviteLoginError = { kind: 'format' };
+            if ('refused' in parsed) {
+                // Turned down before anything was sent — tell the user why.
+                const failure: InviteLoginError = { kind: parsed.refused };
                 setError(failure);
                 return failure;
             }
@@ -74,9 +74,13 @@ export const useInviteLogin = () => {
                 // them to a guest; surface that instead of clobbering their identity.
                 let delegatorId = runtime.session.getIdentityContext().delegatorId;
                 if (!delegatorId) {
-                    const identity = runtime.session.getIdentityContext();
-                    if (identity.isAuthenticated && !identity.isGuest) {
-                        throw new Error('Log out of your account before joining with an invite code.');
+                    // The identity context carries no guest flag; the active token's role is the source
+                    // (the same one `useRuntimeProfile().isGuest` reads).
+                    const isGuest = runtime.session.getActiveSessionUser()?.userRole === 'guest';
+                    if (runtime.session.getIdentityContext().isAuthenticated && !isGuest) {
+                        const failure: InviteLoginError = { kind: 'loggedIn' };
+                        setError(failure);
+                        return failure;
                     }
                     await loginGuest(deviceId);
                     delegatorId = runtime.session.getIdentityContext().delegatorId;
