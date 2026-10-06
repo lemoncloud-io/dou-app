@@ -35,6 +35,14 @@ import {
 } from '../../../shared';
 import { RenameCloudDialog } from './RenameCloudDialog';
 
+/**
+ * Only the active, open cloud of yours can be renamed here: `cloud.update` goes out on the active
+ * slot's socket, so renaming another tile would send its id down this cloud's connection and
+ * write its row into this cloud's cache. A lapsed cloud cannot be opened, let alone edited.
+ */
+const canRename = (cloud: RailCloud, activeCloudId: string | null): boolean =>
+    cloud.kind === 'owned' && cloud.id === activeCloudId && !isLapsedCloud(cloud);
+
 /** The word a tile adds to its name when its cloud cannot be opened as it is. */
 const STATUS_KEY: Partial<Record<string, string>> = {
     error: 'cloud.status.error',
@@ -192,7 +200,7 @@ export const CloudRail = ({
                                 the tile's own menu now, which the Menu key opens too. */}
                                 {removable && (
                                     <ContextMenuContent className="w-52">
-                                        {cloud.kind === 'owned' && (
+                                        {canRename(cloud, activeCloudId) && (
                                             <ContextMenuItem
                                                 disabled={isSwitching}
                                                 onSelect={() => setPendingRename(cloud)}

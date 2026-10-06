@@ -6,10 +6,29 @@ import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { useRenameCloud } from '../../../shared';
-import { channelActionErrorKey } from '../../channels/utils';
+import { logger } from '@chatic/bridges';
 
+import { classifyWireError, extractErrorMessage, useRenameCloud, type WireErrorKind } from '../../../shared';
+
+const CLOUD_NAME_MIN = 2;
 const CLOUD_NAME_MAX = 30;
+
+const ERROR_KEY_BY_KIND: Record<WireErrorKind, string> = {
+    denied: 'errors.notAllowed',
+    notFound: 'errors.notFound',
+    conflict: 'errors.conflict',
+    network: 'errors.network',
+    expired: 'errors.generic',
+    invalid: 'errors.generic',
+    unknown: 'errors.generic',
+};
+
+/** The wire text goes to the log; the person gets a sentence they can act on. */
+const renameErrorKey = (error: unknown): string => {
+    const raw = extractErrorMessage(error);
+    logger.error('CLOUD', '[CloudRename] failed', { error, raw });
+    return ERROR_KEY_BY_KIND[classifyWireError(raw)];
+};
 
 interface RenameCloudDialogProps {
     open: boolean;
@@ -40,7 +59,7 @@ export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isRenaming || trimmed.length === 0) return;
+        if (isRenaming || trimmed.length < CLOUD_NAME_MIN) return;
         // Nothing changed — close without a round trip.
         if (trimmed === currentName) {
             onOpenChange(false);
@@ -51,7 +70,7 @@ export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: 
             await renameCloud(cloudId, trimmed);
             onOpenChange(false);
         } catch (error) {
-            setErrorMsg(t(channelActionErrorKey(error)));
+            setErrorMsg(t(renameErrorKey(error)));
         }
     };
 
@@ -70,7 +89,11 @@ export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: 
                             onChange={e => setName(e.target.value)}
                             placeholder={t('cloud.rename.namePlaceholder')}
                             disabled={isRenaming}
+                            aria-describedby="rename-cloud-hint"
                         />
+                        <p id="rename-cloud-hint" className="text-micro text-muted-foreground">
+                            {t('cloud.rename.lengthHint')}
+                        </p>
                     </div>
 
                     {errorMsg && (
@@ -88,7 +111,7 @@ export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: 
                         >
                             {t('cloud.rename.cancel')}
                         </Button>
-                        <Button type="submit" disabled={isRenaming || trimmed.length === 0}>
+                        <Button type="submit" disabled={isRenaming || trimmed.length < CLOUD_NAME_MIN}>
                             {isRenaming ? t('cloud.rename.saving') : t('cloud.rename.submit')}
                         </Button>
                     </DialogFooter>

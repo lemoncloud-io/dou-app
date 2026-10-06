@@ -36,9 +36,9 @@ describe('RenameCloudDialog', () => {
         expect(renameCloud).toHaveBeenCalledWith('c-1', 'Atelier');
     });
 
-    it('does not submit an empty name', () => {
+    it('does not submit a name shorter than two characters', () => {
         const { input, submit } = setup();
-        fireEvent.change(input, { target: { value: '   ' } });
+        fireEvent.change(input, { target: { value: ' A ' } });
 
         expect((submit as HTMLButtonElement).disabled).toBe(true);
         expect(renameCloud).not.toHaveBeenCalled();

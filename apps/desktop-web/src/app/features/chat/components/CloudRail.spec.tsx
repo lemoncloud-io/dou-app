@@ -26,13 +26,17 @@ const clouds: RailCloud[] = [
     { id: 'default', name: 'Home', status: 'active', kind: 'home' },
     { id: 'open', name: 'Studio', status: 'active', kind: 'owned' },
     { id: 'lapsed', name: 'Archive', status: 'expired', kind: 'owned' },
+    { id: 'guest', name: 'Friends', status: 'active', kind: 'invited' },
 ];
 
-const renderRail = () => {
+const renderRail = (activeCloudId = 'default') => {
     const onSelectCloud = vi.fn();
-    render(<CloudRail clouds={clouds} activeCloudId="default" hasUnread={false} onSelectCloud={onSelectCloud} />, {
-        wrapper,
-    });
+    render(
+        <CloudRail clouds={clouds} activeCloudId={activeCloudId} hasUnread={false} onSelectCloud={onSelectCloud} />,
+        {
+            wrapper,
+        }
+    );
     return { onSelectCloud };
 };
 
@@ -89,9 +93,10 @@ describe('CloudRail', () => {
 
 describe('CloudRail rename', () => {
     const openMenu = (name: string) => fireEvent.contextMenu(screen.getByRole('button', { name }));
+    const renameItem = () => screen.queryByRole('menuitem', { name: i18next.t('cloud.rename.action') });
 
-    it('offers rename on an owned cloud and opens the dialog seeded with its name', async () => {
-        renderRail();
+    it('offers rename on the active owned cloud and opens the dialog seeded with its name', async () => {
+        renderRail('open');
         openMenu('Studio');
         fireEvent.click(await screen.findByRole('menuitem', { name: i18next.t('cloud.rename.action') }));
 
@@ -99,7 +104,29 @@ describe('CloudRail rename', () => {
         expect((screen.getByLabelText(i18next.t('cloud.rename.nameLabel')) as HTMLInputElement).value).toBe('Studio');
     });
 
-    it('does not offer rename on Home', async () => {
+    // cloud.update rides the active socket: another tile's id would be written into this cloud.
+    it('does not offer rename on an owned cloud that is not active', async () => {
+        renderRail('default');
+        openMenu('Studio');
+        await screen.findByRole('menuitem', { name: i18next.t('cloud.remove.action') });
+        expect(renameItem()).toBeNull();
+    });
+
+    it('does not offer rename on a lapsed owned cloud, even the active one', async () => {
+        renderRail('lapsed');
+        openMenu(i18next.t('cloud.statusLabel', { name: 'Archive', status: i18next.t('cloud.status.expired') }));
+        await screen.findByRole('menuitem', { name: i18next.t('cloud.remove.action') });
+        expect(renameItem()).toBeNull();
+    });
+
+    it('does not offer rename on an invited cloud, even the active one', async () => {
+        renderRail('guest');
+        openMenu('Friends');
+        await screen.findByRole('menuitem', { name: i18next.t('cloud.remove.action') });
+        expect(renameItem()).toBeNull();
+    });
+
+    it('does not offer rename on Home', () => {
         renderRail();
         openMenu('Home');
         // Home has no menu at all: it can be neither renamed nor removed.
