@@ -109,7 +109,7 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 52<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    C["composites × 56<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 37<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 43 icons · 7 assets</i>"]:::res
 
@@ -159,9 +159,9 @@ libs/web-ui-kit/src/
 ├── foundations/   11 groups, 37 components
 │   avatar(7) · button(10) · input(7) · badge(5) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 52 components
+└── composites/    10 groups, 56 components
     chat(17) · list(6) · media(5) · overlay(6) · section(4) · header(3) ·
-    layout(4) · subscription(3) · feedback(2) · navigation(2)
+    layout(4) · subscription(7) · feedback(2) · navigation(2)
 ```
 
 Three files are internal — used across a group but absent from every barrel, so grepping the public
