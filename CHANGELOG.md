@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-06] - root@0.83.2, @chatic/desktop-web@0.19.4
+
+### Bug Fixes
+
+- (desktop-web) read encoded invite links, refuse relay ones
+
 ## [2026-10-06] - root@0.83.1, @chatic/web@0.64.1
 
 ### Bug Fixes
