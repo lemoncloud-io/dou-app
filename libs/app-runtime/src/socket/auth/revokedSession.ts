@@ -5,9 +5,8 @@ import { relaySession } from '../../session/auth/relaySession';
 /**
  * A REVOKED relay session — the one auth failure the runtime cannot renew its way out of.
  *
- * The backend stamps `AuthModel.revoked` on `POST /users/0/logout` (chatic-backend-api
- * `modules/auth/proxy.ts` `doLogout`) and then refuses every refresh and every issue for that
- * session with `403 NOT ALLOWED - session revoked @<scope>` (`service/backend-proxy.ts`). Nothing
+ * The backend stamps `AuthModel.revoked` on `POST /users/0/logout` and then refuses every
+ * refresh and every issue for that session with `403 NOT ALLOWED - session revoked @<scope>`. Nothing
  * the client holds can un-revoke it: refresh 403s, and `delegate-cloud` — the first step of a cloud
  * switch — is relay-signed, so it 403s too. The session is over; only a new one works.
  *
@@ -22,7 +21,7 @@ import { relaySession } from '../../session/auth/relaySession';
  * **Only `auth.switch` can carry this verdict today.** `AuthSwitchError` keeps the server error as
  * its `cause`, so the message survives to us. The other two candidate surfaces cannot:
  *  - `auth.refresh()` rejects with a bare `Error('auth.refresh failed: server')` — the SDK's
- *    `doRefresh` drops the server error (chatic-sockets-api `client-socket-v2/auth-controller.ts`),
+ *    `doRefresh` drops the server error,
  *    which is why `requestRelaySessionRefresh` has nothing to branch on.
  *  - signed HTTP (`clouds/0/list`, `delegate-cloud`) never sees a status at all: the API Gateway 403
  *    carrying it has no CORS header, so the browser reports a network failure — the case

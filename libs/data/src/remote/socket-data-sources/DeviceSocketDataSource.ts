@@ -1,5 +1,5 @@
 // Device types come from chatic-sockets-lib — the package whose DeviceGateway this wraps.
-// The chatic-sockets-api copy of DeviceSyncRequestData lags behind (no viewingType/viewingId),
+// The copy of DeviceSyncRequestData in the sockets API package lags behind (no viewingType/viewingId),
 // so importing from it would drop the viewing fields the live gateway accepts.
 import type {
     DeviceReadInput,
@@ -29,7 +29,7 @@ export interface IDeviceSocketDataSource {
     /**
      * device.update-remote — update the connection-linked device's remote push settings (muted) and
      * return the server's authoritative device push view. Always sent over the RELAY slot: push
-     * settings live in chatic-pushes-api behind the relay server, regardless of which slot is active.
+     * settings live in the push service behind the relay server, regardless of which slot is active.
      */
     updateRemoteDevice(payload: DeviceUpdateRemoteInput): Promise<DevicePushView>;
 }
