@@ -92,6 +92,7 @@ import type {
     OnListPhotoAlbumsPayload,
     OnListPhotosPayload,
     OnReadPhotoPayload,
+    OnKeepLibraryVideoPayload,
     OnManagePhotoSelectionPayload,
     OnSaveToPhotoLibraryPayload,
     OnShareFilePayload,
@@ -100,6 +101,7 @@ import type {
     OnPickAttachmentsPayload,
     OnPrepareVideoPayload,
     OnReadAttachmentPayload,
+    OnReadVideoFramePayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnTriggerHapticPayload,
@@ -142,6 +144,7 @@ export type AppMessageDataMap = {
     OnListPhotoAlbums: OnListPhotoAlbumsPayload;
     OnListPhotos: OnListPhotosPayload;
     OnReadPhoto: OnReadPhotoPayload;
+    OnKeepLibraryVideo: OnKeepLibraryVideoPayload;
     OnManagePhotoSelection: OnManagePhotoSelectionPayload;
     OnSaveToPhotoLibrary: OnSaveToPhotoLibraryPayload;
     OnShareFile: OnShareFilePayload;
@@ -150,6 +153,7 @@ export type AppMessageDataMap = {
     OnPickAttachments: OnPickAttachmentsPayload;
     OnPrepareVideo: OnPrepareVideoPayload;
     OnReadAttachment: OnReadAttachmentPayload;
+    OnReadVideoFrame: OnReadVideoFramePayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;

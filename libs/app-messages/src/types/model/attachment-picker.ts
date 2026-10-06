@@ -177,3 +177,39 @@ export type OnPrepareVideoPayload = {
         height: number;
     } | null;
 };
+
+/**
+ * [Request] A JPEG of one frame of a received video, made by the shell from its signed address — the
+ * tile of a video sent without a poster. The shell reads the remote file itself (a ranged read for
+ * iOS `AVAssetImageGenerator`, Android `MediaMetadataRetriever`), so it needs no CORS on the bucket,
+ * and the app's WebView, which loads no media before a tap, is never asked to.
+ *
+ * The frame follows the poster's rule: `atMs` in (the first frame of a shorter video), `maxEdge` on
+ * the long side and never upscaled, JPEG from quality 0.7 down until it fits 200,000 bytes. Nothing
+ * is written to disk. The shell runs at most two at once and gives up on one after 20 seconds; the web
+ * waits 25, so the shell's own answer settles each. A shell from before this message answers
+ * `NOT_FOUND`.
+ */
+export type ReadVideoFramePayload = {
+    /** The video's signed `https:` address. */
+    url: string;
+    /** Where the frame is taken. The web sends 500. */
+    atMs: number;
+    /** The frame's long edge, in pixels. The web sends 400. */
+    maxEdge: number;
+};
+
+/** [Response] The frame. */
+export type OnReadVideoFramePayload = {
+    base64: string;
+    contentType: 'image/jpeg';
+    width: number;
+    height: number;
+};
+
+/**
+ * The error codes `ReadVideoFrame` fails with.
+ * - `INVALID`: the address is not `https:`, or a number is missing.
+ * - `UNREADABLE`: no frame — the network, an expired address (403), a codec the device cannot decode.
+ */
+export type ReadVideoFrameErrorCode = 'INVALID' | 'UNREADABLE';
