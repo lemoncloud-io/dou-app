@@ -203,6 +203,13 @@ consider too close to expiry. The committed store then holds exactly what the so
 there is nothing to re-authenticate either way. A lapsing token on that slot is the credential
 guard's to renew, and the guard re-registers as it re-issues.
 
+**Tokens the server already issued** (an invite login's answer, `issuedTokens`) are committed as
+they are and re-register a live slot. They are signed for the site the server chose — the cloud's
+default — so committing them into the cloud already selected also clears the selected site, as a
+cloud change does. Otherwise the selection keeps naming a place the socket has left, and the next
+`switchSite` into that place returns early as a no-op while every site-scoped call lands on the
+default site.
+
 [`applySessionToken($token, options?)`](../../src/socket/auth/applySessionToken.ts) is the one
 app-facing entry to this path, used by phone verification: it commits the token view, re-authenticates
 the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token` actually became the

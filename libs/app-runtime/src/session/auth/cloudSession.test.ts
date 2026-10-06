@@ -318,6 +318,38 @@ describe('session/auth/cloudSession', () => {
         expect(mockSaveCloudToken).toHaveBeenCalledWith(cloudToken);
     });
 
+    it('drops the selected site when issued tokens re-enter the cloud already selected', async () => {
+        // The invite login's token is signed for the cloud's default site, so a kept selection would
+        // name a place the session is no longer on and the next switch into it would no-op.
+        mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        mockGetSelectedSiteId.mockReturnValue('site-invited');
+
+        await cloudSession.switchTo('cloud-1', {
+            issuedTokens: {
+                delegationToken: { cloudId: 'cloud-1', delegationToken: '', expiredAt: 0 },
+                cloudToken: { id: 'invitee', Token: { identityToken: 'invitee-token' } },
+            } as never,
+        });
+
+        expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
+        expect(mockSaveSelectedSiteId).not.toHaveBeenCalled();
+    });
+
+    it('keeps the selected site on an ordinary re-entry of the cloud already selected', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        mockGetSelectedSiteId.mockReturnValue('site-1');
+        mockIssueCloudDelegationToken.mockResolvedValue({
+            backend: 'https://cloud.example.com',
+            wss: 'wss://cloud.example.com',
+            delegationToken: 'delegation-token',
+        });
+        mockIssueCloudToken.mockResolvedValue({ id: 'cloud-user', Token: { identityToken: 'cloud-token' } });
+
+        await cloudSession.switchTo('cloud-1');
+
+        expect(mockClearSelectedSite).not.toHaveBeenCalled();
+    });
+
     it('with a live slot but nothing cached, falls back to the ordinary exchange', async () => {
         mockGetSelectedCloudId.mockReturnValue('cloud-old');
         mockPeekCachedCloudTokens.mockReturnValue(null);
