@@ -7,10 +7,11 @@ import type { DomainCloud, DomainListResult } from '@chatic/data';
 
 /**
  * Rename an owned cloud. `CloudRepository.updateCloud` already rewrites the cached cloud row
- * (optimistically, rolled back on failure), which refreshes everything reading the cache. The
- * rail's owned tiles read the relay catalog instead, and that react-query read is never written
- * by the repository, so the new name is patched into it here — a refetch right after the write
- * could still return the old name while the broker list catches up.
+ * (optimistically, rolled back on failure), and `useClouds` lets that cached name win over the
+ * catalog's, so the rail keeps the new name across a reload. The relay catalog is a separate
+ * react-query read the repository never writes, so the new name is also patched into it here for
+ * the surfaces that read it directly — a refetch right after the write could still return the old
+ * name while the broker list catches up.
  */
 export const useRenameCloud = () => {
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();

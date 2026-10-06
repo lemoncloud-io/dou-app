@@ -35,7 +35,7 @@ export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
  * flow — the same row apps/web reads in `useInvitedClouds`. The joined-clouds store is only a
  * fast path for a just-joined cloud (and the sole carrier of its name); it lives in this profile's
  * localStorage, so reading it alone hid every invited cloud joined on another profile — including
- * the one the session was inside (.claude/20260804/DEBUG-14-50-00.md).
+ * the one the session was inside.
  */
 export const useClouds = () => {
     const { t } = useTranslation();

@@ -79,6 +79,15 @@ describe('useClouds', () => {
         expect(result.current.clouds[1]).toMatchObject({ name: 'Catalog name', kind: 'owned' });
     });
 
+    it('falls back to the catalog name when the cached name is an empty string', () => {
+        catalogClouds = [{ id: '1000004', name: 'Catalog name', status: 'active' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', name: '', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds[1]).toMatchObject({ name: 'Catalog name', kind: 'owned' });
+    });
+
     it('does not rename another cloud with the cached name of a different one', () => {
         catalogClouds = [
             { id: 'a', name: 'A', status: 'active' },

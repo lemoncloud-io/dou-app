@@ -70,4 +70,13 @@ describe('RenameCloudDialog', () => {
 
         expect((await screen.findByRole('alert')).textContent).toBe(i18next.t('cloud.rename.error.notFound'));
     });
+
+    it('words a rename conflict as a cloud, not a channel', async () => {
+        renameCloud.mockRejectedValue(new Error('409 CONFLICT - cloud changed'));
+        const { input, submit } = setup();
+        fireEvent.change(input, { target: { value: 'Atelier' } });
+        fireEvent.click(submit);
+
+        expect((await screen.findByRole('alert')).textContent).toBe(i18next.t('cloud.rename.error.conflict'));
+    });
 });
