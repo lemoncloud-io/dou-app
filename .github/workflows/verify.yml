@@ -86,7 +86,7 @@ jobs:
                   npx nx run-many -t test
                   --exclude=block-kit,@chatic/landing
 
-            # Left out of the gate, with the reason. Measured 2026-09-14.
+            # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
             #   typecheck   desktop-web                  8 errors (measured 2026-10-06, was 21)
             #               @chatic/mobile               red
@@ -94,11 +94,11 @@ jobs:
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
             #
-            #   The 8 desktop-web errors left each point at a runtime bug, not a typing slip, and
-            #   are fixed with a reproducing test, not by silencing the type: a guest check on a
+            #   The 8 desktop-web errors left are not type-only slips, or not known to be: each
+            #   needs a look at its runtime effect before the type is changed (a guest check on a
             #   field `IdentityContext` does not have, an unset `userId` on cached chat rows, a
-            #   possibly empty notify mode, and `string | undefined` values passed as `string`.
-            #   The project leaves the list once they reach 0.
+            #   notify mode that may be empty, `string | undefined` passed as `string`). They are
+            #   fixed one by one, not silenced. The project leaves the list once they reach 0.
             #
             #   `web` left the TEST list on 2026-09-17, and nothing was traded away for it either:
             #   the 7 failures were three stale test files, not product bugs. Two had been left

@@ -37,7 +37,7 @@ export interface ChatRefreshResult {
  * lowest in the pagination index, so a newest-N page drops them unless the reader asks for them.
  * Read by the local source and the query executor; the socket request never carries it.
  */
-export type ChatObserveQuery = ChatFeedInput & { includeUnsent?: boolean };
+export type ChatObserveQuery = ChatFeedInput & Pick<ChatQueryOptions, 'includeUnsent'>;
 
 export interface IChatRepository extends DisposableRepository {
     observeList(query: ChatObserveQuery, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
