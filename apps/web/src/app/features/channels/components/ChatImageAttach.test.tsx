@@ -404,6 +404,18 @@ describe('useChatImageAttach — videos and documents', () => {
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupportedVideo');
     });
 
+    it('sends an untyped HWP from the files input by its extension, and refuses any other file it lets through', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits a zip too.
+        pick('chat-attach-files', [photo('a.zip', 'application/zip'), photo('보고서.hwp', ''), photo('b.hwpx', '')]);
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['보고서.hwp', 'b.hwpx']);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+
     it('keeps the photos entry to photos, whatever the system picker let through', () => {
         const sendImages = jest.fn().mockResolvedValue(undefined);
         render(<Harness sendImages={sendImages} />);

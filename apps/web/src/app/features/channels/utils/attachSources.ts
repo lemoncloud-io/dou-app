@@ -17,8 +17,15 @@ export const isAppleTouchWebKit = (
 export const albumAccept = (appleTouchWebKit: boolean): string =>
     chatAttachmentAccept(appleTouchWebKit ? ['image'] : ['image', 'video']);
 
-/** What the page's own "choose from files" input takes: the server's seven document formats. */
-export const DOCUMENT_ACCEPT = chatAttachmentAccept(['file']);
+/**
+ * What the page's own "choose from files" input takes: the server's seven document formats, plus the
+ * generic `application/octet-stream`. iOS WebKit matches neither HWP's MIME types nor its `.hwp`/`.hwpx`
+ * extensions against the type Files gives such a file, so with the seven alone it greys HWP and HWPX
+ * out. The generic type is what lets them through — and with them any other file, which the page's own
+ * judgement (`chatAttachmentFormat`) then refuses. It keeps the document picker opening directly, where
+ * no `accept` at all would first offer the photo library and the camera.
+ */
+export const DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'])},application/octet-stream`;
 
 const typeOf = (item: ChatAttachmentSource): string => item.type;
 

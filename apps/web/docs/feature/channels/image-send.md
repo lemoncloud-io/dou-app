@@ -76,11 +76,11 @@ nothing from the app. The photos entry, the grid and the camera take photos only
 
 The second sheet's two entries depend on the shell too:
 
-| Shell                                   | Choose from album / Choose from files                                                       |
-| --------------------------------------- | ------------------------------------------------------------------------------------------- |
-| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app |
-| app built before the picker, or browser | the page's own file input: photos and `mp4`, or the seven document formats                  |
-| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from         |
+| Shell                                   | Choose from album / Choose from files                                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app                              |
+| app built before the picker, or browser | the page's own file input: photos and `mp4`, or the seven document formats (and any file, judged after the pick — below) |
+| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from                                      |
 
 In the app the shell copies what was picked into its own folder and answers with addresses, never
 bytes (`bridge/attachmentPicker.ts`). Photos picked alongside are kept there too, already prepared like
@@ -100,6 +100,14 @@ conversion of up to minutes, and the server takes only `mp4`, so there it is not
 all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
+
+The files input asks for the seven document formats by type and by extension, and for the generic
+`application/octet-stream` as well. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
+against the type the Files app gives such a file, so the seven alone grey HWP and HWPX out of its
+document picker; the generic type admits them, and with them any other file. That is safe because the
+page judges every pick itself (`chatAttachmentFormat`, which reads an untyped file's extension) and
+refuses what the server would not take. Leaving `accept` out would admit everything too, but iOS then
+offers the photo library and the camera before the document picker.
 
 A video the app picked may still need converting (an iPhone records HEVC in QuickTime). The send converts
 it with `PrepareVideo` after the pending row is shown — the tile is a grey panel until the poster comes.
