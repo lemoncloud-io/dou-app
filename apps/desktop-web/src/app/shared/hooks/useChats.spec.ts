@@ -272,6 +272,18 @@ describe('useChats window depth', () => {
     // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
     // so the remembered window cannot be keyed by uid and channel alone: a short channel in one cloud that
     // ran out of history would tell the same-named channel of another cloud there is nothing older.
+    // The cache observer is bound to the cloud when it subscribes, so the hook has to subscribe again when
+    // the cloud changes under an unchanged uid and channel id, or it would wait on a feed nobody fills.
+    it('subscribes again when the cloud changes under the same channel id', () => {
+        const { rerender } = renderHook(() => useChats('C-resub'));
+        const before = observeList.mock.calls.length;
+
+        state.cloudId = 'cloud-b';
+        rerender();
+
+        expect(observeList.mock.calls.length).toBeGreaterThan(before);
+    });
+
     it('does not carry a window from the same channel id in another cloud', async () => {
         refreshList.mockResolvedValue({ fetchedCount: 0 });
         const inA = renderHook(() => useChats('C-self'));

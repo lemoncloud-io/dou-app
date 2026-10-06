@@ -64,7 +64,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     const { persist = true } = options;
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     // Part of the cache observer's scope key ({cid, uid}); channel ids are per-cloud and
-    // collide across clouds, so the feed is bound to the right partition by both.
+    // collide across clouds, so the subscription below re-binds on a change of either.
     const { userId: myUid } = runtime.session.useSessionIdentity();
     // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
     // so uid and channel id alone may not name a room. The cloud is the third part.
@@ -138,7 +138,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
             cancelled = true;
             unsubscribe();
         };
-    }, [chatRepository, channelId, pageLimit, myUid]);
+    }, [chatRepository, channelId, pageLimit, myUid, selectedCloudId]);
 
     // Freshness bridge (see the hook doc): when the channel record's newest chatNo
     // runs ahead of what the cache holds, pull the newest feed page. Guarded per
