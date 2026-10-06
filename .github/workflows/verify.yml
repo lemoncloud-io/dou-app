@@ -78,7 +78,7 @@ jobs:
             - name: Typecheck
               run: >
                   npx nx run-many -t typecheck
-                  --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+                  --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 
             # `libs/db` and `libs/app-runtime` ran through a separate step until the root
             # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
@@ -92,16 +92,15 @@ jobs:
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
-            #   typecheck   desktop-web                  2 errors (measured 2026-10-06, was 21)
-            #               @chatic/mobile               red
+            #   typecheck   @chatic/mobile               red
             #               @chatic/landing              red
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
             #
-            #   The 2 desktop-web errors left each need a look at their runtime effect before the
-            #   type is changed: a guest check on a field `IdentityContext` does not have, and a
-            #   `string | undefined` id passed as `string`. They are fixed on their own, not silenced.
-            #   The project leaves the list once they reach 0.
+            #   `desktop-web` left the TYPECHECK list on 2026-10-06, and nothing was traded away for it:
+            #   its errors (21 when first counted) are gone, measured 0 from a clean build of every lib
+            #   (`rm -rf libs/*/dist libs/*/out-tsc apps/desktop-web/out-tsc`, then `tsc -b` and
+            #   `nx run desktop-web:typecheck`). They were fixed, not silenced.
             #
             #   `web` left the TEST list on 2026-09-17, and nothing was traded away for it either:
             #   the 7 failures were three stale test files, not product bugs. Two had been left
