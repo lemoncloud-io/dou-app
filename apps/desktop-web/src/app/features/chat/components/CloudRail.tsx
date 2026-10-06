@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -33,6 +33,7 @@ import {
     type RailCloud,
     useRemoveCloud,
 } from '../../../shared';
+import { RenameCloudDialog } from './RenameCloudDialog';
 
 /** The word a tile adds to its name when its cloud cannot be opened as it is. */
 const STATUS_KEY: Partial<Record<string, string>> = {
@@ -76,6 +77,8 @@ export const CloudRail = ({
     const { removeInvitedCloud, deleteOwnedCloud, isDeleting } = useRemoveCloud();
     const [pendingRemove, setPendingRemove] = useState<RailCloud | null>(null);
     const isOwnedRemoval = pendingRemove?.kind === 'owned';
+    // Renaming is the owner's edit, so only owned tiles offer it.
+    const [pendingRename, setPendingRename] = useState<RailCloud | null>(null);
 
     const confirmRemove = async () => {
         if (!pendingRemove) return;
@@ -189,6 +192,15 @@ export const CloudRail = ({
                                 the tile's own menu now, which the Menu key opens too. */}
                                 {removable && (
                                     <ContextMenuContent className="w-52">
+                                        {cloud.kind === 'owned' && (
+                                            <ContextMenuItem
+                                                disabled={isSwitching}
+                                                onSelect={() => setPendingRename(cloud)}
+                                            >
+                                                <Pencil size={14} aria-hidden />
+                                                {t('cloud.rename.action')}
+                                            </ContextMenuItem>
+                                        )}
                                         <ContextMenuItem
                                             disabled={isSwitching}
                                             onSelect={() => setPendingRemove(cloud)}
@@ -205,6 +217,13 @@ export const CloudRail = ({
                 </div>
                 {scroll.below && <ScrollHint edge="bottom" surface="rail" />}
             </div>
+
+            <RenameCloudDialog
+                open={!!pendingRename}
+                onOpenChange={open => !open && setPendingRename(null)}
+                cloudId={pendingRename?.id ?? ''}
+                currentName={pendingRename?.name ?? ''}
+            />
 
             <AlertDialog open={!!pendingRemove} onOpenChange={open => !open && !isDeleting && setPendingRemove(null)}>
                 <AlertDialogContent>

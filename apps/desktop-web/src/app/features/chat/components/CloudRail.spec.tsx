@@ -13,6 +13,7 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
     useRemoveCloud: () => ({ removeInvitedCloud: vi.fn(), deleteOwnedCloud: vi.fn(), isDeleting: false }),
+    useRenameCloud: () => ({ renameCloud: vi.fn(), isRenaming: false }),
 }));
 
 import '../../../../i18n';
@@ -83,5 +84,25 @@ describe('CloudRail', () => {
         // the element before.
         fireEvent.focus(tile, { relatedTarget: document.createElement('button') });
         expect(screen.getByRole('tooltip').textContent).toContain(i18next.t('mobileApp.planAndCloud'));
+    });
+});
+
+describe('CloudRail rename', () => {
+    const openMenu = (name: string) => fireEvent.contextMenu(screen.getByRole('button', { name }));
+
+    it('offers rename on an owned cloud and opens the dialog seeded with its name', async () => {
+        renderRail();
+        openMenu('Studio');
+        fireEvent.click(await screen.findByRole('menuitem', { name: i18next.t('cloud.rename.action') }));
+
+        await screen.findByRole('dialog', { name: i18next.t('cloud.rename.title') });
+        expect((screen.getByLabelText(i18next.t('cloud.rename.nameLabel')) as HTMLInputElement).value).toBe('Studio');
+    });
+
+    it('does not offer rename on Home', async () => {
+        renderRail();
+        openMenu('Home');
+        // Home has no menu at all: it can be neither renamed nor removed.
+        expect(screen.queryByRole('menuitem')).toBeNull();
     });
 });

@@ -30,6 +30,15 @@ app. So its hint says that under the name, and a click does not try to switch. I
 with the same line and the App Store and Google Play links (`MobileAppPointer`) instead. A switch
 into it used to be refused and then offer Try again, which could never work.
 
+## Renaming a cloud
+
+The tile's context menu (right-click or the Menu key) offers "Rename cloud" on the clouds you own,
+never on Home or an invited cloud. It opens `RenameCloudDialog`, a one-line field shaped like
+`RenameChannelDialog`. `useRenameCloud` (`shared/hooks/useRenameCloud.ts`) writes through
+`CloudRepository.updateCloud`, which also rewrites the cached cloud row, and patches the new name
+into the relay catalog query the owned tiles read. The tile and its label change at once, without
+waiting for the broker list to catch up.
+
 ## Unread
 
 The active cloud's dot comes from the live socket. Another cloud's dot is a pending cross-cloud push
