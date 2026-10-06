@@ -17,7 +17,7 @@ a target's, and it is described under [Background receive](#background-receive).
 ```text
 socket/sync/                          10 source files, 9 tests
 ├── SyncManager.ts          436 lines  the class — 10 public methods
-├── plans.ts                257 lines  createSyncPlans — the five app-domain plans
+├── plans.ts                280 lines  createSyncPlans — the five app-domain plans
 ├── BackgroundReceiver.ts   285 lines  the receive loop of every bound slot that is not the active one
 ├── backgroundDeltas.ts                subscribeBackgroundDeltas — who hears that a background delta came back
 ├── types.ts                           SyncWatchEntry · SyncTargetListing · SyncRegisterOptions · SyncRuntimeOptions · SyncManagerDeps · ISyncManager · BackgroundReceiverDeps · BackgroundReceiveRepositories · BackgroundReceiveTrigger · BackgroundDelta
@@ -111,6 +111,16 @@ is a request or two.
 this account has there. Not the selected cloud's graph: a frame from a slot is data of that slot's
 cloud whatever the screen is showing. See [docs/data/](../data/README.md#scoped-repository-graphs)
 for what a scoped graph is.
+
+**A failed cache write is logged, not retried here.** The sync library advances its own snapshot
+before it calls a plan's callback and ignores what the callback returns, so a write that rejects
+cannot be handed back to the plan for another try. `plans.ts` routes every one of those writes
+through one helper that catches the rejection and logs it (`logger.error('SYNC', …)`) instead of
+leaving an unhandled promise. Only a new chat message has a way back, through paths that already
+exist: the next `chat.feed` refetch, and on desktop the room's freshness check, which refetches the
+newest page when the channel record's newest `chatNo` runs ahead of the cache. A failed edit or delete
+of an older message, and a failed channel, place, profile or join write, stay stale until the server
+changes that record again. There is no retry queue.
 
 **`DeviceSyncPlan` is not one of them.** `createDeviceRuntime` injects its own and owns
 `device.save`; these five ride along as `extraSyncPlans`.

@@ -10,12 +10,18 @@ const state = vi.hoisted(() => ({
     prime: 'pending' as 'pending' | 'ready' | 'failed',
     isVerified: true,
     retryPrime: vi.fn(),
+    emit: (_rows: Row[]) => undefined,
 }));
 const observeList = vi.fn((_query: unknown, onChange: (result: { list: Row[] }) => void) => {
+    state.emit = rows => onChange({ list: rows });
     onChange({ list: state.rows });
     return () => undefined;
 });
-const repositories = { chat: { observeList, refreshList: vi.fn(() => Promise.resolve({ fetchedCount: 0 })) } };
+const refreshList = vi.fn((_query: unknown) => Promise.resolve({ fetchedCount: 0 }));
+const repositories = { chat: { observeList, refreshList } };
+const warn = vi.fn();
+
+vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -98,5 +104,74 @@ describe('useChats on a room with nothing cached', () => {
         expect(result.current.isLoading).toBe(false);
         expect(result.current.loadFailed).toBe(false);
         expect(result.current.messages).toHaveLength(1);
+    });
+});
+
+// The channel record runs ahead of the cache, so the feed's newest page is fetched. The guard that
+// stops a settled target being re-fetched every render must not outlive a fetch that failed.
+describe('useChats freshness bridge', () => {
+    beforeEach(() => {
+        state.rows = [{ id: 'C1:1', channelId: 'C1', chatNo: 1 }];
+        state.prime = 'ready';
+        state.isVerified = true;
+        refreshList.mockReset().mockResolvedValue({ fetchedCount: 0 });
+        warn.mockClear();
+    });
+
+    // `chats` is an effect dependency, so a cache emission is the next chance the effect gets.
+    const nextChance = () => act(async () => state.emit([...state.rows]));
+
+    it('fetches the newest page once for a target and not again after it succeeded', async () => {
+        renderHook(() => useChats('C1', 5));
+        await act(async () => undefined);
+        await nextChance();
+
+        expect(refreshList).toHaveBeenCalledTimes(1);
+        expect(refreshList).toHaveBeenCalledWith({ channelId: 'C1', limit: 50 });
+    });
+
+    it('logs a failed fetch and tries the same latestChatNo again on the next chance', async () => {
+        refreshList.mockRejectedValueOnce(new Error('offline'));
+        renderHook(() => useChats('C1', 5));
+        await act(async () => undefined);
+
+        expect(warn).toHaveBeenCalledWith(
+            'CHAT',
+            expect.stringContaining('refresh'),
+            expect.objectContaining({ channelId: 'C1', latestChatNo: 5 })
+        );
+
+        await nextChance();
+        expect(refreshList).toHaveBeenCalledTimes(2);
+
+        // That retry succeeded, so the target is settled again.
+        await nextChance();
+        expect(refreshList).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not loop on a failure: nothing re-runs the effect until something changes', async () => {
+        refreshList.mockRejectedValue(new Error('offline'));
+        renderHook(() => useChats('C1', 5));
+        await act(async () => undefined);
+        await act(async () => undefined);
+
+        expect(refreshList).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the guard of a newer target when an older fetch fails late', async () => {
+        let failOld: (error: Error) => void = () => undefined;
+        refreshList.mockImplementationOnce(() => new Promise((_resolve, reject) => (failOld = reject)));
+        const { rerender } = renderHook(({ no }) => useChats('C1', no), { initialProps: { no: 5 } });
+        await act(async () => undefined);
+
+        rerender({ no: 6 });
+        await act(async () => undefined);
+        expect(refreshList).toHaveBeenCalledTimes(2);
+
+        await act(async () => failOld(new Error('late')));
+        await nextChance();
+
+        // The newer target (6) was fetched and succeeded; the stale failure must not reopen it.
+        expect(refreshList).toHaveBeenCalledTimes(2);
     });
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
+import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DataRepositories, DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
@@ -261,14 +262,27 @@ export const createCloudOutbox = ({ repositoriesOf, sendInCloud, uidOf }: CloudO
         // the same store — N stalls instead of one.
         // cursorNo:1 bounds each read to chat_no 0 — exactly the unsent rows. A plain limited
         // page is chat_no-DESCENDING and would miss them in any channel holding 50+ server rows.
+        // A read that FAILED is carried as such (`failed`), not folded into `rows: []`: an empty
+        // list says the channel has nothing unsent, a rejection says nothing about it.
         const perChannel = await Promise.all(
             channelIds.map(channelId =>
                 chatRepository
                     .cacheReadList({ channelId, cursorNo: 1, limit: SWEEP_LIMIT })
-                    .then(result => ({ channelId, rows: result?.list ?? [] }))
-                    .catch(() => ({ channelId, rows: [] as DomainChat[] }))
+                    .then(result => ({ channelId, rows: result?.list ?? [], failure: undefined as unknown }))
+                    .catch((failure: unknown) => ({ channelId, rows: [] as DomainChat[], failure: failure ?? true }))
             )
         );
+
+        // Nothing is recorded for a skipped channel, so the next sweep (the cloud's next
+        // ready-transition) reads it again like any other; this only makes the skip visible.
+        const failed = perChannel.filter(({ failure }) => failure !== undefined);
+        if (failed.length) {
+            logger.warn('CHAT', '[useChatOutbox] unsent-row read failed; channels skipped this sweep', {
+                cid,
+                channelIds: failed.map(({ channelId }) => channelId),
+                error: failed[0].failure,
+            });
+        }
 
         const swept = new Set<string>();
         for (const { channelId, rows } of perChannel) {
@@ -344,7 +358,14 @@ export const useChatOutbox = (): void => {
             // Only on the rising edge: one attempt per ready transition is what keeps at most one
             // failed row per undelivered message (see outbox.ts).
             machine.outbox.setReady(cid, true);
-            void machine.sweep(cid).catch(() => undefined);
+            machine.sweep(cid).catch((error: unknown) => {
+                // The channel list itself could not be read: no channel was swept. The next
+                // ready-transition of this cloud sweeps again.
+                logger.warn('CHAT', '[useChatOutbox] sweep failed; unsent messages wait for the next sweep', {
+                    cid,
+                    error,
+                });
+            });
         }
         // relayUid: a rebuilt machine starts with nothing ready and has to hear every cloud again.
     }, [verifiedClouds, relayUid]);
