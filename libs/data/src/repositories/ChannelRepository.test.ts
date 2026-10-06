@@ -277,7 +277,7 @@ describe('ChannelRepository', () => {
         // `channel.mine` answers for the site the socket session is on and ignores the payload's
         // sid, so asking about another site returns a list that shares no ids with it. Treating
         // that as "site-2 has no channels anymore" wiped the switched-to place's cache and left
-        // the sidebar empty until a reload (.claude/20260804/DEBUG-14-20-13.md).
+        // the sidebar empty until a reload.
         channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
         channelLocalDataSource.cacheReadList.mockResolvedValue({ list: [{ id: 'ch-9', sid: 'site-2' }] });
 

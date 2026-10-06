@@ -80,7 +80,7 @@ describe('switchSiteViaSocket', () => {
     });
 
     it('ends the session when the server answers that it is revoked', async () => {
-        // The live failure (.claude/20260910/DEBUG-17-30-25.md): the session was revoked server-side,
+        // The live failure: the session was revoked server-side,
         // so nothing this client holds works again — a rollback + rethrow alone leaves the app
         // authenticated-looking and 403-ing on every screen.
         mockedGetSelected.mockReturnValue('site-old');

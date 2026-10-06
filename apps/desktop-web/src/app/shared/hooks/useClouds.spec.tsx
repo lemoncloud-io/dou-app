@@ -4,8 +4,7 @@ import { renderHook } from '@testing-library/react';
 
 // Invited clouds are not in the relay catalog and their durable record is the local `invitecloud`
 // cache row — the joined-clouds store is a per-profile localStorage twin. Reading only that twin
-// hid every invited cloud joined on another profile, including the one the session was inside
-// (.claude/20260804/DEBUG-14-50-00.md).
+// hid every invited cloud joined on another profile, including the one the session was inside.
 let catalogClouds: Array<Record<string, unknown>> = [];
 let cachedClouds: Array<Record<string, unknown>> = [];
 let joinedClouds: Record<string, { id: string; name?: string }> = {};

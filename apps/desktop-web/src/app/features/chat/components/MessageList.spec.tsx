@@ -71,7 +71,7 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
  * Both were shipped calling a helper the file never imported, which threw a
  * ReferenceError the moment either ran. No gate caught it: vite strips types without
  * resolving free identifiers, `typescript-eslint` disables `no-undef` on TS files, and
- * nothing rendered this component. See `.claude/20260804/DEBUG-10-36-17.md`.
+ * nothing rendered this component.
  *
  * So the assertions are deliberately shallow. The point is that these two paths
  * execute at all, which is exactly what was missing.
