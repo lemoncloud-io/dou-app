@@ -21,3 +21,14 @@ export interface PhotoAlbum {
     count: number;
     coverSrc?: string;
 }
+
+/**
+ * What the photo grid has on screen: photo indices `[start, end)`, a few rows either side included, and
+ * the pixel size its tiles are drawn at — what a preview should be asked for at. `thumbSize` is absent
+ * until the grid has measured itself.
+ */
+export interface PhotoGridRange {
+    start: number;
+    end: number;
+    thumbSize?: number;
+}

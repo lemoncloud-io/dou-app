@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { PhotoGridSheet, type PhotoItem } from '@chatic/web-ui-kit';
+import { PhotoGridSheet, type PhotoGridRange, type PhotoItem } from '@chatic/web-ui-kit';
 
 const meta: Meta<typeof PhotoGridSheet> = {
     title: 'web-ui-kit/composites/PhotoGridSheet',
@@ -19,13 +19,22 @@ const ALBUMS = [
     { id: 'new', title: '최근 추가된 항목', count: 2458, coverSrc: photo(3).src },
 ];
 
+/** A 2,000-photo album whose pages arrive a moment after the grid shows them, as the app's do. */
+const COUNT = 2000;
+const PAGE = 60;
+
 const Demo = ({ initialPicked = 0 }: { initialPicked?: number }) => {
     const [open, setOpen] = useState(true);
     const [albumsOpen, setAlbumsOpen] = useState(false);
     const [album, setAlbum] = useState(ALBUMS[0]);
-    const [count, setCount] = useState(30);
-    const photos = Array.from({ length: count }, (_, i) => photo(i));
-    const [picked, setPicked] = useState<PhotoItem[]>(photos.slice(0, initialPicked));
+    const [columns, setColumns] = useState(3);
+    const [loaded, setLoaded] = useState<ReadonlySet<number>>(new Set([0]));
+    const loadRange = (range: PhotoGridRange) => {
+        const pages: number[] = [];
+        for (let page = Math.floor(range.start / PAGE); page * PAGE < range.end; page += 1) pages.push(page);
+        window.setTimeout(() => setLoaded(previous => new Set([...previous, ...pages])), 200);
+    };
+    const [picked, setPicked] = useState<PhotoItem[]>(Array.from({ length: initialPicked }, (_, i) => photo(i)));
     const toggle = (item: PhotoItem) =>
         setPicked(prev => (prev.some(p => p.id === item.id) ? prev.filter(p => p.id !== item.id) : [...prev, item]));
     return (
@@ -48,13 +57,15 @@ const Demo = ({ initialPicked = 0 }: { initialPicked?: number }) => {
                     setAlbumsOpen(false);
                 }}
                 formatAlbumCount={n => n.toLocaleString('ko-KR')}
-                photos={photos}
+                count={COUNT}
+                photoAt={index => (loaded.has(Math.floor(index / PAGE)) ? photo(index) : undefined)}
+                onVisibleRangeChange={loadRange}
+                columns={columns}
+                onColumnsChange={setColumns}
                 picked={picked}
                 onToggle={toggle}
                 max={10}
                 onCamera={() => undefined}
-                hasMore={count < 90}
-                onLoadMore={() => setCount(c => c + 30)}
                 sendLabel={`${picked.length}장 보내기`}
                 onSend={() => setOpen(false)}
                 labels={{ camera: '카메라', close: '닫기' }}
