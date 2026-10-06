@@ -62,9 +62,15 @@ export const useClouds = () => {
             kind: 'invited',
         });
 
+        // An owned tile's name comes from the relay catalog, and that list can still show the old
+        // name for a while after a rename. The rename writes the new one into the local cloud cache
+        // first (and that row survives a reload), so a cached name wins over the catalog's. Without
+        // a cached name the catalog name stands.
+        const cachedName = (id: string) => cachedClouds.find(cached => cached.id === id)?.name || undefined;
+
         for (const c of rawClouds) {
             if (c.id && c.id !== 'default') {
-                const name = c.name ?? joinedName(c.id);
+                const name = cachedName(c.id) ?? c.name ?? joinedName(c.id);
                 byId.set(c.id, { id: c.id, name, status: c.status as string | undefined, kind: 'owned' });
             }
         }

@@ -61,6 +61,36 @@ describe('useClouds', () => {
         expect(result.current.clouds[1]).toMatchObject({ name: '넹미', kind: 'invited' });
     });
 
+    it('names an owned tile from the cloud cache when it holds a newer name than the catalog', () => {
+        catalogClouds = [{ id: '1000004', name: 'Old name', status: 'active' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', name: 'New name', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds[1]).toMatchObject({ id: '1000004', name: 'New name', kind: 'owned' });
+    });
+
+    it('keeps the catalog name of an owned tile when the cache row has none', () => {
+        catalogClouds = [{ id: '1000004', name: 'Catalog name', status: 'active' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds[1]).toMatchObject({ name: 'Catalog name', kind: 'owned' });
+    });
+
+    it('does not rename another cloud with the cached name of a different one', () => {
+        catalogClouds = [
+            { id: 'a', name: 'A', status: 'active' },
+            { id: 'b', name: 'B', status: 'active' },
+        ];
+        cachedClouds = [{ id: 'b', cid: 'b', name: 'B renamed', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds.map(c => c.name)).toEqual([expect.any(String), 'A', 'B renamed']);
+    });
+
     it('keeps the owned entry when the same cloud is also cached as invited', () => {
         catalogClouds = [{ id: '1000004', name: 'Owned', status: 'active' }];
         cachedClouds = [{ id: '1000004', cid: '1000004', cloudType: 'invited' }];
