@@ -12,7 +12,8 @@ export type PerfTraceName =
     | 'site_switch'
     | 'web_vitals'
     | 'chat_room_open'
-    | 'chat_room_sync';
+    | 'chat_room_sync'
+    | 'bridge_request';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {

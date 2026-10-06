@@ -41,9 +41,13 @@ export const supportsNativePerfTraces = (report: OnWebAppReadyPayload | null): b
 export const configureWebPerfTraces = ({ logger, runId }: { logger: Logger; runId: string | undefined }) => {
     const deferred = new DeferredPerfTraceBackend();
     configurePerfTraces(deferred);
+    let resolved = false;
 
     return {
+        /** Whether traces still wait in the hold for `resolveWith`, which caps how many it keeps. */
+        isHeld: (): boolean => !resolved,
         resolveWith(report: OnWebAppReadyPayload | null): void {
+            resolved = true;
             deferred.resolve(
                 supportsNativePerfTraces(report) ? bridgePerfTraceBackend : new LogPerfTraceBackend({ logger, runId })
             );

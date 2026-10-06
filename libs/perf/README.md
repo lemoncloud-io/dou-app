@@ -59,6 +59,7 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `web_vitals`     | — a sample (see below)                    | —                                        | FCP 1800ms / LCP 2500ms at p75 |
 | `chat_room_open` | the tap that opens a room                 | the room's first commit showing messages | none yet                       |
 | `chat_room_sync` | the same tap                              | the room showing its synced, latest page | none yet                       |
+| `bridge_request` | — a sample (see below)                    | —                                        | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -117,7 +118,8 @@ makes the native half of the wait visible.
 A web vital is reported by the browser after the fact, so it cannot be timed by a start and a stop.
 `recordPerfSample('web_vitals', { attributes: { vital: 'lcp' }, metrics: { value_ms } })` records it
 as a zero-length trace carrying the value in a metric. For these traces, read `value_ms` in the
-console. The trace's own duration means nothing.
+console. The trace's own duration means nothing. `bridge_request` is the other sample: one bridge
+round trip, measured by the web's bridge client, read from its `rtt_ms` metric.
 
 ### Traces several modules contribute to: the active trace
 

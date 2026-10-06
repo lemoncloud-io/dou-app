@@ -1,9 +1,9 @@
 import { logger } from '@chatic/logger';
 
-import type { BridgeAdapter } from './adapters/types';
+import type { BridgeAdapter, InboundMessageMeta } from './adapters/types';
 import type { EventMessage, RequestMessage, ResponseMessage, EnvironmentConfig, IMessageQueue } from '../common';
 import { MessageQueue } from '../common';
-import type { IWebBridgeClient, WebBridgeClientConfig, PendingRequest } from './types';
+import type { BridgeRequestObserver, IWebBridgeClient, PendingRequest, WebBridgeClientConfig } from './types';
 import {
     WEB_MESSAGE_RESPONSE_TYPE,
     type AppMessageData,
@@ -26,6 +26,9 @@ export class WebBridgeClient implements IWebBridgeClient {
     private bridgeReadyTimeoutMs: number;
     private isBridgeAvailable: () => boolean;
     private environment?: EnvironmentConfig;
+    private now: () => number;
+    /** Receives a sample per settled request. Absent means nothing is measured at all. */
+    private requestObserver?: BridgeRequestObserver;
 
     /** The listener map that routes incoming native events */
     private eventListeners = new Map<string, Set<(message: any) => void>>();
@@ -54,6 +57,7 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.isBridgeAvailable = config.isBridgeAvailable ?? this.checkNativeBridgeAvailable;
         this.pendingBuffer = config.pendingBuffer ?? new MessageQueue();
         this.environment = config.environment;
+        this.now = config.now ?? defaultNow;
 
         // Binds the listener that receives incoming messages from the adapter and stores the unsubscribe function.
         this.unsubscribeAdapter = this.adapter.onMessage(this.handleMessage);
@@ -151,9 +155,14 @@ export class WebBridgeClient implements IWebBridgeClient {
         if (refId) {
             const pending = this.pendingRequests.get(refId);
             if (pending) {
+                if (this.requestObserver) {
+                    pending.dispatchedAt = this.now();
+                    pending.inFlightAtDispatch = this.countInFlight();
+                }
                 // A request that had been sitting in the buffer starts its timeout wait only once it's actually dispatched.
                 pending.timeoutId = setTimeout(() => {
                     this.pendingRequests.delete(refId);
+                    this.reportSettled(pending, 'TIMEOUT');
                     pending.reject({
                         code: 'TIMEOUT',
                         message: `Request timed out after ${pending.timeoutMs}ms`,
@@ -168,7 +177,50 @@ export class WebBridgeClient implements IWebBridgeClient {
             }
         }
 
-        this.adapter.postMessage(message);
+        const length = this.adapter.postMessage(message);
+        if (refId && typeof length === 'number') {
+            const pending = this.pendingRequests.get(refId);
+            if (pending) pending.requestLength = length;
+        }
+    }
+
+    /**
+     * [Internal] Dispatched requests still waiting for a reply, the one being dispatched excluded
+     * (its own `dispatchedAt` is set just before this runs, so it is counted and taken back off).
+     */
+    private countInFlight(): number {
+        let count = 0;
+        this.pendingRequests.forEach(pending => {
+            if (pending.dispatchedAt !== undefined) count += 1;
+        });
+        return Math.max(0, count - 1);
+    }
+
+    /**
+     * [Internal] Hands one settled request to the observer. Only a request that was dispatched while
+     * an observer was attached has a `dispatchedAt`, so one that never left — or left before
+     * measuring began — reports nothing.
+     *
+     * The observer's own failure is swallowed: a measurement must never change what the caller
+     * of `request` sees.
+     */
+    private reportSettled(pending: PendingRequest, outcome: string, responseLength?: number): void {
+        const observer = this.requestObserver;
+        if (!observer || pending.dispatchedAt === undefined) return;
+        const settledAt = this.now();
+        try {
+            observer({
+                type: pending.requestType,
+                outcome,
+                queuedMs: pending.calledAt === undefined ? undefined : pending.dispatchedAt - pending.calledAt,
+                roundTripMs: settledAt - pending.dispatchedAt,
+                requestLength: pending.requestLength,
+                responseLength,
+                inFlightAtDispatch: pending.inFlightAtDispatch ?? 0,
+            });
+        } catch (error) {
+            logger.warn('BRIDGE', '[WebBridgeClient] request observer threw', { error });
+        }
     }
 
     /**
@@ -193,35 +245,38 @@ export class WebBridgeClient implements IWebBridgeClient {
     /**
      * [Internal] Validates the raw message delivered from the adapter and routes it by determining its target.
      */
-    private handleMessage = (message: ResponseMessage | EventMessage): void => {
+    private handleMessage = (message: ResponseMessage | EventMessage, meta?: InboundMessageMeta): void => {
         // Drop the event early if drop simulation is configured
         if (this.shouldDrop()) return;
 
         // Apply a decoding delay if RTT delay simulation is configured
         const delay = (this.environment?.rttDelayMs ?? 0) / 2;
         if (delay > 0) {
-            setTimeout(() => this.processReceivedMessage(message), delay);
+            setTimeout(() => this.processReceivedMessage(message, meta), delay);
         } else {
-            this.processReceivedMessage(message);
+            this.processReceivedMessage(message, meta);
         }
     };
 
     /**
      * [Internal] Makes the final call on whether an actually received message is a Response or an Event.
      */
-    private processReceivedMessage(message: ResponseMessage | EventMessage): void {
+    private processReceivedMessage(message: ResponseMessage | EventMessage, meta?: InboundMessageMeta): void {
         const refId = message.refId;
 
         // If it has a `success` property and refId is pending in the map, it's a Response to a request
         if ('success' in message && refId && this.pendingRequests.has(refId)) {
             // Simulation: force injection of malformed data
             if (this.environment?.malformedResponse) {
-                this.handleResponse({
-                    refId,
-                    version: message.version,
-                    type: 'ERROR',
-                    success: true,
-                } as unknown as ResponseMessage);
+                this.handleResponse(
+                    {
+                        refId,
+                        version: message.version,
+                        type: 'ERROR',
+                        success: true,
+                    } as unknown as ResponseMessage,
+                    meta
+                );
                 return;
             }
 
@@ -231,14 +286,17 @@ export class WebBridgeClient implements IWebBridgeClient {
                     typeof this.environment.responseTypeMismatch === 'string'
                         ? this.environment.responseTypeMismatch
                         : 'OnFetchSafeArea';
-                this.handleResponse({
-                    ...message,
-                    type: mismatchType,
-                } as ResponseMessage);
+                this.handleResponse(
+                    {
+                        ...message,
+                        type: mismatchType,
+                    } as ResponseMessage,
+                    meta
+                );
                 return;
             }
 
-            this.handleResponse(message as ResponseMessage);
+            this.handleResponse(message as ResponseMessage, meta);
         } else {
             // Treated as an event when it isn't in the pending map, or when it's one-way data
             this.handleEvent(message as EventMessage);
@@ -248,7 +306,7 @@ export class WebBridgeClient implements IWebBridgeClient {
     /**
      * [Internal] Ends the lifetime of the matched pending request and settles (resolve/reject) its promise.
      */
-    private handleResponse(message: ResponseMessage): void {
+    private handleResponse(message: ResponseMessage, meta?: InboundMessageMeta): void {
         const refId = message.refId;
         if (!refId) return;
 
@@ -263,12 +321,14 @@ export class WebBridgeClient implements IWebBridgeClient {
 
         // Reject on receiving an app/native business-logic error
         if (!message.success) {
+            this.reportSettled(pending, message.error?.code ?? 'ERROR', meta?.length);
             pending.reject(message.error);
             return;
         }
 
         // Runtime protocol guard: block if the result differs from the promised response type
         if (message.type !== pending.expectedResponseType) {
+            this.reportSettled(pending, 'RESPONSE_TYPE_MISMATCH', meta?.length);
             pending.reject(
                 this.createResponseTypeMismatchError(
                     pending,
@@ -278,6 +338,7 @@ export class WebBridgeClient implements IWebBridgeClient {
             return;
         }
 
+        this.reportSettled(pending, 'ok', meta?.length);
         pending.resolve(message);
     }
 
@@ -424,6 +485,10 @@ export class WebBridgeClient implements IWebBridgeClient {
             });
 
             const send = () => {
+                // Stamped here rather than at the call: a simulated outbound delay is not time spent
+                // waiting for the channel, and must not read as queue time.
+                const pending = this.pendingRequests.get(refId);
+                if (pending && this.requestObserver) pending.calledAt = this.now();
                 if (!this.isReady) {
                     this.pendingBuffer.enqueue(requestMessage);
                 } else {
@@ -511,6 +576,13 @@ export class WebBridgeClient implements IWebBridgeClient {
     }
 
     /**
+     * Starts or stops reporting settled requests. Off by default, and nothing is timed while off.
+     */
+    public setRequestObserver(observer?: BridgeRequestObserver): void {
+        this.requestObserver = observer;
+    }
+
+    /**
      * Dynamically swaps the bridge's physical transport adapter at runtime.
      */
     public setAdapter(adapter: BridgeAdapter): void {
@@ -564,3 +636,7 @@ export class WebBridgeClient implements IWebBridgeClient {
         };
     }
 }
+
+/** A monotonic clock where the runtime has one; wall-clock time otherwise. */
+const defaultNow = (): number =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
