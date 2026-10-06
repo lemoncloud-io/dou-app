@@ -63,6 +63,7 @@ this folder — because desktop-web needs to read the exact same record apps/web
 | `ui.pinnedChannels`         | `pinnedChannels`                      | `usePinnedChannels` (`@chatic/shared`)                       |
 | `ui.channelOrder`           | — (new registry key, no legacy field) | `useChannelOrder` (`@chatic/shared`)                         |
 | `ui.homeSectionsCollapsed`  | — (new registry key, no legacy field) | `useHomeSections` (`features/home/hooks`)                    |
+| `ui.photoGridColumns`       | — (new registry key, no legacy field) | `usePhotoGridColumns` (`features/channels/hooks`)            |
 | `ui.recentSearches`         | `recentSearches`                      | `useRecentSearches` (`features/search/hooks`)                |
 | `ui.dismissedUpdateVersion` | `dismissedUpdateVersion`              | `useAppUpdatePrompt` (`features/appUpdate/hooks`)            |
 | `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)                      |

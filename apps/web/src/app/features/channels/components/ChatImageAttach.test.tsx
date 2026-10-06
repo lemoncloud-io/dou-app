@@ -40,9 +40,9 @@ const unsupportedPicker = (): PhotoPicker => ({
     albums: [],
     album: { title: 'Recents' },
     selectAlbum: jest.fn(),
-    photos: [],
-    hasMore: false,
-    loadMore: jest.fn(),
+    count: 0,
+    photoAt: () => undefined,
+    setVisibleRange: jest.fn(),
     picked: [],
     toggle: jest.fn(),
     takePicked: jest.fn().mockResolvedValue({ items: [], refused: [] }),
@@ -51,6 +51,9 @@ const unsupportedPicker = (): PhotoPicker => ({
 });
 // The component's own picker is the browser/old-app one unless a test injects another.
 jest.mock('../hooks/usePhotoPicker', () => ({ usePhotoPicker: () => mockOwnPicker }));
+jest.mock('../hooks/usePhotoGridColumns', () => ({
+    usePhotoGridColumns: () => ({ columns: 3, setColumns: jest.fn() }),
+}));
 let mockOwnPicker: PhotoPicker = unsupportedPicker();
 
 const photo = (name: string, type = 'image/jpeg', lastModified = 1) => new File(['x'], name, { type, lastModified });
@@ -240,7 +243,8 @@ describe('useChatImageAttach — in-app grid', () => {
         const picker = gridPicker({
             gridOpen: true,
             picked: [{ id: 'p1', src: 'data:p1' }],
-            photos: [{ id: 'p1', src: 'data:p1' }],
+            count: 1,
+            photoAt: (index: number) => [{ id: 'p1', src: 'data:p1' }][index],
             takePicked: jest
                 .fn()
                 .mockResolvedValue({ items: [photo('p1.jpg'), photo('p2.heic', 'image/heic')], refused: [] }),
@@ -266,7 +270,8 @@ describe('useChatImageAttach — in-app grid', () => {
         const picker = gridPicker({
             gridOpen: true,
             picked: [{ id: 'p1', src: 'data:p1' }],
-            photos: [{ id: 'p1', src: 'data:p1' }],
+            count: 1,
+            photoAt: (index: number) => [{ id: 'p1', src: 'data:p1' }][index],
             takePicked: jest.fn().mockResolvedValue({
                 items: [photo('p1.jpg'), kept],
                 refused: [{ name: '', kind: 'video', reason: 'unsupported' }],
@@ -287,7 +292,8 @@ describe('useChatImageAttach — in-app grid', () => {
             gridOpen: true,
             preparing: true,
             picked: [{ id: 'v', src: 'data:v', kind: 'video' }],
-            photos: [{ id: 'v', src: 'data:v', kind: 'video' }],
+            count: 1,
+            photoAt: (index: number) => [{ id: 'v', src: 'data:v', kind: 'video' as const }][index],
         });
         render(<Harness sendImages={jest.fn()} picker={picker} />);
 

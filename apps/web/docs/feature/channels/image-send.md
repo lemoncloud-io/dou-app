@@ -128,6 +128,56 @@ In the grid (`usePhotoPicker`) picks keep their order across albums; one page lo
 page that lands after the album changed is dropped. Denied access opens a settings prompt instead of an
 empty grid; iOS limited access shows a "choose more" row that re-lists after the system sheet closes.
 
+**The grid's layout.** The title row (album name, close) and the picked strip stay put; the limited-access
+row and the grid scroll beneath them, in a container of their own that `BottomSheet` is pointed at
+(`scrollRef`) so swipe-to-dismiss still arms only at the grid's top. The album list scrolls under the
+same title row.
+
+**A virtual grid, paged by position.** `PhotoGridSheet` renders only the rows on screen and four either
+side, and tells the hook which photos those are (`onVisibleRangeChange`). The hook keeps two things
+apart: which photo sits at each position (ids, small) and the previews (base64, by id), so the previews
+of a stretch long scrolled past can be let go later without losing the layout — they are not let go
+yet. Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of
+the range first: a fast-scroll drag passes many pages, and only the one it stops on is still wanted.
+The first answer carries the album's `total`, so the grid is its full height from the start and any
+stretch of it can be filled directly. A position whose page has not come is an empty tile; so is a photo
+the app could make no preview of, which is still pickable. When a later page reports a different
+`total`, the library changed under the grid — every index after the change has moved — so the layout is
+remade at the new length and the pages on screen are asked for again; the previews already held are by
+id and stay.
+
+An app from before offsets ignores the field and answers the first page with no `offset` in it. The
+first request is always offset 0, so that answer is still the right page; `bridge/photoLibrary.ts`
+learns from the missing echo once per page load, and the grid pages by cursor from then on, growing as it
+scrolls the way it always did. The handshake's `supportedWebMessages` is not used for this: it arrives
+asynchronously, it lists messages rather than the fields a handler reads, and it is built from the app's
+compiled message map rather than the handlers it registered — the answer itself is the only reliable
+witness.
+
+**Preview size.** Every list asks for previews at the size the tiles are drawn: the tile's CSS width ×
+`devicePixelRatio`, rounded up to 16 (`thumbSize`; a 390pt phone at three columns asks about 400px). The
+app answers a square crop of that size ([apps/mobile native/photo-library.md](../../../../mobile/docs/native/photo-library.md)). The menu's recent
+strip and the album covers ask for theirs the same way. An app from before the field answers its old
+~256px previews, which draw a little soft and need no fallback.
+
+**Fast scroll.** A grid longer than three screens shows a handle on its right edge while it scrolls,
+fading 1.5 s after. Dragging it moves the scroll in proportion — the handle's place on its track is the
+scroll position's place in the content — and, with offsets, the grid fills wherever it lands. With an
+older app the content is only as long as what has loaded, so the handle covers that. It has no date
+label: an item carries no date, and a position not yet loaded has none to show. It is pointer-only and
+hidden from assistive tech, since the grid scrolls by every other means.
+
+**Pinch for columns.** Two fingers on the grid step it between 2 and 5 columns (default 3), one step per
+1.3× of spread or pinch. The page already disallows zoom (`user-scalable=no`); the grid also takes
+`touch-action: pan-y`, cancels the two-finger `touchmove`, and cancels iOS WebKit's `gesturestart` /
+`gesturechange`, so the page never scales under it and the gesture is the grid's on both WebViews. The
+layout changes at once — no animation — and the scroll is set so the photo under the fingers stays under
+them. A pinch never reaches the sheet's drag. The count is kept in `ui.photoGridColumns` (local) and
+used again on the next open. When tiles grow past about 1.2× the size their previews were asked at
+(three columns to two), the pages on screen are asked for again at the new size; a smaller step (five to
+four) keeps what it has. There is no button for the columns: three columns is the whole picker, and the
+pinch only changes how many fit on screen.
+
 **Videos in the grid.** Every list asks for photos and videos (`mediaTypes: ['image', 'video']`). An app
 from before videos ignores the field and lists photos only, so asking costs it nothing; one that lists
 a video also has `KeepLibraryVideo`, which arrived in the same build. A video draws as its poster frame
@@ -145,7 +195,7 @@ rest still go. The grid stays open with its send button greyed out as "준비 �
 read — a video stored only in iCloud can take minutes to come down, with no progress to show — then
 closes, and the pending row appears with everything that was read. A `NOT_FOUND` from
 `KeepLibraryVideo` — an app that lists videos but cannot keep one, which no release ships — is learned
-for the page: lists stop asking for videos, and the ones on screen are dropped.
+for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
 entry's file input and the camera use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
@@ -395,7 +445,9 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/components/ChannelMessageRow \
   apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages \
   apps/web/src/app/features/channels/lib/videoFrames apps/web/src/app/features/channels/hooks/useVideoFrames \
-  apps/web/src/app/features/channels/hooks/usePhotoPicker apps/web/src/app/bridge/photoLibrary
+  apps/web/src/app/features/channels/hooks/usePhotoPicker apps/web/src/app/bridge/photoLibrary \
+  apps/web/src/app/features/channels/hooks/usePhotoGridColumns
+npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet
 ```
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and
