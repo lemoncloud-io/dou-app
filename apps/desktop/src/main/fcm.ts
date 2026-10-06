@@ -5,6 +5,8 @@ import { app, powerMonitor, powerSaveBlocker } from 'electron';
 
 import { AndroidFCM, Client, type PushReceiverMessage } from '@liamcottle/push-receiver';
 
+import { appendPersistentId, parseSavedCreds, type SavedCreds } from './fcmCreds';
+
 /** FCM project credentials (mirror apps/mobile google-services.json), baked via MAIN_VITE_FCM_*. */
 export interface FcmConfig {
     apiKey: string;
@@ -20,14 +22,6 @@ export interface FcmPush {
     body?: string;
     deeplink?: string;
     data: Record<string, string>;
-}
-
-interface SavedCreds {
-    androidId: string;
-    securityToken: string;
-    token: string;
-    /** Ids of pushes already seen — replayed-on-reconnect dedupe (push-receiver contract). */
-    persistentIds: string[];
 }
 
 const RECONNECT_MS = 5_000;
@@ -50,7 +44,7 @@ const credsFile = (): string => join(app.getPath('userData'), 'chatic-fcm.json')
 const loadCreds = (): SavedCreds | null => {
     try {
         const f = credsFile();
-        return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as SavedCreds) : null;
+        return existsSync(f) ? parseSavedCreds(readFileSync(f, 'utf8')) : null;
     } catch {
         return null;
     }
@@ -221,13 +215,15 @@ export const startFcm = async (
     const connect = (): void => {
         lastConnectAt = Date.now();
         client?.destroy(); // tear down any prior (possibly half-open) socket + its retry timer
-        const c = new Client(session.androidId, session.securityToken, session.persistentIds);
+        // A copy: until the login response the Client appends to the array it was given,
+        // which must not be session.persistentIds, the capped list this file owns.
+        const c = new Client(session.androidId, session.securityToken, [...session.persistentIds]);
         client = c;
 
         c.on('ON_DATA_RECEIVED', message => {
             if (client !== c) return; // orphan from a superseded connect(); ignore its replay
             if (message.persistentId) {
-                session.persistentIds.push(message.persistentId);
+                session.persistentIds = appendPersistentId(session.persistentIds, message.persistentId);
                 saveCreds(session);
             }
             const data = appDataToObject(message.appData);
