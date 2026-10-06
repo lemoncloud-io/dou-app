@@ -30,8 +30,6 @@ import {
 
 const NOTIFY_MODES: ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
-const isNotifyMode = (value: string): value is ChannelNotifyMode => NOTIFY_MODES.some(mode => mode === value);
-
 type RowDialogKind = Exclude<ChannelDialogKind, 'kick' | null>;
 
 interface ChannelRowMenuProps {
@@ -124,7 +122,7 @@ export const ChannelRowMenu = ({
                     <ContextMenuSubContent>
                         <ContextMenuRadioGroup
                             value={notifyMode}
-                            onValueChange={value => isNotifyMode(value) && onNotifyChange(value)}
+                            onValueChange={value => onNotifyChange(value as ChannelNotifyMode)}
                         >
                             {NOTIFY_MODES.map(mode => (
                                 <ContextMenuRadioItem key={mode} value={mode}>

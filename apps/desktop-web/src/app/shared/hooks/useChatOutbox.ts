@@ -53,6 +53,9 @@ let outboxSingleton: runtime.data.ChatOutbox | null = null;
 /** The desktop outbox, or null in an app that never opted in. */
 export const getChatOutbox = (): runtime.data.ChatOutbox | null => outboxSingleton;
 
+/** A cached row known to carry the text to send. */
+export type SendableChat = DomainChat & { content: string };
+
 const rowTime = (row: DomainChat): number => row.createdAtMs ?? row.createdAt ?? 0;
 
 /**
@@ -60,9 +63,9 @@ const rowTime = (row: DomainChat): number => row.createdAtMs ?? row.createdAt ??
  * Only `isFailed` rows qualify — that is exactly the set the manual retry button acts on, and a
  * still-pending row belongs to an in-flight send we must not duplicate.
  */
-export const selectResendableRows = (rows: DomainChat[], myUid: string): DomainChat[] =>
+export const selectResendableRows = (rows: DomainChat[], myUid: string): SendableChat[] =>
     rows
-        .filter(row => row.isFailed && !!row.id && !!row.content && (row.ownerId ?? row.userId) === myUid)
+        .filter((row): row is SendableChat => !!row.isFailed && !!row.id && !!row.content && row.ownerId === myUid)
         .sort((left, right) => rowTime(left) - rowTime(right));
 
 /**
@@ -74,7 +77,7 @@ const resolveParentId = (row: DomainChat): string | undefined => {
     return row.parentId.includes(':') ? row.parentId : `${row.channelId}:${row.parentId}`;
 };
 
-export const toSendPayload = (row: DomainChat): ChatSendInput => ({
+export const toSendPayload = (row: SendableChat): ChatSendInput => ({
     channelId: row.channelId,
     content: row.content,
     contentType: row.contentType,
@@ -107,7 +110,7 @@ export const matchLandedRow = (rows: DomainChat[], query: LandingQuery, consumed
                 (row.chatNo ?? 0) > 0 && // server-persisted only; never match the entry's own failed row
                 row.channelId === query.channelId &&
                 row.content === query.content &&
-                (row.ownerId ?? row.userId) === query.myUid &&
+                row.ownerId === query.myUid &&
                 Math.abs(rowTime(row) - query.sentAt) <= LANDING_SKEW_MS
         )
         .sort((left, right) => rowTime(left) - rowTime(right));
