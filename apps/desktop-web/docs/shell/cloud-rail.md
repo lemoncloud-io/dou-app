@@ -81,6 +81,14 @@ It used to say only "Couldn't switch cloud".
 A tile's menu removes it. An invited cloud is only forgotten on this device. An owned cloud is
 deleted on the backend (`useRemoveCloud`, `releaseCloud` with `cascade`) after a confirm dialog.
 
+An owned cloud that cannot be opened as it is has no delete in its menu (`canDelete`). The delete
+releases the cloud on the server with everything in it, and these are the clouds the user cannot enter
+to see what they would lose. The set is the states the tile labels (`STATUS_KEY`): `reserved` and
+`init` (still being set up), `error`, `suspended` and `expired`. Any other status, or none, keeps the
+delete. When nothing is left in a tile's menu (Home, or such a cloud) no menu is rendered, so the
+right-click opens nothing. An invited cloud keeps its local removal in every state, since forgetting
+it on this device loses nothing on the server.
+
 A delete that fails keeps the dialog open and says why inside it (`deleteCauseKey`, over
 `classifyWireError`). It used to stay open with nothing said:
 
@@ -98,7 +106,8 @@ so `isCloudAlreadyGone` takes both out of the failures (an `expired` counts only
 expired token reads as `expired` too, and a 404 only when it names the cloud; both others are reported): the hook still forgets the cache row and
 refreshes the list, the dialog closes, and a toast says the cloud had already ended. A cloud whose
 subscription lapsed is also `expired` on the backend, so its tile can stay on the rail, labelled
-"(expired)", after this toast; that tile is the list as the backend has it.
+"(expired)", after this toast; that tile is the list as the backend has it, and it has no delete to
+offer (see above). The toast is for a tile that looked open but had been released in the meantime.
 
 ## When the cloud list cannot be loaded
 

@@ -53,6 +53,15 @@ const STATUS_KEY: Partial<Record<string, string>> = {
     expired: 'cloud.status.expired',
 };
 
+/**
+ * Deleting an owned cloud releases it on the server, with everything in it. A cloud that cannot be opened
+ * as it is (the states the tile labels: still being set up, failed, suspended, expired) is one the user
+ * cannot even enter to check what they would lose, so its menu does not offer the delete. An invited cloud
+ * is only forgotten on this device, which is safe in any state.
+ */
+const canDelete = (cloud: RailCloud): boolean =>
+    cloud.kind === 'invited' || (cloud.kind === 'owned' && !(cloud.status && STATUS_KEY[cloud.status]));
+
 interface CloudRailProps {
     clouds: RailCloud[];
     activeCloudId: string | null;
@@ -151,8 +160,8 @@ export const CloudRail = ({
                         const isActive = cloud.id === activeCloudId;
                         const isInactive = !!cloud.status && cloud.status !== 'active';
                         const isLapsed = isLapsedCloud(cloud);
-                        // Home/Default can't be removed; owned + invited clouds can.
-                        const removable = cloud.kind !== 'home';
+                        const renamable = canRename(cloud, activeCloudId);
+                        const removable = canDelete(cloud);
                         // A cloud that cannot be opened as it is says why before the click fails.
                         const statusKey = cloud.status ? STATUS_KEY[cloud.status] : undefined;
                         const tileLabel = statusKey
@@ -220,9 +229,9 @@ export const CloudRail = ({
                                 top-right — the same corner that means unread, one mispress
                                 from switching into the cloud it would remove. It lives in
                                 the tile's own menu now, which the Menu key opens too. */}
-                                {removable && (
+                                {(renamable || removable) && (
                                     <ContextMenuContent className="w-52">
-                                        {canRename(cloud, activeCloudId) && (
+                                        {renamable && (
                                             <ContextMenuItem
                                                 disabled={isSwitching}
                                                 onSelect={() => setPendingRename(cloud)}
@@ -231,14 +240,16 @@ export const CloudRail = ({
                                                 {t('cloud.rename.action')}
                                             </ContextMenuItem>
                                         )}
-                                        <ContextMenuItem
-                                            disabled={isSwitching}
-                                            onSelect={() => setPendingRemove(cloud)}
-                                            className="text-destructive focus:text-destructive"
-                                        >
-                                            <Trash2 size={14} aria-hidden />
-                                            {t('cloud.remove.action')}
-                                        </ContextMenuItem>
+                                        {removable && (
+                                            <ContextMenuItem
+                                                disabled={isSwitching}
+                                                onSelect={() => setPendingRemove(cloud)}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 size={14} aria-hidden />
+                                                {t('cloud.remove.action')}
+                                            </ContextMenuItem>
+                                        )}
                                     </ContextMenuContent>
                                 )}
                             </ContextMenu>
