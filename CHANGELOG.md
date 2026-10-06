@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-10-06] - root@0.84.0, @chatic/web@0.65.0
+
+### Features
+
+- (web) confirm a tier change before the store opens; a downgrade picks its clouds (ADR-0173)
+- (web-ui-kit) add the subscription status banner, product card, info rows and radio card
+- (http,data,web) record the clouds a downgrade gives up through the drops call
+
+### Bug Fixes
+
+- (web) change a subscription only on the store that bills it (ADR-0173)
+- (web) drop the empty strip under the subscription card when there is nothing to say
+
+### Other
+
+- test: (web) walk the subscription screens through every membership state
+
 ## [2026-10-06] - No version updates
 
 ### Features
