@@ -61,4 +61,13 @@ describe('RenameCloudDialog', () => {
         expect((await screen.findByRole('alert')).textContent).toBe(i18next.t('errors.notAllowed'));
         expect(onOpenChange).not.toHaveBeenCalled();
     });
+
+    it('words a missing cloud as a cloud, not a channel', async () => {
+        renameCloud.mockRejectedValue(new Error('404 NOT FOUND - cloud is gone'));
+        const { input, submit } = setup();
+        fireEvent.change(input, { target: { value: 'Atelier' } });
+        fireEvent.click(submit);
+
+        expect((await screen.findByRole('alert')).textContent).toBe(i18next.t('cloud.rename.error.notFound'));
+    });
 });

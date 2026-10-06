@@ -264,6 +264,8 @@ export const en = {
     'cloud.rename.submit': 'Save name',
     'cloud.rename.saving': 'Saving...',
     'cloud.rename.lengthHint': 'Use 2 to 30 characters.',
+    'cloud.rename.error.notFound': 'That cloud is no longer available.',
+    'cloud.rename.error.conflict': 'Someone changed this cloud first. Reopen it and try again.',
     'cloud.remove.action': 'Remove cloud',
     'cloud.remove.title': 'Remove this cloud from your list?',
     'cloud.remove.description': "It's hidden from the list on the far left. You can rejoin later with an invite link.",

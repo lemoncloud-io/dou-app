@@ -272,6 +272,8 @@ export const ko: EnTranslation = {
     'cloud.rename.submit': '이름 저장',
     'cloud.rename.saving': '저장 중...',
     'cloud.rename.lengthHint': '2자에서 30자까지 쓸 수 있어요.',
+    'cloud.rename.error.notFound': '더 이상 사용할 수 없는 클라우드예요.',
+    'cloud.rename.error.conflict': '다른 사람이 이 클라우드를 먼저 바꿔어요. 다시 열고 시도해 주세요.',
     'cloud.remove.action': '클라우드 제거',
     'cloud.remove.title': '이 클라우드를 목록에서 제거할까요?',
     'cloud.remove.description': '맨 왼쪽 목록에서 숨겨져요. 나중에 초대 링크로 다시 참여할 수 있어요.',

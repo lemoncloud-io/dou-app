@@ -1,33 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
-
-import { logger } from '@chatic/bridges';
 
 import { classifyWireError, extractErrorMessage, useRenameCloud, type WireErrorKind } from '../../../shared';
 
 const CLOUD_NAME_MIN = 2;
 const CLOUD_NAME_MAX = 30;
 
-const ERROR_KEY_BY_KIND: Record<WireErrorKind, string> = {
+// Anything not listed reads as the generic line. `notFound` and `conflict` have cloud wording of
+// their own: the shared ones talk about channels.
+const ERROR_KEY_BY_KIND: Partial<Record<WireErrorKind, string>> = {
     denied: 'errors.notAllowed',
-    notFound: 'errors.notFound',
-    conflict: 'errors.conflict',
+    notFound: 'cloud.rename.error.notFound',
+    conflict: 'cloud.rename.error.conflict',
     network: 'errors.network',
-    expired: 'errors.generic',
-    invalid: 'errors.generic',
-    unknown: 'errors.generic',
 };
 
 /** The wire text goes to the log; the person gets a sentence they can act on. */
 const renameErrorKey = (error: unknown): string => {
     const raw = extractErrorMessage(error);
     logger.error('CLOUD', '[CloudRename] failed', { error, raw });
-    return ERROR_KEY_BY_KIND[classifyWireError(raw)];
+    return ERROR_KEY_BY_KIND[classifyWireError(raw)] ?? 'errors.generic';
 };
 
 interface RenameCloudDialogProps {
