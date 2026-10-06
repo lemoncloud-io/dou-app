@@ -56,6 +56,17 @@ older, turns the row into "Couldn't load earlier replies" with "Try again". What
 screen stays: the root, the replies so far and the composer. A reply can be sent in any of these
 states, and a new reply appears at once, since it arrives in the newest part of the window.
 
+## Leaving the channel
+
+The thread store records the channel a thread was opened in, because the root id is a bare `chatNo`
+and means nothing without it. `useTrailingPanelOwners` hands the panel the thread only while that
+channel is the one the pane is showing, resolved from the loaded channel list, and closes the thread
+as soon as they stop matching. The list is empty or replaced while a place switch is in flight, so a
+thread does not survive one: the panel is not rebuilt for the same channel when the list comes back.
+The close runs in an effect after the render that first sees the new channel, which is why the match
+is checked in the hook's return value as well; a panel drawn in that one render would otherwise
+fetch the old thread's number in the new channel.
+
 ## What this does not do
 
 - It does not ask the server for a thread. A thread buried under thousands of messages costs a batch

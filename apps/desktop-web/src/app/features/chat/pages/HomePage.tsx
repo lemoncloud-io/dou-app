@@ -154,7 +154,7 @@ export const HomePage = () => {
         profileTarget,
         savedOpen,
         activityOpen,
-    } = useTrailingPanelOwners();
+    } = useTrailingPanelOwners(channels.find(channel => channel.id === selectedChannelId)?.id);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
@@ -197,7 +197,7 @@ export const HomePage = () => {
             return;
         }
         pendingThreadRef.current = null;
-        openThread(rootId);
+        openThread(rootId, channelId);
     };
 
     const here: ReaderLocation = {
@@ -475,7 +475,7 @@ export const HomePage = () => {
         if (!pending) return;
         if (selectedChannelId === pending.channelId && channels.some(channel => channel.id === pending.channelId)) {
             pendingThreadRef.current = null;
-            openThread(pending.rootId);
+            openThread(pending.rootId, pending.channelId);
         }
     }, [channels, selectedChannelId, openThread]);
 

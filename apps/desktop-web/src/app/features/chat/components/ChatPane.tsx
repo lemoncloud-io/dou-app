@@ -112,7 +112,14 @@ export const ChatPane = ({
     const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(pinScope);
     const isFavorite = channelId ? pinnedIds.includes(channelId) : false;
-    const openThread = useThreadStore(s => s.open);
+    const openThreadIn = useThreadStore(s => s.open);
+    // A thread is bound to the channel it was opened in; the root id alone is a bare chatNo.
+    const openThread = useCallback(
+        (rootId: string) => {
+            if (channelId) openThreadIn(rootId, channelId);
+        },
+        [openThreadIn, channelId]
+    );
     const labeled = useMemo(() => (channel ? [channel] : []), [channel]);
     const labelOf = useChannelLabels(labeled);
     // Saved-item / search jump: forward a target to MessageList only when it

@@ -16,10 +16,20 @@ import { useThreadStore } from '../stores';
  * in the settings list) to check who someone is, so it stacks on that panel instead of replacing
  * it, and closing it shows the panel underneath again. It used to close the thread, and the reader
  * who stopped to check a name lost the conversation they were in.
+ *
+ * A thread belongs to the channel it was opened in. `shownChannelId` is the channel the pane is showing
+ * right now, resolved from the loaded list (undefined while that list is switching places). The thread
+ * is handed out only while the two match, and is closed the moment they stop matching: the close runs in
+ * an effect, after the render that first sees the new channel, so without the match a panel drawn in
+ * that render would ask the server about the old thread's number in the wrong room — or about the same
+ * room again when it comes back with the list.
  */
-export const useTrailingPanelOwners = () => {
-    const threadRootId = useThreadStore(s => s.openRootId);
+export const useTrailingPanelOwners = (shownChannelId: string | undefined) => {
+    const openRootId = useThreadStore(s => s.openRootId);
+    const openChannelId = useThreadStore(s => s.openChannelId);
     const closeThread = useThreadStore(s => s.close);
+    const threadHere = openRootId !== null && openChannelId === shownChannelId;
+    const threadRootId = threadHere ? openRootId : null;
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
@@ -29,6 +39,9 @@ export const useTrailingPanelOwners = () => {
     const activityOpen = useMentionsPanelStore(s => s.isOpen);
     const closeActivity = useMentionsPanelStore(s => s.close);
 
+    useEffect(() => {
+        if (openRootId && !threadHere) closeThread();
+    }, [openRootId, threadHere, closeThread]);
     useEffect(() => {
         if (threadRootId) {
             closeSettings();
