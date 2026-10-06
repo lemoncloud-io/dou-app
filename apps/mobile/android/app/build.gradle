@@ -74,9 +74,12 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Run R8 on release builds: shrinks and obfuscates the Java/Kotlin bytecode. Debug builds are left
+ * alone. What must survive renaming is listed in proguard-rules.pro; the mapping file that turns an
+ * obfuscated stack back into names is uploaded to Crashlytics by its gradle plugin and travels
+ * inside the AAB to Play.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 
 android {
