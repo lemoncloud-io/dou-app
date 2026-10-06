@@ -39,6 +39,8 @@ const restoreMock = jest.fn();
 const tier1 = { id: '#pro-tier-01', name: 'DoU Cloud 1', sort: 1, maxClouds: 1 };
 const tier2 = { id: '#pro-tier-02', name: 'DoU Cloud 2', sort: 2, maxClouds: 2 };
 
+let mockPrice: string | undefined = '₩17,600';
+
 const show = (summary: Partial<SubscriptionSummary>, membership: Record<string, unknown> = {}) => {
     const full: SubscriptionSummary = {
         state: 'active',
@@ -56,13 +58,13 @@ const show = (summary: Partial<SubscriptionSummary>, membership: Record<string, 
         currentPlan: full.state === 'none' ? undefined : tier2,
         pendingPlan: full.pendingProductId ? tier1 : undefined,
     });
-    (usePlanPrice as jest.Mock).mockReturnValue(() => (mockNative ? '₩17,600' : undefined));
+    (usePlanPrice as jest.Mock).mockReturnValue(() => (mockNative ? mockPrice : undefined));
     (useRestorePurchases as jest.Mock).mockReturnValue({
         restore: restoreMock,
         isRestoring: false,
         canRestore: mockNative && !mockGuest,
     });
-    render(<SubscriptionPage />);
+    return render(<SubscriptionPage />);
 };
 
 const K = 'mypage.subscription';
@@ -72,6 +74,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockNative = true;
     mockGuest = false;
+    mockPrice = '₩17,600';
 });
 
 describe('Subscription list — scenarios', () => {
@@ -110,6 +113,16 @@ describe('Subscription list — scenarios', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /DoU Cloud 2/ }));
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.detail);
+    });
+
+    it('active with no store price: no empty strip under the card', () => {
+        // Seen on a simulator without store products: the price row and the renewal line both drop
+        // out, and the card used to keep a divider over an empty strip.
+        mockPrice = undefined;
+        const { container } = show({});
+
+        expect(screen.queryByText(`${K}.info.price`)).not.toBeInTheDocument();
+        expect(container.querySelector('.h-px')).toBeNull();
     });
 
     it('queued downgrade: says what it changes to', () => {

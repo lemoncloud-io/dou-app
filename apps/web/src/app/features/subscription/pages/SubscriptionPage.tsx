@@ -107,19 +107,23 @@ export const SubscriptionPage = () => {
                         entitled={summary.isEntitled}
                         onClick={() => navigate(ROUTES.subscription.detail)}
                     >
-                        <div className="flex flex-col gap-2 pb-3 pt-1">
-                            {price && (
-                                <KeyValueRows
-                                    bare
-                                    rows={[{ label: t('mypage.subscription.info.price'), value: price }]}
-                                />
-                            )}
-                            {statusLine && (
-                                <p className={`px-4 text-[14px] font-medium leading-[1.5] ${statusLineTone}`}>
-                                    {statusLine}
-                                </p>
-                            )}
-                        </div>
+                        {/* Only when there is something to say: a store with no price for the plan and
+                            no status line would otherwise leave a divider over an empty strip. */}
+                        {(price || statusLine) && (
+                            <div className="flex flex-col gap-2 pb-3 pt-1">
+                                {price && (
+                                    <KeyValueRows
+                                        bare
+                                        rows={[{ label: t('mypage.subscription.info.price'), value: price }]}
+                                    />
+                                )}
+                                {statusLine && (
+                                    <p className={`px-4 text-[14px] font-medium leading-[1.5] ${statusLineTone}`}>
+                                        {statusLine}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </PlanProductCard>
                 ) : (
                     <div className="flex flex-col gap-6">
