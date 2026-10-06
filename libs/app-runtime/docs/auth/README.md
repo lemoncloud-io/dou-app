@@ -268,6 +268,25 @@ by whether `cid` is the committed cloud then: the session store (plus the cache)
 alone if it is not. A renewal that started while a cloud was committed and finishes after a switch
 away therefore cannot hand the new cloud the old one's token.
 
+**A re-issue is not asked for a place, and the server picks one.** Measured against the dev server: a
+committed cloud on place `10005` was re-issued a token for `10012`, another place of the same cloud,
+and the re-registration moved the socket there while the selection still said `10005`. Nothing kept
+the two equal, so the screen named one place while every site-scoped call — a place invite, a profile
+save — landed on the other, and a reload kept both, because a connect registers with the stored token
+and writes nothing back.
+
+[`alignSessionSite`](../../src/socket/auth/alignSessionSite.ts) closes that. It compares the place a
+token names (`$site.id`) with the selected place and, when they differ, `auth.switch`es the session
+back to the selection — the place the user chose and the screen shows. If that switch fails the
+selection follows the session instead, so the two at least agree. It runs at three points: after a
+renewal re-registers, on every token writeback, and each time a slot authenticates (the delegate's
+`onAuthenticated`, which is what catches a mismatch carried across a reload). It acts only for the
+committed cloud — a background slot has no selection — never for the relay, whose token names a
+personal place (`P…`) that is never the selected id, and never while a place switch is in flight
+(`isSiteSwitchInFlight`), when a token may still name the place being left. One alignment runs at a
+time, because its own switch writes a token back. The session's real place is readable as
+`getCommittedSessionSiteId()` for anything the server files under it.
+
 **A cloud's `onTerminalExpiry()`** drops that cloud's cached tokens — they are the ones that expired
 — and, for the committed cloud only, also runs `cloudSession.clearStores()`: losing a cloud is
 recoverable by walking back in, so it is not a teardown signal. For any other cloud the store is left

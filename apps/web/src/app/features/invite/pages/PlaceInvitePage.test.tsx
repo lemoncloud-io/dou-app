@@ -18,6 +18,8 @@ const emitPlace = (row: PlaceRow) => act(() => placeListener?.(row));
 
 let selectedCloudId = 'cloud-1';
 let selectedSiteId: string | null = 'site-1';
+// The place the session's token names — what the server files the invite under.
+let sessionSiteId: string | null = 'site-1';
 let isExperimentEnabled = true;
 
 /** The props the page handed the shared contact tab and link sheet, captured on each render. */
@@ -42,6 +44,7 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
+            getCommittedSessionSiteId: () => sessionSiteId,
         },
     },
 }));
@@ -78,6 +81,7 @@ describe('PlaceInvitePage', () => {
         placeListener = null;
         selectedCloudId = 'cloud-1';
         selectedSiteId = 'site-1';
+        sessionSiteId = 'site-1';
         isExperimentEnabled = true;
         tab = null;
         sheet = null;
@@ -136,6 +140,27 @@ describe('PlaceInvitePage', () => {
         expect(createPlaceInvite).not.toHaveBeenCalled();
         expect(createBatchInvite).not.toHaveBeenCalled();
         expect(requestInviteLink).not.toHaveBeenCalled();
+    });
+
+    it('refuses every send while the selection names this place but the session sits on another', async () => {
+        sessionSiteId = 'site-2';
+        render(<PlaceInvitePage />);
+
+        await expect(tab.sendSingle({ name: 'n', phone: 'p' })).rejects.toThrow('placeInvite.placeChanged');
+        await expect(tab.sendBatch(['p'])).rejects.toThrow('placeInvite.placeChanged');
+        await expect(sheet.requestLink({ name: 'n', phone: 'p' })).rejects.toThrow('placeInvite.placeChanged');
+        expect(createPlaceInvite).not.toHaveBeenCalled();
+        expect(createBatchInvite).not.toHaveBeenCalled();
+        expect(requestInviteLink).not.toHaveBeenCalled();
+    });
+
+    it('still sends when the token does not say which place the session is on', async () => {
+        sessionSiteId = null;
+        render(<PlaceInvitePage />);
+
+        await tab.sendBatch(['p']);
+
+        expect(createBatchInvite).toHaveBeenCalled();
     });
 
     it('sends a non-owner who opened the route directly back home', () => {

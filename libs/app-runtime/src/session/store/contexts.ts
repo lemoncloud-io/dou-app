@@ -41,3 +41,16 @@ export { getRelaySessionUser, patchRelaySessionUser };
  * `null` means no cloud is committed (relay/default).
  */
 export const getCommittedCloudId = (): string | null => cloudStore.getDelegationToken()?.cloudId ?? null;
+
+/**
+ * The place the committed cloud's session is actually on, as its token names it — NOT the selection.
+ *
+ * The two usually agree, but nothing makes them: a token the server issues without being asked for a
+ * place (a credential renewal) re-registers the session on whichever place the server picked, and the
+ * selection stays. Anything the server files under "the session's place" — a place invite carries no
+ * site of its own — has to check this one.
+ *
+ * `null` when no cloud is committed, or when the stored token predates the field.
+ */
+export const getCommittedSessionSiteId = (): string | null =>
+    getCommittedCloudId() ? (cloudStore.getCloudToken()?.$site?.id ?? null) : null;

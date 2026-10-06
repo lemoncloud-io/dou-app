@@ -18,6 +18,8 @@
 export {
     getActiveServerContext,
     getActiveSessionUser,
+    // The place the session is really on, which the selection can disagree with — see its comment.
+    getCommittedSessionSiteId,
     getGlobalSessionContext,
     getIdentityContext,
     getRelaySessionUser,

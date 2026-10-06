@@ -35,6 +35,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'fetchInviteInfoWithCode',
         'getActiveServerContext',
         'getActiveSessionUser',
+        'getCommittedSessionSiteId',
         'getGlobalSessionContext',
         'getIdentityContext',
         'getRelaySessionUser',

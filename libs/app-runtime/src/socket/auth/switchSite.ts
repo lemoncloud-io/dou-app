@@ -6,6 +6,15 @@ import { getSocketManager } from '../runtime';
 import { handleRevokedRelaySession, isRevokedSessionError } from './revokedSession';
 
 /**
+ * Switches past the early return below that have not settled yet. A token written back while one is
+ * in flight may still name the place being left, which is not drift — `alignSessionSite` reads this
+ * to tell the two apart.
+ */
+let switchesInFlight = 0;
+
+export const isSiteSwitchInFlight = (): boolean => switchesInFlight > 0;
+
+/**
  * Switches the active site on the live socket via the SDK `auth.switch` — owned by app-runtime now
  * that ClientSocketAuth performs the switch (multi-socket-design.md §8-2). Apps wrap this in a
  * react-query mutation (keyed by web-core's SWITCH_SITE_MUTATION_KEY) for `isSwitching` + the global
@@ -40,6 +49,7 @@ export const switchSite = async (siteId: string): Promise<void> => {
     // Optimistic pre-apply (also the rollback target below).
     cloudSession.applySelectedSite(siteId);
 
+    switchesInFlight++;
     try {
         const manager = getSocketManager();
         // auth.switch on a not-connected socket rejects (AuthSwitchError phase 'not-connected'), so
@@ -70,5 +80,7 @@ export const switchSite = async (siteId: string): Promise<void> => {
             void handleRevokedRelaySession('auth.switch');
         }
         throw error;
+    } finally {
+        switchesInFlight--;
     }
 };
