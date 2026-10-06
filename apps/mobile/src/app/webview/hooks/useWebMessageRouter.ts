@@ -123,17 +123,21 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
 
     const {
         isAvailable: isAttachmentPickerAvailable,
+        canReadVideoFrame,
         handlePickAttachments,
         handlePrepareVideo,
         handleReadAttachment,
+        handleReadVideoFrame,
     } = useAttachmentPickerHandler();
 
     const {
         isAvailable: isPhotoLibraryAvailable,
+        canKeepVideo,
         handleListPhotoAlbums,
         handleListPhotos,
         handleReadPhoto,
         handleManagePhotoSelection,
+        handleKeepLibraryVideo,
     } = usePhotoLibraryHandler();
 
     const { handleRequestPermission } = usePermissionHandler();
@@ -245,10 +249,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handlePickAttachments,
         handlePrepareVideo,
         handleReadAttachment,
+        handleReadVideoFrame,
         handleListPhotoAlbums,
         handleListPhotos,
         handleReadPhoto,
         handleManagePhotoSelection,
+        handleKeepLibraryVideo,
         handleFetchTestRecord,
         handleFetchAllTestRecords,
         handleSaveTestRecord,
@@ -345,10 +351,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handlePickAttachments,
             handlePrepareVideo,
             handleReadAttachment,
+            handleReadVideoFrame,
             handleListPhotoAlbums,
             handleListPhotos,
             handleReadPhoto,
             handleManagePhotoSelection,
+            handleKeepLibraryVideo,
             handleFetchUrlMetadata,
         };
     });
@@ -446,7 +454,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             // Registered only where the native module exists. A build without it leaves the web its
             // NOT_FOUND, which is the signal to fall back to the page's own file input.
             ...(isPhotoLibraryAvailable && {
-                ListPhotoAlbums: () => handlersRef.current.handleListPhotoAlbums(),
+                ListPhotoAlbums: message => handlersRef.current.handleListPhotoAlbums(message),
                 ListPhotos: message => handlersRef.current.handleListPhotos(message),
                 ReadPhoto: message => handlersRef.current.handleReadPhoto(message),
                 ManagePhotoSelection: () => handlersRef.current.handleManagePhotoSelection(),
@@ -459,6 +467,17 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 PrepareVideo: message => handlersRef.current.handlePrepareVideo(message),
                 ReadAttachment: message => handlersRef.current.handleReadAttachment(message),
             }),
+            // Newer than the modules they live on, so registered by method: a build whose module lacks
+            // one leaves the web its NOT_FOUND — the grid then lists photos only, and a received video's
+            // tile is drawn another way or left grey.
+            ...(isPhotoLibraryAvailable &&
+                canKeepVideo && {
+                    KeepLibraryVideo: message => handlersRef.current.handleKeepLibraryVideo(message),
+                }),
+            ...(isAttachmentPickerAvailable &&
+                canReadVideoFrame && {
+                    ReadVideoFrame: message => handlersRef.current.handleReadVideoFrame(message),
+                }),
             ...(canOpenFile && { OpenFile: message => handlersRef.current.handleOpenFile(message) }),
             ...(canSaveFile && { SaveFile: message => handlersRef.current.handleSaveFile(message) }),
         };
@@ -476,7 +495,15 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 bridge.unregisterHandler(type);
             });
         };
-    }, [bridge, isPhotoLibraryAvailable, isAttachmentPickerAvailable, canOpenFile, canSaveFile]);
+    }, [
+        bridge,
+        isPhotoLibraryAvailable,
+        isAttachmentPickerAvailable,
+        canKeepVideo,
+        canReadVideoFrame,
+        canOpenFile,
+        canSaveFile,
+    ]);
 
     return { isIapLoading, showResumeOverlay, coverReload };
 };

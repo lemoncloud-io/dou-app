@@ -5,10 +5,14 @@ import React
 import UIKit
 
 /// PhotoLibrary — reads the device photo library for the web's in-app picker: albums, pages of
-/// previews, and the bytes of a picked photo.
+/// previews, the bytes of a picked photo, and a picked video kept as a file.
 ///
-/// Only still images are listed. Everything crosses as base64 because the WebView cannot open a
-/// `ph://` identifier; the identifiers themselves are handed to the web only to be handed back.
+/// A list holds the media types its request names (`mediaTypes`) and still images when it names
+/// none, so a caller that cannot send a video never sees one. Previews and photos cross as base64 because the WebView cannot
+/// open a `ph://` identifier; the identifiers themselves are handed to the web only to be handed back.
+/// A video never crosses: `keepLibraryVideo` copies it into the attachment picker's folders and
+/// answers with the copy's `file://` URI, which PrepareVideo and the transfer take as they take a
+/// picked video.
 ///
 /// Rejection codes never include `NOT_FOUND`: the web reads that code as "this app has no photo
 /// library" and stops asking for the rest of the session, so a deleted photo must not look like it.
@@ -20,6 +24,10 @@ final class PhotoLibrary: NSObject {
     private static let listQueue = DispatchQueue(label: "io.chatic.dou.photo-library.list", qos: .userInitiated)
     /// Reads get their own queue, so sending a photo does not wait behind a page of previews.
     private static let readQueue = DispatchQueue(label: "io.chatic.dou.photo-library.read", qos: .userInitiated)
+    /// Kept videos get a third: a copy can wait minutes on an iCloud download, and photos read for the
+    /// same message should not queue behind it. One at a time — the web sends them one by one anyway,
+    /// and each holds a full video's write.
+    private static let videoQueue = DispatchQueue(label: "io.chatic.dou.photo-library.video", qos: .userInitiated)
 
     private struct Rejection: Error {
         let code: String
@@ -30,12 +38,14 @@ final class PhotoLibrary: NSObject {
 
     // MARK: - Methods
 
-    @objc(listAlbums:reject:)
-    func listAlbums(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+    @objc(listAlbums:resolve:reject:)
+    func listAlbums(_ request: NSDictionary?, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        let types = PhotoLibraryCore.mediaTypes(request?["mediaTypes"])
+
         Self.withAccess { authorization in
             let access = PhotoLibraryCore.access(authorization)
             guard access != "denied" else { return resolve(["access": access, "albums": []]) }
-            resolve(["access": access, "albums": Self.albums()])
+            resolve(["access": access, "albums": Self.albums(types)])
         }
     }
 
@@ -44,11 +54,12 @@ final class PhotoLibrary: NSObject {
         let albumId = request["albumId"] as? String
         let after = request["after"] as? String
         let limit = (request["limit"] as? NSNumber)?.intValue ?? 0
+        let types = PhotoLibraryCore.mediaTypes(request["mediaTypes"])
 
         Self.withAccess { authorization in
             let access = PhotoLibraryCore.access(authorization)
             guard access != "denied" else { return resolve(["access": access, "items": []]) }
-            resolve(Self.photos(albumId: albumId, after: after, limit: limit, access: access))
+            resolve(Self.photos(albumId: albumId, types: types, after: after, limit: limit, access: access))
         }
     }
 
@@ -57,6 +68,23 @@ final class PhotoLibrary: NSObject {
         Self.readQueue.async {
             do {
                 resolve(try Self.read(id as String))
+            } catch let rejection as Rejection {
+                reject(rejection.code, rejection.message, nil)
+            } catch {
+                reject("INTERNAL", error.localizedDescription, nil)
+            }
+        }
+    }
+
+    /// Copies one library video into a new `attach-pick/<uuid>/` folder and answers with the item a
+    /// pick answers for a video. Refusals: `INVALID` (no id, or an asset that is not a video),
+    /// `PHOTO_MISSING` (no such asset, or not shared under limited access), `READ_FAILED` (the copy or
+    /// its iCloud download failed, or the copy's tracks cannot be read) and `TOO_LARGE`.
+    @objc(keepLibraryVideo:resolve:reject:)
+    func keepLibraryVideo(_ id: NSString, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        Self.videoQueue.async {
+            do {
+                resolve(try Self.keepVideo(id as String))
             } catch let rejection as Rejection {
                 reject(rejection.code, rejection.message, nil)
             } catch {
@@ -122,9 +150,15 @@ final class PhotoLibrary: NSObject {
     // MARK: - Albums
 
     /// Smart albums worth switching to, after "all photos". Hidden and Recently Deleted are left out on
-    /// purpose; the rest of the smart albums are either video or empty for most people.
-    private static let smartAlbums: [PHAssetCollectionSubtype] = [
-        .smartAlbumFavorites,
+    /// purpose; the rest of the smart albums are either empty for most people or hold only videos
+    /// (slo-mo, time-lapse), and of those just "Videos" is offered, when videos are listed at all.
+    private static func smartAlbums(_ types: Set<PhotoLibraryCore.MediaType>) -> [PHAssetCollectionSubtype] {
+        [.smartAlbumFavorites]
+            + (types.contains(.video) ? [.smartAlbumVideos] : [])
+            + stillAlbums
+    }
+
+    private static let stillAlbums: [PHAssetCollectionSubtype] = [
         .smartAlbumSelfPortraits,
         .smartAlbumScreenshots,
         .smartAlbumLivePhotos,
@@ -134,10 +168,17 @@ final class PhotoLibrary: NSObject {
         .smartAlbumBursts,
     ]
 
-    /// Newest first, still images only — the same order and filter every page uses.
-    private static func imageOptions() -> PHFetchOptions {
+    /// Newest first, only the media types asked for — the same order and filter every album count,
+    /// cover and page uses, so a count never disagrees with the pages behind it.
+    private static func fetchOptions(_ types: Set<PhotoLibraryCore.MediaType>) -> PHFetchOptions {
         let options = PHFetchOptions()
-        options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+        let raw = types.map { type -> Int in
+            switch type {
+            case .image: return PHAssetMediaType.image.rawValue
+            case .video: return PHAssetMediaType.video.rawValue
+            }
+        }
+        options.predicate = NSPredicate(format: "mediaType IN %@", raw)
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         return options
     }
@@ -146,9 +187,9 @@ final class PhotoLibrary: NSObject {
         PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: .smartAlbumUserLibrary, options: nil).firstObject
     }
 
-    private static func albums() -> [[String: Any]] {
+    private static func albums(_ types: Set<PhotoLibraryCore.MediaType>) -> [[String: Any]] {
         let library = userLibrary()
-        let all = library.map { PHAsset.fetchAssets(in: $0, options: imageOptions()) } ?? PHAsset.fetchAssets(with: imageOptions())
+        let all = library.map { PHAsset.fetchAssets(in: $0, options: fetchOptions(types)) } ?? PHAsset.fetchAssets(with: fetchOptions(types))
         var first: [String: Any] = [
             "id": PhotoLibraryCore.allPhotosAlbumId,
             "title": library?.localizedTitle ?? NSLocalizedString("photo_library_all_photos", comment: ""),
@@ -157,7 +198,7 @@ final class PhotoLibrary: NSObject {
         if let newest = all.firstObject, let cover = thumbnail(newest) { first["coverBase64"] = cover }
 
         var collections: [PHAssetCollection] = []
-        for subtype in smartAlbums {
+        for subtype in smartAlbums(types) {
             PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: subtype, options: nil)
                 .enumerateObjects { collection, _, _ in collections.append(collection) }
         }
@@ -169,9 +210,10 @@ final class PhotoLibrary: NSObject {
             }
 
         // "All photos" stays first even when empty: the web treats the first album as the whole
-        // library. Every other album is listed only when it holds a photo this app can see.
+        // library. Every other album is listed only when it holds something of the asked types this
+        // app can see — so "Videos" never shows up empty, and a video-only album not at all for photos.
         let rest: [[String: Any]] = collections.compactMap { collection in
-            let assets = PHAsset.fetchAssets(in: collection, options: imageOptions())
+            let assets = PHAsset.fetchAssets(in: collection, options: fetchOptions(types))
             guard assets.count > 0 else { return nil }
             var album: [String: Any] = [
                 "id": collection.localIdentifier,
@@ -188,19 +230,22 @@ final class PhotoLibrary: NSObject {
 
     /// An album that is gone (deleted, or no longer shared under limited access) lists as empty rather
     /// than failing, so the grid shows nothing instead of retrying forever.
-    private static func assets(albumId: String?) -> PHFetchResult<PHAsset>? {
+    private static func assets(albumId: String?, types: Set<PhotoLibraryCore.MediaType>) -> PHFetchResult<PHAsset>? {
+        let options = fetchOptions(types)
         guard !PhotoLibraryCore.isAllPhotos(albumId), let albumId else {
-            guard let library = userLibrary() else { return PHAsset.fetchAssets(with: imageOptions()) }
-            return PHAsset.fetchAssets(in: library, options: imageOptions())
+            guard let library = userLibrary() else { return PHAsset.fetchAssets(with: options) }
+            return PHAsset.fetchAssets(in: library, options: options)
         }
         guard let collection = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumId], options: nil).firstObject else {
             return nil
         }
-        return PHAsset.fetchAssets(in: collection, options: imageOptions())
+        return PHAsset.fetchAssets(in: collection, options: options)
     }
 
-    private static func photos(albumId: String?, after: String?, limit: Int, access: String) -> [String: Any] {
-        guard let assets = assets(albumId: albumId) else { return ["access": access, "items": []] }
+    private static func photos(
+        albumId: String?, types: Set<PhotoLibraryCore.MediaType>, after: String?, limit: Int, access: String
+    ) -> [String: Any] {
+        guard let assets = assets(albumId: albumId, types: types) else { return ["access": access, "items": []] }
 
         let cursor = PhotoLibraryCore.decode(after)
         let anchorIndex = cursor.flatMap { cursor -> Int? in
@@ -216,14 +261,18 @@ final class PhotoLibrary: NSObject {
         for index in page.range {
             let asset = assets.object(at: index)
             last = asset
-            // A photo with no preview on the device is skipped rather than drawn as a blank tile.
+            // A photo with no preview on the device is skipped rather than drawn as a blank tile. A
+            // video's preview is a frame PhotoKit renders the same way, so the rule holds for both.
             guard let thumb = thumbnail(asset) else { continue }
-            items.append([
+            var item: [String: Any] = [
                 "id": asset.localIdentifier,
                 "thumbBase64": thumb,
                 "width": asset.pixelWidth,
                 "height": asset.pixelHeight,
-            ])
+                "mediaType": (asset.mediaType == .video ? PhotoLibraryCore.MediaType.video : .image).rawValue,
+            ]
+            if asset.mediaType == .video { item["durationMs"] = PhotoLibraryCore.durationMs(seconds: asset.duration) }
+            items.append(item)
         }
 
         var reply: [String: Any] = ["access": access, "items": items]
@@ -267,6 +316,9 @@ final class PhotoLibrary: NSObject {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
             throw Rejection(code: "PHOTO_MISSING", message: "The photo is no longer in the library")
         }
+        // A video id reaches here only by mistake now that the grid lists videos; its image data would
+        // be a still frame sent as a photo, so it is refused, and the web sends it with keepLibraryVideo.
+        guard asset.mediaType == .image else { throw Rejection(code: "INVALID", message: "The id is not a photo") }
 
         let options = PHImageRequestOptions()
         options.isSynchronous = true
@@ -294,5 +346,73 @@ final class PhotoLibrary: NSObject {
             "width": asset.pixelWidth,
             "height": asset.pixelHeight,
         ]
+    }
+
+    // MARK: - Keep video
+
+    /// The video the user chose to send, copied whole — downloaded from iCloud first if it has to be,
+    /// which the web allows ten minutes for — and then judged exactly as a picked video is
+    /// (`AttachmentPicker.keepVideo`). Unlike a pick, a video that will be converted is held to the
+    /// conversion's size estimate now, so one PrepareVideo would refuse never becomes a pending message.
+    private static func keepVideo(_ id: String) throws -> [String: Any] {
+        guard !id.isEmpty else { throw Rejection(code: "INVALID", message: "id is required") }
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
+            throw Rejection(code: "PHOTO_MISSING", message: "The video is no longer in the library")
+        }
+        guard asset.mediaType == .video else { throw Rejection(code: "INVALID", message: "The id is not a video") }
+
+        let resources = PHAssetResource.assetResources(for: asset)
+        let described = resources.map { resource in
+            AttachmentPickerCore.LibraryVideoResource(kind: resourceKind(resource.type), originalFilename: resource.originalFilename)
+        }
+        guard let copy = AttachmentPickerCore.libraryVideoCopy(described) else {
+            throw Rejection(code: "READ_FAILED", message: "The video has no file to copy")
+        }
+        let resource = resources[copy.index]
+
+        // The sweep a pick runs first, on this queue rather than the pick's: it only removes folders
+        // untouched for a day, which no copy in progress can be.
+        AttachmentPicker.sweep()
+        let folder: URL
+        do {
+            folder = try AttachmentPicker.newFolder()
+        } catch {
+            throw Rejection(code: "READ_FAILED", message: error.localizedDescription)
+        }
+        let target = folder.appendingPathComponent(copy.name)
+
+        let options = PHAssetResourceRequestOptions()
+        options.isNetworkAccessAllowed = true
+        let written = DispatchSemaphore(value: 0)
+        let failure = WaitBox<Error?>(nil)
+        PHAssetResourceManager.default().writeData(for: resource, toFile: target, options: options) { error in
+            failure.value = error
+            written.signal()
+        }
+        written.wait()
+        if let error = failure.value {
+            try? FileManager.default.removeItem(at: folder)
+            throw Rejection(code: "READ_FAILED", message: error.localizedDescription)
+        }
+
+        // The server's video ceiling. A pick is given it by the web; this call is not, and the
+        // ceiling is the same number the conversion is held to.
+        let max = AttachmentPickerCore.MaxBytes(image: 0, video: AttachmentPickerCore.exportLimitBytes, file: 0)
+        switch AttachmentPicker.keepVideo(target, typeIdentifier: resource.uniformTypeIdentifier, max: max, estimateConversion: true) {
+        case let .kept(item):
+            return item
+        case .refused(.tooLarge):
+            throw Rejection(code: "TOO_LARGE", message: "The video is over the size limit")
+        case .refused(.unreadable):
+            throw Rejection(code: "READ_FAILED", message: "The copied video cannot be read")
+        }
+    }
+
+    private static func resourceKind(_ type: PHAssetResourceType) -> AttachmentPickerCore.LibraryVideoResource.Kind {
+        switch type {
+        case .video: return .video
+        case .fullSizeVideo: return .fullSizeVideo
+        default: return .other
+        }
     }
 }

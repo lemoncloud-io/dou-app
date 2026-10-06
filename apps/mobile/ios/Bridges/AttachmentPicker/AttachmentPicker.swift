@@ -7,13 +7,16 @@ import UIKit
 import UniformTypeIdentifiers
 
 /// AttachmentPicker — picks photos, videos and documents for a chat message and keeps them in the
-/// shell, makes a picked video ready to upload, and reads a picked photo's bytes.
+/// shell, makes a picked video ready to upload, reads a picked photo's bytes, and reads one frame of
+/// a sent video for the web to show as its poster.
 ///
 /// Everything picked is copied into `Caches/attach-pick/<uuid>/` and handed to the web as a `file://`
 /// URI. A video's or document's bytes never cross the bridge: the transfer uploads it from there. A
 /// photo is kept prepared exactly as the in-app photo grid prepares one (`PhotoLibraryCore.prepare`),
 /// and its bytes cross later, one photo per `readAttachment`, because the web prepares every photo
-/// itself — ten photos in the pick's own answer would be one message of some 200 MB of base64.
+/// itself — ten photos in the pick's own answer would be one message of some 200 MB of base64. A
+/// video sent from the in-app grid (`PhotoLibrary.keepLibraryVideo`) is kept in the same folders and
+/// judged by the same `keepVideo` as a picked one, so PrepareVideo and the transfer take it alike.
 ///
 /// The rules that need no UIKit or AVFoundation live in `Core/AttachmentPickerCore.swift`.
 @objc(AttachmentPicker)
@@ -103,8 +106,10 @@ final class AttachmentPicker: NSObject {
     }
 
     /// Deletes pick folders untouched for a day. A folder's age is its newest change, so one whose
-    /// video was converted an hour ago is kept even when it was picked yesterday.
-    private static func sweep() {
+    /// video was converted an hour ago is kept even when it was picked yesterday. Run before a pick,
+    /// and before a video is kept from the in-app grid, so someone who only ever sends from the grid
+    /// does not collect copies until the OS purges the cache.
+    static func sweep() {
         let fm = FileManager.default
         let root = Self.root
         guard let names = try? fm.contentsOfDirectory(atPath: root.path) else { return }
@@ -180,6 +185,100 @@ final class AttachmentPicker: NSObject {
             "width": size.width,
             "height": size.height,
         ]
+    }
+
+    // MARK: - Read video frame
+
+    /// One frame of a sent video, read straight from its signed storage URL, as a JPEG in base64: a
+    /// poster for a video whose message carries none. Nothing is written to disk — the frame is
+    /// decoded from what AVFoundation streams and answered in memory. `INVALID` for arguments
+    /// `AttachmentPickerCore.frameRequest` refuses, `UNREADABLE` for every other failure, the
+    /// shell's own 20 s timeout included.
+    ///
+    /// The numbers arrive optional so a missing one is refused as `INVALID` rather than trapping on
+    /// a nil the bridge passed through.
+    @objc(readVideoFrame:atMs:maxEdge:resolve:reject:)
+    func readVideoFrame(
+        _ url: NSString,
+        atMs: NSNumber?,
+        maxEdge: NSNumber?,
+        resolve: @escaping RCTPromiseResolveBlock,
+        reject: @escaping RCTPromiseRejectBlock
+    ) {
+        guard let request = AttachmentPickerCore.frameRequest(
+            url: url as String, atMs: atMs?.doubleValue ?? .nan, maxEdge: maxEdge?.doubleValue ?? .nan
+        ) else {
+            return reject("INVALID", "url must be https, atMs zero or more and maxEdge above zero", nil)
+        }
+        VideoFrame.queue.addOperation {
+            do {
+                resolve(try VideoFrame.read(request))
+            } catch let rejection as Rejection {
+                reject(rejection.code, rejection.message, nil)
+            } catch {
+                reject("UNREADABLE", TransferText.sanitize(error.localizedDescription), nil)
+            }
+        }
+    }
+
+    // MARK: - Keep a video
+
+    /// Why a kept video copy was refused.
+    enum VideoRefusal {
+        /// Its size, or its tracks, could not be read.
+        case unreadable
+        /// Over the video ceiling as it is, or — when the conversion is estimated — even at 720p.
+        case tooLarge
+    }
+
+    enum KeptVideo {
+        /// The answer's item: `{ kind: "video", uri, name, contentType, size, needsExport? }`.
+        case kept([String: Any])
+        case refused(VideoRefusal)
+    }
+
+    /// The judgement every video copied into a pick folder goes through, from the system picker or
+    /// from the in-app grid: its size and tracks are read, whether it needs converting is decided, it
+    /// is held to the ceiling, and the item the web is answered with is built. A refused copy's folder
+    /// is deleted here, so neither caller leaves one behind.
+    ///
+    /// `estimateConversion` decides what happens to a video that will be converted. A pick leaves it
+    /// to PrepareVideo (the picker answers once every item is copied, and an estimate per item would
+    /// hold the whole answer up); the grid sends one video per call and asks for the estimate now, so
+    /// a video PrepareVideo would refuse is refused before the message is written. Both use the same
+    /// preset steps (`VideoPreparation.exportChoice`), so the two answers cannot disagree.
+    ///
+    /// Blocking: it waits on AVFoundation. Called on a queue of its caller's own.
+    static func keepVideo(
+        _ file: URL,
+        typeIdentifier: String?,
+        max: AttachmentPickerCore.MaxBytes,
+        estimateConversion: Bool
+    ) -> KeptVideo {
+        let folder = file.deletingLastPathComponent()
+        guard let size = fileSize(file), let facts = VideoPreparation.facts(of: file) else {
+            try? FileManager.default.removeItem(at: folder)
+            return .refused(.unreadable)
+        }
+        let needsExport = AttachmentPickerCore.needsExport(facts)
+        let tooLarge = needsExport
+            ? estimateConversion && VideoPreparation.conversionIsTooLarge(file)
+            : AttachmentPickerCore.isTooLarge(kind: .video, size: size, needsExport: false, max: max)
+        if tooLarge {
+            try? FileManager.default.removeItem(at: folder)
+            return .refused(.tooLarge)
+        }
+        var item: [String: Any] = [
+            "kind": "video",
+            "uri": file.absoluteString,
+            "name": file.lastPathComponent,
+            "contentType": typeIdentifier.flatMap { UTType($0)?.preferredMIMEType }
+                ?? UTType(filenameExtension: file.pathExtension)?.preferredMIMEType
+                ?? "application/octet-stream",
+            "size": NSNumber(value: size),
+        ]
+        if needsExport { item["needsExport"] = true }
+        return .kept(item)
     }
 
     // MARK: - Internals
@@ -337,28 +436,18 @@ private final class PickSession: NSObject, PHPickerViewControllerDelegate, UIDoc
         }
         done.wait()
 
-        let suggested = provider.suggestedName ?? ""
-        guard let file = copied, let size = AttachmentPicker.fileSize(file),
-              let facts = VideoPreparation.facts(of: file)
-        else {
-            if let copied { try? FileManager.default.removeItem(at: copied.deletingLastPathComponent()) }
-            return collected.refuse(copied?.lastPathComponent ?? suggested, kind: .video, .unreadable)
+        guard let file = copied else {
+            return collected.refuse(provider.suggestedName ?? "", kind: .video, .unreadable)
         }
-        let needsExport = AttachmentPickerCore.needsExport(facts)
-        if AttachmentPickerCore.isTooLarge(kind: .video, size: size, needsExport: needsExport, max: max) {
-            try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
-            return collected.refuse(file.lastPathComponent, kind: .video, .tooLarge)
+        // A converted video's size is left to PrepareVideo here; see `keepVideo`.
+        switch AttachmentPicker.keepVideo(file, typeIdentifier: type, max: max, estimateConversion: false) {
+        case let .kept(item):
+            collected.items.append(item)
+        case .refused(.unreadable):
+            collected.refuse(file.lastPathComponent, kind: .video, .unreadable)
+        case .refused(.tooLarge):
+            collected.refuse(file.lastPathComponent, kind: .video, .tooLarge)
         }
-        var item: [String: Any] = [
-            "kind": "video",
-            "uri": file.absoluteString,
-            "name": file.lastPathComponent,
-            "contentType": UTType(type)?.preferredMIMEType ?? UTType(filenameExtension: file.pathExtension)?.preferredMIMEType
-                ?? "application/octet-stream",
-            "size": NSNumber(value: size),
-        ]
-        if needsExport { item["needsExport"] = true }
-        collected.items.append(item)
     }
 
     private static func takeImage(_ provider: NSItemProvider, type: String, max: AttachmentPickerCore.MaxBytes, into collected: inout Collected) {
@@ -582,28 +671,66 @@ enum VideoPreparation {
 
     // MARK: Conversion
 
-    /// Converts at 1080p, or at 720p when 1080p's estimate is over the limit, into `target`. The export
-    /// writes a hidden file of its own first and replaces `target` only once it is complete, so a name
-    /// that already holds the source (`clip.mp4` in HEVC) is never left half written.
-    private static func convert(_ asset: AVURLAsset, to target: URL) async throws -> URL {
+    /// What the size estimate allows for one source.
+    enum ExportChoice {
+        /// Convert with this session, its preset already chosen.
+        case session(AVAssetExportSession)
+        /// Over the limit even at 720p.
+        case tooLarge
+        /// No session could be made for this source.
+        case unavailable
+    }
+
+    /// The export session to convert with: 1080p, or 720p when 1080p's estimate is over the limit,
+    /// stepped by `AttachmentPickerCore.sizeStep`. The one place the size of a conversion is judged —
+    /// PrepareVideo converts with what it returns, and a video kept from the grid is refused at once
+    /// when it says `tooLarge`.
+    static func exportChoice(for asset: AVURLAsset) async -> ExportChoice {
         var preset = AttachmentPickerCore.ExportPreset.p1080
-        var chosen: AVAssetExportSession?
-        while chosen == nil {
+        while true {
             guard let candidate = AVAssetExportSession(asset: asset, presetName: presetName(preset)) else {
-                throw Rejection(code: "SYSTEM", message: "the video cannot be converted")
+                return .unavailable
             }
             // The async estimate; the old synchronous `estimatedOutputFileLength` answers 0 here.
             let estimate = try? await candidate.estimatedOutputFileLengthInBytes
             switch AttachmentPickerCore.sizeStep(preset: preset, estimatedBytes: estimate) {
             case .export:
-                chosen = candidate
+                return .session(candidate)
             case let .stepDown(next):
                 preset = next
             case .tooLarge:
-                throw Rejection(code: "TOO_LARGE", message: "the video is over the size limit even at 720p")
+                return .tooLarge
             }
         }
-        guard let session = chosen else { throw Rejection(code: "SYSTEM", message: "the video cannot be converted") }
+    }
+
+    /// Blocking form, for a queue that judges a kept video: whether `exportChoice` refuses the file.
+    /// A source no session can be made for is not refused here — PrepareVideo fails it with the
+    /// reason, as it would have without this check.
+    static func conversionIsTooLarge(_ file: URL) -> Bool {
+        let done = DispatchSemaphore(value: 0)
+        let result = WaitBox(false)
+        Task.detached {
+            if case .tooLarge = await exportChoice(for: AVURLAsset(url: file)) { result.value = true }
+            done.signal()
+        }
+        done.wait()
+        return result.value
+    }
+
+    /// Converts with `exportChoice`'s session into `target`. The export writes a hidden file of its
+    /// own first and replaces `target` only once it is complete, so a name that already holds the
+    /// source (`clip.mp4` in HEVC) is never left half written.
+    private static func convert(_ asset: AVURLAsset, to target: URL) async throws -> URL {
+        let session: AVAssetExportSession
+        switch await exportChoice(for: asset) {
+        case let .session(chosen):
+            session = chosen
+        case .tooLarge:
+            throw Rejection(code: "TOO_LARGE", message: "the video is over the size limit even at 720p")
+        case .unavailable:
+            throw Rejection(code: "SYSTEM", message: "the video cannot be converted")
+        }
 
         let fm = FileManager.default
         let staging = target.deletingLastPathComponent().appendingPathComponent(AttachmentPickerCore.exportStagingName())
@@ -652,12 +779,7 @@ enum VideoPreparation {
     private static func poster(of asset: AVURLAsset, in folder: URL) async -> [String: Any]? {
         let duration = (try? await asset.load(.duration))?.seconds ?? 0
         let time = CMTime(seconds: AttachmentPickerCore.posterTimeSeconds(durationSeconds: duration), preferredTimescale: 600)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        let side = CGFloat(AttachmentPickerCore.posterLongSide)
-        generator.maximumSize = CGSize(width: side, height: side)
-        generator.requestedTimeToleranceBefore = .zero
-        generator.requestedTimeToleranceAfter = .zero
+        let generator = frameGenerator(for: asset, longSide: CGFloat(AttachmentPickerCore.posterLongSide))
 
         let frame: CGImage?
         if #available(iOS 16.0, *) {
@@ -678,6 +800,111 @@ enum VideoPreparation {
             "width": frame.width,
             "height": frame.height,
         ]
+    }
+
+    /// A generator for one still: upright as the video is shown, at most `longSide` on its long side
+    /// (never scaled up — `maximumSize` only shrinks), and taken at exactly the time asked rather than
+    /// at the nearest keyframe, which can be seconds away. Shared by the poster and `ReadVideoFrame`,
+    /// so a frame read later from storage looks like the poster the shell would have made.
+    static func frameGenerator(for asset: AVAsset, longSide: CGFloat) -> AVAssetImageGenerator {
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: longSide, height: longSide)
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        return generator
+    }
+}
+
+// MARK: - Remote video frame
+
+/// ReadVideoFrame: one frame of a video already in storage, read over the network and answered in
+/// memory. Used for a sent video whose message has no poster.
+enum VideoFrame {
+    private typealias Rejection = AttachmentPicker.Rejection
+
+    /// At most `frameReadsAtOnce` reads run together; the rest wait their turn. Each read blocks its
+    /// thread until its frame or its deadline, so the width is also the number of threads held.
+    static let queue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "io.chatic.dou.attachment-picker.video-frame"
+        queue.maxConcurrentOperationCount = AttachmentPickerCore.frameReadsAtOnce
+        queue.qualityOfService = .userInitiated
+        return queue
+    }()
+
+    /// The frame as `{ base64, contentType, width, height }`, or `UNREADABLE`.
+    ///
+    /// One deadline covers both waits — the duration (which needs the file's index from the network)
+    /// and the frame — and each wait that runs out cancels what it waited on, so a read that timed out
+    /// stops downloading instead of finishing for nobody.
+    static func read(_ request: AttachmentPickerCore.FrameRequest) throws -> [String: Any] {
+        let deadline = DispatchTime.now() + AttachmentPickerCore.frameTimeoutSeconds
+        let asset = AVURLAsset(url: request.url)
+
+        // The duration only moves the frame time to 0 for a short video; a source whose duration
+        // cannot be loaded at all (403, not a video) cannot give a frame either, so it ends here.
+        let durationLoaded = DispatchSemaphore(value: 0)
+        let duration = WaitBox<CMTime?>(nil)
+        let durationTask = Task.detached {
+            duration.value = try? await asset.load(.duration)
+            durationLoaded.signal()
+        }
+        guard durationLoaded.wait(timeout: deadline) == .success else {
+            durationTask.cancel()
+            asset.cancelLoading()
+            throw Rejection(code: "UNREADABLE", message: "the video did not answer in time")
+        }
+        guard let loaded = duration.value else {
+            throw Rejection(code: "UNREADABLE", message: "the video cannot be opened")
+        }
+        let durationMs = loaded.isNumeric ? loaded.seconds * 1000 : nil
+        let timeMs = AttachmentPickerCore.frameTimeMs(atMs: request.atMs, durationMs: durationMs)
+
+        let generator = VideoPreparation.frameGenerator(for: asset, longSide: CGFloat(request.maxEdge))
+        let frameReady = DispatchSemaphore(value: 0)
+        let frame = WaitBox<CGImage?>(nil)
+        let failure = WaitBox<String?>(nil)
+        // Through seconds rather than a millisecond count: Core Media saturates a huge `atMs` on a
+        // video of unknown length to a time the generator refuses, where an Int64 conversion would trap.
+        let time = CMTime(seconds: timeMs / 1000, preferredTimescale: 600)
+        generator.generateCGImagesAsynchronously(forTimes: [NSValue(time: time)]) { _, image, _, result, error in
+            frame.value = image
+            // The generator's own reason, so a refusal in the log says more than "no frame".
+            if image == nil { failure.value = "result \(result.rawValue): \(error.map { TransferText.sanitize($0.localizedDescription) } ?? "none")" }
+            frameReady.signal()
+        }
+        guard frameReady.wait(timeout: deadline) == .success else {
+            generator.cancelAllCGImageGeneration()
+            asset.cancelLoading()
+            throw Rejection(code: "UNREADABLE", message: "the frame did not arrive in time")
+        }
+        guard let image = frame.value else {
+            throw Rejection(code: "UNREADABLE", message: "the video has no frame there (\(failure.value ?? "no reason"))")
+        }
+
+        // The poster's encoding: quality 0.7 down until it is within the server's thumbnail slot.
+        let still = UIImage(cgImage: image)
+        guard let data = AttachmentPickerCore.firstFitting(encode: { still.jpegData(compressionQuality: CGFloat($0)) }) else {
+            throw Rejection(code: "UNREADABLE", message: "the frame does not fit the poster size")
+        }
+        return [
+            "base64": data.base64EncodedString(),
+            "contentType": "image/jpeg",
+            "width": image.width,
+            "height": image.height,
+        ]
+    }
+}
+
+/// A value handed back from a callback or a task to the thread waiting on it. The waiter reads it
+/// only after the writer's signal, so the semaphore orders the two; the box only makes the hand-over
+/// expressible without capturing a `var` in concurrently running code.
+final class WaitBox<Value>: @unchecked Sendable {
+    var value: Value
+
+    init(_ value: Value) {
+        self.value = value
     }
 }
 

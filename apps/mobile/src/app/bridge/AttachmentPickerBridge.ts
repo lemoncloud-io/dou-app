@@ -5,6 +5,7 @@ import type {
     OnPickAttachmentsPayload,
     OnPrepareVideoPayload,
     OnReadAttachmentPayload,
+    OnReadVideoFramePayload,
 } from '@chatic/app-messages';
 
 /**
@@ -18,9 +19,13 @@ import type {
  *
  * A native build without the module — JS run over an older native build — has `isAvailable` false,
  * and the router then leaves its messages unregistered: the web gets `NOT_FOUND` and opens its own
- * file input instead. Answering with an error would take that fallback away.
+ * file input instead. Answering with an error would take that fallback away. `readVideoFrame` came
+ * later than the module, so it is judged by method: a build without it leaves `ReadVideoFrame`
+ * unregistered.
  */
 const { AttachmentPicker } = NativeModules;
+
+const hasMethod = (name: string): boolean => typeof AttachmentPicker?.[name] === 'function';
 
 export interface IAttachmentPickerBridge {
     /** Whether this build has the native module. */
@@ -45,6 +50,13 @@ export interface IAttachmentPickerBridge {
      * `INVALID` (outside `attach-pick`), `SOURCE` (the copy is gone) or `INTERNAL`.
      */
     readAttachment(uri: string): Promise<OnReadAttachmentPayload>;
+    /** Whether this build can make a received video's frame (`readVideoFrame`). */
+    readonly canReadVideoFrame: boolean;
+    /**
+     * A JPEG of the frame `atMs` into the remote video at `url`, `maxEdge` on its long side, read
+     * straight from the address and kept nowhere. Rejects with `INVALID` or `UNREADABLE`.
+     */
+    readVideoFrame(url: string, atMs: number, maxEdge: number): Promise<OnReadVideoFramePayload>;
 }
 
 const unavailable = (): Promise<never> =>
@@ -56,4 +68,7 @@ export const AttachmentPickerBridge: IAttachmentPickerBridge = {
         AttachmentPicker ? AttachmentPicker.pick(source, selectionLimit, maxBytes) : unavailable(),
     prepareVideo: uri => (AttachmentPicker ? AttachmentPicker.prepareVideo(uri) : unavailable()),
     readAttachment: uri => (AttachmentPicker ? AttachmentPicker.readAttachment(uri) : unavailable()),
+    canReadVideoFrame: hasMethod('readVideoFrame'),
+    readVideoFrame: (url, atMs, maxEdge) =>
+        hasMethod('readVideoFrame') ? AttachmentPicker.readVideoFrame(url, atMs, maxEdge) : unavailable(),
 };

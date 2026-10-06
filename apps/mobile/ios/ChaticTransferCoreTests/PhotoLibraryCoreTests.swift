@@ -18,6 +18,47 @@ final class PhotoLibraryCoreTests: XCTestCase {
         XCTAssertEqual(PhotoLibraryCore.access(.notDetermined), "denied")
     }
 
+    // MARK: - Media types
+
+    func testMediaTypesTakeEveryKnownEntry() {
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["image"]), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["video"]), [.video])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["image", "video"]), [.image, .video])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["video", "video"]), [.video])
+    }
+
+    func testUnknownMediaTypeEntriesAreIgnored() {
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["video", "audio", 3] as [Any]), [.video])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["Video"]), [.image], "case is not forgiven: nothing known was named")
+    }
+
+    func testNoKnownMediaTypeListsStillImagesAsBefore() {
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(nil), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes([String]()), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["gif"]), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes("video"), [.image], "a bare string is not a list")
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(NSNull()), [.image])
+    }
+
+    func testMediaTypesReadTheArrayTheBridgeHandsOver() {
+        let fromBridge: NSDictionary = ["mediaTypes": NSArray(array: ["image", "video"])]
+
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(fromBridge["mediaTypes"]), [.image, .video])
+    }
+
+    func testDurationIsWholeMillisecondsRounded() {
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 12.3456), 12_346)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 0.0004), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 3_600), 3_600_000)
+    }
+
+    func testUnmeasurableDurationIsZero() {
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 0), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: -1), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: .nan), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: .infinity), 0)
+    }
+
     // MARK: - Albums
 
     func testTheFixedIdAndNoIdBothMeanAllPhotos() {

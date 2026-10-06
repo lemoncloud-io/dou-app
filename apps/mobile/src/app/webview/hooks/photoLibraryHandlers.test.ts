@@ -2,7 +2,7 @@ import type { OnListPhotoAlbumsPayload, OnListPhotosPayload, OnReadPhotoPayload 
 import type { IPhotoLibraryBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 
-import { createPhotoLibraryHandlers } from './photoLibraryHandlers';
+import { createPhotoLibraryHandlers, readMediaTypes } from './photoLibraryHandlers';
 
 // The real bridge barrel loads every native module wrapper; the handlers receive the photo library
 // by injection and need nothing else from it at runtime.
@@ -22,12 +22,23 @@ const page: OnListPhotosPayload = {
 };
 const photo: OnReadPhotoPayload = { base64: 'Ynl0ZXM=', mimeType: 'image/jpeg', fileName: 'IMG_0001.jpg' };
 
+const kept = {
+    kind: 'video' as const,
+    uri: 'file:///c/attach-pick/u/IMG_1.MOV',
+    name: 'IMG_1.MOV',
+    contentType: 'video/quicktime',
+    size: 5,
+    needsExport: true,
+};
+
 const createLibraryMock = (): jest.Mocked<IPhotoLibraryBridge> => ({
     isAvailable: true,
     listAlbums: jest.fn().mockResolvedValue(albums),
     listPhotos: jest.fn().mockResolvedValue(page),
     readPhoto: jest.fn().mockResolvedValue(photo),
     manageSelection: jest.fn().mockResolvedValue('granted'),
+    canKeepVideo: true,
+    keepVideo: jest.fn().mockResolvedValue(kept),
 });
 
 const message = <T>(type: string, data: T) => ({ type, data }) as any;
@@ -154,5 +165,86 @@ describe('createPhotoLibraryHandlers', () => {
                 error: { code: 'INTERNAL' },
             });
         });
+    });
+});
+
+describe('readMediaTypes', () => {
+    it('keeps the known media types in a fresh array', () => {
+        expect(readMediaTypes(['video', 'image', 'video'])).toEqual(['image', 'video']);
+    });
+
+    it('drops unknown entries and answers undefined when none are known', () => {
+        expect(readMediaTypes(['audio', 'image'])).toEqual(['image']);
+        expect(readMediaTypes(['audio'])).toBeUndefined();
+        expect(readMediaTypes('video')).toBeUndefined();
+        expect(readMediaTypes(undefined)).toBeUndefined();
+    });
+});
+
+describe('createPhotoLibraryHandlers — videos', () => {
+    let library: jest.Mocked<IPhotoLibraryBridge>;
+    let logger: jest.Mocked<ILogService>;
+
+    beforeEach(() => {
+        library = createLibraryMock();
+        logger = createLoggerMock();
+    });
+
+    const handlers = () => createPhotoLibraryHandlers(library, logger);
+
+    it('passes the media types the web asked for to both lists', async () => {
+        await handlers().handleListPhotos(message('ListPhotos', { limit: 60, mediaTypes: ['image', 'video'] }));
+        await handlers().handleListPhotoAlbums(message('ListPhotoAlbums', { mediaTypes: ['image', 'video'] }));
+
+        expect(library.listPhotos).toHaveBeenCalledWith({
+            albumId: undefined,
+            after: undefined,
+            limit: 60,
+            mediaTypes: ['image', 'video'],
+        });
+        expect(library.listAlbums).toHaveBeenCalledWith({ mediaTypes: ['image', 'video'] });
+    });
+
+    it('asks for photos only when the web named no media type it knows', async () => {
+        await handlers().handleListPhotos(message('ListPhotos', { limit: 60, mediaTypes: ['audio'] }));
+        await handlers().handleListPhotoAlbums(message('ListPhotoAlbums', {}));
+
+        expect(library.listPhotos).toHaveBeenCalledWith({ albumId: undefined, after: undefined, limit: 60 });
+        expect(library.listAlbums).toHaveBeenCalledWith({});
+    });
+
+    it('answers a kept video with the shell file native made', async () => {
+        const reply = await handlers().handleKeepLibraryVideo(message('KeepLibraryVideo', { id: 'asset-1' }));
+
+        expect(library.keepVideo).toHaveBeenCalledWith('asset-1');
+        expect(reply).toEqual({ type: 'OnKeepLibraryVideo', success: true, data: kept });
+    });
+
+    it('refuses a missing id without asking native', async () => {
+        const reply = await handlers().handleKeepLibraryVideo(message('KeepLibraryVideo', {}));
+
+        expect(library.keepVideo).not.toHaveBeenCalled();
+        expect(reply).toMatchObject({ success: false, error: { code: 'INVALID' } });
+    });
+
+    it.each(['UNSUPPORTED', 'TOO_LARGE', 'PHOTO_MISSING', 'READ_FAILED', 'INVALID'])(
+        'keeps native’s %s',
+        async code => {
+            library.keepVideo.mockRejectedValueOnce(rejection(code));
+
+            const reply = await handlers().handleKeepLibraryVideo(message('KeepLibraryVideo', { id: 'v' }));
+
+            expect(reply).toMatchObject({ type: 'OnKeepLibraryVideo', success: false, error: { code } });
+            expect(logger.warn).toHaveBeenCalledWith('DEVICE', `KeepLibraryVideo failed: ${code}`);
+        }
+    );
+
+    // NOT_FOUND would take videos out of the grid for the session.
+    it.each(['NOT_FOUND', 'INTERNAL', undefined])('reports %s from native as a failed read', async code => {
+        library.keepVideo.mockRejectedValueOnce(rejection(code));
+
+        const reply = await handlers().handleKeepLibraryVideo(message('KeepLibraryVideo', { id: 'v' }));
+
+        expect(reply).toMatchObject({ success: false, error: { code: 'READ_FAILED' } });
     });
 });

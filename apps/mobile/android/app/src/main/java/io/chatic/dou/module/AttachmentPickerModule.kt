@@ -2,13 +2,11 @@ package io.chatic.dou.module
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.provider.OpenableColumns
 import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -27,6 +25,7 @@ import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
+import io.chatic.dou.attach.PickedCopies
 import io.chatic.dou.attach.core.AttachPickRules
 import io.chatic.dou.attach.core.AttachPickRules.Kind
 import io.chatic.dou.attach.core.AttachPickRules.Source
@@ -34,10 +33,8 @@ import io.chatic.dou.photo.PhotoPreparer
 import io.chatic.dou.photo.core.PhotoLibraryCore
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.IOException
 import java.util.TimeZone
-import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -63,6 +60,12 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * `prepareVideo` does not convert: an MP4 of H.264 with AAC (or no audio) is sent as it is, anything
  * else is `UNSUPPORTED`. It reads the shown size and writes a poster frame beside the video.
+ *
+ * `readVideoFrame` makes the same kind of poster from a video already sent — one frame read over
+ * https from its storage URL, answered as base64 and written nowhere.
+ *
+ * The copy folder, the copy and the video check are [PickedCopies], which the photo library's
+ * `keepLibraryVideo` uses too.
  */
 class AttachmentPickerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
@@ -70,13 +73,9 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
     companion object {
         private const val TAG = "AttachmentPicker"
         private const val KEY_PREFIX = "attachment-picker-"
-        private const val COPY_BUFFER = 256 * 1024
     }
 
     private class Rejection(val code: String, message: String) : Exception(message)
-
-    /** A copy stopped because it passed its kind's limit. */
-    private class TooLarge : Exception()
 
     private data class Limits(val image: Long, val video: Long, val file: Long) {
         fun of(kind: Kind): Long = when (kind) {
@@ -85,9 +84,6 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
             Kind.FILE -> file
         }
     }
-
-    /** What the picked item's provider says about it. */
-    private data class Described(val displayName: String?, val size: Long?, val takenAtMs: Long?)
 
     // Copies run one at a time, in pick order. Preparing a video and reading a photo back have a
     // thread each, so neither waits behind a pick's copies, nor a photo behind a poster being drawn.
@@ -101,7 +97,14 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         Thread(runnable, "attach-read").apply { isDaemon = true }
     }
 
+    // Remote frames have threads of their own: each waits on the network, and a poster for a message
+    // on screen must not queue behind a local video being prepared.
+    private val frameExecutor: ExecutorService = Executors.newFixedThreadPool(AttachPickRules.FRAME_READS_AT_ONCE) { runnable ->
+        Thread(runnable, "attach-frame").apply { isDaemon = true }
+    }
+
     private val preparer = PhotoPreparer(reactContext)
+    private val copies = PickedCopies(reactContext)
 
     /** True from `pick` until its answer — the picker is open or its items are still being copied. */
     private val busy = AtomicBoolean(false)
@@ -123,6 +126,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         pickExecutor.shutdown()
         videoExecutor.shutdown()
         readExecutor.shutdown()
+        frameExecutor.shutdown()
         super.invalidate()
     }
 
@@ -267,7 +271,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
     }
 
     private fun copyOne(uri: Uri, source: Source, limits: Limits, pickedAtMs: Long, items: WritableArray, refused: WritableArray) {
-        val described = describe(uri)
+        val described = copies.describe(uri)
         val mimeType = try {
             reactApplicationContext.contentResolver.getType(uri)
         } catch (e: Exception) {
@@ -286,7 +290,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
             pickedAtMs,
             TimeZone.getDefault(),
         )
-        val folder = File(File(reactApplicationContext.cacheDir, AttachPickRules.FOLDER), UUID.randomUUID().toString())
+        val folder = copies.newFolder()
         try {
             keep(uri, folder, name, kind, mimeType, described, limits, items, refused)
         } catch (e: OutOfMemoryError) {
@@ -312,7 +316,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         name: String,
         kind: Kind,
         mimeType: String?,
-        described: Described,
+        described: PickedCopies.Described,
         limits: Limits,
         items: WritableArray,
         refused: WritableArray,
@@ -323,40 +327,25 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         // JPEG is judged by what the conversion makes instead.
         val storedIsSent = export == null || PhotoLibraryCore.sendsStoredBytes(export)
         val copyLimit = if (storedIsSent) limit else 0L
-        if (described.size != null && AttachPickRules.exceeds(described.size, copyLimit)) {
-            refused.pushMap(refusal(name, kind, "too-large"))
-            return
-        }
-
-        val copy = File(folder, name)
-        val size = try {
-            if (!folder.mkdirs()) throw IOException("cannot create the copy folder")
-            copyInto(uri, copy, copyLimit)
-        } catch (e: TooLarge) {
-            folder.deleteRecursively()
-            refused.pushMap(refusal(name, kind, "too-large"))
-            return
-        } catch (e: Exception) {
-            // A grant that lapsed (SecurityException), a provider that failed, a full disk.
-            Log.w(TAG, "copy failed: ${e.javaClass.simpleName}")
-            folder.deleteRecursively()
-            refused.pushMap(refusal(name, kind, "unreadable"))
-            return
+        val copy = when (val copied = copies.copy(uri, folder, name, described.size, copyLimit)) {
+            is PickedCopies.Copied.Kept -> copied
+            PickedCopies.Copied.TooLarge -> {
+                refused.pushMap(refusal(name, kind, "too-large"))
+                return
+            }
+            PickedCopies.Copied.Unreadable -> {
+                refused.pushMap(refusal(name, kind, "unreadable"))
+                return
+            }
         }
 
         if (export == null) {
-            items.pushMap(Arguments.createMap().apply {
-                putString("kind", kind.wire)
-                putString("uri", Uri.fromFile(copy).toString())
-                putString("name", name)
-                putString("contentType", AttachPickRules.contentType(mimeType))
-                putDouble("size", size.toDouble())
-            })
+            items.pushMap(copies.keptItem(kind, copy.file, name, mimeType, copy.size))
             return
         }
 
         // A photo is kept as prepared: the bytes the web reads back are the bytes that go up.
-        val prepared = preparer.prepare(Uri.fromFile(copy), export, 0, 0)
+        val prepared = preparer.prepare(Uri.fromFile(copy.file), export, 0, 0)
         if (prepared == null) {
             folder.deleteRecursively()
             refused.pushMap(refusal(name, kind, "unsupported"))
@@ -371,7 +360,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         val kept = File(folder, fileName)
         try {
             kept.writeBytes(prepared.bytes)
-            if (kept.name != copy.name) copy.delete()
+            if (kept.name != copy.file.name) copy.file.delete()
         } catch (e: Exception) {
             Log.w(TAG, "keeping the prepared photo failed: ${e.javaClass.simpleName}")
             folder.deleteRecursively()
@@ -390,54 +379,6 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         })
     }
 
-    /** The provider's name, size and capture time. A column it does not serve is left null. */
-    private fun describe(uri: Uri): Described {
-        val resolver = reactApplicationContext.contentResolver
-        var name: String? = null
-        var size: Long? = null
-        try {
-            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    val sizeColumn = cursor.getColumnIndex(OpenableColumns.SIZE)
-                    if (nameColumn >= 0 && !cursor.isNull(nameColumn)) name = cursor.getString(nameColumn)
-                    if (sizeColumn >= 0 && !cursor.isNull(sizeColumn)) size = cursor.getLong(sizeColumn).takeIf { it >= 0 }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "describe failed: ${e.javaClass.simpleName}")
-        }
-        // Asked apart: a documents provider may refuse a column it does not have.
-        val takenAt = try {
-            resolver.query(uri, arrayOf(MediaStore.Images.ImageColumns.DATE_TAKEN), null, null, null)?.use { cursor ->
-                val column = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATE_TAKEN)
-                if (cursor.moveToFirst() && column >= 0 && !cursor.isNull(column)) cursor.getLong(column) else null
-            }
-        } catch (e: Exception) {
-            null
-        }
-        return Described(name, size, takenAt)
-    }
-
-    /** Streams [uri] into [target]; stops with [TooLarge] once more than [limit] bytes came (0: no limit). */
-    private fun copyInto(uri: Uri, target: File, limit: Long): Long {
-        val input = reactApplicationContext.contentResolver.openInputStream(uri) ?: throw IOException("the provider gave no stream")
-        return input.use { stream ->
-            target.outputStream().use { out ->
-                val buffer = ByteArray(COPY_BUFFER)
-                var total = 0L
-                while (true) {
-                    val read = stream.read(buffer)
-                    if (read < 0) break
-                    total += read
-                    if (AttachPickRules.exceeds(total, limit)) throw TooLarge()
-                    out.write(buffer, 0, read)
-                }
-                total
-            }
-        }
-    }
-
     /** The prepared image's size as shown: its pixels, turned by an EXIF orientation it kept. */
     private fun imageSize(bytes: ByteArray): Pair<Int, Int> {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -450,20 +391,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         return AttachPickRules.displaySize(maxOf(bounds.outWidth, 0), maxOf(bounds.outHeight, 0), rotation)
     }
 
-    private fun sweep() {
-        try {
-            val root = File(reactApplicationContext.cacheDir, AttachPickRules.FOLDER)
-            val folders = root.listFiles()?.filter { it.isDirectory } ?: return
-            val ages = folders.map { folder ->
-                AttachPickRules.Folder(folder.name, folder.lastModified(), folder.listFiles()?.map { it.lastModified() }.orEmpty())
-            }
-            for (name in AttachPickRules.foldersToSweep(ages, System.currentTimeMillis())) {
-                File(root, name).deleteRecursively()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "sweep failed: ${e.javaClass.simpleName}")
-        }
-    }
+    private fun sweep() = copies.sweep()
 
     private fun refusal(name: String, kind: Kind, reason: String): WritableMap = Arguments.createMap().apply {
         putString("name", name)
@@ -547,27 +475,10 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
 
     private fun prepare(uri: String?): WritableMap {
         val file = pickedFile(uri)
-        val head = try {
-            FileInputStream(file).use { stream -> ByteArray(12).let { buffer -> buffer.copyOf(maxOf(stream.read(buffer), 0)) } }
-        } catch (e: IOException) {
-            throw Rejection("SOURCE", "the picked file cannot be read")
-        }
-        if (!AttachPickRules.isMp4Container(head)) throw Rejection("UNSUPPORTED", "the video is not an MP4")
-
-        val extractor = MediaExtractor()
-        val video: MediaFormat
-        try {
-            try {
-                extractor.setDataSource(file.path)
-            } catch (e: IOException) {
-                throw Rejection("UNSUPPORTED", "the video cannot be read as an MP4")
-            }
-            val formats = (0 until extractor.trackCount).map { extractor.getTrackFormat(it) }
-            val check = AttachPickRules.checkTracks(formats.map { it.getString(MediaFormat.KEY_MIME) })
-            if (check is AttachPickRules.TrackCheck.Refused) throw Rejection("UNSUPPORTED", check.reason)
-            video = formats.first { it.getString(MediaFormat.KEY_MIME)?.lowercase() == AttachPickRules.VIDEO_AVC }
-        } finally {
-            extractor.release()
+        val video: MediaFormat = when (val check = copies.checkVideo(file)) {
+            is PickedCopies.VideoCheck.Sendable -> check.video
+            is PickedCopies.VideoCheck.Unsupported -> throw Rejection("UNSUPPORTED", check.reason)
+            PickedCopies.VideoCheck.Unreadable -> throw Rejection("SOURCE", "the picked file cannot be read")
         }
 
         val durationUs = if (video.containsKey(MediaFormat.KEY_DURATION)) video.getLong(MediaFormat.KEY_DURATION) else null
@@ -618,33 +529,42 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
     private fun poster(retriever: MediaMetadataRetriever, video: File, durationUs: Long?): WritableMap? = try {
         val frame = frameAt(retriever, AttachPickRules.posterTimeUs(durationUs))
             ?: frameAt(retriever, 0L)
-        frame?.let { bitmap ->
-            val scaled = AttachPickRules.posterSize(bitmap.width, bitmap.height).let { (width, height) ->
-                if (width == bitmap.width && height == bitmap.height) bitmap else Bitmap.createScaledBitmap(bitmap, width, height, true)
-            }
-            if (scaled !== bitmap) bitmap.recycle()
-            val jpeg = AttachPickRules.POSTER_QUALITIES.asSequence()
-                .map { quality -> preparer.encodeJpeg(scaled, quality) }
-                .firstOrNull { it.size <= AttachPickRules.POSTER_MAX_BYTES }
-            val width = scaled.width
-            val height = scaled.height
-            scaled.recycle()
-            jpeg?.let { bytes ->
-                val file = File(video.parentFile, AttachPickRules.posterName(video.name))
-                file.writeBytes(bytes)
-                Arguments.createMap().apply {
-                    putString("uri", Uri.fromFile(file).toString())
-                    putString("base64", Base64.encodeToString(bytes, Base64.NO_WRAP))
-                    putString("contentType", "image/jpeg")
-                    putDouble("size", bytes.size.toDouble())
-                    putInt("width", width)
-                    putInt("height", height)
-                }
+        frame?.let { posterJpeg(it, AttachPickRules.POSTER_MAX_EDGE) }?.let { jpeg ->
+            val file = File(video.parentFile, AttachPickRules.posterName(video.name))
+            file.writeBytes(jpeg.bytes)
+            Arguments.createMap().apply {
+                putString("uri", Uri.fromFile(file).toString())
+                putString("base64", Base64.encodeToString(jpeg.bytes, Base64.NO_WRAP))
+                putString("contentType", "image/jpeg")
+                putDouble("size", jpeg.bytes.size.toDouble())
+                putInt("width", jpeg.width)
+                putInt("height", jpeg.height)
             }
         }
     } catch (e: Throwable) {
         Log.w(TAG, "poster failed: ${e.javaClass.simpleName}")
         null
+    }
+
+    private class Jpeg(val bytes: ByteArray, val width: Int, val height: Int)
+
+    /**
+     * [bitmap] at most [maxEdge] on its long side, never enlarged, as a JPEG from quality 0.7 down
+     * until it fits [AttachPickRules.POSTER_MAX_BYTES]; null when none does. Recycles [bitmap].
+     */
+    private fun posterJpeg(bitmap: Bitmap, maxEdge: Int): Jpeg? {
+        val scaled = AttachPickRules.posterSize(bitmap.width, bitmap.height, maxEdge).let { (width, height) ->
+            if (width == bitmap.width && height == bitmap.height) bitmap else Bitmap.createScaledBitmap(bitmap, width, height, true)
+        }
+        if (scaled !== bitmap) bitmap.recycle()
+        try {
+            val bytes = AttachPickRules.POSTER_QUALITIES.asSequence()
+                .map { quality -> preparer.encodeJpeg(scaled, quality) }
+                .firstOrNull { it.size <= AttachPickRules.POSTER_MAX_BYTES }
+            return bytes?.let { Jpeg(it, scaled.width, scaled.height) }
+        } finally {
+            scaled.recycle()
+        }
     }
 
     /**
@@ -658,6 +578,96 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
             retriever.getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST, edge, edge)
         } else {
             retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    // --- readVideoFrame ---
+
+    /**
+     * One frame of a video already sent, for a message whose poster is missing: read over https from
+     * its signed storage URL, at [atMs] (the first frame for a shorter video), at most [maxEdge] on its
+     * long side, as a JPEG under the poster's cap. Answers `INVALID` for arguments it cannot use and
+     * `UNREADABLE` for everything else — a network error, a refused URL, a codec the device lacks, no
+     * frame, no quality that fits, or no answer within [AttachPickRules.FRAME_TIMEOUT_MS].
+     */
+    @ReactMethod
+    fun readVideoFrame(url: String?, atMs: Double, maxEdge: Double, promise: Promise) {
+        val request = AttachPickRules.frameRequest(url, atMs, maxEdge)
+        if (request == null) {
+            promise.reject("INVALID", "url must be https, atMs a number of at least 0, maxEdge a positive number")
+            return
+        }
+        // Settled once: by the read, or by the timeout, whichever comes first.
+        val settled = AtomicBoolean(false)
+        val started = submit(frameExecutor) {
+            // Timed out while it waited for a thread: the web has its answer, so nothing is read.
+            if (settled.get()) return@submit
+            try {
+                val frame = readFrame(request)
+                if (settled.compareAndSet(false, true)) promise.resolve(frame)
+            } catch (e: Throwable) {
+                // OutOfMemoryError included: a frame that cannot be read fails this poster, not the app.
+                Log.w(TAG, "readVideoFrame failed: ${e.javaClass.simpleName}")
+                if (settled.compareAndSet(false, true)) promise.reject("UNREADABLE", e.message ?: "the frame could not be read")
+            }
+        }
+        if (!started) {
+            promise.reject("UNREADABLE", "the picker is shutting down")
+            return
+        }
+        UiThreadUtil.runOnUiThread({
+            if (settled.compareAndSet(false, true)) promise.reject("UNREADABLE", "no frame came within 20 s")
+        }, AttachPickRules.FRAME_TIMEOUT_MS)
+    }
+
+    /**
+     * The frame, read straight from the network: the retriever streams what it needs from the URL, so
+     * no part of the video is written to disk. The retriever is always released — it holds a decoder
+     * and a connection.
+     */
+    private fun readFrame(request: AttachPickRules.FrameRequest): WritableMap {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(request.url, emptyMap())
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            val box = AttachPickRules.frameBox(
+                request.maxEdge,
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull(),
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull(),
+            )
+            val timeUs = AttachPickRules.frameTimeUs(request.atMs, durationMs)
+            val frame = remoteFrameAt(retriever, timeUs, box)
+                ?: (if (timeUs > 0) remoteFrameAt(retriever, 0L, box) else null)
+                ?: throw IOException("the video has no frame to read")
+            val jpeg = posterJpeg(frame, request.maxEdge) ?: throw IOException("no JPEG quality fits the poster cap")
+            return Arguments.createMap().apply {
+                putString("base64", Base64.encodeToString(jpeg.bytes, Base64.NO_WRAP))
+                putString("contentType", "image/jpeg")
+                putInt("width", jpeg.width)
+                putInt("height", jpeg.height)
+            }
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+                // Nothing left to do with it.
+            }
+        }
+    }
+
+    /**
+     * One remote frame, upright, inside a [box] × [box] square (see [AttachPickRules.frameBox]). The
+     * nearest sync frame, not the exact one: decoding forward from a sync frame would fetch more of the
+     * video over the network for a still nobody can tell apart. Before API 27 the full frame is decoded
+     * and [posterJpeg] scales it.
+     */
+    private fun remoteFrameAt(retriever: MediaMetadataRetriever, timeUs: Long, box: Int): Bitmap? = try {
+        if (Build.VERSION.SDK_INT >= 27) {
+            retriever.getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, box, box)
+        } else {
+            retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
         }
     } catch (e: Exception) {
         null

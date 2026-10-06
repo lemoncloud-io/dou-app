@@ -62,6 +62,40 @@ final class AttachmentPickerCoreTests: XCTestCase {
         XCTAssertEqual(Core.outputName(".hidden"), ".hidden.mp4")
     }
 
+    // MARK: - Library videos
+
+    private func resource(_ kind: Core.LibraryVideoResource.Kind, _ name: String?) -> Core.LibraryVideoResource {
+        Core.LibraryVideoResource(kind: kind, originalFilename: name)
+    }
+
+    func testLibraryVideoCopy_anUneditedVideoKeepsItsOwnResourceAndName() {
+        let copy = Core.libraryVideoCopy([resource(.other, "IMG_0001.AAE"), resource(.video, "IMG_0001.MOV")])
+        XCTAssertEqual(copy, Core.LibraryVideoCopy(index: 1, name: "IMG_0001.MOV"))
+        XCTAssertEqual(Core.libraryVideoCopy([resource(.video, "clip.mp4")])?.name, "clip.mp4", "an mp4 may go unconverted")
+    }
+
+    func testLibraryVideoCopy_anEditedVideoGoesAsEdited_underTheRecordedNameAsMov() {
+        let resources = [resource(.video, "IMG_0001.MP4"), resource(.other, "Adjustments.plist"), resource(.fullSizeVideo, "FullSizeRender.mov")]
+        let copy = Core.libraryVideoCopy(resources)
+        XCTAssertEqual(copy, Core.LibraryVideoCopy(index: 2, name: "IMG_0001.mov"))
+        let ext = ((copy?.name ?? "") as NSString).pathExtension
+        XCTAssertTrue(Core.needsExport(facts(ext)), "a .mov is always converted, so PrepareVideo writes the .mp4")
+    }
+
+    func testLibraryVideoCopy_namesAreMadeSafe_andFallBackToVideo() {
+        XCTAssertEqual(Core.libraryVideoCopy([resource(.video, "a/b:c.MOV")])?.name, "a_b_c.MOV")
+        XCTAssertEqual(Core.libraryVideoCopy([resource(.video, nil)])?.name, "video.mov")
+        XCTAssertEqual(Core.libraryVideoCopy([resource(.video, "  ")])?.name, "video.mov")
+        XCTAssertEqual(Core.libraryVideoCopy([resource(.fullSizeVideo, "FullSizeRender.mov")])?.name, "video.mov",
+                       "an edit with no recorded resource is not named after the rendering")
+        XCTAssertEqual(Core.libraryVideoCopy([resource(.video, ".."), resource(.fullSizeVideo, "x.mov")])?.name, "video.mov")
+    }
+
+    func testLibraryVideoCopy_nothingToCopyWithoutAVideoResource() {
+        XCTAssertNil(Core.libraryVideoCopy([]))
+        XCTAssertNil(Core.libraryVideoCopy([resource(.other, "IMG_0001.AAE")]))
+    }
+
     func testPhotoMimeType_onlyTheFourTypesAPreparedPhotoIsKeptAs() {
         XCTAssertEqual(Core.photoMimeType(fileExtension: "jpg"), "image/jpeg")
         XCTAssertEqual(Core.photoMimeType(fileExtension: "JPEG"), "image/jpeg")
@@ -239,6 +273,61 @@ final class AttachmentPickerCoreTests: XCTestCase {
         XCTAssertNil(Core.firstFitting { _ in nil }, "cannot encode: no poster")
         XCTAssertEqual(Core.posterMaxBytes, 200_000)
         XCTAssertEqual(Core.posterLongSide, 400)
+    }
+
+    // MARK: - Remote video frame
+
+    private let signed = "https://bucket.s3.ap-northeast-2.amazonaws.com/v/clip.mp4?X-Amz-Signature=abc"
+
+    func testFrameRequest_acceptsAnHttpsUrlWithAHost_andZeroOrMoreMs() {
+        let request = Core.frameRequest(url: signed, atMs: 500, maxEdge: 400)
+        XCTAssertEqual(request?.url.absoluteString, signed)
+        XCTAssertEqual(request?.atMs, 500)
+        XCTAssertEqual(request?.maxEdge, 400)
+        XCTAssertNotNil(Core.frameRequest(url: signed, atMs: 0, maxEdge: 400), "the first frame may be asked for")
+        XCTAssertNotNil(Core.frameRequest(url: "HTTPS://example.com/a.mp4", atMs: 0, maxEdge: 1), "scheme case")
+    }
+
+    func testFrameRequest_refusesAnythingButHttps() {
+        for url in ["http://example.com/a.mp4", "file:///var/mobile/a.mp4", "ph://ABC/L0/001", "https:///a.mp4", "https://", "", "not a url"] {
+            XCTAssertNil(Core.frameRequest(url: url, atMs: 500, maxEdge: 400), url)
+        }
+    }
+
+    func testFrameRequest_refusesNumbersThatAreNotFiniteOrInRange() {
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: -1, maxEdge: 400))
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: .nan, maxEdge: 400))
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: .infinity, maxEdge: 400))
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: 500, maxEdge: 0))
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: 500, maxEdge: -400))
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: 500, maxEdge: .nan))
+        XCTAssertNil(Core.frameRequest(url: signed, atMs: 500, maxEdge: .infinity))
+    }
+
+    func testFrameTime_asAsked_orTheFirstFrameOfAVideoNoLongerThanThat() {
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: 60_000), 500)
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: 501), 500)
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: 500), 0, "the poster's rule: not longer is shorter")
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: 200), 0)
+        XCTAssertEqual(Core.frameTimeMs(atMs: 0, durationMs: 200), 0)
+    }
+
+    func testFrameTime_unknownDurationLeavesTheTimeAsAsked() {
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: nil), 500)
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: .nan), 500)
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: .infinity), 500)
+        XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: 0), 500)
+    }
+
+    func testFrameTime_matchesThePosterRuleAtHalfASecond() {
+        for duration in [0.2, 0.5, 0.51, 60] {
+            XCTAssertEqual(Core.frameTimeMs(atMs: 500, durationMs: duration * 1000) / 1000, Core.posterTimeSeconds(durationSeconds: duration), "\(duration) s")
+        }
+    }
+
+    func testFrameReads_twoAtOnce_givingUpAfterTwentySeconds() {
+        XCTAssertEqual(Core.frameReadsAtOnce, 2)
+        XCTAssertEqual(Core.frameTimeoutSeconds, 20)
     }
 
     func testDisplaySize_appliesTheTracksRotation() {

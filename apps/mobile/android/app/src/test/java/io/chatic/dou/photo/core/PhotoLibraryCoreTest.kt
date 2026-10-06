@@ -1,6 +1,8 @@
 package io.chatic.dou.photo.core
 
 import io.chatic.dou.photo.core.PhotoLibraryCore.Export
+import io.chatic.dou.photo.core.PhotoLibraryCore.Grants
+import io.chatic.dou.photo.core.PhotoLibraryCore.MediaTypes
 import io.chatic.dou.photo.core.PhotoLibraryCore.PageKey
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -32,12 +34,167 @@ class PhotoLibraryCoreTest {
     @Test
     fun asksForThePermissionsEachSdkLevelReadsWith() {
         assertEquals(
-            listOf(PhotoLibraryCore.READ_MEDIA_IMAGES, PhotoLibraryCore.READ_MEDIA_VISUAL_USER_SELECTED),
+            listOf(
+                PhotoLibraryCore.READ_MEDIA_IMAGES,
+                PhotoLibraryCore.READ_MEDIA_VIDEO,
+                PhotoLibraryCore.READ_MEDIA_VISUAL_USER_SELECTED,
+            ),
             PhotoLibraryCore.permissionsFor(34),
         )
-        assertEquals(listOf(PhotoLibraryCore.READ_MEDIA_IMAGES), PhotoLibraryCore.permissionsFor(33))
+        assertEquals(listOf(PhotoLibraryCore.READ_MEDIA_IMAGES, PhotoLibraryCore.READ_MEDIA_VIDEO), PhotoLibraryCore.permissionsFor(33))
         assertEquals(listOf(PhotoLibraryCore.READ_EXTERNAL_STORAGE), PhotoLibraryCore.permissionsFor(32))
         assertEquals(listOf(PhotoLibraryCore.READ_EXTERNAL_STORAGE), PhotoLibraryCore.permissionsFor(24))
+    }
+
+    @Test
+    fun onlyARequestThatIncludesVideoSettlesTheVideoAsk() {
+        assertTrue(PhotoLibraryCore.asksForVideo(34))
+        assertTrue(PhotoLibraryCore.asksForVideo(33))
+        assertFalse(PhotoLibraryCore.asksForVideo(32))
+    }
+
+    private val none = Grants(images = false, videos = false, userSelected = false, storage = false)
+
+    @Test
+    fun allowAllReportsUserSelectedTooAndIsStillFullAccess() {
+        val allowAll = Grants(images = true, videos = true, userSelected = true, storage = false)
+
+        assertEquals("granted", PhotoLibraryCore.photoAccess(34, allowAll))
+        assertFalse(PhotoLibraryCore.partialAccess(34, allowAll))
+        assertTrue(PhotoLibraryCore.videoReadable(34, allowAll))
+    }
+
+    @Test
+    fun partialAccessIsUserSelectedAloneAndCoversTheSelectedVideos() {
+        val partial = none.copy(userSelected = true)
+
+        assertEquals("limited", PhotoLibraryCore.photoAccess(34, partial))
+        assertTrue(PhotoLibraryCore.partialAccess(34, partial))
+        assertTrue(PhotoLibraryCore.videoReadable(34, partial))
+    }
+
+    @Test
+    fun photosGrantedByAnOlderBuildLeaveVideosUnreadable() {
+        // A build that asked only for photos: on 14 its "allow all" granted images and user-selected.
+        val photosOnly34 = none.copy(images = true, userSelected = true)
+        val photosOnly33 = none.copy(images = true)
+
+        assertEquals("granted", PhotoLibraryCore.photoAccess(34, photosOnly34))
+        assertFalse(PhotoLibraryCore.partialAccess(34, photosOnly34))
+        assertFalse(PhotoLibraryCore.videoReadable(34, photosOnly34))
+        assertEquals("granted", PhotoLibraryCore.photoAccess(33, photosOnly33))
+        assertFalse(PhotoLibraryCore.videoReadable(33, photosOnly33))
+    }
+
+    @Test
+    fun belowAndroid13TheStoragePermissionReadsPhotosAndVideos() {
+        val storage = none.copy(storage = true)
+
+        assertEquals("granted", PhotoLibraryCore.photoAccess(32, storage))
+        assertTrue(PhotoLibraryCore.videoReadable(32, storage))
+        assertEquals("denied", PhotoLibraryCore.photoAccess(32, none))
+        assertFalse(PhotoLibraryCore.videoReadable(32, none))
+        // The media permissions mean nothing below 13, user-selected nothing below 14.
+        assertFalse(PhotoLibraryCore.videoReadable(32, none.copy(videos = true)))
+        assertEquals("denied", PhotoLibraryCore.photoAccess(33, none.copy(userSelected = true)))
+        assertFalse(PhotoLibraryCore.partialAccess(33, none.copy(userSelected = true)))
+    }
+
+    @Test
+    fun aPhotoOnlyUserIsAskedForVideoOnceByAListThatWantsVideos() {
+        assertTrue(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = true, photoAccess = "granted", videoGranted = false, askedForVideoBefore = false))
+        assertTrue(PhotoLibraryCore.shouldAskForVideo(33, videoRequested = true, photoAccess = "granted", videoGranted = false, askedForVideoBefore = false))
+    }
+
+    // A selection made under a build that asked only for photos holds no videos; the ask lets the user add some.
+    @Test
+    fun aPartialAccessUserIsAskedForVideoOnceToo() {
+        assertTrue(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = true, photoAccess = "limited", videoGranted = false, askedForVideoBefore = false))
+        assertFalse(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = true, photoAccess = "limited", videoGranted = false, askedForVideoBefore = true))
+    }
+
+    @Test
+    fun theVideoAskIsNeverRepeatedNorRaisedWithoutCause() {
+        // Asked before (and denied): as it was from then on.
+        assertFalse(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = true, photoAccess = "granted", videoGranted = false, askedForVideoBefore = true))
+        // A photos-only list never asks for video.
+        assertFalse(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = false, photoAccess = "granted", videoGranted = false, askedForVideoBefore = false))
+        // Video already granted.
+        assertFalse(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = true, photoAccess = "granted", videoGranted = true, askedForVideoBefore = false))
+        // Denied photos: the first ask is what applies, not a video ask.
+        assertFalse(PhotoLibraryCore.shouldAskForVideo(34, videoRequested = true, photoAccess = "denied", videoGranted = false, askedForVideoBefore = false))
+        // Below 13 the storage permission is all there is to ask.
+        assertFalse(PhotoLibraryCore.shouldAskForVideo(32, videoRequested = true, photoAccess = "granted", videoGranted = false, askedForVideoBefore = false))
+    }
+
+    // --- Media types ---
+
+    @Test
+    fun noRecognisedMediaTypeMeansPhotosAsBefore() {
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.mediaTypes(null))
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.mediaTypes(emptyList()))
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.mediaTypes(listOf("audio", null, "IMAGE")))
+    }
+
+    @Test
+    fun recognisedMediaTypesAreTakenAndUnknownOnesIgnored() {
+        assertEquals(MediaTypes(images = true, videos = true), PhotoLibraryCore.mediaTypes(listOf("image", "video")))
+        assertEquals(MediaTypes(images = true, videos = true), PhotoLibraryCore.mediaTypes(listOf("video", "audio", "image", "video")))
+        assertEquals(MediaTypes(images = false, videos = true), PhotoLibraryCore.mediaTypes(listOf("video")))
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.mediaTypes(listOf("image", "gif")))
+    }
+
+    @Test
+    fun videosAreListedOnlyWhileReadable() {
+        val both = MediaTypes(images = true, videos = true)
+
+        assertEquals(both, PhotoLibraryCore.listable(both, videoReadable = true))
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.listable(both, videoReadable = false))
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.listable(MediaTypes(images = false, videos = true), videoReadable = false))
+        assertEquals(PhotoLibraryCore.IMAGES_ONLY, PhotoLibraryCore.listable(PhotoLibraryCore.IMAGES_ONLY, videoReadable = false))
+    }
+
+    @Test
+    fun aPhotosOnlyListStaysOnTheImagesTableWithNoTypeClause() {
+        assertFalse(PhotoLibraryCore.readsFiles(PhotoLibraryCore.IMAGES_ONLY))
+        assertNull(PhotoLibraryCore.mediaTypeClause(PhotoLibraryCore.IMAGES_ONLY))
+    }
+
+    @Test
+    fun aListWithVideosReadsTheFilesTableNarrowedByMediaType() {
+        assertTrue(PhotoLibraryCore.readsFiles(MediaTypes(images = true, videos = true)))
+        assertEquals("media_type IN (1, 3)", PhotoLibraryCore.mediaTypeClause(MediaTypes(images = true, videos = true)))
+        assertEquals("media_type = 3", PhotoLibraryCore.mediaTypeClause(MediaTypes(images = false, videos = true)))
+    }
+
+    // --- Item ids ---
+
+    @Test
+    fun aVideoIdCarriesThePrefixAndAPhotoIdStaysBare() {
+        assertEquals("v:42", PhotoLibraryCore.itemId(42, isVideo = true))
+        assertEquals("42", PhotoLibraryCore.itemId(42, isVideo = false))
+        assertEquals(42L, PhotoLibraryCore.videoId(PhotoLibraryCore.itemId(42, isVideo = true)))
+    }
+
+    @Test
+    fun anythingButAPrefixedNumberIsNotAVideoId() {
+        for (raw in listOf(null, "", "42", "v:", "v:abc", "v:-1", "V:42", " v:42", "v:4 2", "x:42")) {
+            assertNull(raw.toString(), PhotoLibraryCore.videoId(raw))
+        }
+    }
+
+    @Test
+    fun aPrefixedVideoIdIsNotAPhotoId() {
+        // ReadPhoto parses its id as a bare number; a video's must fail that.
+        assertNull(PhotoLibraryCore.itemId(42, isVideo = true).toLongOrNull())
+    }
+
+    @Test
+    fun anUnknownDurationIsLeftOut() {
+        assertEquals(1500L, PhotoLibraryCore.durationMs(1500))
+        assertNull(PhotoLibraryCore.durationMs(0))
+        assertNull(PhotoLibraryCore.durationMs(-1))
+        assertNull(PhotoLibraryCore.durationMs(null))
     }
 
     // --- Albums ---
@@ -89,6 +246,22 @@ class PhotoLibraryCoreTest {
 
         assertEquals("(date_added < ? OR (date_added = ? AND _id < ?))", selection)
         assertArrayEquals(arrayOf("100", "100", "7"), args)
+    }
+
+    @Test
+    fun aPageWithVideosLeadsWithTheMediaTypeClause() {
+        val (selection, args) = PhotoLibraryCore.pageSelection(bucketId = "b1", after = PageKey(100, 7), mediaTypeClause = "media_type IN (1, 3)")
+
+        assertEquals("media_type IN (1, 3) AND bucket_id = ? AND (date_added < ? OR (date_added = ? AND _id < ?))", selection)
+        assertArrayEquals(arrayOf("b1", "100", "100", "7"), args)
+    }
+
+    @Test
+    fun theFirstPageWithVideosHasOnlyTheMediaTypeClause() {
+        val (selection, args) = PhotoLibraryCore.pageSelection(bucketId = null, after = null, mediaTypeClause = "media_type = 3")
+
+        assertEquals("media_type = 3", selection)
+        assertEquals(0, args.size)
     }
 
     @Test

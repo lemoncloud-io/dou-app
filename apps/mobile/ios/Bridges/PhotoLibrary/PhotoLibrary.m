@@ -4,7 +4,8 @@
 /// Core/PhotoLibraryCore.swift.
 @interface RCT_EXTERN_MODULE(PhotoLibrary, NSObject)
 
-RCT_EXTERN_METHOD(listAlbums:(RCTPromiseResolveBlock)resolve
+RCT_EXTERN_METHOD(listAlbums:(NSDictionary *)request
+                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(listPhotos:(NSDictionary *)request
@@ -12,6 +13,10 @@ RCT_EXTERN_METHOD(listPhotos:(NSDictionary *)request
                   reject:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(readPhoto:(NSString *)id
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(keepLibraryVideo:(NSString *)id
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 

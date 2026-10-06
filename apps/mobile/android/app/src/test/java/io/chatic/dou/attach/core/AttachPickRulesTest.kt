@@ -342,7 +342,82 @@ class AttachPickRulesTest {
     fun posterQualityStartsAt70AndStepsDown() {
         assertEquals(70, AttachPickRules.POSTER_QUALITIES.first())
         assertEquals(AttachPickRules.POSTER_QUALITIES.sortedDescending(), AttachPickRules.POSTER_QUALITIES)
-        assertEquals(200 * 1024, AttachPickRules.POSTER_MAX_BYTES)
+    }
+
+    @Test
+    fun thePosterCapIsTheServers200000BytesNot200KiB() {
+        assertEquals(200_000, AttachPickRules.POSTER_MAX_BYTES)
+    }
+
+    @Test
+    fun aLibraryVideoIsHeldToTheWebsVideoCeiling() {
+        assertEquals(300L * 1024 * 1024, AttachPickRules.VIDEO_MAX_BYTES)
+        assertTrue(AttachPickRules.exceeds(AttachPickRules.VIDEO_MAX_BYTES + 1, AttachPickRules.VIDEO_MAX_BYTES))
+        assertFalse(AttachPickRules.exceeds(AttachPickRules.VIDEO_MAX_BYTES, AttachPickRules.VIDEO_MAX_BYTES))
+    }
+
+    // --- One frame of a remote video ---
+
+    private val signed = "https://bucket.s3.ap-northeast-2.amazonaws.com/v/clip.mp4?X-Amz-Signature=abc%2Fdef&X-Amz-Expires=600"
+
+    @Test
+    fun aFrameRequestTakesAnHttpsUrlAndPositiveNumbers() {
+        assertEquals(AttachPickRules.FrameRequest(signed, 500, 400), AttachPickRules.frameRequest(signed, 500.0, 400.0))
+        assertEquals(AttachPickRules.FrameRequest("HTTPS://example.com/a.mp4", 0, 400), AttachPickRules.frameRequest("HTTPS://example.com/a.mp4", 0.0, 400.0))
+    }
+
+    @Test
+    fun aFrameRequestRefusesAnythingButHttps() {
+        for (url in listOf(null, "", "  ", "http://example.com/a.mp4", "file:///data/a.mp4", "content://media/1", "https:///a.mp4", "https://", "not a url", "//example.com/a.mp4")) {
+            assertEquals(url.toString(), null, AttachPickRules.frameRequest(url, 500.0, 400.0))
+        }
+    }
+
+    @Test
+    fun aFrameRequestRefusesTimesAndEdgesThatAreNotPositiveFinite() {
+        assertEquals(null, AttachPickRules.frameRequest(signed, -1.0, 400.0))
+        assertEquals(null, AttachPickRules.frameRequest(signed, Double.NaN, 400.0))
+        assertEquals(null, AttachPickRules.frameRequest(signed, Double.POSITIVE_INFINITY, 400.0))
+        assertEquals(null, AttachPickRules.frameRequest(signed, 500.0, 0.0))
+        assertEquals(null, AttachPickRules.frameRequest(signed, 500.0, -400.0))
+        assertEquals(null, AttachPickRules.frameRequest(signed, 500.0, Double.NaN))
+        assertEquals(null, AttachPickRules.frameRequest(signed, 500.0, Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun aFractionalEdgeIsRoundedAndNeverBelowOnePixel() {
+        assertEquals(401, AttachPickRules.frameRequest(signed, 0.0, 400.6)?.maxEdge)
+        assertEquals(1, AttachPickRules.frameRequest(signed, 0.0, 0.2)?.maxEdge)
+        assertEquals(Int.MAX_VALUE, AttachPickRules.frameRequest(signed, 0.0, 1e12)?.maxEdge)
+    }
+
+    @Test
+    fun theFrameIsAtTheAskedTimeOrTheFirstForAShorterVideo() {
+        assertEquals(500_000L, AttachPickRules.frameTimeUs(500, durationMs = 60_000))
+        assertEquals(500_000L, AttachPickRules.frameTimeUs(500, durationMs = 500))
+        assertEquals(0L, AttachPickRules.frameTimeUs(500, durationMs = 400))
+        assertEquals(0L, AttachPickRules.frameTimeUs(0, durationMs = 60_000))
+    }
+
+    @Test
+    fun anUnknownLengthKeepsTheAskedTime() {
+        assertEquals(500_000L, AttachPickRules.frameTimeUs(500, durationMs = null))
+        assertEquals(500_000L, AttachPickRules.frameTimeUs(500, durationMs = 0))
+    }
+
+    @Test
+    fun theFrameBoxNeverEnlargesASmallVideo() {
+        assertEquals(400, AttachPickRules.frameBox(400, 1920, 1080))
+        assertEquals(400, AttachPickRules.frameBox(400, 1080, 1920))
+        assertEquals(320, AttachPickRules.frameBox(400, 320, 240))
+        assertEquals(400, AttachPickRules.frameBox(400, null, null))
+        assertEquals(400, AttachPickRules.frameBox(400, 0, 0))
+    }
+
+    @Test
+    fun atMostTwoFramesAreReadAtOnceAndEachIsGiven20Seconds() {
+        assertEquals(2, AttachPickRules.FRAME_READS_AT_ONCE)
+        assertEquals(20_000L, AttachPickRules.FRAME_TIMEOUT_MS)
     }
 
     private fun pickRoot(): File = File(temp.root, AttachPickRules.FOLDER).also { it.mkdirs() }
