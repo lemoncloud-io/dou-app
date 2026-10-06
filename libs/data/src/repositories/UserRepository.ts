@@ -31,6 +31,7 @@ export interface IUserRepository extends DisposableRepository {
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
     requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]>;
     syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number>;
+    refreshList(query: ChatUsersInput): Promise<void>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;

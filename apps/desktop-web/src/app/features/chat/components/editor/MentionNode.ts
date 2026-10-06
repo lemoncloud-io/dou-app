@@ -9,37 +9,37 @@ import { MSG_MENTION_CLASS } from '@chatic/block-kit';
  * the whole mention, matching Slack.
  */
 export class MentionNode extends TextNode {
-    static getType(): string {
+    static override getType(): string {
         return 'mention';
     }
 
-    static clone(node: MentionNode): MentionNode {
+    static override clone(node: MentionNode): MentionNode {
         return new MentionNode(node.__text, node.__key);
     }
 
-    static importJSON(serialized: SerializedTextNode): MentionNode {
+    static override importJSON(serialized: SerializedTextNode): MentionNode {
         return $createMentionNode(serialized.text).updateFromJSON(serialized);
     }
 
-    exportJSON(): SerializedTextNode {
+    override exportJSON(): SerializedTextNode {
         return { ...super.exportJSON(), type: 'mention' };
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    override createDOM(config: EditorConfig): HTMLElement {
         const dom = super.createDOM(config);
         dom.className = MSG_MENTION_CLASS;
         return dom;
     }
 
-    isTextEntity(): true {
+    override isTextEntity(): true {
         return true;
     }
 
-    canInsertTextBefore(): boolean {
+    override canInsertTextBefore(): boolean {
         return false;
     }
 
-    canInsertTextAfter(): boolean {
+    override canInsertTextAfter(): boolean {
         return false;
     }
 }
