@@ -60,10 +60,10 @@ sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and
 (photos and videos). The design also shows a third row, document scan; it is not drawn, since no
 shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
 
-| Shell                                   | Photos                                                               |
-| --------------------------------------- | -------------------------------------------------------------------- |
-| app with the photo-library bridge       | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
-| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser |
+| Shell                                   | Photos                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| app with the photo-library bridge       | recent photos and videos in the menu, and the in-app grid (`PhotoGridSheet`) |
+| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser         |
 
 The page learns which by asking: opening the menu requests the newest photos (`ListPhotos`), and an
 app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A
@@ -72,7 +72,8 @@ what the page asks for and returns a device path the page cannot read, while the
 real bytes — the profile and channel photo fields already rely on it inside the app.
 
 The camera entry is a capturing file input in every shell, so it opens the camera directly and needs
-nothing from the app. The photos entry, the grid and the camera take photos only.
+nothing from the app. The photos entry's file input and the camera take photos only; the grid lists
+videos too, in an app that has them (below).
 
 The second sheet's two entries depend on the shell too:
 
@@ -124,16 +125,34 @@ message offers delete alone. A conversion that failed in passing (`SYSTEM`, such
 screen mid-way) stays retryable.
 
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
-page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
-one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG and removes the location), so the pending row appears once
-they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
-a "choose more" row that re-lists after the system sheet closes.
+page that lands after the album changed is dropped. Denied access opens a settings prompt instead of an
+empty grid; iOS limited access shows a "choose more" row that re-lists after the system sheet closes.
 
-What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photo
-entries use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
+**Videos in the grid.** Every list asks for photos and videos (`mediaTypes: ['image', 'video']`). An app
+from before videos ignores the field and lists photos only, so asking costs it nothing; one that lists
+a video also has `KeepLibraryVideo`, which arrived in the same build. A video draws as its poster frame
+with a play mark and its length (`m:ss`) — in the grid, the menu's recent strip, and the picked strip
+(there without the length). On Android the app lists videos only once the user has granted video access
+as well; it asks for that once (ADR-0171).
+
+**Sending** reads the pick one item at a time in pick order: a photo with `ReadPhoto` (base64 — the app
+converts HEIC to JPEG and removes the location), a video with `KeepLibraryVideo`, which copies it into
+the app's pick folder and answers with the same shell-file reference "Choose from album" gives — from
+there it is converted and uploaded as any app-picked video is. The app judges a video as it copies
+it: an Android video that is not H.264/AAC `mp4` is `UNSUPPORTED`, one over the size limit (iOS: its
+conversion's estimate) is `TOO_LARGE`. An item that cannot be read or kept is refused alone, and the
+rest still go. The grid stays open with its send button greyed out as "준비 중…" until every item is
+read — a video stored only in iCloud can take minutes to come down, with no progress to show — then
+closes, and the pending row appears with everything that was read. A `NOT_FOUND` from
+`KeepLibraryVideo` — an app that lists videos but cannot keep one, which no release ships — is learned
+for the page: lists stop asking for videos, and the ones on screen are dropped.
+
+What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
+entry's file input and the camera use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
 own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
-refusals carries the item's `kind`, so a too-large one names that kind's limit. The first reason met
+refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
+video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
 is shown once, naming the kind whose limit was passed or what an unknown format looked like;
 whatever passes is sent at once — there is no tray and no confirmation, the pick is the send.
 
@@ -145,9 +164,10 @@ one would land in the main feed.
 
 `MessageImages` splits a row's `upload$$` with `chatMediaItems` (`@chatic/data`): photos and videos as
 one list of media in the order they were sent, drawn by the kit's `MessageMediaTiles`, and documents as
-`MessageFileCard`s below them. A video tile draws its poster (the upload's thumbnail), or a grey panel
-without one, with a play mark; no `<video>` is put in the feed, where every video would start a request
-just by scrolling past. A tapped photo or video opens in the kit's `MediaViewer`, which plays a video
+`MessageFileCard`s below them. A video tile draws its poster (the upload's thumbnail) with a play mark.
+One sent without a poster — from a browser that could not draw one, or before browsers sent one — gets
+its first frame drawn on this device instead (below), and is a grey panel until then. Nothing in the
+feed plays. A tapped photo or video opens in the kit's `MediaViewer`, which plays a video
 there and only there (below). With no text the attachments take the
 bubble's place — an empty bubble beside them would read
 as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
@@ -211,10 +231,45 @@ state, and the send lets a retry in only after it has marked the row failed. A r
 discards the files as well. The home list previews an image-only last message as a photo count — the kind rule for every attachment is in
 [home's last-chat.md](../home/last-chat.md#what-the-row-prints).
 
+### The first frame of a video without a poster
+
+`useVideoFrames` (over `lib/videoFrames.ts`) runs for a sent video slot with no `thumbUrl`, in one of
+the four tiles a message shows, and only once the message is on screen (`useInView`, an
+`IntersectionObserver`). The server's thumbnail always wins; none of this runs for a video that has one.
+
+1. **A frame made before** is read from the image cache under `<cid>/<uploadId>/frame` — memory, then
+   `ChaticImageCacheDB` — and drawn at once.
+2. **Otherwise one is made now**, two at a time for the page. A request still waiting when its message
+   leaves the screen is withdrawn; one already started runs on, and what it makes is kept.
+    - **In the app** the shell makes it: `ReadVideoFrame { url, atMs: 500, maxEdge: 400 }` (the shell's own 20 s limit; the page waits 25 s,
+      so a read still running in the shell is never taken for over). The
+      page cannot: the iOS WebView loads no media before a tap, `blob:` addresses included, and that
+      setting is not changed. The JPEG is `put` into the cache.
+    - **In a browser** the page fetches the video's first 2 MiB — `mode: 'cors'`, no credentials,
+      `cache: 'no-store'`, `Range: bytes=0-2097151` — and draws the frame from those bytes with the poster
+      routine (`drawVideoFrame` in `@chatic/shared`). `no-store` is required: a copy a `<video>` or
+      `<img>` left in the HTTP cache carries no CORS headers, and a fetch served from it fails as if the
+      bucket had none.
+3. **Where no image can be made, the tile draws the frame itself**: `MessageMediaTiles` gets a
+   `frameUrl` and places `<video muted playsInline preload="metadata" src="…#t=0.5">`, which never
+   plays. Without the `#t=` fragment the engines measured show only their default grey. This is the
+   path for a browser whose fetch could not be made (learned once per page: the bucket sends no CORS
+   headers), for a video whose first 2 MiB do not draw (index at the end, a 4K first frame past
+   2 MiB), and for an Android app from before `ReadVideoFrame`. An iOS app from before it stays grey —
+   its WebView would load nothing.
+
+A frame that could not be made is remembered for the page, so a tile that comes back on screen does not
+read the video again. A failure that is the video's own — its first bytes do not draw — is remembered by
+upload, since the message is re-read with a new address on every visit; one that may be the address's —
+a 403, a failed shell read — by upload and address, so a refreshed address gets its own try. An answer
+that is not a partial one (`206`) means the server ignored the range and is sending the whole video; its
+body is never read, and the tile takes the `<video>` path instead. The viewer uses a
+made frame as its placeholder while the video loads.
+
 ### The image cache
 
 What a server head draws is read through a cache keyed by the image, not by its address
-(`lib/imageCache.ts`, `hooks/useCachedImages.ts`). The key is `<cid>/<uploadId>/thumb|org`: an upload's
+(`lib/imageCache.ts`, `hooks/useCachedImages.ts`). The key is `<cid>/<uploadId>/thumb|org|frame`: an upload's
 bytes never change, while its signed address changes on every read of the message. The signing time is
 rounded to the hour, but the signing credential's token differs from read to read, so a browser cache
 keyed by URL missed every time. A room opened from the cache drew its images, the background re-read
@@ -228,6 +283,10 @@ the tile is an empty square. Nothing races a download of the address alongside t
 that download is exactly what the cache saves. A key already in memory resolves in the same render, so
 a redraw with a new address does not blink.
 
+- **`frame` is made here, not fetched.** A video's first frame (above) has no address of its own, so
+  it enters through `put` and is read back through `lookup`, which never touches the network. It keeps
+  a budget of its own (20 MB, beside 50 MB of thumbnails and 150 MB of originals): a frame costs a video
+  read to make again.
 - **The signed address is the fallback and the failure signal.** If the fetch cannot be made — a 403
   from an expired address, a bucket without CORS, offline, a body that is not an image — the tile draws
   the address directly, and the expiry re-read above runs from its error as it always did. A kept copy
@@ -334,7 +393,9 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/components/ChatImageAttach apps/web/src/app/bridge/attachmentPicker \
   apps/web/src/app/features/channels/lib/fileDownload apps/web/src/app/features/channels/utils/attachSources \
   apps/web/src/app/features/channels/components/ChannelMessageRow \
-  apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages
+  apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages \
+  apps/web/src/app/features/channels/lib/videoFrames apps/web/src/app/features/channels/hooks/useVideoFrames \
+  apps/web/src/app/features/channels/hooks/usePhotoPicker apps/web/src/app/bridge/photoLibrary
 ```
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and

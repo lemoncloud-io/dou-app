@@ -870,9 +870,12 @@
             "recentTitle": "Recent photos",
             "seeAll": "See all",
             "recentPhoto": "Recent photo {{position}}",
+            "recentVideo": "Recent video {{position}}",
             "gridPhoto": "Photo {{position}}",
+            "gridVideo": "Video {{position}}",
             "removePicked": "Remove photo {{position}}",
             "send": "Send {{count}}",
+            "preparing": "Preparing…",
             "limitedNotice": "Only the photos you chose are shown",
             "limitedMore": "Choose more",
             "rejected": {

@@ -48,6 +48,20 @@ jest.mock('../hooks/useCachedImages', () => ({
     },
 }));
 
+// Frame making has its own suite. Here it answers per key, and records what was asked and whether the
+// message was on screen; jsdom has no IntersectionObserver, so it always is.
+type FrameRequest = { key: string; url: string } | undefined;
+const frameAnswers = new Map<string, { status: 'image'; src: string } | { status: 'element'; url: string }>();
+const frameCalls: { requests: FrameRequest[]; visible: boolean }[] = [];
+jest.mock('../hooks/useVideoFrames', () => ({
+    useVideoFrames: (requests: FrameRequest[], visible: boolean) => {
+        frameCalls.push({ requests, visible });
+        return requests.map(request =>
+            request ? (frameAnswers.get(request.key) ?? { status: 'pending' }) : undefined
+        );
+    },
+}));
+
 type Uploads = NonNullable<DomainChat['upload$$']>;
 const sent = (id: string, thumb: string) =>
     ({ id, status: 'stored', orgUrl: `https://s3/${id}`, thumbUrl: thumb }) as Uploads[number];
@@ -61,6 +75,8 @@ beforeEach(() => {
     rejected.length = 0;
     requested.length = 0;
     leads.length = 0;
+    frameAnswers.clear();
+    frameCalls.length = 0;
 });
 
 describe('MessageImages', () => {
@@ -295,6 +311,50 @@ describe('MessageImages — videos and documents', () => {
         expect(container.querySelector('video')).toBeNull();
         expect(container.querySelector('[data-video-panel]')).not.toBeNull();
         expect(screen.getByText('quote')).toBeInTheDocument();
+    });
+
+    it('asks for the first frame of a sent video without a poster, on screen, keyed by its upload', () => {
+        render(
+            <MessageImages
+                uploads={[sent('p1', 'https://s3/p1-t'), video('v1'), video('v2', 'https://s3/v2-poster')]}
+                chatId="c:1"
+                cid="cloud-a"
+                align="start"
+            />
+        );
+
+        const last = frameCalls[frameCalls.length - 1];
+        expect(last.visible).toBe(true);
+        expect(last.requests).toEqual([undefined, { key: 'cloud-a/v1/frame', url: 'https://s3/v1' }, undefined]);
+    });
+
+    it('asks for no frame behind the "+n" tile', () => {
+        const uploads = ['a', 'b', 'c', 'd', 'e'].map(id => video(id));
+        render(<MessageImages uploads={uploads} chatId="c:1" cid="c" align="start" />);
+
+        const last = frameCalls[frameCalls.length - 1];
+        expect(last.requests.map(request => request?.key)).toEqual([
+            'c/a/frame',
+            'c/b/frame',
+            'c/c/frame',
+            'c/d/frame',
+            undefined,
+        ]);
+    });
+
+    it('draws a made frame in the tile, under the play mark', () => {
+        frameAnswers.set('c/v1/frame', { status: 'image', src: 'blob:frame' });
+        const { container } = render(<MessageImages uploads={[video('v1')]} chatId="c:1" cid="c" align="start" />);
+
+        expect(container.querySelector('img')).toHaveAttribute('src', 'blob:frame');
+        expect(container.querySelector('[data-play-mark]')).not.toBeNull();
+    });
+
+    it('lets the tile draw the frame from the video itself where no image could be made', () => {
+        frameAnswers.set('c/v1/frame', { status: 'element', url: 'https://s3/v1' });
+        const { container } = render(<MessageImages uploads={[video('v1')]} chatId="c:1" cid="c" align="start" />);
+
+        expect(container.querySelector('video')).toHaveAttribute('src', 'https://s3/v1#t=0.5');
     });
 
     it('downloads a document under its own name from the card’s button in a browser', async () => {
