@@ -36,11 +36,11 @@ The tile's context menu (right-click or the Menu key) offers "Rename cloud" only
 own and are in right now (`canRename`), never on Home, an invited cloud, a lapsed one, or an owned
 cloud you are not in. `cloud.update` goes out on the active slot's socket, so renaming another tile
 would send its id down this cloud's connection and write its row into this cloud's cache; apps/web
-likewise edits only the active cloud. Names are 2 to 30 characters, as on web. It opens `RenameCloudDialog`, a one-line field shaped
-like `RenameChannelDialog`. `useRenameCloud` (`shared/hooks/useRenameCloud.ts`) writes through
-`CloudRepository.updateCloud`, which also rewrites the cached cloud row, and patches the new name
-into the relay catalog query the owned tiles read. The tile and its label change at once, without
-waiting for the broker list to catch up.
+likewise edits only the active cloud. Names are 2 to 30 characters, as on web. It opens
+`RenameCloudDialog`, a one-line field shaped like `RenameChannelDialog`. `useRenameCloud`
+(`shared/hooks/useRenameCloud.ts`) writes through `CloudRepository.updateCloud`, which also rewrites
+the cached cloud row, and patches the new name into the relay catalog query the owned tiles read.
+The tile and its label change at once, without waiting for the broker list to catch up.
 
 ## Unread
 
