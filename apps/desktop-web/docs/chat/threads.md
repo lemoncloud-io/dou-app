@@ -67,6 +67,13 @@ The close runs in an effect after the render that first sees the new channel, wh
 is checked in the hook's return value as well; a panel drawn in that one render would otherwise
 fetch the old thread's number in the new channel.
 
+One case is held instead of closed: a thread opened while the list has not arrived yet (the restored
+selection is known before its channels, and a saved or mentioned reply in that channel can be clicked
+in the gap). It has no channel to match yet, so nothing is drawn and nothing is closed until the list
+answers, and then it either shows or closes like any other. What separates "not known yet" from "no
+longer here" is whether the thread's channel has been shown since the thread was opened: a place switch
+empties the list under a thread that was shown, so that one closes.
+
 ## What this does not do
 
 - It does not ask the server for a thread. A thread buried under thousands of messages costs a batch

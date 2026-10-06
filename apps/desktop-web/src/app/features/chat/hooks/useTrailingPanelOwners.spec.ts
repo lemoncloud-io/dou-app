@@ -102,6 +102,49 @@ describe('useTrailingPanelOwners', () => {
             expect(useThreadStore.getState().openRootId).toBeNull();
         });
 
+        it('holds a thread opened before the channel list has the channel, and shows it when the list arrives', () => {
+            const { result, rerender } = renderHook(({ channelId }) => useTrailingPanelOwners(channelId), {
+                initialProps: { channelId: undefined as string | undefined },
+            });
+            act(() => useThreadStore.getState().open('9', 'ch-1'));
+
+            // Not known yet: nothing is drawn, but nothing is closed either.
+            expect(result.current.threadRootId).toBeNull();
+            expect(useThreadStore.getState().openRootId).toBe('9');
+
+            rerender({ channelId: 'ch-1' });
+
+            expect(result.current.threadRootId).toBe('9');
+        });
+
+        it('closes a held thread when the list arrives without its channel', () => {
+            const { result, rerender } = renderHook(({ channelId }) => useTrailingPanelOwners(channelId), {
+                initialProps: { channelId: undefined as string | undefined },
+            });
+            act(() => useThreadStore.getState().open('9', 'ch-1'));
+
+            rerender({ channelId: 'ch-2' });
+
+            expect(result.current.threadRootId).toBeNull();
+            expect(useThreadStore.getState().openRootId).toBeNull();
+        });
+
+        it('holds again for a thread reopened before the list, not on the strength of an earlier open', () => {
+            const { result, rerender } = renderHook(({ channelId }) => useTrailingPanelOwners(channelId), {
+                initialProps: { channelId: 'ch-1' as string | undefined },
+            });
+            act(() => useThreadStore.getState().open('9', 'ch-1'));
+            act(() => useThreadStore.getState().close());
+            rerender({ channelId: undefined });
+            act(() => useThreadStore.getState().open('9', 'ch-1'));
+
+            expect(useThreadStore.getState().openRootId).toBe('9');
+
+            rerender({ channelId: 'ch-1' });
+
+            expect(result.current.threadRootId).toBe('9');
+        });
+
         it('keeps a thread opened in the channel that is showing', () => {
             const { result } = renderHook(() => useTrailingPanelOwners('ch-1'));
             act(() => useThreadStore.getState().open('9', 'ch-1'));
