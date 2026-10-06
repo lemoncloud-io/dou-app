@@ -88,11 +88,17 @@ jobs:
 
             # Left out of the gate, with the reason. Measured 2026-09-14.
             #
-            #   typecheck   desktop-web                  21 errors, the long-standing baseline
+            #   typecheck   desktop-web                  8 errors (measured 2026-10-06, was 21)
             #               @chatic/mobile               red
             #               @chatic/landing              red
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
+            #
+            #   The 8 desktop-web errors left each point at a runtime bug, not a typing slip, and
+            #   are fixed with a reproducing test, not by silencing the type: a guest check on a
+            #   field `IdentityContext` does not have, an unset `userId` on cached chat rows, a
+            #   possibly empty notify mode, and `string | undefined` values passed as `string`.
+            #   The project leaves the list once they reach 0.
             #
             #   `web` left the TEST list on 2026-09-17, and nothing was traded away for it either:
             #   the 7 failures were three stale test files, not product bugs. Two had been left
