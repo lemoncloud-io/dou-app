@@ -99,6 +99,34 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
+    it('markDrops — POST {relay}/memberships/0/drops with the body unchanged', async () => {
+        executeSignedRelayRequest.mockResolvedValue({ cloudIds: ['c1'], owned: 3, maxClouds: 2, excess: 0 });
+        const gateway = createSubscriptionHttpGateway(exec);
+
+        await expect(gateway.markDrops({ cloudIds: ['c1'] })).resolves.toEqual({
+            cloudIds: ['c1'],
+            owned: 3,
+            maxClouds: 2,
+            excess: 0,
+        });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'POST',
+            baseURL: 'https://relay.test/memberships/0/drops',
+            body: { cloudIds: ['c1'] },
+        });
+    });
+
+    // An empty list is the "clear every mark" request, not a no-op — it must still reach the relay.
+    it('markDrops — sends an empty list as is', async () => {
+        executeSignedRelayRequest.mockResolvedValue({ cloudIds: [], owned: 1 });
+        const gateway = createSubscriptionHttpGateway(exec);
+
+        await gateway.markDrops({ cloudIds: [] });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith(expect.objectContaining({ body: { cloudIds: [] } }));
+    });
+
     it('adminMemberships — GET {relay}/memberships/0/list', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);

@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { productPlansKeys, subscriptionKeys } from './queryKeys';
 
-import type { CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { MembershipDropsResult } from '@chatic/data';
+import type { CreateMembershipBody, MembershipDropsBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 import type { Params } from '@lemoncloud/lemon-web-core';
 
 /**
@@ -49,4 +50,24 @@ export const useValidateMembership = () => {
     return useCustomMutation<MembershipView, string, { body: CreateMembershipBody; params?: Params }>(
         ({ body, params }) => subscription.validateMembership(body, params)
     );
+};
+
+/**
+ * Marks which owned clouds go when the cloud quota shrinks. `cloudIds` is the final state: an
+ * owned cloud left out is unmarked, and an empty list clears every mark.
+ *
+ * The repository caches nothing, so on success the cloud list and the membership are both
+ * invalidated — every screen that shows the quota state rereads it rather than trusting a stale copy.
+ */
+export const useMarkDrops = () => {
+    const { subscription } = runtime.data.useRuntimeRepositories();
+    const queryClient = useQueryClient();
+
+    return useCustomMutation<MembershipDropsResult, string, MembershipDropsBody>(body => subscription.markDrops(body), {
+        onSuccess: () =>
+            Promise.all([
+                queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all }),
+                queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }),
+            ]),
+    });
 };

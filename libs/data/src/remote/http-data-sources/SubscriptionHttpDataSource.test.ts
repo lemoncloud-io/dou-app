@@ -10,6 +10,7 @@ describe('SubscriptionHttpDataSource', () => {
             plans: jest.fn(),
             membership: jest.fn(),
             validateMembership: jest.fn(),
+            markDrops: jest.fn(),
             adminMemberships: jest.fn(),
             updateMembershipByAdmin: jest.fn(),
             adminClouds: jest.fn(),
@@ -29,6 +30,18 @@ describe('SubscriptionHttpDataSource', () => {
 
         await dataSource.validateMembership({ planId: 'p1' } as never);
         expect(gateway.validateMembership).toHaveBeenCalledWith({ planId: 'p1' }, undefined);
+    });
+
+    it('markDrops — forwards the body and returns the raw result', async () => {
+        gateway.markDrops.mockResolvedValue({ cloudIds: ['c1'], owned: 3, maxClouds: 2, excess: 0 });
+
+        await expect(dataSource.markDrops({ cloudIds: ['c1'] })).resolves.toEqual({
+            cloudIds: ['c1'],
+            owned: 3,
+            maxClouds: 2,
+            excess: 0,
+        });
+        expect(gateway.markDrops).toHaveBeenCalledWith({ cloudIds: ['c1'] });
     });
 
     it('forwards the admin reads unchanged', async () => {

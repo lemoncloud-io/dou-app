@@ -3,6 +3,7 @@ import type {
     CloudView,
     CreateMembershipBody,
     MembershipBody,
+    MembershipDropsBody,
     MembershipView,
     ProductView,
 } from '@lemoncloud/chatic-backend-api';
@@ -30,6 +31,14 @@ export interface SubscriptionHttpGateway {
     membership(): Promise<MembershipView>;
     /** POST {relay}/memberships/0. */
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
+    /**
+     * POST {relay}/memberships/0/drops — marks which owned clouds go when the cloud quota shrinks.
+     *
+     * `cloudIds` is the final state, not a delta: an owned cloud left out has its mark cleared, and
+     * an empty list clears every mark. Scoped to the current session (`0`); the relay answers 403
+     * when a listed cloud is not the caller's.
+     */
+    markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult>;
 
     /**
      * GET {relay}/memberships/0/list — the admin console's membership list.
@@ -88,6 +97,22 @@ export interface AdminEndpointOptions {
     endpoint?: string;
 }
 
+/**
+ * Response of `POST {relay}/memberships/0/drops`.
+ *
+ * The server does not publish this type, so it is declared here from the observed contract:
+ * - `cloudIds` — the clouds now marked to go (the list that was just written).
+ * - `owned` — how many clouds the caller owns.
+ * - `maxClouds` — the cloud quota of the current membership, when there is one.
+ * - `excess` — how many more clouds still have to be picked before the marks cover the overflow.
+ */
+export interface MembershipDropsResult {
+    cloudIds: string[];
+    owned: number;
+    maxClouds?: number;
+    excess?: number;
+}
+
 export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): SubscriptionHttpGateway => {
     const relay = () => exec.resolveEndpoint('relay');
     const iap = () => exec.resolveEndpoint('iap');
@@ -141,6 +166,13 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 method: 'POST',
                 baseURL: `${relay()}/memberships/0`,
                 params: { ...params },
+                body,
+            }),
+
+        markDrops: body =>
+            exec.executeSignedRelayRequest<MembershipDropsResult, MembershipDropsBody>({
+                method: 'POST',
+                baseURL: `${relay()}/memberships/0/drops`,
                 body,
             }),
 
