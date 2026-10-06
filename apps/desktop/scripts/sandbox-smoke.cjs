@@ -156,7 +156,12 @@ const probe = async withArguments => {
         ],
         ['electronAPI.appVersion', bridge && bridge.appVersion === SENTINEL.version, bridge && bridge.appVersion],
         ['electronAPI.platform', !!(bridge && bridge.apiPlatform), bridge && bridge.apiPlatform],
-        ['electronAPI.customUi.apply', bridge && bridge.customUiApply === 'function', bridge && bridge.customUiApply],
+        // SENTINEL.stage is not 'dev', so this window stands for a non-dev build: apply must be withheld.
+        [
+            'electronAPI.customUi.apply withheld off the dev channel',
+            bridge && bridge.customUiApply === 'undefined',
+            bridge && bridge.customUiApply,
+        ],
         ['electronAPI.loginItem.get', bridge && bridge.loginItemGet === 'function', bridge && bridge.loginItemGet],
         ['electronAPI.loginItem.set', bridge && bridge.loginItemSet === 'function', bridge && bridge.loginItemSet],
         ['App->Web round trip (utf8ToBase64)', received === PROBE, received],
