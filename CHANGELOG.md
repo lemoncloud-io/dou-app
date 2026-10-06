@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-06] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,web) switch the session back to the selected place (ADR-0170)
+
 ## [2026-10-06] - root@0.83.2, @chatic/desktop-web@0.19.4
 
 ### Bug Fixes
