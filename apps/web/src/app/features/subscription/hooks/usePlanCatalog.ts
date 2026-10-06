@@ -24,6 +24,11 @@ export interface PlanCatalog {
      * here so the picker and the purchase path cannot disagree about what "current" means.
      */
     replaceablePlan: ProductView | undefined;
+    /**
+     * The running subscription is billed by the other store (bought on Android, opened on iOS, or
+     * the reverse). Nothing about it can be changed or managed from here — see `isOtherStorePlan`.
+     */
+    isOtherStore: boolean;
     /** The plan queued for the next renewal, resolved from `pendingProductId`. */
     pendingPlan: ProductView | undefined;
     /** Four-state view of the membership, entitlement included. */
@@ -63,6 +68,7 @@ export const usePlanCatalog = (): PlanCatalog => {
     // receipt's (ADR-0101). `summary.productId` already resolves that; the receipt's plan is the
     // fallback for a granted product the catalog does not list.
     const currentPlan = findPlanById(plans, summary.productId) ?? receiptPlan;
+    const replaceablePlan = summary.hasLiveReceipt ? receiptPlan : undefined;
 
     return {
         isOnMobileApp,
@@ -74,7 +80,8 @@ export const usePlanCatalog = (): PlanCatalog => {
         // admin grant. Gating this on `isEntitled` was right until overrides existed and is wrong
         // in both directions now: a grant would name a plan the user never bought as Google's
         // `oldPlanId`, and a block would offer a fresh purchase over a live store subscription.
-        replaceablePlan: summary.hasLiveReceipt ? receiptPlan : undefined,
+        replaceablePlan,
+        isOtherStore: !!platform && !!replaceablePlan?.platform && replaceablePlan.platform !== platform,
         pendingPlan,
         summary,
         isLoading: isPlansLoading || isMembershipLoading,

@@ -45,20 +45,3 @@ export const evaluateCloudQuota = ({ used, limit, state }: CloudQuotaInput): Clo
     if (used >= limit) return { canAdd: false, reason: 'limitReached' };
     return { canAdd: true };
 };
-
-/**
- * The clouds sitting past the allowance after a downgrade.
- *
- * Ordered by `cloudNo` (the owner's own sequence, assigned at creation) so the most recently added
- * ones are the ones over the line. This is an app-side guess at what a future server-side cleanup
- * would pick — the banner says so rather than presenting it as settled.
- */
-export const findExcessClouds = (clouds: CloudView[], limit: number | null): CloudView[] => {
-    if (limit === null) return [];
-    const owned = clouds.filter(c => c.status !== 'expired');
-    if (owned.length <= limit) return [];
-    const ordered = [...owned].sort(
-        (a, b) => (a.cloudNo ?? 0) - (b.cloudNo ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0)
-    );
-    return ordered.slice(limit);
-};

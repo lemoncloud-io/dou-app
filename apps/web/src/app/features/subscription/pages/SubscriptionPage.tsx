@@ -1,417 +1,172 @@
-import { AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { useQueryClient } from '@tanstack/react-query';
-
-import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { appBridge } from '../../../bridge';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { Button, IconBack, IconButton, IconSpinner, KeyValueRows, ModalTopBar, ScreenLayout } from '@chatic/web-ui-kit';
+
 import { useMembershipInfo } from '../../../hooks/useMembership';
-
-import { EmailRequiredBanner, ExcessCloudBanner } from '../components';
-import { planDisplayName } from '../lib';
-import { usePlanCatalog, usePlanPrice, useRestorePurchases } from '../hooks';
-import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
+import { useNavigateToLogin } from '../../auth/hooks';
+import { EmailRequiredBanner, HeldCloudsBanner, PlanProductCard } from '../components';
+import { usePlanCatalog, usePlanPrice, useRestorePurchases } from '../hooks';
+import { formatDate, planDisplayName, productStatusWord } from '../lib';
+import { useRestoredSignal } from '../stores/useRestoredSignal';
 
-const formatDate = (timestamp?: number | null): string => {
-    if (!timestamp || timestamp <= 0) return '-';
-    const d = new Date(timestamp);
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-};
-
+/**
+ * "구독 관리" — the subscription list (Figma 4648-26863 · 4772-17913), the one place MY sends to.
+ *
+ * It shows the running subscription as a single card that opens the detail, or an empty state that
+ * starts one. The design also draws past subscriptions as cards below; the relay offers no history a
+ * user may read (its membership list is admin-only), so only the current one appears.
+ *
+ * Every state lands here — never-subscribed included — so MY no longer decides between this and the
+ * cloud guide. The empty state's call to action is what leads to the guide.
+ */
 export const SubscriptionPage = () => {
-    const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    useQueryClient();
+    const navigate = useNavigateWithTransition();
+    const goToLogin = useNavigateToLogin();
     const isOnMobileApp = isNative();
-    const { restore, isRestoring, canRestore } = useRestorePurchases();
+    const isKo = i18n.language.startsWith('ko');
 
     const { data: membership, isLoading } = useMembershipInfo();
-    const { summary, currentPlan, pendingPlan, isIOS } = usePlanCatalog();
+    const { summary, currentPlan, pendingPlan } = usePlanCatalog();
     const priceOf = usePlanPrice();
-    const isKo = i18n.language.startsWith('ko');
     const { isGuest } = runtime.session.useRuntimeProfile();
+    const { restore, isRestoring, canRestore } = useRestorePurchases();
+    const observe = useRestoredSignal(s => s.observe);
 
-    // One judgement, five states (`summarizeMembership`). The screen used to branch on
-    // `isActive || isExpired`, which dropped a scheduled cancellation into the empty state — both
-    // flags are false there, even though the subscription is still running and paid for.
-    const isActive = summary.state === 'active';
-    const isCanceled = summary.state === 'cancelScheduled';
-    const isExpired = summary.state === 'expired';
-    // An admin blocked this subscription server-side. Kept apart from `isExpired` on purpose: the
-    // store is still charging, so the wording and the colour both have to say something else.
-    const isBlocked = summary.state === 'blocked';
+    // Feeds the restored banner on the detail screen. Only settled states count — a half-loaded
+    // membership reads as `none` and would make every later `active` look like a comeback.
+    useEffect(() => {
+        if (!isLoading) observe(summary.state);
+    }, [isLoading, summary.state, observe]);
+
     const hasSubscription = summary.state !== 'none';
-    // A pending tier change or a next-payment date only means something while the paid period is
-    // still running — an expired membership can carry a stale `pendingProductId` (a downgrade that
-    // was queued but never applied because the user let the subscription lapse instead of renewing).
+    const price = priceOf(currentPlan);
+    const word = productStatusWord(summary.state);
     const hasPendingChange = summary.isEntitled && !!summary.pendingProductId;
-    // Where to manage a subscription depends on the store it was bought on, not the current device.
-    // Fall back to this device's store only pre-subscription, when there is no membership to read one off.
-    const managePlatform =
-        membership?.platform === 'google'
-            ? 'google'
-            : membership?.platform === 'apple'
-              ? 'apple'
-              : isIOS
-                ? 'apple'
-                : 'google';
+    const validUntil = formatDate(membership?.validUntil);
 
-    // No guest branch here: the plans screen asks before sending anyone to login (Figma
-    // 2870-33015). Redirecting from this button too would give the same intent two behaviours.
-    const handleViewPlans = () => navigate(ROUTES.subscription.plans);
+    // One sentence under the card says what happens next. Which one is the state's call; the
+    // detail screen carries the rest.
+    const statusLine = (() => {
+        if (summary.state === 'blocked') return t('mypage.subscription.blockedNotice');
+        if (summary.state === 'expired') return t('mypage.subscription.list.expiredLine', { date: validUntil });
+        if (summary.state === 'cancelScheduled') return t('mypage.subscription.list.endsLine', { date: validUntil });
+        if (hasPendingChange) {
+            return t('mypage.subscription.list.changeLine', {
+                date: validUntil,
+                product: planDisplayName(pendingPlan, isKo) ?? summary.pendingProductId,
+            });
+        }
+        if (price && summary.hasLiveReceipt && membership?.autoRenewing !== false) {
+            return t('mypage.subscription.banner.autoRenew.description', { date: validUntil, price });
+        }
+        return undefined;
+    })();
+    const statusLineTone = summary.state === 'active' ? 'text-point-blue' : 'text-destructive';
+
+    const handleStart = () => (isGuest ? goToLogin() : navigate(ROUTES.subscription.guide));
 
     return (
-        <div className="flex min-h-screen flex-col overflow-y-auto bg-background">
-            {/* Header */}
-            <header className="flex items-center px-[6px] pt-safe-top">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-                <h1 className="flex-1 text-center text-[16px] font-semibold">{t('mypage.subscription.title')}</h1>
-                <div className="w-[44px]" />
-            </header>
-
-            <div className="flex flex-col gap-[18px] px-4 pb-safe-bottom pt-4">
-                {/* Over the allowance after a downgrade — detection only, no delete button here. */}
-                <ExcessCloudBanner />
-                {/* A cloud created without an email (a skipped purchase or add-cloud step) — the one
-                    dialog that can fix it, surfaced here rather than left silently unusable. */}
+        <ScreenLayout
+            className="h-screen"
+            header={
+                <ModalTopBar
+                    safeArea
+                    title={t('mypage.subscription.title')}
+                    leftSlot={
+                        <IconButton
+                            icon={<IconBack className="size-[26px]" />}
+                            label={t('common.back')}
+                            onClick={() => navigate(-1)}
+                        />
+                    }
+                />
+            }
+        >
+            <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
+                {/* Clouds the relay held after a downgrade — reported, released elsewhere. */}
+                <HeldCloudsBanner />
+                {/* A cloud with no recovery email — the dialog that fixes it, surfaced here. */}
                 <EmailRequiredBanner />
 
                 {isLoading ? (
-                    <div className="flex items-center justify-center pt-20">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                    <div className="flex justify-center pt-20">
+                        <IconSpinner className="size-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : hasSubscription ? (
-                    <>
-                        {/* Current Subscription */}
-                        <div className="flex flex-col gap-1">
-                            <span className="px-1 text-[16px] font-medium tracking-[-0.015em] text-label">
-                                {t('mypage.subscription.currentPlan')}
-                            </span>
-
-                            <div
-                                className={`rounded-[20px] border-2 bg-card p-1.5 shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] ${isBlocked ? 'border-red-400' : isCanceled ? 'border-yellow-400' : isExpired ? 'border-gray-300' : 'border-[#B0EA10]'}`}
-                            >
-                                {/* Plan Info */}
-                                <div className="flex items-center justify-between gap-2 px-4 py-3">
-                                    <span className="min-w-0 truncate text-[18px] font-semibold tracking-[-0.015em]">
-                                        {planDisplayName(currentPlan, isKo) ?? summary.productId ?? '-'}
-                                    </span>
-                                    {(currentPlan?.grade ?? membership?.grade) && (
-                                        <span className="shrink-0 rounded-full bg-[#B0EA10]/20 px-2.5 py-0.5 text-[12px] font-semibold uppercase text-[#6a8a00] dark:text-[#B0EA10]">
-                                            {currentPlan?.grade ?? membership?.grade}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Divider */}
-                                <div className="mx-auto w-[calc(100%-24px)] border-t border-border" />
-
-                                {/* Status Badge */}
-                                {isBlocked && (
-                                    <div className="mx-3 mt-1 rounded-[10px] bg-red-50 px-3 py-2 text-center dark:bg-red-950/30">
-                                        <span className="text-[14px] font-medium text-red-600 dark:text-red-400">
-                                            {t('mypage.subscription.blockedNotice')}
-                                        </span>
-                                    </div>
+                    <PlanProductCard
+                        plan={currentPlan}
+                        fallbackName={summary.productId}
+                        statusLabel={t(`mypage.subscription.state.${word.key}`)}
+                        statusTone={word.tone}
+                        entitled={summary.isEntitled}
+                        onClick={() => navigate(ROUTES.subscription.detail)}
+                    >
+                        {/* Only when there is something to say: a store with no price for the plan and
+                            no status line would otherwise leave a divider over an empty strip. */}
+                        {(price || statusLine) && (
+                            <div className="flex flex-col gap-2 pb-3 pt-1">
+                                {price && (
+                                    <KeyValueRows
+                                        bare
+                                        rows={[{ label: t('mypage.subscription.info.price'), value: price }]}
+                                    />
                                 )}
-
-                                {isCanceled && (
-                                    <div className="mx-3 mt-1 rounded-[10px] bg-yellow-50 px-3 py-2 text-center dark:bg-yellow-950/30">
-                                        <span className="text-[14px] font-medium text-yellow-600 dark:text-yellow-400">
-                                            {t('mypage.subscription.canceledNotice', {
-                                                date: formatDate(membership?.validUntil),
-                                            })}
-                                        </span>
-                                    </div>
+                                {statusLine && (
+                                    <p className={`px-4 text-[14px] font-medium leading-[1.5] ${statusLineTone}`}>
+                                        {statusLine}
+                                    </p>
                                 )}
-
-                                {/* Pending change */}
-                                {hasPendingChange && (
-                                    <div className="mx-3 mt-1 rounded-[10px] bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/30">
-                                        <span className="text-[14px] font-medium text-blue-600 dark:text-blue-400">
-                                            {t('mypage.subscription.pendingChange', {
-                                                product: planDisplayName(pendingPlan, isKo) ?? summary.pendingProductId,
-                                            })}
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Free trial — only shown when both the product and the receipt back it. */}
-                                {summary.trialDaysLeft != null && (
-                                    <div className="mx-3 mt-1 rounded-[10px] bg-[#B0EA10]/15 px-3 py-2 text-center">
-                                        <span className="text-[14px] font-medium text-[#6a8a00] dark:text-[#B0EA10]">
-                                            {t('mypage.subscription.trialRemaining', { days: summary.trialDaysLeft })}
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Details */}
-                                {/* Each row is a 100px label beside its value. The label keeps that
-                                    width wherever there is room for it — which is every phone — but
-                                    is allowed to give it up rather than hold the row open: 100 and
-                                    the 18px gap are px that SUM inside one row, and on a 320px
-                                    screen a long value had nothing left to wrap into. A single
-                                    fixed width that never sums with anything, an icon or an avatar,
-                                    is not this and stays as it is. */}
-                                <div className="flex flex-col gap-[6px] px-3.5 py-3">
-                                    <div className="flex items-center gap-[18px]">
-                                        <span className="w-[100px] text-[16px] text-muted-foreground">
-                                            {t('mypage.subscription.status')}
-                                        </span>
-                                        <span
-                                            className={`text-[16px] font-medium ${isBlocked ? 'text-red-600 dark:text-red-400' : isCanceled ? 'text-yellow-600 dark:text-yellow-400' : isExpired ? 'text-gray-400' : 'text-green-600 dark:text-green-400'}`}
-                                        >
-                                            {isBlocked
-                                                ? t('mypage.subscription.statusBlocked')
-                                                : isCanceled
-                                                  ? t('mypage.subscription.statusCanceled')
-                                                  : isExpired
-                                                    ? t('mypage.subscription.statusExpired')
-                                                    : t('mypage.subscription.statusActive')}
-                                        </span>
-                                    </div>
-                                    {currentPlan?.maxClouds != null && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.allowance')}
-                                            </span>
-                                            {/* An expired membership holds no allowance: `evaluateCloudQuota`
-                                                already refuses on `expired`, so printing the lapsed tier's
-                                                figure here claimed a limit the user does not have. A scheduled
-                                                cancellation still does (`isEntitled`), and keeps its number. */}
-                                            <span
-                                                className={`text-[16px] font-medium ${summary.isEntitled ? '' : 'text-gray-400'}`}
-                                            >
-                                                {t('mypage.subscription.maxClouds', {
-                                                    count: summary.isEntitled ? currentPlan.maxClouds : 0,
-                                                })}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {priceOf(currentPlan) && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.price')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {t('mypage.subscription.pricePerMonth', {
-                                                    price: priceOf(currentPlan),
-                                                })}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {membership?.platform && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.platform')}
-                                            </span>
-                                            <span className="text-[16px] font-medium capitalize">
-                                                {membership.platform === 'apple'
-                                                    ? t('mypage.subscription.platformApple')
-                                                    : membership.platform === 'google'
-                                                      ? t('mypage.subscription.platformGoogle')
-                                                      : membership.platform}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {(membership?.validFrom ?? 0) > 0 && (membership?.validUntil ?? 0) > 0 && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.period')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {formatDate(membership?.validFrom)} ~{' '}
-                                                {formatDate(membership?.validUntil)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {(membership?.renewedAt ?? 0) > 0 && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.currentPayment')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {formatDate(membership?.renewedAt)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {/* An admin grant has its own end date, and it is the one that
-                                        decides this user's access — the receipt window above is the
-                                        lapsed one it is standing in for. */}
-                                    {summary.isAdminOverridden && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.adminGrant')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {(membership?.adminUntil ?? 0) > 0
-                                                    ? `~ ${formatDate(membership?.adminUntil)}`
-                                                    : t('mypage.subscription.adminGrantIndefinite')}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {/* Only the store bills, so this follows the receipt rather than
-                                        entitlement: a grant has no next payment, and a blocked user
-                                        still has one. */}
-                                    {summary.hasLiveReceipt && (membership?.validUntil ?? 0) > 0 && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.nextPayment')}
-                                            </span>
-                                            <span className="text-[16px] font-medium">
-                                                {formatDate(membership?.validUntil)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {(membership?.canceledAt ?? 0) > 0 && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.canceledAt')}
-                                            </span>
-                                            <span className="text-[16px] font-medium text-yellow-600 dark:text-yellow-400">
-                                                {formatDate(membership?.canceledAt)}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
-                        </div>
-
-                        {/* Manage / Restore */}
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => appBridge.openSubscriptionManagement()}
-                                className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
-                            >
-                                {t('mypage.subscription.manageSubscription')}
-                            </button>
-                            {canRestore && (
-                                <button
-                                    onClick={() => void restore()}
-                                    disabled={isRestoring}
-                                    className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground disabled:opacity-50"
-                                >
-                                    {isRestoring ? (
-                                        <Loader2 size={16} className="mx-auto animate-spin" />
-                                    ) : (
-                                        t('mypage.subscription.restore')
-                                    )}
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Also shown while active: changing tier now happens in-app, not in the
-                            store's subscription manager (ADR-0060 §2). */}
-                        {isOnMobileApp && (
-                            <button
-                                onClick={handleViewPlans}
-                                className="w-full rounded-full bg-foreground py-3 text-[16px] font-semibold text-background"
-                            >
-                                {isActive ? t('mypage.subscription.changeTier') : t('mypage.subscription.viewPlans')}
-                            </button>
                         )}
-                    </>
+                    </PlanProductCard>
                 ) : (
-                    /* Empty state — never subscribed. A scheduled cancellation is NOT this: it still
-                       has a running subscription to show, which is what used to land here. */
-                    <div className="flex flex-col items-center gap-6 pt-20">
-                        <div className="flex flex-col items-center gap-2">
-                            <span className="text-[18px] font-semibold">{t('mypage.subscription.empty')}</span>
-                            <span className="text-[15px] text-muted-foreground">
+                    <div className="flex flex-col gap-6">
+                        <div className="flex flex-col items-center gap-3 rounded-[18px] bg-card px-4 py-8 shadow-[0_2px_6px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                            <span
+                                aria-hidden
+                                className="flex size-8 items-center justify-center rounded-full bg-primary/20 text-[18px] font-bold text-main-accent"
+                            >
+                                !
+                            </span>
+                            <span className="text-center text-[17px] font-semibold text-foreground">
+                                {t('mypage.subscription.list.emptyTitle')}
+                            </span>
+                            <span className="text-center text-[14px] text-description">
                                 {!isOnMobileApp
                                     ? t('mypage.subscription.mobileOnly')
                                     : isGuest
                                       ? t('mypage.subscription.loginRequired')
-                                      : t('mypage.subscription.emptyDescription')}
+                                      : t('mypage.subscription.list.emptyDescription')}
                             </span>
                         </div>
-                        <div className="flex w-full gap-2">
-                            <button
-                                onClick={() => appBridge.openSubscriptionManagement()}
-                                className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
-                            >
-                                {t('mypage.subscription.manageSubscription')}
-                            </button>
-                            {/* Recovers a purchase the store already has but this account's record never picked up
-                                (fresh install, reinstall, membership sync gap) — the exact case an empty state hides. */}
-                            {canRestore && (
-                                <button
-                                    onClick={() => void restore()}
-                                    disabled={isRestoring}
-                                    className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground disabled:opacity-50"
-                                >
-                                    {isRestoring ? (
-                                        <Loader2 size={16} className="mx-auto animate-spin" />
-                                    ) : (
-                                        t('mypage.subscription.restore')
-                                    )}
-                                </button>
-                            )}
-                        </div>
                         {isOnMobileApp && (
-                            <button
-                                onClick={handleViewPlans}
-                                className="w-full rounded-full bg-foreground py-3 text-[16px] font-semibold text-background"
-                            >
-                                {isGuest ? t('mypage.subscription.loginCta') : t('mypage.subscription.viewPlans')}
-                            </button>
+                            <Button size="lg" fullWidth onClick={handleStart}>
+                                {isGuest ? t('mypage.subscription.loginCta') : t('mypage.subscription.subscribe')}
+                            </Button>
                         )}
                     </div>
                 )}
 
-                {/* Notice Section — read-only prose, so it takes the reading measure rather than
-                    the column. These bullets wrap freely (no design line breaks to respect), and a
-                    690px column ran the longest one to ~580px. */}
-                <div className="flex w-full max-w-reading flex-col gap-2 pt-2">
-                    <div className="flex items-center gap-2 px-1">
-                        <AlertCircle size={20} className="flex-shrink-0 text-foreground" />
-                        <span className="text-[16px] font-semibold">{t('mypage.subscription.notice.title')}</span>
-                    </div>
-                    <div className="flex flex-col gap-1.5 px-1">
-                        {[
-                            t('mypage.subscription.notice1'),
-                            t('mypage.subscription.notice2'),
-                            t(`mypage.subscription.notice.manageAt.${managePlatform}`),
-                        ].map(text => (
-                            <div key={text} className="flex items-start gap-2 px-4 py-1.5">
-                                <span className="text-[14px] text-muted-foreground">•</span>
-                                <span className="text-[14px] leading-[1.4] tracking-[-0.015em] text-muted-foreground">
-                                    {text}
-                                </span>
-                            </div>
-                        ))}
-                        <div className="flex items-start gap-2 px-4 py-1.5">
-                            <span className="text-[14px] text-muted-foreground">•</span>
-                            <span className="text-[14px] leading-[1.4] tracking-[-0.015em] text-muted-foreground">
-                                <Trans
-                                    i18nKey="mypage.subscription.noticeTerms"
-                                    components={{
-                                        terms: (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const url = `${POLICY_BASE_URL}/policy/terms`;
-                                                    if (isOnMobileApp) {
-                                                        appBridge.openURL(url);
-                                                    } else {
-                                                        window.open(url, '_blank');
-                                                    }
-                                                }}
-                                                className="underline text-foreground"
-                                            />
-                                        ),
-                                    }}
-                                />
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                {/* Recovers a purchase the store took but this account never attached — a reinstall,
+                    a crash mid-purchase. Reachable from here and from the plan picker's footer. */}
+                {!isLoading && canRestore && (
+                    <button
+                        type="button"
+                        onClick={() => void restore()}
+                        disabled={isRestoring}
+                        className="flex items-center justify-center gap-1 self-center py-2 text-[14px] font-medium text-description underline underline-offset-2 disabled:opacity-50"
+                    >
+                        {isRestoring && <IconSpinner className="size-3.5 animate-spin" />}
+                        {t('mypage.subscription.restore')}
+                    </button>
+                )}
             </div>
-        </div>
+        </ScreenLayout>
     );
 };

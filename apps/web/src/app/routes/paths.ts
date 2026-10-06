@@ -86,7 +86,12 @@ export const ROUTES = {
         guide: '/subscription/guide',
         /** Which tier, at what price. Reachable directly, without the guide. */
         plans: '/subscription/plans',
-        complete: '/subscription/complete',
+        /** The running subscription in detail: status banner, plan, dates, and where to change it. */
+        detail: '/subscription/detail',
+        /** What a tier change will do, before the store sheet opens. Carries the target as `?plan=`. */
+        confirm: '/subscription/confirm',
+        /** After a downgrade: which clouds stay once the allowance shrinks. */
+        keep: '/subscription/keep',
     },
 
     // ── First-run setup after subscribing (Private) ──────────────

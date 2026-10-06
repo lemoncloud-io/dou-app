@@ -14,14 +14,17 @@ interface TierRefusalDialogProps {
     /** Picks `alternative` — the dialog mediates the tap instead of only refusing it. */
     onPickAlternative: (plan: ProductView) => void;
     isKo: boolean;
+    /** The store that bills the subscription, by name — what the `otherStore` refusal points to. */
+    store?: string;
 }
 
 /**
  * Answers a tap on a tier that cannot be picked.
  *
  * The picker used to hard-disable those cards, which left a greyed row, a line of small print, and a
- * tap that did nothing — every one of the three rules (already subscribed, one step at a time, first
- * subscription starts at the entry tier) had to be inferred from that. This says the rule out loud
+ * tap that did nothing — every one of the rules (already subscribed, one step at a time, first
+ * subscription starts at the entry tier, changed only on the store that bills it) had to be inferred
+ * from that. This says the rule out loud
  * and, where there is a pickable tier nearby, selects it on confirm so the user is not left to work
  * out which card the rule actually allows.
  */
@@ -31,6 +34,7 @@ export const TierRefusalDialog = ({
     alternative,
     onPickAlternative,
     isKo,
+    store,
 }: TierRefusalDialogProps) => {
     const { t } = useTranslation();
 
@@ -38,7 +42,7 @@ export const TierRefusalDialog = ({
 
     const alternativeName = planDisplayName(alternative, isKo);
     const description = [
-        t(`mypage.subscription.refusal.${refusal}.description`),
+        t(`mypage.subscription.refusal.${refusal}.description`, { store }),
         alternativeName && t('mypage.subscription.refusal.pickInstead', { plan: alternativeName }),
     ]
         .filter(Boolean)
