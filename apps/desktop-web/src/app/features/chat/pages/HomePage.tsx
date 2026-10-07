@@ -58,6 +58,7 @@ import {
 import {
     useHydrateDmPeers,
     useMessageViewer,
+    useHeldChannel,
     useNextUnreadShortcut,
     usePendingLanding,
     useReadCounts,
@@ -148,13 +149,20 @@ export const HomePage = () => {
     // Which sidebar person row asked for the 1:1 in flight; `isStarting` says whether it still is.
     const [startingPeerId, setStartingPeerId] = useState<string | null>(null);
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
+    // The thread panel's channel outlives a place switch: the list is replaced under an unchanged
+    // selection, and a panel rebuilt for the same room would fetch everything again.
+    const threadChannel = useHeldChannel(
+        channels.find(channel => channel.id === selectedChannelId),
+        selectedChannelId,
+        isLoading
+    );
     const {
         threadRootId: openThreadRootId,
         settingsChannelId,
         profileTarget,
         savedOpen,
         activityOpen,
-    } = useTrailingPanelOwners();
+    } = useTrailingPanelOwners(threadChannel?.id, isLoading);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
@@ -197,7 +205,7 @@ export const HomePage = () => {
             return;
         }
         pendingThreadRef.current = null;
-        openThread(rootId);
+        openThread(rootId, channelId);
     };
 
     const here: ReaderLocation = {
@@ -475,7 +483,7 @@ export const HomePage = () => {
         if (!pending) return;
         if (selectedChannelId === pending.channelId && channels.some(channel => channel.id === pending.channelId)) {
             pendingThreadRef.current = null;
-            openThread(pending.rootId);
+            openThread(pending.rootId, pending.channelId);
         }
     }, [channels, selectedChannelId, openThread]);
 
@@ -753,9 +761,9 @@ export const HomePage = () => {
                     ) : profileTarget ? (
                         // Stacked on whichever panel it opened from; closing it shows that panel again.
                         <ProfilePanel />
-                    ) : openThreadRootId && selectedChannel ? (
+                    ) : openThreadRootId && threadChannel ? (
                         <ThreadPanel
-                            channel={selectedChannel}
+                            channel={threadChannel}
                             rootId={openThreadRootId}
                             members={members}
                             membersLoading={membersLoading}

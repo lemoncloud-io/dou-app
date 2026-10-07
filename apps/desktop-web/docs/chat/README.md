@@ -17,5 +17,7 @@ stores in `src/app/shared/`.
   previews in the sidebar and notifications.
 - [onboarding.md](./onboarding.md): the first-run welcome, shown once per account, the Self Channel
   row it waits on, and tips that match what the account has.
+- [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded
+  window, and what it shows while it cannot.
 - [keyboard.md](./keyboard.md): the feed's single tab stop, hover-revealed controls, which layer owns a
   key, focus on open and close, and the next-unread shortcut.

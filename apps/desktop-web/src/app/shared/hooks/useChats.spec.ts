@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
     rows: [] as Row[],
     prime: 'pending' as 'pending' | 'ready' | 'failed',
     isVerified: true,
+    cloudId: 'cloud-a',
     retryPrime: vi.fn(),
     emit: (_rows: Row[]) => undefined,
 }));
@@ -26,7 +27,10 @@ vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
-        session: { useSessionIdentity: () => ({ userId: 'me' }) },
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionSelection: () => ({ selectedCloudId: state.cloudId }),
+        },
         connection: { useRuntimeSocketState: () => ({ isVerified: state.isVerified }) },
         sync: { useChatSync: () => ({ prime: state.prime, retryPrime: state.retryPrime }) },
     },
@@ -173,5 +177,125 @@ describe('useChats freshness bridge', () => {
 
         // The newer target (6) was fetched and succeeded; the stale failure must not reopen it.
         expect(refreshList).toHaveBeenCalledTimes(2);
+    });
+});
+
+// The thread panel pages the feed by this result, so a failed page has to be told apart from a page
+// that simply had nothing more.
+describe('useChats loadOlder', () => {
+    // A room's paging depth is remembered for the session, so each test pages a room of its own.
+    beforeEach(() => {
+        state.rows = [{ id: 'C1:60', channelId: 'C1', chatNo: 60 }];
+        state.prime = 'ready';
+        refreshList.mockReset();
+    });
+
+    it('fetches the page before the oldest cached row and resolves true', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 50 });
+        const { result } = renderHook(() => useChats('C-page'));
+
+        let ok: boolean | undefined;
+        await act(async () => {
+            ok = await result.current.loadOlder();
+        });
+
+        expect(ok).toBe(true);
+        expect(refreshList).toHaveBeenCalledWith({ channelId: 'C-page', cursorNo: 60, limit: 50 });
+    });
+
+    it('resolves true and stops paging when the server has nothing older', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 0 });
+        const { result } = renderHook(() => useChats('C-end'));
+
+        let ok: boolean | undefined;
+        await act(async () => {
+            ok = await result.current.loadOlder();
+        });
+
+        expect(ok).toBe(true);
+        expect(result.current.hasMore).toBe(false);
+    });
+
+    it('resolves false when the page fetch fails, and keeps paging possible', async () => {
+        refreshList.mockRejectedValue(new Error('network'));
+        const { result } = renderHook(() => useChats('C-fail'));
+
+        let ok: boolean | undefined;
+        await act(async () => {
+            ok = await result.current.loadOlder();
+        });
+
+        expect(ok).toBe(false);
+        expect(result.current.hasMore).toBe(true);
+        expect(result.current.isLoadingOlder).toBe(false);
+    });
+});
+
+// A second consumer of a room (the thread panel) pages its own replies back. What it saved would widen
+// the room the next time it opens, so it must not save.
+describe('useChats window depth', () => {
+    beforeEach(() => {
+        state.rows = [{ id: 'C1:60', channelId: 'C1', chatNo: 60 }];
+        state.prime = 'ready';
+        refreshList.mockReset().mockResolvedValue({ fetchedCount: 50 });
+        observeList.mockClear();
+        state.cloudId = 'cloud-a';
+    });
+
+    const lastLimit = () => (observeList.mock.calls.at(-1)?.[0] as { limit: number }).limit;
+
+    it('keeps a widened window for the next time the room opens', async () => {
+        const first = renderHook(() => useChats('C-kept'));
+        await act(async () => {
+            await first.result.current.loadOlder();
+        });
+        first.unmount();
+
+        renderHook(() => useChats('C-kept'));
+
+        expect(lastLimit()).toBe(100);
+    });
+
+    it('does not keep a window widened by an instance that opted out', async () => {
+        const panel = renderHook(() => useChats('C-panel', undefined, { persist: false }));
+        await act(async () => {
+            await panel.result.current.loadOlder();
+        });
+        expect(lastLimit()).toBe(100);
+        panel.unmount();
+
+        renderHook(() => useChats('C-panel'));
+
+        expect(lastLimit()).toBe(50);
+    });
+
+    // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
+    // so the remembered window cannot be keyed by uid and channel alone: a short channel in one cloud that
+    // ran out of history would tell the same-named channel of another cloud there is nothing older.
+    // The cache observer is bound to the cloud when it subscribes, so the hook has to subscribe again when
+    // the cloud changes under an unchanged uid and channel id, or it would wait on a feed nobody fills.
+    it('subscribes again when the cloud changes under the same channel id', () => {
+        const { rerender } = renderHook(() => useChats('C-resub'));
+        const before = observeList.mock.calls.length;
+
+        state.cloudId = 'cloud-b';
+        rerender();
+
+        expect(observeList.mock.calls.length).toBeGreaterThan(before);
+    });
+
+    it('does not carry a window from the same channel id in another cloud', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 0 });
+        const inA = renderHook(() => useChats('C-self'));
+        await act(async () => {
+            await inA.result.current.loadOlder();
+        });
+        expect(inA.result.current.hasMore).toBe(false);
+        inA.unmount();
+
+        state.cloudId = 'cloud-b';
+        const inB = renderHook(() => useChats('C-self'));
+
+        expect(inB.result.current.hasMore).toBe(true);
     });
 });

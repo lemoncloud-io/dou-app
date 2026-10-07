@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel } from '@chatic/data';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
     Hint,
@@ -23,6 +24,7 @@ import {
     useImageAttachments,
     useMentionables,
     useMessageViewer,
+    useThreadRoot,
     type ReadCountOf,
 } from '../hooks';
 import { useThreadStore } from '../stores';
@@ -47,6 +49,19 @@ interface ThreadPanelProps {
     readCountOf?: ReadCountOf;
 }
 
+const Spinner = () => (
+    <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
+);
+
+/** What the panel says in place of a root it does not have. */
+const ROOT_NOTICE = {
+    loading: 'chat.thread.loading',
+    beforeJoin: 'chat.thread.beforeJoin',
+    gone: 'chat.thread.gone',
+    failed: 'chat.thread.failed',
+    found: 'chat.thread.loading', // unreachable: a found root renders the thread
+} as const;
+
 /**
  * Slack-style right-side thread pane. Shows the Thread Root + its direct replies
  * (derived client-side from the loaded cache — see ADR 0008) and a composer that
@@ -59,7 +74,9 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
     // Freshness bridge: new replies land via the channel record's chatNo (see useChats).
-    const { messages } = useChats(channelId, lastChatNoOf(channel));
+    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId, lastChatNoOf(channel), {
+        persist: false,
+    });
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -67,18 +84,36 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const tray = useImageAttachments(`${channelId}::thread::${rootId}`);
     const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
 
-    const { root, threadMessages, replyCount } = useMemo(() => {
-        const thread = buildThread(messages, rootId);
+    // The window holds only the newest messages, so the root can sit below it — then the hook fetches it
+    // (and pages the replies in) instead of leaving the reader to scroll the channel for it.
+    const thread = useMemo(() => buildThread(messages, rootId), [messages, rootId]);
+    const {
+        status,
+        root,
+        replies: repliesStatus,
+        retryRoot,
+        loadOlderReplies,
+    } = useThreadRoot({
+        channelId,
+        rootId,
+        windowRoot: thread.root,
+        joinedNo: channel.$join?.joinedNo,
+        feedLoading: isLoading,
+        messages,
+        loadOlder,
+        hasMore,
+        isLoadingOlder,
+    });
+    const { threadMessages, replyCount } = useMemo(() => {
         // The panel is another view of the same messages, so a deleted reply reads the
         // same way it does in the feed: a tombstone in place, not a closed gap. Reaction
         // events are the exception — they are chips on a message, never rows.
         const replies = thread.replies.filter(reply => reply.subType !== 'reaction');
         return {
-            root: thread.root,
-            threadMessages: thread.root ? [thread.root, ...replies] : replies,
+            threadMessages: root ? [root, ...replies] : replies,
             replyCount: replies.length,
         };
-    }, [messages, rootId]);
+    }, [thread, root]);
 
     // Reactions are derived, not stored: each toggle is its own `subType:'reaction'` chat, and the
     // chips are what the fold makes of them. The panel renders the same messages as the feed, so it
@@ -108,6 +143,34 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
         composer.send(content, files);
         tray.clear();
     };
+
+    // The row under the root while older replies are still out: progress, the reader's way to ask for the
+    // next batch, or a retry. A failure stays on this row — what is already shown is not taken away.
+    let olderReplies: ReactNode = null;
+    if (repliesStatus === 'loadingOlder') {
+        olderReplies = (
+            <div
+                role="status"
+                className="flex items-center justify-center gap-2 py-1 text-caption text-muted-foreground"
+            >
+                <Spinner />
+                {t('chat.thread.loadingOlder')}
+            </div>
+        );
+    } else if (repliesStatus === 'partial' || repliesStatus === 'olderFailed') {
+        olderReplies = (
+            <div className="flex flex-col items-center gap-1">
+                {repliesStatus === 'olderFailed' && (
+                    <p role="status" className="text-caption text-muted-foreground">
+                        {t('chat.thread.loadOlderFailed')}
+                    </p>
+                )}
+                <Button size="sm" variant="outline" className="focus-ring tactile" onClick={loadOlderReplies}>
+                    {t(repliesStatus === 'olderFailed' ? 'chat.thread.retry' : 'chat.thread.loadOlder')}
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <ResizablePanel
@@ -140,6 +203,8 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         names={names}
                         membersLoading={membersLoading}
                         threadReplyCount={replyCount}
+                        olderReplies={olderReplies}
+                        repliesPartial={repliesStatus !== 'complete'}
                         onRetry={composer.retry}
                         canRetry={composer.canRetry}
                         onDiscard={composer.discard}
@@ -149,9 +214,15 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                     <div
                         role="status"
                         aria-live="polite"
-                        className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+                        className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
                     >
-                        <p className="max-w-xs text-caption text-muted-foreground">{t('chat.thread.unavailable')}</p>
+                        {status === 'loading' && <Spinner />}
+                        <p className="max-w-xs text-caption text-muted-foreground">{t(ROOT_NOTICE[status])}</p>
+                        {status === 'failed' && (
+                            <Button size="sm" variant="outline" className="focus-ring tactile" onClick={retryRoot}>
+                                {t('chat.thread.retry')}
+                            </Button>
+                        )}
                     </div>
                 )}
                 {/* No root → nothing to reply to: don't show a composer at all (the editor

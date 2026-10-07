@@ -37,6 +37,14 @@ interface MessageListProps {
     baselineReadNo?: number;
     /** Thread panel only: total replies under the root — renders an "N replies" divider. */
     threadReplyCount?: number;
+    /**
+     * Thread panel only: the "load earlier replies" row for a thread whose older replies are not all
+     * loaded. It sits right under the root — inside the "N replies" divider when replies are showing,
+     * on its own when none are.
+     */
+    olderReplies?: ReactNode;
+    /** Thread panel only: older replies are still out, so the divider counts what is loaded, not the thread. */
+    repliesPartial?: boolean;
     onRetry?: (message: DomainChat) => void;
     /** Whether a failed message offers Retry (a picture message only while its pictures are in memory). */
     canRetry?: (message: DomainChat) => boolean;
@@ -102,6 +110,8 @@ export const MessageList = ({
     membersLoading,
     baselineReadNo,
     threadReplyCount,
+    olderReplies,
+    repliesPartial,
     onRetry,
     canRetry,
     onDiscard,
@@ -658,11 +668,21 @@ export const MessageList = ({
                                 // Slack-style thread divider: the reply count anchored left,
                                 // a hairline filling the rest of the row.
                                 return (
-                                    <div key={row.key} className="my-2 flex items-center gap-3 px-1">
-                                        <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
-                                            {t('chat.thread.replyCount', { count: row.count })}
-                                        </span>
-                                        <span className="h-px flex-1 bg-hairline" />
+                                    <div key={row.key} className="my-2 flex flex-col gap-2">
+                                        <div className="flex items-center gap-3 px-1">
+                                            <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
+                                                {t(
+                                                    repliesPartial
+                                                        ? 'chat.thread.replyCountLoaded'
+                                                        : 'chat.thread.replyCount',
+                                                    {
+                                                        count: row.count,
+                                                    }
+                                                )}
+                                            </span>
+                                            <span className="h-px flex-1 bg-hairline" />
+                                        </div>
+                                        {olderReplies}
                                     </div>
                                 );
                             }
@@ -698,6 +718,8 @@ export const MessageList = ({
                         })}
                     </div>
                 ))}
+                {/* No reply is showing yet, so there is no divider to hold the row: it stands under the root. */}
+                {olderReplies && !rows.some(row => row.kind === 'replies') && olderReplies}
                 <div ref={bottomRef} />
             </div>
             {!atBottom &&
