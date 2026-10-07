@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 
 import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
 import { $isAutoLinkNode, createLinkMatcherWithRegExp } from '@lexical/link';
-import { $convertFromMarkdownString } from '@lexical/markdown';
 import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $setBlocksType } from '@lexical/selection';
@@ -23,7 +22,7 @@ import {
 } from 'lexical';
 
 import { LINK_URL_SOURCE, useComposerDraftStore } from '../../../../shared';
-import { COMPOSER_TRANSFORMERS } from './editorConfig';
+import { $importWireMarkdown } from './wireMarkdown';
 
 /** Toggle the selection's block between code block and paragraph. */
 export const toggleCodeBlock = (editor: LexicalEditor): void => {
@@ -171,7 +170,7 @@ export const FormatShortcutsPlugin = () => {
 };
 
 /**
- * Load the channel's saved draft (markdown, the store's existing format) on
+ * Load the channel's saved draft (the wire string) on
  * switch, then focus with the caret at the end.
  */
 export const ChannelDraftPlugin = ({ channelId }: { channelId: string }) => {
@@ -179,7 +178,7 @@ export const ChannelDraftPlugin = ({ channelId }: { channelId: string }) => {
     useEffect(() => {
         const draft = useComposerDraftStore.getState().drafts[channelId] ?? '';
         editor.update(() => {
-            $convertFromMarkdownString(draft, COMPOSER_TRANSFORMERS, undefined, true);
+            $importWireMarkdown(draft);
             $getRoot().selectEnd();
         });
         editor.focus();
