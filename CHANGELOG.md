@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-07] - root@0.86.1, @chatic/desktop-web@0.20.1
+
+### Bug Fixes
+
+- (desktop-web) show my place nickname without a reload
+
 ## [2026-10-07] - root@0.86.0, @chatic/desktop-web@0.20.0
 
 ### Features
