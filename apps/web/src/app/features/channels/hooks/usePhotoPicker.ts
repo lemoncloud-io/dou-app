@@ -26,6 +26,18 @@ const COVER_TILE = 64;
 /** One page of the grid. Pages by offset start at multiples of it, so a page is also an index. */
 export const PAGE_SIZE = 60;
 /**
+ * The first page is shorter: about a screen at three columns. The first screen waits on it, and the
+ * shell makes previews one after another, so a page of 60 kept that screen waiting on 36 it does not
+ * show. On an offset list the rest of page 0 follows as its own request.
+ */
+export const FIRST_PAGE_SIZE = 24;
+/**
+ * How long a failed first page waits before its one retry. The first page is what the grid opens on:
+ * with nothing laid out there is no range to change, so without a retry a single slow or failed round
+ * trip would leave the grid empty, looking like an album with nothing in it.
+ */
+export const FIRST_PAGE_RETRY_MS = 1500;
+/**
  * How many pages either side of the visible ones keep their previews, on a list laid out by offset.
  * Two is about seven screens at three columns — a scroll back over that is drawn from memory — and
  * caps what the grid holds at a few hundred previews however far it has been scrolled.
@@ -58,8 +70,13 @@ export interface PhotoPicker {
      * has loaded so far on one that pages by cursor.
      */
     count: number;
-    /** The photo at a grid index, or undefined while its page has not come — drawn as an empty tile. */
+    /**
+     * The photo at a grid index, or undefined while its preview has not come — not loaded yet, or let
+     * go far from the screen and on its way back — drawn as a skeleton tile.
+     */
     photoAt(index: number): PhotoItem | undefined;
+    /** Whether the album's first page is on its way: the grid shows skeleton tiles meanwhile. */
+    loading: boolean;
     /** What the grid shows now; the pages it needs are asked for, nearest first. */
     setVisibleRange(range: PhotoGridRange): void;
 
@@ -192,6 +209,64 @@ export const keptPages = ({
 };
 
 /**
+ * The page just past the visible range in the direction of the scroll, when it still needs loading —
+ * asked for once everything on screen is in, so a steady scroll finds the next stretch already there.
+ * `direction` is 1 for down, -1 for up.
+ */
+export const pageAhead = ({
+    range,
+    total,
+    loaded,
+    direction,
+    pageSize = PAGE_SIZE,
+}: {
+    range: PhotoGridRange;
+    total: number;
+    loaded: ReadonlyMap<number, number>;
+    direction: 1 | -1;
+    pageSize?: number;
+}): number | undefined => {
+    const start = Math.max(0, Math.min(range.start, total));
+    const end = Math.max(start, Math.min(range.end, total));
+    if (end <= start) return undefined;
+    const page = direction > 0 ? Math.floor((end - 1) / pageSize) + 1 : Math.floor(start / pageSize) - 1;
+    if (page < 0 || page * pageSize >= total) return undefined;
+    const size = loaded.get(page);
+    return size === undefined || needsSharperThumbs(size, range.thumbSize) ? page : undefined;
+};
+
+/**
+ * What to ask for next on a list laid out by offset: a page the visible range needs, or else the one
+ * ahead of it. Page 0 whose first `firstPageSize` items came as the short first page is completed from
+ * where that stopped rather than asked for whole again.
+ */
+export const offsetRequest = ({
+    range,
+    total,
+    loaded,
+    direction,
+    firstPagePartial,
+    pageSize = PAGE_SIZE,
+    firstPageSize = FIRST_PAGE_SIZE,
+}: {
+    range: PhotoGridRange;
+    total: number;
+    loaded: ReadonlyMap<number, number>;
+    direction: 1 | -1;
+    firstPagePartial: boolean;
+    pageSize?: number;
+    firstPageSize?: number;
+}): { offset: number; limit: number } | undefined => {
+    const page =
+        pageToLoad({ range, total, loaded, pageSize }) ?? pageAhead({ range, total, loaded, direction, pageSize });
+    if (page === undefined) return undefined;
+    if (page === 0 && firstPagePartial && !loaded.has(0)) {
+        return { offset: firstPageSize, limit: pageSize - firstPageSize };
+    }
+    return { offset: page * pageSize, limit: pageSize };
+};
+
+/**
  * The in-app photo picker's state: what the attach menu previews, which album the grid shows and which
  * of it has loaded, and what is picked. The library itself is read through the shell (`photoLibrary`);
  * this hook only holds what the screen needs of it.
@@ -236,6 +311,7 @@ export const usePhotoPicker = ({
     const [thumbs, setThumbs] = useState<ReadonlyMap<string, string>>(new Map());
     const [picked, setPicked] = useState<PhotoItem[]>([]);
     const [preparing, setPreparing] = useState(false);
+    const [firstPageLoading, setFirstPageLoading] = useState(false);
     // Read by `toggle` and `closeGrid` in the same tick `takePicked` starts, before the state lands.
     const preparingRef = useRef(false);
 
@@ -248,6 +324,14 @@ export const usePhotoPicker = ({
     /** Page index → the preview size it was asked at. Offset layout only. */
     const loadedRef = useRef(new Map<number, number>());
     const rangeRef = useRef<PhotoGridRange>({ start: 0, end: PAGE_SIZE });
+    /** Which way the grid last scrolled, for the page asked for ahead of it. */
+    const directionRef = useRef<1 | -1>(1);
+    /** Page 0 holds only the short first page so far (offset layout). */
+    const firstPagePartialRef = useRef(false);
+    /** The preview size the short first page was asked at, so page 0 is recorded at the smaller one. */
+    const firstPageSizeRef = useRef(0);
+    /** The first page has had its one retry. */
+    const firstPageRetriedRef = useRef(false);
     const columnsRef = useRef(columns);
     columnsRef.current = columns;
     const gridOpenRef = useRef(false);
@@ -286,10 +370,14 @@ export const usePhotoPicker = ({
             : previewSize(gridMetrics({ width: window.innerWidth, columns: columnsRef.current, cells: 0 }).tile);
 
     const resetList = () => {
+        setFirstPageLoading(false);
         layoutRef.current = 'none';
         slotCountRef.current = 0;
         nextRef.current = undefined;
         loadedRef.current = new Map();
+        firstPagePartialRef.current = false;
+        firstPageRetriedRef.current = false;
+        directionRef.current = 1;
         loadingRef.current = false;
         slotsRef.current = [];
         setSlots([]);
@@ -310,14 +398,21 @@ export const usePhotoPicker = ({
      * Lays a page answered by offset into the grid, starting over if the library's count moved.
      * `requested` is the offset asked for: a page past a shrunken list's end comes back clamped to it,
      * and marking that one loaded would mark a page that was never fetched at the new count.
+     *
+     * Answers whether the page loop moved forward — a page now counts as loaded, the short first page
+     * landed, or the layout was remade. An answer that did none of these (an offset other than the one
+     * asked for, at the same count) would otherwise be asked for again at once, and again.
      */
     const placeByOffset = (
         page: OnListPhotosPayload & { offset: number; total: number },
         requested: number,
+        limit: number,
         size: number
-    ) => {
+    ): boolean => {
         const changed = layoutRef.current !== 'offset' || page.total !== slotCountRef.current;
+        let progressed = changed;
         if (changed) {
+            firstPagePartialRef.current = false;
             // A photo taken or deleted since the layout was made shifts every index after it, so the
             // pages already placed may now sit one off. The previews stay — they are by id — but every
             // page is asked for again as it comes into view.
@@ -325,7 +420,25 @@ export const usePhotoPicker = ({
         }
         layoutRef.current = 'offset';
         slotCountRef.current = page.total;
-        if (page.offset === requested) loadedRef.current.set(Math.floor(requested / PAGE_SIZE), size);
+        if (page.offset === requested) {
+            // A page is loaded once one answer — or the short first page and the rest of page 0 —
+            // covers it to its end (or the list's).
+            const index = Math.floor(requested / PAGE_SIZE);
+            const pageEnd = Math.min((index + 1) * PAGE_SIZE, page.total);
+            const fromStart = requested === index * PAGE_SIZE || (index === 0 && firstPagePartialRef.current);
+            if (fromStart && requested + limit >= pageEnd) {
+                // Completing page 0 from the short first page: its first previews came at that page's
+                // size, so a pinch between the two halves still finds them soft and asks again.
+                const completing = index === 0 && firstPagePartialRef.current && requested > 0;
+                loadedRef.current.set(index, completing ? Math.min(firstPageSizeRef.current, size) : size);
+                if (index === 0) firstPagePartialRef.current = false;
+                progressed = true;
+            } else if (requested === 0) {
+                firstPagePartialRef.current = true;
+                firstPageSizeRef.current = size;
+                progressed = true;
+            }
+        }
         const next = changed ? new Array<Slot | undefined>(page.total) : slotsRef.current.slice();
         page.items.forEach((item, i) => {
             if (page.offset + i < next.length) next[page.offset + i] = toSlot(item);
@@ -340,6 +453,8 @@ export const usePhotoPicker = ({
         for (const loadedPage of [...loadedRef.current.keys()]) {
             if (loadedPage < first || loadedPage > last) loadedRef.current.delete(loadedPage);
         }
+        // Page 0's short first page is let go with it; on the way back it is asked for whole.
+        if (first > 0) firstPagePartialRef.current = false;
         const keep = new Set<string>();
         for (let i = first * PAGE_SIZE; i < Math.min(next.length, (last + 1) * PAGE_SIZE); i += 1) {
             const id = next[i]?.id;
@@ -351,6 +466,7 @@ export const usePhotoPicker = ({
             for (const item of page.items) if (keep.has(item.id)) kept.set(item.id, thumbOf(item));
             return kept;
         });
+        return progressed;
     };
 
     const placeByCursor = (page: OnListPhotosPayload, append: boolean) => {
@@ -374,40 +490,46 @@ export const usePhotoPicker = ({
         const albumId = albumIdRef.current;
         const thumbSize = rangeRef.current.thumbSize ?? estimatedThumbSize();
 
-        let request: { offset?: number; after?: string } | undefined;
+        let request: { offset?: number; after?: string; limit: number } | undefined;
         if (layoutRef.current === 'none') {
             // The first page is offset 0 when the app may page by offset: an app that does not still
-            // answers the first page, and the missing echo says which kind it is.
-            request = library.pagesByOffset() ? { offset: 0 } : {};
+            // answers the first page, and the missing echo says which kind it is. Short, for the first
+            // screen's sake (`FIRST_PAGE_SIZE`).
+            request = library.pagesByOffset() ? { offset: 0, limit: FIRST_PAGE_SIZE } : { limit: FIRST_PAGE_SIZE };
         } else if (layoutRef.current === 'offset') {
-            const page = pageToLoad({
+            request = offsetRequest({
                 range: { ...rangeRef.current, thumbSize },
                 total: slotCountRef.current,
                 loaded: loadedRef.current,
+                direction: directionRef.current,
+                firstPagePartial: firstPagePartialRef.current,
             });
-            if (page !== undefined) request = { offset: page * PAGE_SIZE };
-        } else if (nextRef.current && rangeRef.current.end >= slotCountRef.current - PAGE_SIZE / 2) {
-            request = { after: nextRef.current };
+        } else if (nextRef.current && rangeRef.current.end >= slotCountRef.current - PAGE_SIZE) {
+            // A page's worth ahead of the end, so a scroll does not reach it before the next page.
+            request = { after: nextRef.current, limit: PAGE_SIZE };
         }
         if (!request) return;
 
+        const first = layoutRef.current === 'none';
+        if (first) setFirstPageLoading(true);
         loadingRef.current = true;
         let placed = false;
         void library
-            .photos({ albumId, limit: PAGE_SIZE, thumbSize, ...request })
+            .photos({ albumId, thumbSize, ...request })
             .then(page => {
                 if (!page || token !== albumTokenRef.current) return;
                 setAccess(page.access);
                 if (page.offset !== undefined && page.total !== undefined) {
-                    placeByOffset(
+                    placed = placeByOffset(
                         { ...page, offset: page.offset, total: page.total },
                         request.offset ?? 0,
+                        request.limit,
                         thumbSize ?? 0
                     );
                 } else {
                     placeByCursor(page, request.after !== undefined);
+                    placed = true;
                 }
-                placed = true;
             })
             .catch(() => {
                 // The next range change asks again.
@@ -415,7 +537,19 @@ export const usePhotoPicker = ({
             .finally(() => {
                 if (token !== albumTokenRef.current) return;
                 loadingRef.current = false;
-                if (placed) pumpRef.current();
+                if (placed) {
+                    if (first) setFirstPageLoading(false);
+                    pumpRef.current();
+                } else if (first && !firstPageRetriedRef.current) {
+                    // Once more after a pause, the skeleton still up; after that the grid shows what
+                    // it has.
+                    firstPageRetriedRef.current = true;
+                    setTimeout(() => {
+                        if (token === albumTokenRef.current) pumpRef.current();
+                    }, FIRST_PAGE_RETRY_MS);
+                } else if (first) {
+                    setFirstPageLoading(false);
+                }
             });
     };
 
@@ -472,6 +606,8 @@ export const usePhotoPicker = ({
     );
 
     const setVisibleRange = useCallback((range: PhotoGridRange) => {
+        if (range.start !== rangeRef.current.start)
+            {directionRef.current = range.start > rangeRef.current.start ? 1 : -1;}
         rangeRef.current = range;
         pumpRef.current();
     }, []);
@@ -480,7 +616,10 @@ export const usePhotoPicker = ({
         (index: number): PhotoItem | undefined => {
             const slot = slots[index];
             if (!slot) return undefined;
-            return { ...slot, src: thumbs.get(slot.id) ?? '' };
+            // Missing is not empty: an empty string is an item the app could make no preview of, drawn
+            // plain; a missing one is still coming.
+            const src = thumbs.get(slot.id);
+            return src === undefined ? undefined : { ...slot, src };
         },
         [slots, thumbs]
     );
@@ -568,6 +707,7 @@ export const usePhotoPicker = ({
         album,
         selectAlbum,
         count: slots.length,
+        loading: firstPageLoading,
         photoAt,
         setVisibleRange,
         picked,

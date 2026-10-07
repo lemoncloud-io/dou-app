@@ -356,6 +356,7 @@ export const useChatImageAttach = ({
                     formatAlbumCount={count => count.toLocaleString()}
                     count={picker.count}
                     photoAt={picker.photoAt}
+                    loading={picker.loading}
                     onVisibleRangeChange={picker.setVisibleRange}
                     columns={gridColumns.columns}
                     onColumnsChange={gridColumns.setColumns}
