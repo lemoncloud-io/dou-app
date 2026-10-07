@@ -98,6 +98,70 @@ describe('SelectedPhotoStrip', () => {
         rerender(<SelectedPhotoStrip photos={[]} onRemove={onRemove} />);
         expect(container).toBeEmptyDOMElement();
     });
+
+    it('opens a tapped thumbnail, with the remove chip still a button of its own', () => {
+        const onSelect = jest.fn();
+        const onRemove = jest.fn();
+        render(
+            <SelectedPhotoStrip
+                photos={photos(2)}
+                onRemove={onRemove}
+                onSelect={onSelect}
+                selectLabel={p => `Open ${p}`}
+                removeLabel={p => `Remove ${p}`}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open 2' }));
+        expect(onSelect).toHaveBeenCalledWith('p1');
+        expect(onRemove).not.toHaveBeenCalled();
+
+        // Siblings, not nested: a button inside a button is invalid and swallows the inner one's taps.
+        const remove = screen.getByRole('button', { name: 'Remove 2' });
+        expect(screen.getByRole('button', { name: 'Open 2' })).not.toContainElement(remove);
+        fireEvent.click(remove);
+        expect(onRemove).toHaveBeenCalledWith('p1');
+        expect(onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the thumbnails untappable without a select handler', () => {
+        render(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+
+        expect(screen.getAllByRole('button')).toHaveLength(2);
+        expect(screen.queryByRole('button', { name: /Open photo/ })).not.toBeInTheDocument();
+    });
+
+    it('draws an edited photo with its edit and a mark that names it', () => {
+        jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(64);
+        jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(64);
+        const [first, second] = photos(2);
+        const edited: PhotoItem = {
+            ...first,
+            edited: {
+                src: 'blob:rendition',
+                width: 4000,
+                height: 3000,
+                edit: { rotation: 90, flipH: false, crop: { x: 0, y: 0, width: 1, height: 1 }, aspect: 'free' },
+            },
+        };
+        render(
+            <SelectedPhotoStrip
+                photos={[edited, second]}
+                onRemove={jest.fn()}
+                onSelect={jest.fn()}
+                editedLabel="Edited"
+            />
+        );
+
+        const thumb = screen.getByRole('button', { name: 'Open photo 1' });
+        expect(thumb.querySelector('[data-edited-photo] img')).toHaveAttribute('src', 'blob:rendition');
+        expect(thumb).toHaveAccessibleDescription('Edited');
+        expect(screen.getByRole('button', { name: 'Open photo 2' }).querySelector('img')).toHaveAttribute(
+            'src',
+            second.src
+        );
+        expect(screen.getAllByText('Edited')).toHaveLength(1);
+    });
 });
 
 describe('AlbumList', () => {
@@ -193,6 +257,139 @@ describe('PhotoGridSheet', () => {
 
         fireEvent.click(screen.getByRole('button', { name: '카메라' }));
         expect(onCamera).toHaveBeenCalledTimes(1);
+    });
+
+    describe('edit and grouping row', () => {
+        const footer = () => screen.queryByTestId('photo-grid-footer');
+        const checkbox = () => screen.queryByRole('checkbox', { name: 'One message' });
+        const labels = { edit: 'Edit', grouped: 'One message', select: (p: number) => `Open ${p}` };
+
+        it('opens the editor from the edit button with no id, and from a strip tap with that one', () => {
+            const all = photos(3);
+            const onEdit = jest.fn();
+            render(<PhotoGridSheet {...base({ photos: all, picked: [all[2], all[0]], onEdit, labels })} />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Open 2' }));
+
+            expect(onEdit.mock.calls).toEqual([[], ['p0']]);
+        });
+
+        it('greys the edit button when nothing picked can be edited', () => {
+            const all = photos(1);
+            const onEdit = jest.fn();
+            render(<PhotoGridSheet {...base({ photos: all, picked: all, onEdit, editDisabled: true, labels })} />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+            expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
+            expect(onEdit).not.toHaveBeenCalled();
+        });
+
+        it('offers one message or several only from two picked items', () => {
+            const all = photos(3);
+            const onGroupedChange = jest.fn();
+            const { rerender } = render(
+                <PhotoGridSheet {...base({ photos: all, picked: [all[0]], grouped: true, onGroupedChange, labels })} />
+            );
+            expect(checkbox()).not.toBeInTheDocument();
+            // Nothing else for the row to hold: the footer is the send button alone.
+            expect(footer()).not.toBeInTheDocument();
+
+            rerender(
+                <PhotoGridSheet
+                    {...base({ photos: all, picked: [all[0], all[1]], grouped: true, onGroupedChange, labels })}
+                />
+            );
+            expect(checkbox()).toHaveAttribute('aria-checked', 'true');
+            fireEvent.click(checkbox() as HTMLElement);
+            expect(onGroupedChange).toHaveBeenCalledWith(false);
+
+            rerender(
+                <PhotoGridSheet
+                    {...base({ photos: all, picked: [all[0], all[1]], grouped: false, onGroupedChange, labels })}
+                />
+            );
+            fireEvent.click(checkbox() as HTMLElement);
+            expect(onGroupedChange).toHaveBeenLastCalledWith(true);
+        });
+
+        it('draws neither control when the host offers neither', () => {
+            const all = photos(2);
+            render(<PhotoGridSheet {...base({ photos: all, picked: all, grouped: true, labels })} />);
+
+            expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+            expect(checkbox()).not.toBeInTheDocument();
+            expect(footer()).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: '보내기' })).toBeInTheDocument();
+        });
+
+        it('keeps the row out of the album list, as it does the send button', () => {
+            const all = photos(2);
+            render(
+                <PhotoGridSheet
+                    {...base({
+                        photos: all,
+                        picked: all,
+                        albumsOpen: true,
+                        onEdit: jest.fn(),
+                        onGroupedChange: jest.fn(),
+                        labels,
+                    })}
+                />
+            );
+
+            expect(footer()).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+        });
+
+        it('holds the row and the send button in one panel', () => {
+            const all = photos(2);
+            const onSend = jest.fn();
+            render(
+                <PhotoGridSheet
+                    {...base({
+                        photos: all,
+                        picked: all,
+                        onSend,
+                        onEdit: jest.fn(),
+                        onGroupedChange: jest.fn(),
+                        labels,
+                    })}
+                />
+            );
+
+            const panel = footer() as HTMLElement;
+            expect(within(panel).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+            expect(within(panel).getByRole('checkbox', { name: 'One message' })).toBeInTheDocument();
+            fireEvent.click(within(panel).getByRole('button', { name: '보내기' }));
+            expect(onSend).toHaveBeenCalledTimes(1);
+        });
+
+        it('takes no tap on the row while the pick is being read', () => {
+            const all = photos(2);
+            const onEdit = jest.fn();
+            const onGroupedChange = jest.fn();
+            render(
+                <PhotoGridSheet
+                    {...base({ photos: all, picked: all, sending: true, onEdit, onGroupedChange, labels })}
+                />
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+            fireEvent.click(checkbox() as HTMLElement);
+
+            expect(onEdit).not.toHaveBeenCalled();
+            expect(onGroupedChange).not.toHaveBeenCalled();
+        });
+
+        it('lifts the snackbar by the whole panel, row included', () => {
+            const all = photos(2);
+            render(<PhotoGridSheet {...base({ photos: all, picked: all, onEdit: jest.fn(), labels })} />);
+
+            // Every box measures 600 tall here; the button's own panel reads 0 from jsdom's rect.
+            expect(document.documentElement.style.getPropertyValue('--toast-lift')).toBe(`${VIEW_HEIGHT}px`);
+        });
     });
 
     it('un-picks from the strip through the same toggle', () => {

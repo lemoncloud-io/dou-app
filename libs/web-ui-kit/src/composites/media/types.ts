@@ -1,5 +1,19 @@
+import type { PhotoEdit } from './photoEdit';
+
 /** What a picker item is. */
 export type PhotoItemKind = 'image' | 'video';
+
+/**
+ * A picked photo's edit, with what it takes to draw it: a display rendition of the whole upright
+ * photo (`src`) and the original's pixel size, the space `edit` is measured in. The square grid
+ * preview cannot stand in for it — a crop of a crop would frame the wrong part of the photo.
+ */
+export interface PhotoItemEdit {
+    src: string;
+    width: number;
+    height: number;
+    edit: PhotoEdit;
+}
 
 /**
  * One photo or video the picker can show — `src` is anything an `<img src>` accepts (a data URL from
@@ -12,6 +26,8 @@ export interface PhotoItem {
     kind?: PhotoItemKind;
     /** A video's length, in milliseconds. */
     durationMs?: number;
+    /** Set once the photo has been edited: the picked strip draws the edit instead of `src`. */
+    edited?: PhotoItemEdit;
 }
 
 /** One album row. `coverSrc` is omitted for an album with nothing to show yet. */

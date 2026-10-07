@@ -42,6 +42,40 @@ export const Picked: Story = {
     ),
 };
 
+/**
+ * Tappable thumbnails (the app opens its editor on one), the first photo edited — turned and cropped,
+ * drawn from a rendition of the whole photo, with the pencil mark.
+ */
+export const PickedAndEdited: Story = {
+    render: () => (
+        <div className="w-[375px]">
+            <SelectedPhotoStrip
+                photos={[
+                    {
+                        ...photos[0],
+                        edited: {
+                            src: 'https://picsum.photos/seed/dou-0/600/450',
+                            width: 1200,
+                            height: 900,
+                            edit: {
+                                rotation: 90,
+                                flipH: false,
+                                crop: { x: 0, y: 0.25, width: 1, height: 0.5 },
+                                aspect: 'free',
+                            },
+                        },
+                    },
+                    ...photos.slice(1),
+                ]}
+                onRemove={() => undefined}
+                onSelect={() => undefined}
+                selectLabel={position => `사진 ${position} 편집`}
+                editedLabel="편집됨"
+            />
+        </div>
+    ),
+};
+
 export const Albums: Story = {
     render: () => (
         <div className="w-[375px]">
