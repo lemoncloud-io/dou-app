@@ -81,11 +81,13 @@ above the taller of `--safe-bottom` and `--keyboard-height`. `AppRuntime` sits a
 the toaster cannot tell what is pinned to the bottom. Each bar tells it instead, by calling the
 kit's `useToastLift(px)` with its own height while it is mounted:
 
-| Bar                                | Lift                                   |
-| ---------------------------------- | -------------------------------------- |
-| `BottomNavigation` (home, my page) | 80px — the 62 + 18 geometry            |
-| `FloatingButton`'s CTA panel       | its measured height (`ResizeObserver`) |
-| `MediaViewer`'s share and save bar | 76px, while the bar shows              |
+| Bar                                                       | Lift                                          |
+| --------------------------------------------------------- | --------------------------------------------- |
+| `BottomNavigation` (home, my page)                        | 80px — the 62 + 18 geometry                   |
+| `FloatingButton`'s CTA panel                              | its measured height (`ResizeObserver`)        |
+| `PhotoGridSheet`'s pick footer (edit row, checkbox, send) | its measured height (`useBoxSize`)            |
+| `MediaViewer`'s share and save bar                        | 76px, while the bar shows                     |
+| `PhotoEditor`'s footer (strip, tool row, send)            | its measured height, while the editor is open |
 
 The hook keeps every active lift in one registry and writes the tallest to `--toast-lift` on
 `<html>`, so bars can come and go in any order: a dialog's CTA that opens over the tab bar keeps its

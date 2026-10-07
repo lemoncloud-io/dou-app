@@ -128,6 +128,26 @@ In the grid (`usePhotoPicker`) picks keep their order across albums; one page lo
 page that lands after the album changed is dropped. Denied access opens a settings prompt instead of an
 empty grid; iOS limited access shows a "choose more" row that re-lists after the system sheet closes.
 
+**The grid's footer.** Once something is picked, a row sits above the send button: "편집" on the left,
+which opens the editor at the first picked item that can be edited, and — once two or more are
+picked — a "묶어 보내기" checkbox on the right (below). A tap on a thumbnail in the picked strip opens
+the editor at that item. The editor, the edit it keeps and how an edited photo is drawn at the send
+are in [photo-edit.md](./photo-edit.md). "편집" is greyed when nothing picked can be edited — only
+videos, or GIFs already read.
+
+**One message, or one each.** The checkbox is on by default: the pick goes as one message, as it always
+did. Off, every item that passes the judge goes as a message of its own, in pick order
+(`sendImages(accepted, { separately: true })`): the runtime writes all the pending rows first and then
+sends them one after another, so the feed shows the whole pick at the press and the server numbers the
+messages in pick order. Nothing sent in the room meanwhile lands between them: a camera photo or another
+pick sent before the last of them has gone waits for it. A message that fails is retried or deleted on
+its own ([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+The pick is judged whole first, so the one-notice rule and the ten-item cap still hold — off, a pick is
+at most ten messages. A pick where one item passes is sent the usual way either way. The choice is kept
+in `ui.photoSendGrouped` (local, `usePhotoSendGrouping`) and is how the grid opens next time, the way
+a chat app's "send photos as one" setting is remembered rather than asked each time. Only the grid has
+the checkbox: the file inputs, the camera and the app's own picker always send one message.
+
 **The grid's layout.** The title row (album name, close) and the picked strip stay put; the limited-access
 row and the grid scroll beneath them, in a container of their own that `BottomSheet` is pointed at
 (`scrollRef`) so swipe-to-dismiss still arms only at the grid's top. The album list scrolls under the
@@ -203,7 +223,9 @@ with a play mark and its length (`m:ss`) — in the grid, the menu's recent stri
 as well; it asks for that once (ADR-0171).
 
 **Sending** reads the pick one item at a time in pick order: a photo with `ReadPhoto` (base64 — the app
-converts HEIC to JPEG and removes the location), a video with `KeepLibraryVideo`, which copies it into
+converts HEIC to JPEG and removes the location) unless the editor already read it, a photo with an edit
+drawn with it ([photo-edit.md](./photo-edit.md#the-edit-is-drawn-at-the-send)), a video with
+`KeepLibraryVideo`, which copies it into
 the app's pick folder and answers with the same shell-file reference "Choose from album" gives — from
 there it is converted and uploaded as any app-picked video is. The app judges a video as it copies
 it: an Android video that is not H.264/AAC `mp4` is `UNSUPPORTED`, one over the size limit (iOS: its
@@ -220,8 +242,13 @@ own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked t
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
 refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
 video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
-is shown once, naming the kind whose limit was passed or what an unknown format looked like;
-whatever passes is sent at once — there is no tray and no confirmation, the pick is the send.
+is shown once, naming the kind whose limit was passed or what an unknown format looked like. From the
+file inputs, the camera and the app's own picker, whatever passes is sent at once — there is no tray
+and no confirmation, the pick is the send. The in-app grid always waited for its send button, and
+before it is pressed its pick can be edited and split into one message each (above, and ADR-0179,
+which narrows ADR-0123's "the pick is the send" to the other paths). A grid photo whose edit could not
+be drawn is refused alone, and its notice ("편집한 사진을 만들지 못했어요") is the one shown for that pick,
+ahead of any other reason.
 
 The button shares the composer's lock (nobody left in a 1:1, a message being edited). In a thread it
 also stays locked until the root is loaded: a reply needs the root's full id, and a photo sent without
@@ -463,8 +490,10 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages \
   apps/web/src/app/features/channels/lib/videoFrames apps/web/src/app/features/channels/hooks/useVideoFrames \
   apps/web/src/app/features/channels/hooks/usePhotoPicker apps/web/src/app/bridge/photoLibrary \
-  apps/web/src/app/features/channels/hooks/usePhotoGridColumns
-npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet
+  apps/web/src/app/features/channels/hooks/usePhotoGridColumns \
+  apps/web/src/app/features/channels/hooks/usePhotoSendGrouping \
+  apps/web/src/app/features/channels/utils/bakePhotoEdit
+npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage
 ```
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and

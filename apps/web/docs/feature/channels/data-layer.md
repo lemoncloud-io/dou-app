@@ -12,20 +12,23 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel. Four stay out of it and
-are imported by path from their callers: `useSendImages` (see [Writes](#writes)), `usePhotoPicker`, and
-the two behind a message's images, `useImageAddressRefresh` and `useCachedImages`
-([image-send.md](./image-send.md)). They fall into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
+One hook per file under `features/channels/hooks/`, exported from one barrel. Ten stay out of it and
+are imported by path from the components that use them: `useSendImages` (see [Writes](#writes)); the
+photo grid's three, `usePhotoPicker` and the two choices it remembers, `usePhotoGridColumns` and
+`usePhotoSendGrouping` (all from `ChatImageAttach`); and the six behind a message's attachments,
+`useImageAddressRefresh`, `useCachedImages`, `useVideoFrames`, `useInView`, `useFileDownloads` and
+`useImageExports` ([image-send.md](./image-send.md), [image-export.md](./image-export.md)). They fall
+into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
 `useChats`), the sync registrars (`useJoinPositions`, `useForegroundChatRefresh`), the screen
 mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
 `use*Mutations` write hooks, and `useSendImages`.
 
-34 hooks, 29 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which five have none:
+38 hooks, 32 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which six have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \
-  for f in $(ls *.ts | grep -v '\.test\.' | grep -v index.ts); do \
-    [ -f "${f%.ts}.test.ts" ] || [ -f "${f%.ts}.test.tsx" ] || echo "$f"; done
+  for f in $(ls *.ts *.tsx | grep -v '\.test\.' | grep -v index.ts); do b="${f%.*}"; \
+    [ -f "$b.test.ts" ] || [ -f "$b.test.tsx" ] || echo "$f"; done
 ```
 
 ## Responsibilities

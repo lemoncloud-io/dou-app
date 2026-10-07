@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { ChatAttachmentSource } from '@chatic/data';
+import { IDENTITY_PHOTO_EDIT, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
 import type { PhotoPicker } from '../hooks/usePhotoPicker';
@@ -49,11 +50,24 @@ const unsupportedPicker = (): PhotoPicker => ({
     takePicked: jest.fn().mockResolvedValue({ items: [], refused: [] }),
     preparing: false,
     manageSelection: jest.fn().mockResolvedValue(undefined),
+    editAssets: new Map(),
+    loadForEdit: jest.fn(),
+    edits: new Map(),
+    setEdit: jest.fn(),
+    restoreEdits: jest.fn(),
 });
 // The component's own picker is the browser/old-app one unless a test injects another.
-jest.mock('../hooks/usePhotoPicker', () => ({ usePhotoPicker: () => mockOwnPicker }));
+jest.mock('../hooks/usePhotoPicker', () => ({
+    ...jest.requireActual('../hooks/usePhotoPicker'),
+    usePhotoPicker: () => mockOwnPicker,
+}));
 jest.mock('../hooks/usePhotoGridColumns', () => ({
     usePhotoGridColumns: () => ({ columns: 3, setColumns: jest.fn() }),
+}));
+let mockGrouped = true;
+const mockSetGrouped = jest.fn();
+jest.mock('../hooks/usePhotoSendGrouping', () => ({
+    usePhotoSendGrouping: () => ({ grouped: mockGrouped, setGrouped: (value: boolean) => mockSetGrouped(value) }),
 }));
 let mockOwnPicker: PhotoPicker = unsupportedPicker();
 
@@ -66,7 +80,7 @@ const Harness = ({
     shellPicker,
     now,
 }: {
-    sendImages: (files: ChatAttachmentSource[]) => Promise<void>;
+    sendImages: (files: ChatAttachmentSource[], options?: { separately?: boolean }) => Promise<void>;
     disabled?: boolean;
     picker?: PhotoPicker;
     shellPicker?: AttachmentPicker;
@@ -93,6 +107,8 @@ beforeEach(() => {
     toast.mockClear();
     openSettings.mockClear();
     mockOwnPicker = unsupportedPicker();
+    mockGrouped = true;
+    mockSetGrouped.mockClear();
 });
 
 describe('useChatImageAttach', () => {
@@ -476,5 +492,255 @@ describe('useChatImageAttach — videos and documents', () => {
         pick('chat-attach-library', [photo('clip.mp4', 'video/mp4'), photo('a.jpg')]);
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.jpg']);
+    });
+});
+
+describe('useChatImageAttach — editing and grouping in the grid', () => {
+    const turned: PhotoEdit = { ...IDENTITY_PHOTO_EDIT, rotation: 90 };
+    const items = [
+        { id: 'v', src: 'data:v', kind: 'video' as const, durationMs: 3000 },
+        { id: 'p1', src: 'data:p1' },
+        { id: 'p2', src: 'data:p2' },
+    ];
+    const gridPicker = (over: Partial<PhotoPicker> = {}): PhotoPicker => ({
+        ...unsupportedPicker(),
+        supported: true,
+        access: 'granted',
+        gridOpen: true,
+        picked: items,
+        count: items.length,
+        photoAt: (index: number) => items[index],
+        takePicked: jest.fn().mockResolvedValue({ items: [photo('p1.jpg', 'image/jpeg', 1)], refused: [] }),
+        ...over,
+    });
+    const editor = () => screen.getByRole('dialog', { name: 'chat.attach.edit.title' });
+    const queryEditor = () => screen.queryByRole('dialog', { name: 'chat.attach.edit.title' });
+    const flush = () => act(async () => undefined);
+
+    it('opens the editor from the Edit button at the first photo it can edit, and reads it and its neighbours', () => {
+        const picker = gridPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+
+        expect(editor()).toBeInTheDocument();
+        // The video is skipped as a place to start, and never asked to be read.
+        expect(picker.loadForEdit).toHaveBeenLastCalledWith('p1', 'p2');
+    });
+
+    it('opens the editor at the photo tapped in the picked strip', () => {
+        const picker = gridPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.select:{"position":3}' }));
+
+        expect(editor()).toBeInTheDocument();
+        expect(picker.loadForEdit).toHaveBeenLastCalledWith('p2', 'p1');
+    });
+
+    it('greys the Edit button when nothing picked can be edited', () => {
+        const picker = gridPicker({
+            picked: [items[0], { id: 'g', src: 'data:g' }],
+            editAssets: new Map([
+                ['g', { status: 'ready' as const, editable: false, src: 'blob:g', width: 1, height: 1 }],
+            ]),
+        });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        expect(screen.getByRole('button', { name: 'chat.attach.edit.open' })).toBeDisabled();
+    });
+
+    it('offers no crop on a video', () => {
+        render(<Harness sendImages={jest.fn()} picker={gridPicker()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.select:{"position":1}' }));
+
+        expect(within(editor()).getByRole('button', { name: 'chat.attach.edit.crop' })).toBeDisabled();
+    });
+
+    it('goes back to the grid keeping the edits with Done', () => {
+        const picker = gridPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+
+        fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.done' }));
+
+        expect(queryEditor()).not.toBeInTheDocument();
+        expect(picker.restoreEdits).not.toHaveBeenCalled();
+    });
+
+    it('drops the editor’s waiting reads once it closes', () => {
+        const picker = gridPicker();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+        expect(picker.loadForEdit).toHaveBeenLastCalledWith('p1', 'p2');
+
+        fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.done' }));
+
+        expect(picker.loadForEdit).toHaveBeenLastCalledWith();
+    });
+
+    it('leaves at once with ✕ when nothing was changed', () => {
+        const picker = gridPicker({ edits: new Map([['p1', turned]]) });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+
+        fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.close' }));
+
+        expect(queryEditor()).not.toBeInTheDocument();
+        expect(screen.queryByText('chat.attach.edit.discard.title')).not.toBeInTheDocument();
+    });
+
+    it('asks before ✕ throws edits away, and puts back the edits from when the editor opened', () => {
+        const before = new Map([['p1', turned]]);
+        const picker = gridPicker({ edits: before });
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+        // An edit made in the editor.
+        const edited = { ...picker, edits: new Map([...before, ['p2', turned]]) };
+        rerender(<Harness sendImages={jest.fn()} picker={edited} />);
+
+        fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.close' }));
+        expect(screen.getByText('chat.attach.edit.discard.title')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.discard.keep' }));
+        expect(editor()).toBeInTheDocument();
+        expect(picker.restoreEdits).not.toHaveBeenCalled();
+
+        fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.close' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.discard.confirm' }));
+
+        expect(picker.restoreEdits).toHaveBeenCalledWith(before);
+        expect(queryEditor()).not.toBeInTheDocument();
+    });
+
+    it('sends from the editor as the grid would, and closes it onto the grid', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker();
+        render(<Harness sendImages={sendImages} picker={picker} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+
+        fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.send:{"count":3}' }));
+        await flush();
+
+        expect(picker.takePicked).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['p1.jpg']);
+        expect(queryEditor()).not.toBeInTheDocument();
+    });
+
+    it('closes the editor when the grid closes under it', () => {
+        const picker = gridPicker();
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
+
+        rerender(<Harness sendImages={jest.fn()} picker={{ ...picker, gridOpen: false }} />);
+        rerender(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        expect(queryEditor()).not.toBeInTheDocument();
+    });
+
+    it('names a photo whose edit could not be drawn, and sends the rest', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({
+            takePicked: jest.fn().mockResolvedValue({ items: [photo('p2.jpg')], refused: [], editFailed: 1 }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":3}' }));
+        await flush();
+
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toBe('chat.attach.edit.bakeFailed');
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['p2.jpg']);
+    });
+
+    it('shows the remembered grouping and stores a change to it', () => {
+        mockGrouped = false;
+        render(<Harness sendImages={jest.fn()} picker={gridPicker()} />);
+
+        const box = screen.getByRole('checkbox', { name: 'chat.attach.grouped' });
+        expect(box).not.toBeChecked();
+        fireEvent.click(box);
+
+        expect(mockSetGrouped).toHaveBeenCalledWith(true);
+    });
+
+    it('sends the grid pick as one message while grouping is on', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({
+            takePicked: jest.fn().mockResolvedValue({
+                items: [photo('a.jpg', 'image/jpeg', 1), photo('b.jpg', 'image/jpeg', 2)],
+                refused: [],
+            }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":3}' }));
+        await flush();
+
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0]).toHaveLength(1);
+    });
+
+    it('sends the grid pick as one message each while grouping is off', async () => {
+        mockGrouped = false;
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({
+            takePicked: jest.fn().mockResolvedValue({
+                items: [photo('a.jpg', 'image/jpeg', 1), photo('b.jpg', 'image/jpeg', 2)],
+                refused: [],
+            }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":3}' }));
+        await flush();
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.jpg', 'b.jpg']);
+        expect(sendImages.mock.calls[0][1]).toEqual({ separately: true });
+    });
+
+    // One item is the same message either way; it goes exactly as any other single pick.
+    it('sends a single passing item the usual way even while grouping is off', async () => {
+        mockGrouped = false;
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({
+            takePicked: jest
+                .fn()
+                .mockResolvedValue({ items: [photo('a.jpg'), photo('b.heic', 'image/heic')], refused: [] }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":3}' }));
+        await flush();
+
+        expect(sendImages.mock.calls[0]).toHaveLength(1);
+    });
+
+    it('keeps every path outside the grid to one message, whatever the grouping', async () => {
+        mockGrouped = false;
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell: AttachmentPicker = {
+            pick: jest.fn(async () => ({
+                items: [photo('s1.jpg', 'image/jpeg', 3), photo('s2.jpg', 'image/jpeg', 4)],
+                refused: [],
+            })),
+            prepareVideo: jest.fn(),
+            isUnsupported: () => false,
+            reset: jest.fn(),
+        };
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+
+        pick('chat-attach-library', [photo('a.jpg', 'image/jpeg', 1), photo('b.jpg', 'image/jpeg', 2)]);
+        pick('chat-attach-album', [photo('c.jpg', 'image/jpeg', 1), photo('d.jpg', 'image/jpeg', 2)]);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.source.album' }));
+        await flush();
+
+        expect(sendImages).toHaveBeenCalledTimes(3);
+        for (const call of sendImages.mock.calls) {
+            expect(call).toHaveLength(1);
+            expect(call[0]).toHaveLength(2);
+        }
     });
 });

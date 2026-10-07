@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { AttachmentPickSource } from '@chatic/app-messages';
+import type { runtime } from '@chatic/app-runtime';
 import { isNative } from '@chatic/bridges';
 import {
     CHAT_IMAGE_TYPES,
@@ -17,8 +18,13 @@ import {
     AttachMenuSheet,
     AttachSourceSheet,
     ComposerAttachButton,
+    PhotoEditor,
     PhotoGridSheet,
     RecentPhotoStrip,
+    type CropAspect,
+    type PhotoEdit,
+    type PhotoEditorItem,
+    type PhotoItem,
 } from '@chatic/web-ui-kit';
 
 import { appBridge } from '../../../bridge/appBridge';
@@ -28,7 +34,8 @@ import {
     type AttachmentPicker,
 } from '../../../bridge/attachmentPicker';
 import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
-import { usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
+import { editsDiffer, usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
+import { usePhotoSendGrouping } from '../hooks/usePhotoSendGrouping';
 import { albumAccept, DOCUMENT_ACCEPT, isAppleTouchWebKit, rejectionKey } from '../utils/attachSources';
 
 const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
@@ -42,8 +49,11 @@ const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
 export const INPUT_CLICK_WINDOW_MS = 800;
 
 interface UseChatImageAttachInput {
-    /** Sends the accepted files as one message — `useSendImages().sendImages`. */
-    sendImages: (files: ChatAttachmentSource[]) => Promise<void>;
+    /**
+     * Sends the accepted files as one message, or with `separately` as one message each —
+     * `useSendImages().sendImages`.
+     */
+    sendImages: (files: ChatAttachmentSource[], options?: runtime.data.SendImagesOptions) => Promise<void>;
     /** Same lock as the composer: nobody to send to, or a message being edited. */
     disabled?: boolean;
     /** The composer's textarea, so opening the menu can drop the keyboard it would otherwise keep. */
@@ -66,8 +76,14 @@ interface ChatImageAttach {
 /**
  * The composer's attach flow: the button in the input, the menu it opens, and the pickers behind the
  * menu's entries. Picked files are judged here — format, size, a photo tapped twice, the per-message
- * limit — and what passes goes to `sendImages` at once: there is no tray and no confirmation, the
- * pick IS the send.
+ * limit — and what passes goes to `sendImages` at once: from the file inputs, the camera and the app's
+ * own picker there is no tray and no confirmation, the pick IS the send.
+ *
+ * The in-app grid is the one place a pick waits for a send button, since it already had one. Before
+ * it is pressed the picked photos can be cropped, turned and mirrored in a full-screen editor over the
+ * pick, and the grid's checkbox chooses between one message for the whole pick (the default,
+ * remembered per device) and one message each. Both are the grid's alone: every other path sends as
+ * it always did.
  *
  * Two ways to pick photos, and the shell decides which:
  * - **The in-app grid**, in an app that has the photo-library bridge: recent photos in the menu, the
@@ -112,6 +128,16 @@ export const useChatImageAttach = ({
     });
     const picker = injected ?? own;
     const inGrid = picker.supported === true;
+    const grouping = usePhotoSendGrouping();
+
+    // The editor over the grid's pick. `editsAtOpen` is what ✕ goes back to: the edits made since the
+    // editor opened are the ones it throws away.
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [editorIndex, setEditorIndex] = useState(0);
+    const [discardOpen, setDiscardOpen] = useState(false);
+    const editsAtOpen = useRef<ReadonlyMap<string, PhotoEdit>>(new Map());
+    const editorVisible = editorOpen && picker.gridOpen && !disabled;
+    const editorAt = Math.min(editorIndex, Math.max(0, picker.picked.length - 1));
 
     /**
      * Judges a pick and sends what passes — shared by the file inputs, the grid and the app's picker.
@@ -125,7 +151,16 @@ export const useChatImageAttach = ({
             {
                 refusedByShell = [],
                 photosOnly = false,
-            }: { refusedByShell?: AttachmentPick['refused']; photosOnly?: boolean } = {}
+                editFailed = 0,
+                separately = false,
+            }: {
+                refusedByShell?: AttachmentPick['refused'];
+                photosOnly?: boolean;
+                /** Edited photos the grid could not draw — refused under their own notice. */
+                editFailed?: number;
+                /** The grid's "one message each". */
+                separately?: boolean;
+            } = {}
         ) => {
             const { accepted, rejected }: ChatAttachmentJudgement<ChatAttachmentSource> = photosOnly
                 ? (() => {
@@ -141,9 +176,13 @@ export const useChatImageAttach = ({
                       };
                   })()
                 : judgeChatAttachments(items, IMAGE_MESSAGE_SLOT_MAX);
-            // One notice per pick, for the first reason met — a list of every refused file is noise.
+            // One notice per pick, for the first reason met — a list of every refused file is noise. A
+            // photo whose edit could not be drawn comes first: it was picked and worked on, and now it
+            // is the one thing missing from what was sent.
             const [shellFirst] = refusedByShell;
-            if (shellFirst) {
+            if (editFailed > 0) {
+                toast({ title: t('chat.attach.edit.bakeFailed') });
+            } else if (shellFirst) {
                 const key =
                     shellFirst.reason === 'too-large'
                         ? `chat.attach.rejected.too-large.${shellFirst.kind}`
@@ -156,7 +195,10 @@ export const useChatImageAttach = ({
                 toast({ title: t(rejectionKey(first, first.item), { max: IMAGE_MESSAGE_SLOT_MAX }) });
             }
             if (accepted.length === 0) return;
-            sendImages(accepted).catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
+            // A single item is the same message either way, so it goes exactly as any other pick does.
+            const sending =
+                separately && accepted.length > 1 ? sendImages(accepted, { separately: true }) : sendImages(accepted);
+            sending.catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
         },
         [sendImages, t]
     );
@@ -234,14 +276,76 @@ export const useChatImageAttach = ({
     };
 
     // Judged like any pick, since the grid now lists videos too; what the shell would not keep is
-    // reported the way its own picker's refusals are.
+    // reported the way its own picker's refusals are. The grouping is read at the press: what the box
+    // says then is what the person chose.
     const sendPicked = () => {
         if (picker.preparing) return;
+        const separately = !grouping.grouped;
         picker
             .takePicked()
-            .then(picked => send(picked.items, { refusedByShell: picked.refused }))
+            .then(picked =>
+                send(picked.items, { refusedByShell: picked.refused, editFailed: picked.editFailed, separately })
+            )
             .catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
     };
+
+    /** A video, and a photo read and found to be a GIF, are shown in the editor but not edited. */
+    const isEditable = (item: PhotoItem) => item.kind !== 'video' && picker.editAssets.get(item.id)?.editable !== false;
+
+    /** Opens the editor at a tapped strip photo, or — from the Edit button — at the first editable one. */
+    const openEditor = (id?: string) => {
+        if (picker.preparing || picker.picked.length === 0) return;
+        const at =
+            id !== undefined ? picker.picked.findIndex(item => item.id === id) : picker.picked.findIndex(isEditable);
+        setEditorIndex(Math.max(0, at));
+        editsAtOpen.current = picker.edits;
+        setDiscardOpen(false);
+        setEditorOpen(true);
+    };
+
+    const closeEditor = () => {
+        setEditorOpen(false);
+        setDiscardOpen(false);
+    };
+
+    // ✕ keeps nothing made since the editor opened, so it asks first — but only when that is something.
+    const cancelEditor = () => {
+        if (editsDiffer(editsAtOpen.current, picker.edits)) setDiscardOpen(true);
+        else closeEditor();
+    };
+
+    const discardEdits = () => {
+        picker.restoreEdits(editsAtOpen.current);
+        closeEditor();
+    };
+
+    // The editor's send is the grid's: the editor closes onto the grid, which says it is preparing.
+    const sendFromEditor = () => {
+        closeEditor();
+        sendPicked();
+    };
+
+    // The editor lives on the grid: once the grid has gone — a send finished, the sheet was closed —
+    // there is nothing for it to show.
+    useEffect(() => {
+        if (!picker.gridOpen) closeEditor();
+    }, [picker.gridOpen]);
+
+    // The photo on screen is read first, then the ones either side, so a swipe usually lands on one
+    // that is ready. Asking again for what is read or on its way costs nothing. Once the editor closes,
+    // what was still waiting is dropped: each read holds a whole photo in page memory, and one the
+    // editor will not show is the send's to make, in its turn. A read under way finishes.
+    const { picked: pickedItems, loadForEdit } = picker;
+    useEffect(() => {
+        if (!editorVisible) {
+            loadForEdit();
+            return;
+        }
+        const around = [editorAt, editorAt + 1, editorAt - 1]
+            .map(position => pickedItems[position])
+            .filter((item): item is PhotoItem => item !== undefined && item.kind !== 'video');
+        if (around.length > 0) loadForEdit(...around.map(item => item.id));
+    }, [editorVisible, editorAt, pickedItems, loadForEdit]);
 
     const button = (
         <ComposerAttachButton
@@ -278,6 +382,38 @@ export const useChatImageAttach = ({
                 </button>
             </div>
         ) : undefined;
+
+    const sendLabel = picker.preparing
+        ? t('chat.attach.preparing')
+        : t('chat.attach.send', { count: picker.picked.length });
+
+    const editorItems: PhotoEditorItem[] = picker.picked.map(item => {
+        const asset = picker.editAssets.get(item.id);
+        const edit = picker.edits.get(item.id);
+        // The editor draws the copy only with the size its edit is measured in; until then, the preview.
+        const ready = asset?.status === 'ready' && asset.src && asset.width && asset.height ? asset : undefined;
+        return {
+            id: item.id,
+            previewSrc: item.src,
+            ...(ready ? { src: ready.src, width: ready.width, height: ready.height } : {}),
+            ...(edit ? { edit } : {}),
+            editable: isEditable(item),
+            ...(asset?.status === 'failed' ? { failed: true } : {}),
+            ...(item.kind ? { kind: item.kind } : {}),
+            ...(item.durationMs !== undefined ? { durationMs: item.durationMs } : {}),
+        };
+    });
+
+    // A ratio reads the same in every language — and i18next would take its colon for a namespace.
+    const aspectLabels: Record<CropAspect, string> = {
+        free: t('chat.attach.edit.aspectFree'),
+        original: t('chat.attach.edit.aspectOriginal'),
+        '1:1': '1:1',
+        '4:3': '4:3',
+        '3:4': '3:4',
+        '16:9': '16:9',
+        '9:16': '9:16',
+    };
 
     const overlays = (
         <>
@@ -367,13 +503,13 @@ export const useChatImageAttach = ({
                         picker.closeGrid();
                         cameraRef.current?.click();
                     }}
-                    sendLabel={
-                        picker.preparing
-                            ? t('chat.attach.preparing')
-                            : t('chat.attach.send', { count: picker.picked.length })
-                    }
+                    sendLabel={sendLabel}
                     sending={picker.preparing}
                     onSend={sendPicked}
+                    onEdit={openEditor}
+                    editDisabled={picker.preparing || !picker.picked.some(isEditable)}
+                    grouped={grouping.grouped}
+                    onGroupedChange={grouping.setGrouped}
                     notice={limitedNotice}
                     labels={{
                         camera: t('chat.attach.camera'),
@@ -381,9 +517,54 @@ export const useChatImageAttach = ({
                         photo: position => t('chat.attach.gridPhoto', { position }),
                         video: position => t('chat.attach.gridVideo', { position }),
                         remove: position => t('chat.attach.removePicked', { position }),
+                        edit: t('chat.attach.edit.open'),
+                        grouped: t('chat.attach.grouped'),
+                        select: position => t('chat.attach.edit.select', { position }),
+                        edited: t('chat.attach.edit.edited'),
                     }}
                 />
             )}
+            {inGrid && (
+                <PhotoEditor
+                    open={editorVisible}
+                    items={editorItems}
+                    index={editorAt}
+                    onIndexChange={setEditorIndex}
+                    onEditChange={picker.setEdit}
+                    onCancel={cancelEditor}
+                    onDone={closeEditor}
+                    onSend={sendFromEditor}
+                    sendLabel={sendLabel}
+                    sending={picker.preparing}
+                    labels={{
+                        title: t('chat.attach.edit.title'),
+                        close: t('chat.attach.edit.close'),
+                        done: t('chat.attach.edit.done'),
+                        crop: t('chat.attach.edit.crop'),
+                        rotateLeft: t('chat.attach.edit.rotateLeft'),
+                        flip: t('chat.attach.edit.flip'),
+                        reset: t('chat.attach.edit.reset'),
+                        cancel: t('chat.attach.edit.cancel'),
+                        apply: t('chat.attach.edit.apply'),
+                        aspects: aspectLabels,
+                        notEditable: t('chat.attach.edit.notEditable'),
+                        loading: t('chat.attach.edit.loading'),
+                        failed: t('chat.attach.edit.failed'),
+                        counter: (position, total) => t('chat.attach.edit.counter', { position, total }),
+                        thumbnail: position => t('chat.attach.edit.thumbnail', { position }),
+                    }}
+                />
+            )}
+            <AlertDialog
+                open={discardOpen && editorVisible}
+                onOpenChange={setDiscardOpen}
+                title={t('chat.attach.edit.discard.title')}
+                description={t('chat.attach.edit.discard.description')}
+                cancelLabel={t('chat.attach.edit.discard.keep')}
+                confirmLabel={t('chat.attach.edit.discard.confirm')}
+                destructive
+                onConfirm={discardEdits}
+            />
             <AlertDialog
                 open={permissionOpen}
                 onOpenChange={setPermissionOpen}
