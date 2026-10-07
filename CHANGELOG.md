@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-07] - root@0.86.0, @chatic/desktop-web@0.20.0
+
+### Features
+
+- (desktop-web) show a group channel's id in settings, with copy
+
 ## [2026-10-07] - No version updates
 
 ### Other
