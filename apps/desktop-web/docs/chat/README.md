@@ -21,3 +21,5 @@ stores in `src/app/shared/`.
   window, and what it shows while it cannot.
 - [keyboard.md](./keyboard.md): the feed's single tab stop, hover-revealed controls, which layer owns a
   key, focus on open and close, and the next-unread shortcut.
+- [message-editing.md](./message-editing.md): the editor a message opens in, and why the wire string carries no
+  escapes.

@@ -395,6 +395,7 @@ export const ChatPane = ({
                     isLoading={isLoading}
                     viewer={viewer}
                     names={memberNames}
+                    mentionables={mentionables}
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
                     onRetry={composer.retry}
