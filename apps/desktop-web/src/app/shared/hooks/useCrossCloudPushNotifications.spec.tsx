@@ -88,4 +88,10 @@ describe('useCrossCloudPushNotifications', () => {
         await new Promise(resolve => setTimeout(resolve, 20));
         expect(shown()).toBe(0);
     });
+
+    // Same rule as the feed: a webhook is never mine, whatever owner id it carries.
+    it('presents a push for a webhook message even when its owner id is mine', async () => {
+        pushHandler?.(push({ ownerId: CLOUD_UID, stereo: 'webhook' }));
+        await waitFor(() => expect(shown()).toBe(1));
+    });
 });

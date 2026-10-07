@@ -83,6 +83,13 @@ describe('useDesktopNotifications', () => {
         expect(request).not.toHaveBeenCalled();
     });
 
+    // A webhook is never mine, even if the server stamps my id on it: the feed shows it as unread,
+    // so the banner must not be the one surface that calls it mine.
+    it('banners a webhook message even when its owner id is mine', () => {
+        feedHandler?.(feed({ ownerId: CLOUD_UID, stereo: 'webhook' }));
+        expect(request).toHaveBeenCalledTimes(1);
+    });
+
     it('still banners someone else when the channel has no join of mine yet', () => {
         feedHandler?.(feed({}, null));
         expect(request).toHaveBeenCalledTimes(1);

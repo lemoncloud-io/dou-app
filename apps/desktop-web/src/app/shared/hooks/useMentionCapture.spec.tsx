@@ -65,6 +65,11 @@ describe('useMentionCapture', () => {
         expect(captured()).toEqual([]);
     });
 
+    it('captures a webhook mention even when its owner id is mine', () => {
+        feedHandler?.(feed({ ownerId: CLOUD_UID, stereo: 'webhook' }));
+        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+    });
+
     it('skips my own message when the embedded owner carries my cloud user id', () => {
         feedHandler?.(feed({ ownerId: undefined, owner$: { id: CLOUD_UID, name: 'Me' } }));
         expect(captured()).toEqual([]);

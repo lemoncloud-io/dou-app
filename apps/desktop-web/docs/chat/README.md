@@ -25,3 +25,5 @@ stores in `src/app/shared/`.
   key, focus on open and close, and the next-unread shortcut.
 - [message-editing.md](./message-editing.md): the editor a message opens in, and why the wire string carries no
   escapes.
+- [webhook-messages.md](./webhook-messages.md): how a message posted by an integration looks (the
+  card, the app badge and the sender's name), and how notifications, unread counts and previews treat it.

@@ -243,6 +243,7 @@ export const ko: EnTranslation = {
     'chat.editSave': '저장',
     'chat.edited': '(수정됨)',
     'chat.editedTitle': '보낸 뒤에 수정한 메시지예요.',
+    'chat.webhook.badge': '앱',
     'chat.editFailed': '수정을 저장하지 못했어요. 다시 시도해 주세요.',
     'chat.delete': '메시지 삭제',
     'chat.deleteConfirm.title': '이 메시지를 삭제할까요?',

@@ -13,8 +13,9 @@ the decision.
   the reader focuses one, then that one.
 - ↑/↓ move between messages, Home/End go to either end, and Enter moves into the message's own
   toolbar (`data-row-actions`).
-- Only the current row's controls, and its block's author name, are in the tab order. Every other
-  control in the feed is parked at `tabIndex=-1`, with its own tabindex kept in `data-roving-parked`
+- Only the current row's controls, and its block's author name, are in the tab order (a webhook block
+  has no name stop: its sender is plain text, see [webhook-messages.md](./webhook-messages.md)). Every
+  other control in the feed is parked at `tabIndex=-1`, with its own tabindex kept in `data-roving-parked`
   to restore. So Tab from the current message walks its reactions, thread link and images, and then
   leaves the feed.
 - The hook writes tabindex on the DOM, not through React, so moving the stop re-renders nothing.

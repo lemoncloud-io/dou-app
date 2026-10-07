@@ -184,6 +184,7 @@ const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
         a.ownerId === b.ownerId &&
         a.ownerName === b.ownerName &&
         a.namePending === b.namePending &&
+        a.isWebhook === b.isWebhook &&
         a.avatar === b.avatar &&
         a.isMine === b.isMine &&
         a.colorSeed === b.colorSeed &&
@@ -355,6 +356,15 @@ export const MessageRow = memo(
             []
         );
 
+        const avatarDisc = (
+            <Avatar className="h-9 w-9 shrink-0">
+                {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
+                <AvatarFallback className="text-caption font-semibold" style={avatarStyle(group.colorSeed)}>
+                    {initial}
+                </AvatarFallback>
+            </Avatar>
+        );
+
         return (
             // The full-width hover band is the toolbar's runway: it has to read in
             // peripheral vision on wide windows, so it is stronger than a typical
@@ -367,24 +377,38 @@ export const MessageRow = memo(
                     editingKey !== null && 'bg-accent/70'
                 )}
             >
-                <UserProfilePopover {...profileProps}>
-                    {/* The focus ring traces the button, so its radius has to follow the
-                        avatar's — a square ring around a round disc reads as a bug. */}
-                    {/* Out of the tab order: the name beside it opens the same card, and one
-                        stop per author is enough on the way through the feed. */}
-                    <button type="button" tabIndex={-1} className="focus-ring tactile h-9 w-9 shrink-0 rounded-full">
-                        <Avatar className="h-9 w-9">
-                            {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
-                            <AvatarFallback className="text-caption font-semibold" style={avatarStyle(group.colorSeed)}>
-                                {initial}
-                            </AvatarFallback>
-                        </Avatar>
-                    </button>
-                </UserProfilePopover>
+                {/* A webhook sender is not a member, so there is no profile to open: the avatar
+                    and name render as plain content instead of popover triggers. */}
+                {group.isWebhook ? (
+                    avatarDisc
+                ) : (
+                    <UserProfilePopover {...profileProps}>
+                        {/* The focus ring traces the button, so its radius has to follow the
+                            avatar's — a square ring around a round disc reads as a bug. */}
+                        {/* Out of the tab order: the name beside it opens the same card, and one
+                            stop per author is enough on the way through the feed. */}
+                        <button
+                            type="button"
+                            tabIndex={-1}
+                            className="focus-ring tactile h-9 w-9 shrink-0 rounded-full"
+                        >
+                            {avatarDisc}
+                        </button>
+                    </UserProfilePopover>
+                )}
                 <div className="flex min-w-0 flex-1 flex-col">
                     <div className="mb-1.5 flex items-baseline gap-2">
                         {group.namePending ? (
                             <Skeleton className="h-3.5 w-24 rounded" />
+                        ) : group.isWebhook ? (
+                            <>
+                                <span className="truncate text-lead font-bold leading-tight text-foreground">
+                                    {group.ownerName}
+                                </span>
+                                <span className="shrink-0 rounded bg-muted px-1 py-px text-caption font-semibold uppercase leading-tight text-description">
+                                    {t('chat.webhook.badge')}
+                                </span>
+                            </>
                         ) : (
                             <UserProfilePopover {...profileProps}>
                                 <button

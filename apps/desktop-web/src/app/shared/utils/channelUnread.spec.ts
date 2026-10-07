@@ -95,6 +95,17 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(0);
     });
 
+    // A webhook is never mine, so my id on it must not clear the badge the feed still counts.
+    it('does not clear when the latest message is a webhook carrying my id', () => {
+        const ch = channel({
+            chatNo: 12,
+            metaNo: 0,
+            lastChat$: { stereo: 'webhook', ownerId: MY_UID },
+            $join: { chatNo: 3, metaNo: 0 },
+        });
+        expect(computeChannelUnread(ch, MY_UID)).toBe(9);
+    });
+
     it('does not clear when the latest message is another member of the same cloud', () => {
         const ch = channel({
             chatNo: 12,

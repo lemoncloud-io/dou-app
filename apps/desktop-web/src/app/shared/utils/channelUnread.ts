@@ -1,7 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 
 import { isNotifiableChat } from './notifiableChat';
-import { isViewerId } from './viewer';
+import { isOwnChat } from './viewer';
 
 /**
  * A read boundary and the system-event count at it.
@@ -99,7 +99,7 @@ export const computeChannelUnread = (
     // badge on a channel whose latest message I had just sent.
     const last = channel.lastChat$;
     const viewer = { uid: myUid, name: '', cloudUid: channel.$join?.userId ?? null };
-    if (!!last && isNotifiableChat(last) && isViewerId(last.ownerId, viewer)) return 0;
+    if (!!last && isNotifiableChat(last) && isOwnChat(last, viewer)) return 0;
 
     // The head must come from the same record as `metaNo`, so this cannot use `lastChatNoOf` —
     // `lastChat$.chatNo` is a different snapshot, and netting it against this record's `metaNo`

@@ -1,6 +1,13 @@
 import type { DomainChat } from '@chatic/data';
 
-import { isPlaceholderName, isViewerId, resolveDisplay, type MessageViewer } from '../../../shared/utils';
+import {
+    isOwnChat,
+    isPlaceholderName,
+    isViewerId,
+    isWebhookChat,
+    resolveDisplay,
+    type MessageViewer,
+} from '../../../shared/utils';
 
 // The viewer rule lives in shared (the mention inbox needs it too); chat code keeps importing it
 // from here.
@@ -17,6 +24,12 @@ export interface MessageGroup {
      * flashing "Unknown" before the roster / live record arrives.
      */
     namePending: boolean;
+    /**
+     * True when an integration sent this group (`stereo === 'webhook'`) rather than a person.
+     * The sender is not a channel member, so there is no profile to open and the roster can
+     * never name it; the row shows an app badge instead of a profile popover.
+     */
+    isWebhook: boolean;
     /** Author avatar (base64 thumbnail) when the server embedded it; else undefined. */
     avatar: string | undefined;
     /** True when the signed-in user authored this group — drives delivery status. */
@@ -48,7 +61,8 @@ const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 // unresolved so it never shows, falling back to "You" / the roster / a skeleton.
 const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
 
-export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean => isViewerId(chat.ownerId, viewer);
+// "Is this message mine" lives in shared too, webhook rule included; chat code keeps its own name for it.
+export const isOwnMessage = isOwnChat;
 
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.
@@ -72,6 +86,13 @@ const resolveOwnerName = (
     const fromMembers = chat.ownerId ? realName(names?.get(chat.ownerId)) : undefined;
     return fromOwner || fromMembers || null;
 };
+
+const WEBHOOK_FALLBACK_NAME = 'Webhook';
+
+// A webhook sender is not a member, so the roster and Place Profiles have nothing to say about it and
+// must not be consulted: its owner id could collide with a person's and borrow their name. What names
+// it is the post itself, else a fixed label. Grouping and the header both read this one answer.
+const webhookName = (chat: DomainChat): string => realName(chat.owner$?.name) || WEBHOOK_FALLBACK_NAME;
 
 const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
 
@@ -180,14 +201,25 @@ export const buildMessageRows = (
             unreadInserted = true;
         }
 
-        const sameAuthor = currentGroup?.ownerId === message.ownerId;
+        // A webhook never merges into a person's block (or the reverse), even when the server
+        // sends both without an ownerId and the ids compare equal. Integrations may share one
+        // system owner and differ only by the name each post carries, so two webhook posts merge
+        // only when they also resolve to the same name.
+        const isWebhook = isWebhookChat(message);
+        // `flush` clears the group from inside a closure, which control-flow analysis cannot see, so the
+        // variable is narrowed to `null` here without the cast.
+        const open = currentGroup as MessageGroup | null;
+        const sameAuthor =
+            open?.ownerId === message.ownerId &&
+            open?.isWebhook === isWebhook &&
+            (!isWebhook || open?.ownerName === webhookName(message));
         const withinGap = timestamp - lastTimestamp <= GROUP_TIME_GAP_MS;
 
         if (currentGroup && sameAuthor && withinGap) {
             currentGroup.messages.push(message);
         } else {
             flush();
-            const resolvedName = resolveOwnerName(message, viewer, names);
+            const resolvedName = isWebhook ? webhookName(message) : resolveOwnerName(message, viewer, names);
             const isMine = isOwnMessage(message, viewer);
             // Place Profile override: look up by the canonical uid — for my own
             // messages that is my cloud id (the server rewrites ownerId on persist),
@@ -195,13 +227,16 @@ export const buildMessageRows = (
             // For my own messages the override may be keyed by either my cloud id
             // (server-rewritten ownerId / sync) or my account id (the optimistic
             // self-write uses the account uid) — try both. Others key by ownerId.
-            const place = isMine
-                ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
-                  (viewer.uid ? placeProfiles[viewer.uid] : undefined) ??
-                  (message.ownerId ? placeProfiles[message.ownerId] : undefined))
-                : message.ownerId
-                  ? placeProfiles[message.ownerId]
-                  : undefined;
+            // A webhook has no Place Profile (see `webhookName`).
+            const place = isWebhook
+                ? undefined
+                : isMine
+                  ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
+                    (viewer.uid ? placeProfiles[viewer.uid] : undefined) ??
+                    (message.ownerId ? placeProfiles[message.ownerId] : undefined))
+                  : message.ownerId
+                    ? placeProfiles[message.ownerId]
+                    : undefined;
             const placeNick = place?.nick?.trim();
             // Same single merge as every other surface (resolveDisplay): a Place
             // nick/thumbnail overrides the global fallback resolved above.
@@ -213,8 +248,10 @@ export const buildMessageRows = (
             currentGroup = {
                 key: message.id ?? message.tempId ?? `${message.channelId}:${message.chatNo}`,
                 ownerId: message.ownerId,
-                ownerName: display.name || 'Unknown',
+                ownerName: display.name || (isWebhook ? WEBHOOK_FALLBACK_NAME : 'Unknown'),
+                // A webhook is always named (`webhookName`), so `resolvedName` is never null for it.
                 namePending: !placeNick && resolvedName === null && membersLoading,
+                isWebhook,
                 avatar: display.thumbnail,
                 isMine,
                 colorSeed: isMine
