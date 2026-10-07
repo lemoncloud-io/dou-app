@@ -118,6 +118,18 @@ be opened), whose label says the list could not be loaded and some clouds may be
 retries the read (`refetchClouds`), and stays on the rail, spinning, while the retry runs: the
 failure is reported until a read succeeds, not only while no read is in flight.
 
+A failed read is also read again without the tile being pressed, once each time the relay socket
+is verified. The read goes out as soon as a stored session exists, which at start-up or after sleep can
+be before that socket has finished its handshake. The catalog is relay-signed HTTP, the signing
+credential lives about an hour, and a lapsed one is renewed only through the relay socket — so a read
+sent in that window fails on a session that is healthy a few seconds later, and the rail would keep
+a reload tile that one press clears. `useCloudSessionCatalog` re-reads when the socket verifies
+after a failure, or when a read fails with the socket already verified. If that re-read fails too,
+the tile stays until it is pressed or the socket verifies again (after a drop or a wake); the hook
+does not retry on a timer. One case adds a read: a component that mounts while the failure stands
+reads on mount as every consumer does, and when that fails it is a new failure to that component, so
+it is re-read once as well. That is bounded by the number of mounts, not a loop.
+
 The tiles stay as they are. react-query keeps the last good list when a refresh fails, so a cloud
 that was shown keeps showing, and the reload tile says the list may be out of date. Only a first
 read that fails leaves the owned clouds out, and then the reload tile is the only sign.
