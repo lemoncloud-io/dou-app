@@ -169,6 +169,38 @@ describe('CloudRail', () => {
     });
 });
 
+// A cloud that cannot be opened as it is cannot be deleted from here either: the only entry in its menu
+// was a server-wide delete of a cloud the user could not even enter, one mispress from losing it.
+describe('CloudRail menu on a cloud that cannot be opened', () => {
+    const removeItem = () => screen.queryByRole('menuitem', { name: i18next.t('cloud.remove.action') });
+
+    it.each(['error', 'reserved', 'init', 'suspended', 'expired'])(
+        'offers no menu on an owned cloud that is %s',
+        status => {
+            renderRail({ clouds: [{ id: 'x', name: 'Archive', status, kind: 'owned' }], activeCloudId: 'default' });
+            fireEvent.contextMenu(screen.getByRole('button', { name: /Archive/ }));
+
+            expect(screen.queryByRole('menu')).toBeNull();
+            expect(removeItem()).toBeNull();
+        }
+    );
+
+    it.each([['active'], [undefined]])('still offers delete on an owned cloud with status %s', async status => {
+        renderRail({ clouds: [{ id: 'x', name: 'Studio', status, kind: 'owned' }], activeCloudId: 'default' });
+        fireEvent.contextMenu(screen.getByRole('button', { name: 'Studio' }));
+
+        expect(await screen.findByRole('menuitem', { name: i18next.t('cloud.remove.action') })).toBeTruthy();
+    });
+
+    // Forgetting an invited cloud is local to this device, so it stays available whatever state the cloud is in.
+    it('still offers the local removal of an invited cloud that is expired', async () => {
+        renderRail({ clouds: [{ id: 'g', name: 'Friends', status: 'expired', kind: 'invited' }] });
+        fireEvent.contextMenu(screen.getByRole('button', { name: /Friends/ }));
+
+        expect(await screen.findByRole('menuitem', { name: i18next.t('cloud.remove.action') })).toBeTruthy();
+    });
+});
+
 describe('CloudRail rename', () => {
     const openMenu = (name: string) => fireEvent.contextMenu(screen.getByRole('button', { name }));
     const renameItem = () => screen.queryByRole('menuitem', { name: i18next.t('cloud.rename.action') });
@@ -190,10 +222,11 @@ describe('CloudRail rename', () => {
         expect(renameItem()).toBeNull();
     });
 
-    it('does not offer rename on a lapsed owned cloud, even the active one', async () => {
+    it('does not offer rename on a lapsed owned cloud, even the active one', () => {
         renderRail({ activeCloudId: 'lapsed' });
         openMenu(i18next.t('cloud.statusLabel', { name: 'Archive', status: i18next.t('cloud.status.expired') }));
-        await screen.findByRole('menuitem', { name: i18next.t('cloud.remove.action') });
+        // Nothing is left in a lapsed cloud's menu, so it does not open (see the removal tests below).
+        expect(screen.queryByRole('menu')).toBeNull();
         expect(renameItem()).toBeNull();
     });
 
