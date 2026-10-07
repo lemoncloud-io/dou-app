@@ -12,6 +12,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 class PhotoLibraryCoreTest {
 
@@ -371,6 +378,117 @@ class PhotoLibraryCoreTest {
         assertEquals(200, PhotoLibraryCore.squareSide(300, 200, 200))
         assertEquals(200, PhotoLibraryCore.squareSide(300, 400, 200))
         assertEquals(300, PhotoLibraryCore.squareSide(300, 0, 200))
+    }
+
+    // --- Parallel previews ---
+
+    @Test
+    fun previewWorkersLeaveACoreFreeAndStayWithinTheCap() {
+        assertEquals(1, PhotoLibraryCore.previewWorkers(0))
+        assertEquals(1, PhotoLibraryCore.previewWorkers(1))
+        assertEquals(1, PhotoLibraryCore.previewWorkers(2))
+        assertEquals(3, PhotoLibraryCore.previewWorkers(4))
+        assertEquals(PhotoLibraryCore.MAX_PREVIEW_WORKERS, PhotoLibraryCore.previewWorkers(8))
+        assertEquals(4, PhotoLibraryCore.MAX_PREVIEW_WORKERS)
+    }
+
+    /** Runs [body] with a fixed pool of [threads], shut down afterwards whatever happens. */
+    private fun <T> withPool(threads: Int, body: (ExecutorService) -> T): T {
+        val pool = Executors.newFixedThreadPool(threads)
+        try {
+            return body(pool)
+        } finally {
+            pool.shutdownNow()
+            pool.awaitTermination(5, TimeUnit.SECONDS)
+        }
+    }
+
+    @Test
+    fun aParallelMapAnswersInTheOrderOfItsItems() {
+        val items = (0 until 40).toList()
+
+        val results = withPool(4) { pool ->
+            // Earlier items sleep longer, so they finish after later ones.
+            PhotoLibraryCore.mapInParallel(items, pool) { item ->
+                Thread.sleep(((40 - item) % 5).toLong())
+                "item-$item"
+            }
+        }
+
+        assertEquals(items.map { "item-$it" }, results)
+    }
+
+    @Test
+    fun aParallelMapComputesEveryItemExactlyOnce() {
+        val calls = AtomicIntegerArray(100)
+
+        withPool(4) { pool ->
+            PhotoLibraryCore.mapInParallel((0 until 100).toList(), pool) { item -> calls.incrementAndGet(item) }
+        }
+
+        for (index in 0 until 100) assertEquals("item $index", 1, calls.get(index))
+    }
+
+    @Test
+    fun aParallelMapRunsMoreThanOneTransformAtOnce() {
+        // Opens only once two transforms are in flight together; a sequential map would time out here
+        // instead of hanging.
+        val bothInFlight = CountDownLatch(2)
+
+        val opened = withPool(2) { pool ->
+            PhotoLibraryCore.mapInParallel(listOf(0, 1), pool) { _ ->
+                bothInFlight.countDown()
+                bothInFlight.await(5, TimeUnit.SECONDS)
+            }
+        }
+
+        assertEquals(listOf(true, true), opened)
+    }
+
+    @Test
+    fun anEmptyParallelMapNeverTouchesTheExecutor() {
+        // A shut-down executor refuses every task, so any submit would throw.
+        val pool = Executors.newSingleThreadExecutor().apply { shutdown() }
+
+        assertEquals(emptyList<String>(), PhotoLibraryCore.mapInParallel(emptyList<Int>(), pool) { "never" })
+    }
+
+    @Test
+    fun aParallelMapOnOneWorkerRunsItsItemsOneAfterAnother() {
+        val running = AtomicInteger(0)
+        val mostAtOnce = AtomicInteger(0)
+        val started = Collections.synchronizedList(mutableListOf<Int>())
+
+        val results = withPool(1) { pool ->
+            PhotoLibraryCore.mapInParallel((0 until 10).toList(), pool) { item ->
+                mostAtOnce.accumulateAndGet(running.incrementAndGet(), ::maxOf)
+                started += item
+                Thread.sleep(2)
+                running.decrementAndGet()
+                item * 2
+            }
+        }
+
+        assertEquals(1, mostAtOnce.get())
+        assertEquals((0 until 10).toList(), started.toList())
+        assertEquals((0 until 10).map { it * 2 }, results)
+    }
+
+    @Test
+    fun aThrowInsideAParallelMapReachesTheCallerUnwrapped() {
+        val thrown = try {
+            withPool(2) { pool ->
+                PhotoLibraryCore.mapInParallel(listOf(0, 1, 2), pool) { item ->
+                    if (item == 1) throw IllegalStateException("preview $item failed")
+                    item
+                }
+            }
+            null
+        } catch (e: IllegalStateException) {
+            e
+        }
+
+        assertEquals("preview 1 failed", thrown?.message)
     }
 
     // --- Export ---

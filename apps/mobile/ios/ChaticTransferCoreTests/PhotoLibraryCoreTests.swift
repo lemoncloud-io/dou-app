@@ -259,6 +259,115 @@ final class PhotoLibraryCoreTests: XCTestCase {
         XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 200, height: -1), 300)
     }
 
+    // MARK: - Parallel previews
+
+    func testPreviewWorkersLeaveACoreAndStayBounded() {
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(1), 1)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(2), 1)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(4), 3)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(8), PhotoLibraryCore.maxPreviewWorkers)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(0), 1)
+        XCTAssertEqual(PhotoLibraryCore.maxPreviewWorkers, 4)
+    }
+
+    func testParallelMapKeepsTheOrderWhateverFinishesFirst() {
+        let results = PhotoLibraryCore.parallelMap(count: 37, workers: 3) { index -> Int in
+            usleep(UInt32.random(in: 0...2_000))
+            return index * 2
+        }
+
+        XCTAssertEqual(results, (0..<37).map { $0 * 2 })
+    }
+
+    func testParallelMapKeepsANilResultInItsPlace() {
+        let results = PhotoLibraryCore.parallelMap(count: 6, workers: 3) { index -> String? in
+            index % 2 == 0 ? nil : "\(index)"
+        }
+
+        XCTAssertEqual(results, [nil, "1", nil, "3", nil, "5"])
+    }
+
+    func testParallelMapComputesEveryIndexExactlyOnce() {
+        let lock = NSLock()
+        var calls = [Int](repeating: 0, count: 100)
+
+        _ = PhotoLibraryCore.parallelMap(count: 100, workers: 4) { index -> Int in
+            lock.lock()
+            calls[index] += 1
+            lock.unlock()
+            return index
+        }
+
+        XCTAssertEqual(calls, [Int](repeating: 1, count: 100))
+    }
+
+    func testParallelMapRunsTransformsAtTheSameTime() {
+        // Each transform waits until a second one is in flight. A sequential map never gets there: its
+        // first transform gives up at the timeout, and the rest stop waiting, so it fails instead of hanging.
+        let condition = NSCondition()
+        var inFlight = 0
+        var overlapped = false
+        var gaveUp = false
+
+        _ = PhotoLibraryCore.parallelMap(count: 4, workers: 4) { _ -> Int in
+            condition.lock()
+            defer { condition.unlock() }
+            inFlight += 1
+            if inFlight >= 2 {
+                overlapped = true
+                condition.broadcast()
+            }
+            let deadline = Date().addingTimeInterval(2)
+            while !overlapped, !gaveUp {
+                if !condition.wait(until: deadline) { gaveUp = true }
+            }
+            inFlight -= 1
+            return 0
+        }
+
+        XCTAssertTrue(overlapped, "no two transforms were ever in flight together")
+    }
+
+    func testParallelMapOfNothingNeverCallsTheTransform() {
+        var called = false
+
+        let results = PhotoLibraryCore.parallelMap(count: 0, workers: 4) { index -> Int in
+            called = true
+            return index
+        }
+
+        XCTAssertEqual(results, [])
+        XCTAssertFalse(called)
+    }
+
+    func testOneWorkerMapsInOrderOnTheCallingThread() {
+        let caller = Thread.current
+        var order: [Int] = []
+        var onCaller = true
+
+        let results = PhotoLibraryCore.parallelMap(count: 5, workers: 1) { index -> Int in
+            order.append(index)
+            onCaller = onCaller && Thread.current == caller
+            return index + 10
+        }
+
+        XCTAssertEqual(results, [10, 11, 12, 13, 14])
+        XCTAssertEqual(order, [0, 1, 2, 3, 4])
+        XCTAssertTrue(onCaller)
+    }
+
+    func testNoWorkersMapsSequentiallyToo() {
+        var order: [Int] = []
+
+        let results = PhotoLibraryCore.parallelMap(count: 3, workers: 0) { index -> Int in
+            order.append(index)
+            return index
+        }
+
+        XCTAssertEqual(results, [0, 1, 2])
+        XCTAssertEqual(order, [0, 1, 2])
+    }
+
     // MARK: - Export
 
     func testServerFormatsKeepTheirBytes() {

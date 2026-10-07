@@ -2,7 +2,8 @@ import Foundation
 import ImageIO
 
 /// The rules of the photo-library bridge that do not need PhotoKit: paging, access, albums, which
-/// media a list holds, and the form a picked photo leaves the device in. Kept apart so the ChaticTransferCoreTests bundle can
+/// media a list holds, how a list's previews are made in parallel, and the form a picked photo leaves
+/// the device in. Kept apart so the ChaticTransferCoreTests bundle can
 /// compile and test them without an app host.
 enum PhotoLibraryCore {
     /// The largest page the shell hands back. A page is base64 thumbnails held in page memory, and the
@@ -170,6 +171,43 @@ enum PhotoLibraryCore {
     static func squareSide(size: Int, width: Int, height: Int) -> Int {
         guard width > 0, height > 0 else { return size }
         return min(size, min(width, height))
+    }
+
+    // MARK: - Parallel previews
+
+    /// The most previews one list makes at the same time. Each one in flight holds a decode — up to a
+    /// 2160 × 720 bitmap for a panorama at the largest size — so the count is bounded for memory as
+    /// much as for CPU.
+    static let maxPreviewWorkers = 4
+
+    /// How many previews a list makes at once on a device with `cpuCount` cores: one core is left to
+    /// the UI and the WebView, and never fewer than one worker or more than `maxPreviewWorkers`.
+    static func previewWorkers(_ cpuCount: Int) -> Int {
+        min(maxPreviewWorkers, max(1, cpuCount - 1))
+    }
+
+    /// `transform` applied to `0..<count`, up to `workers` at a time, answered in index order.
+    ///
+    /// Worker `w` takes the indices `w, w + workers, …`, so every index is computed exactly once and by
+    /// one worker only; each writes its own slot of a preallocated buffer, which is why no lock is
+    /// needed. One worker or fewer is a plain map on the calling thread. The call returns once every
+    /// index is done.
+    static func parallelMap<T>(count: Int, workers: Int, _ transform: (Int) -> T) -> [T] {
+        guard count > 0 else { return [] }
+        let lanes = min(workers, count)
+        guard lanes > 1 else { return (0..<count).map(transform) }
+
+        var results = [T?](repeating: nil, count: count)
+        results.withUnsafeMutableBufferPointer { buffer in
+            let slots = buffer
+            DispatchQueue.concurrentPerform(iterations: lanes) { lane in
+                for index in stride(from: lane, to: count, by: lanes) {
+                    slots[index] = transform(index)
+                }
+            }
+        }
+        // Every slot was written above; a T that is itself optional keeps its nil inside the slot.
+        return results.map { $0! }
     }
 
     /// A JSON number from the bridge. A boolean crosses as an `NSNumber` too, and is not one.

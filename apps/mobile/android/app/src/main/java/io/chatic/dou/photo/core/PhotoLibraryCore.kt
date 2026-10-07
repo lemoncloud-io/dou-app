@@ -1,8 +1,13 @@
 package io.chatic.dou.photo.core
 
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
+
 /**
  * The rules of the photo-library bridge that need no Android framework: which media a list covers,
- * access, paging, item ids, preview sizes, the form a picked photo leaves the device in, and file names.
+ * access, paging, item ids, preview sizes and how many are made at once, the form a picked photo leaves
+ * the device in, and file names.
  * Kept apart so plain JVM tests cover them; the MediaStore, Bitmap and EXIF calls live in
  * [io.chatic.dou.module.PhotoLibraryModule].
  */
@@ -301,6 +306,39 @@ object PhotoLibraryCore {
     /** The side a square preview is drawn at: [size], never past what the decoded image holds. */
     fun squareSide(size: Int, width: Int, height: Int): Int =
         if (width <= 0 || height <= 0) size else minOf(size, minOf(width, height))
+
+    // --- Parallel previews ---
+
+    /**
+     * The most previews made at once. Each one holds a decode — up to a 2160 × 720 bitmap for a
+     * panorama at the largest size — so the cap bounds memory as well as threads.
+     */
+    const val MAX_PREVIEW_WORKERS = 4
+
+    /**
+     * How many previews of one list are made at once on a device with [cpuCount] cores: one core is
+     * left for the UI and the WebView, at least one worker always runs, and never more than
+     * [MAX_PREVIEW_WORKERS].
+     */
+    fun previewWorkers(cpuCount: Int): Int = minOf(MAX_PREVIEW_WORKERS, maxOf(1, cpuCount - 1))
+
+    /**
+     * [transform] of each of [items] on [executor], answered in the order of [items] whatever order
+     * the tasks finish in. An empty list never touches the executor. A throw from [transform] is
+     * rethrown as itself, not wrapped in the executor's [ExecutionException]; the tasks still queued
+     * behind it run to the end regardless, since nothing here cancels them.
+     */
+    fun <T, R> mapInParallel(items: List<T>, executor: ExecutorService, transform: (T) -> R): List<R> {
+        if (items.isEmpty()) return emptyList()
+        val futures = items.map { item -> executor.submit(Callable { transform(item) }) }
+        return futures.map { future ->
+            try {
+                future.get()
+            } catch (e: ExecutionException) {
+                throw e.cause ?: e
+            }
+        }
+    }
 
     // --- Export ---
 

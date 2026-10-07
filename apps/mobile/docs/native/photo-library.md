@@ -126,7 +126,12 @@ takes none, and React Native rejects a call with the wrong count.
 - **One list at a time; reads apart.** Lists run on one serial queue (one thread on Android): the web
   drops a page it no longer wants (an album switched away from) but cannot cancel it, so overlapping
   pages would only compete. Reads have their own, so sending a photo does not wait behind a page of
-  previews.
+  previews. Within one list the previews are made in parallel, up to four at a time (one fewer than
+  the processor count, never more than four, `previewWorkers`), and put back in the list's order
+  (`mapInParallel` on Android, `parallelMap` on iOS). A photo the system has never made a thumbnail
+  for costs 40–110 ms on an Android emulator, and made one after another a page of 60 such photos
+  took seconds. In parallel, a page of never-viewed photos took 266–282 ms against 500–806 ms before,
+  on the same emulator. Four bounds what a list holds at once: one decode per worker.
 - **Preview size.** `ListPhotos` and `ListPhotoAlbums` (its covers) take `thumbSize`: the side of a
   square, in pixels — the tile's size on screen times the device pixel ratio. The shell rounds and
   clamps it to 64–720 (720 covers two columns on a 440pt phone at 3×) and answers the photo's centre
