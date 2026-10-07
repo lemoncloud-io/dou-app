@@ -1,16 +1,18 @@
 import { config } from '@chatic/config';
 
 /**
- * Social Login URL plumbing (ADR 0009). The OAuth Relay fronts every provider:
- * we send the browser to its authorize URL with a `redirect` back-address and
- * it returns `?code=&provider=` to that address. The hand-off page then ferries
- * the code into the app via the `chatic://oauth` deeplink when it lands in a
+ * Social Login URL plumbing. The OAuth Relay fronts every provider: we send the browser to its
+ * authorize URL with a `redirect` back-address and it returns `?code=&provider=` to that address.
+ * The nonce of the start record rides that address and has to come back with the code; a hand-off
+ * that arrives without it is shown as a failure rather than passed on. The hand-off page then
+ * ferries the code and the nonce into the app via the `chatic://oauth` deeplink when it lands in a
  * plain browser (the Desktop Shell registers the `chatic:` protocol).
  */
 /**
  * Channel-scoped scheme: each deployment targets its own shell channel
  * (dev web → DoU Dev via `chatic-dev:`, prod web → DoU via `chatic:`), so an
- * OAuth hand-off never (re)launches the other channel's app.
+ * OAuth hand-off never (re)launches the other channel's app. The registry resolves the scheme
+ * from the stage — the same axis the shell picks its own scheme by — so no build variable is involved.
  *
  * Read per call rather than once at module load. `config.get()` answers `undefined` until
  * `config.init()` runs (main.tsx), so a module-scope read that landed before boot would fall
@@ -41,24 +43,27 @@ const OAUTH_PROVIDERS = ['google'];
 const socialOauthEndpoint = (): string => config.get<string>('net.socialOauth.endpoint') ?? '';
 
 /**
- * Relay authorize URL returning to this origin's hand-off page. `nonce`, when given, rides the
- * `redirect` back-address; whether the relay returns it is unverified, so `start` does not send one
- * yet (see `evaluateOAuthDeeplink`).
+ * Relay authorize URL returning to this origin's hand-off page. The `nonce` rides the `redirect`
+ * back-address and is relied on to come back with the code; a hand-off that returns without it is
+ * shown as a failure (see `evaluateOAuthDeeplink`).
  */
-export const buildAuthorizeUrl = (provider: string, nonce?: string): string => {
+export const buildAuthorizeUrl = (provider: string, nonce: string): string => {
     const handoff = new URL('/auth/oauth-response', window.location.origin);
-    if (nonce) handoff.searchParams.set('nonce', nonce);
+    handoff.searchParams.set('nonce', nonce);
     return `${socialOauthEndpoint()}/oauth/${provider}/authorize?redirect=${encodeURIComponent(handoff.toString())}`;
 };
 
-/** Hand-off deeplink carrying the relay code back into the shell. */
-export const buildOAuthDeeplink = (provider: string, code: string): string =>
-    `${protocolScheme()}://oauth?${new URLSearchParams({ provider, code }).toString()}`;
+/** Hand-off deeplink carrying the relay code and the start's nonce back into the shell. */
+export const buildOAuthDeeplink = (provider: string, code: string, nonce: string): string =>
+    `${protocolScheme()}://oauth?${new URLSearchParams({ provider, code, nonce }).toString()}`;
 
 export interface OAuthDeeplinkPayload {
     provider: string;
     code: string;
-    /** Only present when the hand-off page ferried one back; see `evaluateOAuthDeeplink`. */
+    /**
+     * Optional on purpose: a link without one still parses, so that `evaluateOAuthDeeplink` refuses it
+     * where the person is told, instead of the parser dropping it silently.
+     */
     nonce?: string;
 }
 

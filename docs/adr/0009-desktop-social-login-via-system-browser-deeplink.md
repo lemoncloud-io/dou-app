@@ -4,7 +4,7 @@ Date: 2026-06-12
 
 ## Status
 
-Accepted
+Accepted — the amendment's remaining risk is closed by [ADR-0178](./0178-desktop-google-sign-in-returns-by-deeplink-with-a-one-time-code-and-no-client-secret.md)
 
 ## Context
 

@@ -116,7 +116,7 @@ lists keys is copyable.
 | `writableBy`    | `['local','server']` 32 · `[]` 21 · `['local']` 18 · `['shell','local']` 9 · `['shell']` 6 · `['shell','local','server']` 1 |
 | `persist`       | `session` 40 · `none` 25 · `local` 13 · `shell` 9                                                                           |
 | `appliesAt`     | absent 54 · `live` 25 · `restart` 5 · `reconnect` 3                                                                         |
-| Declared rules  | `byStage` 12 · `byPlatform` **0** · `envDefaultKey` 17                                                                      |
+| Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 16                                                                      |
 | Server-writable | 33 of 87                                                                                                                    |
 
 Two readings worth carrying.

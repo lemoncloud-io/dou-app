@@ -90,10 +90,11 @@ export const netModule: ConfigRegistryModule = {
     },
     'net.deeplink.desktopProtocol': {
         title: 'Desktop protocol scheme',
-        description: 'The custom protocol that opens the desktop app.',
+        description:
+            'The custom protocol that opens the desktop app. Channel-scoped: follows the stage, the same axis the shell picks its scheme by.',
         type: 'string',
         defaultValue: 'chatic',
-        envDefaultKey: 'VITE_DESKTOP_PROTOCOL',
+        byStage: { LOCAL: 'chatic-dev', DEV: 'chatic-dev' },
         surface: 'internal',
         writableBy: [],
         persist: 'none',

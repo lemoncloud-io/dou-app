@@ -1,5 +1,18 @@
 import { ConfigRegistry, findPolicyViolations } from '.';
+import { RemoteCache } from '../lanes/RemoteCache';
+import { ConfigResolver } from '../resolve/ConfigResolver';
+import { ConfigStore } from '../store/ConfigStore';
+import type { Stage } from '../types';
 import { ALL_MODULES } from './modules';
+
+const resolveInStage = (key: string, stage: Stage): unknown =>
+    new ConfigResolver(ConfigRegistry.merge(ALL_MODULES), new ConfigStore(), new RemoteCache(), {
+        stage: () => stage,
+        buildStage: () => stage,
+        platform: () => 'web',
+        raw: () => undefined,
+        wired: () => ({ shell: true, local: true, server: true }),
+    }).snapshot(key)?.value;
 
 describe('ALL_MODULES — the full registry', () => {
     it('declares the expected number of keys', () => {
@@ -42,5 +55,13 @@ describe('ALL_MODULES — the full registry', () => {
         }
 
         expect(counts).toEqual({ user: 4, labs: 1, dev: 66, internal: 16 });
+    });
+
+    it.each<[Stage, string]>([
+        ['LOCAL', 'chatic-dev'],
+        ['DEV', 'chatic-dev'],
+        ['PROD', 'chatic'],
+    ])('opens the %s desktop channel with the %s scheme, without a build variable', (stage, scheme) => {
+        expect(resolveInStage('net.deeplink.desktopProtocol', stage)).toBe(scheme);
     });
 });

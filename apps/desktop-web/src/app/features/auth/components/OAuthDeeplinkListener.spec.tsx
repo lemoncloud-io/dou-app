@@ -98,7 +98,7 @@ describe('OAuthDeeplinkListener', () => {
     it('exchanges a deeplink for a login that was started', async () => {
         started();
 
-        await deliver('chatic://oauth?provider=google&code=abc');
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
         expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
         expect(session.toast).not.toHaveBeenCalled();
@@ -107,7 +107,7 @@ describe('OAuthDeeplinkListener', () => {
     it('does not exchange once the start has expired, and says it expired', async () => {
         started({ startedAt: NOW - OAUTH_LOGIN_START_TTL_MS });
 
-        await deliver('chatic://oauth?provider=google&code=abc');
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
         expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
         expect(session.toast).toHaveBeenCalledWith(
@@ -119,7 +119,7 @@ describe('OAuthDeeplinkListener', () => {
         started();
         session.createCredentialsByProvider.mockRejectedValueOnce(new Error('relay rejected'));
 
-        await deliver('chatic://oauth?provider=google&code=bad');
+        await deliver('chatic://oauth?provider=google&code=bad&nonce=n1');
 
         expect(session.toast).toHaveBeenCalledTimes(1);
         expect(session.toast).toHaveBeenCalledWith(
@@ -127,7 +127,7 @@ describe('OAuthDeeplinkListener', () => {
         );
 
         started();
-        await deliver('chatic://oauth?provider=google&code=good');
+        await deliver('chatic://oauth?provider=google&code=good&nonce=n1');
 
         expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good');
         expect(session.toast).toHaveBeenCalledTimes(1);
@@ -136,7 +136,7 @@ describe('OAuthDeeplinkListener', () => {
     it('does not exchange a deeplink for a different provider than the one started', async () => {
         started({ provider: 'kakao' });
 
-        await deliver('chatic://oauth?provider=google&code=abc');
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
         expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
     });
@@ -144,8 +144,8 @@ describe('OAuthDeeplinkListener', () => {
     it('does not exchange a second deeplink after one used the start', async () => {
         started();
 
-        await deliver('chatic://oauth?provider=google&code=first');
-        await deliver('chatic://oauth?provider=google&code=second');
+        await deliver('chatic://oauth?provider=google&code=first&nonce=n1');
+        await deliver('chatic://oauth?provider=google&code=second&nonce=n1');
 
         expect(session.createCredentialsByProvider).toHaveBeenCalledTimes(1);
         expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'first');
@@ -154,7 +154,7 @@ describe('OAuthDeeplinkListener', () => {
     it('consumes the start even when the deeplink is refused', async () => {
         started({ provider: 'kakao' });
 
-        await deliver('chatic://oauth?provider=google&code=abc');
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
         expect(takeOAuthLoginStart()).toBeNull();
     });
@@ -165,6 +165,19 @@ describe('OAuthDeeplinkListener', () => {
         await deliver('chatic://oauth?provider=google&code=abc&nonce=other');
 
         expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+    });
+
+    it('does not exchange a deeplink that carries no nonce, and says so', async () => {
+        started();
+
+        await deliver('chatic://oauth?provider=google&code=abc');
+
+        expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+        expect(session.toast).toHaveBeenCalledTimes(1);
+        expect(session.toast).toHaveBeenCalledWith(
+            expect.objectContaining({ description: i18n.t('auth.social.notStarted') })
+        );
+        expect(takeOAuthLoginStart()).toBeNull();
     });
 
     it('exchanges a deeplink whose nonce matches the start', async () => {
@@ -193,8 +206,9 @@ describe('OAuthDeeplinkListener', () => {
         vi.stubGlobal('location', { ...window.location, origin: 'https://desktop.example', replace });
         const { getByText } = render(<Starter />);
         await act(async () => getByText('start').click());
+        const { nonce } = JSON.parse(localStorage.getItem('chatic-oauth-login-start') ?? '{}');
 
-        await deliver('chatic://oauth?provider=google&code=abc');
+        await deliver(`chatic://oauth?provider=google&code=abc&nonce=${nonce}`);
 
         expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
         expect(replace).toHaveBeenCalledWith('/');
