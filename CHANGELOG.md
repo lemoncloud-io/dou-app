@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-07] - No version updates
+
+### Features
+
+- (web,web-ui-kit) manage clouds as one list and one tree per cloud (ADR-0175)
+
 ## [2026-10-06] - root@0.85.0, @chatic/web@0.66.0
 
 ### Features
