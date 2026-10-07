@@ -24,13 +24,18 @@ export const InviteCloudItem = ({
     onSelectCloud,
 }: InviteCloudItemProps) => {
     const { t } = useTranslation();
-    const displayName = inviteCloud.name ?? inviteCloud.cid ?? '';
     // Owner-name guide text (spec 5-3). The invite-accept flow does not yet persist the owner, so
     // fall back to a generic "invited cloud" label when it is absent.
     const ownerName = inviteCloud.owner$?.name;
-    const subtitle = ownerName
+    const ownerLabel = ownerName
         ? t('cloudSessionSheet.invitedOwnerLabel', { owner: ownerName })
         : t('cloudSessionSheet.invitedFallbackLabel');
+    // A nameless invited cloud (an invite with no cloud name, before `cloud.get` fills one in)
+    // takes the owner label as its title and drops the caption, rather than printing its raw cid —
+    // an opaque id is not something to show a user.
+    const cloudName = inviteCloud.name?.trim();
+    const displayName = cloudName || ownerLabel;
+    const subtitle = cloudName ? ownerLabel : null;
     const disabled = isDisabled || isSelected;
 
     return (
@@ -57,9 +62,11 @@ export const InviteCloudItem = ({
                     </span>
                     {hasUnread && <CloudUnreadBadge />}
                 </div>
-                <span className="truncate text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-description">
-                    {subtitle}
-                </span>
+                {subtitle && (
+                    <span className="truncate text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-description">
+                        {subtitle}
+                    </span>
+                )}
             </div>
             {/* Same trailing lime disc as the owned rows — this row was still on the old leading
                 purple check that ADR-0014 replaced everywhere else. */}
