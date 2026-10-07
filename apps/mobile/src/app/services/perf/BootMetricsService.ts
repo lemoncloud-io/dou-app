@@ -1,8 +1,9 @@
-import { startPerfTrace } from '@chatic/perf';
+import { recordPerfSample, startPerfTrace } from '@chatic/perf';
 import type { BootRecord, BootType, NativeBootMarkKey, SendBootMetricsPayload } from '@chatic/app-messages';
 import type { PerfTrace } from '@chatic/perf';
 
 import type { IKeyValueStorage } from '../../database';
+import type { WebRevealReason } from '../bootSplash/types';
 import type { ILogService } from '../log';
 
 /**
@@ -22,6 +23,8 @@ export interface IBootMetricsService {
     startReloadSession(): void;
     attachWebMetrics(payload: SendBootMetricsPayload): void;
     recordForegroundResume(durationMs: number): void;
+    /** The launch splash lifted. Records this session's `first_screen`, once. */
+    recordReveal(reason: WebRevealReason): void;
     getContentProcessReloadCount(): number;
     getLastForegroundResumeMs(): number | null;
     getRecords(): Promise<BootRecord[]>;
@@ -56,6 +59,9 @@ export class BootMetricsService implements IBootMetricsService {
      */
     private bootTrace: PerfTrace;
 
+    /** Whether this session has recorded its `first_screen`: only the first reveal is the launch. */
+    private firstScreenRecorded = false;
+
     constructor(
         private readonly logService: ILogService,
         private readonly storage: IKeyValueStorage,
@@ -89,6 +95,7 @@ export class BootMetricsService implements IBootMetricsService {
         this.marks = {};
         this.webMetrics = null;
         this.finalized = false;
+        this.firstScreenRecorded = false;
         this.type = 'reload';
         // The previous session's trace is left unstopped when it never reached WebAppReady, which
         // Firebase treats as never having happened: an aborted boot is kept in the ring buffer
@@ -106,6 +113,33 @@ export class BootMetricsService implements IBootMetricsService {
 
     public recordForegroundResume(durationMs: number): void {
         this.lastForegroundResumeMs = Math.round(durationMs);
+    }
+
+    /**
+     * Records `first_screen`: from this session's baseline to the moment the launch splash lifted —
+     * the launch as a person sees it, ending on a painted screen rather than on the handshake.
+     *
+     * A sample beside the `boot` trace rather than a later stop of it: `boot` stops at WebAppReady,
+     * and its 1.5s target is defined on that stop. `web_app_ready` rides along, so the stretch
+     * between the two — the web rendering its first route — can be read off one sample. `reveal` says
+     * which signal lifted the splash: the web's first screen, the handshake of a web build that holds
+     * nothing, or a load failure.
+     *
+     * Only the first reveal of a session counts. A reveal can repeat — Android re-arms the splash on a
+     * warm start — but that is not the launch. A content-process reload is a new session, and records
+     * its own.
+     */
+    public recordReveal(reason: WebRevealReason): void {
+        if (this.firstScreenRecorded) return;
+        this.firstScreenRecorded = true;
+        const webAppReady = this.marks['web-app-ready'];
+        recordPerfSample('first_screen', {
+            attributes: { boot_type: this.type, reveal: reason },
+            metrics: {
+                value_ms: this.now() - this.baselineAtMs,
+                ...(webAppReady == null ? {} : { web_app_ready: webAppReady }),
+            },
+        });
     }
 
     public getContentProcessReloadCount(): number {

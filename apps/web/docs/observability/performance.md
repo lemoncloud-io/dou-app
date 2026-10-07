@@ -32,6 +32,8 @@ holding a trace until it expires.
 | `chat_room_open` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
 | `chat_room_sync` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
 | `bridge_request` | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)             | `type` · `outcome`                                 |
+| `chat_send`      | `useChatMutations.sendMessage` — [below](#chat_send)                       | `thread` · `outcome`                               |
+| `socket_verify`  | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -227,9 +229,10 @@ resumes. Its attributes are at the same cap of five.
 
 ## Verifying
 
-- Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useRoomOpenTrace
+- Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useChatMutations src/app/features/channels/hooks/useRoomOpenTrace
 src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
-  from `apps/web`, and `npx jest src/socket/sync/hooks/useSyncTarget` from `libs/app-runtime`.
+  from `apps/web`, `npx jest src/socket/sync/hooks/useSyncTarget src/socket/auth/socketVerifyTrace`
+  from `libs/app-runtime`, and `npx jest src/app/services/perf` from `apps/mobile` (`first_screen`).
 - On a device build with Firebase debug logging on (see the lib README), open a room from the list,
   then tap a notification with the app closed. Each should log one `chat_room_open` trace, with
   `entry` `list` and `push_tap`/`deeplink` respectively. A deep link on the iOS simulator
@@ -277,3 +280,22 @@ Three limits keep it from distorting what it measures:
 What it cannot see: where inside the round trip the time went. Splitting it into web → app, handler
 and app → web needs the app side to stamp its own times on the reply, which ships with an app
 release rather than a web deploy.
+
+## `chat_send`
+
+A text message's send, from the moment `sendMessage` is asked to send it to the server's answer
+(`runtime.data.sendChatInCloud` settling). That covers the optimistic row, the request, the answer
+and the write that replaces the row — the time the message shows as pending.
+
+| Attribute | Values                                                                       |
+| --------- | ---------------------------------------------------------------------------- |
+| `thread`  | `reply` for a thread reply (the server resolves its root first), else `root` |
+| `outcome` | `ok`, or `error` when the send rejected — offline, refused, timed out        |
+
+- **Text sends only.** Image sends go through `useSendImages` and an upload first; they are not timed
+  here.
+- **A retry is a send.** `retryMessage` resends through `sendMessage`, so it is timed like one.
+- **Ten a minute** (`CHAT_SEND_TRACES_PER_MINUTE`), for the same shared budget `bridge_request` is
+  capped for. A burst keeps its first ten.
+- **Hidden time is never in a sample.** A send from a hidden page is not timed, and one the page was
+  hidden during is dropped by leaving its trace unstopped, which records nothing.

@@ -1,6 +1,7 @@
 import { authIdRegistry } from './authIdRegistry';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import { bootstrapSocketConnection } from './bootstrapSocketConnection';
+import { observeSocketVerify } from './socketVerifyTrace';
 import type { ISocketManager, SocketBindingConfig } from '../types';
 import { RELAY_SLOT } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
@@ -8,6 +9,10 @@ import type { SocketSessionDelegate } from './types';
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
+// The `socket_verify` observer has its own suite. Stubbed here, so the subscription counts below stay
+// about the bootstrap's own wiring.
+const stopObservingVerify = jest.fn();
+jest.mock('./socketVerifyTrace', () => ({ observeSocketVerify: jest.fn(() => stopObservingVerify) }));
 
 const RELAY = RELAY_SLOT;
 
@@ -393,6 +398,25 @@ describe('bootstrapSocketConnection', () => {
         expect(auth.unsubToken).toHaveBeenCalledTimes(1);
         expect(client.unsubMessage).toHaveBeenCalledTimes(1);
         expect(client.unsubState).toHaveBeenCalledTimes(1);
+    });
+
+    it('times the slot connections from before the first connect, and stops on cleanup', async () => {
+        const order: string[] = [];
+        const auth = makeAuth(order);
+        const client = makeClient(auth);
+        const manager = makeManager(client, order);
+        stopObservingVerify.mockClear();
+        (observeSocketVerify as jest.Mock).mockImplementationOnce(() => {
+            order.push('observe');
+            return stopObservingVerify;
+        });
+
+        const cleanup = await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        cleanup();
+
+        expect(observeSocketVerify).toHaveBeenCalledWith({ key: RELAY, client, auth });
+        expect(order.indexOf('observe')).toBeLessThan(order.indexOf('connect'));
+        expect(stopObservingVerify).toHaveBeenCalledTimes(1);
     });
 
     it('skips register and gate wiring when no registration is available but still connects', async () => {

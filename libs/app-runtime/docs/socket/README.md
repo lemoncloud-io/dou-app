@@ -16,7 +16,7 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              39 source files, 31 tests
+socket/                              41 source files, 33 tests
 ├── SocketManager.ts   853 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
@@ -24,8 +24,8 @@ socket/                              39 source files, 31 tests
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
-├── auth/          19 files        → docs/auth/
-└── sync/           8 files        → docs/sync/
+├── auth/          21 files        → docs/auth/
+└── sync/          10 files        → docs/sync/
 
 connection/                          19 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
@@ -202,6 +202,40 @@ slot — `(key, client)` on bind or rebuild, `(key, null)` just before a teardow
 currently bound slots on subscribe. For any one mutation **the slot notification comes first**, so a
 per-slot attachment exists before active-facade consumers react. `SyncManager` subscribes to the
 slot notification alone: its runtimes, and the targets on them, follow slots, not the active pointer.
+
+### How long a slot takes to verify: `socket_verify`
+
+`bootstrapSocketConnection` attaches `observeSocketVerify` (`auth/socketVerifyTrace.ts`) to every slot
+it boots. Each connection attempt — from `connecting` to its end — becomes a `socket_verify` Firebase
+Performance sample:
+
+| Field          | Meaning                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------- |
+| `value_ms`     | the attempt's whole span                                                                                   |
+| `connected_ms` | the WebSocket opened                                                                                       |
+| `device_ms`    | `device.save:ok` arrived, which opens the auth gate (see the ordering note in the bootstrap)               |
+| `kind`         | `relay` / `cloud`                                                                                          |
+| `cause`        | `bind` (the slot's first attempt), `reconnect`, or `resume` (the foreground wake recovery's kick)          |
+| `outcome`      | `verified`; `closed` — the socket went away first; `expired` — the controller gave up with the socket open |
+
+- **A sample, timed here.** A boot's first connections happen before the WebView knows where its
+  traces go. A start and a stop would be held, and the start would reach Firebase late; timed here,
+  the numbers do not depend on when they are delivered.
+- **`closed` and `expired` are recorded on purpose.** A socket that never verifies is what this is
+  for: the room sync waiting on an unverified socket, and a push's switch waiting on the handshake,
+  both start here.
+- **A re-authentication on a live connection is not an attempt.** It opens no `connecting`, so it
+  records nothing.
+- **Hidden time is never in a sample.** An attempt that starts while the page is hidden, or that the
+  page is hidden during (`pageHideCount` moved), records nothing: it would time the OS suspending the
+  page.
+- **Ten a minute across all slots.** A boot binds up to seven, and an unlimited reconnect controller
+  would otherwise spend the device's shared trace budget.
+- **One observer per client.** Observing a client again replaces the previous observer, so a slot the
+  binder boots again on the same client — after a failed first connect — is not recorded twice. A
+  client that is already past `idle` starts counting at one, so its next attempt is a `reconnect`.
+- `recoverUnverifiedSockets` calls `noteResumeKick(key)` right before it reconnects a slot, which is
+  how its attempt reads as `resume`, and `clearResumeKick(key)` after, so an unused mark expires.
 
 ### Failed requests get a name, and a volume policy
 

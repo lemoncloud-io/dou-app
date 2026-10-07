@@ -59,6 +59,25 @@ is watched on.
 The `Boot record persisted (…)` log line is unchanged. It is a sentence for whoever scans the log
 monitor, and the trace does not replace it.
 
+## The Firebase `first_screen` sample
+
+`boot` ends at WebAppReady, which is the web saying it has started, not that anything is painted.
+What a person waits for is the launch splash lifting onto a real screen (the reveal, see
+`services/bootSplash`). `BootMetricsService.recordReveal` records that moment as a `first_screen`
+sample: `value_ms` from the same baseline as `boot`, and `web_app_ready` beside it when the session
+reached it, so the stretch between the two — the web rendering its first route — is one subtraction.
+
+- **A sample, not a later stop of `boot`.** The 1.5s target is defined on `boot`'s stop at
+  WebAppReady. Moving that stop would change what an existing alert measures.
+- **Attributes:** `boot_type` (`cold` / `reload`, as on `boot`) and `reveal`, the signal that lifted
+  the splash: `first-screen` (the web's `FirstScreenReady`), `handshake` (a web build that holds
+  nothing, revealed on WebAppReady) or `load-error`. Read the launch on `first-screen`; the other two
+  are fallbacks.
+- **Once per session.** Android re-arms the splash on a warm start and reveals it again; that is not
+  a launch. A content-process reload is a new session and records its own, with `boot_type` `reload`.
+- **The provider wires it.** `DependencyProvider` subscribes `recordReveal` to the boot splash
+  service's reveals. It ships with an app build, not with a web deploy.
+
 ## Boot types
 
 | Type     | Meaning                                                                                                                                                                                                                                    |

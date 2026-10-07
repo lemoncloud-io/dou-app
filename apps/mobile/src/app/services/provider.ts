@@ -145,6 +145,8 @@ class DependencyProvider {
         // Eager: the handshake that may lift the splash is among the first messages the web sends, and
         // construction is a Set — there is nothing to defer.
         this.bootSplashService = new BootSplashService(this.logService, BootSplashBridge);
+        // The splash lifting is the end of the launch a person sees: `first_screen`.
+        this.bootSplashService.subscribe(reason => this.bootMetricsService.recordReveal(reason));
         // The permission prompt waits for the launch splash to lift; see NotificationService.
         this.notificationService = new NotificationService(this.logService, () =>
             this.bootSplashService.whenRevealed()

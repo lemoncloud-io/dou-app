@@ -2,6 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import { Throttle } from '../../utils/throttle';
 import { authIdRegistry } from './authIdRegistry';
+import { observeSocketVerify } from './socketVerifyTrace';
 
 import type { ISocketManager, SocketBindingConfig } from '../types';
 import { kindOf, slotKeyOf } from '../utils/slotKey';
@@ -91,6 +92,10 @@ export const bootstrapSocketConnection = async ({
     }
 
     const gate = auth as unknown as AuthActivationGate;
+
+    // Times each connection attempt to verified, as a `socket_verify` sample. Subscribed before the
+    // connect below, so the first attempt's `connecting` is seen.
+    unsubscribes.push(observeSocketVerify({ key, client, auth }));
 
     // Expired-resume throttle (see the cooldown constants above). Per bootstrap instance: a reboot
     // is a fresh identity attempt, so it deliberately starts with a clean budget. The growing gate
