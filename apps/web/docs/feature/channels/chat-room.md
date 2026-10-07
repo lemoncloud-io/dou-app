@@ -246,6 +246,14 @@ one of them breaks it:
    left alone: cancelling it would kill the send `click` too.
 3. `touch-manipulation` on the composer, so rapid taps are not read as a double-tap gesture.
 
+**Enter sends where there is a hardware keyboard, and breaks the line where there is not.** Both the
+room and the thread ask [`isSendKey`](../../../src/app/features/channels/utils/composerEnter.ts):
+Enter without Shift, outside an IME composition, sends; Shift+Enter is a newline. A touch keyboard has
+no Shift+Enter, so there Enter stays a newline and the send button sends. The user agent alone gets
+this wrong — the iOS app running on a Mac, and an iPad on a trackpad, still report an iPad user agent
+while typing on a hardware keyboard — so a mobile user agent only keeps Enter as a newline when the
+primary pointer is not `(hover: hover) and (pointer: fine)`.
+
 The composer is disabled outright when the DM peer is gone — see
 [dm-and-self-chat.md](./dm-and-self-chat.md).
 
