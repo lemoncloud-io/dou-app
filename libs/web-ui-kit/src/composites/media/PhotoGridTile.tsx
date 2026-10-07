@@ -1,5 +1,6 @@
 import { cn } from '@chatic/lib/utils';
 
+import { PreviewImage } from './PreviewImage';
 import type { PhotoItemKind } from './types';
 import { VideoMark } from './VideoMark';
 
@@ -48,8 +49,7 @@ export const PhotoGridTile = ({
                 className
             )}
         >
-            {/* An empty `src` would make the browser fetch the page itself as an image. */}
-            {src && <img src={src} alt="" className="size-full object-cover" draggable={false} />}
+            <PreviewImage src={src} />
             {kind === 'video' && <VideoMark durationMs={durationMs} />}
             {picked && <span aria-hidden className="absolute inset-0 bg-black/[0.52]" />}
             <span

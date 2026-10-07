@@ -42,6 +42,7 @@ const unsupportedPicker = (): PhotoPicker => ({
     selectAlbum: jest.fn(),
     count: 0,
     photoAt: () => undefined,
+    loading: false,
     setVisibleRange: jest.fn(),
     picked: [],
     toggle: jest.fn(),

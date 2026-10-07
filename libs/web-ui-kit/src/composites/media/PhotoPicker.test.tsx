@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { AlbumList } from './AlbumList';
 import { PhotoGridSheet, type PhotoGridSheetProps } from './PhotoGridSheet';
 import { PhotoGridTile } from './PhotoGridTile';
+import { PreviewImage } from './PreviewImage';
 import { RecentPhotoStrip } from './RecentPhotoStrip';
 import { SelectedPhotoStrip } from './SelectedPhotoStrip';
 import type { PhotoItem } from './types';
@@ -296,6 +297,40 @@ describe('PhotoGridSheet', () => {
             expect(onOpenChange).not.toHaveBeenCalled();
         });
 
+        it('fills the screen with skeleton tiles while the first page is on its way', () => {
+            const onVisibleRangeChange = jest.fn();
+            render(
+                <PhotoGridSheet
+                    {...base({
+                        count: 0,
+                        photoAt: () => undefined,
+                        loading: true,
+                        onCamera: jest.fn(),
+                        onVisibleRangeChange,
+                    })}
+                />
+            );
+
+            // 600 tall at ~131 a row is five rows of three, the camera tile first.
+            expect(screen.getAllByTestId('photo-grid-placeholder')).toHaveLength(14);
+            // They stand for no photo: the range asks for nothing.
+            expect(onVisibleRangeChange).toHaveBeenLastCalledWith(expect.objectContaining({ start: 0, end: 0 }));
+        });
+
+        it('draws no skeleton for an album that answered empty', () => {
+            render(<PhotoGridSheet {...base({ count: 0, photoAt: () => undefined, loading: false })} />);
+
+            expect(screen.queryAllByTestId('photo-grid-placeholder')).toHaveLength(0);
+        });
+
+        it('pulses the tiles whose photo has not loaded', () => {
+            render(<PhotoGridSheet {...base({ count: 2, photoAt: () => undefined })} />);
+
+            for (const tile of screen.getAllByTestId('photo-grid-placeholder')) {
+                expect(tile).toHaveClass('motion-safe:animate-pulse');
+            }
+        });
+
         describe('with the sheet', () => {
             beforeEach(() => {
                 jest.useFakeTimers();
@@ -527,5 +562,68 @@ describe('PhotoGridSheet — while the pick is read', () => {
         expect(button).toBeDisabled();
         fireEvent.click(button);
         expect(onSend).not.toHaveBeenCalled();
+    });
+});
+
+describe('PreviewImage', () => {
+    const skeleton = (container: HTMLElement) => container.querySelector('[data-testid="preview-skeleton"]');
+
+    it('pulses a skeleton until the image has decoded, then fades it out as the image fades in', () => {
+        const { container } = render(<PreviewImage src="data:image/jpeg;base64,AA" />);
+        const img = container.querySelector('img') as HTMLImageElement;
+
+        expect(skeleton(container)).toHaveClass('motion-safe:animate-pulse');
+        expect(skeleton(container)).toHaveAttribute('data-loaded', 'false');
+        expect(img).toHaveClass('opacity-0');
+
+        fireEvent.load(img);
+
+        expect(skeleton(container)).toHaveClass('opacity-0');
+        expect(skeleton(container)).not.toHaveClass('motion-safe:animate-pulse');
+        expect(img).toHaveClass('opacity-100');
+    });
+
+    // A pinch to fewer columns hands the same tile a sharper copy: it must not blink back to a skeleton.
+    it('keeps showing the image when the tile is handed a sharper copy of the same photo', () => {
+        const { container, rerender } = render(<PreviewImage src="data:small" />);
+        fireEvent.load(container.querySelector('img') as HTMLImageElement);
+
+        rerender(<PreviewImage src="data:large" />);
+
+        expect(skeleton(container)).toHaveAttribute('data-loaded', 'true');
+        expect(container.querySelector('img')).toHaveClass('opacity-100');
+    });
+
+    it('stops pulsing when the preview fails to decode', () => {
+        const { container } = render(<PreviewImage src="data:broken" />);
+
+        fireEvent.error(container.querySelector('img') as HTMLImageElement);
+
+        expect(skeleton(container)).not.toHaveClass('motion-safe:animate-pulse');
+    });
+
+    // A tile scrolled back into view over a preview the browser already holds decoded.
+    it('shows an image the browser already holds at once, without the skeleton or the fade', () => {
+        jest.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
+        jest.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(368);
+
+        const { container } = render(<PreviewImage src="data:cached" />);
+
+        expect(skeleton(container)).toHaveAttribute('data-loaded', 'true');
+        expect(container.querySelector('img')).toHaveClass('opacity-100');
+        expect(container.querySelector('img')).not.toHaveClass('duration-300');
+    });
+
+    it('draws nothing, and no skeleton, for an item that has no preview', () => {
+        const { container } = render(<PreviewImage src="" />);
+
+        expect(container).toBeEmptyDOMElement();
+    });
+
+    it('turns the fades off for someone who asked for less motion', () => {
+        const { container } = render(<PreviewImage src="data:a" />);
+
+        expect(skeleton(container)).toHaveClass('motion-reduce:transition-none');
+        expect(container.querySelector('img')).toHaveClass('motion-reduce:transition-none');
     });
 });

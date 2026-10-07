@@ -45,11 +45,16 @@ export interface PhotoGridSheetProps {
     formatAlbumCount?: (count: number) => string;
     /**
      * How many photos the current album lays out. The grid is this tall at once, and a position whose
-     * photo has not loaded is drawn as an empty tile.
+     * photo has not loaded is drawn as a pulsing skeleton tile.
      */
     count: number;
     /** The photo at an index (0 = newest), or undefined while it has not loaded. */
     photoAt: (index: number) => PhotoItem | undefined;
+    /**
+     * The album's first page is on its way. With nothing laid out yet, the grid fills the screen with
+     * skeleton tiles rather than standing empty.
+     */
+    loading?: boolean;
     /**
      * Picked photos in pick order. Carried whole rather than as ids because a pick can come from
      * another album than the one on screen, and the strip still has to draw it.
@@ -140,6 +145,7 @@ export const PhotoGridSheet = ({
     max,
     onCamera,
     onVisibleRangeChange,
+    loading = false,
     columns,
     onColumnsChange,
     sendLabel,
@@ -153,7 +159,6 @@ export const PhotoGridSheet = ({
     const full = picked.length >= max;
     const columnCount = clampColumns(columns ?? DEFAULT_COLUMNS);
     const cameraCells = onCamera ? 1 : 0;
-    const cells = count + cameraCells;
 
     // State, not refs: the sheet mounts its content into a portal a commit after this component
     // renders, so a ref read in an effect is still empty on the first pass — and with nothing else
@@ -168,6 +173,20 @@ export const PhotoGridSheet = ({
     const [grid, setGrid] = React.useState<HTMLDivElement | null>(null);
 
     const [viewport, setViewport] = React.useState<Viewport>(EMPTY_VIEWPORT);
+    // While the first page is out there is nothing to lay out: enough skeleton tiles to fill the screen
+    // stand in for it, and give way to the album's own layout the moment it answers.
+    const skeletonCount =
+        loading && count === 0 && viewport.width > 0
+            ? Math.max(
+                  0,
+                  Math.ceil(
+                      viewport.height / gridMetrics({ width: viewport.width, columns: columnCount, cells: 0 }).rowHeight
+                  ) *
+                      columnCount -
+                      cameraCells
+              )
+            : 0;
+    const cells = Math.max(count, skeletonCount) + cameraCells;
     const metrics = React.useMemo(
         () => gridMetrics({ width: viewport.width, columns: columnCount, cells }),
         [viewport.width, columnCount, cells]
@@ -221,8 +240,9 @@ export const PhotoGridSheet = ({
               cells,
           })
         : { start: 0, end: 0 };
-    const rangeStart = Math.max(0, shown.start - cameraCells);
-    const rangeEnd = Math.max(rangeStart, shown.end - cameraCells);
+    // Skeleton tiles stand for no photo: the range stops at the album's real end.
+    const rangeStart = Math.min(count, Math.max(0, shown.start - cameraCells));
+    const rangeEnd = Math.min(count, Math.max(rangeStart, shown.end - cameraCells));
     const thumbSize = measured ? thumbPixelSize(metrics.tile, window.devicePixelRatio || 1) : undefined;
 
     const rangeChangeRef = React.useRef(onVisibleRangeChange);
@@ -349,11 +369,13 @@ export const PhotoGridSheet = ({
             continue;
         }
         const index = cell - cameraCells;
-        const photo = photoAt(index);
-        // Keyed by position: a tile keeps its element while its photo's data arrives or changes size.
+        const photo = index < count ? photoAt(index) : undefined;
+        // Keyed by position and photo: a tile keeps its element while its photo's preview changes size
+        // (a sharper copy after a pinch), and a different photo at that position — the library changed —
+        // gets a fresh one, with its own skeleton.
         tiles.push(
             photo ? (
-                <div key={cell} className="absolute" style={style}>
+                <div key={`${cell}:${photo.id}`} className="absolute" style={style}>
                     <PhotoGridTile
                         src={photo.src}
                         kind={photo.kind}
@@ -370,7 +392,7 @@ export const PhotoGridSheet = ({
                     key={cell}
                     aria-hidden
                     data-testid="photo-grid-placeholder"
-                    className="absolute bg-muted"
+                    className="absolute bg-muted motion-safe:animate-pulse"
                     style={style}
                 />
             )
@@ -444,6 +466,7 @@ export const PhotoGridSheet = ({
                                 <div
                                     ref={setGrid}
                                     data-testid="photo-grid"
+                                    aria-busy={loading && count === 0}
                                     className="relative w-full"
                                     style={{ height: measured ? metrics.height : undefined }}
                                 >

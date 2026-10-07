@@ -139,11 +139,24 @@ apart: which photo sits at each position (ids, small) and the previews (base64, 
 lands, the previews of pages more than two away from the visible ones (`keptPages`) are let go and
 those pages forgotten, so a long scroll holds a few hundred previews rather than every one it passed;
 the positions stay laid out, and a page scrolled back to is asked for again. A list paged by cursor
-(an older app) keeps its previews: its pages cannot be asked for out of order, and they are small. Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of
-the range first: a fast-scroll drag passes many pages, and only the one it stops on is still wanted.
-The first answer carries the album's `total`, so the grid is its full height from the start and any
-stretch of it can be filled directly. A position whose page has not come is an empty tile; so is a photo
-the app could make no preview of, which is still pickable. When a later page reports a different
+(an older app) keeps its previews: its pages cannot be asked for out of order, and they are small.
+
+Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of the
+range first: a fast-scroll drag passes many pages, and only the one it stops on is still wanted. The
+first page is 24 (`FIRST_PAGE_SIZE`, about a screen at three columns), and the rest of page 0 follows
+as its own request. The shell makes previews one after another, and on Android a photo the system has
+never made a thumbnail for costs 40–110 ms on an emulator (a page of 60 took up to 7 s), so a first page
+of 60 kept the first screen waiting on 36 photos it does not show. Once everything on screen is in, the
+page past the range in the direction of the scroll is asked for too (`pageAhead`), so a steady scroll
+finds the next stretch there; a cursor list asks for its next page a page's worth before the end. An
+answer that moves nothing on — an offset other than the one asked for, at the same count — does not go
+round again. The first answer carries the album's `total`, so the grid is its full height from the start
+and any stretch of it can be filled directly. A position whose preview has not come — its page not loaded yet,
+or let go far from the screen and on its way back — is a pulsing skeleton tile. While the album's first
+page is out, the grid fills the screen with them rather than standing empty. A photo the app could make
+no preview of is a plain tile, without the pulse, and is still pickable. Every preview (grid, recent
+strip, album cover) cross-fades in: its skeleton fades out as the decoded image fades in over 300 ms,
+both instant under the system's reduced-motion setting (`PreviewImage`). When a later page reports a different
 `total`, the library changed under the grid — every index after the change has moved — so the layout is
 remade at the new length and the pages on screen are asked for again; the previews already held are by
 id and stay.

@@ -7,3 +7,4 @@ export * from './SelectedPhotoStrip';
 export * from './VideoMark';
 export * from './photoGridLayout';
 export * from './GridScrubber';
+export * from './PreviewImage';

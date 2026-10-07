@@ -95,7 +95,7 @@ takes none, and React Native rejects a call with the wrong count.
 
     An album that disappears between the list and the page lists as empty rather than failing.
 
-- **Paging.** A page is at most 200 photos (the web asks for 60). The cursor is opaque to the web, and
+- **Paging.** A page is at most 200 photos (the web asks for 24 first, then 60 at a time). The cursor is opaque to the web, and
   each platform uses what its library allows, so a photo taken or deleted while the grid is open
   neither repeats nor skips one at a page boundary:
     - iOS: the offset the page was cut at plus the id of its last photo. The next page starts right
