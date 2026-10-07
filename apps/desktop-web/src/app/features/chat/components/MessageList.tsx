@@ -7,7 +7,15 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { Hint, Skeleton, resolveDisplay, useReducedMotion, useRovingFocus, useSiteProfileMap } from '../../../shared';
+import {
+    Hint,
+    Skeleton,
+    resolveDisplay,
+    useReducedMotion,
+    useRovingFocus,
+    useSiteProfileMap,
+    viewerPlaceProfile,
+} from '../../../shared';
 import {
     buildMessageRows,
     firstVisibleChatNo,
@@ -220,16 +228,17 @@ export const MessageList = ({
         return chunks;
     }, [rows]);
 
-    // Name a reactor the same way an author is named: my own id resolves to me, others
-    // through the roster. Memoised because MessageRow is memo'd — a fresh closure here
-    // would re-render every row on each list render.
+    // Name a reactor the same way an author is named: the place nickname over the account name,
+    // my own id resolving to me and others through the roster. Memoised because MessageRow is
+    // memo'd — a fresh closure here would re-render every row on each list render.
     const reactorName = useMemo(() => {
         const resolve = (userId: string): string => {
-            if (isViewerId(userId, viewer)) return viewer.name;
-            return names?.get(userId) ?? '';
+            const mine = isViewerId(userId, viewer);
+            const place = mine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[userId];
+            return resolveDisplay(place, mine ? viewer.name : (names?.get(userId) ?? ''), undefined).name;
         };
         return resolve;
-    }, [names, viewer.uid, viewer.cloudUid, viewer.name]);
+    }, [names, placeProfiles, viewer]);
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -240,10 +249,7 @@ export const MessageList = ({
         for (const [rootKey, meta] of threadMeta) {
             const repliers = meta.repliers.slice(0, MAX_FOOTER_REPLIERS).map(replier => {
                 const isMine = isViewerId(replier.id, viewer);
-                const place = isMine
-                    ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
-                      (viewer.uid ? placeProfiles[viewer.uid] : undefined))
-                    : placeProfiles[replier.id];
+                const place = isMine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[replier.id];
                 const fallbackName = isMine ? viewer.name : (names?.get(replier.id) ?? '');
                 const display = resolveDisplay(place, fallbackName, replier.thumbnail);
                 return {

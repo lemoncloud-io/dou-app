@@ -1,3 +1,5 @@
+import type { PlaceProfileEntry } from '../stores/useSiteProfilesStore';
+
 /** Identity of the signed-in user, used to name their own (and optimistic) messages. */
 export interface MessageViewer {
     uid: string | null;
@@ -24,3 +26,15 @@ export interface MessageViewer {
 // notifications and the unread badge do; some older checks still compare the account id alone.
 export const isViewerId = (userId: string | undefined, viewer: MessageViewer): boolean =>
     (!!viewer.uid && userId === viewer.uid) || (!!viewer.cloudUid && userId === viewer.cloudUid);
+
+/**
+ * My place profile out of the current place's override map. It can sit under my per-channel cloud
+ * id (a synced row) or my account id (the row my own save writes), so both are tried — the cloud id
+ * first, as every other surface that names me does.
+ */
+export const viewerPlaceProfile = (
+    viewer: MessageViewer,
+    placeProfiles: Record<string, PlaceProfileEntry>
+): PlaceProfileEntry | undefined =>
+    (viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
+    (viewer.uid ? placeProfiles[viewer.uid] : undefined);
