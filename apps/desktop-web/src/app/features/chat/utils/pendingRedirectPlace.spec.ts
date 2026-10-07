@@ -42,4 +42,26 @@ describe('pendingRedirectPlace', () => {
         expect(pendingRedirectPlace('dm-new', here)).toBeNull();
         expect(pendingRedirectPlace(null, here)).toBeNull();
     });
+
+    // The Self Channel is listed in every place, so "this place lists it" does not settle the open:
+    // the item may belong to the place a notification named.
+    describe('for a place-bound room', () => {
+        const self = new Map([['self', ['place-a', 'place-b']]]);
+        const selfHere = { ...here, listedIds: new Set(['self']), dmPlaces: self, placeBound: true };
+
+        it('moves to the named place although this place lists the room', () => {
+            expect(pendingRedirectPlace('self', { ...selfHere, namedPlaceId: 'place-b' })).toBe('place-b');
+        });
+
+        it('moves only once per room', () => {
+            expect(
+                pendingRedirectPlace('self', { ...selfHere, namedPlaceId: 'place-b', redirectedId: 'self' })
+            ).toBeNull();
+        });
+
+        it('stays when none or this place was named', () => {
+            expect(pendingRedirectPlace('self', selfHere)).toBeNull();
+            expect(pendingRedirectPlace('self', { ...selfHere, namedPlaceId: 'place-a' })).toBeNull();
+        });
+    });
 });

@@ -23,6 +23,10 @@ export const usePendingLanding = () => {
     // A place to land once a cross-cloud notification switch loads the new cloud's
     // places — the auto-select-first effect honors this instead of the first place.
     const pendingPlaceRef = useRef<string | null>(null);
+    // The place a same-cloud open switched to. The landing waits until the session is in it and the
+    // switch has finished: a room listed in every place (the Self Channel) is already in the list of
+    // the place being left, and would land there.
+    const awaitedPlaceRef = useRef<string | null>(null);
     // A message to scroll to once a cross-place jump's channel has loaded (paired
     // with pendingChannelRef when the saved item lives in another place).
     const pendingJumpRef = useRef<{ channelId: string; chatNo: number; restore?: boolean } | null>(null);
@@ -34,18 +38,27 @@ export const usePendingLanding = () => {
     // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
     const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
+    // Give up whatever is still pending — the expiry's work, also called when an open cannot happen
+    // (its place switch failed or was refused).
+    const abandonPending = useCallback(() => {
+        pendingChannelRef.current = null;
+        pendingPlaceRef.current = null;
+        awaitedPlaceRef.current = null;
+        pendingJumpRef.current = null;
+        pendingThreadRef.current = null;
+        pendingOpenAtBottomRef.current = null;
+    }, []);
+
     const pendingExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const armPendingExpiry = useCallback(() => {
         if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
+        // A new open supersedes the place an earlier one was waiting for.
+        awaitedPlaceRef.current = null;
         pendingExpiryRef.current = setTimeout(() => {
             pendingExpiryRef.current = null;
-            pendingChannelRef.current = null;
-            pendingPlaceRef.current = null;
-            pendingJumpRef.current = null;
-            pendingThreadRef.current = null;
-            pendingOpenAtBottomRef.current = null;
+            abandonPending();
         }, PENDING_LANDING_TTL_MS);
-    }, []);
+    }, [abandonPending]);
     useEffect(
         () => () => {
             if (pendingExpiryRef.current) clearTimeout(pendingExpiryRef.current);
@@ -56,9 +69,11 @@ export const usePendingLanding = () => {
     return {
         pendingChannelRef,
         pendingPlaceRef,
+        awaitedPlaceRef,
         pendingJumpRef,
         pendingOpenAtBottomRef,
         pendingThreadRef,
         armPendingExpiry,
+        abandonPending,
     };
 };
