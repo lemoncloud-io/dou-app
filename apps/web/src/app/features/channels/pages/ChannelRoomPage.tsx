@@ -63,6 +63,7 @@ import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { canModifyMessage } from '@chatic/data';
 import { messagePlainText } from '../utils/messagePlainText';
+import { isSendKey } from '../utils/composerEnter';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
@@ -83,7 +84,6 @@ export const ChannelRoomPage = () => {
     // page. See `hooks/menuDismissal`.
     const navigateFromMenu = useMenuNavigate();
     const { t } = useTranslation();
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId } = useParams<{ channelId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
@@ -722,13 +722,9 @@ export const ChannelRoomPage = () => {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.nativeEvent.isComposing) return;
-        if (isMobile && e.key === 'Enter') return;
-
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend(content);
-        }
+        if (!isSendKey(e.nativeEvent)) return;
+        e.preventDefault();
+        handleSend(content);
     };
 
     const formatTime = (date: Date) => {
