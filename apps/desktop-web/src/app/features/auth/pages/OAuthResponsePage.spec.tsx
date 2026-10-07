@@ -3,12 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let isError = false;
-const complete = vi.fn();
+const completeFromHandoff = vi.fn();
 
 // Inside the desktop shell the page exchanges the code itself, so no deeplink jump runs.
 vi.mock('@chatic/bridges', () => ({ isNative: () => true }));
 vi.mock('../hooks', () => ({
-    useSocialLogin: () => ({ complete, isError }),
+    useSocialLogin: () => ({ completeFromHandoff, isError }),
 }));
 
 import i18n from '../../../../i18n';
@@ -25,7 +25,7 @@ const liveRegion = () => screen.getByRole('heading').closest('[aria-live="polite
 describe('OAuthResponsePage', () => {
     beforeEach(() => {
         isError = false;
-        complete.mockReset();
+        completeFromHandoff.mockReset();
     });
 
     it('announces the move from signing in to failed through a live region', () => {
@@ -38,5 +38,11 @@ describe('OAuthResponsePage', () => {
 
         expect(liveRegion()?.textContent).toContain(i18n.t('auth.social.failedTitle'));
         expect(liveRegion()?.textContent).toContain(i18n.t('auth.social.failed'));
+    });
+
+    it('hands the code to the start-gated exchange when it lands inside the shell', () => {
+        render(page());
+
+        expect(completeFromHandoff).toHaveBeenCalledWith({ provider: 'google', code: 'abc' });
     });
 });

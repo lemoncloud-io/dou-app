@@ -1,6 +1,7 @@
 import {
     CHAT_ATTACHMENT_MAX_BYTES,
     chatAttachmentFormat,
+    isChatAttachmentNameTooLong,
     isPendingUploadSlot,
     uploadSlotKind,
     type DomainChat,
@@ -169,7 +170,7 @@ export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>
     `${file.name}:${file.size}:${file.lastModified}`;
 
 /** Why a file in a drop or pick was refused. */
-export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported' | 'too-large';
+export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported' | 'too-large' | 'name-too-long';
 
 /** How many files each reason refused; a reason that refused nothing is absent. */
 export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
@@ -187,7 +188,8 @@ export interface AttachmentValidation<T> {
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
  * A format the server does not take is refused outright, and so is a file over its
- * kind's size limit (the server would refuse it only after the whole transfer). A file
+ * kind's size limit (the server would refuse it only after the whole transfer), and so is a
+ * name over the server's byte limit, measured as it will be sent. A file
  * already in the tray (or twice in this batch) is a duplicate, and whatever would push
  * the tray past `MAX_ATTACHMENTS` is over the limit. Accepted files keep their incoming order up to the limit, so a
  * drop of twelve keeps the first ten.
@@ -210,6 +212,10 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
         }
         if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) {
             reject('too-large');
+            continue;
+        }
+        if (isChatAttachmentNameTooLong(format.name)) {
+            reject('name-too-long');
             continue;
         }
         const key = attachmentKey(file);

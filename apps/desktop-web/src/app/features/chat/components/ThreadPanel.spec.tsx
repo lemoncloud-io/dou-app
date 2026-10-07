@@ -96,7 +96,7 @@ describe('ThreadPanel', () => {
     it('shows the reactions on a threaded message', () => {
         // The server keeps no reaction state: the tallies are folded out of the loaded feed. The
         // panel renders the same messages as the feed, so a message with reactions has to carry
-        // them here too (.claude/20260804/DEBUG-15-17-00.md).
+        // them here too.
         messages = THREAD_WITH_REACTION;
 
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });

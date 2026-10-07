@@ -432,12 +432,16 @@ export const MessageRow = memo(
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
-                            // The toolbar has something to offer: Reply, the text's own actions,
-                            // or my Edit and Delete. The last counts on its own because a thread
-                            // passes no Reply, and a file or photo sent there with no text would
-                            // otherwise have no Delete anywhere.
-                            const hasActions =
-                                (!!onOpenThread && isSettled) || !!content || canModifyMessage(message, group.isMine);
+                            // What the toolbar draws, decided once so the bar and the question
+                            // "is there anything to draw" cannot drift apart. They did: the bar
+                            // had reactions on every settled row while the question only counted
+                            // Reply, text and my own Edit/Delete, so somebody else's file or
+                            // photo sent on its own into a thread (no Reply there, no text) got
+                            // no bar and no way to be reacted to.
+                            const showReactions = isSettled;
+                            const showReply = !!onOpenThread && isSettled;
+                            const showMore = !!content || canModifyMessage(message, group.isMine);
+                            const hasActions = showReactions || showReply || showMore;
                             const isEditing = editingKey === key;
                             const wasEdited = isEdited(message);
                             // One receipt per author block, on its last message — the same
@@ -706,7 +710,7 @@ export const MessageRow = memo(
                                                 QUICK_REACTIONS. A row that reorders itself has to
                                                 be read before it can be used, which is the cost
                                                 these buttons exist to remove. */}
-                                            {isSettled &&
+                                            {showReactions &&
                                                 QUICK_REACTIONS.map(emoji => (
                                                     <ToolbarButton
                                                         key={emoji}
@@ -730,7 +734,7 @@ export const MessageRow = memo(
                                                         <span aria-hidden>{emoji}</span>
                                                     </ToolbarButton>
                                                 ))}
-                                            {isSettled && (
+                                            {showReactions && (
                                                 <Popover
                                                     open={pickerKey === key}
                                                     onOpenChange={next => setPickerKey(next ? key : null)}
@@ -786,7 +790,7 @@ export const MessageRow = memo(
                                                     </PopoverContent>
                                                 </Popover>
                                             )}
-                                            {onOpenThread && isSettled && (
+                                            {onOpenThread && showReply && (
                                                 <ToolbarButton
                                                     label={t('chat.thread.replyAction')}
                                                     onClick={() => onOpenThread(threadRootId(message))}
@@ -801,7 +805,7 @@ export const MessageRow = memo(
                                                 mouse-width from Edit. The three frequent actions
                                                 stay out here; the rest are named in a list, where
                                                 a label is cheaper to read than an icon. */}
-                                            {(content || canModifyMessage(message, group.isMine)) && (
+                                            {showMore && (
                                                 <DropdownMenu
                                                     open={menuKey === key}
                                                     onOpenChange={next => setMenuKey(next ? key : null)}

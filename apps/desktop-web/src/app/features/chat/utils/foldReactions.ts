@@ -1,5 +1,7 @@
 import type { DomainChat } from '@chatic/data';
 
+import { isViewerId, type MessageViewer } from './buildMessageRows';
+
 /** One emoji on one message, and who put it there. */
 export interface ReactionTally {
     /** The emoji as the picker produced it — never the normalised fold key. */
@@ -12,7 +14,7 @@ export interface ReactionTally {
     key: string;
     /** Reactors, in the order they first reacted. */
     userIds: string[];
-    /** Whether the signed-in user is among them. */
+    /** Whether the signed-in user is among them, under their account id or their cloud id. */
     mine: boolean;
 }
 
@@ -34,22 +36,33 @@ interface ReactionEvent {
     key: string;
     emoji: string;
     userId: string;
+    /** Who acted, one value per person — all of the viewer's ids collapse into `VIEWER_ACTOR`. */
+    actor: string;
+    mine: boolean;
     on: boolean;
     order: number;
 }
 
-const asEvent = (chat: DomainChat, index: number): ReactionEvent | null => {
+// My optimistic events carry my account id and the persisted ones my per-channel cloud id.
+// Keyed apart they would count me twice, and an optimistic `off` could not cancel a
+// persisted `on` until the server echoed it.
+const VIEWER_ACTOR = '\u0000viewer';
+
+const asEvent = (chat: DomainChat, index: number, viewer: MessageViewer): ReactionEvent | null => {
     const reaction = chat.reaction$;
     const targetId = reaction?.chatId;
     const emoji = reaction?.emoji;
     // The actor is the event's own author — the reaction carries no separate field.
     const userId = chat.ownerId;
     if (!targetId || !emoji || !userId) return null;
+    const mine = isViewerId(userId, viewer);
     return {
         targetId,
         key: reactionKey(emoji),
         emoji,
         userId,
+        actor: mine ? VIEWER_ACTOR : userId,
+        mine,
         on: reaction?.action !== 'off',
         // chatNo orders events server-side; an event still in flight has none yet, so
         // fall back to arrival order, which puts it last — where an optimistic write belongs.
@@ -71,13 +84,13 @@ const asEvent = (chat: DomainChat, index: number): ReactionEvent | null => {
  * Takes the *unfiltered* message list. `isFeedVisible` removes exactly these events
  * from what gets rendered, so folding its output would silently yield nothing.
  */
-export const foldReactions = (messages: DomainChat[], myUid: string | null): Map<string, ReactionTally[]> => {
+export const foldReactions = (messages: DomainChat[], viewer: MessageViewer): Map<string, ReactionTally[]> => {
     const latest = new Map<string, ReactionEvent>();
     messages.forEach((chat, index) => {
         if (chat.subType !== 'reaction') return;
-        const event = asEvent(chat, index);
+        const event = asEvent(chat, index, viewer);
         if (!event) return;
-        const tripleKey = `${event.targetId}\u0000${event.userId}\u0000${event.key}`;
+        const tripleKey = `${event.targetId}\u0000${event.actor}\u0000${event.key}`;
         const seen = latest.get(tripleKey);
         if (!seen || event.order > seen.order) latest.set(tripleKey, event);
     });
@@ -92,14 +105,14 @@ export const foldReactions = (messages: DomainChat[], myUid: string | null): Map
         }
         const existing = tallies.find(tally => tally.key === event.key);
         if (existing) {
-            if (!existing.userIds.includes(event.userId)) existing.userIds.push(event.userId);
-            existing.mine ||= event.userId === myUid;
+            existing.userIds.push(event.userId);
+            existing.mine ||= event.mine;
         } else {
             tallies.push({
                 emoji: event.emoji,
                 key: event.key,
                 userIds: [event.userId],
-                mine: event.userId === myUid,
+                mine: event.mine,
             });
         }
     }

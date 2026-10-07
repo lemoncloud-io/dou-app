@@ -5,9 +5,16 @@
  * Security: any user can make any message containing any URL, and this code
  * fetches it automatically — so it must not become an internal-network probe
  * (SSRF). Guards: http(s) only, private/loopback/link-local hosts rejected
- * (checked again after redirects), 3s timeout, 256KB read cap, and only an
+ * before every request including each redirect hop (followed by hand, capped
+ * at five), 3s timeout across the whole chain, 256KB read cap, and only an
  * https image URL is forwarded (never image bytes).
+ *
+ * Not covered: a public hostname whose DNS answer is a private address
+ * (nip.io-style names, DNS rebinding) — the check sees the name, not the
+ * resolved address.
  */
+
+import { BlockList, isIP } from 'node:net';
 
 export interface UrlMetadataResult {
     success: boolean;
@@ -20,26 +27,49 @@ export interface UrlMetadataResult {
 
 const UNFURL_TIMEOUT_MS = 3000;
 const UNFURL_MAX_BYTES = 256 * 1024;
+const UNFURL_MAX_REDIRECTS = 5;
 
-const isPrivateHost = (hostname: string): boolean => {
-    const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-    if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return true;
+const isPrivateIpv4 = (a: number, b: number): boolean =>
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168);
+
+// IPv6 ranges that are never a public host: unique-local fc00::/7, link-local fe80::/10, and
+// ::/96 — the unspecified address, loopback and the deprecated IPv4-compatible block.
+const PRIVATE_IPV6 = new BlockList();
+PRIVATE_IPV6.addSubnet('fc00::', 7, 'ipv6');
+PRIVATE_IPV6.addSubnet('fe80::', 10, 'ipv6');
+PRIVATE_IPV6.addSubnet('::', 96, 'ipv6');
+
+// `new URL` serialises an IPv4-mapped address as `::ffff:<hi>:<lo>` hextets, whatever spelling came in.
+const IPV4_MAPPED = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
+
+// Names that resolve to the local machine or an internal network by convention.
+const PRIVATE_SUFFIXES = ['.localhost', '.local', '.internal'];
+
+export const isPrivateHost = (hostname: string): boolean => {
+    // Trailing dots are the same name (`localhost.` resolves to loopback).
+    const host = hostname
+        .toLowerCase()
+        .replace(/^\[|\]$/g, '')
+        .replace(/\.+$/, '');
+    if (PRIVATE_SUFFIXES.some(suffix => host.endsWith(suffix)) || host === 'localhost') return true;
     const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-    if (ipv4) {
-        const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
-        if (a === 0 || a === 10 || a === 127) return true;
-        if (a === 169 && b === 254) return true;
-        if (a === 172 && b >= 16 && b <= 31) return true;
-        if (a === 192 && b === 168) return true;
-        return false;
+    if (ipv4) return isPrivateIpv4(Number(ipv4[1]), Number(ipv4[2]));
+    if (isIP(host) === 6) {
+        // The address is an IPv4 one in disguise: apply the IPv4 table to the embedded address.
+        const mapped = host.match(IPV4_MAPPED);
+        if (mapped) {
+            const high = parseInt(mapped[1], 16);
+            return isPrivateIpv4(high >> 8, high & 0xff);
+        }
+        return PRIVATE_IPV6.check(host, 'ipv6');
     }
-    if (host.includes(':')) {
-        // IPv6 literal: loopback, unique-local (fc00::/7), link-local (fe80::/10).
-        return (
-            host === '::1' || host === '::' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe8')
-        );
-    }
-    return false;
+    // A single-label name (`http://wiki/`) resolves through the search domain to an intranet host.
+    return !host.includes('.');
 };
 
 const decodeEntities = (value: string): string =>
@@ -79,6 +109,37 @@ const readBody = async (response: Response): Promise<string> => {
     return html;
 };
 
+const isFetchable = (url: URL): boolean =>
+    (url.protocol === 'https:' || url.protocol === 'http:') && !isPrivateHost(url.hostname);
+
+/**
+ * GET `start`, following redirects by hand so each hop is checked before it is requested.
+ * `redirect: 'follow'` would contact an internal host and only then let us look at where it
+ * landed. Returns null when a hop is not fetchable, has no usable Location, or the chain is
+ * longer than the cap.
+ */
+const fetchChecked = async (start: URL, signal: AbortSignal): Promise<Response | null> => {
+    let current = start;
+    for (let hop = 0; hop <= UNFURL_MAX_REDIRECTS; hop++) {
+        if (!isFetchable(current)) return null;
+        const response = await fetch(current.toString(), {
+            signal,
+            redirect: 'manual',
+            headers: { accept: 'text/html,application/xhtml+xml' },
+        });
+        if (response.status < 300 || response.status >= 400) return response;
+        void response.body?.cancel().catch(() => undefined);
+        const location = response.headers.get('location');
+        if (!location) return null;
+        try {
+            current = new URL(location, current);
+        } catch {
+            return null;
+        }
+    }
+    return null;
+};
+
 export const fetchUrlMetadata = async (rawUrl: string): Promise<UrlMetadataResult> => {
     const fail: UrlMetadataResult = { success: false, url: rawUrl };
     let target: URL;
@@ -87,20 +148,12 @@ export const fetchUrlMetadata = async (rawUrl: string): Promise<UrlMetadataResul
     } catch {
         return fail;
     }
-    if (target.protocol !== 'https:' && target.protocol !== 'http:') return fail;
-    if (isPrivateHost(target.hostname)) return fail;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), UNFURL_TIMEOUT_MS);
     try {
-        const response = await fetch(target.toString(), {
-            signal: controller.signal,
-            redirect: 'follow',
-            headers: { accept: 'text/html,application/xhtml+xml' },
-        });
-        // A redirect chain may land on an internal host — re-check the final URL.
-        const landed = new URL(response.url || target.toString());
-        if (isPrivateHost(landed.hostname)) return fail;
+        const response = await fetchChecked(target, controller.signal);
+        if (!response) return fail;
         const contentType = response.headers.get('content-type') ?? '';
         if (!response.ok || !contentType.includes('html')) return fail;
 

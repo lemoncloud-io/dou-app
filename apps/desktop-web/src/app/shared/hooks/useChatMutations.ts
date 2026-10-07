@@ -32,7 +32,8 @@ export const useChatMutations = () => {
     // content fresh so it re-enters the normal pending → sent flow. Both go to the
     // message's own cloud — its row is in that partition, whichever cloud is on screen.
     const retryMessage = useCallback(async (message: DomainChat): Promise<DomainChat> => {
-        if (!message.channelId || !message.content) {
+        const { content } = message;
+        if (!message.channelId || !content) {
             throw new Error('cannot retry a message without channel/content');
         }
         const cid = message.cid || RELAY_CLOUD_ID;
@@ -50,7 +51,7 @@ export const useChatMutations = () => {
         // Same payload the outbox builds — the manual button and the automatic resend must
         // put the identical message on the wire. They had drifted: this path used to drop
         // `contentType`, so retrying a non-text message re-sent it as plain text.
-        return runtime.data.sendChatInCloud(cid, toSendPayload(message));
+        return runtime.data.sendChatInCloud(cid, toSendPayload({ ...message, content }));
     }, []);
 
     // Remove an unsent (failed / stuck-pending) message. These rows exist only in

@@ -64,6 +64,23 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
         createdAt: 1_700_000_000_000 + chatNo,
     }) as DomainChat;
 
+// A reply that is only a file: no text, so nothing in the row but the attachment.
+const fileOnlyReply = (chatNo: number, ownerId: string): DomainChat =>
+    ({
+        ...message(chatNo, ownerId, ''),
+        uploadIds: ['U1'],
+        upload$$: [
+            {
+                id: 'U1',
+                status: 'stored',
+                stereo: 'file',
+                name: 'report.docx',
+                contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                contentSize: 26_300,
+            },
+        ],
+    }) as unknown as DomainChat;
+
 /**
  * A smoke render of the two derivations that live inside the component rather than in
  * a pure util — the thread-footer view and the reactor-name resolver.
@@ -71,7 +88,7 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
  * Both were shipped calling a helper the file never imported, which threw a
  * ReferenceError the moment either ran. No gate caught it: vite strips types without
  * resolving free identifiers, `typescript-eslint` disables `no-undef` on TS files, and
- * nothing rendered this component. See `.claude/20260804/DEBUG-10-36-17.md`.
+ * nothing rendered this component.
  *
  * So the assertions are deliberately shallow. The point is that these two paths
  * execute at all, which is exactly what was missing.
@@ -159,8 +176,7 @@ describe('MessageList', () => {
     });
 
     // `blocks$` (server field) outranks the `content` JSON fallback above. Fixture is the
-    // server's own sample payload
-    // (resolveChatBlocks.spec.ts uses the same two files).
+    // shared webhook sample (resolveChatBlocks.spec.ts uses the same two constants).
     it('draws blocks$ ahead of content — header, sections and context all reach the DOM', () => {
         const withBlocksField = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
@@ -310,27 +326,51 @@ describe('MessageList', () => {
     // A thread passes no `onOpenThread` (no thread inside a thread), and a file sent on its own has
     // no text. The row still has to offer Delete to the person who sent it.
     it('offers Delete on my file-only reply in a thread', () => {
-        const fileOnly = {
-            ...message(1, 'me', ''),
-            uploadIds: ['U1'],
-            upload$$: [
-                {
-                    id: 'U1',
-                    status: 'stored',
-                    stereo: 'file',
-                    name: 'report.docx',
-                    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    contentSize: 26_300,
-                },
-            ],
-        } as unknown as DomainChat;
-
-        render(<MessageList messages={[fileOnly]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
-            wrapper,
-        });
+        render(
+            <MessageList messages={[fileOnlyReply(1, 'me')]} isLoading={false} viewer={VIEWER} names={new Map()} />,
+            { wrapper }
+        );
         clickRowMenuItem('Delete message');
 
         expect(screen.getByRole('alertdialog')).toBeDefined();
+    });
+
+    // Reacting is only reachable from the toolbar, so a file-only reply from somebody else, which
+    // has no text and nothing of mine to edit or delete, still needs the toolbar for its reactions.
+    // It offers what somebody else's text reply offers and nothing more: no menu to put Copy,
+    // Edit or Delete in.
+    it("offers reactions, and no menu, on somebody else's file-only reply in a thread", () => {
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'ada')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByLabelText('Add reaction')).toBeDefined();
+        expect(screen.queryByLabelText('More actions')).toBeNull();
+    });
+
+    // The toolbar is drawn from what the row can do, so a row the server has not accepted has
+    // nothing to draw: every reaction needs an id to address. An empty pill would hover over it.
+    it.each([
+        ['pending', { isPending: true }],
+        ['failed', { isFailed: true }],
+    ])("draws no toolbar on somebody else's %s file-only reply", (_state, flags) => {
+        const { container } = render(
+            <MessageList
+                messages={[{ ...fileOnlyReply(1, 'ada'), ...flags } as DomainChat]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(container.querySelector('[data-row-actions]')).toBeNull();
     });
 
     it('hangs the first toolbar under the author line in a thread, not over it', () => {

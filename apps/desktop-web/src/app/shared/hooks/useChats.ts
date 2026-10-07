@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { logger } from '@chatic/bridges';
 import type { DomainChat } from '@chatic/data';
 
 import { runtime } from '@chatic/app-runtime';
@@ -133,7 +134,10 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
     // Freshness bridge (see the hook doc): when the channel record's newest chatNo
     // runs ahead of what the cache holds, pull the newest feed page. Guarded per
     // (channel, chatNo) so an already-fetched target (e.g. a deleted or
-    // thread-only message the feed can't surface) isn't re-fetched every render.
+    // thread-only message the feed can't surface) isn't re-fetched every render. A fetch that
+    // FAILED gives its guard back, so the next run of this effect (a cache emission, a newer
+    // latestChatNo, a reopened room) tries the same target again; nothing here re-runs it by
+    // itself, so a persistent failure costs one request per such chance, not a loop.
     const freshnessRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
     useEffect(() => {
         if (!channelId || !latestChatNo) return;
@@ -143,8 +147,18 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
         }
         if (latestChatNo <= cachedNewest) return;
         if (freshnessRef.current.id === channelId && freshnessRef.current.no >= latestChatNo) return;
-        freshnessRef.current = { id: channelId, no: latestChatNo };
-        void chatRepository.refreshList({ channelId, limit: PAGE_SIZE }).catch(() => undefined);
+        const target = { id: channelId, no: latestChatNo };
+        freshnessRef.current = target;
+        chatRepository.refreshList({ channelId, limit: PAGE_SIZE }).catch((error: unknown) => {
+            // Only the guard this fetch set: a newer target has already replaced it, and reopening
+            // that one would refetch a page that may have landed.
+            if (freshnessRef.current === target) freshnessRef.current = { id: null, no: 0 };
+            logger.warn('CHAT', '[useChats] freshness refresh failed; will retry on the next chance', {
+                channelId,
+                latestChatNo,
+                error,
+            });
+        });
     }, [chatRepository, channelId, latestChatNo, chats]);
 
     const messages = useMemo(() => sortByChatNo(chats), [chats]);

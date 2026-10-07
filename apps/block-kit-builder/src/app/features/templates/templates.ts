@@ -103,9 +103,8 @@ const DEPLOYMENT_BLOCKS = [
  * Starting points for the three event kinds DoU sends today.
  *
  * These are proposals, not transcripts. `@chatic/block-kit`'s
- * `WEBHOOK_BLOCKS_ERROR_REPORT` is what the server sends today and stays pinned
- * to it; a builder that could only reproduce the current shape would have nothing
- * to offer the person opening it.
+ * `WEBHOOK_BLOCKS_ERROR_REPORT` models what the server sends today; a builder that could only
+ * reproduce the current shape would have nothing to offer the person opening it.
  *
  * Every one is read through `toBlocks`, the same door a message from the server
  * comes through, so a template cannot contain a block the preview would have to

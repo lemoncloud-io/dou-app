@@ -34,7 +34,7 @@ describe('messagePlainText', () => {
     // notification, search, mention capture) stay untouched for the same reason.
     it('reads a webhook summary as plain text — content is already a summary, not a payload', () => {
         expect(messagePlainText(WEBHOOK_SEND_ERROR_REPORT.content)).toBe(
-            "error-report: chatic-sockets-api/lemon-production#0.26.710\nTypeError: Cannot read properties of undefined (reading 'channelId')"
+            "error-report: example-api/production#1.0.0\nTypeError: Cannot read properties of undefined (reading 'channelId')"
         );
     });
 });

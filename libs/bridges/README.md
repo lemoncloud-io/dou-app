@@ -462,13 +462,11 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 80 cases
   call `teardown()` leaves the forwarder subscribed to the hub for the next one.
 - Downstream: 260 files across `apps/web`, `libs/app-runtime`, `apps/desktop-web`, `apps/mobile`,
   `libs/db`, `libs/data`, `apps/admin-v2`, `apps/desktop`, `libs/shared` and `libs/theme` import this
-  barrel. `.github/workflows/verify.yml` type checks all of those except `@chatic/mobile` and
-  `desktop-web`, and excludes `web` from the test run — those are the ones to check by hand.
-  `desktop-web` carries a long-standing 21-error baseline, so compare against it rather than
-  expecting zero.
+  barrel. `.github/workflows/verify.yml` type checks all of those except `@chatic/mobile`,
+  and excludes `web` from the test run — those are the ones to check by hand.
 
 ```bash
-npx nx run-many -t typecheck --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 ```
 
 ## Versioning

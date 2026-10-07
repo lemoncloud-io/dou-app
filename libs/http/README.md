@@ -322,8 +322,8 @@ npx jest --config libs/http/jest.config.js   # 14 suites, 95 cases
 - Downstream: a changed barrel identifier reaches `@chatic/data` and `@chatic/app-runtime` directly
   (14 import sites), and through them `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
   `apps/testbed`, `libs/db` and `@chatic/mobile`. `.github/workflows/verify.yml` type checks all of
-  those except `apps/desktop-web` and `@chatic/mobile` — those two are the ones to run by hand.
+  those except `@chatic/mobile` — that one is for you to run by hand.
 
 ```bash
-npx nx run-many -t typecheck --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 ```

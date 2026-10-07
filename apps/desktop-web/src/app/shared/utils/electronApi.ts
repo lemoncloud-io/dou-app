@@ -22,9 +22,12 @@ export interface CustomUiStatus {
     error?: string;
 }
 
-/** Desktop-only custom-web-bundle PoC controls. */
+/**
+ * Desktop-only custom-web-bundle PoC controls. `apply` is exposed by the dev channel's preload
+ * only — a production shell leaves it out, so callers check for it before offering the action.
+ */
 export interface CustomUiApi {
-    apply: (zipUrl: string) => Promise<CustomUiStatus>;
+    apply?: (zipUrl: string) => Promise<CustomUiStatus>;
     disable: () => Promise<CustomUiStatus>;
     status: () => Promise<CustomUiStatus>;
 }

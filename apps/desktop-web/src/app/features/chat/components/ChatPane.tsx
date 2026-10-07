@@ -143,7 +143,7 @@ export const ChatPane = ({
     const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
-    const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
+    const reactions = useMemo(() => foldReactions(messages, viewer), [messages, viewer]);
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's

@@ -135,6 +135,9 @@ doc for behaviour. Whatever genuinely cannot be published (a customer, a commerc
 internal path, a negotiation with another team) does not belong in the repo at all, and leaving it
 out is what keeps the two from duplicating each other.
 
+`yarn check:internal-paths` gates the one reference shape that kept slipping in — a session-notes path
+(`.claude/<date>/…`, `DEBUG-HH-MM-SS`) in a comment or doc under `apps`, `libs`, `scripts` or `docs`.
+
 ## Branch names
 
 A branch name carries the domain noun of the work: `docs/app-docs-tree`,

@@ -75,6 +75,21 @@ export const CHAT_ATTACHMENT_MAX_BYTES: Readonly<Record<ChatUploadKind, number>>
     file: 50 * 1024 * 1024,
 };
 
+/**
+ * The longest file name the server takes, in UTF-8 bytes. It must equal the server's upload limit: the
+ * server refuses a longer name with `400 INVALID - .name is too long` after the file is declared, and a
+ * retry can only fail the same way.
+ */
+export const CHAT_ATTACHMENT_MAX_NAME_BYTES = 255;
+
+/**
+ * Whether the server would refuse this name as too long. Pass the name that is sent
+ * (`ChatAttachmentFormat.name`), extension included. The server measures the name composed (NFC), and
+ * macOS hands Hangul over decomposed at three times the bytes, so it is measured composed here too.
+ */
+export const isChatAttachmentNameTooLong = (name: string): boolean =>
+    new TextEncoder().encode(name.normalize('NFC')).length > CHAT_ATTACHMENT_MAX_NAME_BYTES;
+
 /** What a picked file is sent as. */
 export interface ChatAttachmentFormat {
     /** The content type to declare: the server's name for the format, whatever the file said. */

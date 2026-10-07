@@ -4,12 +4,13 @@ import { renderHook } from '@testing-library/react';
 
 // Invited clouds are not in the relay catalog and their durable record is the local `invitecloud`
 // cache row — the joined-clouds store is a per-profile localStorage twin. Reading only that twin
-// hid every invited cloud joined on another profile, including the one the session was inside
-// (.claude/20260804/DEBUG-14-50-00.md).
+// hid every invited cloud joined on another profile, including the one the session was inside.
 let catalogClouds: Array<Record<string, unknown>> = [];
 let cachedClouds: Array<Record<string, unknown>> = [];
 let joinedClouds: Record<string, { id: string; name?: string }> = {};
 let activeCloudId = '';
+let catalogFailed = false;
+const refetchClouds = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -33,7 +34,12 @@ vi.mock('@chatic/app-runtime', () => ({
 // down so each app owns the read's cache policy. Mocking it on `@chatic/app-runtime`
 // left the real one running against a mock that has no `useSessionAuth`.
 vi.mock('./useCloudCatalog', () => ({
-    useCloudSessionCatalog: () => ({ clouds: catalogClouds, isFetchingClouds: false }),
+    useCloudSessionCatalog: () => ({
+        clouds: catalogClouds,
+        isFetchingClouds: false,
+        isCloudsError: catalogFailed,
+        refetchClouds,
+    }),
 }));
 
 vi.mock('../stores', () => ({
@@ -50,6 +56,17 @@ describe('useClouds', () => {
         cachedClouds = [];
         joinedClouds = {};
         activeCloudId = '';
+        catalogFailed = false;
+    });
+
+    // `isCloudsError` had no reader: a failed catalog read dropped every owned cloud from the rail unannounced.
+    it('reports a failed catalog read and hands over the retry', () => {
+        catalogFailed = true;
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.isCloudsError).toBe(true);
+        expect(result.current.refetchClouds).toBe(refetchClouds);
     });
 
     it('shows an invited cloud held only in the local cache', () => {
@@ -59,6 +76,45 @@ describe('useClouds', () => {
 
         expect(result.current.clouds.map(c => c.id)).toEqual(['default', '1000001']);
         expect(result.current.clouds[1]).toMatchObject({ name: '넹미', kind: 'invited' });
+    });
+
+    it('names an owned tile from the cloud cache when it holds a newer name than the catalog', () => {
+        catalogClouds = [{ id: '1000004', name: 'Old name', status: 'active' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', name: 'New name', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds[1]).toMatchObject({ id: '1000004', name: 'New name', kind: 'owned' });
+    });
+
+    it('keeps the catalog name of an owned tile when the cache row has none', () => {
+        catalogClouds = [{ id: '1000004', name: 'Catalog name', status: 'active' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds[1]).toMatchObject({ name: 'Catalog name', kind: 'owned' });
+    });
+
+    it('falls back to the catalog name when the cached name is an empty string', () => {
+        catalogClouds = [{ id: '1000004', name: 'Catalog name', status: 'active' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', name: '', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds[1]).toMatchObject({ name: 'Catalog name', kind: 'owned' });
+    });
+
+    it('does not rename another cloud with the cached name of a different one', () => {
+        catalogClouds = [
+            { id: 'a', name: 'A', status: 'active' },
+            { id: 'b', name: 'B', status: 'active' },
+        ];
+        cachedClouds = [{ id: 'b', cid: 'b', name: 'B renamed', cloudType: 'owner' }];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.clouds.map(c => c.name)).toEqual([expect.any(String), 'A', 'B renamed']);
     });
 
     it('keeps the owned entry when the same cloud is also cached as invited', () => {

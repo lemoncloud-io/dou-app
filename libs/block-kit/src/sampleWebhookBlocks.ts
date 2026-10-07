@@ -1,35 +1,31 @@
 /**
- * The reference webhook message, byte-for-byte -- copied from the server's own
- * sample payloads, not hand-typed.
+ * A reference webhook message, modeled on what the server stores for one: a webhook post that
+ * carries a plain-text `content` summary and a derived `blocks$` list. The values are made up
+ * (service name, ids, URL), the shape is the point.
  *
- * `WEBHOOK_SEND_ERROR_REPORT` is the request body a webhook sender posts
- * (`webhook-send-error-report.json`); `WEBHOOK_BLOCKS_ERROR_REPORT` is the
- * `blocks$` the server derives from its `meta` and stores on the chat
- * (`webhook-blocks-error-report.json`). Together they are the ChatView SPEC
- * Sec.6-9 describes: `stereo: 'webhook'`, `content` from the send file,
- * `blocks$` from the blocks file.
+ * `WEBHOOK_SEND_ERROR_REPORT` is the request body a webhook sender posts; `WEBHOOK_BLOCKS_ERROR_REPORT`
+ * is the `blocks$` the server derives from its `meta` and stores on the chat. Together they make a
+ * ChatView with `stereo: 'webhook'`, `content` from the send body and `blocks$` from the blocks.
  *
- * It lives in the lib because two things need to be the same bytes as the
- * server's: desktop-web's render specs, and the builder's Error template. Kept
- * as two copies they would drift together and agree about being wrong, which is
- * exactly what `sampleWebhookBlocks.spec.ts` exists to catch -- and it can only
- * catch it while there is one copy to check.
+ * It lives in the lib so that desktop-web's render specs and this lib's own specs read one copy
+ * rather than each keeping a sample of their own. Nothing here is checked against the server, so a
+ * change to the server's shape shows up only when someone updates this sample.
  */
 
 export const WEBHOOK_SEND_ERROR_REPORT = {
     content:
-        "error-report: `chatic-sockets-api/lemon-production#0.26.710`\nTypeError: Cannot read properties of undefined (reading 'channelId')",
+        "error-report: `example-api/production#1.0.0`\nTypeError: Cannot read properties of undefined (reading 'channelId')",
     stereo: 'webhook',
     token: '<WEBHOOK_TOKEN>',
     meta: {
         pretext: "TypeError: Cannot read properties of undefined (reading 'channelId')",
-        title: 'error-report: `chatic-sockets-api/lemon-production#0.26.710`',
-        text: '{"service":"chatic-sockets-api/lemon-production#0.26.710","message":"TypeError: Cannot read properties of undefined (reading \'channelId\')","stack":"TypeError: Cannot read properties of undefined (reading \'channelId\')\\n    at WSSHandler.onCast (/var/task/dist/lib/wss/wss-handler.js:212:41)","context":{"requestId":"c6a2d4f0-3b1e-4b8a-9f57-2d1e8a0f9c11","connectionId":"K3xPqdQ1CjMCEbg="}}',
+        title: 'error-report: `example-api/production#1.0.0`',
+        text: '{"service":"example-api/production#1.0.0","message":"TypeError: Cannot read properties of undefined (reading \'channelId\')","stack":"TypeError: Cannot read properties of undefined (reading \'channelId\')\\n    at Handler.onMessage (/var/task/dist/handler.js:12:34)","context":{"requestId":"11111111-2222-4333-8444-555555555555","connectionId":"AbCdEfGhIjKlMnO="}}',
         color: '#FFB71B',
         username: 'hello-alarm',
         ts: 1788912000,
-        footer: 'chatic-sockets-api/lemon-production#0.26.710',
-        sourceUrl: 'https://eureka-hello-www.s3.ap-northeast-2.amazonaws.com/slack/2026-09-07/c6a2d4f0.json',
+        footer: 'example-api/production#1.0.0',
+        sourceUrl: 'https://example.com/reports/2026-09-07/report.json',
     },
 } as const;
 
@@ -38,7 +34,7 @@ export const WEBHOOK_BLOCKS_ERROR_REPORT = [
         type: 'header',
         text: {
             type: 'plain_text',
-            text: '🟠 error-report: chatic-sockets-api/lemon-production#0.26.710',
+            text: '🟠 error-report: example-api/production#1.0.0',
         },
     },
     {
@@ -52,7 +48,7 @@ export const WEBHOOK_BLOCKS_ERROR_REPORT = [
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: '{"service":"chatic-sockets-api/lemon-production#0.26.710","message":"TypeError: Cannot read properties of undefined (reading \'channelId\')","stack":"TypeError: Cannot read properties of undefined (reading \'channelId\')\\n    at WSSHandler.onCast (/var/task/dist/lib/wss/wss-handler.js:212:41)","context":{"requestId":"c6a2d4f0-3b1e-4b8a-9f57-2d1e8a0f9c11","connectionId":"K3xPqdQ1CjMCEbg="}}',
+            text: '{"service":"example-api/production#1.0.0","message":"TypeError: Cannot read properties of undefined (reading \'channelId\')","stack":"TypeError: Cannot read properties of undefined (reading \'channelId\')\\n    at Handler.onMessage (/var/task/dist/handler.js:12:34)","context":{"requestId":"11111111-2222-4333-8444-555555555555","connectionId":"AbCdEfGhIjKlMnO="}}',
         },
     },
     {
@@ -64,11 +60,11 @@ export const WEBHOOK_BLOCKS_ERROR_REPORT = [
             },
             {
                 type: 'mrkdwn',
-                text: 'chatic-sockets-api/lemon-production#0.26.710',
+                text: 'example-api/production#1.0.0',
             },
             {
                 type: 'mrkdwn',
-                text: '<https://eureka-hello-www.s3.ap-northeast-2.amazonaws.com/slack/2026-09-07/c6a2d4f0.json|원문 보기>',
+                text: '<https://example.com/reports/2026-09-07/report.json|원문 보기>',
             },
         ],
     },

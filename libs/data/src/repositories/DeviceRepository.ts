@@ -20,7 +20,7 @@ export interface IDeviceRepository extends DisposableRepository {
 
     /**
      * device.update-remote — set the connection-linked device's GLOBAL push mute (remote push
-     * settings owned by chatic-pushes-api) and return the server's authoritative `muted`. `id` is
+     * settings owned by the push service) and return the server's authoritative `muted`. `id` is
      * intentionally omitted so the server targets the device linked to the current connection.
      * Always writes over the RELAY socket — the destination is pinned in the data source, not
      * chosen by callers (see DeviceSocketDataSource.updateRemoteDevice).

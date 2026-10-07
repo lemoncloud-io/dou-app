@@ -75,7 +75,7 @@ export const useChannelChatFeeds = (onChat: (feed: ChannelChatFeed) => void): vo
         // Observe only — no fetch per place. `channel.mine` answers for the site the socket session
         // is on and ignores the payload's sid, so a per-place refresh could never load that place;
         // it returned the ACTIVE place's list every time, which then read as "every channel of the
-        // place we asked about is gone" and pruned that place's cache (DEBUG-14-20-13). The
+        // place we asked about is gone" and pruned that place's cache. The
         // cloud-wide cache these observers read is fed by `channel.sync` in useBackgroundSync.
         const channelObservers = places.map(place => {
             return channelRepository.observeList({ sid: place.id }, result => {

@@ -20,6 +20,7 @@ import {
     Tray,
 } from 'electron';
 import { resolveAppLanguage } from './appLanguage';
+import { bringToFront } from './bringToFront';
 import { menuLabels } from './menuLabels';
 import {
     applyCustomUi,
@@ -28,7 +29,7 @@ import {
     restoreCustomUi,
     serveCustomUi,
 } from './customUiBundle';
-import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
+import { CUSTOM_UI_CHANNEL, customUiBoot, customUiRefusal, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
 import { hasEntryPoint } from './customUiState';
 import { createDownloadTargets, savesWithoutAsking } from './downloads';
@@ -191,8 +192,7 @@ let mainHost: AppBridgeHost | null = null;
 const openInWeb = (target: 'settings' | 'shortcuts' | 'switcher' | 'search'): void => {
     const win = trayWindow;
     if (win && !win.isDestroyed()) {
-        win.show();
-        win.focus();
+        bringToFront(win);
     }
     if (mainHost) pushDeeplink(mainHost, `chatic-ui:${target}`);
 };
@@ -229,9 +229,7 @@ const showOsNotification = (
     if (Notification.isSupported()) {
         const notification = new Notification({ title, body });
         notification.on('click', () => {
-            if (win.isMinimized()) win.restore();
-            win.show();
-            win.focus();
+            bringToFront(win);
             if (deeplink) pushDeeplink(host, deeplink);
         });
         notification.show();
@@ -362,6 +360,8 @@ const handleCustomUiApply = async (senderUrl: string | undefined, zipUrl: unknow
 /**
  * Debug-panel controls for the custom-UI PoC. Same origin gate as the AppBridge channel —
  * a bundle served under the custom scheme is trusted too, so it can switch itself off.
+ * `apply` is further limited to the dev channel (customUiRefusal): origin trust alone would
+ * let a script injected into the production web swap the app's UI for a downloaded bundle.
  *
  * Errors come back on the result instead of rejecting, because the panel needs to render
  * them and an IPC rejection reaches the renderer as an opaque, prefixed Error.
@@ -374,6 +374,9 @@ const registerCustomUiIpc = (win: BrowserWindow): void => {
         const senderUrl = event.senderFrame?.url;
         if (!isTrustedUrl(senderUrl)) return customUiStatus('untrusted frame');
         const { action, zipUrl } = asCustomUiRequest(raw);
+
+        const refusal = customUiRefusal(action, IS_DEV_CHANNEL);
+        if (refusal !== null) return customUiStatus(refusal);
 
         if (action === 'status') return customUiStatus();
 
@@ -457,9 +460,9 @@ const bundleFailed = (url?: string): boolean => (url === undefined ? isCustomUiA
  * renderer, so a switch-off button living inside it would be unreachable the moment a bundle
  * misbehaves. The tray belongs to main and survives whatever the bundle does.
  *
- * Apply is dev-channel only, but **Reset appears whenever a bundle is active** — including in
- * a packaged production build, where the debug panel is the way one gets applied. Gating Reset
- * on the channel too would leave exactly the users who can brick themselves with no way out.
+ * Apply is dev-channel only, and so is serving a bundle at all (customUiBoot), so Reset can
+ * only ever show on a dev build. It is keyed on "a bundle is active" rather than on the
+ * channel anyway: whatever is being served must always have a way out.
  */
 const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => {
     const items: MenuItemConstructorOptions[] = [];
@@ -492,7 +495,7 @@ const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => 
 
 const buildTrayMenu = (win: BrowserWindow): Menu =>
     Menu.buildFromTemplate([
-        { label: 'Open DoU', click: () => (win.isVisible() ? win.focus() : win.show()) },
+        { label: 'Open DoU', click: () => bringToFront(win) },
         ...customUiTrayItems(win),
         { type: 'separator' },
         {
@@ -529,7 +532,7 @@ const createTray = (win: BrowserWindow): void => {
     trayWindow = win;
     tray.setToolTip('DoU');
     tray.setContextMenu(buildTrayMenu(win));
-    tray.on('click', () => (win.isVisible() ? win.focus() : win.show()));
+    tray.on('click', () => bringToFront(win));
 };
 
 // Minimal dark splash (matches the app's rail chrome + lime accent) shown until
@@ -1024,9 +1027,7 @@ let powerResumeBound = false;
 
 const handleDeeplink = (url: string): void => {
     if (deeplinkHost && deeplinkWindow) {
-        if (deeplinkWindow.isMinimized()) deeplinkWindow.restore();
-        deeplinkWindow.show();
-        deeplinkWindow.focus();
+        bringToFront(deeplinkWindow);
         pushDeeplink(deeplinkHost, url);
     } else {
         pendingDeeplink = url;
@@ -1051,7 +1052,7 @@ if (!singleInstanceLock) {
     app.on('second-instance', (_event, argv) => {
         const url = extractDeeplink(argv);
         if (url) handleDeeplink(url);
-        else if (deeplinkWindow) deeplinkWindow.show();
+        else if (deeplinkWindow) bringToFront(deeplinkWindow);
     });
 
     // macOS: deeplink arrives via open-url.
@@ -1092,19 +1093,23 @@ if (!singleInstanceLock) {
         // Custom UI, resolved before the first window so its initial load already points at
         // the bundle — switching afterwards would flash the remote web first.
         // MAIN_VITE_CUSTOM_UI_ROOT is a developer override (unpacked directory, unset outside
-        // a local .env) and wins over whatever the tray left persisted.
+        // a local .env) and wins over whatever the tray left persisted. Off the dev channel
+        // neither is served (customUiBoot).
         // Gated like the restore path: an unservable root yields 404s, and a 404 WITH a body
         // is a completed navigation to Chromium, so did-fail-load never fires and the window
         // just renders "Not found" with no recovery. Better to ignore the override and boot.
         const customUiOverride = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
-        if (customUiOverride && hasEntryPoint(customUiOverride)) {
-            serveCustomUi(customUiOverride);
-        } else {
+        const overrideServable = !!customUiOverride && hasEntryPoint(customUiOverride);
+        const customUiBootSource = customUiBoot(IS_DEV_CHANNEL, customUiOverride, overrideServable);
+        if (customUiOverride && !IS_DEV_CHANNEL) {
+            console.warn('[shell] MAIN_VITE_CUSTOM_UI_ROOT is ignored off the dev channel', customUiOverride);
+        } else if (customUiOverride && !overrideServable) {
             // A typo'd override must not also cost the bundle the developer applied — fall
             // through to the record rather than booting onto the remote web.
-            if (customUiOverride) console.warn('[shell] MAIN_VITE_CUSTOM_UI_ROOT has no index.html', customUiOverride);
-            restoreCustomUi();
+            console.warn('[shell] MAIN_VITE_CUSTOM_UI_ROOT has no index.html', customUiOverride);
         }
+        if (customUiBootSource.source === 'override') serveCustomUi(customUiBootSource.root);
+        else if (customUiBootSource.source === 'restore') restoreCustomUi();
         if (isCustomUiActive()) console.info('[shell] custom UI active', getActiveCustomUiRoot());
 
         Menu.setApplicationMenu(buildAppMenu());
@@ -1127,8 +1132,7 @@ if (!singleInstanceLock) {
             }
             // Close-to-tray hides (does not destroy) the window, so it still counts
             // in getAllWindows — a macOS dock-icon click must explicitly reshow it.
-            if (!existing.isVisible()) existing.show();
-            existing.focus();
+            bringToFront(existing);
         });
     });
 

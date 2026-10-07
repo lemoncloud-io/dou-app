@@ -23,7 +23,7 @@ export const OAuthResponsePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [params] = useSearchParams();
-    const { complete, isError } = useSocialLogin();
+    const { completeFromHandoff, isError } = useSocialLogin();
     const ranRef = useRef(false);
     const [deeplink, setDeeplink] = useState<string | null>(null);
 
@@ -38,14 +38,14 @@ export const OAuthResponsePage = () => {
 
         if (isNative()) {
             // Pre-auth: success flips isAuthenticated → router leaves this branch.
-            // In-app (already signed in): complete() swaps the session and reloads.
-            void complete(provider, code);
+            // In-app (already signed in): the exchange swaps the session and reloads.
+            void completeFromHandoff({ provider, code });
             return;
         }
         const url = buildOAuthDeeplink(provider, code);
         setDeeplink(url);
         window.location.replace(url);
-    }, [hasCode, provider, code, complete]);
+    }, [hasCode, provider, code, completeFromHandoff]);
 
     const failed = !hasCode || isError;
 

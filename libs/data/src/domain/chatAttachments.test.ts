@@ -4,6 +4,8 @@ import {
     CHAT_ATTACHMENT_MAX_BYTES,
     chatAttachmentExtension,
     chatAttachmentFormat,
+    CHAT_ATTACHMENT_MAX_NAME_BYTES,
+    isChatAttachmentNameTooLong,
 } from './chatAttachments';
 
 const MiB = 1024 * 1024;
@@ -88,6 +90,31 @@ describe('chatAttachmentFormat', () => {
 describe('CHAT_ATTACHMENT_MAX_BYTES', () => {
     it('caps each kind the way the server does', () => {
         expect(CHAT_ATTACHMENT_MAX_BYTES).toEqual({ image: 20 * MiB, video: 300 * MiB, file: 50 * MiB });
+    });
+});
+
+describe('isChatAttachmentNameTooLong', () => {
+    it("measures the limit in UTF-8 bytes, the server's unit", () => {
+        expect(CHAT_ATTACHMENT_MAX_NAME_BYTES).toBe(255);
+    });
+
+    it('allows exactly the limit and refuses one byte more', () => {
+        expect(isChatAttachmentNameTooLong('a'.repeat(255))).toBe(false);
+        expect(isChatAttachmentNameTooLong('a'.repeat(256))).toBe(true);
+    });
+
+    it('counts Hangul as three bytes and an emoji as four', () => {
+        expect(isChatAttachmentNameTooLong('가'.repeat(85))).toBe(false);
+        expect(isChatAttachmentNameTooLong('가'.repeat(86))).toBe(true);
+        expect(isChatAttachmentNameTooLong('😀'.repeat(63) + 'abc')).toBe(false);
+        expect(isChatAttachmentNameTooLong('😀'.repeat(64))).toBe(true);
+    });
+
+    // macOS hands over Hangul decomposed (three jamo per syllable); the server measures it composed.
+    it('measures a decomposed name composed, as the server does', () => {
+        const name = '가'.repeat(85).normalize('NFD');
+        expect(new TextEncoder().encode(name).length).toBeGreaterThan(CHAT_ATTACHMENT_MAX_NAME_BYTES);
+        expect(isChatAttachmentNameTooLong(name)).toBe(false);
     });
 });
 

@@ -41,7 +41,7 @@ interface NotificationPrefsState {
 export const channelNotifyMode = (
     state: Pick<NotificationPrefsState, 'channelNotify' | 'mutedChannels'>,
     channelId: string,
-    joinNotify?: ChannelNotifyMode
+    joinNotify?: ChannelNotifyMode | ''
 ): ChannelNotifyMode => {
     const local = state.channelNotify[channelId];
     if (local) return local;

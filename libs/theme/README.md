@@ -279,13 +279,11 @@ files are excluded from `tsconfig.lib.json`, so they are not part of `tsc -b`.
   `../bridges/tsconfig.lib.json`; a new cross-lib import needs its own reference and `npx nx sync`.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf dist/out-tsc` and look
   again.
-- **Every consumer of this lib sits outside the CI type-check gate.**
-  `.github/workflows/verify.yml` excludes `@chatic/landing`, `block-kit-builder` and `desktop-web`
-  from its `typecheck` step, and those are exactly the three apps that mount `ThemeProvider`. A
-  changed export signature here goes green in CI and breaks nothing it can see — run the three by
-  hand.
-- `desktop-web` fails its type check either way: its recorded baseline is 21 errors. Diff against that
-  number rather than reading a red run as your own.
+- **Most consumers of this lib sit outside the CI type-check gate.**
+  `.github/workflows/verify.yml` excludes `@chatic/landing` and `block-kit-builder` from its
+  `typecheck` step, and those are two of the three apps that mount `ThemeProvider` (`desktop-web` is
+  in the gate). A changed export signature here goes green in CI and breaks nothing it can see — run
+  the two by hand.
 - The behaviour this lib is most likely to break is not type checked at all: the agreement between
   `defaultTheme`, the stored key and each app's pre-paint script. Change any of the three and load the
   other two apps with an empty `localStorage`.

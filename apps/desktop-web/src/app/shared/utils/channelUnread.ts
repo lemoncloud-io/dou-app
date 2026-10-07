@@ -1,6 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 
 import { isNotifiableChat } from './notifiableChat';
+import { isViewerId } from './viewer';
 
 /**
  * A read boundary and the system-event count at it.
@@ -90,10 +91,15 @@ export const computeChannelUnread = (
     //
     // This shortcut and the `metaNo` netting below answer the same question — "does this chat
     // count?" — through two mechanisms, a client predicate on `stereo` and a server counter.
-    // They agree only while the server's non-countable set is exactly `stereo === 'system'`
-    // (`isCountable` in chatic-socials-api). If that ever widens, they disagree silently.
+    // They agree only while the server's countable rule excludes exactly `stereo === 'system'`.
+    // If that ever widens, they disagree silently.
+    //
+    // "Mine" is the account id or this channel's cloud user id (`$join.userId`): outside the relay
+    // a persisted message is owned by the cloud id, so comparing the account id alone left the
+    // badge on a channel whose latest message I had just sent.
     const last = channel.lastChat$;
-    if (!!myUid && !!last && isNotifiableChat(last) && last.ownerId === myUid) return 0;
+    const viewer = { uid: myUid, name: '', cloudUid: channel.$join?.userId ?? null };
+    if (!!last && isNotifiableChat(last) && isViewerId(last.ownerId, viewer)) return 0;
 
     // The head must come from the same record as `metaNo`, so this cannot use `lastChatNoOf` —
     // `lastChat$.chatNo` is a different snapshot, and netting it against this record's `metaNo`

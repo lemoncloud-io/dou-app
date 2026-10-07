@@ -120,7 +120,10 @@ export const ChannelRowMenu = ({
                         {t('sidebar.notifications')}
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent>
-                        <ContextMenuRadioGroup value={notifyMode} onValueChange={onNotifyChange}>
+                        <ContextMenuRadioGroup
+                            value={notifyMode}
+                            onValueChange={value => onNotifyChange(value as ChannelNotifyMode)}
+                        >
                             {NOTIFY_MODES.map(mode => (
                                 <ContextMenuRadioItem key={mode} value={mode}>
                                     {t(`channels.settings.notify.${mode}`)}
