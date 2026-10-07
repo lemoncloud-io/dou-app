@@ -1,4 +1,4 @@
-# ADR-0164: A room entry sends one feed request, started at the tap
+# ADR-0176: A room entry sends one feed request, started at the tap
 
 > Status: Accepted · Decided: 2026-10-02 · Implemented: `feat/room-entry-speed`
 > · Scope: `libs/app-runtime/src/socket/sync/{roomFeed.ts,hooks/useSyncTarget.ts}`
