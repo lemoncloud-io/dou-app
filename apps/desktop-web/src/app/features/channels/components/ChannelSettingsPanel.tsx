@@ -11,7 +11,10 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import {
     channelNotifyMode,
     displayName,
+    isDmChannel,
+    isSelfChannel,
     ResizablePanel,
+    useCopyToClipboard,
     useDesktopChannelMutations,
     useNotificationPrefsStore,
     useSelectedChannelStore,
@@ -45,9 +48,10 @@ interface ChannelSettingsPanelProps {
 /**
  * Slack-style right-side settings panel (drag-resizable). Visibility is driven by
  * useChannelSettingsStore.openChannelId; the host renders this only when set.
- * Sections: channel name (+ Rename, owner only), members (+ Invite), footer
- * actions (Leave for everyone, Delete for owner). After delete/leave the panel
- * closes and the selected channel is cleared.
+ * Sections: channel name (+ Rename, owner only), members (+ Invite),
+ * notifications, the channel ID (+ Copy, group channels only), footer actions
+ * (Leave for everyone, Delete for owner). After delete/leave the panel closes
+ * and the selected channel is cleared.
  */
 export const ChannelSettingsPanel = ({
     channel,
@@ -63,6 +67,7 @@ export const ChannelSettingsPanel = ({
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
     const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
     const { setChannelNotify } = useDesktopChannelMutations();
+    const [idCopied, copyId] = useCopyToClipboard();
 
     const channelId = channel?.id ?? null;
     const isOwner = isChannelOwner(channel, myUid);
@@ -113,6 +118,9 @@ export const ChannelSettingsPanel = ({
         if (joinUserId) void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch(() => undefined);
     };
     const notifyProps = radioGroupOptions(NOTIFY_MODES, notifyMode, onNotifyChange);
+    // A service posts into a group channel by its id, and the desktop app has no address bar to
+    // read one from. A 1:1 or my notes-to-self is not somewhere a service posts to.
+    const showId = !isDmChannel(channel) && !isSelfChannel(channel);
 
     return (
         <ResizablePanel
@@ -229,6 +237,26 @@ export const ChannelSettingsPanel = ({
                         ))}
                     </div>
                 </section>
+
+                {showId && (
+                    <section className="flex flex-col gap-2 border-t border-hairline pt-4">
+                        <h3 className="text-overline text-muted-foreground">{t('channels.settings.idSection')}</h3>
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="min-w-0 select-all truncate font-mono text-callout text-foreground">
+                                {channelId}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="focus-ring tactile shrink-0 text-primary-ink transition-colors"
+                                onClick={() => copyId(channelId)}
+                            >
+                                {idCopied ? t('channels.settings.idCopied') : t('channels.settings.copyId')}
+                            </Button>
+                        </div>
+                        <p className="text-caption text-muted-foreground">{t('channels.settings.idHint')}</p>
+                    </section>
+                )}
 
                 {/* Leaving and deleting used to sit under the Notifications heading, so a
                     mute decision and an irreversible one shared a group. They get their

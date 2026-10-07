@@ -13,6 +13,8 @@ stores in `src/app/shared/`.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
 - [room-names.md](./room-names.md): one name per room on every surface, and the profile cache behind it.
+- [channel-settings.md](./channel-settings.md): the channel settings panel's sections, and the channel
+  ID a group channel shows for pointing a service at it.
 - [images.md](./images.md): adding images, the tray, tiles and their states, the viewer, and image
   previews in the sidebar and notifications.
 - [onboarding.md](./onboarding.md): the first-run welcome, shown once per account, the Self Channel
