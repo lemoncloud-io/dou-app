@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-07] - No version updates
+
+### Other
+
+- perf: (mobile) answer iOS previews just above 352 px from the stored rendition, not the original
+
 ## [2026-10-07] - root@0.85.1, @chatic/desktop-web@0.19.5
 
 ### Bug Fixes
