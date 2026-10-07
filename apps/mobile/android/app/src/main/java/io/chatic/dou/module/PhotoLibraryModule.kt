@@ -69,6 +69,11 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
     // overlapping pages would only compete. Reads have their own thread so a send does not wait
     // behind a page of previews, and video copies theirs, so a photo does not wait behind 300 MB.
     private val listExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    // Within that one list, its previews are made a few at a time: a preview the system has not
+    // cached costs tens of milliseconds of decoding, and one after another that is seconds a page.
+    private val previewExecutor: ExecutorService =
+        Executors.newFixedThreadPool(PhotoLibraryCore.previewWorkers(Runtime.getRuntime().availableProcessors()))
     private val readExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val keepExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -79,6 +84,7 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
 
     override fun invalidate() {
         listExecutor.shutdown()
+        previewExecutor.shutdown()
         readExecutor.shutdown()
         keepExecutor.shutdown()
         super.invalidate()
@@ -402,19 +408,27 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
             }
         }
 
+        // The library's cover first, then each album's, made in parallel and read back in that order.
+        val newestCover = newest
+        val bucketList = buckets.values.toList()
+        val covers = listOfNotNull(newestCover) + bucketList.map { it.cover }
+        val thumbs = PhotoLibraryCore.mapInParallel(covers, previewExecutor) { coverThumbnail(it, thumbSize) }
+        val newestThumb = if (newestCover != null) thumbs.first() else null
+        val bucketThumbs = thumbs.takeLast(bucketList.size)
+
         val albums = Arguments.createArray()
         albums.pushMap(Arguments.createMap().apply {
             putString("id", PhotoLibraryCore.ALL_PHOTOS_ALBUM_ID)
             putString("title", reactApplicationContext.getString(R.string.photo_library_all_photos))
             putInt("count", total)
-            newest?.let { cover -> coverThumbnail(cover, thumbSize)?.let { putString("coverBase64", it) } }
+            newestThumb?.let { putString("coverBase64", it) }
         })
-        for (bucket in buckets.values) {
+        bucketList.forEachIndexed { index, bucket ->
             albums.pushMap(Arguments.createMap().apply {
                 putString("id", bucket.id)
                 putString("title", bucket.title)
                 putInt("count", bucket.count)
-                coverThumbnail(bucket.cover, thumbSize)?.let { putString("coverBase64", it) }
+                bucketThumbs[index]?.let { putString("coverBase64", it) }
             })
         }
         return albums
@@ -502,12 +516,16 @@ class PhotoLibraryModule(reactContext: ReactApplicationContext) : ReactContextBa
         }
         val olderDurations = if (source.readsFiles && !readsDuration) videoDurations(rows.filter { it.isVideo }.map { it.id }) else emptyMap()
 
+        // The page's previews are made in parallel; the items are then built in the rows' order.
+        val thumbs = PhotoLibraryCore.mapInParallel(rows, previewExecutor) { row ->
+            thumbnail(row.id, row.isVideo, thumbSize, row.width, row.height)
+        }
+
         val items = Arguments.createArray()
-        for (row in rows) {
+        for ((index, row) in rows.withIndex()) {
             // A cursor page skips an item whose preview cannot be made rather than drawing a blank
             // tile; an offset page keeps it, since every index there has to be the item at it.
-            val thumb = thumbnail(row.id, row.isVideo, thumbSize, row.width, row.height)
-                ?: if (offset != null) "" else continue
+            val thumb = thumbs[index] ?: if (offset != null) "" else continue
             items.pushMap(Arguments.createMap().apply {
                 putString("id", PhotoLibraryCore.itemId(row.id, row.isVideo))
                 putString("mediaType", if (row.isVideo) "video" else "image")

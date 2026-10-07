@@ -20,7 +20,8 @@ import UIKit
 final class PhotoLibrary: NSObject {
     /// Lists run one at a time. The web drops a page it no longer wants (an album switched away from)
     /// but cannot cancel it, so letting them overlap would only have several pages of synchronous
-    /// thumbnail requests competing for threads, with the one still wanted finishing last.
+    /// thumbnail requests competing for threads, with the one still wanted finishing last. Within one
+    /// list the previews fan out (`previews`); the list itself stays on this queue.
     private static let listQueue = DispatchQueue(label: "io.chatic.dou.photo-library.list", qos: .userInitiated)
     /// Reads get their own queue, so sending a photo does not wait behind a page of previews.
     private static let readQueue = DispatchQueue(label: "io.chatic.dou.photo-library.read", qos: .userInitiated)
@@ -201,7 +202,6 @@ final class PhotoLibrary: NSObject {
             "title": library?.localizedTitle ?? NSLocalizedString("photo_library_all_photos", comment: ""),
             "count": all.count,
         ]
-        if let newest = all.firstObject, let cover = thumbnail(newest, size: size) { first["coverBase64"] = cover }
 
         var collections: [PHAssetCollection] = []
         for subtype in smartAlbums(types) {
@@ -218,16 +218,20 @@ final class PhotoLibrary: NSObject {
         // "All photos" stays first even when empty: the web treats the first album as the whole
         // library. Every other album is listed only when it holds something of the asked types this
         // app can see — so "Videos" never shows up empty, and a video-only album not at all for photos.
-        let rest: [[String: Any]] = collections.compactMap { collection in
+        let listed: [(collection: PHAssetCollection, assets: PHFetchResult<PHAsset>)] = collections.compactMap { collection in
             let assets = PHAsset.fetchAssets(in: collection, options: fetchOptions(types))
-            guard assets.count > 0 else { return nil }
-            var album: [String: Any] = [
-                "id": collection.localIdentifier,
-                "title": collection.localizedTitle ?? "",
-                "count": assets.count,
-            ]
-            if let newest = assets.firstObject, let cover = thumbnail(newest, size: size) { album["coverBase64"] = cover }
-            return album
+            return assets.count > 0 ? (collection, assets) : nil
+        }
+        var rest: [[String: Any]] = listed.map { collection, assets in
+            ["id": collection.localIdentifier, "title": collection.localizedTitle ?? "", "count": assets.count]
+        }
+
+        // Each album's cover is its newest asset; "all photos" first, then the others in their order.
+        let newest = [all.firstObject] + listed.map { $0.assets.firstObject }
+        let covers = previews(newest.count) { index in newest[index].flatMap { thumbnail($0, size: size) } }
+        if let cover = covers[0] { first["coverBase64"] = cover }
+        for (index, cover) in covers.dropFirst().enumerated() {
+            if let cover { rest[index]["coverBase64"] = cover }
         }
         return [first] + rest
     }
@@ -262,19 +266,17 @@ final class PhotoLibrary: NSObject {
         let start = PhotoLibraryCore.resumeIndex(cursor, anchorIndex: anchorIndex)
         let page = PhotoLibraryCore.page(start: start, limit: limit, total: assets.count)
 
-        var items: [[String: Any]] = []
-        var last: PHAsset?
-        for index in page.range {
-            let asset = assets.object(at: index)
-            last = asset
-            // A photo with no preview on the device is skipped rather than drawn as a blank tile. A
-            // video's preview is a frame PhotoKit renders the same way, so the rule holds for both.
-            guard let thumb = thumbnail(asset, size: size) else { continue }
-            items.append(item(asset, thumb: thumb))
+        let pageAssets = page.range.map { assets.object(at: $0) }
+        let thumbs = previews(pageAssets.count) { thumbnail(pageAssets[$0], size: size) }
+        // A photo with no preview on the device is skipped rather than drawn as a blank tile. A video's
+        // preview is a frame PhotoKit renders the same way, so the rule holds for both.
+        let items: [[String: Any]] = zip(pageAssets, thumbs).compactMap { asset, thumb in
+            thumb.map { item(asset, thumb: $0) }
         }
 
         var reply: [String: Any] = ["access": access, "items": items]
-        if page.hasMore, let last {
+        // The cursor anchors on the page's last photo even when that one was skipped for want of a preview.
+        if page.hasMore, let last = pageAssets.last {
             reply["next"] = PhotoLibraryCore.encode(.init(offset: page.range.upperBound, anchorId: last.localIdentifier))
         }
         return reply
@@ -293,10 +295,9 @@ final class PhotoLibrary: NSObject {
 
         let total = assets.count
         let page = PhotoLibraryCore.page(start: offset, limit: limit, total: total)
-        let items = page.range.map { index -> [String: Any] in
-            let asset = assets.object(at: index)
-            return item(asset, thumb: thumbnail(asset, size: size) ?? "")
-        }
+        let pageAssets = page.range.map { assets.object(at: $0) }
+        let thumbs = previews(pageAssets.count) { thumbnail(pageAssets[$0], size: size) }
+        let items = zip(pageAssets, thumbs).map { asset, thumb in item(asset, thumb: thumb ?? "") }
         return ["access": access, "items": items, "offset": page.range.lowerBound, "total": total]
     }
 
@@ -312,15 +313,25 @@ final class PhotoLibrary: NSObject {
         return item
     }
 
+    /// The previews of one list, `preview(index)` for each index, a few at a time and answered in the
+    /// list's order. Made one after another, a page of photos the system has no thumbnails for yet
+    /// waits on every decode in turn. How many run together is `PhotoLibraryCore.previewWorkers`,
+    /// which leaves a core to the UI and the WebView. The assets are fetched before this on the list's
+    /// queue, so only the image requests run on other threads.
+    private static func previews<T>(_ count: Int, _ preview: (Int) -> T) -> [T] {
+        let workers = PhotoLibraryCore.previewWorkers(ProcessInfo.processInfo.activeProcessorCount)
+        return PhotoLibraryCore.parallelMap(count: count, workers: workers, preview)
+    }
+
     /// A preview from what is already on the device. iCloud is never asked: a page is 60 synchronous
-    /// requests in a row, and on a slow or absent network each one would wait out its own download
+    /// requests, and on a slow or absent network each one would wait out its own download
     /// until the web's request timed out. Photos keeps small renditions of every photo locally, so the
     /// fast rendition is the fallback when a sharper one is not there.
     ///
     /// Without `size` the preview is the one this bridge always answered: about 256 px on the long edge,
     /// uncropped. With it, the preview is the photo's centre square, `size` pixels a side.
     private static func thumbnail(_ asset: PHAsset, size: Int?) -> String? {
-        // One pool per preview: a page makes up to 200 in a row on one queue, and the decoded image,
+        // One pool per preview: a page makes up to 200 on a few worker threads, and the decoded image,
         // the drawn square and the JPEG data are autoreleased — without a pool here they would all
         // stay alive until the whole page is done.
         autoreleasepool {
