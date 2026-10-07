@@ -274,10 +274,7 @@
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
-            "inUse": "Subscribed",
             "hubEntry": "Subscription",
-            "summaryLine": "On {{plan}}",
-            "summaryLineWithQuota": "On {{plan}} · {{used}}/{{max}} clouds",
             "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account.",
             "maxClouds": "Up to {{count}} account(s)",
             "trialBadge": "{{days}}d Free",
@@ -458,18 +455,51 @@
         },
         "cloudManage": {
             "title": "Cloud Management",
-            "hubEntry": "Cloud",
-            "noAccounts": "No clouds registered",
-            "delete": "Delete",
+            "hubEntry": "Cloud management",
+            "delete": "Delete cloud",
             "deleteConfirmTitle": "Delete this cloud?",
             "deleteConfirmDesc": "{{name}} will be permanently deleted.",
             "deleteSuccess": "Cloud deleted",
             "deleteFailed": "Failed to delete the cloud",
             "deleteSelectedCloudWarning": "This is your current cloud. The app will refresh after deletion.",
-            "emailMissing": "No recovery email",
-            "setupFailed": "This cloud failed to set up. Delete it and add it again.",
-            "registerEmail": "Add a recovery email",
-            "editName": "Edit name"
+            "sectionMine": "My clouds",
+            "addCloud": "Add a cloud",
+            "emptyTip": "Create a cloud of your own\nSet a name and profile to get started",
+            "checkInfo": "Check the cloud information.",
+            "status": {
+                "provisioning": "Creating",
+                "setupFailed": "Needs attention",
+                "ending": "Ending soon",
+                "restricted": "Restricted",
+                "subscribed": "Subscribed",
+                "expired": "Expired"
+            },
+            "hub": {
+                "profile": "Cloud profile",
+                "detail": "Cloud information",
+                "places": "Manage places",
+                "notEnterable": "Available once the cloud can be used"
+            },
+            "detail": {
+                "title": "Cloud information",
+                "nameLabel": "Cloud name",
+                "createdAtLabel": "Created on",
+                "accountLabel": "Linked account",
+                "statusLabel": "Cloud status"
+            },
+            "edit": {
+                "title": "Cloud profile",
+                "nameLabel": "Cloud name",
+                "nameHelper": "Up to {{max}} characters."
+            },
+            "places": {
+                "title": "Manage places",
+                "section": "Places",
+                "empty": "No places yet"
+            },
+            "entering": "Connecting to the cloud",
+            "enterFailed": "Could not connect to the cloud",
+            "retry": "Retry"
         },
         "policy": {
             "title": "Terms & Policies",
@@ -552,11 +582,6 @@
         "douHome": "DoU Home",
         "errorLoading": "Failed to load clouds",
         "retry": "Retry",
-        "statusActive": "Subscribed",
-        "statusError": "Error",
-        "statusReserved": "Reserved",
-        "statusSuspended": "Suspended",
-        "statusExpired": "Expired",
         "setupProfile": "Please set up your profile",
         "addAccount": "Add Cloud",
         "empty": "No clouds registered",
@@ -567,10 +592,6 @@
         "emptyInvitedDescription": "Clouds you've been invited to will appear here",
         "invitedOwnerLabel": "{{owner}}'s cloud",
         "invitedFallbackLabel": "Invited cloud",
-        "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
-        "statusErrorDescription": "This cloud failed to set up",
-        "statusErrorTitle": "Cloud setup failed",
-        "statusErrorGuide": "Delete it in Cloud Management, then add it again. Contact us if it keeps failing.",
         "cloudReady": "Your cloud is ready!",
         "emailRequired": "Add recovery email",
         "disconnectCloud": "Disconnect Cloud",
@@ -585,7 +606,12 @@
         "myCloudsDescription": "Start group chats in your own space",
         "toggleSection": "Toggle section",
         "sectionMy": "My Clouds",
-        "sectionInvited": "Invited"
+        "sectionInvited": "Invited",
+        "statusProvisioning": "Creating",
+        "statusFailed": "Needs attention",
+        "statusEnding": "Ending soon",
+        "statusRestricted": "Restricted",
+        "checkInfo": "Check the cloud information."
     },
     "placeList": {
         "defaultPlace": "DoU Home",
@@ -1202,9 +1228,6 @@
         "save": "Done",
         "imageSizeError": "Image must be less than 10MB",
         "tabBasic": "Basic Profile",
-        "tabCloud": "Cloud Profile",
-        "cloudDescription1": "Set the name",
-        "cloudDescription2": "for this Cloud",
         "thumbnailLabel": "Profile Image",
         "cloudSaveSuccess": "Cloud profile updated.",
         "cloudSaveError": "Failed to update Cloud profile."
@@ -1710,7 +1733,6 @@
         "codeError": "Please enter the correct verification code",
         "success": "Account setup has started — it may take up to 10 minutes",
         "tooltip": "If you didn't receive the email,\nplease check your spam folder",
-        "limitExceeded": "You can add up to {{max}} account(s)",
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account",
         "emailAlreadyUsed": "This email is already used by another account",
@@ -1718,7 +1740,13 @@
         "addFailed": "Could not add the account",
         "emailInvalid": "That email address is not valid",
         "codeExpired": "The code has expired — please resend",
-        "emailSkip": "I'll verify later"
+        "emailSkip": "I'll verify later",
+        "limitDialog": {
+            "title": "No more clouds can be added",
+            "changeableDescription": "Your current plan allows up to {{max}} clouds.\nChange your plan to add more.",
+            "topDescription": "You are using the maximum number\nof clouds available.",
+            "changePlan": "Change plan"
+        }
     },
     "nameSetup": {
         "title": "Set Your Name",

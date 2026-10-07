@@ -2,8 +2,11 @@ import { Route, Routes } from 'react-router-dom';
 
 import {
     AccountInfoPage,
+    CloudDetailPage,
+    CloudEditPage,
+    CloudHubPage,
     CloudManagePage,
-    CloudProfileEditPage,
+    CloudPlacesPage,
     LabPage,
     LicensesPage,
     LoginPage,
@@ -24,9 +27,13 @@ export const MyPageRoutes = () => {
         <Routes>
             <Route index element={<MyPage />} />
             <Route path="account" element={<AccountInfoPage />} />
+            {/* One cloud's tree: the hub, then `edit` writes, `detail` reads, `places` lists. */}
             <Route path="cloud-manage" element={<CloudManagePage />} />
+            <Route path="cloud-manage/:cloudId" element={<CloudHubPage />} />
+            <Route path="cloud-manage/:cloudId/edit" element={<CloudEditPage />} />
+            <Route path="cloud-manage/:cloudId/detail" element={<CloudDetailPage />} />
+            <Route path="cloud-manage/:cloudId/places" element={<CloudPlacesPage />} />
             <Route path="edit" element={<ProfileEditPage />} />
-            <Route path="cloud-profile" element={<CloudProfileEditPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/notifications" element={<NotificationSettingsPage />} />

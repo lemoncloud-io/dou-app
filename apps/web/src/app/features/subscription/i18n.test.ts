@@ -132,9 +132,6 @@ const SUBSCRIPTION_KEYS = [
     'refusal.otherStore.description',
     'refusal.pickInstead',
     'refusal.selectInstead',
-    'inUse',
-    'summaryLine',
-    'summaryLineWithQuota',
     // Pre-existing keys the reworked screens still read.
     'pricePerMonth',
     'vatIncluded',
@@ -143,7 +140,10 @@ const SUBSCRIPTION_KEYS = [
 ];
 
 const ADD_ACCOUNT_KEYS = [
-    'limitExceeded',
+    'limitDialog.title',
+    'limitDialog.changeableDescription',
+    'limitDialog.topDescription',
+    'limitDialog.changePlan',
     'emailAlreadyUsed',
     'cancelScheduled',
     'addFailed',
@@ -188,7 +188,7 @@ describe('구독 tier 문구 — 치환 변수', () => {
     // A missing placeholder is worse than a missing key: the sentence still renders, just with the
     // number silently dropped ("계정은 최대 개까지").
     const INTERPOLATIONS: [string, string][] = [
-        ['addAccount.limitExceeded', 'max'],
+        ['addAccount.limitDialog.changeableDescription', 'max'],
         ['mypage.subscription.maxClouds', 'count'],
         ['mypage.subscription.trialBadge', 'days'],
         ['mypage.subscription.trialRemaining', 'days'],

@@ -1,6 +1,7 @@
 import { cn } from '@chatic/lib/utils';
 
-const SIZE = { sm: 36, md: 40, lg: 46 } as const;
+// `xl` is the identity head on the cloud management screens (Figma 86px), not a list step.
+const SIZE = { sm: 36, md: 40, lg: 46, xl: 86 } as const;
 
 // Deterministic background palette for the initials fallback — chosen for
 // readable white-text contrast. Not part of the semantic token set since it's
@@ -27,7 +28,7 @@ const hashIndex = (value: string, length: number): number => {
 export interface CloudAvatarProps {
     /** Cloud name — drives both the initial glyph and the deterministic tone. */
     name: string;
-    /** Diameter step (Small 36 / Medium 40 / Large 46). */
+    /** Diameter step (Small 36 / Medium 40 / Large 46 / XL 86). */
     size?: keyof typeof SIZE;
     className?: string;
 }

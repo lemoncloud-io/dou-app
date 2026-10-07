@@ -5,3 +5,5 @@ export * from './useSocialLinks';
 export * from './useDeleteCloud';
 export * from './useLanguagePreference';
 export * from './useClearLocalCaches';
+export * from './useEnsureCloudSession';
+export * from './useOwnedCloud';

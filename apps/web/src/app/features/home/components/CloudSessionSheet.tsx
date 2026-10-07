@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Inbox } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
-import { useInterval } from '@chatic/shared';
+import { useInterval, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
@@ -18,6 +18,7 @@ import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { useCachedCloudNames, useInvitedClouds } from '../../../hooks';
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
+import { ROUTES } from '../../../routes/paths';
 import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { CloudPromoBanner } from './CloudPromoBanner';
 
@@ -56,6 +57,7 @@ interface CloudSessionSheetProps {
 export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const navigate = useNavigateWithTransition();
 
     // Owned clouds come from the relay catalog; invited clouds live in the local cloud cache
     // (cloudType === 'invited') and are NOT in the catalog, so they are observed separately.
@@ -143,16 +145,16 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
         }
     };
 
-    // Tapping a failed row explains the state and points at the one thing that fixes it (release it
-    // in Cloud management, then add it again). The record's raw `error` is a server trace — it goes to the
-    // log, where support can read it, and never into the toast.
-    const handleErrorClick = (cloud: CloudView) => {
-        logger.warn('CLOUD', 'cloud row is in error state', { cloudId: cloud.id, error: cloud.error });
-        toast({
-            title: t('cloudSessionSheet.statusErrorTitle'),
-            description: t('cloudSessionSheet.statusErrorGuide'),
-            variant: 'destructive',
-        });
+    // A row that cannot be entered — provisioning, failed, held — opens its management hub, where
+    // the state is explained and a failed or held cloud is released. A failed row's raw `error` is
+    // a server trace; it goes to the log, where support can read it, and never on screen.
+    const handleInspectCloud = (cloudId: string) => {
+        const cloud = clouds.find(c => c.id === cloudId);
+        if (cloud?.status === 'error') {
+            logger.warn('CLOUD', 'cloud row is in error state', { cloudId, error: cloud.error });
+        }
+        handleClose();
+        navigate(ROUTES.mypage.cloud.hub(cloudId));
     };
 
     const isDefaultSelected = !selectedId || selectedId === 'default';
@@ -210,7 +212,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
                     isDisabled={isSwitching}
                     hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0 || isBadged(cloud.id ?? '')}
                     onSelectCloud={handleSelectCloud}
-                    onErrorClick={() => handleErrorClick(cloud)}
+                    onInspectCloud={handleInspectCloud}
                     onRequestEmailBind={requestEmailBind}
                 />
             ))}

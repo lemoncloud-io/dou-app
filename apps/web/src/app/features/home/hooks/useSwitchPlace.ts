@@ -19,7 +19,7 @@ export interface SwitchPlaceResult {
  * only forwards the click, auto-selects the first place when none is active yet, and leaves a
  * stored selection whose place has been pruned from the list (see below).
  *
- * `isPlacesLoading` is the list's own "still unknown" flag (useHomePlaces). It gates the
+ * `isPlacesLoading` is the list's own "still unknown" flag (useActiveCloudPlaces). It gates the
  * stale-selection fallback only.
  */
 export const useSwitchPlace = (places: DomainPlace[], isPlacesLoading: boolean): SwitchPlaceResult => {

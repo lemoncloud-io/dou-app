@@ -12,10 +12,9 @@ import { AccountLinkSection } from '../components';
  * connected cloud: profile edit writes the relay record (`useUpdateProfile`) and the linked
  * credentials come from the relay token's `link$`.
  *
- * The cloud-entity name editor (`/mypage/cloud-profile`) used to hang off this screen behind an
- * owner gate. It is gone from here because the MY tree is relay-only now — a cloud's own name is not
- * an account attribute. The page and route still exist and still work; they just need a cloud-shaped
- * entry point (the switcher, or account management) instead of an account-shaped one.
+ * The cloud-entity name editor used to hang off this screen behind an owner gate. It is gone from
+ * here because the MY tree is relay-only now — a cloud's own name is not an account attribute. It
+ * lives under cloud management (`/mypage/cloud-manage/:id/edit`), a cloud-shaped entry point.
  */
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();

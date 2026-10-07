@@ -205,6 +205,20 @@ relay's own constant).
 and a refunded amount. The relay has no grace-period signal, no history a user may read, and no
 amounts on a membership, so none of the three is rendered.
 
+**Cloud management reads the membership through this feature.** [mypage](../mypage/README.md)'s
+cloud list shows the subscription's standing above the clouds, and it composes four exports rather
+than re-deriving the plan join: `useCloudManageScene` (is there a subscription at all, and which
+banner is up — `deriveCloudManageBanner`, narrower than `deriveBanner` because that screen is about
+the clouds: a block, a lapse, or a queued downgrade that will hold some of them), `CloudManageBanner`
+(that banner, with the keep-clouds pill on the queued downgrade), `CurrentPlanCard` (the plan with
+its own status word) and `useCloudQuota` (the `used / limit` figure).
+
+**A used-up allowance gets a dialog, not a toast.** `AddCloudFlowHost` opens `AddCloudLimitDialog`
+when the quota's reason is `limitReached`: with a higher tier on sale (`hasHigherTier`) it offers
+the plan picker, at the top tier it says so and offers nothing — a dead "change plan" button would
+read as broken. The toast it replaced could carry no action, which left the user to find the picker
+on their own.
+
 **A purchase provisions exactly one cloud.** Every cloud past the first on a multi-cloud tier is
 created by `useAddCloud`. The affordances for that live on other screens and features do not import
 each other, so the request arrives through a store seam — `stores/useAddCloudRequest` (and
@@ -237,8 +251,9 @@ validation never landed — and is a hook because two screens reach it.
   second `useSubscriptionIap`, and therefore a duplicate `OnPurchaseSuccess` subscription. Read
   `usePlanCatalog` directly — that is why `usePlanOptions` does.
 - **Do not import this feature from another one.** Raise a request through `stores/useAddCloudRequest`
-  or `stores/useEmailBindRequest`; for a read-only membership line, compose the exported
-  `CloudMembershipSummary`. The barrel re-exports `SubscriptionRoutes`, so importing it drags every
+  or `stores/useEmailBindRequest`; for a read-only view of the membership, compose what the barrel
+  exports for cloud management (`CloudManageBanner`, `CurrentPlanCard`, `useCloudManageScene`,
+  `useCloudQuota`). The barrel re-exports `SubscriptionRoutes`, so importing it drags every
   subscription page into the calling chunk.
 - **Do not surface a raw error message.** `throwIfApiError` throws backend strings and axios throws
   `"Request failed with status code 500"`; both would land in a toast. Only an `EmailVerifyRefusal`

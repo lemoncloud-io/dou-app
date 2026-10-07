@@ -59,8 +59,9 @@ import { getCloudDisplayName } from '../components/cloud-session';
 import { requestBackgroundRefresh } from '../../../runtime/backgroundRefresh';
 import { haptics } from '../../../bridge/haptics';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
-import { useAddCloudFlow, useHomePlaces, useHomeSections, usePlaceProfileNudge, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, useHomeSections, usePlaceProfileNudge, useSwitchPlace } from '../hooks';
 import {
+    useActiveCloudPlaces,
     useCachedCloudNames,
     useChatSyncRegistration,
     useHomeChannels,
@@ -175,7 +176,7 @@ export const HomePage = () => {
     // Relay hides the Place SECTION (a relay cloud always has exactly one place), but these hooks
     // still run in every mode: ChannelList keys off `selectedPlaceId`, and on relay that value only
     // ever comes from useSwitchPlace's auto-select. Dropping them would empty the relay home.
-    const { places, isLoading: isPlacesLoading } = useHomePlaces();
+    const { places, isLoading: isPlacesLoading } = useActiveCloudPlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places, isPlacesLoading);
 
     // Subscribe-a-cloud flow. The switcher sheet's footer button opens the plan picker directly

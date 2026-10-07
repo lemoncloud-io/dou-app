@@ -58,6 +58,27 @@ export const deriveBanner = ({
     }
 };
 
+/** The one banner cloud management leads with, or none. Order of the union is priority. */
+export type CloudManageBanner = 'blocked' | 'expired' | 'pendingChange';
+
+/**
+ * Picks the banner for the cloud management screen.
+ *
+ * Narrower than `deriveBanner`: this screen is about the clouds, so it says only what changes
+ * their standing — a block, a lapse, or a queued downgrade that will hold some of them. The
+ * renewal reminder and the restored note belong to the subscription screens. The design also draws
+ * a payment-failure banner; the relay has no grace-period signal, so it is not rendered here either.
+ */
+export const deriveCloudManageBanner = (
+    state: SubscriptionState,
+    hasPendingChange: boolean
+): CloudManageBanner | undefined => {
+    if (state === 'blocked') return 'blocked';
+    if (state === 'expired') return 'expired';
+    if (hasPendingChange) return 'pendingChange';
+    return undefined;
+};
+
 /** Whether the expired banner may still promise that the old clouds come back. */
 export const isWithinExpiredHold = (validUntil: number | undefined, now: number): boolean =>
     !!validUntil && validUntil + EXPIRED_HOLD_MS > now;

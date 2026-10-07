@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
-import { useColdListWindowElapsed } from '../../../hooks/useColdListWindow';
+import { useColdListWindowElapsed } from './useColdListWindow';
 
-export interface HomePlacesResult {
+export interface ActiveCloudPlacesResult {
     places: DomainPlace[];
     /**
      * True while the list is still unknown — which is NOT the same as "the cache has not emitted".
@@ -41,7 +41,7 @@ export interface HomePlacesResult {
  * not want mixed into its scope key — passing {cid, uid} keeps the observer keyed purely on the
  * session-selected cloud. See PlaceLocalDataSource reemit-routing tests.
  */
-export const useHomePlaces = (): HomePlacesResult => {
+export const useActiveCloudPlaces = (): ActiveCloudPlacesResult => {
     const { place } = runtime.data.useRuntimeRepositories();
     const session = runtime.session.useGlobalSession();
     // OPTIMISTIC cloud id (the selected cloud), matching `deriveSelectedContext`'s cid — NOT the

@@ -52,7 +52,7 @@ re-fires whenever the cache changes, from either a local refresh or a sync push.
 and channel exclude `sid` from the key). `ActiveScope` derives this on every read from the session
 store (`libs/app-runtime/src/session/scope/ActiveScope.ts`) — there is no ancestor binder pushing it
 into a context on a delay, so there is no window where a descendant subscribes under a stale scope.
-The home list hooks (`useHomePlaces`, and its siblings for channels) still pass an explicit
+The list hooks (`useActiveCloudPlaces`, and its siblings for channels) still pass an explicit
 `{ cid, uid }` override to `observeList` rather than relying on the ambient provider, because
 `ActiveScope.getContext()` also folds in the socket's bound cid (`socketCid`) — an extra field these
 observers deliberately keep out of their key. See `PlaceLocalDataSource.test.ts` for the re-emit
@@ -69,7 +69,7 @@ ones apply differs per list:
 
 | Surface                        | What ends the wait                                                                            |
 | ------------------------------ | --------------------------------------------------------------------------------------------- |
-| `useHomePlaces`                | rows, or the window — `PlaceRepository` discards an empty snapshot, so no answer says "none"  |
+| `useActiveCloudPlaces`         | rows, or the window — `PlaceRepository` discards an empty snapshot, so no answer says "none"  |
 | `useAccessiblePlaceIds`        | the same two; until then it answers `null`, so no channel is filtered off a list or the badge |
 | `useActiveCloudChannelsSource` | rows, the first delta answering, or the window — an empty PLACE is common, so it gets a mark  |
 
