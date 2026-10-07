@@ -7,16 +7,19 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
 
 /**
  * Single subscription that mirrors the engine `profile` cache (current place)
- * into useSiteProfilesStore. Mount on each route that renders place-profile data
- * (HomePage, ProfilePage) — routes are mutually exclusive, so there is never a
- * concurrent subscription. Re-subscribes and resets on place switch so the
- * previous place's overrides never leak. Every display surface reads the store
- * via useDisplayProfile rather than subscribing itself.
+ * into useSiteProfilesStore. The cache holds a row per place I have been in, so the
+ * query names the place: without it a row from another place for the same uid lands
+ * in the same map and whichever comes last decides the name shown here. With no place
+ * selected there is nothing to mirror and the store stays empty.
  *
- * The profile cache keys each entry by the member's `uid`, which — for self — is
- * the same account id every display surface looks me up by (get-site-profile
- * returns the session `uid`). So my own place profile resolves directly from the
- * observed list; no separate self-uid learning is needed.
+ * Mount on each route that renders place-profile data (HomePage, ProfilePage) — routes
+ * are mutually exclusive, so there is never a concurrent subscription. Re-subscribes
+ * and resets on place switch so the previous place's overrides never leak. Every
+ * display surface reads the store via useDisplayProfile rather than subscribing itself.
+ *
+ * The profile cache keys each entry by the member's `uid`. My own row can sit under my
+ * account id (the row my own save writes) or my per-channel cloud id (a synced row), so
+ * surfaces that name me look under both — see `viewerPlaceProfile`.
  */
 export const useSiteProfiles = (): void => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
@@ -28,7 +31,8 @@ export const useSiteProfiles = (): void => {
 
     useEffect(() => {
         reset();
-        const unsubscribe = profileRepository.observeList(undefined, result => {
+        if (!selectedPlaceId) return;
+        const unsubscribe = profileRepository.observeList({ sid: selectedPlaceId }, result => {
             const next: Record<string, PlaceProfileEntry> = {};
             for (const item of result?.list ?? []) {
                 if (item.uid) next[item.uid] = { nick: item.nick, thumbnail: item.thumbnail };
