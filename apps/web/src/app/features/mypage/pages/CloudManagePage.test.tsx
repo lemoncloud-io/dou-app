@@ -1,180 +1,125 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-
-import { logger } from '@chatic/bridges';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { CloudManagePage } from './CloudManagePage';
 
-const useCloudsMock = jest.fn();
-const mockDeleteCloud = jest.fn();
+const navigate = jest.fn();
+const requestAddCloud = jest.fn();
+let clouds: Partial<CloudView>[] = [];
+let scene = { isLoading: false, hasSubscription: true, banner: undefined as string | undefined };
+let quota = { used: 0, limit: 2 as number | null };
+let onNative = true;
+
 jest.mock('@chatic/bridges', () => ({
+    isNative: () => onNative,
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
-        data: {
-            cloudsKeys: { list: () => ['clouds', 'list'] },
-        },
-        session: {
-            useSessionSelection: () => ({ selectedCloudId: 'CL1' }),
-        },
-    },
-}));
-
+jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+// The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
+jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({
-    useClouds: (...args: unknown[]) => useCloudsMock(...args),
+    useCloudSessionCatalog: () => ({ clouds, isPendingClouds: false }),
 }));
-jest.mock('../hooks/useDeleteCloud', () => ({
-    useDeleteCloud: () => ({ mutateAsync: mockDeleteCloud, isPending: false }),
+jest.mock('../../../stores/useAddCloudRequest', () => ({
+    useAddCloudRequest: (select: (state: { requestAddCloud: unknown }) => unknown) => select({ requestAddCloud }),
 }));
-
-jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueryData: jest.fn() }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-jest.mock('../../../runtime/useLogoutCloudSession', () => ({
-    useLogoutCloudSession: () => ({ logoutCloudSession: jest.fn() }),
-}));
-
-const requestEmailBind = jest.fn();
-jest.mock('../../../stores/useEmailBindRequest', () => ({
-    useEmailBindRequest: (select: (state: { requestEmailBind: unknown }) => unknown) => select({ requestEmailBind }),
-}));
-
-// The membership line is owned by `features/subscription`; this screen only mounts it.
+// The subscription's say — banner, plan card, scene, quota — is owned by `features/subscription`;
+// this screen only mounts it.
 jest.mock('../../subscription', () => ({
-    CloudMembershipSummary: () => <div data-testid="membership-summary" />,
-}));
-
-jest.mock('react-i18next', () => ({
-    useTranslation: () => ({ t: (key: string) => key }),
+    CloudManageBanner: () => <div data-testid="manage-banner" />,
+    CurrentPlanCard: () => <div data-testid="plan-card" />,
+    useCloudManageScene: () => scene,
+    useCloudQuota: () => quota,
 }));
 
 const K = 'mypage.cloudManage';
 
-const setClouds = (list: Partial<CloudView>[]) => useCloudsMock.mockReturnValue({ data: { list } });
-
 beforeEach(() => {
     jest.clearAllMocks();
-    mockDeleteCloud.mockResolvedValue(undefined);
+    clouds = [];
+    scene = { isLoading: false, hasSubscription: true, banner: undefined };
+    quota = { used: 0, limit: 2 };
+    onNative = true;
 });
 
-/** Opens the confirm dialog on the first row and presses its destructive button. */
-const releaseFirstCloud = () => {
-    fireEvent.click(screen.getByText(`${K}.delete`));
-    // The row button keeps its label while the dialog is open; the dialog's is the second one.
-    fireEvent.click(screen.getAllByText(`${K}.delete`)[1]);
-};
-
-describe('CloudManagePage — 복원용 이메일', () => {
-    it('이메일이 없는 클라우드에만 등록 버튼을 붙인다', () => {
-        setClouds([
-            { id: 'CL1', name: '내 클라우드', email: 'owner@example.com', status: 'active' },
-            { id: 'CL2', name: '작업용', status: 'active' },
-        ]);
-
-        render(<CloudManagePage />);
-
-        expect(screen.getAllByText(`${K}.registerEmail`)).toHaveLength(1);
-        expect(screen.getByText(`${K}.emailMissing`)).toBeInTheDocument();
-        expect(screen.getByText('owner@example.com')).toBeInTheDocument();
+describe('CloudManagePage — never subscribed', () => {
+    beforeEach(() => {
+        scene = { ...scene, hasSubscription: false };
     });
 
-    it('그 클라우드의 id로 이메일 등록 요청을 올린다', () => {
-        setClouds([
-            { id: 'CL1', name: '내 클라우드', email: 'owner@example.com', status: 'active' },
-            { id: 'CL2', name: '작업용', status: 'active' },
-        ]);
-
+    it('shows the empty card with a subscribe button leading to the guide', () => {
         render(<CloudManagePage />);
-        fireEvent.click(screen.getByText(`${K}.registerEmail`));
 
-        expect(requestEmailBind).toHaveBeenCalledWith('CL2');
+        expect(screen.getByText('mypage.subscription.list.emptyTitle')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('mypage.subscription.subscribe'));
+        expect(navigate).toHaveBeenCalledWith('/subscription/guide');
+        expect(screen.queryByTestId('plan-card')).not.toBeInTheDocument();
     });
 
-    it('해제된(expired) 클라우드는 등록을 권하지 않는다 — 되찾을 것이 없다', () => {
-        setClouds([{ id: 'CL3', name: '해제됨', status: 'expired' }]);
+    it('off-native, says a subscription needs the app and offers no button', () => {
+        onNative = false;
 
         render(<CloudManagePage />);
 
-        expect(screen.queryByText(`${K}.registerEmail`)).not.toBeInTheDocument();
+        expect(screen.getByText('mypage.subscription.mobileOnly')).toBeInTheDocument();
+        expect(screen.queryByText('mypage.subscription.subscribe')).not.toBeInTheDocument();
     });
 });
 
-describe('CloudManagePage — 설정에 실패한 클라우드', () => {
-    // This screen is the only path to delete a failed cloud (the switcher sends users here).
-    const failed = {
-        id: 'CL9',
-        name: '#cloud/1001494/3',
-        status: 'error',
-        error: '.accountNo[#mock:1001494] is invalid (duplicated by 1000038)',
-    } satisfies Partial<CloudView>;
-
-    it('이메일 등록을 권하지 않고 실패 상태만 알린다', () => {
-        setClouds([failed]);
-
+describe('CloudManagePage — subscribed', () => {
+    it('with no cloud yet, pitches one and offers the add button with the allowance figure', () => {
         render(<CloudManagePage />);
 
-        expect(screen.getByText(`${K}.setupFailed`)).toBeInTheDocument();
-        expect(screen.queryByText(`${K}.registerEmail`)).not.toBeInTheDocument();
-        expect(screen.queryByText(`${K}.emailMissing`)).not.toBeInTheDocument();
+        expect(screen.getByText(`${K}.emptyTip`)).toBeInTheDocument();
+        expect(screen.getAllByText('0 / 2')).toHaveLength(2);
+        fireEvent.click(screen.getByText(`${K}.addCloud`));
+        expect(requestAddCloud).toHaveBeenCalledTimes(1);
+        expect(screen.getByTestId('plan-card')).toBeInTheDocument();
     });
 
-    it('서버 원문 에러는 화면에 내보내지 않는다', () => {
-        setClouds([failed]);
+    it('lists the owned clouds and opens a row into its hub', () => {
+        clouds = [
+            { id: 'CL1', name: '내 클라우드', status: 'active' },
+            { id: 'CL2', name: '작업용', status: 'reserved' },
+        ];
+        quota = { used: 2, limit: 2 };
 
         render(<CloudManagePage />);
 
-        expect(screen.queryByText(failed.error)).not.toBeInTheDocument();
-    });
-});
-
-describe('CloudManagePage — 클라우드 해제 기록', () => {
-    const cloud = { id: 'CL2', name: '작업용', email: 'b@example.com', status: 'active' } satisfies Partial<CloudView>;
-
-    it('해제에 실패하면 에러를 기록한다 — 전에는 변수에 담지도 않고 삼켰다', async () => {
-        const boom = new Error('release boom');
-        mockDeleteCloud.mockRejectedValueOnce(boom);
-        setClouds([cloud]);
-
-        render(<CloudManagePage />);
-        releaseFirstCloud();
-
-        await waitFor(() =>
-            expect(logger.error).toHaveBeenCalledWith('CLOUD', 'cloud release failed', {
-                error: boom,
-                data: { cloudId: 'CL2' },
-            })
-        );
+        expect(screen.queryByText(`${K}.emptyTip`)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByText('작업용'));
+        expect(navigate).toHaveBeenCalledWith('/mypage/cloud-manage/CL2');
     });
 
-    it('해제에 성공하면 되돌릴 수 없는 조작이므로 info로 남긴다', async () => {
-        setClouds([cloud]);
+    it('drops the figure, not the button, when the allowance is unresolved', () => {
+        quota = { used: 1, limit: null };
 
         render(<CloudManagePage />);
-        releaseFirstCloud();
 
-        await waitFor(() =>
-            expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud released', {
-                cloudId: 'CL2',
-                wasActive: false,
-            })
-        );
-        expect(logger.error).not.toHaveBeenCalled();
+        expect(screen.getByText(`${K}.addCloud`)).toBeInTheDocument();
+        expect(screen.queryByText(/\/ /)).not.toBeInTheDocument();
     });
-});
 
-describe('CloudManagePage — 구독 표시', () => {
-    it('멤버십은 목록 위에 한 번만 — 계정 단위라 행마다 반복하지 않는다', () => {
-        setClouds([
-            { id: 'CL1', name: '내 클라우드', email: 'a@example.com', status: 'active' },
-            { id: 'CL2', name: '작업용', email: 'b@example.com', status: 'active' },
-        ]);
+    it('hides the add button while a banner explains why the server would refuse', () => {
+        scene = { ...scene, banner: 'expired' };
+        clouds = [{ id: 'CL1', name: '내 클라우드', status: 'suspended' }];
 
         render(<CloudManagePage />);
 
-        expect(screen.getAllByTestId('membership-summary')).toHaveLength(1);
+        expect(screen.getByTestId('manage-banner')).toBeInTheDocument();
+        expect(screen.queryByText(`${K}.addCloud`)).not.toBeInTheDocument();
+        expect(screen.getByText('내 클라우드')).toBeInTheDocument();
+    });
+
+    it('holds no delete action — releasing moved to the cloud information screen', () => {
+        clouds = [{ id: 'CL1', name: '내 클라우드', status: 'active' }];
+
+        render(<CloudManagePage />);
+
+        expect(screen.queryByText(`${K}.delete`)).not.toBeInTheDocument();
     });
 });

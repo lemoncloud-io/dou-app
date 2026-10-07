@@ -17,7 +17,7 @@ const renderItem = (cloud: CloudView, overrides: Partial<Parameters<typeof Cloud
             isSelected={false}
             isDisabled={false}
             onSelectCloud={jest.fn()}
-            onErrorClick={jest.fn()}
+            onInspectCloud={jest.fn()}
             {...overrides}
         />
     );
@@ -58,41 +58,60 @@ describe('CloudItem — unbound email (active cloud with no email)', () => {
 
     it('does not treat a still-provisioning, email-less cloud as unbound', () => {
         renderItem({ ...baseCloud, status: 'reserved', email: undefined });
-        // The provisioning caption owns the message at this stage — not the email prompt.
+        // The provisioning badge owns the message at this stage — not the email prompt.
         expect(screen.queryByText('cloudSessionSheet.emailRequired')).not.toBeInTheDocument();
-        expect(screen.getByText('cloudSessionSheet.statusReservedDescription')).toBeInTheDocument();
+        expect(screen.getByText('cloudSessionSheet.statusProvisioning')).toBeInTheDocument();
     });
 });
 
-describe('CloudItem — 실패한 클라우드', () => {
+describe('CloudItem — a row that cannot be entered opens cloud management', () => {
     const failed = {
         ...baseCloud,
         status: 'error',
         error: '.accountNo[#mock:1001494] is invalid (duplicated by 1000038) - doPostWorkspace(clouds/1000047)',
     } as CloudView;
 
-    it('상태만 문장으로 알리고 서버 원문은 노출하지 않는다', () => {
+    it('wears the badge and the caption, and never the server trace', () => {
         renderItem(failed);
 
-        expect(screen.getByText('cloudSessionSheet.statusErrorDescription')).toBeInTheDocument();
+        expect(screen.getByText('cloudSessionSheet.statusFailed')).toBeInTheDocument();
+        expect(screen.getByText('cloudSessionSheet.checkInfo')).toBeInTheDocument();
         expect(screen.queryByText(failed.error as string)).not.toBeInTheDocument();
     });
 
-    it('error 필드가 비어 있어도 실패 문장은 그대로 보인다', () => {
-        // The server sends `error: null` on a cleaned-up row — the CloudView type is string|undefined.
-        renderItem({ ...failed, error: undefined });
-
-        expect(screen.getByText('cloudSessionSheet.statusErrorDescription')).toBeInTheDocument();
-    });
-
-    it('탭은 전환이 아니라 onErrorClick으로 간다', () => {
+    it.each([
+        ['error', undefined],
+        ['reserved', undefined],
+        ['suspended', { hold: 'downgrade' }],
+    ] as const)('routes the tap to onInspectCloud for status %s', (status, state$) => {
         const onSelectCloud = jest.fn();
-        const onErrorClick = jest.fn();
-        renderItem(failed, { onSelectCloud, onErrorClick });
+        const onInspectCloud = jest.fn();
+        renderItem({ ...baseCloud, status, state$ }, { onSelectCloud, onInspectCloud });
 
         fireEvent.click(screen.getByRole('button'));
 
-        expect(onErrorClick).toHaveBeenCalledTimes(1);
+        expect(onInspectCloud).toHaveBeenCalledWith('CL1');
         expect(onSelectCloud).not.toHaveBeenCalled();
+    });
+
+    it('still enters a cloud scheduled to end — it is usable until the renewal', () => {
+        const onSelectCloud = jest.fn();
+        const onInspectCloud = jest.fn();
+        renderItem({ ...baseCloud, state$: { plan: 'drop' } }, { onSelectCloud, onInspectCloud });
+
+        expect(screen.getByText('cloudSessionSheet.statusEnding')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button'));
+
+        expect(onSelectCloud).toHaveBeenCalledWith('CL1');
+        expect(onInspectCloud).not.toHaveBeenCalled();
+    });
+
+    it('is inert while a switch is in flight', () => {
+        const onInspectCloud = jest.fn();
+        renderItem(failed, { isDisabled: true, onInspectCloud });
+
+        fireEvent.click(screen.getByRole('button'));
+
+        expect(onInspectCloud).not.toHaveBeenCalled();
     });
 });

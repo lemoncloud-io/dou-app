@@ -40,4 +40,20 @@ describe('StatusBanner', () => {
         rerender(<StatusBanner {...base} chip="D-3 until it ends" />);
         expect(screen.getByText('D-3 until it ends')).toHaveClass('rounded-full');
     });
+
+    it('splits into a title-row button and an action pill when both onClick and action are given', () => {
+        const onClick = jest.fn();
+        const onAction = jest.fn();
+        const { container } = render(
+            <StatusBanner {...base} onClick={onClick} action={{ label: 'Choose clouds', onClick: onAction }} />
+        );
+
+        // A section around two sibling buttons — a button never nests inside another.
+        expect(container.querySelector('section')).not.toBeNull();
+        expect(container.querySelectorAll('button button')).toHaveLength(0);
+        fireEvent.click(screen.getByRole('button', { name: /Subscription active/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Choose clouds' }));
+        expect(onClick).toHaveBeenCalledTimes(1);
+        expect(onAction).toHaveBeenCalledTimes(1);
+    });
 });

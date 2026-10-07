@@ -4,6 +4,7 @@ export * from './OtherCloudUnreadProvider';
 export * from './otherCloudUnreadContext';
 export * from './useAccessiblePlaceIds';
 export * from './useActiveCloudChannels';
+export * from './useActiveCloudPlaces';
 export * from './useActiveCloudOwnership';
 export * from './useActiveCloudUnreads';
 export * from './useActivePlaceName';

@@ -16,8 +16,9 @@ export const platformLabelKey = (platform: MembershipView['platform']): string |
           : undefined;
 
 /**
- * What a cloud is called on screen: its name, else the local part of its recovery email, else its id.
- * The same fallback chain the cloud management screen uses, so one cloud reads the same in both.
+ * What a cloud is called on a subscription card: its name, else the local part of its recovery email,
+ * else its id. Longer than the row chain in `utils/cloudDisplayName` on purpose — a keep-clouds card
+ * must never be blank, where a list row may say so itself.
  */
 export const cloudDisplayName = (cloud: CloudView): string =>
     cloud.name || cloud.email?.split('@')[0] || cloud.id || '-';

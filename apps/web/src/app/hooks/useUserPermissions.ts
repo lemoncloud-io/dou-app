@@ -17,9 +17,9 @@ export interface UserPermissions {
     maxChannels: number;
     /**
      * Whether the cloud-entity name editor is available. Currently has NO caller: the MY tree is
-     * relay-only (ADR-0062), so the row that used to gate on this is gone from AccountInfoPage. Kept
-     * because `/mypage/cloud-profile` still exists and still needs this gate once a cloud-shaped
-     * entry point (switcher / account management) is given to it.
+     * relay-only, so the row that used to gate on this is gone from AccountInfoPage, and the editor
+     * now lives under cloud management (`/mypage/cloud-manage/:id/edit`), which enters the cloud
+     * itself before writing. Kept for a cloud-shaped entry point that may want the gate.
      */
     useCloudProfile: boolean;
     canSelectCloud: boolean;

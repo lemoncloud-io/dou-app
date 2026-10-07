@@ -4,6 +4,7 @@ import {
     findPlanById,
     getTierChangeKind,
     getTierRefusal,
+    hasHigherTier,
     isSelectableTier,
     nearestSelectablePlan,
     planDisplayName,
@@ -212,5 +213,26 @@ describe('planDisplayName', () => {
 
     it('상품이 없으면 undefined — 호출부가 스스로 폴백을 고르게 둔다', () => {
         expect(planDisplayName(undefined, true)).toBeUndefined();
+    });
+});
+
+describe('hasHigherTier', () => {
+    const tier = (sort: number) => ({ id: `#pro-tier-0${sort}`, sort }) as ProductView;
+    const sellable = [tier(1), tier(2), tier(3)];
+
+    it('offers a change while a higher tier is on sale', () => {
+        expect(hasHigherTier(tier(2), sellable)).toBe(true);
+    });
+
+    it('says so when the plan in force is the top tier', () => {
+        expect(hasHigherTier(tier(3), sellable)).toBe(false);
+    });
+
+    it('offers a change when the current plan could not be resolved — the picker decides', () => {
+        expect(hasHigherTier(undefined, sellable)).toBe(true);
+    });
+
+    it('has nothing to offer off-native, where nothing is sellable', () => {
+        expect(hasHigherTier(tier(1), [])).toBe(false);
     });
 });

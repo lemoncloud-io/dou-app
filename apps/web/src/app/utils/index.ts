@@ -1,4 +1,6 @@
 export * from './chat';
+export * from './cloudDisplayName';
+export * from './cloudRowState';
 export * from './consts';
 export * from './countUnread';
 export * from './debounce';

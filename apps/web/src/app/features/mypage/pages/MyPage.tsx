@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
-import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 
 import { BottomNavSpacer } from '../../../ui/components';
 import { useIsAccountGuest, useMyUser } from '../../../hooks';
@@ -26,9 +25,6 @@ export const MyPage = () => {
     // header's name does, which is the relay account whichever cloud is connected. `useRuntimeProfile`
     // would answer for the delegated cloud user instead (see useIsAccountGuest).
     const isGuest = useIsAccountGuest();
-    // Owned clouds only (the relay catalog); invited clouds are deliberately absent — you cannot
-    // release someone else's cloud, so they must not summon the cloud info row.
-    const { clouds } = useCloudSessionCatalog();
     const myUser = useMyUser();
 
     const displayName = myUser?.name;
@@ -43,12 +39,6 @@ export const MyPage = () => {
             )}
         </span>
     );
-
-    // Gate on OWNERSHIP, not on `isCloudActive`. The latter means "currently switched into a
-    // non-default cloud", which hid the only release path whenever the user sat on DoU Home — including
-    // the exact case ExcessCloudBanner deep-links here for (over the allowance after a downgrade),
-    // and a lapsed subscriber whose leftover clouds still need deleting.
-    const hasOwnedCloud = clouds.length > 0;
 
     // The header shows the RELAY account's data (name/email/photo) — the same record whichever cloud
     // is connected. It opens My Info, the account hub: profile editing, social links and withdrawal
@@ -112,7 +102,10 @@ export const MyPage = () => {
                     </MenuCard>
                 )}
 
-                {!isGuest && hasOwnedCloud && (
+                {/* Every signed-in account, owner or not: cloud management has a state for each —
+                    an empty one that starts a subscription, the list, and the lapsed list whose
+                    leftover clouds still need releasing. Gating on ownership hid the first. */}
+                {!isGuest && (
                     <MenuCard>
                         <ListRow
                             title={t('mypage.cloudManage.hubEntry')}
