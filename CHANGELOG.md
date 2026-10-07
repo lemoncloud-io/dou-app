@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-07] - No version updates
+
+### Bug Fixes
+
+- (web/home) title a nameless invited cloud by its owner, not its raw cloud id
+
 ## [2026-10-07] - root@0.86.1, @chatic/desktop-web@0.20.1
 
 ### Bug Fixes
