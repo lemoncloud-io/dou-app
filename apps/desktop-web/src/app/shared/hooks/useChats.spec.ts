@@ -12,10 +12,15 @@ const state = vi.hoisted(() => ({
     cloudId: 'cloud-a',
     retryPrime: vi.fn(),
     emit: (_rows: Row[]) => undefined,
+    // Hold the next subscription's first emission, as the cache does between a page landing and the
+    // widened window being read back; `flushEmission` delivers it.
+    deferEmission: false,
+    flushEmission: () => undefined,
 }));
 const observeList = vi.fn((_query: unknown, onChange: (result: { list: Row[] }) => void) => {
     state.emit = rows => onChange({ list: rows });
-    onChange({ list: state.rows });
+    if (state.deferEmission) state.flushEmission = () => onChange({ list: state.rows });
+    else onChange({ list: state.rows });
     return () => undefined;
 });
 const refreshList = vi.fn((_query: unknown) => Promise.resolve({ fetchedCount: 0 }));
@@ -37,6 +42,11 @@ vi.mock('@chatic/app-runtime', () => ({
 }));
 
 import { useChats } from './useChats';
+
+afterEach(() => {
+    // A test that fails between holding an emission and releasing it must not leave the next one deferred.
+    state.deferEmission = false;
+});
 
 describe('useChats on a room with nothing cached', () => {
     beforeEach(() => {
@@ -214,6 +224,80 @@ describe('useChats loadOlder', () => {
 
         expect(ok).toBe(true);
         expect(result.current.hasMore).toBe(false);
+    });
+
+    // The scroll handler fires again and again at the top, and `isLoadingOlder` is state the handler read
+    // before the first call's render: two calls in a tick both saw it false and both asked for the page.
+    it('asks for a page once when it is called twice in the same tick', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 50 });
+        const { result } = renderHook(() => useChats('C-tick'));
+
+        await act(async () => {
+            await Promise.all([result.current.loadOlder(), result.current.loadOlder()]);
+        });
+
+        expect(refreshList).toHaveBeenCalledTimes(1);
+    });
+
+    // A landed page widens the window, and the cache reads the older rows back a moment later. In that
+    // gap the oldest row is still the old cursor, so asking again would fetch the page just fetched.
+    it('does not ask for the same page again before the widened window has been read back', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 50 });
+        const { result } = renderHook(() => useChats('C-gap'));
+
+        state.deferEmission = true;
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        expect(refreshList).toHaveBeenCalledTimes(1);
+
+        state.deferEmission = false;
+        act(() => state.flushEmission());
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        expect(refreshList).toHaveBeenCalledTimes(2);
+    });
+
+    // The hook is not remounted when the channel changes, so a page still out for the channel just left
+    // must not stand in the way of the one now on screen.
+    it("asks for the new channel's page while the old channel's page is still in flight", async () => {
+        let landOldPage: (value: { fetchedCount: number }) => void = () => undefined;
+        refreshList.mockImplementationOnce(() => new Promise(resolve => (landOldPage = resolve)));
+        refreshList.mockResolvedValue({ fetchedCount: 50 });
+        const { result, rerender } = renderHook(({ id }) => useChats(id), { initialProps: { id: 'C-from' } });
+
+        let oldPage: Promise<boolean> | undefined;
+        act(() => {
+            oldPage = result.current.loadOlder();
+        });
+        rerender({ id: 'C-to' });
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        expect(refreshList).toHaveBeenLastCalledWith({ channelId: 'C-to', cursorNo: 60, limit: 50 });
+        await act(async () => {
+            landOldPage({ fetchedCount: 50 });
+            await oldPage;
+        });
+    });
+
+    it('asks again for a page that failed', async () => {
+        refreshList.mockRejectedValueOnce(new Error('network')).mockResolvedValue({ fetchedCount: 50 });
+        const { result } = renderHook(() => useChats('C-retry'));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        expect(refreshList).toHaveBeenCalledTimes(2);
     });
 
     it('resolves false when the page fetch fails, and keeps paging possible', async () => {

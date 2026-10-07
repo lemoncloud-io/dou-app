@@ -90,6 +90,16 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     // `chats` dependency would rebuild it on every live append, re-attaching listeners).
     const chatsRef = useRef<DomainChat[]>(chats);
     chatsRef.current = chats;
+    // What keeps `loadOlder` from asking for the same page twice. Both are refs because the callers
+    // (a scroll handler firing on every frame at the top, the thread panel's pager) call again before any
+    // render could hand them new state. `pageLimitRef` is the window's current depth; `readBackLimitRef`
+    // is the depth the cache last delivered rows at: a landed page widens the window, and until the
+    // observer reads that back the oldest row is still the old cursor. `askingRef` names the scope a page is in
+    // flight for: a request still out for the channel the hook just left must not block the new one.
+    const pageLimitRef = useRef(pageLimit);
+    pageLimitRef.current = pageLimit;
+    const readBackLimitRef = useRef(0);
+    const askingRef = useRef<string | null>(null);
 
     // Adjust state synchronously on channel switch (React's "derive state from
     // props" pattern) so the new channel paints in the same render. Restore the
@@ -131,6 +141,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         // retry button. `apps/web` does not pass the flag, so its read path is unchanged.
         const unsubscribe = chatRepository.observeList({ channelId, limit: pageLimit, includeUnsent: true }, result => {
             if (cancelled) return;
+            readBackLimitRef.current = pageLimit;
             setChats(result?.list ?? []);
             setIsLoading(false);
         });
@@ -205,6 +216,9 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     // cannot see would read as a thread that never finishes loading.
     const loadOlder = useCallback(async (): Promise<boolean> => {
         if (!channelId || isLoadingOlder || !hasMore) return true;
+        // The page is already on its way, or has landed and the window has not been read back yet: its
+        // rows are what the next cursor would be, so asking now would fetch the same page again.
+        if (askingRef.current === scopeKey || readBackLimitRef.current < pageLimitRef.current) return true;
         // Read the oldest cached row from the ref so the cursor reflects the live
         // list without making `chats` a dependency. observeList is chat_no-descending,
         // so the smallest chatNo is the page boundary to fetch before.
@@ -220,6 +234,8 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         if (!Number.isFinite(oldestNo)) return true;
 
         const reqChannel = channelId;
+        const reqScope = scopeKey;
+        askingRef.current = reqScope;
         setIsLoadingOlder(true);
         try {
             const result = await chatRepository.refreshList({
@@ -236,9 +252,10 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
             // Leave hasMore set so a later scroll retries.
             return false;
         } finally {
+            if (askingRef.current === reqScope) askingRef.current = null;
             if (reqChannel === channelIdRef.current) setIsLoadingOlder(false);
         }
-    }, [chatRepository, channelId, isLoadingOlder, hasMore]);
+    }, [chatRepository, channelId, scopeKey, isLoadingOlder, hasMore]);
 
     return {
         messages,
