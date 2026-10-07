@@ -5,6 +5,7 @@ const session = vi.hoisted(() => ({
     handler: null as null | ((message: unknown) => void),
     isAuthenticated: false,
     createCredentialsByProvider: vi.fn(),
+    loginGuest: vi.fn(),
     toast: vi.fn(),
 }));
 
@@ -26,6 +27,8 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),
             createCredentialsByProvider: session.createCredentialsByProvider,
+            useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
+            useLoginRelayGuestByDevice: () => ({ mutateAsync: session.loginGuest }),
         },
     },
 }));
@@ -68,6 +71,7 @@ describe('OAuthDeeplinkListener', () => {
         localStorage.clear();
         session.isAuthenticated = false;
         session.createCredentialsByProvider.mockReset().mockResolvedValue(undefined);
+        session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.toast.mockReset();
         vi.spyOn(window, 'open').mockReturnValue(null);
         render(<OAuthDeeplinkListener />);
@@ -109,6 +113,24 @@ describe('OAuthDeeplinkListener', () => {
         expect(session.toast).toHaveBeenCalledWith(
             expect.objectContaining({ description: i18n.t('auth.social.expired') })
         );
+    });
+
+    it('tells the person when the exchange fails, once, and a login started again still completes', async () => {
+        started();
+        session.createCredentialsByProvider.mockRejectedValueOnce(new Error('relay rejected'));
+
+        await deliver('chatic://oauth?provider=google&code=bad');
+
+        expect(session.toast).toHaveBeenCalledTimes(1);
+        expect(session.toast).toHaveBeenCalledWith(
+            expect.objectContaining({ variant: 'destructive', description: i18n.t('auth.social.failed') })
+        );
+
+        started();
+        await deliver('chatic://oauth?provider=google&code=good');
+
+        expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good');
+        expect(session.toast).toHaveBeenCalledTimes(1);
     });
 
     it('does not exchange a deeplink for a different provider than the one started', async () => {

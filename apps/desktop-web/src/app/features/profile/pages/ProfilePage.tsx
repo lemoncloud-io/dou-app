@@ -71,7 +71,7 @@ export const ProfilePage = () => {
     const accountUser = runtime.session.getActiveSessionUser() as { email?: string } | null;
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
-    const { start: startSocialLogin } = useSocialLogin();
+    const { start: startSocialLogin, isStarting } = useSocialLogin();
 
     // Keep the display store fed on this route too — HomePage's subscription is
     // unmounted here, so without this the optimistic self-edit would not reflect
@@ -216,7 +216,8 @@ export const ProfilePage = () => {
                                 variant="outline"
                                 size="sm"
                                 className="shrink-0 gap-2"
-                                onClick={() => startSocialLogin('google')}
+                                onClick={() => void startSocialLogin('google')}
+                                disabled={isStarting}
                             >
                                 <GoogleIcon />
                                 {t('auth.social.google')}

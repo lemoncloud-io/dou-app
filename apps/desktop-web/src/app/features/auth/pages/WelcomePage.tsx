@@ -17,11 +17,12 @@ export const WelcomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { submit, isSubmitting, isError } = useGuestLogin();
-    const { start: startSocialLogin } = useSocialLogin();
+    const { start: startSocialLogin, isStarting, isError: isSocialError } = useSocialLogin();
+    const isBusy = isSubmitting || isStarting;
 
     return (
         <AuthCard title={t('welcome.title')} subtitle={t('welcome.subtitle')}>
-            {isError && (
+            {(isError || isSocialError) && (
                 <p role="alert" className="-mt-2 text-callout text-destructive">
                     {t('welcome.registerFailed')}
                 </p>
@@ -30,12 +31,7 @@ export const WelcomePage = () => {
             {/* One filled primary leads; the alternatives sit under it, and the
                 invite path is a link rather than a fourth identical pill. */}
             <div className="flex flex-col gap-2">
-                <Button
-                    size="lg"
-                    onClick={() => void submit()}
-                    disabled={isSubmitting}
-                    aria-describedby="welcome-guest-note"
-                >
+                <Button size="lg" onClick={() => void submit()} disabled={isBusy} aria-describedby="welcome-guest-note">
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
                 </Button>
                 {/* The button mints a guest account. Saying so here, not only in the
@@ -47,14 +43,14 @@ export const WelcomePage = () => {
                     <Button
                         variant="outline"
                         size="lg"
-                        onClick={() => startSocialLogin('google')}
-                        disabled={isSubmitting}
+                        onClick={() => void startSocialLogin('google')}
+                        disabled={isBusy}
                     >
                         <GoogleIcon />
-                        {t('auth.social.google')}
+                        {isStarting ? t('welcome.starting') : t('auth.social.google')}
                     </Button>
                 )}
-                <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isSubmitting}>
+                <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
                     {t('welcome.haveInvite')}
                 </Button>
                 {/* Dev-only email/password sign-in. Gated on import.meta.env.DEV so it's
@@ -66,7 +62,7 @@ export const WelcomePage = () => {
                         size="sm"
                         className="border border-dashed border-border text-muted-foreground"
                         onClick={() => navigate('/auth/debug')}
-                        disabled={isSubmitting}
+                        disabled={isBusy}
                     >
                         {t('welcome.debugLogin')}
                     </Button>

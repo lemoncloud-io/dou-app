@@ -11,6 +11,15 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=` (`chatic-dev:` on the dev channel) to wake the app. The app
 exchanges the code and replaces whatever session was on the device.
 
+The device is registered first. The backend's sign-in contract expects a device session,
+so tapping Google with no session registers the device (the same registration as the guest start)
+before the browser opens, and a registration that fails stops there with the Welcome page's
+"couldn't get you started" message. Cancelling in the browser therefore leaves the person with a
+guest session. A code that comes back and fails to exchange is shown as a message rather than
+dropped. The start record is used up by then, so the same link arriving again is refused as not
+started; the way to retry is to tap Google again, which after a Welcome start is on the Profile
+page, because the device is already registered.
+
 ## A deeplink is taken only for a login this app started
 
 Any web page, document or app on the machine can open a `chatic://` link, so a link that arrives

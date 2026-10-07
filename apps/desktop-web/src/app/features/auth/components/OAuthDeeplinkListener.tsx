@@ -7,12 +7,12 @@ import { parseOAuthDeeplink } from '../utils';
 
 /**
  * Receives the `chatic://oauth?code=...` deeplink the hand-off page fires from
- * the system browser (ADR 0009). The shell forwards every deeplink as an
+ * the system browser. The shell forwards every deeplink as an
  * `OnReceiveNotification` event; the `chatic://oauth` scheme and host are ours — the
  * `chatic-open:` channel routing never sees it. Mounted on both router
- * branches: pre-auth, success flips isAuthenticated and the router swaps
- * branches; in-app (a Guest Session linking to Google from the Profile page),
- * complete() swaps the session and reloads. A deeplink is exchanged only when this app started a login
+ * branches. `start` registers the device first, so the usual case is a Guest Session being replaced:
+ * complete() swaps the session and reloads. With no session at all (a link that lands after it was
+ * lost), success flips isAuthenticated and the router swaps branches. A deeplink is exchanged only when this app started a login
  * (`completeFromHandoff`) — the scheme is open to anything on the machine.
  */
 export const OAuthDeeplinkListener = () => {
@@ -25,7 +25,7 @@ export const OAuthDeeplinkListener = () => {
                 ?.deeplink;
             const payload = deeplink ? parseOAuthDeeplink(deeplink) : null;
             if (!payload) return;
-            void completeFromHandoff(payload);
+            void completeFromHandoff(payload, { notifyFailure: true });
         });
     }, [completeFromHandoff]);
 
