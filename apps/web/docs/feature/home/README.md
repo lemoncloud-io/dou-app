@@ -209,6 +209,11 @@ the sheet is open and any row is provisioning, a 30-second poll refetches and a 
 toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
 invited clouds, or subscribe.
 
+An invited row is titled by its cloud name with the owner caption ("sunny's cloud", else "Invited
+cloud") under it. An invite can carry no cloud name, and the cached row has none until `cloud.get`
+fills it in after the first connect; until then the caption becomes the title and the second line
+goes, so the row never prints the raw cloud id.
+
 ## Pull to refresh
 
 The scrolling body under the header is the kit's `PullToRefresh`: from the top of the list, a drag
