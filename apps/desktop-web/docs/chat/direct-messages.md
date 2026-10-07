@@ -142,6 +142,39 @@ place, the second stays put, and once the list loads without the room HomePage m
 `openPlaceFor` picks (`pendingRedirectPlace`) — once per room, and never while a switch is in
 flight, so a list that never gains the room cannot bounce between places.
 
+## Opening the Self Channel from another place
+
+The Self Channel is in every place's list, but each place holds its own messages in it: the server
+answers a read from the place the session is in. An item saved, mentioned or notified in place B
+therefore has to be opened from place B, which the 1:1 rule above (stay where I am when this place
+lists the room) would get wrong. `openPlaceFor` takes `placeBound` for this room: the named place wins
+when it lists the room, and this place is kept only when none was named. `pendingRedirectPlace` does
+the same for a held open, whose room is already listed here.
+
+Because the room is listed in the place being left too, the pending landing cannot use "the list
+carries it" as its signal. HomePage remembers the place a same-cloud open switched to
+(`awaitedPlaceRef`) and `landingTarget` holds the pending landing until the session is in that place
+and the `SWITCH_SITE` mutation has finished; the fallback landing waits with it, so a channel nobody
+picked is not opened from the target place's cached list in the meantime.
+
+Three rules keep that wait from pointing at a place that never comes:
+
+- A switch that fails (the engine has rolled the place back) gives the open up: `switchPlace` takes an
+  `onFailed` callback, and HomePage uses it to drop every pending landing. The reader keeps the place
+  they were in, and picking another place lands normally.
+- A second open while a switch runs does nothing (`jumpToSaved`, `returnToOrigin`), the way the place
+  rail is locked. Letting it through would re-arm the landing and drop the place the first open waits
+  for, and its channel would then land in the list of whichever place the pre-applied selection shows.
+- A notification open that reaches the switch step while another switch runs (`switchPlace` refuses it)
+  is given up for the same reason: the running switch heads somewhere the open did not choose. An open
+  whose place is already the session's has nothing to wait for and lands at once. A notification held
+  because the list is still loading takes no such lock; it is re-armed like any new open.
+
+The five ways in — saved items, mentions, a notification, the return bar after a jump, and message
+search — differ in what they know. The first four name a place (a return point records the place the
+reader stood in). Search names none: its rows come from the local cache by channel id and carry no
+place, so a Self Channel hit opens in the place the reader is in.
+
 ## Unread
 
 The place rail puts a dot on every place that lists an unread 1:1, so a dot always leads to a

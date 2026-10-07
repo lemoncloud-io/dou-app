@@ -45,8 +45,10 @@ same cursor, so the message can never arrive, and asking would leave a spinner t
 fetch that answers after the panel moved to another thread or channel is dropped.
 
 The server answers a read from the place the session is in, so "there is no such message" and "it is
-out of reach from this place" look the same on the wire (a saved reply of the Self Channel, which every
-place lists, can be opened from a place that cannot fetch it). The wording says "here" for that reason,
+out of reach from this place" look the same on the wire. A Self Channel reply saved in another place,
+which every place lists, can be opened from a place that cannot fetch it: the saved item, the mention,
+the notification and the return bar all switch to its place first, so what is left is a reply whose
+place is unknown. The wording says "here" for that reason,
 and a `gone` or `failed` verdict is keyed by the place it was asked from: when the place changes the
 panel asks again, and a fetch still in flight from the old place is dropped. A root that arrived stays.
 

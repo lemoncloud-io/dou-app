@@ -30,17 +30,51 @@ describe('useSelectPlace', () => {
         switchSite.mockClear();
         const { result } = renderHook(() => useSelectPlace());
 
-        act(() => result.current.switchPlace('site-2'));
+        let started = false;
+        act(() => {
+            started = result.current.switchPlace('site-2');
+        });
 
         expect(switchSite).toHaveBeenCalledWith('site-2');
+        expect(started).toBe(true);
     });
 
     it('이미 선택된 place 클릭은 무시한다', () => {
         switchSite.mockClear();
         const { result } = renderHook(() => useSelectPlace());
 
-        act(() => result.current.switchPlace('site-1'));
+        let started = true;
+        act(() => {
+            started = result.current.switchPlace('site-1');
+        });
 
         expect(switchSite).not.toHaveBeenCalled();
+        expect(started).toBe(false);
+    });
+
+    it('reports a switch that failed to the caller that asked for it', async () => {
+        switchSite.mockReset();
+        switchSite.mockRejectedValueOnce(new Error('switch failed'));
+        const onFailed = vi.fn();
+        const { result } = renderHook(() => useSelectPlace());
+
+        await act(async () => {
+            result.current.switchPlace('site-2', onFailed);
+        });
+
+        expect(onFailed).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not report a switch that succeeded', async () => {
+        switchSite.mockReset();
+        switchSite.mockResolvedValueOnce(undefined);
+        const onFailed = vi.fn();
+        const { result } = renderHook(() => useSelectPlace());
+
+        await act(async () => {
+            result.current.switchPlace('site-2', onFailed);
+        });
+
+        expect(onFailed).not.toHaveBeenCalled();
     });
 });
