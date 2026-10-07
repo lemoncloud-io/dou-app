@@ -7,10 +7,11 @@
 > ([image-send.md](../../../../apps/web/docs/feature/channels/image-send.md)).
 
 `data.useSendImages({ cid, channelId, parentId?, put, putShellFile?, prepareVideo?, onVideoRefused?, beforeSweep?, waitForConnection? })`
-sends picked attachments — page files, and in the mobile app shell files too — as one
-message and returns `{ sendImages, retry, canRetry, discard }`. It holds no rules about uploads
-itself. It binds the data layer's `sendImageMessage` to the room's cloud and to the PUT the shell
-passes in, and it keeps the picked files for as long as a retry could still need them.
+sends picked attachments — page files, and in the mobile app shell files too — as one message, or
+as one message per file (§ One message, or one per file), and returns
+`{ sendImages, retry, canRetry, discard }`. It holds no rules about uploads itself. It binds the data
+layer's `sendImageMessage` to the room's cloud and to the PUT the shell passes in, and it keeps the
+picked files for as long as a retry could still need them.
 
 What differs between shells enters as two ports, so every shell runs the same orchestration:
 
@@ -30,9 +31,9 @@ once the slot is signed in again or `false` after ten seconds, never rejects; ei
 then runs, so a socket that stays down fails the send as before, retryably. `waitForCloudSocket`
 answers at once when the socket is already up. Desktop passes none and starts at once.
 
-`sendImages` resolves once the send has settled, sent or failed — a caller that has to follow the
-message with another one awaits it. Desktop sends the composer's text first, at the press, and the
-pictures after it, so it awaits nothing.
+`sendImages` resolves once the send has settled, sent or failed — every message of it, when it sends
+one per file. A caller that has to follow the pictures with another message awaits it. Desktop sends
+the composer's text first, at the press, and the pictures after it, so it awaits nothing.
 
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
@@ -72,10 +73,94 @@ whichever cloud is on screen by the time it ends.
    moment earlier. A retry of a row deleted meanwhile answers `false` and lets the files go.
 
 The row starts from the original files' object URLs: the thumbnails do not exist yet when it is
-written, and holding the row back until they do would break "the pick is the send". Once every image
-is prepared — before the upload starts — the row is rewritten **once**, with a thumbnail preview for
-each image that has one (a GIF keeps its original) and each video poster. One cache write per message, not per image, and
-the feed stops decoding full-size photos for small tiles. A retry keeps the thumbnails it already has.
+written, and holding the row back until they do would leave the press with nothing on screen for as
+long as the preparation takes. Once every image is prepared — before the upload starts — the row is
+rewritten **once**, with a thumbnail preview for each image that has one (a GIF keeps its original)
+and each video poster. One cache write per message, not per image, and the feed stops decoding
+full-size photos for small tiles. A retry keeps the thumbnails it already has.
+
+## One message, or one per file
+
+`sendImages(files)` sends the pick as one message. `sendImages(files, { separately: true })` sends one
+message per file instead, in pick order — what the app's photo grid does when the sender turns
+"send as one message" off. Both cut the pick to ten first, so a pick is at most ten messages. One file
+is one message either way, and the option changes nothing about it: it neither queues in its room nor
+takes the preparation turn (both below).
+
+**Every row is written first, then the messages go one after another.**
+
+1. All the rows go into the cache before anything is prepared, in pick order, so the whole pick is on
+   screen at the press. Each write is awaited and the next one starts on a later millisecond: pending
+   rows (`chatNo: 0`) sort by `createdAt`, in milliseconds, and two rows written within the same one
+   would show in whatever order the cache lists them.
+2. Then, once what the room had on its way before the pick has settled (below), each message runs the
+   whole sequence — prepare, upload, send — and settles before the next one is prepared. The server
+   numbers a message when its send arrives, so this is what puts the sent messages in pick order, and
+   nothing sent in the room meanwhile lands between them. A row waiting for its turn is already in
+   flight, so neither a retry nor the attach-time sweep can take it.
+
+**Nothing else sent in the room lands between them.** A send made in the same room while a one-each
+pick's messages go out — another pick, a camera photo — would otherwise reach the server between two
+of them and be numbered there, for good and for everyone in the room. So every send takes its place in
+its room — cloud, channel and thread — as it is called, before its first await, and the room keeps the
+order the sends were made in (`takeRoomTurn`):
+
+- **A one-each pick waits for what the room had before it.** Its first message starts only once every
+  send made in the room before it has settled: an earlier one-each pick, with everything that pick
+  waited for, and the bundled sends already on their way.
+- **Whatever comes during it waits for it.** A send made in the room while a one-each pick runs —
+  bundled or one each — starts only once that pick's last message has settled.
+- **A bundled send waits for one-each picks only**, never for another bundled send. In a room with no
+  one-each pick on its way it starts at once, as it always did, and two bundled sends can still land in
+  either order. Desktop sends nothing but bundled messages, so its rooms send exactly as before.
+- **Rows are written at once, waiting or not.** Only the uploads and the sends wait, so the press puts
+  the row on screen as it always did. `sendImages` resolves once its own messages have settled, so a
+  send that waited resolves that much later.
+- **A room and its thread queue apart.** A reply takes its number from the room's sequence but never
+  shows in the room's feed, so neither can land visibly between the other's messages.
+- **A retry never waits** (below).
+
+The wait has no ceiling of its own. It relies on every step of a run giving up by itself — the
+ten-second connection wait, the bridge's and the socket's timeouts, the ten minutes `apps/web`'s
+`prepareVideo` gives a conversion, a poster's ten seconds — so a run that hung would hold the room's
+later sends with it, where it used to hold only its own message.
+
+What that costs: no upload overlaps another message's, and each message makes its own socket requests
+— `start`, `complete`, the send and its read-back, four per file where one message of ten makes four
+in all — and its own `waitForConnection`, so with the socket down every message waits its own ten
+seconds. A send made in the room while a one-each pick goes out waits for all of it: tens of seconds
+behind ten photos, minutes when one of them is a video the app has to convert.
+
+**A message that fails does not stop the next.** It is marked failed on its own row and the queue
+moves on; each row then retries or is deleted on its own, with its own file. A retry goes when it is
+tapped, off the room's queue: a message retried after later ones were sent lands after them, and one
+retried while a pick is still going can land between that pick's messages. A file the server or the
+shell refuses fails its own row, as in any one-file message, rather than splitting off a leftover row.
+
+**A row that cannot be written ends the writing.** The rows written before it still go; the files
+after it get no row, since nothing would send them. `sendImages` then rejects with the write's error,
+once the written messages have settled — the caller's "could not send" notice, as for a one-message
+send whose row could not be written.
+
+**The screen leaving does not stop the queue.** Every row is already on screen as sending, and
+stopping would strand the later ones there. Each queued message runs as a one-message send still
+running would: it can still finish, and its files go as soon as it settles, a failed one left to
+delete. Coming back to the screen before a message settles keeps its files, as for any running send.
+
+**One preparation at a time, for one-each messages.** The sequence prepares its own files one by
+one, because on the native shell a decode holds the whole source in WebView memory. A one-each pick is
+what puts several messages on their way together, so its messages also take turns with every other
+one-each message on the page (`prepareInTurn`), and so does every retry of one of their rows: a retry
+tapped while the rest of its pick still goes, or a one-each pick in the thread while one runs in the
+room, waits for the preparation under way instead of decoding beside it. A bundled message stays off
+that turn, and so does a retry of a bundled row: it prepares as it did before one-each sends existed,
+so two bundled messages still prepare side by side, and desktop, which sends nothing else, is
+unchanged.
+
+A turn is held for thirty seconds at most (`PREPARE_TURN_CEILING_MS`). Nothing is expected to take
+that long — a page video's poster, the slowest, gives up after ten — so a preparation still running
+then no longer holds the next one back. One that never settled would otherwise stall every later
+one-each send on the page until a reload; it still holds its own message.
 
 ## Shell files and video conversion
 

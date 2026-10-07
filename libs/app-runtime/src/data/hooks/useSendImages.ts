@@ -40,6 +40,11 @@ interface PendingImages {
     inFlight: boolean;
     /** The screen that sent it has left; drop the entry as soon as its send settles. */
     detached: boolean;
+    /**
+     * A message of a one-each pick, whose preparations take the page's turn (`prepareInTurn`) — on
+     * its first run and on every retry. A bundled message prepares as it always has.
+     */
+    inTurn: boolean;
 }
 
 /**
@@ -146,6 +151,114 @@ const prepareAttachment = async (source: ChatAttachmentSource): Promise<Prepared
     return sent.kind && sent.kind !== 'image'
         ? { original: { file: sent.file, width: 0, height: 0 }, thumbnail: null }
         : prepareChatAttachment(sent.file);
+};
+
+/**
+ * How long one preparation holds the turn. A preparation ends within seconds — a page video's poster,
+ * the slowest, gives up after ten — so a turn still held at thirty is one that will not end, and the
+ * next preparation goes rather than wait for it until the page reloads.
+ */
+const PREPARE_TURN_CEILING_MS = 30_000;
+
+/**
+ * The preparations of one-each messages, chained so that one runs at a time across messages, not only
+ * within one. The sequence prepares its own files one by one because on the native shell a decode
+ * holds the whole source in WebView memory. A one-each pick is what puts several messages on their
+ * way together — its queue, a retry of one of its rows tapped while the rest still go, a queue in the
+ * thread beside one in the room — so its messages and their retries take turns here. A bundled message
+ * stays off the chain and prepares as it always has: two of them side by side was already the case
+ * before one-each picks existed, and desktop sends nothing else. Per page, like the file memory below.
+ */
+let preparing: Promise<void> = Promise.resolve();
+const prepareInTurn = <T>(work: () => Promise<T>): Promise<T> => {
+    const turn = preparing.then(work);
+    // The next turn starts when this one settles — failed included, since a preparation that fails is
+    // its own message's failure — or once the ceiling passes, whichever comes first.
+    preparing = preparing.then(
+        () =>
+            new Promise<void>(resolve => {
+                const timer = setTimeout(resolve, PREPARE_TURN_CEILING_MS);
+                const done = () => {
+                    clearTimeout(timer);
+                    resolve();
+                };
+                turn.then(done, done);
+            })
+    );
+    return turn;
+};
+
+/**
+ * Where a room's sends stand, so that a one-each pick's messages reach the server back to back. The
+ * server numbers a message when its send arrives, and a one-each pick runs its messages one after
+ * another; a send started in the same room while that queue runs — another pick, a camera photo —
+ * would otherwise slip in between them, for good and for everyone in the room.
+ *
+ * So a one-each pick runs once every send made in the room before it has settled — the queue ahead
+ * of it (`tail`) and the bundled sends on their way (`loose`) — and becomes the room's tail itself. A
+ * bundled send waits only for the tail, never for another bundled send: in a room with no one-each
+ * pick on its way it waits for nothing, so a room that never sends one each — every desktop room —
+ * sends exactly as before. Rows are written at once either way: only the uploads and sends wait.
+ * Retries do not queue; a retry goes when it is tapped.
+ *
+ * Keyed by cloud, channel and thread, like the screens that send. A reply takes its number from the
+ * room's sequence but never shows in the room's feed, so a thread's sends cannot land visibly between
+ * the room's messages, nor the room's between a thread's replies. An entry goes once its room has
+ * nothing left on its way.
+ */
+interface RoomSends {
+    /** Settles once the room's last one-each pick has, and with it everything that pick waited for. */
+    tail?: Promise<void>;
+    /** Bundled sends on their way, those still waiting for the tail included. Each leaves as it settles. */
+    loose: Set<Promise<void>>;
+}
+const roomSends = new Map<string, RoomSends>();
+
+const forgetIfIdle = (key: string, room: RoomSends) => {
+    if (!room.tail && room.loose.size === 0 && roomSends.get(key) === room) roomSends.delete(key);
+};
+
+/**
+ * Takes a send's place in its room, before its first await so the room keeps the order sends were
+ * made in. `ahead` is what it waits for before its first message runs, null when nothing; `settle` is
+ * called once every message of it has settled, and must be, or the room's later sends wait forever.
+ */
+const takeRoomTurn = (key: string, separately: boolean): { ahead: Promise<void> | null; settle: () => void } => {
+    const room = roomSends.get(key) ?? { loose: new Set<Promise<void>>() };
+    roomSends.set(key, room);
+    let settle: () => void = () => undefined;
+    const own = new Promise<void>(resolve => (settle = resolve));
+    if (!separately) {
+        const ahead = room.tail ?? null;
+        room.loose.add(own);
+        void own.then(() => {
+            room.loose.delete(own);
+            forgetIfIdle(key, room);
+        });
+        return { ahead, settle };
+    }
+    const waits = [...(room.tail ? [room.tail] : []), ...room.loose];
+    const ahead = waits.length > 0 ? Promise.all(waits).then(() => undefined) : null;
+    // Never settles before `ahead`, even when this send has nothing to run: a send behind it waits for
+    // everything that was ahead of this one too.
+    const tail = ahead ? Promise.all([ahead, own]).then(() => undefined) : own;
+    room.tail = tail;
+    void tail.then(() => {
+        // A one-each pick made since then has taken the tail over, and still waits behind this one.
+        if (room.tail !== tail) return;
+        room.tail = undefined;
+        forgetIfIdle(key, room);
+    });
+    return { ahead, settle };
+};
+
+/**
+ * Resolves once the clock has moved past `since`. Pending rows sort by `createdAt`, in milliseconds,
+ * and a cache write can finish inside the millisecond it started in: two rows stamped alike would show
+ * in whatever order the cache lists them rather than the order they were picked in.
+ */
+const pastMillisecond = async (since: number): Promise<void> => {
+    while (Date.now() <= since) await new Promise(resolve => setTimeout(resolve, 1));
 };
 
 const codeOf = (error: unknown) => (error as { code?: string } | null)?.code;
@@ -294,10 +407,16 @@ export interface UseSendImagesInput {
     waitForConnection?: (cid: string) => Promise<boolean>;
 }
 
+/** How `sendImages` packs what was picked. */
+export interface SendImagesOptions {
+    /** One message per file, in pick order, instead of one message carrying them all. */
+    separately?: boolean;
+}
+
 /**
- * Sends picked images as one message: writes the pending row at once, runs the upload sequence on
- * this shell's PUT, then swaps in the server's row — or marks the row failed and keeps the files so
- * the same pictures can be retried.
+ * Sends picked images as one message — or, with `separately`, as one message per file: writes the
+ * pending row at once, runs the upload sequence on this shell's PUT, then swaps in the server's row —
+ * or marks the row failed and keeps the files so the same pictures can be retried.
  *
  * Attaching to a channel also settles what an earlier page left behind: pending image rows with no
  * files in memory are marked failed (`canRetry` is false for them — delete is all that is left),
@@ -416,7 +535,9 @@ export const useSendImages = ({
                                             }
                                           : null,
                                   }
-                                : await prepareAttachment(source);
+                                : await (entry.inTurn
+                                      ? prepareInTurn(() => prepareAttachment(source))
+                                      : prepareAttachment(source));
                             const thumbnail = prepared.thumbnail?.file;
                             if (!video && thumbnail && !isShellFileRef(thumbnail)) previews[index] = thumbnail;
                             if (next === sending.length) await switchToThumbnailPreviews(pendingId, previews);
@@ -458,11 +579,12 @@ export const useSendImages = ({
         [convertVideos]
     );
 
-    const sendImages = useCallback(
-        async (picked: ChatAttachmentSource[]) => {
-            // Cut before the row is written, so the row shows exactly the slots that will be sent.
-            const files = picked.slice(0, IMAGE_MESSAGE_SLOT_MAX);
-            if (files.length === 0) return;
+    /**
+     * Writes one message's pending row and parks its files in the page map, already in flight — so
+     * neither a retry nor the sweep can take it before its sequence runs.
+     */
+    const writePending = useCallback(
+        async (files: ChatAttachmentSource[], inTurn: boolean): Promise<string> => {
             const urls = files.map(previewUrlOf);
             // Left out when every file is an image, so an image send writes the row it always has.
             const localFiles = files.map(pendingFileDetails);
@@ -487,11 +609,61 @@ export const useSendImages = ({
                 thumbnailed: false,
                 inFlight: true,
                 detached: !attachedRef.current,
+                inTurn,
             });
             changed();
-            await run(pendingId);
+            return pendingId;
         },
-        [cid, channelId, parentId, run]
+        [cid, channelId, parentId]
+    );
+
+    const sendImages = useCallback(
+        async (picked: ChatAttachmentSource[], options: SendImagesOptions = {}) => {
+            // Cut before any row is written, so the rows show exactly the slots that will be sent: ten
+            // per pick, as one message or one each.
+            const files = picked.slice(0, IMAGE_MESSAGE_SLOT_MAX);
+            if (files.length === 0) return;
+            // One file is one message either way, and goes exactly as it would without the option.
+            const separately = options.separately === true && files.length > 1;
+            const messages = separately ? files.map(file => [file]) : [files];
+            const errors: unknown[] = [];
+            const turn = takeRoomTurn(`${cid}/${channelId}/${parentId ?? ''}`, separately);
+
+            try {
+                // Every row first, so the whole pick is on screen at the press, in pick order — even
+                // while the room's queue keeps its messages waiting. Each write is awaited and the next
+                // one stamped a later millisecond, since pending rows sort by `createdAt`. A row that
+                // cannot be written ends the writing: the rows before it still go, and the files after
+                // it are not shown as sending when nothing would send them.
+                const pendingIds: string[] = [];
+                let writtenAt = 0;
+                for (const message of messages) {
+                    if (pendingIds.length > 0) await pastMillisecond(writtenAt);
+                    try {
+                        pendingIds.push(await writePending(message, separately));
+                    } catch (error) {
+                        errors.push(error);
+                        break;
+                    }
+                    writtenAt = Date.now();
+                }
+
+                // Then, once what the room has ahead of this send has settled (`takeRoomTurn`), the
+                // messages one after another: each one's send settles before the next one is prepared,
+                // so the server numbers them in pick order and nothing sent in the room meanwhile lands
+                // between them. A message that fails is marked failed on its own row and the next one
+                // still goes; every row then retries or is deleted alone.
+                if (pendingIds.length > 0 && turn.ahead) await turn.ahead;
+                for (const pendingId of pendingIds) {
+                    await run(pendingId).catch(error => void errors.push(error));
+                }
+            } finally {
+                turn.settle();
+            }
+            // Only once every written message has settled, which is when `sendImages` resolves too.
+            if (errors.length > 0) throw errors[0];
+        },
+        [cid, channelId, parentId, writePending, run]
     );
 
     /** Tries the same pictures again, on the same row. False when the files are gone or it is still sending. */

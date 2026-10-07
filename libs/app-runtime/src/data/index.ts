@@ -12,7 +12,13 @@ export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
 export { getCloudRepositories, runInCloud, sendChatInCloud, waitForCloudSocket } from './cloudChat';
 // Image messages: one send sequence for every shell, addressed to the room's cloud like the chat send.
 export { useSendImages } from './hooks/useSendImages';
-export type { PreparedShellVideo, PrepareVideoPort, UseSendImagesInput, VideoRefusal } from './hooks/useSendImages';
+export type {
+    PreparedShellVideo,
+    PrepareVideoPort,
+    SendImagesOptions,
+    UseSendImagesInput,
+    VideoRefusal,
+} from './hooks/useSendImages';
 export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheSearch';
 
 // Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s

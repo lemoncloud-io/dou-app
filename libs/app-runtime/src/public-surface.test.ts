@@ -14,7 +14,8 @@ import * as api from './index';
  * every call site, so it has to be a deliberate edit to this file.
  *
  * Type-only exports (`SessionProfile` · `ISocketManager` · `DeviceTokenDelegate` · the option types)
- * are erased at runtime and do not appear here — this asserts the value exports only. Internal wiring
+ * are erased at runtime and do not appear in `GROUPS` — those lists hold the value exports only, and a
+ * type a call site cannot do without is checked by the compiler instead (the last test). Internal wiring
  * (socket auth bootstrap/reauth, the connection binders, raw session actions, `useSyncTarget`,
  * `useRuntimeSocketSlots`) can therefore never leak back into the barrel unnoticed.
  */
@@ -129,5 +130,15 @@ describe('@chatic/app-runtime public surface', () => {
         // convention and one of the two is bound to go stale. The migration is done, so there's no
         // flat lane, and this check keeps one from coming back.
         expect(Object.keys(api)).toEqual(['runtime']);
+    });
+
+    it('runtime.data publishes the image send options, and sendImages takes them second', () => {
+        // Erased at runtime, so the check is that this compiles: it stops compiling if the type leaves
+        // the group or `sendImages` stops taking it.
+        type SendImages = ReturnType<typeof api.runtime.data.useSendImages>['sendImages'];
+        const options: api.runtime.data.SendImagesOptions = { separately: true };
+        const taken: Parameters<SendImages>[1] = options;
+
+        expect(taken).toEqual({ separately: true });
     });
 });
