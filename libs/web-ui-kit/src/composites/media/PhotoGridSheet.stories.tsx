@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react';
 
@@ -23,8 +23,15 @@ const ALBUMS = [
 const COUNT = 2000;
 const PAGE = 60;
 
-const Demo = ({ initialPicked = 0 }: { initialPicked?: number }) => {
+const Demo = ({ initialPicked = 0, firstPageMs = 0 }: { initialPicked?: number; firstPageMs?: number }) => {
     const [open, setOpen] = useState(true);
+    // The first page's round trip: skeleton tiles until it lands.
+    const [ready, setReady] = useState(firstPageMs === 0);
+    useEffect(() => {
+        if (ready) return;
+        const timer = window.setTimeout(() => setReady(true), firstPageMs);
+        return () => window.clearTimeout(timer);
+    }, [ready, firstPageMs]);
     const [albumsOpen, setAlbumsOpen] = useState(false);
     const [album, setAlbum] = useState(ALBUMS[0]);
     const [columns, setColumns] = useState(3);
@@ -57,7 +64,8 @@ const Demo = ({ initialPicked = 0 }: { initialPicked?: number }) => {
                     setAlbumsOpen(false);
                 }}
                 formatAlbumCount={n => n.toLocaleString('ko-KR')}
-                count={COUNT}
+                count={ready ? COUNT : 0}
+                loading={!ready}
                 photoAt={index => (loaded.has(Math.floor(index / PAGE)) ? photo(index) : undefined)}
                 onVisibleRangeChange={loadRange}
                 columns={columns}
@@ -77,3 +85,4 @@ const Demo = ({ initialPicked = 0 }: { initialPicked?: number }) => {
 export const Empty: Story = { render: () => <Demo /> };
 export const Picked: Story = { render: () => <Demo initialPicked={3} /> };
 export const AtTheCap: Story = { render: () => <Demo initialPicked={10} /> };
+export const FirstPageLoading: Story = { render: () => <Demo firstPageMs={2500} /> };

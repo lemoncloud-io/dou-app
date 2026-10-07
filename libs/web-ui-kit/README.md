@@ -85,7 +85,7 @@ than tailwind-merges and breaks the two-up action row.
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 95 spec files and 79 story files against 94 exported
+6. **Every component has a test and a story.** 95 spec files and 79 story files against 95 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -109,7 +109,7 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 57<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    C["composites × 58<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 37<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 43 icons · 7 assets</i>"]:::res
 
@@ -159,8 +159,8 @@ libs/web-ui-kit/src/
 ├── foundations/   11 groups, 37 components
 │   avatar(7) · button(10) · input(7) · badge(5) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 57 components
-    chat(17) · list(6) · media(6) · overlay(6) · section(4) · header(3) ·
+└── composites/    10 groups, 58 components
+    chat(17) · list(6) · media(7) · overlay(6) · section(4) · header(3) ·
     layout(4) · subscription(7) · feedback(2) · navigation(2)
 ```
 

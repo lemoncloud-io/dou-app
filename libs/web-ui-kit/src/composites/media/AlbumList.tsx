@@ -1,5 +1,6 @@
 import { cn } from '@chatic/lib/utils';
 
+import { PreviewImage } from './PreviewImage';
 import type { PhotoAlbum } from './types';
 
 export interface AlbumListProps {
@@ -20,10 +21,8 @@ export const AlbumList = ({ albums, onSelect, formatCount = count => String(coun
                     onClick={() => onSelect(album.id)}
                     className="flex w-full items-center gap-4 py-[7px] text-left"
                 >
-                    <span className="size-16 shrink-0 overflow-hidden rounded-[8px] bg-muted">
-                        {album.coverSrc && (
-                            <img src={album.coverSrc} alt="" className="size-full object-cover" draggable={false} />
-                        )}
+                    <span className="relative size-16 shrink-0 overflow-hidden rounded-[8px] bg-muted">
+                        <PreviewImage src={album.coverSrc ?? ''} />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-1 font-medium leading-[1.5]">
                         <span className="truncate text-[16px] tracking-[-0.08px] text-foreground">{album.title}</span>

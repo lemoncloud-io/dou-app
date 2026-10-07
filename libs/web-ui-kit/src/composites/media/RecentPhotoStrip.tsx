@@ -1,5 +1,6 @@
 import { cn } from '@chatic/lib/utils';
 
+import { PreviewImage } from './PreviewImage';
 import type { PhotoItem } from './types';
 import { VideoMark } from './VideoMark';
 
@@ -55,7 +56,7 @@ export const RecentPhotoStrip = ({
                         onClick={() => onSelect(photo.id)}
                         className="relative size-[90px] shrink-0 overflow-hidden rounded-[12px] bg-muted"
                     >
-                        <img src={photo.src} alt="" className="size-full object-cover" draggable={false} />
+                        <PreviewImage src={photo.src} />
                         {photo.kind === 'video' && <VideoMark durationMs={photo.durationMs} />}
                         <span
                             aria-hidden
