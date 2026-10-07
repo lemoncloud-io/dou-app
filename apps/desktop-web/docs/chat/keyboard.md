@@ -29,10 +29,13 @@ emoji grid, the delete dialog). Whether the device can hover is a live media que
 
 A row gets a toolbar only when it has something to draw, and `MessageRow` decides that from the same
 three flags the toolbar renders from: reactions (any settled row), Reply (a settled row where the feed
-passes `onOpenThread`), and the "More" menu (the row has text, or it is mine to edit or delete). The
-thread panel passes no Reply, so a file or photo someone else sent there without text still gets the
-reaction buttons, and nothing else. A row still in flight or failed has no reactions or Reply, so
-without text it has no toolbar; a deleted row never has one.
+passes `onOpenThread`), and the "More" menu (the row has text, it is a settled row with attachments,
+or it is mine to edit or delete). A file or photo sent without text gets "More" in the main feed and
+the thread panel alike, for Save for later: someone else's holds that one item, since there is no
+text to copy or edit and the row is not mine to delete; mine adds it to Edit and Delete. Its saved
+snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), because the Saved pane shows
+only that text. A row still in flight or failed has no reactions, Reply or Save, so without text it
+has no toolbar; a deleted row never has one.
 
 ## Hover-revealed controls
 

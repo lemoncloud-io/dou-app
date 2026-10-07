@@ -36,6 +36,7 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 import '../../../../i18n';
 
 import { MessageList } from './MessageList';
+import { useSavedItemsStore } from '../../../shared';
 import type { ThreadMeta } from '../utils';
 import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
@@ -337,9 +338,7 @@ describe('MessageList', () => {
 
     // Reacting is only reachable from the toolbar, so a file-only reply from somebody else, which
     // has no text and nothing of mine to edit or delete, still needs the toolbar for its reactions.
-    // It offers what somebody else's text reply offers and nothing more: no menu to put Copy,
-    // Edit or Delete in.
-    it("offers reactions, and no menu, on somebody else's file-only reply in a thread", () => {
+    it("offers reactions on somebody else's file-only reply in a thread", () => {
         render(
             <MessageList
                 messages={[fileOnlyReply(1, 'ada')]}
@@ -351,7 +350,84 @@ describe('MessageList', () => {
         );
 
         expect(screen.getByLabelText('Add reaction')).toBeDefined();
-        expect(screen.queryByLabelText('More actions')).toBeNull();
+    });
+
+    // A file sent on its own is as worth coming back to as a text, so its menu holds Save for
+    // later. Only that: there is no text to copy or edit, and somebody else's file is not mine
+    // to delete. The thread panel passes no `onOpenThread`; the main feed does.
+    it.each([
+        ['in a thread', undefined],
+        ['in the main feed', vi.fn()],
+    ])("offers only Save for later on somebody else's file-only message %s", (_where, onOpenThread) => {
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'ada')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                onOpenThread={onOpenThread}
+            />,
+            { wrapper }
+        );
+        fireEvent.keyDown(screen.getByLabelText('More actions'), { key: 'Enter' });
+
+        expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Save for later']);
+    });
+
+    it.each([
+        ['in a thread', undefined],
+        ['in the main feed', vi.fn()],
+    ])('offers Save for later on my file-only message %s, next to Delete', (_where, onOpenThread) => {
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'me')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map()}
+                onOpenThread={onOpenThread}
+            />,
+            { wrapper }
+        );
+        fireEvent.keyDown(screen.getByLabelText('More actions'), { key: 'Enter' });
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+
+        expect(items).toContain('Save for later');
+        expect(items).toContain('Delete message');
+        expect(items).not.toContain('Copy');
+    });
+
+    // The saved pane shows the snapshot's text and nothing else, so a file saved as its empty
+    // `content` would sit there as a blank row. It reads the way the sidebar previews it.
+    it('saves a file-only message under what it carries, not its empty text', () => {
+        useSavedItemsStore.setState({ items: {} });
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'ada')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+        clickRowMenuItem('Save for later');
+
+        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'File', ownerName: 'Ada' });
+    });
+
+    it('saves a text message under its text', () => {
+        useSavedItemsStore.setState({ items: {} });
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'see you at noon')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+        clickRowMenuItem('Save for later');
+
+        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'see you at noon' });
     });
 
     // The toolbar is drawn from what the row can do, so a row the server has not accepted has
