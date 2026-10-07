@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-07] - root@0.85.1, @chatic/desktop-web@0.19.5
+
+### Bug Fixes
+
+- (desktop-web) hide cloud delete on a cloud that cannot be opened
+
 ## [2026-10-07] - No version updates
 
 ### Features
