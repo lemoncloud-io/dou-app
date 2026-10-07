@@ -14,7 +14,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-import type { DomainChat } from '@chatic/data';
+import { chatAttachmentSummary, type DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -48,6 +48,7 @@ import {
     avatarStyle,
     formatClockTime,
     formatShortDate,
+    messagePreview,
     useMediaQuery,
     useSavedItemsStore,
 } from '../../../shared';
@@ -440,7 +441,11 @@ export const MessageRow = memo(
                             // no bar and no way to be reacted to.
                             const showReactions = isSettled;
                             const showReply = !!onOpenThread && isSettled;
-                            const showMore = !!content || canModifyMessage(message, group.isMine);
+                            // A file sent with no text is as worth coming back to as a text, so
+                            // Save does not wait for `content`. Copy still does: such a row has
+                            // no text to copy, so somebody else's holds Save and nothing more.
+                            const showSave = isSettled && (!!content || !!chatAttachmentSummary(message));
+                            const showMore = !!content || showSave || canModifyMessage(message, group.isMine);
                             const hasActions = showReactions || showReply || showMore;
                             const isEditing = editingKey === key;
                             const wasEdited = isEdited(message);
@@ -825,14 +830,16 @@ export const MessageRow = memo(
                                                         </DropdownMenuTrigger>
                                                     </Hint>
                                                     <DropdownMenuContent align="end" side="bottom" className="w-48">
-                                                        {content && isSettled && (
+                                                        {showSave && (
                                                             <DropdownMenuItem
                                                                 onSelect={() =>
                                                                     toggleSaved({
                                                                         id: key,
                                                                         channelId: message.channelId ?? '',
                                                                         chatNo: message.chatNo,
-                                                                        content: plain,
+                                                                        // The saved pane shows only this, so a
+                                                                        // file-only message needs a line of its own.
+                                                                        content: plain || messagePreview(message),
                                                                         ownerName: group.ownerName,
                                                                         avatar: group.avatar,
                                                                         colorSeed: group.colorSeed,
