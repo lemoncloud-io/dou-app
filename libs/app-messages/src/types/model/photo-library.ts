@@ -51,8 +51,11 @@ export type PhotoLibraryItem = {
     id: string;
     /**
      * A small base64 JPEG preview. Not the photo itself; a video's poster frame. With `thumbSize` it is
-     * the centre square of the photo, `thumbSize` pixels a side (smaller only when the photo is); without
-     * it, about 256px on the long edge, uncropped. Empty only on a page asked for by `offset`, for an
+     * the centre square of the photo, at most `thumbSize` pixels a side. It is smaller when the photo
+     * is, or when the shell answers from a smaller rendition the system already keeps: iOS answers 353–440
+     * at 352, and Android's system thumbnail has its own ceiling. Whether a preview is sharp enough is
+     * judged by the size asked for, never by the pixels that came back. Without `thumbSize`, about 256px
+     * on the long edge, uncropped. Empty only on a page asked for by `offset`, for an
      * item whose preview could not be made — its place in the list is still its own.
      */
     thumbBase64: string;
@@ -99,7 +102,7 @@ export type ListPhotosPayload = {
     mediaTypes?: PhotoLibraryMediaType[];
     /**
      * The previews' size: the side of a square, in device pixels — what the tile is drawn at. The shell
-     * clamps it to 64–720. Omitted, the shell answers the uncropped ~256px previews it always did.
+     * clamps it to 64–720, and may answer a little under it (see `PhotoLibraryItem.thumbBase64`). Omitted, the shell answers the uncropped ~256px previews it always did.
      */
     thumbSize?: number;
     /**

@@ -171,7 +171,9 @@ witness.
 
 **Preview size.** Every list asks for previews at the size the tiles are drawn: the tile's CSS width ×
 `devicePixelRatio`, rounded up to 16 (`thumbSize`; a 390pt phone at three columns asks about 400px). The
-app answers a square crop of that size ([apps/mobile native/photo-library.md](../../../../mobile/docs/native/photo-library.md)). The menu's recent
+app answers a square crop of that size ([apps/mobile native/photo-library.md](../../../../mobile/docs/native/photo-library.md)),
+except that iOS answers a size above 352px and up to 440px at 352px. That is the rendition Photos keeps of
+every photo: past it, each preview is a decode of the original and a page takes seconds. The menu's recent
 strip and the album covers ask for theirs the same way. An app from before the field answers its old
 ~256px previews, which draw a little soft and need no fallback.
 
