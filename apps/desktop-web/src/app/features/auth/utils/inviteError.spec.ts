@@ -11,4 +11,13 @@ describe('inviteLoginErrorText', () => {
         expect(text).not.toMatch(/https?:|invt:/);
         expect(text.length).toBeGreaterThan(0);
     });
+
+    // A key with no resource prints as the key itself, so a missing translation shows up as `auth.…`.
+    it.each(['ko', 'en'])('has a translated line for every refusal that never reaches the server (%s)', language => {
+        for (const kind of ['relay', 'unmarked', 'loggedIn', 'backend'] as const) {
+            const text = inviteLoginErrorText({ kind }, i18n.getFixedT(language));
+            expect(text).not.toMatch(/^auth\./);
+            expect(text.length).toBeGreaterThan(0);
+        }
+    });
 });

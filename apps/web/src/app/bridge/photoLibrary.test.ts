@@ -7,8 +7,10 @@ const listPhotos = jest.fn();
 const listPhotoAlbums = jest.fn();
 const readPhoto = jest.fn();
 const managePhotoSelection = jest.fn();
+const keepLibraryVideo = jest.fn();
 jest.mock('./appBridge', () => ({
     appBridge: {
+        keepLibraryVideo: (...args: unknown[]) => keepLibraryVideo(...args),
         listPhotos: (...args: unknown[]) => listPhotos(...args),
         listPhotoAlbums: (...args: unknown[]) => listPhotoAlbums(...args),
         readPhoto: (...args: unknown[]) => readPhoto(...args),
@@ -39,7 +41,7 @@ describe('photoLibrary', () => {
         listPhotos.mockResolvedValue({ data: page });
 
         await expect(photoLibrary.photos({ limit: 4, after: 'c1' })).resolves.toEqual(page);
-        expect(listPhotos).toHaveBeenCalledWith({ limit: 4, after: 'c1' });
+        expect(listPhotos).toHaveBeenCalledWith({ limit: 4, after: 'c1', mediaTypes: ['image', 'video'] });
     });
 
     // An app built before the picker has no handler. One NOT_FOUND settles it for the session, so
@@ -97,5 +99,132 @@ describe('base64ToFile / photoPreviewSrc', () => {
 
     it('wraps a preview as a JPEG data URL', () => {
         expect(photoPreviewSrc('QUJD')).toBe('data:image/jpeg;base64,QUJD');
+    });
+});
+
+describe('photoLibrary — videos', () => {
+    const kept = {
+        kind: 'video',
+        uri: 'file:///c/attach-pick/u/IMG_1.MOV',
+        name: 'IMG_1.MOV',
+        contentType: 'video/quicktime',
+        size: 5,
+    };
+
+    // An app from before videos drops the field and lists photos only, so asking costs it nothing.
+    it('asks every list and the albums for photos and videos', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [] } });
+        listPhotoAlbums.mockResolvedValue({ data: { access: 'granted', albums: [] } });
+
+        await photoLibrary.photos({ limit: 60 });
+        await photoLibrary.albums();
+
+        expect(listPhotos).toHaveBeenCalledWith({ limit: 60, mediaTypes: ['image', 'video'] });
+        expect(listPhotoAlbums).toHaveBeenCalledWith({ mediaTypes: ['image', 'video'] });
+    });
+
+    it('hands a kept video over as a shell file the send uploads from', async () => {
+        keepLibraryVideo.mockResolvedValue({ data: { ...kept, needsExport: true } });
+
+        await expect(photoLibrary.keepVideo({ id: 'asset-1' })).resolves.toEqual({
+            uri: kept.uri,
+            name: 'IMG_1.MOV',
+            type: 'video/quicktime',
+            size: 5,
+            kind: 'video',
+            needsExport: true,
+        });
+        expect(keepLibraryVideo).toHaveBeenCalledWith('asset-1');
+    });
+
+    it('passes the shell’s refusal through without learning from it', async () => {
+        const refusal = Object.assign(new Error('hevc'), { code: 'UNSUPPORTED' });
+        keepLibraryVideo.mockRejectedValue(refusal);
+
+        await expect(photoLibrary.keepVideo({ id: 'v:1' })).rejects.toBe(refusal);
+        expect(photoLibrary.videosSupported()).toBe(true);
+    });
+
+    it('stops asking for videos once an app cannot keep one, and drops any a list still brings', async () => {
+        keepLibraryVideo.mockRejectedValue(notFound);
+        listPhotos.mockResolvedValue({
+            data: {
+                access: 'granted',
+                items: [
+                    { id: 'p', thumbBase64: 'p' },
+                    { id: 'v', thumbBase64: 'v', mediaType: 'video' },
+                ],
+            },
+        });
+
+        await expect(photoLibrary.keepVideo({ id: 'v' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        expect(photoLibrary.videosSupported()).toBe(false);
+        // The photo grid itself is still there.
+        expect(photoLibrary.isUnsupported()).toBe(false);
+
+        const page = await photoLibrary.photos({ limit: 60 });
+        expect(listPhotos).toHaveBeenLastCalledWith({ limit: 60 });
+        expect(page?.items.map(item => item.id)).toEqual(['p']);
+        await expect(photoLibrary.keepVideo({ id: 'v' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        expect(keepLibraryVideo).toHaveBeenCalledTimes(1);
+    });
+
+    it('never asks a browser to keep a video', async () => {
+        mockNative = false;
+
+        await expect(photoLibrary.keepVideo({ id: 'v' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        expect(keepLibraryVideo).not.toHaveBeenCalled();
+    });
+});
+
+describe('photoLibrary — preview size and offset', () => {
+    it('sends the preview size and offset it is given, and nothing it is not', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], offset: 120, total: 500 } });
+        listPhotoAlbums.mockResolvedValue({ data: { access: 'granted', albums: [] } });
+
+        await photoLibrary.photos({ limit: 60, offset: 120, thumbSize: 400, after: undefined });
+        await photoLibrary.albums({ thumbSize: 192 });
+
+        expect(listPhotos).toHaveBeenCalledWith({
+            limit: 60,
+            offset: 120,
+            thumbSize: 400,
+            mediaTypes: ['image', 'video'],
+        });
+        expect(listPhotoAlbums).toHaveBeenCalledWith({ thumbSize: 192, mediaTypes: ['image', 'video'] });
+    });
+
+    it('keeps paging by offset while the app echoes the offset', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], offset: 0, total: 3 } });
+
+        await photoLibrary.photos({ limit: 60, offset: 0 });
+
+        expect(photoLibrary.pagesByOffset()).toBe(true);
+    });
+
+    // An app from before offsets answers the first page and says nothing about where it starts.
+    it('stops paging by offset once an app answers an offset page without echoing it', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], next: 'c1' } });
+
+        await photoLibrary.photos({ limit: 60, offset: 0 });
+
+        expect(photoLibrary.pagesByOffset()).toBe(false);
+    });
+
+    // Every app answers a denied list empty, with no echo — that says nothing about offsets.
+    it('does not judge offsets from a denied answer', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'denied', items: [] } });
+
+        await photoLibrary.photos({ limit: 60, offset: 0 });
+
+        expect(photoLibrary.pagesByOffset()).toBe(true);
+    });
+
+    it('does not judge offsets from a page asked for by cursor', async () => {
+        listPhotos.mockResolvedValue({ data: { access: 'granted', items: [], next: 'c2' } });
+
+        await photoLibrary.photos({ limit: 60, after: 'c1' });
+
+        expect(photoLibrary.pagesByOffset()).toBe(true);
     });
 });

@@ -59,7 +59,7 @@ entitled to see whose place they are in.
 
 The place record is an `observeItem` on the place repository; the owner's name comes from
 `usePlaceOwnerProfile`; name, introduction and image are written with `useUpdatePlace`; my own nick
-and photo with `profileRepository.setMyProfile`; and the channel sort is the `ui.channelSort`
+and photo with `useSetMyPlaceProfile`; and the channel sort is the `ui.channelSort`
 config setting.
 
 Two of those carry a rule worth stating.
@@ -71,10 +71,14 @@ per-place anyway, which makes the profile the right source as well as the only c
 `useSenderProfiles` uses for chat authors, narrowed to a single subject. It returns `null` both
 while loading and when there is no owner at all, so callers must read `null` as "no owner row".
 
-**The save names its place.** `setMyProfile` takes `siteId` as an argument rather than reading an
-ambient `sid`, because `sid` is not ambient — the reasoning lives in
-[`@chatic/data`](../../../../../libs/data/README.md), and the practical consequence here is that a
-site switch cannot race the save.
+**My profile can only be saved from inside its place.** The server writes `profile.set` to the site
+the socket session is on and ignores the `siteId` the request carries, so no screen can set a profile
+for a place other than the active one — a flow that needs one for a new place switches into it
+first (the setup wizard does). Every screen saves through `useSetMyPlaceProfile`, which targets the
+active place and refuses while a site switch is in flight: the switch pre-applies the selection
+before `auth.switch` commits, so in that window the selection names a place the session is not on
+yet. `setMyProfile` still names its site, and uses it to check the answer — see
+[`@chatic/data`](../../../../../libs/data/docs/repositories/domains.md).
 
 ### What the server actually sends
 
@@ -160,8 +164,8 @@ Every route here is reached from home's header avatar dropdown, which has one en
 The dropdown entry is disabled when no place is active, because every route here is keyed by a place
 id. The per-place profile has two front doors and one implementation: this group's
 `PlaceProfilePage` renders `ui/components/PlaceProfileForm` with `container="page"`, and channel
-settings renders the same form as a dialog. State, validation and the `setMyProfile` call live in
-the form, so only the chrome differs.
+settings renders the same form as a dialog. State and validation live in the form and both callers
+save through `useSetMyPlaceProfile`, so only the chrome differs.
 
 ### Adding a field to the place record
 
@@ -192,7 +196,7 @@ and the only thing in the way was one local type. Adding the next field follows 
   place from a cloud place; a second notion of "is this the default place" will drift from it.
 - **Do not send an unchanged field.** A full payload turns a name edit into a thumbnail erase.
 - **Do not build a new save path.** Place edits go through `useUpdatePlace`, profile edits through
-  `setMyProfile`. Both already carry optimistic write and rollback.
+  `useSetMyPlaceProfile`. Both already carry optimistic write and rollback.
 - **Do not reach for `owner$`** for anything a human reads.
 
 ## Notes for implementers and tests

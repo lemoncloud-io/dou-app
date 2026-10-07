@@ -19,6 +19,12 @@ interface PlanCardProps {
     isSelectable?: boolean;
     /** The store's localized price. Absent off-native, where nothing can be bought. */
     displayPrice?: string;
+    /**
+     * Free-trial days to advertise on this card, or 0. Only the entry tier for a first-time subscriber
+     * carries one, and the number comes from the catalog so the card never promises a trial that is
+     * not configured.
+     */
+    trialDays?: number;
     /** Raised on every tap, pickable or not — the caller decides between selecting and explaining. */
     onSelect: (product: ProductView) => void;
 }
@@ -41,6 +47,7 @@ export const PlanCard = ({
     disabledReason,
     isSelectable = true,
     displayPrice,
+    trialDays = 0,
     onSelect,
 }: PlanCardProps) => {
     const { t } = useTranslation();
@@ -67,8 +74,13 @@ export const PlanCard = ({
                         {displayName}
                     </span>
                     {isCurrent && (
-                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                            {t('mypage.subscription.currentBadge')}
+                        <span className="shrink-0 text-[15px] font-semibold text-point-blue">
+                            {t('mypage.subscription.state.active')}
+                        </span>
+                    )}
+                    {trialDays > 0 && !isCurrent && (
+                        <span className="shrink-0 rounded-full bg-primary/20 px-2 py-0.5 text-[12px] font-semibold text-main-accent">
+                            {t('mypage.subscription.trialBadge', { days: trialDays })}
                         </span>
                     )}
                 </div>

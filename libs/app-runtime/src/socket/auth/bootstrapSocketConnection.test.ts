@@ -217,6 +217,24 @@ describe('bootstrapSocketConnection', () => {
         expect(delegate.onAuthExpired).toHaveBeenCalledWith(RELAY);
     });
 
+    it('tells the delegate each time the slot authenticates, and only then', async () => {
+        const auth = makeAuth([]);
+        const client = makeClient(auth);
+        const manager = makeManager(client, []);
+        const delegate = makeDelegate({ onAuthenticated: jest.fn() });
+
+        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
+
+        auth.emitAuthState('pending');
+        auth.emitAuthState('failed');
+        expect(delegate.onAuthenticated).not.toHaveBeenCalled();
+
+        auth.emitAuthState('authenticated');
+        auth.emitAuthState('authenticated');
+        expect(delegate.onAuthenticated).toHaveBeenCalledTimes(2);
+        expect(delegate.onAuthenticated).toHaveBeenCalledWith(RELAY);
+    });
+
     it('writes refreshed tokens back through the delegate', async () => {
         const auth = makeAuth([]);
         const client = makeClient(auth);

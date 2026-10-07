@@ -1,16 +1,28 @@
 import { Route, Routes } from 'react-router-dom';
 
-import { CloudGuidePage, SubscriptionCompletePage, SubscriptionPage, SubscriptionPlansPage } from '../pages';
+import {
+    CloudGuidePage,
+    KeepCloudsPage,
+    SubscriptionConfirmPage,
+    SubscriptionDetailPage,
+    SubscriptionPage,
+    SubscriptionPlansPage,
+} from '../pages';
 
+/**
+ * The subscription flow, in the order a person walks it: the list, the detail, the guide (why) and
+ * the picker (which tier), the confirmation before the store opens, and — after a downgrade — the
+ * clouds to keep. Entry points may skip ahead: home's add-cloud goes straight to the picker.
+ */
 export const SubscriptionRoutes = () => {
     return (
         <Routes>
             <Route index element={<SubscriptionPage />} />
-            {/* Two screens, in order: `guide` argues why, `plans` asks which tier. Entry points may
-                skip straight to `plans` — see CloudGuidePage for which ones and why. */}
+            <Route path="detail" element={<SubscriptionDetailPage />} />
             <Route path="guide" element={<CloudGuidePage />} />
             <Route path="plans" element={<SubscriptionPlansPage />} />
-            <Route path="complete" element={<SubscriptionCompletePage />} />
+            <Route path="confirm" element={<SubscriptionConfirmPage />} />
+            <Route path="keep" element={<KeepCloudsPage />} />
         </Routes>
     );
 };

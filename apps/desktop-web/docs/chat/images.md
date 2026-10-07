@@ -101,7 +101,10 @@ the upload's `name` — the one-image caption, the viewer and the saved file —
 lists them under the images:
 
 - **A video** plays in place (`<video controls preload="metadata">`). The original is signed for
-  inline viewing, and Chromium plays an H.264 MP4 itself. There is no poster: the app sends none.
+  inline viewing, and Chromium plays an H.264 MP4 itself. The feed draws no poster, though a video
+  sent from here carries one: the shared send hook draws a frame 0.5 s in and uploads it as the
+  thumbnail, which is what the mobile feed's tiles draw. A video Chromium cannot decode (HEVC) goes
+  without one.
 - **A document** is a card with a kind icon, its name and size, and a save button. A PDF or text
   file's name also opens it in the document viewer (below).
 - **Being sent**, either is the same card with a spinner, drawn from the name, type and size the

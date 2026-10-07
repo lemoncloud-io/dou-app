@@ -24,6 +24,8 @@ export interface SocketSessionDelegate {
     signAuth(slot: SlotKey, token: string, target?: string): Promise<{ signature: string; current: string }>;
     commitRefreshedToken(slot: SlotKey, view: unknown): Promise<void> | void;
     onAuthExpired?(slot: SlotKey): Promise<void> | void;
+    /** Each time the slot's session is (re-)established — after a connect, a refresh or a switch. */
+    onAuthenticated?(slot: SlotKey): Promise<void> | void;
 }
 
 /**

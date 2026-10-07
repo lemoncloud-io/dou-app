@@ -1,6 +1,8 @@
 import { cn } from '@chatic/lib/utils';
 
+import { PreviewImage } from './PreviewImage';
 import type { PhotoItem } from './types';
+import { VideoMark } from './VideoMark';
 
 export interface RecentPhotoStripProps {
     /** Header title, e.g. "Recent photos". */
@@ -13,6 +15,8 @@ export interface RecentPhotoStripProps {
     onSelect: (id: string) => void;
     /** Accessible name for a photo; receives the 1-based position. */
     photoLabel?: (position: number) => string;
+    /** Accessible name for a video; receives the 1-based position. Default: `photoLabel`. */
+    videoLabel?: (position: number) => string;
     className?: string;
 }
 
@@ -31,6 +35,7 @@ export const RecentPhotoStrip = ({
     photos,
     onSelect,
     photoLabel = position => `Recent photo ${position}`,
+    videoLabel = photoLabel,
     className,
 }: RecentPhotoStripProps) => {
     if (photos.length === 0) return null;
@@ -47,11 +52,12 @@ export const RecentPhotoStrip = ({
                     <button
                         key={photo.id}
                         type="button"
-                        aria-label={photoLabel(index + 1)}
+                        aria-label={(photo.kind === 'video' ? videoLabel : photoLabel)(index + 1)}
                         onClick={() => onSelect(photo.id)}
                         className="relative size-[90px] shrink-0 overflow-hidden rounded-[12px] bg-muted"
                     >
-                        <img src={photo.src} alt="" className="size-full object-cover" draggable={false} />
+                        <PreviewImage src={photo.src} />
+                        {photo.kind === 'video' && <VideoMark durationMs={photo.durationMs} />}
                         <span
                             aria-hidden
                             className="absolute right-2 top-[7px] size-[18px] rounded-full border border-tile-ring bg-white/[0.68] backdrop-blur-[3px]"

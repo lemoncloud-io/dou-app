@@ -6,6 +6,21 @@ import type { IProfileSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
+/**
+ * Did a socket request fail with 404? The `:error` frame carries `errorCode`, but the socket library
+ * rejects with an Error holding only the server's message, which by convention starts with the
+ * status (`404 NOT FOUND - …`). Read the property when present, otherwise the prefix.
+ *
+ * The same leading-status reading as `getSocketErrorCode` in `@chatic/app-runtime` (and its copy in
+ * apps/web), repeated here because this lib cannot depend on the runtime. A change to one belongs in
+ * the others.
+ */
+const isNotFoundError = (error: unknown): boolean => {
+    if ((error as { errorCode?: unknown } | null)?.errorCode === 404) return true;
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    return /^\s*404\b/.test(message);
+};
+
 export interface ProfileSyncResult {
     syncedAt: number;
     updatedCount: number;
@@ -23,7 +38,12 @@ export interface IProfileRepository extends DisposableRepository {
     refreshItem(id: string): Promise<DomainProfile | null>;
     /** profile.get-mine — reads my profile for the current session and writes it to local. */
     getMyProfile(): Promise<DomainProfile | null>;
-    /** profile.set — saves my profile on `siteId`. The caller names the site; see ADR-0085. */
+    /**
+     * profile.set — saves my profile. The server stores it on the site the session is on, whatever
+     * the request names; `siteId` tags the optimistic row and is checked against the answer (a write
+     * that landed on another site rejects). A 404 — no row on that site yet — is recovered once by
+     * creating the row with `profile.get-mine`.
+     */
     setMyProfile(body: ProfileBody, siteId: string): Promise<DomainProfile>;
     /** profile.sync — upserts/removes the multi-profile delta sync result for `siteId` into local. */
     syncProfiles(since: number, siteId: string): Promise<ProfileSyncResult>;
@@ -102,9 +122,9 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const input = payload as { siteId?: string; userId?: string; active?: boolean };
-        // The payload names the site. It used to fall back to the ambient sid, which races a site
-        // switch: `switchSite` pre-applies the sid before the token commits, so a write landing in
-        // that window was tagged for one site and sent under another's session (ADR-0085).
+        // The caller names the site rather than this reading an ambient sid, which a site switch
+        // pre-applies before the token commits. It tags the optimistic row and is what the answer is
+        // checked against below; it does not decide where the server writes.
         const sid = this.assertRequiredString(input.siteId, 'siteId');
         const uid = this.assertRequiredString(input.userId || normalizedContext.uid, 'uid');
         const profileId = this.makeProfileId(sid, uid);
@@ -125,26 +145,67 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
             );
         }
 
-        try {
-            const domain = await this.profileSocketDataSource.set(
+        // Undo the optimistic row. With no previous snapshot the row did not exist before this call,
+        // so it is removed rather than left behind as a profile the server never stored.
+        const rollback = async () => {
+            if (!profileId) return;
+            if (existing) await this.profileLocalDataSource.cacheWrite(existing, requestContext);
+            else await this.profileLocalDataSource.cacheDelete(profileId, requestContext);
+        };
+
+        const socketContext = { ...normalizedContext, sid, uid };
+        const send = () =>
+            this.profileSocketDataSource.set(
                 {
                     ...(payload as object),
                     siteId: sid,
                     userId: uid,
                 } as ProfileSetInput,
-                { ...normalizedContext, sid, uid }
+                socketContext
             );
 
-            await this.profileLocalDataSource.cacheWrite(domain, requestContext);
-            return domain;
+        let domain: DomainProfile;
+        try {
+            domain = await send();
         } catch (error) {
-            if (profileId) {
-                if (existing) {
-                    await this.profileLocalDataSource.cacheWrite(existing, requestContext);
-                }
+            if (!isNotFoundError(error)) {
+                await rollback();
+                throw error;
             }
-            throw error;
+            // `profile.set` only UPDATES (the server routes it to `updateSiteProfile`), so the first
+            // write on a place where I have no row yet — a place I just created or just entered —
+            // answers 404. `profile.get-mine` is a get-or-create: it makes the row (inactive, no
+            // nick), after which the same write succeeds. Measured end to end against the server:
+            // 404, then get-mine, then the identical set returned ok. One retry only; a second 404
+            // is a real failure.
+            try {
+                // get-mine answers for the session's site. If that is not the site named, the retry
+                // would create a row there and write this nick into it — stop before that happens.
+                const mine = await this.profileSocketDataSource.getMine({}, socketContext);
+                const mineSid = mine?.siteId || mine?.sid;
+                if (mineSid && mineSid !== sid) {
+                    throw new Error(`[ProfileRepository] the session is on site ${mineSid}, not ${sid}`);
+                }
+                domain = await send();
+            } catch (retryError) {
+                await rollback();
+                throw retryError;
+            }
         }
+
+        // `profile.set` writes to the site the socket SESSION is on and ignores the payload's
+        // `siteId` (measured against the server: a write naming a new site updated the previous
+        // site's profile). So the payload cannot steer the write — the response is the only place
+        // the truth shows. When it names another site the write already happened there: cache that
+        // row as the server now holds it, undo the optimistic one, and fail so the caller does not
+        // report a profile saved on the place the user was looking at.
+        const landedSid = domain.sid || domain.siteId;
+        await this.profileLocalDataSource.cacheWrite(domain, requestContext);
+        if (landedSid && landedSid !== sid) {
+            await rollback();
+            throw new Error(`[ProfileRepository] profile.set landed on site ${landedSid}, not ${sid}`);
+        }
+        return domain;
     }
 
     // `async` so a missing siteId REJECTS rather than throwing synchronously out of a method that

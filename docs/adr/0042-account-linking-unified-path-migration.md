@@ -1,6 +1,6 @@
 # ADR-0042: Migrate wholesale to the unified account linking path (`auth.link-account`)
 
-> Status: Accepted · Decided: 2026-08-03
+> Status: Accepted · Decided: 2026-08-03 · §9-a superseded and §9's browser copy amended by [ADR-0163](./0163-phone-sign-in-opens-in-production-below-social.md)
 > Follows: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
 
 > **Naming note (2026-09-01):** the `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·
@@ -207,12 +207,18 @@ is not needed. Today `LoginPage` shows social only on native and shows browsers 
 **login is outright impossible in the browser build.** Narrow that copy to social only and always show the phone
 section.
 
+> **Amended (2026-10-02)** by [ADR-0163](./0163-phone-sign-in-opens-in-production-below-social.md): the browser shows
+> only the warning below, without the narrowed "social is app-only" line or a divider — the warning already says it.
+
 **In the browser there is no escape hatch from the divergence warning.** Because social login is native-only (D),
 "log in with social first" becomes advice that cannot be carried out in a browser. In the browser the copy changes
 to the literal **"기존 계정이 있다면 앱에서 소셜로 로그인해 주세요"** ("if you have an existing account, please log
 in with social in the app") and stops at informing — no navigation link is given.
 
 #### 9-a. Reinforcement: phone login is not exposed in production (2026-08-03)
+
+> **Superseded (2026-10-02)** by [ADR-0163](./0163-phone-sign-in-opens-in-production-below-social.md):
+> phone sign-in shows in every build. §9's layout (apart from the browser copy) and §9-b's purchase guard stand.
 
 After implementing §9 above, **the fact that subscriptions hang off social linking** was confirmed — a subscription
 attaches to a cloud, and cloud ownership is based on the social account. That is, a user who signed up with a phone

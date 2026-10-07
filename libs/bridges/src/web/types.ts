@@ -24,7 +24,44 @@ export interface PendingRequest {
     requestType: WebMessageType;
     /** The expected response message type that native is supposed to send */
     expectedResponseType: AppMessageType;
+    /** When `request` was called, on the client's clock */
+    calledAt?: number;
+    /** When the request left for the adapter — later than `calledAt` if it waited in the readiness buffer */
+    dispatchedAt?: number;
+    /** Length of the encoded request, when the adapter reported one */
+    requestLength?: number;
+    /** How many other dispatched requests were still unanswered when this one left */
+    inFlightAtDispatch?: number;
 }
+
+/**
+ * One request's journey through the bridge, as the web side saw it.
+ *
+ * Only requests that were actually dispatched are reported: one rejected before it left (no
+ * channel, a destroyed client) measures nothing about the bridge.
+ */
+export interface BridgeRequestSample {
+    /** The request's message type */
+    type: WebMessageType;
+    /** `ok`, or the `BridgeError` code it was rejected with (a host error passes its own code) */
+    outcome: string;
+    /**
+     * Call → dispatch: time spent in the readiness buffer. Zero once the channel is up. Absent for a
+     * request called before the observer was attached, whose wait cannot be known.
+     */
+    queuedMs?: number;
+    /** Dispatch → settle: the round trip, including the handler's own work on the app side */
+    roundTripMs: number;
+    /** Encoded request length, when the adapter reported one */
+    requestLength?: number;
+    /** Raw reply length, when the adapter reported one. Absent on a timeout. */
+    responseLength?: number;
+    /** Other dispatched requests still unanswered when this one left */
+    inFlightAtDispatch: number;
+}
+
+/** Receives a sample as each dispatched request settles. Must not throw; a throw is swallowed. */
+export type BridgeRequestObserver = (sample: BridgeRequestSample) => void;
 
 /**
  * The configuration spec for creating a WebBridgeClient.
@@ -44,6 +81,8 @@ export interface WebBridgeClientConfig {
     pendingBuffer?: IMessageQueue<RequestMessage>;
     /** Environment configuration options for testing/simulation */
     environment?: EnvironmentConfig;
+    /** The clock request samples are measured on (default: `performance.now()`, else `Date.now()`) */
+    now?: () => number;
 }
 
 /**
@@ -85,6 +124,13 @@ export interface IWebBridgeClient {
      * Tears down the bridge client and cleans up the polling timer and registered event listeners. (prevents memory leaks)
      */
     destroy(): void;
+
+    /**
+     * Reports every dispatched request as it settles, or stops reporting when called with nothing.
+     * One observer at a time; a later call replaces the earlier one.
+     * @param observer Receives one sample per settled request
+     */
+    setRequestObserver(observer?: BridgeRequestObserver): void;
 
     /**
      * Dynamically swaps the bridge's physical transport adapter at runtime. (e.g. swapping in InMemoryAdapter for testing)

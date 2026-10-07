@@ -60,6 +60,7 @@ import type {
     ListPhotoAlbumsPayload,
     ListPhotosPayload,
     ReadPhotoPayload,
+    KeepLibraryVideoPayload,
     ManagePhotoSelectionPayload,
     SaveToPhotoLibraryPayload,
     ShareFilePayload,
@@ -68,6 +69,7 @@ import type {
     PickAttachmentsPayload,
     PrepareVideoPayload,
     ReadAttachmentPayload,
+    ReadVideoFramePayload,
     CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
@@ -130,6 +132,9 @@ export type WebMessagePayloadMap = {
     ListPhotos: ListPhotosPayload;
     ReadPhoto: ReadPhotoPayload;
     ManagePhotoSelection: ManagePhotoSelectionPayload;
+    // Copy a library video into the shell's pick folder. Newer than the photo grid: the web learns a
+    // shell without it from `NOT_FOUND`, and lists photos only.
+    KeepLibraryVideo: KeepLibraryVideoPayload;
     // Hand a downloaded file to the photo library or the share sheet. Newer than most shells: the web
     // shows the controls only when the handshake lists both.
     SaveToPhotoLibrary: SaveToPhotoLibraryPayload;
@@ -143,6 +148,9 @@ export type WebMessagePayloadMap = {
     PickAttachments: PickAttachmentsPayload;
     PrepareVideo: PrepareVideoPayload;
     ReadAttachment: ReadAttachmentPayload;
+    // A received video's first frame, made by the shell from its address. A shell without it answers
+    // `NOT_FOUND`, and the web draws the tile another way or leaves it grey.
+    ReadVideoFrame: ReadVideoFramePayload;
     FetchSafeArea: FetchSafeAreaPayload;
     FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;

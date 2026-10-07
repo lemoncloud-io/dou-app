@@ -40,16 +40,21 @@ const unsupportedPicker = (): PhotoPicker => ({
     albums: [],
     album: { title: 'Recents' },
     selectAlbum: jest.fn(),
-    photos: [],
-    hasMore: false,
-    loadMore: jest.fn(),
+    count: 0,
+    photoAt: () => undefined,
+    loading: false,
+    setVisibleRange: jest.fn(),
     picked: [],
     toggle: jest.fn(),
-    takePicked: jest.fn().mockResolvedValue([]),
+    takePicked: jest.fn().mockResolvedValue({ items: [], refused: [] }),
+    preparing: false,
     manageSelection: jest.fn().mockResolvedValue(undefined),
 });
 // The component's own picker is the browser/old-app one unless a test injects another.
 jest.mock('../hooks/usePhotoPicker', () => ({ usePhotoPicker: () => mockOwnPicker }));
+jest.mock('../hooks/usePhotoGridColumns', () => ({
+    usePhotoGridColumns: () => ({ columns: 3, setColumns: jest.fn() }),
+}));
 let mockOwnPicker: PhotoPicker = unsupportedPicker();
 
 const photo = (name: string, type = 'image/jpeg', lastModified = 1) => new File(['x'], name, { type, lastModified });
@@ -239,8 +244,11 @@ describe('useChatImageAttach — in-app grid', () => {
         const picker = gridPicker({
             gridOpen: true,
             picked: [{ id: 'p1', src: 'data:p1' }],
-            photos: [{ id: 'p1', src: 'data:p1' }],
-            takePicked: jest.fn().mockResolvedValue([photo('p1.jpg'), photo('p2.heic', 'image/heic')]),
+            count: 1,
+            photoAt: (index: number) => [{ id: 'p1', src: 'data:p1' }][index],
+            takePicked: jest
+                .fn()
+                .mockResolvedValue({ items: [photo('p1.jpg'), photo('p2.heic', 'image/heic')], refused: [] }),
         });
         render(<Harness sendImages={sendImages} picker={picker} />);
 
@@ -249,6 +257,51 @@ describe('useChatImageAttach — in-app grid', () => {
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['p1.jpg']);
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+
+    it('sends the photos and videos the grid kept, and names a video the shell would not keep', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const kept = {
+            uri: 'file:///c/attach-pick/a/v.mp4',
+            name: 'v.mp4',
+            type: 'video/mp4',
+            size: 9,
+            kind: 'video' as const,
+        };
+        const picker = gridPicker({
+            gridOpen: true,
+            picked: [{ id: 'p1', src: 'data:p1' }],
+            count: 1,
+            photoAt: (index: number) => [{ id: 'p1', src: 'data:p1' }][index],
+            takePicked: jest.fn().mockResolvedValue({
+                items: [photo('p1.jpg'), kept],
+                refused: [{ name: '', kind: 'video', reason: 'unsupported' }],
+            }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.send:{"count":1}' }));
+        await act(async () => undefined);
+
+        expect(sendImages.mock.calls[0][0]).toEqual([expect.objectContaining({ name: 'p1.jpg' }), kept]);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupportedVideo');
+    });
+
+    it('says the grid is preparing and takes no second send meanwhile', () => {
+        const picker = gridPicker({
+            gridOpen: true,
+            preparing: true,
+            picked: [{ id: 'v', src: 'data:v', kind: 'video' }],
+            count: 1,
+            photoAt: (index: number) => [{ id: 'v', src: 'data:v', kind: 'video' as const }][index],
+        });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        const button = screen.getByRole('button', { name: 'chat.attach.preparing' });
+        fireEvent.click(button);
+
+        expect(picker.takePicked).not.toHaveBeenCalled();
     });
 });
 
@@ -402,6 +455,18 @@ describe('useChatImageAttach — videos and documents', () => {
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['clip.mp4']);
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupportedVideo');
+    });
+
+    it('sends an untyped HWP from the files input by its extension, and refuses any other file it lets through', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits a zip too.
+        pick('chat-attach-files', [photo('a.zip', 'application/zip'), photo('보고서.hwp', ''), photo('b.hwpx', '')]);
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['보고서.hwp', 'b.hwpx']);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
     });
 
     it('keeps the photos entry to photos, whatever the system picker let through', () => {

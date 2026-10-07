@@ -74,12 +74,23 @@ can tell the two apart.
 
 **My own row with no place profile** shows "profile setup required" and taps through to
 `PlaceProfileCreateDialog` instead of the member sheet — that sheet's only self action is "profile
-settings" anyway, so it would be a dead tap. The gate is `hasProfileSnapshot`, from
-`useChannelProfiles`, and `isMembersLoading` cannot stand in for it: that flag flips on the user
-cache's first emit and knows nothing about profiles, so members routinely arrive first and reading
-absence from an empty profile map nudges people who do have a profile — into a blank create form
-whose save would overwrite their real nick. The prompt is shared by all three stereos; the home
-feature owns the wider behaviour ([../home/README.md](../home/README.md)).
+settings" anyway, so it would be a dead tap. "No profile" is the **server's** answer
+(`usePlaceProfileAbsent`, which waits for `profile.get-mine`), never an empty profile map: a map
+missing my row only says this device has not got it yet — a cold cache, a fetch in flight or one
+that failed. Reading that as absence prompted people who do have a profile, into a blank create
+form whose save would overwrite their real nick (reproduced with my row deleted from IndexedDB).
+While the answer is out, or if the read fails, the row shows the generic label and no prompt. The
+prompt is also limited to rooms in the active place, because a profile is saved to the place the
+session is in. It is shared by all three stereos; the home feature owns the wider behaviour
+([../home/README.md](../home/README.md)).
+
+`PlaceProfileEditDialog` (reached from "profile settings") holds a loading screen until it has
+something true to seed the form with — my row in the cache, or the server's "no profile" handed
+down from this page. The form seeds once, on open, so opened any earlier it latched an empty name
+and kept it after my profile arrived.
+Its top bar reads "내 프로필", and the heading under it names the place the profile applies to
+("<place>에 적용 중인 프로필 입니다."), since editing it changes nothing in any other place. The
+loading screen shows the same top bar, so swapping to the form does not jump.
 
 The screen reports **member divergence** on unmount: how many roster ids have no join row, and how
 many active join rows the roster does not list. On unmount specifically, because the join cache
@@ -138,7 +149,8 @@ items because the design has them, and a toast manages the expectation better th
   shared with the room header, the home list and place channel management; a fourth answer is how
   the same room ends up with two names.
 - **Do not branch the destructive row on ownership alone.** A DM leaves regardless of who owns it.
-- **Do not gate the profile prompt on `isMembersLoading`.** Use `hasProfileSnapshot`.
+- **Do not gate the profile prompt on `isMembersLoading` or an empty profile map.** Use the server's
+  answer, `usePlaceProfileAbsent`.
 
 ## Notes for implementers and tests
 

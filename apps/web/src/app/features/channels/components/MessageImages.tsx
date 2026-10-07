@@ -9,6 +9,8 @@ import { useCachedImages, type CachedImage, type CachedImageRequest } from '../h
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageAddressRefresh } from '../hooks/useImageAddressRefresh';
 import { useImageExports, type ExportableMedia } from '../hooks/useImageExports';
+import { useInView } from '../hooks/useInView';
+import { useVideoFrames } from '../hooks/useVideoFrames';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
 
 import { SaveShareButtons } from './SaveShareButtons';
@@ -47,6 +49,12 @@ interface MessageImagesProps {
  * the page: only one row's viewer can be open at a time anyway, and a page-level viewer would need to
  * know which list every row belongs to. It holds a position, not an address, so a refresh reaches an
  * open viewer too.
+ *
+ * A video that came without a poster gets its first frame drawn on this device once the message is on
+ * screen (`useVideoFrames`): from a frame kept earlier, else one the shell makes from the video's
+ * address, else — in a browser — one drawn from the video's first bytes, or the video itself drawn in
+ * the tile where the bucket allows no read. A server thumbnail always wins; none of this runs for a
+ * video that has one.
  *
  * Inside an app that can, the viewer offers save and share for the showing image
  * (`SaveShareButtons`). They download the original through the shell, never the page's cached copy:
@@ -138,6 +146,25 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     const drawn = (image: CachedImage | undefined, fallback: string | undefined) =>
         !image ? fallback : image.status === 'pending' ? undefined : image.src;
 
+    // A sent video with no thumbnail, in a tile that is drawn: its first frame is made here. Keyed by
+    // upload like every other image, so a re-read's new address does not make it again.
+    const [tilesRef, onScreen] = useInView();
+    const frames = useVideoFrames(
+        tiles.map((tile, index) => {
+            const slot = sentSlot(index);
+            if (tile.kind !== 'video' || tile.state !== 'ready' || !tile.src || !slot?.id || slot.thumbUrl) {
+                return undefined;
+            }
+            if (index >= MESSAGE_IMAGE_VISIBLE_MAX) return undefined;
+            return { key: imageCacheKey(cid, slot.id, 'frame'), url: tile.src };
+        }),
+        onScreen
+    );
+    const frameImage = (index: number) => {
+        const frame = frames[index];
+        return frame?.status === 'image' ? frame.src : undefined;
+    };
+
     if (tiles.length === 0 && split.files.length === 0) return null;
 
     const reportDead = (src: string | undefined, index: number) => {
@@ -156,7 +183,15 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
             >
                 {tiles.length > 0 && (
                     <MessageMediaTiles
-                        items={tiles.map((tile, index) => ({ ...tile, preview: drawn(thumbs[index], tile.preview) }))}
+                        ref={tilesRef}
+                        items={tiles.map((tile, index) => {
+                            const frame = frames[index];
+                            return {
+                                ...tile,
+                                preview: drawn(thumbs[index], tile.preview) ?? frameImage(index),
+                                ...(frame?.status === 'element' ? { frameUrl: frame.url } : {}),
+                            };
+                        })}
                         onOpen={index => {
                             // A broken tile has nothing to open.
                             const at = viewable.findIndex(item => item.index === index);
@@ -203,7 +238,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     key: tiles[item.index]?.key ?? `tile-${item.index}`,
                     kind: item.kind,
                     src: item.kind === 'image' ? drawn(originals[at], item.src) : item.src,
-                    preview: drawn(thumbs[item.index], undefined),
+                    preview: drawn(thumbs[item.index], undefined) ?? frameImage(item.index),
                     state: tiles[item.index]?.state === 'sending' ? ('sending' as const) : ('ready' as const),
                 }))}
                 index={openIndex}

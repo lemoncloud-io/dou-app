@@ -142,6 +142,36 @@ export const toE164 = (input: string, country: PhoneCountry | null): string => {
     return parsed ? parsed.number : digitsOf(input);
 };
 
+/** A complete number read as a mobile: its wire value and the two ways to show it. */
+export interface MobileNumber {
+    /** The country the number belongs to — a `+…` input's own, not necessarily the one passed in. */
+    country: PhoneCountry;
+    e164: string;
+    /** `010-1234-5678` — the form its own country dials. */
+    national: string;
+    /** `+1 415 555 0123` — unambiguous from anywhere. */
+    international: string;
+}
+
+/**
+ * Reads a COMPLETE number (one that was stored, not one being typed) as a mobile in `country`, or
+ * `null` when it is not one.
+ *
+ * `isValidMobileNumber` + `toE164` answer the same question, but parse twice and cannot format; a
+ * caller that runs over a whole address book wants one parse per number. A `+…` input names its own
+ * country and `country` is ignored for it, exactly as in those two.
+ */
+export const readMobileNumber = (input: string, country: PhoneCountry | null): MobileNumber | null => {
+    const parsed = parse(input, country);
+    if (!parsed?.country || !parsed.isValid()) return null;
+    return {
+        country: parsed.country,
+        e164: parsed.number,
+        national: parsed.formatNational(),
+        international: parsed.formatInternational(),
+    };
+};
+
 /** A pasted international number, split into the country it declares and its local form. */
 export interface InternationalPhoneInput {
     country: PhoneCountry;
@@ -178,7 +208,8 @@ const readStoredCountry = (): PhoneCountry | null => {
     }
 };
 
-const readLocaleCountry = (): PhoneCountry | null => {
+/** The device locale's region (`ko-KR` → `KR`), or `null` when the locale names none. */
+export const readLocaleCountry = (): PhoneCountry | null => {
     if (typeof navigator === 'undefined') return null;
     try {
         const region = new Intl.Locale(navigator.language).region;

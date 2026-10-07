@@ -285,6 +285,27 @@ describe('BottomSheet drag to dismiss', () => {
         expect(onOpenChange).not.toHaveBeenCalled();
     });
 
+    it('reads the content scroller passed as scrollRef instead of the body, which never scrolls then', () => {
+        const scroller = document.createElement('div');
+        Object.defineProperty(scroller, 'scrollTop', { value: 120, configurable: true });
+        const { panel, onOpenChange } = openSheet({ scrollRef: { current: scroller } });
+
+        drag(panel, { to: PANEL_HEIGHT });
+
+        expect(panel.style.getPropertyValue('--sheet-drag-y')).toBe('0px');
+        expect(onOpenChange).not.toHaveBeenCalled();
+    });
+
+    it('still dismisses with a scrollRef whose element is at its top', () => {
+        const scroller = document.createElement('div');
+        const { panel, onOpenChange } = openSheet({ scrollRef: { current: scroller } });
+
+        drag(panel, { to: PANEL_HEIGHT });
+        act(() => void jest.advanceTimersByTime(220));
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
     it('ignores the gesture entirely when drag to dismiss is turned off', () => {
         const { panel, onOpenChange } = openSheet({ disableDragToDismiss: true });
 

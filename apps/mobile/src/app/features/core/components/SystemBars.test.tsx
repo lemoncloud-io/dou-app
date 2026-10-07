@@ -78,6 +78,7 @@ describe('SystemBars — 시스템 바 멱등 재적용', () => {
         mockIsDark.mockReset();
         removeAppState.mockReset();
         removeDimensions.mockReset();
+        jest.requireMock('react-native').StatusBar.mockClear();
     });
 
     it('마운트 시 현재 테마를 상태바와 안드로이드 시스템 바에 적용한다', () => {
@@ -173,6 +174,18 @@ describe('SystemBars — 시스템 바 멱등 재적용', () => {
 
         expect(mockSetBarStyle).toHaveBeenCalledWith('light-content', true);
         expect(mockSetAppearance).not.toHaveBeenCalled();
+    });
+
+    it('renders the status bar with only a bar style, no edge-to-edge-ignored props', () => {
+        mockIsDark.mockReturnValue(true);
+
+        render(<SystemBars />);
+
+        // `backgroundColor` and `translucent` are no-ops under edge-to-edge on Android; this pins
+        // that the app does not depend on either of them.
+        const { StatusBar } = jest.requireMock('react-native');
+        expect(StatusBar).toHaveBeenCalledTimes(1);
+        expect(StatusBar.mock.calls[0][0]).toEqual({ barStyle: 'light-content' });
     });
 
     it('언마운트 시 두 구독을 모두 해제한다', () => {

@@ -85,7 +85,7 @@ than tailwind-merges and breaks the two-up action row.
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 90 spec files and 75 story files against 89 exported
+6. **Every component has a test and a story.** 95 spec files and 79 story files against 95 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -109,7 +109,7 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 52<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    C["composites × 58<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 37<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 43 icons · 7 assets</i>"]:::res
 
@@ -159,9 +159,9 @@ libs/web-ui-kit/src/
 ├── foundations/   11 groups, 37 components
 │   avatar(7) · button(10) · input(7) · badge(5) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 52 components
-    chat(17) · list(6) · media(5) · overlay(6) · section(4) · header(3) ·
-    layout(4) · subscription(3) · feedback(2) · navigation(2)
+└── composites/    10 groups, 58 components
+    chat(17) · list(6) · media(7) · overlay(6) · section(4) · header(3) ·
+    layout(4) · subscription(7) · feedback(2) · navigation(2)
 ```
 
 Three files are internal — used across a group but absent from every barrel, so grepping the public
@@ -170,7 +170,14 @@ API will not find them:
 - `foundations/avatar/avatarBase.tsx` — `AvatarShell`, the ringed circle `ChatAvatar` and
   `PlaceAvatar` are both drawn on.
 - `foundations/button/floatingPanel.ts` — the shared class string for floating surfaces.
-- `composites/header/HeaderGlass.tsx` — the blurred header backdrop.
+- `composites/header/HeaderGlass.tsx` — the blurred header backdrop. Mounted while `<html>` carries
+  `data-page-transition` (set by `@chatic/shared`'s `useNavigateWithTransition`), it holds its opaque
+  pane until the attribute comes off — 1.5s at most: WebKit paints no `backdrop-filter` inside a view
+  transition's snapshots, so the frost would otherwise arrive in one frame as the slide ends. The
+  attribute is not set on Android, whose Blink WebView paints the frost during the transition. It is
+  the one input in this kit that a component reads in script rather than through a prop, and its name
+  is a string declared in both libs: their tests pin the same literal, and nothing else checks that
+  the two match.
 
 ## Usage
 
@@ -217,6 +224,11 @@ apps/web     src/styles.css          →  re-declares the same custom properties
 `apps/web` does **not** import `tokens.css`. The two files hold the same variables and are kept in
 parity by hand, which is why both carry comments pointing at each other. A token added here without
 being added to `apps/web/src/styles.css` renders correctly in Storybook and transparent in the app.
+
+One optional input arrives outside the token layer: `HeaderGlass` reads `data-page-transition` on
+`<html>`, which `@chatic/shared`'s `useNavigateWithTransition` sets while a navigation runs. A host
+that never sets it — Storybook, or a navigation that does not go through that hook — gets glass
+headers that fade in at mount, as they did before the attribute existed.
 
 ## Scenarios
 
@@ -284,7 +296,7 @@ accessible names; leave pixel values to the story.
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 90 spec files
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib and the 95 spec files
 npx jest --config libs/web-ui-kit/jest.config.js
 ```
 

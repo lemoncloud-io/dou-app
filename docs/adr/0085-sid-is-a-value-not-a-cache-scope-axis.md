@@ -4,6 +4,9 @@
 > [ADR-0051](./0051-cache-storage-routing-simplification.md) (owner of storage scope policy),
 > [ADR-0070](./0070-app-runtime-session-hub.md) (derives the selected context),
 > [ADR-0100](./0100-libs-data-doc-canon-and-layer-flattening.md) (prior cleanup of the same lib)
+> · **Narrowed for `profile.set` by [ADR-0161](./0161-a-place-profile-is-written-from-inside-its-place.md):**
+> the server writes a profile to the site the session is on and ignores the payload's `siteId`, so for
+> that one write the named site tags the optimistic row and checks the answer, but cannot steer it.
 
 ## Context
 

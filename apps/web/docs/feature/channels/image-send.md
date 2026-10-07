@@ -56,13 +56,14 @@ belongs to the viewer's save or share, which acknowledges it once the file is us
 ## Picking — `useChatImageAttach`
 
 The composer's leading button opens the attach menu — photos, camera, files. "Files" opens a second
-sheet (`AttachSourceSheet`): choose from the album (photos and videos) or from files (documents). How
-photos are picked from the photos entry depends on the shell:
+sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and then from the album
+(photos and videos). The design also shows a third row, document scan; it is not drawn, since no
+shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
 
-| Shell                                   | Photos                                                               |
-| --------------------------------------- | -------------------------------------------------------------------- |
-| app with the photo-library bridge       | recent photos in the menu, and the in-app grid (`PhotoGridSheet`)    |
-| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser |
+| Shell                                   | Photos                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| app with the photo-library bridge       | recent photos and videos in the menu, and the in-app grid (`PhotoGridSheet`) |
+| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser         |
 
 The page learns which by asking: opening the menu requests the newest photos (`ListPhotos`), and an
 app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A
@@ -71,15 +72,16 @@ what the page asks for and returns a device path the page cannot read, while the
 real bytes — the profile and channel photo fields already rely on it inside the app.
 
 The camera entry is a capturing file input in every shell, so it opens the camera directly and needs
-nothing from the app. The photos entry, the grid and the camera take photos only.
+nothing from the app. The photos entry's file input and the camera take photos only; the grid lists
+videos too, in an app that has them (below).
 
 The second sheet's two entries depend on the shell too:
 
-| Shell                                   | Choose from album / Choose from files                                                       |
-| --------------------------------------- | ------------------------------------------------------------------------------------------- |
-| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app |
-| app built before the picker, or browser | the page's own file input: photos and `mp4`, or the seven document formats                  |
-| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from         |
+| Shell                                   | Choose from album / Choose from files                                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app                              |
+| app built before the picker, or browser | the page's own file input: photos and `mp4`, or the seven document formats (and any file, judged after the pick — below) |
+| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from                                      |
 
 In the app the shell copies what was picked into its own folder and answers with addresses, never
 bytes (`bridge/attachmentPicker.ts`). Photos picked alongside are kept there too, already prepared like
@@ -100,6 +102,14 @@ all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
 
+The files input asks for the seven document formats by type and by extension, and for the generic
+`application/octet-stream` as well. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
+against the type the Files app gives such a file, so the seven alone grey HWP and HWPX out of its
+document picker; the generic type admits them, and with them any other file. That is safe because the
+page judges every pick itself (`chatAttachmentFormat`, which reads an untyped file's extension) and
+refuses what the server would not take. Leaving `accept` out would admit everything too, but iOS then
+offers the photo library and the camera before the document picker.
+
 A video the app picked may still need converting (an iPhone records HEVC in QuickTime). The send converts
 it with `PrepareVideo` after the pending row is shown — the tile is a grey panel until the poster comes.
 Which files go through it is decided by the format, not by the shell's `kind`: an `.mp4` picked through
@@ -115,16 +125,99 @@ message offers delete alone. A conversion that failed in passing (`SYSTEM`, such
 screen mid-way) stays retryable.
 
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
-page that lands after the album changed is dropped. Sending closes the grid and reads the picked photos
-one at a time (`ReadPhoto`, base64 — the app converts HEIC to JPEG and removes the location), so the pending row appears once
-they are read. Denied access opens a settings prompt instead of an empty grid; iOS limited access shows
-a "choose more" row that re-lists after the system sheet closes.
+page that lands after the album changed is dropped. Denied access opens a settings prompt instead of an
+empty grid; iOS limited access shows a "choose more" row that re-lists after the system sheet closes.
 
-What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photo
-entries use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
+**The grid's layout.** The title row (album name, close) and the picked strip stay put; the limited-access
+row and the grid scroll beneath them, in a container of their own that `BottomSheet` is pointed at
+(`scrollRef`) so swipe-to-dismiss still arms only at the grid's top. The album list scrolls under the
+same title row.
+
+**A virtual grid, paged by position.** `PhotoGridSheet` renders only the rows on screen and four either
+side, and tells the hook which photos those are (`onVisibleRangeChange`). The hook keeps two things
+apart: which photo sits at each position (ids, small) and the previews (base64, by id). As each page
+lands, the previews of pages more than two away from the visible ones (`keptPages`) are let go and
+those pages forgotten, so a long scroll holds a few hundred previews rather than every one it passed;
+the positions stay laid out, and a page scrolled back to is asked for again. A list paged by cursor
+(an older app) keeps its previews: its pages cannot be asked for out of order, and they are small.
+
+Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of the
+range first: a fast-scroll drag passes many pages, and only the one it stops on is still wanted. The
+first page is 24 (`FIRST_PAGE_SIZE`, about a screen at three columns), and the rest of page 0 follows
+as its own request. The shell makes previews one after another, and on Android a photo the system has
+never made a thumbnail for costs 40–110 ms on an emulator (a page of 60 took up to 7 s), so a first page
+of 60 kept the first screen waiting on 36 photos it does not show. Once everything on screen is in, the
+page past the range in the direction of the scroll is asked for too (`pageAhead`), so a steady scroll
+finds the next stretch there; a cursor list asks for its next page a page's worth before the end. An
+answer that moves nothing on — an offset other than the one asked for, at the same count — does not go
+round again. The first answer carries the album's `total`, so the grid is its full height from the start
+and any stretch of it can be filled directly. A position whose preview has not come — its page not loaded yet,
+or let go far from the screen and on its way back — is a pulsing skeleton tile. While the album's first
+page is out, the grid fills the screen with them rather than standing empty. A photo the app could make
+no preview of is a plain tile, without the pulse, and is still pickable. Every preview (grid, recent
+strip, album cover) cross-fades in: its skeleton fades out as the decoded image fades in over 300 ms,
+both instant under the system's reduced-motion setting (`PreviewImage`). When a later page reports a different
+`total`, the library changed under the grid — every index after the change has moved — so the layout is
+remade at the new length and the pages on screen are asked for again; the previews already held are by
+id and stay.
+
+An app from before offsets ignores the field and answers the first page with no `offset` in it. The
+first request is always offset 0, so that answer is still the right page; `bridge/photoLibrary.ts`
+learns from the missing echo once per page load, and the grid pages by cursor from then on, growing as it
+scrolls the way it always did. The handshake's `supportedWebMessages` is not used for this: it arrives
+asynchronously, it lists messages rather than the fields a handler reads, and it is built from the app's
+compiled message map rather than the handlers it registered — the answer itself is the only reliable
+witness.
+
+**Preview size.** Every list asks for previews at the size the tiles are drawn: the tile's CSS width ×
+`devicePixelRatio`, rounded up to 16 (`thumbSize`; a 390pt phone at three columns asks about 400px). The
+app answers a square crop of that size ([apps/mobile native/photo-library.md](../../../../mobile/docs/native/photo-library.md)). The menu's recent
+strip and the album covers ask for theirs the same way. An app from before the field answers its old
+~256px previews, which draw a little soft and need no fallback.
+
+**Fast scroll.** A grid longer than three screens shows a handle on its right edge while it scrolls,
+fading 1.5 s after. Dragging it moves the scroll in proportion — the handle's place on its track is the
+scroll position's place in the content — and, with offsets, the grid fills wherever it lands. With an
+older app the content is only as long as what has loaded, so the handle covers that. It has no date
+label: an item carries no date, and a position not yet loaded has none to show. It is pointer-only and
+hidden from assistive tech, since the grid scrolls by every other means.
+
+**Pinch for columns.** Two fingers on the grid step it between 2 and 5 columns (default 3), one step per
+1.3× of spread or pinch. The page already disallows zoom (`user-scalable=no`); the grid also takes
+`touch-action: pan-y`, cancels the two-finger `touchmove`, and cancels iOS WebKit's `gesturestart` /
+`gesturechange`, so the page never scales under it and the gesture is the grid's on both WebViews. The
+layout changes at once — no animation — and the scroll is set so the photo under the fingers stays under
+them. A pinch never reaches the sheet's drag. The count is kept in `ui.photoGridColumns` (local) and
+used again on the next open. When tiles grow past about 1.2× the size their previews were asked at
+(three columns to two), the pages on screen are asked for again at the new size; a smaller step (five to
+four) keeps what it has. There is no button for the columns: three columns is the whole picker, and the
+pinch only changes how many fit on screen.
+
+**Videos in the grid.** Every list asks for photos and videos (`mediaTypes: ['image', 'video']`). An app
+from before videos ignores the field and lists photos only, so asking costs it nothing; one that lists
+a video also has `KeepLibraryVideo`, which arrived in the same build. A video draws as its poster frame
+with a play mark and its length (`m:ss`) — in the grid, the menu's recent strip, and the picked strip
+(there without the length). On Android the app lists videos only once the user has granted video access
+as well; it asks for that once (ADR-0171).
+
+**Sending** reads the pick one item at a time in pick order: a photo with `ReadPhoto` (base64 — the app
+converts HEIC to JPEG and removes the location), a video with `KeepLibraryVideo`, which copies it into
+the app's pick folder and answers with the same shell-file reference "Choose from album" gives — from
+there it is converted and uploaded as any app-picked video is. The app judges a video as it copies
+it: an Android video that is not H.264/AAC `mp4` is `UNSUPPORTED`, one over the size limit (iOS: its
+conversion's estimate) is `TOO_LARGE`. An item that cannot be read or kept is refused alone, and the
+rest still go. The grid stays open with its send button greyed out as "준비 중…" until every item is
+read — a video stored only in iCloud can take minutes to come down, with no progress to show — then
+closes, and the pending row appears with everything that was read. A `NOT_FOUND` from
+`KeepLibraryVideo` — an app that lists videos but cannot keep one, which no release ships — is learned
+for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
+
+What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
+entry's file input and the camera use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
 own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
-refusals carries the item's `kind`, so a too-large one names that kind's limit. The first reason met
+refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
+video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
 is shown once, naming the kind whose limit was passed or what an unknown format looked like;
 whatever passes is sent at once — there is no tray and no confirmation, the pick is the send.
 
@@ -136,9 +229,10 @@ one would land in the main feed.
 
 `MessageImages` splits a row's `upload$$` with `chatMediaItems` (`@chatic/data`): photos and videos as
 one list of media in the order they were sent, drawn by the kit's `MessageMediaTiles`, and documents as
-`MessageFileCard`s below them. A video tile draws its poster (the upload's thumbnail), or a grey panel
-without one, with a play mark; no `<video>` is put in the feed, where every video would start a request
-just by scrolling past. A tapped photo or video opens in the kit's `MediaViewer`, which plays a video
+`MessageFileCard`s below them. A video tile draws its poster (the upload's thumbnail) with a play mark.
+One sent without a poster — from a browser that could not draw one, or before browsers sent one — gets
+its first frame drawn on this device instead (below), and is a grey panel until then. Nothing in the
+feed plays. A tapped photo or video opens in the kit's `MediaViewer`, which plays a video
 there and only there (below). With no text the attachments take the
 bubble's place — an empty bubble beside them would read
 as a blank message; with text they sit under it. A pending slot draws from its `localThumbUrl` with its
@@ -166,6 +260,15 @@ tile drew it — until the original has arrived, so a large original opens on a 
 black. The viewer reaches the images behind the "+n" tile too, and skips
 broken ones rather than showing a blank page. It stops at the ends instead of wrapping.
 
+The viewer slides up from the bottom edge as it opens and back down as it closes. A downward drag
+pulls it after the finger while the black behind it fades; released past a sixth of the screen height
+(at least 96 px), or flicked down past 48 px, it carries on down and closes, otherwise it settles back.
+The close slides on from wherever the finger let go rather than from the top, so the photo does not
+jump back before it leaves, and the photo it was showing stays on screen until it is gone — the
+viewer keeps its last position through the close instead of falling back to the first item. A video
+stops the moment the close starts. A zoomed photo pans on a downward drag instead of closing, and a
+drag on a video's controls is left to them.
+
 The showing photo zooms, in the kit's `MediaViewer` with its arithmetic in `imageZoom.ts`. A pinch
 scales it around the point between the fingers, up to four times. A double tap on it zooms to 2.5
 times at that point, or back out. While it is zoomed, a one-finger drag pans it instead of turning
@@ -180,10 +283,11 @@ bar. It does not zoom. A horizontal drag still turns the page, except one that s
 72 px, where the player's seek bar is. Opening a video from its tile tries `play()` within that tap —
 Android refuses a play that comes about five seconds after the gesture, so nothing is awaited first, not
 even a fresh address; when the play is refused a large play button takes the next tap. Turning away
-pauses it, rewinds it and detaches its address, so the download stops; closing pauses it. The player
-streams from the signed address with range requests, so no video is cached or fetched ahead — only its
-poster is. A player error asks for fresh addresses, as a photo's does. Inside an iOS app built before
-inline playback, the play opens the OS full-screen player instead.
+pauses it, rewinds it and detaches its address, so the download stops; closing stops it at once,
+before the viewer has slid away. The player streams from the signed address with range requests,
+so no video is cached or fetched ahead — only its poster is. A player error asks for fresh
+addresses, as a photo's does. Inside an iOS app built before inline playback, the play opens the OS
+full-screen player instead.
 
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
@@ -192,10 +296,45 @@ state, and the send lets a retry in only after it has marked the row failed. A r
 discards the files as well. The home list previews an image-only last message as a photo count — the kind rule for every attachment is in
 [home's last-chat.md](../home/last-chat.md#what-the-row-prints).
 
+### The first frame of a video without a poster
+
+`useVideoFrames` (over `lib/videoFrames.ts`) runs for a sent video slot with no `thumbUrl`, in one of
+the four tiles a message shows, and only once the message is on screen (`useInView`, an
+`IntersectionObserver`). The server's thumbnail always wins; none of this runs for a video that has one.
+
+1. **A frame made before** is read from the image cache under `<cid>/<uploadId>/frame` — memory, then
+   `ChaticImageCacheDB` — and drawn at once.
+2. **Otherwise one is made now**, two at a time for the page. A request still waiting when its message
+   leaves the screen is withdrawn; one already started runs on, and what it makes is kept.
+    - **In the app** the shell makes it: `ReadVideoFrame { url, atMs: 500, maxEdge: 400 }` (the shell's own 20 s limit; the page waits 25 s,
+      so a read still running in the shell is never taken for over). The
+      page cannot: the iOS WebView loads no media before a tap, `blob:` addresses included, and that
+      setting is not changed. The JPEG is `put` into the cache.
+    - **In a browser** the page fetches the video's first 2 MiB — `mode: 'cors'`, no credentials,
+      `cache: 'no-store'`, `Range: bytes=0-2097151` — and draws the frame from those bytes with the poster
+      routine (`drawVideoFrame` in `@chatic/shared`). `no-store` is required: a copy a `<video>` or
+      `<img>` left in the HTTP cache carries no CORS headers, and a fetch served from it fails as if the
+      bucket had none.
+3. **Where no image can be made, the tile draws the frame itself**: `MessageMediaTiles` gets a
+   `frameUrl` and places `<video muted playsInline preload="metadata" src="…#t=0.5">`, which never
+   plays. Without the `#t=` fragment the engines measured show only their default grey. This is the
+   path for a browser whose fetch could not be made (learned once per page: the bucket sends no CORS
+   headers), for a video whose first 2 MiB do not draw (index at the end, a 4K first frame past
+   2 MiB), and for an Android app from before `ReadVideoFrame`. An iOS app from before it stays grey —
+   its WebView would load nothing.
+
+A frame that could not be made is remembered for the page, so a tile that comes back on screen does not
+read the video again. A failure that is the video's own — its first bytes do not draw — is remembered by
+upload, since the message is re-read with a new address on every visit; one that may be the address's —
+a 403, a failed shell read — by upload and address, so a refreshed address gets its own try. An answer
+that is not a partial one (`206`) means the server ignored the range and is sending the whole video; its
+body is never read, and the tile takes the `<video>` path instead. The viewer uses a
+made frame as its placeholder while the video loads.
+
 ### The image cache
 
 What a server head draws is read through a cache keyed by the image, not by its address
-(`lib/imageCache.ts`, `hooks/useCachedImages.ts`). The key is `<cid>/<uploadId>/thumb|org`: an upload's
+(`lib/imageCache.ts`, `hooks/useCachedImages.ts`). The key is `<cid>/<uploadId>/thumb|org|frame`: an upload's
 bytes never change, while its signed address changes on every read of the message. The signing time is
 rounded to the hour, but the signing credential's token differs from read to read, so a browser cache
 keyed by URL missed every time. A room opened from the cache drew its images, the background re-read
@@ -209,6 +348,10 @@ the tile is an empty square. Nothing races a download of the address alongside t
 that download is exactly what the cache saves. A key already in memory resolves in the same render, so
 a redraw with a new address does not blink.
 
+- **`frame` is made here, not fetched.** A video's first frame (above) has no address of its own, so
+  it enters through `put` and is read back through `lookup`, which never touches the network. It keeps
+  a budget of its own (20 MB, beside 50 MB of thumbnails and 150 MB of originals): a frame costs a video
+  read to make again.
 - **The signed address is the fallback and the failure signal.** If the fetch cannot be made — a 403
   from an expired address, a bucket without CORS, offline, a body that is not an image — the tile draws
   the address directly, and the expiry re-read above runs from its error as it always did. A kept copy
@@ -315,7 +458,11 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/components/ChatImageAttach apps/web/src/app/bridge/attachmentPicker \
   apps/web/src/app/features/channels/lib/fileDownload apps/web/src/app/features/channels/utils/attachSources \
   apps/web/src/app/features/channels/components/ChannelMessageRow \
-  apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages
+  apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages \
+  apps/web/src/app/features/channels/lib/videoFrames apps/web/src/app/features/channels/hooks/useVideoFrames \
+  apps/web/src/app/features/channels/hooks/usePhotoPicker apps/web/src/app/bridge/photoLibrary \
+  apps/web/src/app/features/channels/hooks/usePhotoGridColumns
+npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet
 ```
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and

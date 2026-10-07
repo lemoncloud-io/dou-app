@@ -20,7 +20,12 @@
  * screen — its thumbnail included — waited behind them on black.
  */
 
-export type ImageVariant = 'thumb' | 'org';
+/**
+ * - `thumb` / `org` — an upload's thumbnail and original, fetched from their signed addresses.
+ * - `frame` — the first frame of a video that came without a poster, made on this device (by the shell,
+ *   or by the page from the video's first bytes) and `put` here; there is no address to fetch it from.
+ */
+export type ImageVariant = 'thumb' | 'org' | 'frame';
 
 export interface ImageCacheRecord {
     key: string;
@@ -60,11 +65,14 @@ export interface ImageCacheDeps {
 /**
  * About a thousand thumbnails (they land at 30–50KB), and a few dozen originals: an original is
  * uploaded as picked, so a single one can be several megabytes, and a separate budget keeps a handful
- * of opened photos from pushing every thumbnail out.
+ * of opened photos from pushing every thumbnail out. Frames are a few hundred to a thousand at 3–40KB
+ * each; they cost a video read to make again, so they keep a budget of their own rather than compete
+ * with the thumbnails.
  */
 export const DEFAULT_IMAGE_CACHE_BUDGETS: Record<ImageVariant, number> = {
     thumb: 50 * 1024 * 1024,
     org: 150 * 1024 * 1024,
+    frame: 20 * 1024 * 1024,
 };
 const DEFAULT_MEMORY_MAX_BYTES = 40 * 1024 * 1024;
 /**
@@ -91,6 +99,17 @@ const STORE_READ_TIMEOUT_MS = 1000;
  * the `<img>` that will load the same address.
  */
 const FETCH_BACKOFF_MS = 60 * 1000;
+
+/** A blob's bytes. `FileReader` where `Blob.arrayBuffer` is missing — WebKit before 14 has none. */
+const bytesOf = (blob: Blob): Promise<ArrayBuffer> =>
+    typeof blob.arrayBuffer === 'function'
+        ? blob.arrayBuffer()
+        : new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as ArrayBuffer);
+              reader.onerror = () => reject(reader.error);
+              reader.readAsArrayBuffer(blob);
+          });
 
 export const imageCacheKey = (cid: string, uploadId: string, variant: ImageVariant): string =>
     `${cid}/${uploadId}/${variant}`;
@@ -198,6 +217,39 @@ export class ImageCache {
             });
         this.inflight.set(key, { url, loading, controller });
         return loading;
+    }
+
+    /**
+     * The object URL for `key` from memory or the store, never from the network — for an image made on
+     * this device rather than downloaded (`frame`). `null` on a miss.
+     */
+    async lookup(key: string): Promise<string | null> {
+        const entry = this.memory.get(key);
+        if (entry) {
+            entry.usedAt = this.now();
+            return entry.url;
+        }
+        const stored = await this.readStore(key);
+        if (!stored) return null;
+        // Another lookup may have filled memory while the store answered; one object URL per key.
+        const raced = this.memory.get(key);
+        if (raced) return raced.url;
+        if (this.now() - stored.usedAt > TOUCH_INTERVAL_MS) {
+            void this.deps.store?.touch(key, this.now()).catch(() => undefined);
+        }
+        return this.remember(key, new Blob([stored.bytes], { type: stored.type }));
+    }
+
+    /**
+     * Keeps bytes made on this device under `key`, in memory and in the store, and answers their object
+     * URL. A key already in memory keeps the copy it has: an `<img>` may be drawing it.
+     */
+    async put(key: string, variant: ImageVariant, blob: Blob): Promise<string> {
+        const existing = this.memory.get(key);
+        if (existing) return existing.url;
+        const bytes = await bytesOf(blob);
+        void this.writeStore({ key, variant, type: blob.type, bytes, size: bytes.byteLength, usedAt: this.now() });
+        return this.memory.get(key)?.url ?? this.remember(key, blob);
     }
 
     /**

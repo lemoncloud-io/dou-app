@@ -55,6 +55,15 @@ describe('configureWebPerfTraces', () => {
         expect(appBridge.stopPerfTrace).not.toHaveBeenCalled();
     });
 
+    it('reports traces as held until the report arrives', () => {
+        const perf = configureWebPerfTraces({ logger, runId: 'run-1' });
+        expect(perf.isHeld()).toBe(true);
+
+        perf.resolveWith(null);
+
+        expect(perf.isHeld()).toBe(false);
+    });
+
     it('records nothing in a plain browser tab, which has no report and no run id', () => {
         const perf = configureWebPerfTraces({ logger, runId: undefined });
         perf.resolveWith(null);

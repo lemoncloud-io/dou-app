@@ -3,15 +3,22 @@ import type {
     CloudView,
     CreateMembershipBody,
     MembershipBody,
+    MembershipDropsBody,
     MembershipView,
     ProductView,
 } from '@lemoncloud/chatic-backend-api';
+import type { MembershipDropsResult } from '@chatic/http';
 import type { SubscriptionHttpDomainGateway } from '../gateways';
+
+// Re-exported so app code reads the drops response type from `@chatic/data` like the rest of this
+// surface, without taking a dependency on the transport lib for one type.
+export type { MembershipDropsResult } from '@chatic/http';
 
 export interface ISubscriptionHttpDataSource {
     fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
     fetchMembershipInfo(): Promise<MembershipView>;
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
+    markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult>;
 
     fetchAdminMemberships(
         params?: Record<string, unknown>,
@@ -68,6 +75,10 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
 
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView> {
         return this.gateway.validateMembership(body, params);
+    }
+
+    markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult> {
+        return this.gateway.markDrops(body);
     }
 
     fetchAdminMemberships(

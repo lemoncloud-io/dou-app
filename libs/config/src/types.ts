@@ -29,7 +29,7 @@ export type Writer = 'shell' | 'local' | 'server';
  * and to `writableBy`.
  *
  *  'user'     Settings. A normal person turns it on and off.
- *  'labs'     The experimental section of Settings. Default off, and the server must be able to
+ *  'labs'     The Lab page, reached from Settings. Default off, and the server must be able to
  *             kill it — an experiment nobody can turn off remotely does not ship to users.
  *  'dev'      The debug panel only. Requires the unlock.
  *  'internal' No control anywhere. Code reads it, or product UI writes it through its own flow.

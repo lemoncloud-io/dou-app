@@ -35,6 +35,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'fetchInviteInfoWithCode',
         'getActiveServerContext',
         'getActiveSessionUser',
+        'getCommittedSessionSiteId',
         'getGlobalSessionContext',
         'getIdentityContext',
         'getRelaySessionUser',
@@ -65,7 +66,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useUidInCloud',
         'useVerifyAlias',
     ],
-    // Hosts + socket state reads + wake recovery + the background-cloud list.
+    // Hosts + socket state reads + wake recovery + the background-cloud and owned-cloud lists.
     connection: [
         'RELAY_SLOT',
         'RuntimeAuthHost',
@@ -75,6 +76,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useBackgroundClouds',
         'useCloudVerified',
         'useConnectivity',
+        'useReclaimOwnedClouds',
         'useRuntimeSocketState',
         'useSlotVerified',
         'useVerifiedClouds',

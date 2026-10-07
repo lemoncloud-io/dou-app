@@ -2,15 +2,16 @@
 
 Every phone field in the app picks a country, validates the number against that country, and sends
 the result as E.164 with the country alongside. This document owns that module: the pure helpers, the
-country picker, and the rules the two consuming screens have to respect.
+country picker, and the rules the consuming screens have to respect.
 
 The screens themselves are elsewhere — [phone-verification.md](./phone-verification.md) for the
-`PhoneVerify*` shells, [invite](../invite/README.md) for the issue form and the waiting screen.
+`PhoneVerify*` shells, [invite](../invite/README.md) for the issue form and the waiting screen,
+[channels/invite.md](../channels/invite.md) for the cloud invite's sheet and contact tab.
 
 ## Layout
 
 `apps/web/src/app/utils/phoneNumber.ts` sits beside `errors.ts` and `placeProfile.ts` — a pure
-helper two features share. The picker is two files under `apps/web/src/app/ui/components/`:
+helper several features share. The picker is two files under `apps/web/src/app/ui/components/`:
 `CountrySelectSheet` is pure presentation taking `{ open, onOpenChange, value, onSelect }`, and
 `CountrySelect` owns the trigger and the sheet's open state.
 
@@ -111,12 +112,17 @@ Instead every path that reaches it sits under a lazy chunk, and three places kee
 1. **`apps/web/src/app/utils/index.ts` does not re-export `./phoneNumber`.** That barrel is on an
    eager path; re-exporting lifts the metadata into the entry chunk.
 2. **`apps/web/src/app/ui/components/index.ts` does not re-export `CountrySelect*`.** Same reason.
-   Both consuming screens import the concrete files.
+   Every consuming screen imports the concrete files.
 3. **`RelayInviteAccept` imports `PhoneVerifyScreen` through `React.lazy`.** The other consumers
-   (`ContactInvitePage`, mypage `LoginPage`, `AccountLinkSection`) already sit under lazy routes, but
-   `CommonRoutes` deliberately keeps the invite-accept page eager — it is an invited person's first
-   screen and must not pay for a chunk fetch. Splitting a _later_ phase preserves that: the verifying
-   phase is only reachable after the accept screen has rendered.
+   (`ContactInvitePage`, mypage `LoginPage`, `AccountLinkSection`, and the cloud invite's
+   `AddFriendSheet` and `deviceContact.ts` under the room `InvitePage` and `PlaceInvitePage`) already
+   sit under lazy routes, but `CommonRoutes` deliberately keeps the invite-accept page eager — it is
+   an invited person's first screen and must not pay for a chunk fetch. Splitting a _later_ phase
+   preserves that: the verifying phase is only reachable after the accept screen has rendered.
+
+`features/channels/components/index.ts` re-exports `AddFriendSheet`, so that barrel carries the
+metadata too. Every module importing it sits under a lazy route; an eager screen that needs one of
+its other components imports the concrete file, as the home screen's `ConfirmDialog` already does.
 
 Both barrels carry a comment saying so. Check the result rather than trusting the arrangement:
 
@@ -168,9 +174,10 @@ reissue dialog holds the same value.
 
 ### What not to do
 
-- **Do not validate with a Korean-only helper.** `features/auth/utils/phone.ts` and
-  `features/channels/utils/koreanPhone.ts` still exist; the cloud invite paths use the latter, and no
-  international field may.
+- **Do not validate with a Korean-only helper.** `features/auth/utils/phone.ts` still exists; no
+  international field may use it. The cloud invite (`AddFriendSheet`, the contact tab's
+  `deviceContact.ts`) reads numbers through this module too, and `readMobileNumber` exists for it:
+  one parse that answers validity, E.164 and both display forms for a stored number.
 - **Do not re-export this module or the picker from a barrel.** See the metadata rule.
 - **Do not send the local form.** `toE164` is the wire value everywhere.
 - **Do not read the live field in a prove step.** Read the pin.

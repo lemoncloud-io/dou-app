@@ -1,39 +1,39 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainProfile } from '@chatic/data';
 
 const navigate = jest.fn();
-const setMyProfile = jest.fn();
+const setMyPlaceProfile = jest.fn();
 let mockProfile: Partial<DomainProfile> | null = null;
 let mockAbsent: boolean | undefined = false;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
-        data: {
-            useRuntimeRepositories: () => ({ profile: { setMyProfile } }),
-        },
-        // The save names its place rather than reading it off the ambient data context, and the
-        // page reads that place here.
-        session: {
-            useSessionSelection: () => ({ selectedSiteId: 'active-site' }),
-        },
-    },
-}));
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: mockProfile }),
     usePlaceProfileAbsent: () => ({ absent: mockAbsent, markPresent: jest.fn() }),
+    useSetMyPlaceProfile: () => setMyPlaceProfile,
 }));
 // The real barrels pull `@chatic/assets` / `@chatic/app-runtime`, which jest cannot resolve or parse.
 // The form stub surfaces the seeded values — the whole point of the gate is WHAT gets latched.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../../../ui/components/PlaceProfileForm', () => ({
-    PlaceProfileForm: ({ initialNick, initialThumbnail }: { initialNick: string; initialThumbnail: string }) => (
+    PlaceProfileForm: ({
+        initialNick,
+        initialThumbnail,
+        onSubmit,
+    }: {
+        initialNick: string;
+        initialThumbnail: string;
+        onSubmit: (value: { nick: string }) => Promise<void>;
+    }) => (
         <div>
             <span>form</span>
+            <button type="button" onClick={() => void onSubmit({ nick: 'Raine' })}>
+                submit
+            </button>
             <span>seeded-nick:{initialNick}</span>
             <span>seeded-thumb:{initialThumbnail}</span>
         </div>
@@ -91,5 +91,16 @@ describe('PlaceProfilePage — 렌더 게이트', () => {
 
         expect(screen.getByText('form')).toBeInTheDocument();
         expect(screen.getByText('seeded-nick:')).toBeInTheDocument();
+    });
+});
+
+describe('PlaceProfilePage — save', () => {
+    it('saves through the shared active-place profile write, not a write of its own', () => {
+        mockAbsent = true;
+        render(<PlaceProfilePage />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'submit' }));
+
+        expect(setMyPlaceProfile).toHaveBeenCalledWith({ nick: 'Raine' });
     });
 });

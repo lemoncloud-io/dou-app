@@ -54,6 +54,31 @@ yarn mobile:deploy:android:prod -m "..."
 - iOS deploy waits for build processing to finish before it can apply the changelog (can take minutes
   to tens of minutes).
 
+## Android code shrinking (R8)
+
+Release builds run R8, which shrinks and renames the app's Java/Kotlin classes; debug builds do not.
+The JS side is unaffected — it already ships as Hermes bytecode. Resource shrinking stays off: the
+push service looks up `app_scheme` and `ic_launcher_default` by name with `getIdentifier`, which is
+exactly what the resource shrinker gets wrong.
+
+- **Breakage shows up at runtime, not at build time.** Anything looked up by name — reflection, a
+  WebView `@JavascriptInterface`, JNI — fails as `ClassNotFoundException`/`NoSuchMethodException`
+  only once that path runs. React Native modules are already kept by react-android's own rules; the
+  app-specific exceptions live in `android/app/proguard-rules.pro`, each with its reason. The one
+  that matters most is `BuildConfig`: `react-native-config` reads it by reflection, so without the
+  rule every `Config` value is empty in release only.
+- **Adding a native library or a reflective lookup** means building a release APK and exercising
+  that path on an emulator before shipping it. A debug build proves nothing here. To build one
+  without the release keystore, inject the debug key:
+  `./gradlew assembleDevRelease -x uploadCrashlyticsMappingFileDevRelease -Pandroid.injected.signing.store.file=$PWD/app/debug.keystore -Pandroid.injected.signing.store.password=android -Pandroid.injected.signing.key.alias=androiddebugkey -Pandroid.injected.signing.key.password=android`
+  (the `-x` keeps a local test build's mapping out of Crashlytics).
+- **R8 does not hide env values.** `react-native-config` writes every key of `.env.dev`/`.env.prod`
+  into the APK twice — as a `BuildConfig` field and as a string resource — and R8 only ever touches
+  the first. Anything in those files ships with the app, so a value that must stay on the build
+  machine does not belong there.
+- **Stack traces stay readable.** The Crashlytics gradle plugin uploads the mapping file during the
+  release build, and the AAB carries it to Play, so neither console needs a manual upload.
+
 ## Components
 
 | File                            | Role                                                                                                                                              |

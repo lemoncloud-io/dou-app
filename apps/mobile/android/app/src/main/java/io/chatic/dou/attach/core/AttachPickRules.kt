@@ -14,16 +14,17 @@ import java.util.TimeZone
 /**
  * The rules of the attachment picker that need no Android framework: which picker to open and with
  * what limit, what a picked item is, what its copy is called, which file a later request may name, when
- * an old copy is swept, which videos are sent as they are, and the poster's size and encoding steps. Kept apart so plain JVM tests cover
- * them; the pickers, the copies, MediaExtractor and MediaMetadataRetriever live in
- * [io.chatic.dou.module.AttachmentPickerModule].
+ * an old copy is swept, which videos are sent as they are, the poster's size and encoding steps, and
+ * what a request for one frame of a remote video may ask. Kept apart so plain JVM tests cover them;
+ * the pickers, MediaExtractor and MediaMetadataRetriever live in
+ * [io.chatic.dou.module.AttachmentPickerModule], the copies in [io.chatic.dou.attach.PickedCopies].
  *
  * Layout, under the app's cache directory — one folder per picked item, so two items of the same name
  * never meet, and a video's poster sits beside it:
  * ```
  * attach-pick/
  *   ├ <uuid>/
- *   │   ├ video-20261001-093000.mp4   the copy the web uploads from
+ *   │   ├ video-20261001-093000.mp4   the copy the web uploads from (picked, or kept from the library)
  *   │   └ poster.jpg                  written by PrepareVideo
  *   └ <uuid>/
  *       └ IMG_0001.jpg                a prepared photo, read back with ReadAttachment
@@ -110,6 +111,13 @@ object AttachPickRules {
 
     /** Whether a [size] is over its kind's [limit]. A limit of zero or less means none was given. */
     fun exceeds(size: Long, limit: Long): Boolean = limit > 0 && size > limit
+
+    /**
+     * The web's video ceiling (`CHAT_ATTACHMENT_MAX_BYTES.video`), for a copy that is not handed the
+     * ceilings with the request — a video kept from the photo library. Android sends a video as it is,
+     * so the original's size is the size that goes up.
+     */
+    const val VIDEO_MAX_BYTES = 300L * 1024 * 1024
 
     // ---- Names ----------------------------------------------------------------------------------
 
@@ -318,8 +326,11 @@ object AttachPickRules {
     /** The poster's long edge, in pixels — the server's thumbnail size. */
     const val POSTER_MAX_EDGE = 400
 
-    /** The largest poster the shell writes; it also crosses the bridge as base64. */
-    const val POSTER_MAX_BYTES = 200 * 1024
+    /**
+     * The largest poster the shell writes; it also crosses the bridge as base64. Decimal, not 200 KiB:
+     * the server drops a thumbnail over 200,000 bytes, so one between the two would be lost.
+     */
+    const val POSTER_MAX_BYTES = 200_000
 
     /** Where the frame is taken, in microseconds: half a second in, past a fade from black. */
     const val POSTER_TIME_US = 500_000L
@@ -338,6 +349,63 @@ object AttachPickRules {
         if (longEdge <= maxEdge) return width to height
         val scale = maxEdge.toDouble() / longEdge
         return maxOf(1, Math.round(width * scale).toInt()) to maxOf(1, Math.round(height * scale).toInt())
+    }
+
+    // ---- One frame of a remote video ------------------------------------------------------------
+
+    /**
+     * How many remote frames are read at once. Each holds a network connection and a decoder; the web
+     * asks for one per video message on screen, so a chat scrolled past a dozen videos would otherwise
+     * open a dozen of each.
+     */
+    const val FRAME_READS_AT_ONCE = 2
+
+    /**
+     * How long a frame request waits before it is answered `UNREADABLE`. MediaMetadataRetriever cannot
+     * be cancelled, so this frees the web, not the thread: a read stuck on the network keeps its slot
+     * until the framework gives up.
+     */
+    const val FRAME_TIMEOUT_MS = 20_000L
+
+    /** A frame request that passed [frameRequest]: the URL as given, the time in ms, the long edge in px. */
+    data class FrameRequest(val url: String, val atMs: Long, val maxEdge: Int)
+
+    /**
+     * The checked arguments of `readVideoFrame`, or null — answered `INVALID` — when the URL is not an
+     * `https:` URL with a host, [atMs] is negative or not finite, or [maxEdge] is not a positive finite
+     * number. Only https is taken: the frame is read from a signed storage URL, and anything else (a
+     * `file:` path, plain http) is not what the call is for.
+     */
+    fun frameRequest(url: String?, atMs: Double, maxEdge: Double): FrameRequest? {
+        if (url.isNullOrBlank()) return null
+        val parsed = try {
+            URI(url)
+        } catch (_: URISyntaxException) {
+            return null
+        }
+        if (!parsed.scheme.equals("https", ignoreCase = true) || parsed.host.isNullOrEmpty()) return null
+        if (!atMs.isFinite() || atMs < 0) return null
+        if (!maxEdge.isFinite() || maxEdge <= 0) return null
+        val edge = Math.round(minOf(maxEdge, Int.MAX_VALUE.toDouble())).toInt().coerceAtLeast(1)
+        return FrameRequest(url, atMs.toLong(), edge)
+    }
+
+    /**
+     * Where the frame is taken, in microseconds: [atMs], or the first frame when the video is known to
+     * be shorter than that. An unknown length keeps [atMs]; the module falls back to the first frame
+     * when none comes back there.
+     */
+    fun frameTimeUs(atMs: Long, durationMs: Long?): Long =
+        if (durationMs != null && durationMs > 0 && durationMs < atMs) 0L else atMs * 1000
+
+    /**
+     * The square box a frame is decoded into: [maxEdge], or the video's own long edge when that is
+     * smaller, since the decoder would otherwise enlarge a small video to fill the box. Square, so the
+     * rotation cannot put the long side on the wrong axis. An unknown size keeps [maxEdge].
+     */
+    fun frameBox(maxEdge: Int, videoWidth: Int?, videoHeight: Int?): Int {
+        val longEdge = maxOf(videoWidth ?: 0, videoHeight ?: 0)
+        return if (longEdge > 0) minOf(maxEdge, longEdge) else maxEdge
     }
 
     // ---- Internals ------------------------------------------------------------------------------

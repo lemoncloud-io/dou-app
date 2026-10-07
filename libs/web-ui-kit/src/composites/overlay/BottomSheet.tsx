@@ -68,6 +68,14 @@ export interface BottomSheetProps {
     hideHeader?: boolean;
     /** Scrollable body content. */
     children?: React.ReactNode;
+    /**
+     * The element that actually scrolls, for content that keeps part of itself still and scrolls the
+     * rest in its own container — the body then never scrolls, so its `scrollTop` would always say
+     * "at the top" and swipe-to-dismiss would arm in the middle of a scrolled list. With this set, the
+     * drag arms only when that element is at its top. The content's root should fill the body
+     * (`h-full`) so the body has nothing of its own to scroll.
+     */
+    scrollRef?: React.RefObject<HTMLElement | null>;
     /** Pinned footer (e.g. a FloatingButton) below the scroll area. */
     footer?: React.ReactNode;
     closeLabel?: string;
@@ -101,6 +109,7 @@ export const BottomSheet = ({
     disableDragToDismiss = false,
     hideHeader = false,
     children,
+    scrollRef,
     footer,
     closeLabel = 'Close',
     className,
@@ -134,6 +143,9 @@ export const BottomSheet = ({
 
     const phaseTimer = React.useRef<number | null>(null);
 
+    /** How far the scrolling element is from its top — the body's, unless the content scrolls itself. */
+    const scrolledBy = () => (scrollRef?.current ?? bodyRef.current)?.scrollTop ?? 0;
+
     const clearPhaseTimer = () => {
         if (phaseTimer.current !== null) window.clearTimeout(phaseTimer.current);
         phaseTimer.current = null;
@@ -162,7 +174,7 @@ export const BottomSheet = ({
         // Primary button only. A secondary-button drag is not a gesture anyone means, and a wheel
         // or trackpad reaches the body as scroll rather than as pointer movement.
         if (event.button !== 0) return;
-        if (!canStartDrag(bodyRef.current?.scrollTop ?? 0)) return;
+        if (!canStartDrag(scrolledBy())) return;
         // A second finger landing mid-drag must not take the gesture over. It would orphan the
         // first finger's moves and release, and nothing would bring the panel back up.
         if (gesture.current?.dragging) return;
@@ -184,7 +196,7 @@ export const BottomSheet = ({
 
         // The body can still get scrolled mid-gesture — a wheel, a second finger. Give the drag up
         // rather than fight whatever is scrolling.
-        if (!canStartDrag(bodyRef.current?.scrollTop ?? 0)) {
+        if (!canStartDrag(scrolledBy())) {
             gesture.current = null;
             if (active.dragging) {
                 setPhase('resting');

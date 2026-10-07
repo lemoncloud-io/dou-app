@@ -23,9 +23,13 @@ describe('page input accept lists', () => {
         expect(albumAccept(true).split(',')).toContain('image/jpeg');
     });
 
-    it('offers documents only, by type and extension, from files', () => {
+    it('offers the document formats, by type and extension, and no image type from files', () => {
         expect(DOCUMENT_ACCEPT.split(',')).toEqual(expect.arrayContaining(['application/pdf', '.hwp', '.hwpx']));
         expect(DOCUMENT_ACCEPT).not.toContain('image/');
+    });
+
+    it('also takes the generic type from files, the only one iOS WebKit lets HWP and HWPX through under', () => {
+        expect(DOCUMENT_ACCEPT.split(',')).toContain('application/octet-stream');
     });
 });
 

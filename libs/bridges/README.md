@@ -226,8 +226,8 @@ libs/bridges/src/
 └── logger/        the web→native relay, and the @chatic/logger re-export
 ```
 
-22 production files, 6 spec files, 3,146 lines. The barrel exports 15 runtime values of its own — 5
-classes and 10 constants — plus 11 interfaces, 5 type aliases, and everything `@chatic/logger`
+22 production files, 6 spec files, 3,561 lines. The barrel exports 15 runtime values of its own — 5
+classes and 10 constants — plus 13 interfaces, 6 type aliases, and everything `@chatic/logger`
 exports.
 
 Names you would not find by guessing at a filename:
@@ -313,13 +313,50 @@ host.registerHandler('FetchBadgeCount', async () => ({
 host.pushEvent({ type: 'OnReceiveNotification', success: true, data: { notification } });
 ```
 
+### Timing requests
+
+`setRequestObserver` hands one `BridgeRequestSample` to a callback as each request settles: its
+type, its outcome (`ok` or the error code), how long it waited for the channel (`queuedMs`), its
+round trip from dispatch (`roundTripMs`), how many other requests were in flight when it left, and
+the length of the request and reply payloads.
+
+```ts
+webClient.setRequestObserver(sample => record(sample)); // one observer; a later call replaces it
+webClient.setRequestObserver(undefined); // and nothing is timed again
+```
+
+- **Off costs nothing.** With no observer the client reads no clock and counts nothing, and a
+  request already dispatched before an observer was attached is never reported — it has no
+  dispatch time to measure from.
+- **Only requests that settle on the wire are reported.** One rejected before it left (no channel)
+  says nothing about the bridge, and neither does one rejected by `destroy()`, in flight or not.
+  `post` is never timed: it has no reply to end on. A request called before the observer was
+  attached reports no `queuedMs`, since its wait cannot be known.
+- **Lengths come from the adapter, not from re-encoding.** `NativeBridgeAdapter.postMessage`
+  returns the length of the string it sent, and passes the raw inbound length beside each decoded
+  message. A sample therefore costs no second `JSON.stringify` of a payload that may be a
+  megabyte. They are UTF-16 code units, which is what the WebView copies; an adapter that reports
+  none (`InMemoryAdapter`) leaves them undefined.
+- **The observer cannot break a request.** A throw is caught and logged, and the caller's promise
+  settles exactly as it would have.
+
+`apps/web` is the one caller, and it records these as Firebase `bridge_request` samples for a
+sampled run — see its `docs/observability/performance.md`.
+
+This exists instead of a priority channel. Splitting the bridge looks like a way to let urgent
+messages overtake bulky ones, but in the mobile shell every message, on whichever channel, crosses
+the app main thread and the React Native JS thread in arrival order, and `AppBridgeHost` starts each
+message as it arrives rather than holding a backlog it could reorder. What can make one message wait
+for another is size — serializing and copying a large payload is synchronous on both ends — and that
+is what these samples measure, before anything is built to prevent it (ADR-0167).
+
 ### Wiring
 
 ```text
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.3.0')
+       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.5.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -401,7 +438,7 @@ request on the very thread the cache path needs.
 
 ```bash
 npx tsc -b libs/bridges/tsconfig.json --force   # lib + specs, via the two project references
-npx jest --config libs/bridges/jest.config.js   # 6 suites, 68 cases
+npx jest --config libs/bridges/jest.config.js   # 6 suites, 80 cases
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
@@ -436,7 +473,7 @@ npx nx run-many -t typecheck --exclude=desktop-web,block-kit-builder,@chatic/lan
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.3.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.5.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. `BRIDGE_PROTOCOL_VERSION` is an alias of it today, kept separate so a future
 compatibility layer can run a newer bridge that still speaks an older protocol.
@@ -452,4 +489,6 @@ reporting a protocol problem.
 The version is a record, not a switch: no caller decides what a peer can do by comparing it. `2.3.0`
 opened `StartFileTransfer` to downloads and added `SaveToPhotoLibrary` and `ShareFile`; a web build
 that needs those asks whether the handshake's `supportedWebMessages` lists the message names, which
-says what the installed shell actually handles.
+says what the installed shell actually handles. `2.5.0` added `KeepLibraryVideo` and `ReadVideoFrame`
+and the opt-in `mediaTypes` on the photo-library lists; the web learns a shell without them from
+`NOT_FOUND`, and a shell that predates the field simply ignores it.

@@ -18,4 +18,10 @@ RCT_EXTERN_METHOD(readAttachment:(NSString *)uri
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(readVideoFrame:(NSString *)url
+                  atMs:(NSNumber *)atMs
+                  maxEdge:(NSNumber *)maxEdge
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+
 @end

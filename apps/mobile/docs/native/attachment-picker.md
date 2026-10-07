@@ -13,14 +13,14 @@ which can take the WebView down just as a video would.
 
 ## Files
 
-| Layer             | File                                                                                                                   |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Messages          | `libs/app-messages/src/types/model/attachment-picker.ts`                                                               |
-| WebView handler   | `src/app/webview/hooks/attachmentPickerHandlers.ts`, `useAttachmentPickerHandler.ts`                                   |
-| TS native wrapper | `src/app/bridge/AttachmentPickerBridge.ts`                                                                             |
-| iOS               | `ios/Bridges/AttachmentPicker/` — `AttachmentPicker.swift`, `Core/AttachmentPickerCore.swift` (pure rules)             |
-| Android           | `module/AttachmentPickerModule.kt`, `attach/core/AttachPickRules.kt` (pure rules), `bridge/AttachmentPickerPackage.kt` |
-| Tests             | `ios/ChaticTransferCoreTests/AttachmentPickerCoreTests.swift`, `test/.../attach/core/AttachPickRulesTest.kt`           |
+| Layer             | File                                                                                                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Messages          | `libs/app-messages/src/types/model/attachment-picker.ts`                                                                                                                                                                 |
+| WebView handler   | `src/app/webview/hooks/attachmentPickerHandlers.ts`, `useAttachmentPickerHandler.ts`                                                                                                                                     |
+| TS native wrapper | `src/app/bridge/AttachmentPickerBridge.ts`                                                                                                                                                                               |
+| iOS               | `ios/Bridges/AttachmentPicker/` — `AttachmentPicker.swift`, `Core/AttachmentPickerCore.swift` (pure rules)                                                                                                               |
+| Android           | `module/AttachmentPickerModule.kt`, `attach/PickedCopies.kt` (copy and video check, shared with the photo grid's `KeepLibraryVideo`), `attach/core/AttachPickRules.kt` (pure rules), `bridge/AttachmentPickerPackage.kt` |
+| Tests             | `ios/ChaticTransferCoreTests/AttachmentPickerCoreTests.swift`, `test/.../attach/core/AttachPickRulesTest.kt`                                                                                                             |
 
 ## Messages
 
@@ -29,6 +29,7 @@ which can take the WebView down just as a video would.
 | `PickAttachments` | `OnPickAttachments` | Opens the picker; answers once it closed and every picked item was copied       |
 | `PrepareVideo`    | `OnPrepareVideo`    | Writes a picked video as an H.264 `mp4` ready to upload, and a poster beside it |
 | `ReadAttachment`  | `OnReadAttachment`  | Answers one kept photo's bytes as base64, in the shape `ReadPhoto` answers      |
+| `ReadVideoFrame`  | `OnReadVideoFrame`  | Answers a JPEG of one frame of a received video, read from its signed address   |
 
 `PickAttachments` takes `{ source: 'media' | 'document', selectionLimit, maxBytes }`: which picker,
 how many more items the message may take (what is left of ten), and the server's per-kind ceilings
@@ -54,14 +55,31 @@ the same folders is never turned into base64. Android reads any file at the righ
 from its extension. `ReadAttachment` has no `NOT_FOUND` fallback of its own: it ships in the same
 build as `PickAttachments`, so an app that answers a pick answers this too.
 
+`ReadVideoFrame` takes `{ url, atMs, maxEdge }` — a received video's signed address, where to take the
+frame (the web sends 500) and the frame's long edge (400) — and answers `{ base64, contentType, width,
+height }`. It is the tile's first frame for a video that came without a poster: the page cannot make
+one in the app, because the WebView loads no media before a tap. The handler passes only an `https:`
+address to native code — anything local would make the call a reader of the app's own files — and a
+negative time or a non-positive edge is `INVALID` too. Native answers `INVALID` or `UNREADABLE`
+(network, an expired address, a codec, no frame); anything else reaches the web as `UNREADABLE`, and
+the log carries the code alone, never the signed address. Native reads the remote file itself (iOS
+`AVURLAsset` + `AVAssetImageGenerator`, Android `MediaMetadataRetriever.setDataSource(url, …)`), so it
+needs no CORS on the bucket, and writes nothing to disk. The frame follows the poster rule below
+(`atMs`, or the first frame of a shorter video; never upscaled; JPEG from 0.7 down to fit 200,000
+bytes). At most two run at once. iOS gives up after 20 s and cancels the read; Android answers
+`UNREADABLE` after 20 s but cannot cancel `MediaMetadataRetriever`, so a stuck read keeps its thread
+until it returns.
+
 **Which file a URI may name.** `PrepareVideo` and `ReadAttachment` accept only a file at exactly
 `attach-pick/<uuid>/<file>` — what a pick wrote, and where a video's results go beside it. A file
 directly in `attach-pick/`, one deeper than a pick folder, or anywhere else is `INVALID`, and so is a
 symbolic link that resolves out of its folder. Android refuses a path with a `..` segment outright;
 iOS normalises the path first, so a `..` cannot climb out.
 
-**No handler ever answers `NOT_FOUND`.** The router registers all three only when the native module
-exists (`AttachmentPickerBridge.isAvailable`), so a JS bundle run over a native build without it
+**No handler ever answers `NOT_FOUND`.** The router registers the first three only when the native
+module exists (`AttachmentPickerBridge.isAvailable`), and `ReadVideoFrame` only when the module also has
+`readVideoFrame` (`canReadVideoFrame`) — it came later, and an app without it must answer `NOT_FOUND`
+so the web draws the tile another way. So a JS bundle run over a native build without it
 answers `NOT_FOUND` — the web's signal to open its own file input for the rest of the page's life. A
 registered handler mapping one failed pick to `NOT_FOUND` would turn that fallback on for a shell
 that has the picker.
@@ -175,24 +193,28 @@ extension changed to `.mp4`.
   index at the end (a long camera recording usually does). The WebView then reads the tail first with
   a range request, which storage serves, so the first play starts a little later; that is accepted.
 - **The poster** is the frame at 0.5 s, or the first one for a shorter video, at most 400 px on its
-  long side, JPEG from quality 0.7 down until it is at most 200 KB — the server's thumbnail slot. It is
+  long side, JPEG from quality 0.7 down until it is at most 200,000 bytes — the server's thumbnail
+  slot, which drops a larger one without an error. Android capped it at 200 × 1024 bytes before, so a
+  poster between the two was made and then thrown away. It is
   `poster.jpg` beside the video, uploaded with it, and also answered as `base64`: the page cannot read
   a `file://` URI, and it shows the poster on the pending message while the video uploads. When no
   frame can be read, `poster` is `null` and the video goes without one.
 
 ## Folders and cleanup
 
-| Folder                                          | Holds                                                                     | Removed                                                                     |
-| ----------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `<cache>/attach-pick/<uuid>/`                   | A picked copy (a photo already prepared), its converted `mp4`, its poster | At the next pick, once untouched for 24 hours; OS cache purge               |
-| `transfer-temp/` (cache on Android, tmp on iOS) | Images the web wrote with `WriteTempFile`                                 | Never eagerly; the OS reclaims it ([file-transfer.md](./file-transfer.md))  |
-| `<cache>/transfer-download/`                    | Downloaded files                                                          | The download sweep, after 24 hours ([file-transfer.md](./file-transfer.md)) |
+| Folder                                          | Holds                                                                                            | Removed                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `<cache>/attach-pick/<uuid>/`                   | A picked copy (a photo already prepared) or a grid video's copy, its converted `mp4`, its poster | At the next pick, once untouched for 24 hours; OS cache purge               |
+| `transfer-temp/` (cache on Android, tmp on iOS) | Images the web wrote with `WriteTempFile`                                                        | Never eagerly; the OS reclaims it ([file-transfer.md](./file-transfer.md))  |
+| `<cache>/transfer-download/`                    | Downloaded files                                                                                 | The download sweep, after 24 hours ([file-transfer.md](./file-transfer.md)) |
 
 An upload reads only from the first two; anything else is refused at `start`
 ([file-transfer.md](./file-transfer.md) § Rules).
 
 **`attach-pick` is cleaned by one sweep and nothing else.** Each `PickAttachments` first deletes every
-`attach-pick/<uuid>/` folder whose newest change is more than 24 hours old. Nothing is deleted when the
+`attach-pick/<uuid>/` folder whose newest change is more than 24 hours old. The photo grid's
+`KeepLibraryVideo` ([photo-library.md](./photo-library.md)) writes folders here too, and runs the same
+sweep before it copies, so a person who sends only from the grid does not pile up copies. Nothing is deleted when the
 web acknowledges a finished upload (`AckFileTransfers`), for two reasons:
 
 - The web acknowledges the original as soon as its upload ends and starts the poster's upload
@@ -207,6 +229,9 @@ fails with `SOURCE`, and that pending message can then only be deleted.
 
 ## Verifying
 
+- `ReadVideoFrame` on a device: send a video from a browser that cannot draw a poster (or one sent
+  before browsers drew posters), then scroll to it in the app — the tile shows the frame once it is on
+  screen, and again at once after a relaunch (it is kept in the page's image cache, `frame` variant).
 - JS relay, registration and the payload checks:
   `npx jest --config apps/mobile/jest.config.js attachmentPickerHandlers AttachmentPickerBridge useWebMessageRouter`.
 - Android rules, from `apps/mobile/android`:
@@ -236,4 +261,5 @@ fails with `SOURCE`, and that pending message can then only be deleted.
 - Does iOS `ReadAttachment` refuse a file that is not a prepared photo?
 - Is a `needsExport` video spared the size check at pick, and held to it by `PrepareVideo`?
 - Does any failure path answer `NOT_FOUND`?
-- Does anything delete an `attach-pick` folder other than the 24-hour sweep?
+- Does anything delete an `attach-pick` folder other than the 24-hour sweep (and a refused copy's own folder)?
+- Does `ReadVideoFrame` reach native code only with an `https:` address, and keep it out of the log?

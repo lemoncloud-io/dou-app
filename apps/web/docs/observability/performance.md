@@ -31,6 +31,7 @@ holding a trace until it expires.
 | `web_vitals`     | `webVitalsReporter.ts`, FCP and LCP only, as samples (value in `value_ms`) | `vital`: `fcp` / `lcp`                             |
 | `chat_room_open` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
 | `chat_room_sync` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
+| `bridge_request` | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)             | `type` · `outcome`                                 |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -258,3 +259,45 @@ src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks
 - On the same build, open a room that has a cache and one that does not. Each should log one
   `chat_room_sync` trace, with `cache` `hit` and `miss` respectively, and
   `feed_sent ≤ feed_received ≤ feed_done`.
+
+## `bridge_request`
+
+One bridge request, timed from the web side. It exists to answer whether bridge messages hold each
+other up — whether a large reply makes the small requests behind it wait — before anything is built
+to prevent that. Splitting the bridge into priority channels was considered and rejected on what the
+code shows: every message, whichever "channel" it is sent on, crosses the same app main thread and
+the same React Native JS thread in order, so a second channel only reorders anything once its
+handling moves into native code. These samples are what would justify that, or justify shrinking
+the payloads instead.
+
+`main.tsx` calls `observeBridgeRequests` right after `configureWebPerfTraces`, so the boot burst —
+the WebAppReady handshake included — is measured, and its samples wait with the other traces for
+the report.
+
+| Metric      | Meaning                                                                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtt_ms`    | dispatch → reply, including the handler's own work on the app side                                                                             |
+| `queue_ms`  | call → dispatch: time in the readiness buffer before the channel existed. Zero after boot; absent for a request called before observing began. |
+| `in_flight` | other requests still unanswered when this one left — the contention the trace is looking for                                                   |
+| `req_chars` | encoded request length, UTF-16 code units                                                                                                      |
+| `res_chars` | raw reply length. Absent on a timeout, and absent rather than zero when the adapter reported none                                              |
+
+`type` is the request's message type and `outcome` is `ok` or the error code it was rejected with.
+
+Three limits keep it from distorting what it measures:
+
+- **One run in ten.** The same `isSampledRun` decision as the log fallback. Each sample is itself two
+  bridge posts (the trace's start and stop), so measuring every run would add traffic to exactly the
+  thing being measured.
+- **Ten samples a minute.** Firebase Performance shares one rate limit across all of a device's
+  traces: 300 per ten minutes in the foreground and 30 in the background (the Android SDK's defaults
+  in firebase-perf 22.0.4; the iOS SDK's were not checked). Uncapped, a busy session would spend that budget on this trace and drop
+  `chat_room_open`. The first ten of each minute are kept, which leans towards the start of a burst.
+- **Three before the report.** Until WebAppReady names the backend, every trace waits in one hold of
+  100 entries and a sample takes two of them. A late report would otherwise let this trace push the
+  boot-time `web_vitals` out of the hold.
+- **Nothing while the page is hidden**, where the background budget is a tenth of the foreground one.
+
+What it cannot see: where inside the round trip the time went. Splitting it into web → app, handler
+and app → web needs the app side to stamp its own times on the reply, which ships with an app
+release rather than a web deploy.

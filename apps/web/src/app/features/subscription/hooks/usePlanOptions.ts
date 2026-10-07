@@ -32,6 +32,13 @@ export interface PlanOption {
     displayPrice?: string;
 }
 
+/** The line a refused card carries under its name; the tap still opens the full explanation. */
+const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
+    entryTier: 'mypage.subscription.startAtEntryTier',
+    tierJump: 'mypage.subscription.adjacentTierOnly',
+    otherStore: 'mypage.subscription.otherStoreOnly',
+};
+
 /**
  * Per-tier state for the plan picker, derived once and consumed by both the plans page and the home
  * subscribe sheet. Deriving it in each screen is how the two drifted apart the first time.
@@ -47,22 +54,14 @@ export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } 
 
     const options = sellablePlans.map<PlanOption>(plan => {
         const kind = getTierChangeKind(replaceablePlan, plan);
+        const refusal = getTierRefusal(replaceablePlan, kind, plan);
         return {
             plan,
             kind,
             isSelectable: isSelectableTier(kind),
             isCurrent: kind === 'current',
-            refusal: getTierRefusal(replaceablePlan, kind),
-            disabledReason:
-                kind !== 'blocked'
-                    ? undefined
-                    : // Two different refusals wear the same verdict: nothing to replace means the
-                      // first purchase must start at the entry tier; otherwise it is a tier jump.
-                      t(
-                          replaceablePlan
-                              ? 'mypage.subscription.adjacentTierOnly'
-                              : 'mypage.subscription.startAtEntryTier'
-                      ),
+            refusal,
+            disabledReason: refusal && refusal !== 'current' ? t(REFUSAL_LINE[refusal]) : undefined,
             displayPrice: matchNativeProduct(nativeProducts, plan, isIOS)?.displayPrice,
         };
     });

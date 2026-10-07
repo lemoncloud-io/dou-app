@@ -254,13 +254,51 @@ The composer is disabled outright when the DM peer is gone — see
 [`useChatScroll`](../../../src/app/features/channels/hooks/useChatScroll.ts) owns the container ref
 and reconciles four behaviours in the reversed list:
 
-- **Stay at the bottom** when a genuinely new latest message arrives, with 48px of slack for "the
-  reader is still at the newest messages".
-- **Hold the anchor** across a `loadMore`: capture `scrollTop` before the older rows render, restore
-  it in a layout effect after.
-- **Trigger `loadMore`** near the top, debounced.
+- **Follow a new message down only for someone still at the conversation**: within 48px of the
+  bottom, or the author of the message. A reader in history stays where they are: following every
+  message pulled them out of history whenever anyone spoke, which in a busy room read as the room
+  reloading under them. The author rule is per account, so a message I send from another device also
+  brings this one down. A
+  new message is recognised by the previous latest message still being in the list with something
+  after it, not by the list growing: once the window is full, an arrival pushes the oldest row out
+  and the length stays the same.
+- **Keep a reader in history on the same rows when a message lands below them.** Blink (Chromium,
+  and the Android WebView) does this itself: its scroll anchoring moves the offset by the new row's
+  height. WebKit keeps `scrollTop`, so a row added at the bottom pushes the view up by that row's
+  height. The hook notes where a row the reader is looking at sits — a row, found through
+  `data-chat-no`, never the date group around it, whose top can stay put while its rows move — and
+  after the commit takes back however far it moved. It leaves the offset alone where the engine has
+  already moved it during that commit, which is Blink, and while the reader is still moving the list
+  (a scroll event in the last 150ms, not counting the hook's own corrections): assigning
+  `scrollTop` stops iOS momentum dead, and a one-row creep mid-fling costs less.
+- **Ask for an older page once less than two viewports of history are left above the reader**,
+  checked on every scroll event and again after every commit that changes the list or the paging
+  state. A page
+  takes a request's round trip — a few hundred milliseconds on devices — and the old check (200px
+  from the top, behind a trailing debounce that never fired while the list was moving) only ever ran
+  once the reader had stopped at the top, so every page was a visible stall. The after-commit check
+  matters as much as the scroll one. A page that lands with the reader still inside the distance
+  brings in the next one without another scroll event — a fling outran it, or most of its rows were
+  reactions and replies the feed hides. A thread too short to scroll pulls in older pages until two
+  viewports of history sit above the reader or there is nothing older, where before its older
+  history could not be reached at all.
 - **Re-pin** when the composer grows — a growing composer height is the only signal a native WebView
   gives that the software keyboard opened.
+
+**An older page landing does not touch the offset.** Rows added at the top of a reversed list leave
+what the reader sees where it is, in Blink and WebKit alike. The hook used to restore the offset it
+captured when it asked for the page. A reader who kept scrolling while the page was in flight was
+thrown back by exactly the distance they had scrolled, and on iOS the assignment also killed the
+fling.
+
+Both engine facts were measured on 2026-10-02, in Chromium 152 and in iOS 26 Safari (the engine of
+the app's WKWebView), on a plain reversed list: 50 rows added at the top moved a visible row by 0px
+in both, while a 60px row added at the bottom moved it 72px up in WebKit (the row and its gap) and
+0px in Blink.
+
+`useChatScroll` also keeps `readingHistoryRef` current for `useChats` — whether the reader is away
+from the bottom — which decides whether rows arriving may push the oldest rows out of the window
+([data-layer.md](./data-layer.md)).
 
 Per-channel offsets are remembered through `useScrollRestoration`: stashed on unmount, restored once
 on the next mount. Restoration beats the bottom pin (the first page arriving otherwise reads as a
@@ -289,10 +327,12 @@ pin always won.
 
 ## Notes for implementers and tests
 
-- `ChannelRoomPage` has no test file, and it is the largest file in the feature. Logic added for
-  this screen goes into a pure util or a component so it can be tested — that constraint is why
-  `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` and `displayName` exist as
-  pure modules.
+- `ChannelRoomPage` is the largest file in the feature, and its test (`ChannelRoomPage.test.tsx`)
+  renders it with every hook mocked, so it pins what the page draws, not the logic behind it. Logic
+  added for this screen goes into a pure util, a hook or a component so it can be tested — that
+  constraint is why `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` and
+  `displayName` exist as pure modules, and why paging and scrolling live in `useChats` and
+  `useChatScroll`.
 - Attachment behaviour is pinned by `chatAttachment.test.ts` (scheme filter, empty attachment,
   colour mapping) and `MessageAttachment.test.tsx` (field rendering, external open, no link for a
   dangerous scheme, rail colour, seconds-based `ts`).

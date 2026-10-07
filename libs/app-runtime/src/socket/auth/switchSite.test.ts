@@ -1,5 +1,5 @@
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
-import { switchSite } from './switchSite';
+import { isSiteSwitchInFlight, switchSite } from './switchSite';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
 import { getSocketManager } from '../runtime';
@@ -185,5 +185,33 @@ describe('switchSiteViaSocket — site_switch trace', () => {
 
         expect(backend.stop).toHaveBeenCalledTimes(1);
         expect(backend.stop).toHaveBeenCalledWith(expect.objectContaining({ attributes: { outcome: 'error' } }));
+    });
+    it('reports a switch as in flight until it settles — success or failure', async () => {
+        mockedGetSelected.mockReturnValue('site-old');
+        withUser('user-1');
+        const seen: boolean[] = [];
+        const ok = jest.fn(async () => {
+            seen.push(isSiteSwitchInFlight());
+        });
+        mockedGetManager.mockReturnValue(makeManager(ok));
+        await switchSite('site-new');
+
+        const failing = jest.fn(async () => {
+            seen.push(isSiteSwitchInFlight());
+            throw new Error('server rejected');
+        });
+        mockedGetManager.mockReturnValue(makeManager(failing));
+        await expect(switchSite('site-new')).rejects.toThrow('server rejected');
+
+        expect(seen).toEqual([true, true]);
+        expect(isSiteSwitchInFlight()).toBe(false);
+    });
+
+    it('does not count a no-op switch to the selected site as in flight', async () => {
+        mockedGetSelected.mockReturnValue('site-1');
+
+        await switchSite('site-1');
+
+        expect(isSiteSwitchInFlight()).toBe(false);
     });
 });

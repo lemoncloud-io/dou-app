@@ -1,16 +1,25 @@
 import Foundation
 import ImageIO
 
-/// The rules of the photo-library bridge that do not need PhotoKit: paging, access, albums, and the
-/// form a picked photo leaves the device in. Kept apart so the ChaticTransferCoreTests bundle can
+/// The rules of the photo-library bridge that do not need PhotoKit: paging, access, albums, which
+/// media a list holds, how a list's previews are made in parallel, and the form a picked photo leaves
+/// the device in. Kept apart so the ChaticTransferCoreTests bundle can
 /// compile and test them without an app host.
 enum PhotoLibraryCore {
     /// The largest page the shell hands back. A page is base64 thumbnails held in page memory, and the
     /// web asks for 60; a runaway `limit` should not turn into the whole library in one reply.
     static let maxPageSize = 200
 
-    /// Long edge of a grid preview, in pixels.
+    /// Long edge of a grid preview, in pixels, when the request names no `thumbSize`.
     static let thumbnailEdge = 256
+
+    /// The range a requested `thumbSize` is clamped to, so a runaway size cannot turn a page of base64
+    /// previews into a page of photos. Android clamps to the same range.
+    static let minThumbSize = 64
+    static let maxThumbSize = 720
+
+    /// JPEG quality of a sized preview. The legacy preview keeps its 0.7.
+    static let sizedJpegQuality = 0.8
 
     /// Long edge a camera RAW photo is rendered at. A 48 MP ProRAW decoded at full size holds about
     /// 200 MB and its JPEG passes the server's 20 MB ceiling, so it would be read, carried across the
@@ -35,6 +44,29 @@ enum PhotoLibraryCore {
         case .limited: return "limited"
         case .notDetermined, .restricted, .denied: return "denied"
         }
+    }
+
+    // MARK: - Media types
+
+    /// What a list may hold. The web asks for videos only where it can send them; everything else
+    /// (the profile-photo picker, an older web) asks for nothing and gets the still images it always got.
+    enum MediaType: String {
+        case image, video
+    }
+
+    /// The `mediaTypes` a list request names. Entries this shell does not know are ignored, and a
+    /// request that names none it knows — absent, empty, not a list — lists still images only, so an
+    /// unexpected value never widens the grid.
+    static func mediaTypes(_ raw: Any?) -> Set<MediaType> {
+        let named = Set((raw as? [Any] ?? []).compactMap { ($0 as? String).flatMap(MediaType.init(rawValue:)) })
+        return named.isEmpty ? [.image] : named
+    }
+
+    /// A video's length as the grid shows it, in whole milliseconds. PhotoKit reports seconds as a
+    /// double; anything it cannot measure reads as 0 rather than an invalid number in the reply.
+    static func durationMs(seconds: Double) -> Int {
+        guard seconds.isFinite, seconds > 0 else { return 0 }
+        return Int((seconds * 1000).rounded())
     }
 
     // MARK: - Albums
@@ -90,6 +122,98 @@ enum PhotoLibraryCore {
         let lower = min(max(start, 0), total)
         let upper = min(lower + size, total)
         return (lower..<upper, upper < total)
+    }
+
+    /// A request's `offset`: where a page cut by index starts. Nil — page by cursor, as before — when it
+    /// is absent, not a number, not finite or negative. A fractional offset is floored, and one past any
+    /// list's length is capped well inside `Int` rather than trapping on the conversion.
+    static func offset(_ raw: Any?) -> Int? {
+        guard let value = number(raw), value.isFinite, value >= 0 else { return nil }
+        return Int(min(value.rounded(.down), Double(Int32.max)))
+    }
+
+    // MARK: - Sized previews
+
+    /// A request's `thumbSize`: the side of the square preview, in pixels. Nil — the legacy uncropped
+    /// preview — when it is absent, not a number, not finite or not positive; otherwise rounded and
+    /// clamped to `minThumbSize...maxThumbSize`.
+    static func thumbSize(_ raw: Any?) -> Int? {
+        guard let value = number(raw), value.isFinite, value > 0 else { return nil }
+        let clamped = min(max(value.rounded(), Double(minThumbSize)), Double(maxThumbSize))
+        return Int(clamped)
+    }
+
+    /// The side of the square box a fit-within image is requested in, so that the image's short side
+    /// comes out at `size` and its centre square can be cut at full sharpness: `size * long / short`,
+    /// rounded up.
+    ///
+    /// The ratio is capped at 3: a 10:1 panorama would otherwise be decoded 7200 px long for a 720 px
+    /// tile. Past 3:1 its square comes out a little under `size`, which a tile of a panorama can afford.
+    /// Which side is the long one does not matter — a square box fits either way — so width and height
+    /// stored unrotated give the same box. Unknown dimensions ask for `size` itself.
+    static func fitBox(width: Int, height: Int, size: Int) -> Int {
+        guard width > 0, height > 0 else { return size }
+        let long = max(width, height)
+        let short = min(width, height)
+        guard long < 3 * short else { return 3 * size }
+        return (size * long + short - 1) / short
+    }
+
+    /// The centred square of an image `width` × `height` pixels: its side is the short side, and the
+    /// long side loses the same amount at each end (the odd pixel at the far end).
+    static func centerSquare(width: Int, height: Int) -> (x: Int, y: Int, side: Int) {
+        let side = min(width, height)
+        return ((width - side) / 2, (height - side) / 2, side)
+    }
+
+    /// The side the preview is finally drawn at: `size`, or the image's short side when the image is
+    /// smaller — a preview is never upscaled. Unknown dimensions keep `size`.
+    static func squareSide(size: Int, width: Int, height: Int) -> Int {
+        guard width > 0, height > 0 else { return size }
+        return min(size, min(width, height))
+    }
+
+    // MARK: - Parallel previews
+
+    /// The most previews one list makes at the same time. Each one in flight holds a decode — up to a
+    /// 2160 × 720 bitmap for a panorama at the largest size — so the count is bounded for memory as
+    /// much as for CPU.
+    static let maxPreviewWorkers = 4
+
+    /// How many previews a list makes at once on a device with `cpuCount` cores: one core is left to
+    /// the UI and the WebView, and never fewer than one worker or more than `maxPreviewWorkers`.
+    static func previewWorkers(_ cpuCount: Int) -> Int {
+        min(maxPreviewWorkers, max(1, cpuCount - 1))
+    }
+
+    /// `transform` applied to `0..<count`, up to `workers` at a time, answered in index order.
+    ///
+    /// Worker `w` takes the indices `w, w + workers, …`, so every index is computed exactly once and by
+    /// one worker only; each writes its own slot of a preallocated buffer, which is why no lock is
+    /// needed. One worker or fewer is a plain map on the calling thread. The call returns once every
+    /// index is done.
+    static func parallelMap<T>(count: Int, workers: Int, _ transform: (Int) -> T) -> [T] {
+        guard count > 0 else { return [] }
+        let lanes = min(workers, count)
+        guard lanes > 1 else { return (0..<count).map(transform) }
+
+        var results = [T?](repeating: nil, count: count)
+        results.withUnsafeMutableBufferPointer { buffer in
+            let slots = buffer
+            DispatchQueue.concurrentPerform(iterations: lanes) { lane in
+                for index in stride(from: lane, to: count, by: lanes) {
+                    slots[index] = transform(index)
+                }
+            }
+        }
+        // Every slot was written above; a T that is itself optional keeps its nil inside the slot.
+        return results.map { $0! }
+    }
+
+    /// A JSON number from the bridge. A boolean crosses as an `NSNumber` too, and is not one.
+    private static func number(_ raw: Any?) -> Double? {
+        guard let number = raw as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        return number.doubleValue
     }
 
     // MARK: - Export

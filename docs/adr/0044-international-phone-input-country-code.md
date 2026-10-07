@@ -3,6 +3,12 @@
 > Status: Accepted · Decided: 2026-08-04
 > Follows: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](./0042-account-linking-unified-path-migration.md) · [ADR-0043](./0043-relay-invite-cancel-reject-adoption.md)
 >
+> **Amended by [ADR-0168](./0168-the-cloud-invite-sends-the-country-inside-an-e164-number.md)
+> (2026-10-06):** the cloud invite now takes international numbers without a `countryCode` slot — the
+> country travels inside the E.164 number. The scope note below, decision 7 and the "phone input
+> path splits in two" consequence no longer hold for the cloud path, and the follow-up asking the
+> backend for `countryCode` on `user.invite` / `user.invite-batch` is no longer needed.
+>
 > **Scope deviation (2026-08-04, adjusted on this branch):** the original proposal (work done on a
 > separate branch) limited scope to two screens — relay 1:1 invite creation and phone verification.
 > A request to also include cloud invites (`user.invite` / `user.invite-batch`) was reviewed, but the

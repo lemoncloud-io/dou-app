@@ -189,7 +189,7 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
 
     ```bash
     grep 'READ_MEDIA' apps/mobile/android/app/build/intermediates/merged_manifest/devDebug/processDevDebugMainManifest/AndroidManifest.xml
-    # READ_MEDIA_IMAGES and READ_MEDIA_VISUAL_USER_SELECTED only — both from the photo library
+    # READ_MEDIA_IMAGES, READ_MEDIA_VIDEO and READ_MEDIA_VISUAL_USER_SELECTED only — all from the photo library
     ```
 
 - End to end: download `GET /s3/image?format=gif` from the test server, then save it — the photo

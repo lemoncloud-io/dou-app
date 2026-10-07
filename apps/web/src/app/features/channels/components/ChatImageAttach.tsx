@@ -27,6 +27,7 @@ import {
     type AttachmentPick,
     type AttachmentPicker,
 } from '../../../bridge/attachmentPicker';
+import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
 import { usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
 import { albumAccept, DOCUMENT_ACCEPT, isAppleTouchWebKit, rejectionKey } from '../utils/attachSources';
 
@@ -103,7 +104,12 @@ export const useChatImageAttach = ({
     const albumRef = useRef<HTMLInputElement>(null);
     const filesRef = useRef<HTMLInputElement>(null);
     const appleTouch = isAppleTouchWebKit();
-    const own = usePhotoPicker({ max: IMAGE_MESSAGE_SLOT_MAX, allTitle: t('chat.attach.recentTitle') });
+    const gridColumns = usePhotoGridColumns();
+    const own = usePhotoPicker({
+        max: IMAGE_MESSAGE_SLOT_MAX,
+        allTitle: t('chat.attach.recentTitle'),
+        columns: gridColumns.columns,
+    });
     const picker = injected ?? own;
     const inGrid = picker.supported === true;
 
@@ -141,7 +147,9 @@ export const useChatImageAttach = ({
                 const key =
                     shellFirst.reason === 'too-large'
                         ? `chat.attach.rejected.too-large.${shellFirst.kind}`
-                        : `chat.attach.rejected.${shellFirst.reason}`;
+                        : shellFirst.reason === 'unsupported' && shellFirst.kind === 'video'
+                          ? 'chat.attach.rejected.unsupportedVideo'
+                          : `chat.attach.rejected.${shellFirst.reason}`;
                 toast({ title: t(key, { max: IMAGE_MESSAGE_SLOT_MAX }) });
             } else if (rejected.length > 0) {
                 const [first] = rejected;
@@ -225,10 +233,13 @@ export const useChatImageAttach = ({
         picker.openGrid(preselect);
     };
 
+    // Judged like any pick, since the grid now lists videos too; what the shell would not keep is
+    // reported the way its own picker's refusals are.
     const sendPicked = () => {
+        if (picker.preparing) return;
         picker
             .takePicked()
-            .then(files => send(files, { photosOnly: true }))
+            .then(picked => send(picked.items, { refusedByShell: picked.refused }))
             .catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
     };
 
@@ -250,6 +261,7 @@ export const useChatImageAttach = ({
                 photos={picker.recent}
                 onSelect={id => openGrid(picker.recent.find(p => p.id === id))}
                 photoLabel={position => t('chat.attach.recentPhoto', { position })}
+                videoLabel={position => t('chat.attach.recentVideo', { position })}
             />
         ) : undefined;
 
@@ -342,7 +354,12 @@ export const useChatImageAttach = ({
                     albums={picker.albums}
                     onSelectAlbum={picker.selectAlbum}
                     formatAlbumCount={count => count.toLocaleString()}
-                    photos={picker.photos}
+                    count={picker.count}
+                    photoAt={picker.photoAt}
+                    loading={picker.loading}
+                    onVisibleRangeChange={picker.setVisibleRange}
+                    columns={gridColumns.columns}
+                    onColumnsChange={gridColumns.setColumns}
                     picked={picker.picked}
                     onToggle={picker.toggle}
                     max={IMAGE_MESSAGE_SLOT_MAX}
@@ -350,15 +367,19 @@ export const useChatImageAttach = ({
                         picker.closeGrid();
                         cameraRef.current?.click();
                     }}
-                    hasMore={picker.hasMore}
-                    onLoadMore={picker.loadMore}
-                    sendLabel={t('chat.attach.send', { count: picker.picked.length })}
+                    sendLabel={
+                        picker.preparing
+                            ? t('chat.attach.preparing')
+                            : t('chat.attach.send', { count: picker.picked.length })
+                    }
+                    sending={picker.preparing}
                     onSend={sendPicked}
                     notice={limitedNotice}
                     labels={{
                         camera: t('chat.attach.camera'),
                         close: t('chat.attach.viewerClose'),
                         photo: position => t('chat.attach.gridPhoto', { position }),
+                        video: position => t('chat.attach.gridVideo', { position }),
                         remove: position => t('chat.attach.removePicked', { position }),
                     }}
                 />

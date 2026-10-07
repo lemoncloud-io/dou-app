@@ -18,6 +18,47 @@ final class PhotoLibraryCoreTests: XCTestCase {
         XCTAssertEqual(PhotoLibraryCore.access(.notDetermined), "denied")
     }
 
+    // MARK: - Media types
+
+    func testMediaTypesTakeEveryKnownEntry() {
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["image"]), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["video"]), [.video])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["image", "video"]), [.image, .video])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["video", "video"]), [.video])
+    }
+
+    func testUnknownMediaTypeEntriesAreIgnored() {
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["video", "audio", 3] as [Any]), [.video])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["Video"]), [.image], "case is not forgiven: nothing known was named")
+    }
+
+    func testNoKnownMediaTypeListsStillImagesAsBefore() {
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(nil), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes([String]()), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(["gif"]), [.image])
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes("video"), [.image], "a bare string is not a list")
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(NSNull()), [.image])
+    }
+
+    func testMediaTypesReadTheArrayTheBridgeHandsOver() {
+        let fromBridge: NSDictionary = ["mediaTypes": NSArray(array: ["image", "video"])]
+
+        XCTAssertEqual(PhotoLibraryCore.mediaTypes(fromBridge["mediaTypes"]), [.image, .video])
+    }
+
+    func testDurationIsWholeMillisecondsRounded() {
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 12.3456), 12_346)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 0.0004), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 3_600), 3_600_000)
+    }
+
+    func testUnmeasurableDurationIsZero() {
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: 0), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: -1), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: .nan), 0)
+        XCTAssertEqual(PhotoLibraryCore.durationMs(seconds: .infinity), 0)
+    }
+
     // MARK: - Albums
 
     func testTheFixedIdAndNoIdBothMeanAllPhotos() {
@@ -86,6 +127,245 @@ final class PhotoLibraryCoreTests: XCTestCase {
 
         XCTAssertTrue(page.range.isEmpty)
         XCTAssertFalse(page.hasMore)
+    }
+
+    // MARK: - Offset
+
+    func testOffsetTakesANonNegativeNumberFloored() {
+        XCTAssertEqual(PhotoLibraryCore.offset(0), 0)
+        XCTAssertEqual(PhotoLibraryCore.offset(120), 120)
+        XCTAssertEqual(PhotoLibraryCore.offset(2.7), 2)
+        XCTAssertEqual(PhotoLibraryCore.offset(NSNumber(value: 60)), 60)
+    }
+
+    func testMissingOrInvalidOffsetPagesByCursor() {
+        XCTAssertNil(PhotoLibraryCore.offset(nil))
+        XCTAssertNil(PhotoLibraryCore.offset(-1))
+        XCTAssertNil(PhotoLibraryCore.offset(-0.5))
+        XCTAssertNil(PhotoLibraryCore.offset("60"), "a string is not a number")
+        XCTAssertNil(PhotoLibraryCore.offset(true), "a boolean is not a number")
+        XCTAssertNil(PhotoLibraryCore.offset(Double.nan))
+        XCTAssertNil(PhotoLibraryCore.offset(Double.infinity))
+        XCTAssertNil(PhotoLibraryCore.offset(NSNull()))
+    }
+
+    func testHugeOffsetIsCappedRatherThanTrapping() {
+        XCTAssertEqual(PhotoLibraryCore.offset(1e300), Int(Int32.max))
+    }
+
+    func testOffsetReadsTheNumberTheBridgeHandsOver() {
+        let fromBridge: NSDictionary = ["offset": NSNumber(value: 240.0)]
+
+        XCTAssertEqual(PhotoLibraryCore.offset(fromBridge["offset"]), 240)
+    }
+
+    func testOffsetPageCoversTheIndicesFromTheOffset() {
+        let page = PhotoLibraryCore.page(start: 120, limit: 60, total: 1_000)
+
+        XCTAssertEqual(page.range, 120..<180)
+    }
+
+    func testOffsetPageStopsAtTheEnd() {
+        let page = PhotoLibraryCore.page(start: 980, limit: 60, total: 1_000)
+
+        XCTAssertEqual(page.range, 980..<1_000)
+    }
+
+    func testOffsetPastTheEndIsAnEmptyPageAtTheTotal() {
+        let page = PhotoLibraryCore.page(start: 1_200, limit: 60, total: 1_000)
+
+        XCTAssertEqual(page.range, 1_000..<1_000, "the echoed offset is the clamped start")
+        XCTAssertEqual(PhotoLibraryCore.page(start: 5, limit: 60, total: 0).range, 0..<0)
+    }
+
+    // MARK: - Thumb size
+
+    func testThumbSizeIsRoundedAndClamped() {
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(300), 300)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(299.5), 300)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(299.4), 299)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(10), PhotoLibraryCore.minThumbSize)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(0.2), PhotoLibraryCore.minThumbSize)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(4_000), PhotoLibraryCore.maxThumbSize)
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(1e300), PhotoLibraryCore.maxThumbSize)
+    }
+
+    func testMissingOrInvalidThumbSizeKeepsTheLegacyPreview() {
+        XCTAssertNil(PhotoLibraryCore.thumbSize(nil))
+        XCTAssertNil(PhotoLibraryCore.thumbSize(0))
+        XCTAssertNil(PhotoLibraryCore.thumbSize(-200))
+        XCTAssertNil(PhotoLibraryCore.thumbSize("300"), "a string is not a number")
+        XCTAssertNil(PhotoLibraryCore.thumbSize(true), "a boolean is not a number")
+        XCTAssertNil(PhotoLibraryCore.thumbSize(Double.nan))
+        XCTAssertNil(PhotoLibraryCore.thumbSize(Double.infinity))
+    }
+
+    func testThumbSizeReadsTheNumberTheBridgeHandsOver() {
+        let fromBridge: NSDictionary = ["thumbSize": NSNumber(value: 360)]
+
+        XCTAssertEqual(PhotoLibraryCore.thumbSize(fromBridge["thumbSize"]), 360)
+    }
+
+    func testFitBoxMakesTheShortSideTheSize() {
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 4_032, height: 3_024, size: 300), 400)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 1_000, height: 1_000, size: 300), 300)
+        // 300 * 16 / 9 = 533.33, rounded up so the short side is never under the size.
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 1_920, height: 1_080, size: 300), 534)
+    }
+
+    func testFitBoxIgnoresWhichSideIsLong() {
+        XCTAssertEqual(
+            PhotoLibraryCore.fitBox(width: 3_024, height: 4_032, size: 300),
+            PhotoLibraryCore.fitBox(width: 4_032, height: 3_024, size: 300)
+        )
+    }
+
+    func testFitBoxCapsAPanoramaAtThreeToOne() {
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 10_000, height: 1_000, size: 720), 2_160)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 3_000, height: 1_000, size: 720), 2_160)
+    }
+
+    func testFitBoxWithUnknownDimensionsIsTheSize() {
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 0, height: 3_024, size: 300), 300)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: 4_032, height: 0, size: 300), 300)
+        XCTAssertEqual(PhotoLibraryCore.fitBox(width: -1, height: -1, size: 300), 300)
+    }
+
+    func testCenterSquareCutsTheLongSideEvenly() {
+        let landscape = PhotoLibraryCore.centerSquare(width: 400, height: 300)
+        XCTAssertEqual([landscape.x, landscape.y, landscape.side], [50, 0, 300])
+
+        let portrait = PhotoLibraryCore.centerSquare(width: 300, height: 400)
+        XCTAssertEqual([portrait.x, portrait.y, portrait.side], [0, 50, 300])
+
+        let square = PhotoLibraryCore.centerSquare(width: 256, height: 256)
+        XCTAssertEqual([square.x, square.y, square.side], [0, 0, 256])
+    }
+
+    func testCenterSquareLeavesTheOddPixelAtTheFarEnd() {
+        let odd = PhotoLibraryCore.centerSquare(width: 401, height: 300)
+
+        XCTAssertEqual([odd.x, odd.y, odd.side], [50, 0, 300])
+    }
+
+    func testSquareSideNeverUpscales() {
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 400, height: 400), 300)
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 200, height: 200), 200)
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 500, height: 120), 120)
+    }
+
+    func testSquareSideWithUnknownDimensionsIsTheSize() {
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 0, height: 200), 300)
+        XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 200, height: -1), 300)
+    }
+
+    // MARK: - Parallel previews
+
+    func testPreviewWorkersLeaveACoreAndStayBounded() {
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(1), 1)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(2), 1)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(4), 3)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(8), PhotoLibraryCore.maxPreviewWorkers)
+        XCTAssertEqual(PhotoLibraryCore.previewWorkers(0), 1)
+        XCTAssertEqual(PhotoLibraryCore.maxPreviewWorkers, 4)
+    }
+
+    func testParallelMapKeepsTheOrderWhateverFinishesFirst() {
+        let results = PhotoLibraryCore.parallelMap(count: 37, workers: 3) { index -> Int in
+            usleep(UInt32.random(in: 0...2_000))
+            return index * 2
+        }
+
+        XCTAssertEqual(results, (0..<37).map { $0 * 2 })
+    }
+
+    func testParallelMapKeepsANilResultInItsPlace() {
+        let results = PhotoLibraryCore.parallelMap(count: 6, workers: 3) { index -> String? in
+            index % 2 == 0 ? nil : "\(index)"
+        }
+
+        XCTAssertEqual(results, [nil, "1", nil, "3", nil, "5"])
+    }
+
+    func testParallelMapComputesEveryIndexExactlyOnce() {
+        let lock = NSLock()
+        var calls = [Int](repeating: 0, count: 100)
+
+        _ = PhotoLibraryCore.parallelMap(count: 100, workers: 4) { index -> Int in
+            lock.lock()
+            calls[index] += 1
+            lock.unlock()
+            return index
+        }
+
+        XCTAssertEqual(calls, [Int](repeating: 1, count: 100))
+    }
+
+    func testParallelMapRunsTransformsAtTheSameTime() {
+        // Each transform waits until a second one is in flight. A sequential map never gets there: its
+        // first transform gives up at the timeout, and the rest stop waiting, so it fails instead of hanging.
+        let condition = NSCondition()
+        var inFlight = 0
+        var overlapped = false
+        var gaveUp = false
+
+        _ = PhotoLibraryCore.parallelMap(count: 4, workers: 4) { _ -> Int in
+            condition.lock()
+            defer { condition.unlock() }
+            inFlight += 1
+            if inFlight >= 2 {
+                overlapped = true
+                condition.broadcast()
+            }
+            let deadline = Date().addingTimeInterval(2)
+            while !overlapped, !gaveUp {
+                if !condition.wait(until: deadline) { gaveUp = true }
+            }
+            inFlight -= 1
+            return 0
+        }
+
+        XCTAssertTrue(overlapped, "no two transforms were ever in flight together")
+    }
+
+    func testParallelMapOfNothingNeverCallsTheTransform() {
+        var called = false
+
+        let results = PhotoLibraryCore.parallelMap(count: 0, workers: 4) { index -> Int in
+            called = true
+            return index
+        }
+
+        XCTAssertEqual(results, [])
+        XCTAssertFalse(called)
+    }
+
+    func testOneWorkerMapsInOrderOnTheCallingThread() {
+        let caller = Thread.current
+        var order: [Int] = []
+        var onCaller = true
+
+        let results = PhotoLibraryCore.parallelMap(count: 5, workers: 1) { index -> Int in
+            order.append(index)
+            onCaller = onCaller && Thread.current == caller
+            return index + 10
+        }
+
+        XCTAssertEqual(results, [10, 11, 12, 13, 14])
+        XCTAssertEqual(order, [0, 1, 2, 3, 4])
+        XCTAssertTrue(onCaller)
+    }
+
+    func testNoWorkersMapsSequentiallyToo() {
+        var order: [Int] = []
+
+        let results = PhotoLibraryCore.parallelMap(count: 3, workers: 0) { index -> Int in
+            order.append(index)
+            return index
+        }
+
+        XCTAssertEqual(results, [0, 1, 2])
+        XCTAssertEqual(order, [0, 1, 2])
     }
 
     // MARK: - Export

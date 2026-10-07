@@ -4,6 +4,7 @@ export * from './CreateChannelDialog';
 export * from './CreatePlaceDialog';
 export * from './PlaceLimitDialog';
 export * from './PlaceList';
+export * from './PlaceProfileBanner';
 export * from './CloudPromoBanner';
 export * from './CloudSessionSheet';
 export * from './SubscriptionRequiredDialog';

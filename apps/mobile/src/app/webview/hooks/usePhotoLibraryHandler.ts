@@ -8,6 +8,7 @@ export const usePhotoLibraryHandler = () => {
     return useMemo(
         () => ({
             isAvailable: PhotoLibraryBridge.isAvailable,
+            canKeepVideo: PhotoLibraryBridge.canKeepVideo,
             ...createPhotoLibraryHandlers(PhotoLibraryBridge, logger),
         }),
         [logger]

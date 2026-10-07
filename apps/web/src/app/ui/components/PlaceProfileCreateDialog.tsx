@@ -18,9 +18,9 @@ interface PlaceProfileCreateDialogProps {
      */
     exit?: PlaceProfileExitCopy;
     /**
-     * When false, the X button and esc/overlay dismissal are removed — the mandatory final step of
-     * the place-create flow (ADR-0094). Defaults to true; the nudge (ADR-0040) and invite
-     * (ADR-0041) entry points stay skippable by omitting it.
+     * When false, the X button and esc/overlay dismissal are removed — the required step of the cloud
+     * invite pipeline and of place creation. Defaults to true; the room-settings nudge and the relay
+     * invite entry points stay skippable by omitting it.
      */
     dismissible?: boolean;
     /** Persists the profile. Supplied by the caller (see `useSetMyPlaceProfile`). */
@@ -34,9 +34,9 @@ interface PlaceProfileCreateDialogProps {
  * ProfileRepository.setMyProfile.
  *
  * Opened where a missing profile actually blocks something useful: the room-settings nudge on my own
- * member row (ADR-0040), the invite paths (ADR-0041), and — as the one mandatory entry
- * (`dismissible={false}`) — the final step of the place-create flow, where the creator is the
- * place's first member (ADR-0045's deliberate exception to ADR-0039's "no forced profile step").
+ * member row, home's missing-profile banner, the relay invite paths (before the accept), and — right
+ * after the session switches into the place — the cloud invite pipeline and the place-create overlay. Those two pass
+ * `dismissible={false}` until a save has failed, so the step is required without being a trap.
  */
 export const PlaceProfileCreateDialog = ({
     open,

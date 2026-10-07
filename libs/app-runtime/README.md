@@ -163,9 +163,9 @@ libs/app-runtime/src/
 ├── facade.ts         the seven groups, assembled from group barrels
 ├── init.ts           initAppRuntime — five boot steps, in order
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
-├── connection/       18 files — the host, SocketBinder, SocketReauthBinder, 10 hooks, 3 utils
+├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
 ├── session/          55 files — store (12) · auth (10) · scope (3) · hooks (30)
-├── socket/           37 files — SocketManager (7) + utils (3) + auth wiring (18) + sync (9)
+├── socket/           38 files — SocketManager (7) + utils (3) + auth wiring (19) + sync (9)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
 ├── data/             21 files — DataManager, 3 factories, cache routing, cloud-addressed sends, outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record

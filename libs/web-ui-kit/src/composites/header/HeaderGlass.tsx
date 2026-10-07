@@ -15,6 +15,19 @@ const FADE_MS = 300;
 const FADE_FALLBACK_MS = 100;
 
 /**
+ * Present on `<html>` while a page transition runs — set by `useNavigateWithTransition` in
+ * `@chatic/shared`. The attribute is the whole interface between the two, so this kit does not import
+ * that lib; the name has to match there, and both libs' tests pin the same literal.
+ */
+const PAGE_TRANSITION_ATTRIBUTE = 'data-page-transition';
+
+/**
+ * The longest the opaque pane waits on a page transition. A transition lasts under half a second; this
+ * only stops a marker that is never cleared from leaving the header opaque for good.
+ */
+const TRANSITION_HOLD_MAX_MS = 1500;
+
+/**
  * The frosted pane behind a glass header, faded in over its first moments rather than switched on.
  *
  * Without this the frost arrives in a single frame, and on entering a room that lands as a visible
@@ -48,6 +61,19 @@ const FADE_FALLBACK_MS = 100;
  * The caller keeps its own translucent fill on the header element. That fill is the END state and
  * is not animated; these two panes are only the arrival.
  *
+ * ## Arriving inside a page transition
+ *
+ * Entering a screen mounts its header inside the view transition that slides it in, and WebKit does
+ * not paint `backdrop-filter` in a view transition's snapshots. Faded in right away, the frost was
+ * invisible for the whole slide — the header showed the text under it sharp through its 32% fill —
+ * and then appeared in one frame as the transition ended (measured on iOS 26, 2026-10-02: sharp
+ * through 270ms of slide, fully frosted on the first frame after it). So while the page transition
+ * marker is on `<html>`, the opaque pane holds, and the fade starts once the transition is over.
+ *
+ * The marker is not set on Android: Blink paints the frost inside the snapshots, so a header there
+ * fades in during the transition as it always did. The hold is capped, so a marker that is never
+ * cleared costs an opaque header for a moment rather than for good.
+ *
  * Render them as the first children of a `relative` header, and give the header's content wrapper
  * `relative` so it paints above both.
  */
@@ -55,14 +81,40 @@ export const HeaderGlass = ({ className }: { className?: string }) => {
     const [frosted, setFrosted] = useState(false);
 
     useEffect(() => {
+        const root = document.documentElement;
         const settle = () => setFrosted(true);
-        // The frame matters: flipping the flag straight away can be batched into the same paint as
-        // the mount, leaving no transparent frame for the fade to start from.
-        const frame = requestAnimationFrame(settle);
-        const timer = setTimeout(settle, FADE_FALLBACK_MS);
+        let frame = 0;
+        let fallback: ReturnType<typeof setTimeout> | undefined;
+        let holdCap: ReturnType<typeof setTimeout> | undefined;
+        let observer: MutationObserver | undefined;
+        let started = false;
+
+        const startFade = () => {
+            if (started) return;
+            started = true;
+            observer?.disconnect();
+            clearTimeout(holdCap);
+            // The frame matters: flipping the flag straight away can be batched into the same paint as
+            // the mount, leaving no transparent frame for the fade to start from.
+            frame = requestAnimationFrame(settle);
+            fallback = setTimeout(settle, FADE_FALLBACK_MS);
+        };
+
+        if (root.hasAttribute(PAGE_TRANSITION_ATTRIBUTE)) {
+            observer = new MutationObserver(() => {
+                if (!root.hasAttribute(PAGE_TRANSITION_ATTRIBUTE)) startFade();
+            });
+            observer.observe(root, { attributes: true, attributeFilter: [PAGE_TRANSITION_ATTRIBUTE] });
+            holdCap = setTimeout(startFade, TRANSITION_HOLD_MAX_MS);
+        } else {
+            startFade();
+        }
+
         return () => {
+            observer?.disconnect();
+            clearTimeout(holdCap);
             cancelAnimationFrame(frame);
-            clearTimeout(timer);
+            clearTimeout(fallback);
         };
     }, []);
 

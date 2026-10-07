@@ -188,7 +188,11 @@
             "heading": "A place for what's next",
             "description": "Explore early ideas and experiments as they take shape.",
             "developerTools": "Developer tools",
-            "openDebug": "Open debug mode"
+            "openDebug": "Open debug mode",
+            "experiments": "Experiments",
+            "placeInvite": "Place invite",
+            "placeInviteSubtitle": "Invite into a place, no chat room needed",
+            "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own."
         },
         "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",
@@ -240,23 +244,13 @@
         "subscription": {
             "title": "Subscription",
             "currentPlan": "Current Plan",
-            "period": "Period",
-            "currentPayment": "Current Payment",
-            "nextPayment": "Next Payment",
             "pricePerMonth": "{{price}}/mo",
             "vatIncluded": "(VAT incl.)",
-            "empty": "No active subscriptions",
-            "emptyDescription": "Check out our subscription plans",
-            "viewPlans": "View Plans",
             "loginRequired": "Sign in to start a subscription",
             "loginCta": "Sign in to subscribe",
-            "plans": "Plans",
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
             "noProducts": "Failed to load subscription plans",
-            "purchasing": "Processing payment...",
-            "purchaseSuccess": "Subscription completed",
-            "purchaseSuccessDescription": "Cloud setup may take up to 10 minutes",
             "purchaseFailed": "Payment failed",
             "notice": {
                 "title": "Please note",
@@ -267,32 +261,16 @@
                     "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions."
                 }
             },
-            "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
-            "notice2": "Downgrading will take effect from the next renewal date.",
-            "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
             "platform": "Platform",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
-            "canceledNotice": "Subscription will end on {{date}}",
-            "pendingChange": "Plan will change to {{product}} on next renewal",
-            "manageSubscription": "Manage Subscription",
-            "status": "Status",
-            "statusActive": "Active",
-            "statusCanceled": "Canceled",
-            "statusExpired": "Expired",
             "adminGrant": "Admin grant",
             "adminGrantIndefinite": "Indefinite",
-            "statusBlocked": "Restricted",
             "blockedNotice": "Your access has been restricted by an administrator. Store billing continues — please contact support.",
             "restore": "Restore",
             "restoreSuccess": "{{count}} purchase(s) restored",
             "restoreEmpty": "No purchases to restore",
             "restoreFailed": "Restore failed",
-            "canceledAt": "Canceled",
-            "renewal": "Renewal",
-            "renewal_auto": "Auto renew",
-            "renewal_pending_cancel": "Pending cancel",
-            "renewal_canceled": "Canceled",
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
@@ -303,15 +281,11 @@
             "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account.",
             "maxClouds": "Up to {{count}} account(s)",
             "trialBadge": "{{days}}d Free",
-            "currentBadge": "Current",
-            "changeTier": "Change plan",
             "adjacentTierOnly": "You can move one step at a time",
             "productNotFound": "This product was not found on the store",
             "offerTokenMissing": "Could not load the store purchase details",
             "trialRemaining": "{{days}} day(s) left in your free trial",
             "excess": {
-                "title": "{{count}} cloud(s) over your limit of {{max}}",
-                "description": "These clouds may be the ones released. Please cancel them yourself in Cloud Management.",
                 "manage": "Go to Cloud Management"
             },
             "emailRequired": {
@@ -319,28 +293,9 @@
                 "description": "Your email is how a cloud is recovered when you change devices or reinstall the app. Without one, this cloud cannot be brought back.",
                 "action": "Register email"
             },
-            "allowance": "Allowance",
             "price": "Price",
             "guideTitle": "Subscription",
-            "pickTitle": "Choose a plan",
-            "later": "Maybe later",
             "loginRequiredTitle": "You need to log in to subscribe",
-            "hero": {
-                "trialLead": "New to DoU?",
-                "trialAccent": "Get {{days}} days free",
-                "trialSub": "One free trial per new user.\nBilled monthly once the trial ends.",
-                "plain": "Create your own cloud",
-                "plainSub": "Make places and talk with\nseveral friends at once."
-            },
-            "benefits": {
-                "title": "What you get",
-                "item1Title": "Your own cloud",
-                "item1Description": "Create places and manage group chats freely",
-                "item2Title": "Create places",
-                "item2Description": "A space per topic",
-                "item3Title": "Group chat rooms",
-                "item3Description": "Chat with many friends inside a place"
-            },
             "cloudGuide": {
                 "heroAccent": "My Cloud",
                 "heroRest": "\nCreate places and chat\nwith all your friends",
@@ -368,15 +323,11 @@
                 "ctaPlain": "Get started"
             },
             "complete": {
-                "title": "You are subscribed.",
-                "trialEndsOn": "Free use ends after {{date}}",
-                "renewsOn": "Next payment on {{date}}",
                 "autoChargeAfter": "{{price}} charged monthly once the free period ends",
-                "cancelAnytime": "You can cancel at any time.",
-                "setUpPlace": "Set up a place to start using the service.",
-                "cta": "Get started"
+                "cancelAnytime": "You can cancel at any time."
             },
             "startAtEntryTier": "A first subscription starts on the entry plan",
+            "otherStoreOnly": "Can only be changed on the store you subscribed with",
             "refusal": {
                 "current": {
                     "title": "You are already on this plan",
@@ -390,10 +341,120 @@
                     "title": "A first subscription starts on plan 1",
                     "description": "Subscribe to plan 1 first, then move up one step at each renewal."
                 },
+                "otherStore": {
+                    "title": "Change it on the store you subscribed with",
+                    "description": "You subscribe through {{store}}. Changing the plan here would start a second subscription, and both stores would bill you. Change it on a device that uses {{store}}."
+                },
                 "pickInstead": "You can pick {{plan}} right now.",
                 "selectInstead": "Select {{plan}}"
             },
-            "guideEntry": "Learn about My Cloud"
+            "state": {
+                "active": "Active",
+                "ending": "Ending",
+                "expired": "Expired",
+                "blocked": "Restricted",
+                "scheduled": "Scheduled"
+            },
+            "info": {
+                "status": "Status",
+                "price": "Amount",
+                "period": "Period",
+                "nextPayment": "Next payment",
+                "endsOn": "Ends on",
+                "expiredOn": "Expired on",
+                "scheduledPrice": "Next charge",
+                "platform": "Paid with",
+                "adminGrant": "Admin grant",
+                "current": "Current plan",
+                "next": "New plan",
+                "applyOn": "Takes effect",
+                "chargeOn": "Charged on",
+                "paidOn": "Paid on",
+                "trialEndsOn": "Free use ends"
+            },
+            "banner": {
+                "autoRenew": {
+                    "title": "Renews automatically",
+                    "description": "{{price}} will be charged on {{date}}."
+                },
+                "ending": {
+                    "title": "Subscription ending",
+                    "description": "You can use your clouds until {{date}}.\nAfter that, cloud access ends.",
+                    "chip": "{{days}} day(s) left"
+                },
+                "expired": {
+                    "title": "Subscription expired",
+                    "description": "Your subscription has ended and cloud access is restricted.\nSubscribe again to keep using your clouds.",
+                    "descriptionPastHold": "Your subscription has ended and cloud access is restricted."
+                },
+                "restored": {
+                    "title": "Subscription restored",
+                    "description": "Your subscription has started again.\nYou can keep using your clouds."
+                },
+                "blocked": {
+                    "title": "Restricted"
+                }
+            },
+            "list": {
+                "emptyTitle": "You have no active subscription.",
+                "emptyDescription": "Subscribe to create a new cloud.",
+                "changeLine": "Changes to {{product}} on {{date}}.",
+                "endsLine": "Ends on {{date}}",
+                "expiredLine": "Expired on {{date}}",
+                "heldTitle": "{{count}} cloud(s) over your limit are on hold",
+                "heldDescription": "Clouds you did not keep are restricted. You can clean them up in Cloud management."
+            },
+            "detail": {
+                "title": "Subscription info",
+                "infoTitle": "Details",
+                "changePlan": "Change plan",
+                "resubscribe": "Subscribe again",
+                "manageInStore": "Manage in store",
+                "otherStore": "You subscribe through {{store}}. Change or manage it on a device that uses {{store}}.",
+                "pendingTitle": "Upcoming plan",
+                "pendingHeader": "Applies from your next payment",
+                "pendingDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",
+                "keepPick": "Choose clouds to keep",
+                "keepReview": "Review clouds to keep"
+            },
+            "picker": {
+                "productsTitle": "Plans",
+                "intro": "Your first subscription starts at the lowest tier.\nAfter that you can move one tier at a time.",
+                "next": "Continue"
+            },
+            "confirm": {
+                "selected": "Selected plan",
+                "reserve": "Schedule change",
+                "processing": "Processing payment",
+                "downgradeHeadline": "Moving to a lower plan takes effect\nat your next payment",
+                "downgradeDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",
+                "upgradeApple1": "Changing to {{product}} charges you now and starts right away. The unused part of {{current}} is refunded under Apple's policy.",
+                "upgradeApple2": "The refund amount and timing depend on your remaining period and Apple's policy.",
+                "upgradeGoogle1": "Changing to {{product}} takes effect now. Only the difference for the rest of your {{current}} period is charged, and your billing date stays the same.",
+                "upgradeGoogle2": "The amount depends on your remaining period and Google Play's policy.",
+                "unavailable": "We could not load this plan from the store, so it cannot be bought right now."
+            },
+            "done": {
+                "newTitle": "You are subscribed.",
+                "changedTitle": "Your plan is now\n{{product}}.",
+                "scheduledDescription": "Your plan changes to {{product}}\non {{date}}.",
+                "addCloud": "Add a new cloud"
+            },
+            "keep": {
+                "title": "Clouds to keep",
+                "headline": "Choose {{count}} cloud(s)\nto keep after the change",
+                "description": "From {{date}} only the clouds you choose stay available.",
+                "section": "Clouds",
+                "selected": "Selected",
+                "notice": "Clouds you do not choose stay available until the change, then become restricted.",
+                "confirm": "Confirm",
+                "change": "Change",
+                "keepTitle": "Keep the selected clouds?",
+                "changeTitle": "Change to the selected clouds?",
+                "dialogDescription": "You can change your choice until {{date}}.\nClouds you do not choose will be restricted.",
+                "saved": "Saved the clouds to keep.",
+                "failed": "Could not save. Please try again."
+            }
         },
         "cloudManage": {
             "title": "Cloud Management",
@@ -866,9 +927,12 @@
             "recentTitle": "Recent photos",
             "seeAll": "See all",
             "recentPhoto": "Recent photo {{position}}",
+            "recentVideo": "Recent video {{position}}",
             "gridPhoto": "Photo {{position}}",
+            "gridVideo": "Video {{position}}",
             "removePicked": "Remove photo {{position}}",
             "send": "Send {{count}}",
+            "preparing": "Preparing…",
             "limitedNotice": "Only the photos you chose are shown",
             "limitedMore": "Choose more",
             "rejected": {
@@ -1109,7 +1173,8 @@
         "exitContinue": "Keep setting up"
     },
     "placeProfileEdit": {
-        "title": "Place Profile",
+        "loading": "Loading your profile...",
+        "title": "The profile you use in\n<{{place}}>",
         "header": "My profile",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",
@@ -1162,6 +1227,7 @@
         "oauthFailed": "Social login failed.",
         "mobileOnly": "Please use the mobile app to sign in.",
         "termsAgreement": "By continuing, you agree\nto our Terms & Privacy Policy",
+        "termsAgreementLinks": "By continuing, you agree to our <terms>Terms</terms> & <privacy>Privacy Policy</privacy>",
         "signup": "Sign Up",
         "forgotPassword": "Forgot Password",
         "or": "or",
@@ -1789,6 +1855,11 @@
             "description": "Send a new invite link to try again."
         },
         "cancelFailed": "Couldn't cancel the invite. Please try again shortly"
+    },
+    "placeProfileBanner": {
+        "title": "You have no profile in\n<{{place}}> yet",
+        "action": "Create profile",
+        "dismiss": "Dismiss"
     },
     "cloudPromo": {
         "title": "Create places in your own cloud\nand chat together!",

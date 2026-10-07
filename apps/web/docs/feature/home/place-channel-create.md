@@ -96,23 +96,39 @@ failure, and an `AlertDialog` on exit **only when something has been typed or pi
 A failure leaves the overlay open with an error notice and the submit re-enabled. Nothing is closed
 until the whole action, including the move, has succeeded.
 
-The place overlay calls `createPlace` and, on success, switches to the new site before closing; the
-room overlay calls `createChannel` with `stereo: 'private'` and navigates into the room. Rule 2 is
-why the move happens before the close.
+The place overlay calls `createPlace`, switches to the new site, and then asks for the creator's
+profile there before closing; the room overlay calls `createChannel` with `stereo: 'private'` and
+navigates into the room. Rule 2 is why the move happens before the close.
 
 `useCreatePlace` and `useCreateChannel` are app-level hooks (`app/hooks` and
 `features/channels/hooks`), not home's — the onboarding wizard creates a place through the same
 `useCreatePlace`.
 
-**Creating a place does not force a profile step.** The overlay closes on the switch. The creator
-fills their place profile later, through the same nudge as everyone else — see
-[place-profile](./place-profile.md).
+**Creating a place ends with the creator's profile in it.** Once the create and the switch have both
+succeeded, the overlay turns into `PlaceProfileCreateDialog` for the new place, and closes when that
+is saved. The order is fixed by the server, not chosen:
+
+- A profile is stored on the site the session is on; the site a request names is ignored. So the
+  profile can only be written after the switch — written before it, it lands on the place the owner
+  was in before.
+- `place.create` makes no profile row for its creator, and `profile.set` only updates, so the first
+  save answers 404. The profile repository answers that by sending `profile.get-mine` (which creates
+  the row) and saving again — measured end to end against the server. Without that recovery this step
+  cannot work at all, which is why an earlier attempt at it was reverted.
+
+The step is required, but it has a way out once a save has failed: holding the owner on a form the
+server will not take is worse than a place without a profile, which the missing-profile prompts pick
+up later ([place-profile](./place-profile.md)).
+
+Create and switch are separate calls. If the create succeeds and the switch fails, the overlay stays
+open with the error and remembers the new place; the retry repeats only the switch. Without that, a
+second tap made a second place. An edit to the name between the two taps is therefore not applied.
 
 ## Notes for implementers and tests
 
 - `PlaceProfileForm` exposes a `dismissible` flag that removes the X and blocks esc/overlay
-  dismissal. No caller passes `false` today; the create flows above do not chain a mandatory profile
-  step. Check for a consumer before writing anything that assumes one exists.
+  dismissal. The place overlay's profile step and the cloud invite's pass `false` until a save
+  fails.
 - The relay branch in `handleCreateGroup` must stay ahead of the cap check. Reordering them is a
   silent regression: the upsell becomes a cap toast for relay users only.
 - Cap behaviour differs between build classes. A cap test has to pin `isDevBuild()`, or it passes

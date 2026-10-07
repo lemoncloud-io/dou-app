@@ -6,7 +6,7 @@ the other person opens that link, proves the number is theirs, and lands in a DM
 exist a moment earlier.
 
 It also issues the **place invite**: a cloud place's owner brings someone into the place with no
-room ([place-invite.md](./place-invite.md)).
+room ([place-invite.md](./place-invite.md)). It is a Lab experiment, off until the owner turns it on.
 
 The two ends share almost nothing but the code shape, so each has its own document. This one holds
 what both obey.
@@ -26,7 +26,7 @@ what both obey.
 - The place invite: the room invite's contact invite with no room, at `/invite/place/:placeId`, and
   the accept screen's `place` target kind.
 - The cloud acceptance pipeline: the invite login, entering the cloud with its answer, caching the
-  cloud and who accepted it, and the place and room entry after it.
+  cloud and who accepted it, and the place, place-profile and room entry after it.
 
 **Out**
 
@@ -97,8 +97,10 @@ invite with its link screen (`/invite/place/:placeId`, `…/link`).
 ## Accepting a cloud invite
 
 `useInviteAccept` runs one pipeline, in order: log in with the code (`runtime.session.useInviteFlow`),
-enter the cloud, cache it, enter the place, leave for the room. Each step no-ops when the invite
-carries no id for it, and a failure is named by the step it happened in.
+enter the cloud, cache it, enter the place, ask for a place profile if there is none, leave for the
+room. Each step no-ops when the invite carries no id for it, and a failure is named by the step it
+happened in. The profile step and how the place is found are in
+[§ Cloud invites](#cloud-invites-the-profile-comes-after-the-place).
 
 **An invited cloud is entered per device, whatever the relay user is.** The invite login sends the
 `delegatorId` — the device user registered on first launch, which a sign-in does not replace — and
@@ -121,23 +123,67 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   nothing re-issues it under the entry.
 - **An invite into the cloud already selected is still entered** — the user the session holds there
   may not be the invitee. The answer replaces that cloud's token rather than merging into it, and a
-  background socket already up for the cloud is re-registered with it.
+  background socket already up for the cloud is re-registered with it. **That entry also drops the
+  selected place.** The answer is signed for the cloud's default place, so the socket lands there;
+  a kept selection would still name the place the session just left, the place step would no-op as
+  "already there", and the profile check and save would run against the default place — asking a
+  member who already has a profile for one, then failing the save because the server wrote it to
+  the default place.
 - **Who accepted is written on the cached cloud** as `acceptedBy`, the `delegatorId` of every device
   user that accepted it here, and **`useInvitedClouds` leaves out a row other device users
   accepted.** The cloud cache is one partition per device, not per user — each web tab starts its
   own device user — and a listed cloud is one the background sockets delegate into, minting the empty
   user above. A row with no `acceptedBy` was written before the field existed; it cannot be
   attributed and is kept, because invited clouds have no server list to refill from.
+- **An invite into a cloud the account owns is entered as the owner.** The owner opening their own
+  invite link still binds the device's guest as a member on the server, but the device keeps one
+  token per cloud, so entering with the invitee's answer would hold the owner's own cloud as that
+  member from then on: every later entry, the sheet's owned row included, replays it. The pipeline
+  checks the owned catalog as it is at entry — read through a ref, since an app opened cold by the
+  link resolves its catalog while the invite login is in flight — and enters through the ordinary
+  `delegate-cloud` switch instead, which answers an owner as the owner. The invited row is still
+  cached; `useInvitedClouds` hides it. A catalog that has not resolved even by then, a device that
+  already holds an invitee token, and a guest that accepted and later signed in to the owning account
+  are all caught by `BackgroundCloudsRunner`, which hands the owned catalog to
+  `runtime.connection.useReclaimOwnedClouds`: an owned cloud whose held token came from an invite
+  login is re-issued as the owner, socket included (`libs/app-runtime` docs/auth, "An owned cloud
+  held as its invitee").
 - **An answer that cannot be entered with** (no identity token, no endpoint) falls back to the
   ordinary re-issued switch. That one is relay-signed, and an app opened cold by the invite link has a
   stale relay credential for its first seconds, so a switch that gets no HTTP answer is retried
   three times over seven seconds.
-- **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight, so a
-  second press cannot start a second pipeline.
+- **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight — the
+  place lookup and the profile check included — so a second press cannot start a second pipeline.
 
 `cloudInviteAccept.integration.test.tsx` runs this pipeline through the real hooks against a fake
 server that follows the rules above: a fresh device user, a signed-in one, one whose background
 socket delegated first, another device user's cached cloud, and the cold-start fallback.
+
+## Cloud invites: the profile comes after the place
+
+The place profile is asked for **between the place switch and the room** of the pipeline above, and
+only once the session is in the invited place.
+
+**Which place.** An invite is issued with nothing but a `channelId`. The server does answer a room
+invite with the room's `siteId` and `site$` (checked against the dev server), but the published
+invite view does not declare `siteId` — only the stored model does — so the pipeline does not rely
+on it alone. It takes, in order: the invite's `siteId`, its place card (`site$.id`), then the room itself —
+one cloud-wide `channel.sync` and the room's row from the cache (`sid`). A cloud 1:1 belongs to no
+place. When none of these names one, the invitee enters without the switch or the profile step and a
+warning is logged; the step used to be skipped silently whenever `siteId` was absent.
+
+It cannot move earlier the way the relay lane's precondition does. The server stores a profile on
+the site the session is on and ignores any site the request names, and before the accept the
+invitee is not a member of the place, so the session cannot be there. Right after the switch is the
+first moment the profile can be written, and the last before the invitee is seen in a room.
+
+- **Skipped when a profile exists.** `isPlaceProfileAbsent` decides, and fails open: a read that
+  fails lets the invitee in rather than holding them at the door.
+- **Required, but not a trap.** The form has no way out until a save has failed once. Saved or
+  skipped, leaving it continues into the room.
+- **The accept is already committed.** Someone who quits on the form is a member with no name in
+  that place. This flow does not recover that state; the missing-profile prompts elsewhere do (home's
+  banner, and the room-settings nudge).
 
 ## Leaving the accept screen, and opening the room
 

@@ -4,6 +4,7 @@ import { reissueCloudTokens } from '../../session/auth/cloudTokens';
 import { Coalescer } from '../../utils/coalescer';
 
 import { getSocketManager } from '../runtime';
+import { alignSessionSite } from './alignSessionSite';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
 import { createReauthDelegate } from './reauthDelegate';
 import { slotKeyOf } from '../utils/slotKey';
@@ -25,8 +26,9 @@ import { slotKeyOf } from '../utils/slotKey';
  * committed one; this function does not need to know.
  */
 const run = async (cid: string): Promise<boolean> => {
+    let landedSiteId: string | undefined;
     try {
-        await reissueCloudTokens(cid);
+        landedSiteId = (await reissueCloudTokens(cid)).cloudToken.$site?.id;
     } catch (error) {
         // Usually the relay leg: `delegate-cloud` is relay-signed, so stale relay credentials fail
         // here too. The caller retries; the relay staleness guard owns that half.
@@ -46,6 +48,9 @@ const run = async (cid: string): Promise<boolean> => {
         // this half.
         logger.warn('SOCKET', '[renewCloudSession] cloud socket re-registration failed', { error, data: { cid } });
     }
+    // A re-issue is not asked for a place — the server picks one, measured as a different place of
+    // the same cloud — and the re-registration above moved the socket there.
+    await alignSessionSite(cid, landedSiteId);
     return true;
 };
 

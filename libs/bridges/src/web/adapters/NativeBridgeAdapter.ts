@@ -1,6 +1,6 @@
 import { logger } from '@chatic/logger';
 
-import type { BridgeAdapter } from './types';
+import type { BridgeAdapter, InboundMessageMeta } from './types';
 import type { EventMessage, RequestMessage, ResponseMessage, MessageProtocol } from '../../common';
 import { JsonProtocol } from '../../common';
 
@@ -10,7 +10,7 @@ import { JsonProtocol } from '../../common';
  */
 export class NativeBridgeAdapter implements BridgeAdapter {
     /** The set of callback handlers that process incoming messages */
-    private handlers = new Set<(message: ResponseMessage | EventMessage) => void>();
+    private handlers = new Set<(message: ResponseMessage | EventMessage, meta?: InboundMessageMeta) => void>();
     /** The protocol engine for message serialization/deserialization */
     private protocol: MessageProtocol;
     /** The window/document event listener registration state flag */
@@ -58,7 +58,8 @@ export class NativeBridgeAdapter implements BridgeAdapter {
             const parsed = this.protocol.decode(data);
             // Dispatch to the handlers only when it's a valid bridge message data spec.
             if (parsed && 'type' in parsed && typeof parsed.type === 'string') {
-                this.handlers.forEach(handler => handler(parsed as ResponseMessage | EventMessage));
+                const meta: InboundMessageMeta = { length: data.length };
+                this.handlers.forEach(handler => handler(parsed as ResponseMessage | EventMessage, meta));
             }
         } catch (e) {
             // `decode` swallows its own parse failures (returns null), so what lands
@@ -79,7 +80,7 @@ export class NativeBridgeAdapter implements BridgeAdapter {
      * console is the only place it can go. (The inbound path, `handleNativeMessage`, has no such
      * constraint and uses logger.)
      */
-    public postMessage(message: RequestMessage): void {
+    public postMessage(message: RequestMessage): number | void {
         try {
             const encoded = this.protocol.encode(message);
 
@@ -104,7 +105,9 @@ export class NativeBridgeAdapter implements BridgeAdapter {
                 // 4. Warn if native environment detection fails
                 else {
                     console.warn('[NativeBridgeAdapter] no native bridge interface found');
+                    return;
                 }
+                return encoded.length;
             } else {
                 console.warn('[NativeBridgeAdapter] SSR environment exposes no native bridge interface');
             }
@@ -117,7 +120,9 @@ export class NativeBridgeAdapter implements BridgeAdapter {
      * [App -> Web] Registers the receiving callback (handler) that processes messages sent from native.
      * The DOM message listener starts automatically the moment the first handler is registered.
      */
-    public onMessage(handler: (message: ResponseMessage | EventMessage) => void): () => void {
+    public onMessage(
+        handler: (message: ResponseMessage | EventMessage, meta?: InboundMessageMeta) => void
+    ): () => void {
         this.handlers.add(handler);
         if (this.handlers.size === 1) this.setupListener();
 

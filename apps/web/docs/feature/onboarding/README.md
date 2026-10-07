@@ -90,6 +90,15 @@ sets the profile for that place — each one awaits its mutation before the step
 steps depend on each other (the profile is a profile _of_ the place made a moment earlier). A failure
 therefore leaves the earlier steps done, and a retry resumes where it stopped.
 
+Step 2 **switches into the place it creates** before advancing, and step 3 writes the profile from
+inside it. That order is forced by the server: `profile.set` stores the profile on the site the
+session is on and ignores any site the request names, so a profile for the new place can only be
+written once the session is there. Before the switch was added, step 3 overwrote the profile of
+whatever place was active before the wizard ran. Creating and switching are two server calls; when
+the create succeeds and the switch fails, step 2 stays put and its retry repeats only the switch, so
+no second place is made. Going back from step 3 and committing step 2 again does create another place
+— the wizard does not treat that as a retry.
+
 Step 1 has no photo field. `CloudModel` carries no image on the server, so there is nowhere to put
 one; `i18n.test.ts` asserts that `setupWizard.cloud.photoLabel` stays undefined in both locales so
 nobody adds the label back without adding the field.

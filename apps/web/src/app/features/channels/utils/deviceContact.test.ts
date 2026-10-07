@@ -18,6 +18,19 @@ const contact = (partial: Partial<ContactInfo>): ContactInfo => ({ recordID: 'c1
 
 const FALLBACK = '이름 없음';
 
+/** jsdom fixes `navigator.language` at `en-US`; the locale-guess cases need to move it. */
+const setLanguage = (value: string) => {
+    Object.defineProperty(window.navigator, 'language', { value, configurable: true });
+};
+
+const withNumbers = (...numbers: string[]) =>
+    contact({ phoneNumbers: numbers.map(number => ({ label: 'mobile', number })) });
+
+afterEach(() => {
+    setLanguage('en-US');
+    localStorage.clear();
+});
+
 describe('resolveContactName', () => {
     it('prefers displayName when the platform sends one', () => {
         expect(resolveContactName(contact({ displayName: '김민수', givenName: '민수' }), FALLBACK)).toBe('김민수');
@@ -82,6 +95,16 @@ describe('resolveContactDisplayPhone', () => {
         expect(resolveContactDisplayPhone(contact({}))).toBe('');
     });
 
+    it('shows a foreign mobile with its country code, so the row says where the text goes', () => {
+        expect(resolveContactDisplayPhone(withNumbers('+1 (415) 555-0123'))).toBe('+1 415 555 0123');
+        expect(resolveContactDisplayPhone(withNumbers('+81 90-1234-5678'))).toBe('+81 90 1234 5678');
+    });
+
+    it('shows a foreign landline exactly as stored, and prefers a later mobile over it', () => {
+        expect(resolveContactDisplayPhone(withNumbers('+81 3-1234-5678'))).toBe('+81 3-1234-5678');
+        expect(resolveContactDisplayPhone(withNumbers('+81 3-1234-5678', '+1 415 555 0123'))).toBe('+1 415 555 0123');
+    });
+
     // No matter how varied the stored format, the screen must always show one consistent shape.
     it.each([
         ['010-1234-5678', '010-1234-5678'],
@@ -123,7 +146,7 @@ describe('resolveContactPhone', () => {
         );
     });
 
-    it('is null when no stored number is a Korean mobile', () => {
+    it('is null when no stored number is a mobile', () => {
         expect(resolveContactPhone(contact({ phoneNumbers: [{ label: 'work', number: '02-123-4567' }] }))).toBeNull();
     });
 
@@ -247,5 +270,113 @@ describe('compareContactLabels', () => {
 
     it('treats a bare consonant as Hangul', () => {
         expect(sorted(['Alice', 'ㅋㅋ'])).toEqual(['ㅋㅋ', 'Alice']);
+    });
+});
+
+describe('resolveContactPhone — numbers outside Korea', () => {
+    it.each([
+        ['+1 415 555 0123', '+14155550123'],
+        ['+1 (415) 555-0123', '+14155550123'],
+        ['+81 90-1234-5678', '+819012345678'],
+        ['+44 7400 123456', '+447400123456'],
+    ])('reads %s in the country it names, as %s', (stored, e164) => {
+        expect(resolveContactPhone(withNumbers(stored))).toBe(e164);
+    });
+
+    it('makes a contact whose only number is foreign invitable', () => {
+        expect(resolveContactPhone(withNumbers('+1 415 555 0123'))).not.toBeNull();
+    });
+
+    it('scans past a foreign landline to a foreign mobile', () => {
+        expect(resolveContactPhone(withNumbers('+81 3-1234-5678', '+81 90-1234-5678'))).toBe('+819012345678');
+    });
+
+    it.each([
+        ['a foreign landline', '+81 3-1234-5678'],
+        ['a malformed foreign number', '+1 555 0100'],
+        ['a Korean landline', '02-123-4567'],
+    ])('is null for %s', (_, stored) => {
+        expect(resolveContactPhone(withNumbers(stored))).toBeNull();
+    });
+
+    it('reads a number saved without a + as Korean first, whatever the locale', () => {
+        setLanguage('ja-JP');
+        expect(resolveContactPhone(withNumbers('010-1234-5678'))).toBe('+821012345678');
+    });
+
+    it("falls back to the device locale's country for a local number Korea does not take", () => {
+        setLanguage('ja-JP');
+        expect(resolveContactPhone(withNumbers('090-1234-5678'))).toBe('+819012345678');
+        expect(resolveContactDisplayPhone(withNumbers('090-1234-5678'))).toBe('+81 90 1234 5678');
+    });
+
+    it('does not guess a country the locale does not name', () => {
+        setLanguage('ko-KR');
+        expect(resolveContactPhone(withNumbers('090-1234-5678'))).toBeNull();
+    });
+
+    it('ignores the country last picked in a phone field', () => {
+        // That pick names the last person invited by hand, not the owner's address book.
+        localStorage.setItem('dou.phoneInput.country.v1', 'JP');
+        setLanguage('ko-KR');
+        expect(resolveContactPhone(withNumbers('010-1234-5678'))).toBe('+821012345678');
+        expect(resolveContactPhone(withNumbers('090-1234-5678'))).toBeNull();
+    });
+
+    it('reads a number wrapped in invisible bidi marks', () => {
+        expect(resolveContactPhone(withNumbers('\u202D010-1234-5678\u202C'))).toBe('+821012345678');
+        expect(resolveContactPhone(withNumbers('\u202D+1 415 555 0123\u202C'))).toBe('+14155550123');
+    });
+});
+
+describe('a number Korea and the locale would both read', () => {
+    // `0171 2345678` is a German mobile and, read as Korean, `017-1234-5678`.
+    const german = () => withNumbers('0171 2345678');
+
+    it('still invites it as Korean, so nothing invitable before changes', () => {
+        setLanguage('de-DE');
+        expect(resolveContactPhone(german())).toBe('+821712345678');
+    });
+
+    it('shows the +82 on a device whose locale would have read it differently', () => {
+        setLanguage('de-DE');
+        expect(resolveContactDisplayPhone(german())).toBe('+82 17 1234 5678');
+    });
+
+    it('shows the Korean form where the locale is Korean or reads it as nothing', () => {
+        setLanguage('ko-KR');
+        expect(resolveContactDisplayPhone(german())).toBe('017-1234-5678');
+        setLanguage('en-US');
+        expect(resolveContactDisplayPhone(german())).toBe('017-1234-5678');
+    });
+});
+
+describe('contact search and subtitle — numbers outside Korea', () => {
+    it('finds a foreign number by what the row shows and by its digits', () => {
+        const text = contactSearchText(withNumbers('+1 (415) 555-0123'));
+        expect(text).toContain('+1 415 555 0123');
+        expect(text).toContain('4155550123');
+    });
+
+    it('leaves out a foreign number the row is already labelled by, however it was stored', () => {
+        const c = contact({
+            displayName: '+1 (415) 555-0123',
+            phoneNumbers: [{ label: 'mobile', number: '+14155550123' }],
+        });
+        expect(resolveContactSubtitle(c, '+1 (415) 555-0123')).toBe('');
+    });
+
+    it('finds a number shown with its country code by the local form it was saved in', () => {
+        setLanguage('ja-JP');
+        const text = contactSearchText(withNumbers('090-1234-5678'));
+        expect(text).toContain('+81 90 1234 5678');
+        expect(text).toContain('090-1234-5678');
+        expect(text).toContain('09012345678');
+    });
+
+    it("leaves out a local number labelled in the locale's form", () => {
+        setLanguage('ja-JP');
+        const c = contact({ displayName: '090-1234-5678', phoneNumbers: [{ label: 'mobile', number: '09012345678' }] });
+        expect(resolveContactSubtitle(c, '090-1234-5678')).toBe('');
     });
 });

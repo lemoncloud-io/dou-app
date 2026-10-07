@@ -13,7 +13,7 @@ per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either.
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
 It is spread across three folders on purpose, and the split follows dependency direction rather than
-subject: `socket/auth/` holds the wiring and the policy (18 source files, 15 tests), `session/auth/`
+subject: `socket/auth/` holds the wiring and the policy (19 source files, 16 tests), `session/auth/`
 holds the material it reads and writes ([docs/session/](../session/README.md)), and the two guards
 that _trigger_ renewal are React hooks in `session/hooks/app/`. The renewers live with the socket
 because `socket/auth → session` is an existing edge and the reverse is not; putting them under
@@ -203,6 +203,13 @@ consider too close to expiry. The committed store then holds exactly what the so
 there is nothing to re-authenticate either way. A lapsing token on that slot is the credential
 guard's to renew, and the guard re-registers as it re-issues.
 
+**Tokens the server already issued** (an invite login's answer, `issuedTokens`) are committed as
+they are and re-register a live slot. They are signed for the site the server chose — the cloud's
+default — so committing them into the cloud already selected also clears the selected site, as a
+cloud change does. Otherwise the selection keeps naming a place the socket has left, and the next
+`switchSite` into that place returns early as a no-op while every site-scoped call lands on the
+default site.
+
 [`applySessionToken($token, options?)`](../../src/socket/auth/applySessionToken.ts) is the one
 app-facing entry to this path, used by phone verification: it commits the token view, re-authenticates
 the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token` actually became the
@@ -260,6 +267,25 @@ is lost anyway. Where the re-issued tokens land is decided inside `reissueCloudT
 by whether `cid` is the committed cloud then: the session store (plus the cache) if it is, the cache
 alone if it is not. A renewal that started while a cloud was committed and finishes after a switch
 away therefore cannot hand the new cloud the old one's token.
+
+**A re-issue is not asked for a place, and the server picks one.** Measured against the dev server: a
+committed cloud on place `10005` was re-issued a token for `10012`, another place of the same cloud,
+and the re-registration moved the socket there while the selection still said `10005`. Nothing kept
+the two equal, so the screen named one place while every site-scoped call — a place invite, a profile
+save — landed on the other, and a reload kept both, because a connect registers with the stored token
+and writes nothing back.
+
+[`alignSessionSite`](../../src/socket/auth/alignSessionSite.ts) closes that. It compares the place a
+token names (`$site.id`) with the selected place and, when they differ, `auth.switch`es the session
+back to the selection — the place the user chose and the screen shows. If that switch fails the
+selection follows the session instead, so the two at least agree. It runs at three points: after a
+renewal re-registers, on every token writeback, and each time a slot authenticates (the delegate's
+`onAuthenticated`, which is what catches a mismatch carried across a reload). It acts only for the
+committed cloud — a background slot has no selection — never for the relay, whose token names a
+personal place (`P…`) that is never the selected id, and never while a place switch is in flight
+(`isSiteSwitchInFlight`), when a token may still name the place being left. One alignment runs at a
+time, because its own switch writes a token back. The session's real place is readable as
+`getCommittedSessionSiteId()` for anything the server files under it.
 
 **A cloud's `onTerminalExpiry()`** drops that cloud's cached tokens — they are the ones that expired
 — and, for the committed cloud only, also runs `cloudSession.clearStores()`: losing a cloud is
@@ -344,6 +370,41 @@ A switch, the preparer and a renewal can ask for the same cloud together, and tw
 each write the cache, the later one winning while the earlier one's tokens may already be committed
 or registered. A second caller joins the exchange in flight instead.
 
+## An owned cloud held as its invitee
+
+The per-cloud token cache is keyed by cloud id alone, so a device holds one identity per cloud. An
+invite login is entered with its own answer — the invitee's token, with an assembled delegation half
+whose JWT is the empty string — and that answer takes the cloud's one slot. When the account also
+**owns** that cloud, every later entry replays the invitee: a switch serves the cache, a background
+slot signs from it, and the owner walks into their own cloud as a member. Two ways lead there: the
+owner opening their own invite link on this device, and a guest accepting an invite and later
+signing in to the account that owns the cloud. The server is not at fault — `delegate-cloud` answers
+an owner as the owner — the device has simply stopped asking it.
+
+[`reclaimOwnedClouds(ownedCloudIds)`](../../src/socket/auth/reclaimOwnedClouds.ts), driven by
+`connection.useReclaimOwnedClouds` with the app's owned catalog, re-issues every owned cloud whose
+**held** delegation half is an invite entry (`isInviteLoginEntry` in `session/auth/cloudTokens`).
+"Held" is the session store's copy while the cloud is committed and the cache's otherwise, the same
+split `getCloudTokenOf` makes. The re-issue is a renewal (`renewCloudSession`), not a cache drop,
+because the committed cloud's store and a live slot's socket both hold the invitee too, and only a
+renewal replaces all three — the socket included, since a cloud slot is never re-authenticated on its
+own.
+
+- **Detection reads only what the device wrote.** Neither the token's role nor the cloud's owner id is
+  consulted, so the rule does not depend on how the server spells either. An empty delegation JWT
+  is written by the invite entry and by nothing else.
+- **A cloud held by a delegate-cloud issue costs nothing.** The check is a storage read; no request
+  goes out unless an invite entry is found.
+- **It runs on two triggers**, because either can come second: the owned list changing (a catalog
+  resolving after an invite entry was already held, or a sign-in to the owning account), and a
+  committed cloud token (`cloud:token` — an invite entry committed after the catalog resolved, which
+  no list change would follow). A failed renewal leaves the invitee in place and is retried on the
+  next of either. It cannot loop: a successful renewal removes the empty JWT the check looks for.
+- **Over the committed cloud, the re-issue replaces rather than merges.** `reissueCloudTokens` merges
+  a renewal into the stored view, because a re-issue may omit profile fields; over an invite entry it
+  is an identity change, and a merge would keep the invitee's `$user` and role wherever the owner's
+  answer has no field. For the same reason it drops the selected place, which was the invitee's.
+
 ## Ending a session
 
 | Entry                                     | What it does                                                                                                                                                                                                                                             |
@@ -400,7 +461,7 @@ Concurrent calls share one pass through a `Coalescer`.
 - Everything takes its dependencies as an argument with a lazily resolved default — `AuthSignalDeps`, `RecoverUnverifiedSocketsDeps`, `RequestRelaySessionRefreshDeps`, `RelayExpiryDeps`. A test injects; it does not reset a module. The two that do need a reset seam expose one: `resetRelayRefreshCoalescing()` and `resetRevokedSessionHandling()`.
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.
-- Five of the seventeen files are deliberately off `socket/auth/index.ts`: `authStatus.ts`, `renewers.ts`, `authIdRegistry.ts`, `reauthDelegate.ts` and `revokedSession.ts`. In-package callers import them by concrete path, which is what keeps the barrel free of the cycle `sessionDelegate → renewers → renewCloudSession → sessionDelegate`. `reauthDelegate.ts` exists only to hold the seed-and-sign half of the delegate outside that ring.
+- Six of the nineteen files are deliberately off `socket/auth/index.ts`: `authStatus.ts`, `renewers.ts`, `authIdRegistry.ts`, `reauthDelegate.ts`, `revokedSession.ts` and `reclaimOwnedClouds.ts` (its one caller is the connection hook). In-package callers import them by concrete path, which is what keeps the barrel free of the cycle `sessionDelegate → renewers → renewCloudSession → sessionDelegate`. `reauthDelegate.ts` exists only to hold the seed-and-sign half of the delegate outside that ring.
 - The per-cloud paths — a registration, a signature, a writeback, a renewal or a terminal expiry for a cloud that is not committed — have no caller in a running app until something binds such a slot. They are proved by the unit tests of `sessionAuthAdapter`, `cloudTokens`, `renewers`, `renewCloudSession`, `useCloudCredentialGuard` and `cloudStore`; a change there is a change to a contract the next steps build on.
 
 ## Further reading

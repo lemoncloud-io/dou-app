@@ -108,17 +108,68 @@ immediately — my nick, my notification flag, my read boundary — reads `useCh
 history the _observe window_ grows so the cache re-emits with the older page included:
 
 ```text
-loadMore():
-  oldestNo = min(chatNo) over the current window
+loadMore({ immediate }):                       # only while the active socket is verified
+  failed page waiting out its retry delay, and not immediate → nothing
+  oldestNo = min(chatNo > 0) over the current window
+  oldestNo <= joinedNo + 1            → hasMore = false   # the first row I can be shown is in the window
+  oldestNo is the last page's cursor → hasMore = false   # that page added nothing older to the window
   refreshList({ channelId, cursorNo: oldestNo, limit: 50 })
   fetchedCount === 0 → hasMore = false
-  otherwise          → pageLimit += 50   # re-subscribe, older page comes back in the emit
+  otherwise          → the wider of pageLimit / jumpLimit += fetchedCount   # re-subscribe; the page comes back in the emit
+                       once that emit lands: the cursor counts as progress, and cursorNo === 0 → hasMore = false
+  failure            → the room is untouched; the prefetch may ask again after 2s, doubling up to 30s
 ```
+
+What each of those lines is guarding against:
+
+- **An unsent row is not a cursor.** It carries `chatNo` 0 until the server numbers it, and asking
+  for history below 0 ended paging for good.
+- **Holding the first row is proof there is nothing older** — chatNo 1, or `joinedNo + 1` for a
+  re-joiner, whose history the server starts there. The room fills a thread too short to scroll by
+  asking for older pages, and without this check every small room spent a request on each entry
+  being told it had none.
+- **A page is in flight until its rows are on screen**, not until the request returns.
+  `isLoadingMore` stays true until the widened window has been read back: released earlier, the next
+  check reads the same oldest row and asks for the same page again. It also turns false when the
+  page comes back empty or fails, and after 5s if the window never comes back — released then
+  without counting as progress, so the page may be asked for again rather than read as the end. A
+  ref decides whether a page is in flight, not the state flag, because the room's prefetch and a
+  jump can both ask within one frame. A message jump reads the same flag before giving up: the last
+  page of its budget, or the oldest page of history, may hold the target, so its "not found" toast
+  waits for `isLoadingMore` to turn false.
+- **The window grows on its wider axis, by what came back.** After a jump the window is `jumpLimit`
+  wide: adding to the narrower `pageLimit` did not widen it at all, and copying the jump's width
+  into `pageLimit` would make `isThreadStartLoaded` read the jump's over-estimate as rows the cache
+  could not fill. Adding what came back rather than 50 keeps the window honest if the server applies
+  a smaller page than the one asked for.
+- **`cursorNo: 0` ends paging** without the empty round trip that used to be the only way to know.
+  The server documents a feed result's `cursorNo` as the next cursor, 0 meaning there is none
+  (`ChatFeedResult` in `@lemoncloud/chatic-socials-api`), and the SDK's own reconnect catch-up stops
+  on it too. It is applied only once the page is on screen: applied when the request returned, a jump
+  to a row in that very page gave up one render before the row appeared.
+- **A failed page is a paging problem, not a room problem.** It used to raise the room's error,
+  which swapped the whole conversation for "unable to load" over a single dropped request — a socket
+  closing mid-scroll was enough. Now the room's prefetch waits and retries: when the wait is over,
+  `loadMore` gets a new identity, which re-runs the prefetch check. The callers that act for a
+  person — the thread page's "load older" button and a message jump — pass `immediate`, so the wait
+  never turns a press into nothing, and gate on `canLoadMore` (the socket is verified), so a press is
+  never sent into a socket that cannot carry it and a jump spends no budget on calls that send
+  nothing.
+
+**Arrivals do not push the reader's rows out — while the reader is reading history.** Every row that
+arrives pushes one of the oldest out of the window. Before any paging nobody is reading those. Once
+the window is wider than its initial `limit` and the reader is away from the bottom, those rows are
+the top of what they are reading: they vanished from the screen, and the next page asked the server
+for them again. So that window grows by as many rows as arrived. The room tells `useChats` where the
+reader is through `readingHistoryRef`, which `useChatScroll` keeps current; back at the bottom,
+arrivals push the oldest rows out again, which keeps the window bounded however long the room stays
+open. The thread page passes no ref, so a widened thread window always keeps its oldest row.
 
 `loadUntil(targetNo)` widens the same window without any round trip — the search jump's target is
 usually already cached and only the window was too narrow. It keeps its own `jumpLimit` axis so a
 jump cannot disturb `isThreadStartLoaded`, which reads "the cache could not fill the page" as
-"there is nothing older". The observe limit is `max(pageLimit, jumpLimit)`.
+"there is nothing older". The observe limit is `max(pageLimit, jumpLimit)`, and growth after a jump
+— a page, rows arriving — goes to `jumpLimit` while it is the wider one.
 
 The two chat cursors are not interchangeable: `channel.chatNo` detects the newest message,
 `cursorNo` fetches an older page. The rule and its reasoning are canonical in
@@ -228,17 +279,26 @@ observer per cache per screen, not a convenience.
 
 ### What not to do
 
-- **Do not fetch on mount to fill a screen.** The sync layer primes a cold room
+- **Do not fetch the newest page on mount.** The sync layer primes a cold room
   (`usePrimeChat`) and `useForegroundChatRefresh` covers a warm one. The two conditions are
-  mirrored on purpose — cold fetches there, warm fetches here, every entry fetches exactly once.
-  Add a third and every room entry doubles its requests. The row tap's `prefetchRoomFeed` is not a
-  third: it starts the same `fetchRoomFeed` the two join, so a list entry still sends one request.
+  mirrored on purpose — cold fetches there, warm fetches here, every entry fetches the newest page
+  exactly once. Add a third and every room entry doubles its requests. The home row tap's
+  `prefetchRoomFeed` is not a third: it starts the same `fetchRoomFeed` the two join, so a list entry
+  still sends one request for the newest page. Older pages are a different request, and two things
+  ask for them on entry: the room's prefetch (`useChatScroll`), when less than two viewports of
+  history sit above the reader — a first page of mostly reactions and replies, a tall viewport —
+  stopping at that distance or at the first row; and a pending message jump (`useMessageJump`),
+  until its target is in the window or its page budget is spent.
 - **Do not derive display names in a list row with `useChannelTitle`.** It calls `useMyProfile`,
   which triggers a fetch per call. Lists resolve `myNick` once in the parent and call
   `resolveChannelTitle` directly.
-- **Do not read absence out of an empty `profileMap`.** It starts empty and this hook is
-  downstream of the channel row, so the first renders legitimately know nothing. `hasSnapshot`
-  tells "no profile" from "not read yet".
+- **Do not read absence out of `profileMap`.** A member missing from it means this device does not
+  hold their row yet — a cold cache, a fetch still in flight or one that failed — not that they have
+  no profile. The hook once returned a `hasSnapshot` flag for this, but it turned true on the local
+  cache's first emission, before the server had answered; with my row missing from IndexedDB the
+  room settings prompted a user who had a profile to create one, and a save from that blank form
+  overwrites the real nick. Whether _I_ have no profile is the server's answer
+  (`usePlaceProfileAbsent`, which waits for `profile.get-mine`); nobody can act on anyone else's.
 - **Do not treat the first `null` from `observeItem` as a missing channel.** It answers from the
   local cache alone, so a room the device has never seen answers `null` while the fetch is in
   flight. `useChannel` keeps `isLoading` true until a row arrives or a 10s timeout turns it into

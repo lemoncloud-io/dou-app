@@ -1,5 +1,113 @@
 # Changelog
 
+## [2026-10-06] - root@0.85.0, @chatic/web@0.66.0
+
+### Features
+
+- (web) let go of photo grid previews far from the screen
+- (web) page the photo grid by offset and size its previews to the tile (ADR-0174)
+- (web-ui-kit,config) virtualize the photo grid, pin its header, add fast scroll and pinch
+- (mobile) answer square previews at the asked size and pages cut by offset (ADR-0174)
+- (app-messages) ask for previews at the tile size and pages by offset
+
+## [2026-10-06] - root@0.84.0, @chatic/web@0.65.0
+
+### Features
+
+- (web) confirm a tier change before the store opens; a downgrade picks its clouds (ADR-0173)
+- (web-ui-kit) add the subscription status banner, product card, info rows and radio card
+- (http,data,web) record the clouds a downgrade gives up through the drops call
+
+### Bug Fixes
+
+- (web) change a subscription only on the store that bills it (ADR-0173)
+- (web) drop the empty strip under the subscription card when there is nothing to say
+
+### Other
+
+- test: (web) walk the subscription screens through every membership state
+
+## [2026-10-06] - No version updates
+
+### Features
+
+- (web,web-ui-kit) pick videos from the photo grid and draw the first frame of a posterless video
+- (mobile) list library videos, keep a picked one, and read a received video's frame (ADR-0171)
+- (shared,app-runtime) send a browser-picked video with a poster the browser draws (ADR-0172)
+- (app-messages,bridges) add grid videos and received-video frames to the bridge contract
+
+## [2026-10-06] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,web) switch the session back to the selected place (ADR-0170)
+
+## [2026-10-06] - root@0.83.2, @chatic/desktop-web@0.19.4
+
+### Bug Fixes
+
+- (desktop-web) read encoded invite links, refuse relay ones
+
+## [2026-10-06] - root@0.83.1, @chatic/web@0.64.1
+
+### Bug Fixes
+
+- (web) enter an owned cloud as the owner when accepting its invite (ADR-0169)
+- (app-runtime) re-issue an owned cloud held as its invitee, not replay the invite token
+
+## [2026-10-06] - No version updates
+
+### Features
+
+- (web,adr) take international numbers in the cloud invite, not korean ones only (ADR-0168)
+
+## [2026-10-06] - No version updates
+
+### Bug Fixes
+
+- (app-runtime) drop the selected place when an invite re-enters the current cloud
+
+## [2026-10-06] - No version updates
+
+### Features
+
+- (bridges,perf,web) time sampled bridge requests before splitting the bridge (ADR-0167)
+
+## [2026-10-06] - No version updates
+
+### Bug Fixes
+
+- (web/channels) let the page's files input pick HWP and HWPX on iOS, not only the other five
+
+## [2026-10-02] - No version updates
+
+### Bug Fixes
+
+- (shared,web-ui-kit) keep the glass header opaque through the page slide (ADR-0164)
+- (web/channels) load older history before the reader reaches the top, not at it
+
+## [2026-10-02] - No version updates
+
+### Features
+
+- (web,config) show phone sign-in in production, not only in dev builds (ADR-0163)
+
+## [2026-10-02] - root@0.83.0, @chatic/web@0.64.0, @chatic/desktop-web@0.19.3
+
+### Features
+
+- (web/home) ask for a missing place profile with a banner, not only the header (ADR-0162)
+- (web) ask for a place profile where a person enters a place, from inside it (ADR-0142)
+
+### Bug Fixes
+
+- (desktop-web) name the place selected at the time of a profile save, not the first one
+- (data) save a place profile where it can land, and create its row on the first write
+
+### Documentation
+
+- (adr) renumber the place-profile adr to 0161, not the 0142 develop already holds
+
 ## [2026-10-02] - No version updates
 
 ### Features

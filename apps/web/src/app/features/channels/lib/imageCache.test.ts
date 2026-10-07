@@ -453,3 +453,79 @@ describe('ImageCache', () => {
         });
     });
 });
+
+describe('ImageCache — frames made on this device', () => {
+    const jpeg = (size = 12) => new Blob([new Uint8Array(size)], { type: 'image/jpeg' });
+
+    it('keeps a put frame in memory and in the store under its own variant', async () => {
+        const { cache, records, store } = setup();
+        const key = imageCacheKey('c', 'u1', 'frame');
+
+        const src = await cache.put(key, 'frame', jpeg());
+        await flush();
+
+        expect(cache.peek(key)).toBe(src);
+        expect(records.get(key)).toMatchObject({ key, variant: 'frame', type: 'image/jpeg', size: 12 });
+        expect(store.put).toHaveBeenCalledTimes(1);
+    });
+
+    it('trims frames against their own budget', async () => {
+        jest.useFakeTimers();
+        try {
+            const { cache, store } = setup({ budgets: { thumb: 1, org: 2, frame: 3 } });
+            await cache.put(imageCacheKey('c', 'u1', 'frame'), 'frame', jpeg());
+            await jest.advanceTimersByTimeAsync(5_000);
+
+            expect(store.trim).toHaveBeenCalledWith('frame', 3);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('keeps the copy already in memory rather than replacing one an image may be drawing', async () => {
+        const { cache, deps } = setup();
+        const key = imageCacheKey('c', 'u1', 'frame');
+
+        const first = await cache.put(key, 'frame', jpeg());
+        const second = await cache.put(key, 'frame', jpeg(20));
+
+        expect(second).toBe(first);
+        expect(deps.createObjectURL).toHaveBeenCalledTimes(1);
+    });
+
+    it('finds a frame from an earlier launch in the store without any fetch', async () => {
+        const { cache, deps, records } = setup();
+        const key = imageCacheKey('c', 'u1', 'frame');
+        records.set(key, {
+            key,
+            variant: 'frame',
+            type: 'image/jpeg',
+            bytes: new ArrayBuffer(8),
+            size: 8,
+            usedAt: 1_000_000,
+        });
+
+        const src = await cache.lookup(key);
+
+        expect(src).toMatch(/^blob:/);
+        expect(cache.peek(key)).toBe(src);
+        expect(deps.fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers null for a frame nobody made yet, without any fetch', async () => {
+        const { cache, deps } = setup();
+
+        await expect(cache.lookup(imageCacheKey('c', 'u1', 'frame'))).resolves.toBeNull();
+        expect(deps.fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers a frame already in memory without reading the store', async () => {
+        const { cache, store } = setup();
+        const key = imageCacheKey('c', 'u1', 'frame');
+        const src = await cache.put(key, 'frame', jpeg());
+        store.get.mockClear();
+
+        await expect(cache.lookup(key)).resolves.toBe(src);
+        expect(store.get).not.toHaveBeenCalled();
+    });
+});

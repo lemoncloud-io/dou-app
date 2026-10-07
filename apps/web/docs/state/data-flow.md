@@ -137,7 +137,7 @@ Direct socket `send` / `emit` is not a path the app has. Every write goes throug
 | Mark read                                         | `repos.join.readChat({ channelId, chatNo })`                                                         |
 | Create / edit / invite / leave / delete a channel | `repos.channel.createChannel` / `updateChannel` / `inviteChannel` / `leaveChannel` / `deleteChannel` |
 | Create / edit a place                             | `repos.place.createPlace` / `updatePlace`                                                            |
-| Edit a profile                                    | `repos.user.updateProfile(...)` or `repos.profile.setMyProfile(...)`                                 |
+| Edit a profile                                    | `repos.user.updateProfile(...)`, or for a place profile `useSetMyPlaceProfile` (not the repository)  |
 
 ## 5. Refresh timing
 

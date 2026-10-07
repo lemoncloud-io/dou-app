@@ -5,12 +5,16 @@ const mockReissue = jest.fn();
 const mockReauthenticate = jest.fn();
 const mockGetSocketManager = jest.fn();
 const mockLoggerWarn = jest.fn();
+const mockAlign = jest.fn();
 
 jest.mock('../../session/auth/cloudTokens', () => ({
     reissueCloudTokens: (...args: unknown[]) => mockReissue(...args),
 }));
 jest.mock('./reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: (...args: unknown[]) => mockReauthenticate(...args),
+}));
+jest.mock('./alignSessionSite', () => ({
+    alignSessionSite: (...args: unknown[]) => mockAlign(...args),
 }));
 jest.mock('./reauthDelegate', () => ({
     createReauthDelegate: () => ({ delegate: true }),
@@ -27,13 +31,17 @@ jest.mock('@chatic/bridges', () => ({
     },
 }));
 
-const issued = { delegationToken: { cloudId: 'cloud-1' }, cloudToken: { Token: { identityToken: 'fresh' } } };
+const issued = {
+    delegationToken: { cloudId: 'cloud-1' },
+    cloudToken: { Token: { identityToken: 'fresh' }, $site: { id: 'site-picked-by-server' } },
+};
 
 beforeEach(() => {
     jest.resetAllMocks();
     mockGetSocketManager.mockReturnValue({ manager: true });
     mockReissue.mockResolvedValue(issued);
     mockReauthenticate.mockResolvedValue(undefined);
+    mockAlign.mockResolvedValue(undefined);
 });
 
 describe('renewCloudSession', () => {
@@ -107,5 +115,19 @@ describe('renewCloudSession', () => {
         await renewCloudSession('cloud-1');
 
         expect(mockReissue).toHaveBeenCalledTimes(2);
+    });
+    it('after re-registering, checks the place the server re-issued for against the selection', async () => {
+        await expect(renewCloudSession('cloud-1')).resolves.toBe(true);
+
+        expect(mockAlign).toHaveBeenCalledWith('cloud-1', 'site-picked-by-server');
+        expect(mockReauthenticate.mock.invocationCallOrder[0]).toBeLessThan(mockAlign.mock.invocationCallOrder[0]);
+    });
+
+    it('does not check the place when the re-issue failed', async () => {
+        mockReissue.mockRejectedValue(new Error('403'));
+
+        await renewCloudSession('cloud-1');
+
+        expect(mockAlign).not.toHaveBeenCalled();
     });
 });
