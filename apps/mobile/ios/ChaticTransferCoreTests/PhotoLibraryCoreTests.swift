@@ -259,6 +259,36 @@ final class PhotoLibraryCoreTests: XCTestCase {
         XCTAssertEqual(PhotoLibraryCore.squareSide(size: 300, width: 200, height: -1), 300)
     }
 
+    func testTheStoredRenditionIsTheMeasuredSizeAndItsReachIsAQuarterMore() {
+        XCTAssertEqual(PhotoLibraryCore.storedPreviewSide, 352)
+        XCTAssertEqual(PhotoLibraryCore.storedPreviewReach, 440)
+    }
+
+    func testPreviewSideUsesTheStoredRenditionWithinItsReach() {
+        let stored = PhotoLibraryCore.storedPreviewSide
+        let reach = PhotoLibraryCore.storedPreviewReach
+
+        XCTAssertEqual(PhotoLibraryCore.previewSide(stored + 1), stored)
+        XCTAssertEqual(PhotoLibraryCore.previewSide(400), stored)
+        XCTAssertEqual(PhotoLibraryCore.previewSide(reach), stored)
+    }
+
+    func testPreviewSideKeepsSizesAtOrBelowTheStoredRendition() {
+        let stored = PhotoLibraryCore.storedPreviewSide
+
+        XCTAssertEqual(PhotoLibraryCore.previewSide(stored), stored)
+        XCTAssertEqual(PhotoLibraryCore.previewSide(288), 288)
+        XCTAssertEqual(PhotoLibraryCore.previewSide(PhotoLibraryCore.minThumbSize), PhotoLibraryCore.minThumbSize)
+    }
+
+    func testPreviewSideKeepsSizesPastTheReach() {
+        let reach = PhotoLibraryCore.storedPreviewReach
+
+        XCTAssertEqual(PhotoLibraryCore.previewSide(reach + 1), reach + 1)
+        XCTAssertEqual(PhotoLibraryCore.previewSide(592), 592)
+        XCTAssertEqual(PhotoLibraryCore.previewSide(PhotoLibraryCore.maxThumbSize), PhotoLibraryCore.maxThumbSize)
+    }
+
     // MARK: - Parallel previews
 
     func testPreviewWorkersLeaveACoreAndStayBounded() {
