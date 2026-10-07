@@ -9,6 +9,7 @@ export * from './ChannelHeaderMenu';
 export * from './JumpReturnBar';
 export * from './MessageList';
 export * from './MessageRow';
+export * from './MessageEditor';
 export * from './ThreadPanel';
 export * from './DateSeparator';
 export * from './SystemNotice';

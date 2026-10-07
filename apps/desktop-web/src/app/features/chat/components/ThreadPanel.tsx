@@ -201,6 +201,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         isLoading={false}
                         viewer={viewer}
                         names={names}
+                        mentionables={mentionables}
                         membersLoading={membersLoading}
                         threadReplyCount={replyCount}
                         olderReplies={olderReplies}

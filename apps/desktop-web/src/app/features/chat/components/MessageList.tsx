@@ -19,6 +19,7 @@ import {
     type ThreadMeta,
 } from '../utils';
 import { DateSeparator } from './DateSeparator';
+import type { Mentionable } from './MentionAutocomplete';
 import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
 import type { MentionResolver } from './RichText';
@@ -31,6 +32,8 @@ interface MessageListProps {
     viewer: MessageViewer;
     /** channel member id → display name, used to name authors when owner$ is absent. */
     names?: ReadonlyMap<string, string>;
+    /** Roster the inline message editor offers for @-autocomplete and shows existing mentions from. */
+    mentionables?: Mentionable[];
     /** Member roster still loading — render a name skeleton instead of "Unknown". */
     membersLoading?: boolean;
     /** Read position when the channel was opened — drives the "new messages" divider. */
@@ -107,6 +110,7 @@ export const MessageList = ({
     isLoading,
     viewer,
     names,
+    mentionables,
     membersLoading,
     baselineReadNo,
     threadReplyCount,
@@ -705,6 +709,7 @@ export const MessageList = ({
                                     onOpenThread={onOpenThread}
                                     selfNames={selfNames}
                                     resolveMention={resolveMention}
+                                    mentionables={mentionables}
                                     highlightChatNo={highlight}
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}

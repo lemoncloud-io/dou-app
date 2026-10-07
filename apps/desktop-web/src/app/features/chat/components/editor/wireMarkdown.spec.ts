@@ -10,6 +10,7 @@ import {
 } from 'lexical';
 
 import { COMPOSER_NODES } from './editorConfig';
+import { $isMentionNode } from './MentionNode';
 import { $exportWireMarkdown, $importWireMarkdown } from './wireMarkdown';
 
 const makeEditor = (): LexicalEditor =>
@@ -77,6 +78,67 @@ describe('wire markdown import', () => {
     // A one-line fence is rewritten as a block; the lines after it must not lose their backslashes.
     it('keeps backslashes on the lines after a one-line fence', () => {
         expect(roundTrip('```x```\na\\\\b')).toBe('```\nx\n```\na\\\\b');
+    });
+});
+
+describe('wire markdown mentions', () => {
+    const chipsIn = (wire: string, names: string[]) => {
+        const editor = makeEditor();
+        editor.update(() => $importWireMarkdown(wire, names), { discrete: true });
+        return {
+            chips: editor.read(() =>
+                $getRoot()
+                    .getAllTextNodes()
+                    .filter($isMentionNode)
+                    .map(node => node.getTextContent())
+            ),
+            wire: editor.read(() => $exportWireMarkdown()),
+        };
+    };
+
+    it('turns a listed name into one chip and writes it back as the same text', () => {
+        expect(chipsIn('hi @Ada there', ['Ada'])).toEqual({ chips: ['@Ada'], wire: 'hi @Ada there' });
+    });
+
+    it('turns every occurrence into a chip', () => {
+        expect(chipsIn('@Ada and @Bo, @Ada', ['Ada', 'Bo'])).toEqual({
+            chips: ['@Ada', '@Bo', '@Ada'],
+            wire: '@Ada and @Bo, @Ada',
+        });
+    });
+
+    it('prefers the longest listed name', () => {
+        expect(chipsIn('@Ada Lovelace hi', ['Ada', 'Ada Lovelace']).chips).toEqual(['@Ada Lovelace']);
+    });
+
+    it('treats a name as text, not a pattern', () => {
+        expect(chipsIn('hello @A.d(a) there', ['A.d(a)']).chips).toEqual(['@A.d(a)']);
+        expect(chipsIn('hello @AXd(a) there', ['A.d(a)']).chips).toEqual([]);
+    });
+
+    it('turns the group tokens into chips whenever names are given', () => {
+        expect(chipsIn('@channel heads up', []).chips).toEqual(['@channel']);
+    });
+
+    it('keeps the chip inside a bold run', () => {
+        expect(chipsIn('**@Ada**', ['Ada'])).toEqual({ chips: ['@Ada'], wire: '**@Ada**' });
+    });
+
+    it.each([
+        ['a name that is not listed', '@nobody hi', ['Ada']],
+        ['a longer name that starts with a listed one', '@Adalyn hi', ['Ada']],
+        ['a name that is not at a word start', 'https://medium.com/@Ada', ['Ada']],
+        ['a name followed by a token character', '@Ada_x hi', ['Ada']],
+        ['a name inside inline code', 'run `@Ada` now', ['Ada']],
+        ['a name inside a code block', '```\n@Ada\n```', ['Ada']],
+    ])('leaves %s as text', (_name, wire, names) => {
+        expect(chipsIn(wire, names)).toEqual({ chips: [], wire: roundTrip(wire) });
+    });
+
+    it('makes no chips when no names are given', () => {
+        const editor = makeEditor();
+        editor.update(() => $importWireMarkdown('hi @Ada @channel'), { discrete: true });
+        expect(editor.read(() => $getRoot().getAllTextNodes().filter($isMentionNode).length)).toBe(0);
     });
 });
 

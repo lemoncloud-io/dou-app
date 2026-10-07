@@ -1,8 +1,11 @@
+import { $isCodeNode } from '@lexical/code-core';
 import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
 import { $dfs } from '@lexical/utils';
-import { $isTextNode } from 'lexical';
+import { $isTextNode, type TextNode } from 'lexical';
 
+import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { COMPOSER_TRANSFORMERS } from './editorConfig';
+import { $createMentionNode } from './MentionNode';
 
 /**
  * The only place a message's wire string and the editor's document are converted. The wire is
@@ -69,21 +72,67 @@ const stripExportEscapes = (line: string): string => {
 // stand-in is not punctuation, so the library leaves it alone at any depth.
 const PLACEHOLDER_CANDIDATES = Array.from({ length: 16 }, (_, i) => String.fromCharCode(0xe000 + i));
 
-/** Fills the editor from a message's wire string. Call inside `editor.update`. */
-export const $importWireMarkdown = (wire: string): void => {
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Turns `@name` in plain text into mention chips. A chip is display only (its text is the same
+ * `@name` the wire carries), so this decides nothing about what is stored: it matches the listed
+ * names exactly, longest first, and only where no token character follows, so `@Adalyn` stays text
+ * when only `Ada` is listed. Code, inline or block, is left alone.
+ */
+const $restoreMentions = (names: readonly string[]): void => {
+    const listed = [...new Set([...names, ...GROUP_MENTIONS.map(group => group.slice(1))])]
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+    const pattern = new RegExp(
+        // Word-start `@`, as the composer's list opens: `medium.com/@Ada` is a link, not a mention.
+        `(?<![^\\s([{])@(?:${listed.map(escapeRegExp).join('|')})(?!${MENTION_TOKEN_SOURCE})`,
+        'gu'
+    );
+    const candidates: TextNode[] = [];
+    for (const { node } of $dfs()) {
+        if (!$isTextNode(node) || !node.isSimpleText() || node.hasFormat('code')) continue;
+        if ($isCodeNode(node.getParent())) continue;
+        candidates.push(node);
+    }
+    for (const node of candidates) {
+        const ranges = [...node.getTextContent().matchAll(pattern)].map(match => [
+            match.index,
+            match.index + match[0].length,
+        ]);
+        if (ranges.length === 0) continue;
+        // Read the length first: splitting shrinks `node` to its first part.
+        const size = node.getTextContentSize();
+        const cuts = [...new Set(ranges.flat())].filter(at => at > 0 && at < size);
+        const parts = cuts.length > 0 ? node.splitText(...cuts) : [node];
+        const bounds = [0, ...cuts, size];
+        parts.forEach((part, index) => {
+            const isMention = ranges.some(([start, end]) => start === bounds[index] && end === bounds[index + 1]);
+            if (isMention) part.replace($createMentionNode(part.getTextContent()).setFormat(part.getFormat()));
+        });
+    }
+};
+
+/**
+ * Fills the editor from a message's wire string. Call inside `editor.update`. With `mentionNames`
+ * (display names, without the `@`), `@name` and the group tokens become chips; without it the
+ * text stays plain.
+ */
+export const $importWireMarkdown = (wire: string, mentionNames?: readonly string[]): void => {
     const [backslash, ampersand] = PLACEHOLDER_CANDIDATES.filter(char => !wire.includes(char));
     if (backslash === undefined || ampersand === undefined) {
         throw new Error('wire string uses every placeholder character');
     }
     const guarded = wire.replace(/\\/g, backslash).replace(/&#/g, `${ampersand}#`);
     $convertFromMarkdownString(guarded, COMPOSER_TRANSFORMERS, undefined, true);
-    for (const node of $dfs()) {
-        if (!$isTextNode(node.node)) continue;
-        const text = node.node.getTextContent();
+    for (const { node } of $dfs()) {
+        if (!$isTextNode(node)) continue;
+        const text = node.getTextContent();
         if (text.includes(backslash) || text.includes(ampersand)) {
-            node.node.setTextContent(text.split(backslash).join('\\').split(ampersand).join('&'));
+            node.setTextContent(text.split(backslash).join('\\').split(ampersand).join('&'));
         }
     }
+    if (mentionNames) $restoreMentions(mentionNames);
 };
 
 /** The editor's document as a wire string. Call inside `editor.read` or `editor.update`. */

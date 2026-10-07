@@ -155,7 +155,7 @@ const ComposerInner = ({
         editor.update(() => {
             ($getSelection() ?? $getRoot().selectEnd()).insertText(emoji);
         });
-        editor.focus();
+        focusInput();
     };
 
     return (

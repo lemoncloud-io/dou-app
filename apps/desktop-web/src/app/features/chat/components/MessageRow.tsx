@@ -17,7 +17,6 @@ import {
 import { chatAttachmentSummary, type DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -57,6 +56,8 @@ import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
 import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import type { Mentionable } from './MentionAutocomplete';
+import { MessageEditor } from './MessageEditor';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
@@ -106,6 +107,8 @@ interface MessageRowProps {
     selfNames?: string[];
     /** Resolves an @mention to a member, so the mention opens their profile. */
     resolveMention?: MentionResolver;
+    /** Roster for the inline editor's @-autocomplete and chips. Absent: no autocomplete, and only group tokens become chips. */
+    mentionables?: Mentionable[];
     /** chatNo of a message to flash (saved-item / search jump landed on it). */
     highlightChatNo?: number;
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
@@ -225,6 +228,7 @@ export const MessageRow = memo(
         onOpenThread,
         selfNames,
         resolveMention,
+        mentionables,
         highlightChatNo,
         withDayInTime,
         receiptRead,
@@ -257,10 +261,10 @@ export const MessageRow = memo(
             const timer = setInterval(() => setStuckTick(tick => tick + 1), 5_000);
             return () => clearInterval(timer);
         }, [hasPending]);
-        // Which message in this block is open in the inline editor, and the text so far.
-        // Local to the row: one message is edited at a time and the draft dies with it.
+        // Which message in this block is open in the inline editor. Local to the row: one
+        // message is edited at a time, and the editor owns its text.
         const [editingKey, setEditingKey] = useState<string | null>(null);
-        const [draft, setDraft] = useState('');
+        const editingRowRef = useRef<HTMLDivElement>(null);
         // Which message in this block is awaiting delete confirmation. Same shape as
         // `editingKey`: one message at a time, so one dialog is ever mounted.
         const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
@@ -357,7 +361,11 @@ export const MessageRow = memo(
             // list hover.
             <div
                 data-roving-group=""
-                className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70"
+                className={cn(
+                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70',
+                    // The pointer is in the editor, not over the band: keep the band so the row reads as open.
+                    editingKey !== null && 'bg-accent/70'
+                )}
             >
                 <UserProfilePopover {...profileProps}>
                     {/* The focus ring traces the button, so its radius has to follow the
@@ -475,21 +483,17 @@ export const MessageRow = memo(
                             // hover that opened them.
                             const isToolbarPinned =
                                 isCopied || pickerKey === key || menuKey === key || confirmingKey === key;
-                            // What Save is allowed to do. An edit to nothing is a delete
-                            // everywhere else and would only blank the row here, and an edit
-                            // to the same text is a no-op — so neither is offered. Disabling
-                            // the button says that; silently ignoring the keypress did not.
-                            const trimmedDraft = draft.trim();
-                            const isEditDirty = !!trimmedDraft && trimmedDraft !== content;
-                            const cancelEdit = () => setEditingKey(null);
-                            // Enter and the Save button share this so the two can never drift.
-                            const saveEdit = () => {
+                            // Closing hands focus back to this message, so the arrow keys carry on
+                            // through the feed. By then focus is gone from the editor (Lexical blurs
+                            // its box on Escape), so the row is held in a ref, not read off focus.
+                            const closeEditor = () => {
                                 setEditingKey(null);
-                                if (isEditDirty && message.id) editMessage(message.id, trimmedDraft);
+                                editingRowRef.current?.focus();
                             };
                             return (
                                 <div
                                     key={key}
+                                    ref={isEditing ? editingRowRef : undefined}
                                     data-chat-no={message.chatNo}
                                     // The feed keeps one message in the tab order and moves it
                                     // with the arrow keys (MessageList's roving focus).
@@ -528,58 +532,18 @@ export const MessageRow = memo(
                                     ) : editingKey === key ? (
                                         // The message becomes its own editor in place, so the
                                         // surrounding conversation stays readable while you fix a
-                                        // typo. Capped to the reading measure rather than the pane:
-                                        // a nine-character message in a window-wide field is hard to
-                                        // scan and does not look like the message it replaces.
-                                        <div className="flex max-w-prose flex-col gap-1.5">
-                                            <textarea
-                                                autoFocus
-                                                rows={Math.min(8, draft.split('\n').length)}
-                                                value={draft}
-                                                onChange={e => setDraft(e.target.value)}
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Escape') {
-                                                        e.preventDefault();
-                                                        cancelEdit();
-                                                        return;
-                                                    }
-                                                    if (e.key !== 'Enter' || e.shiftKey) return;
-                                                    e.preventDefault();
-                                                    saveEdit();
-                                                }}
-                                                aria-label={t('chat.edit')}
-                                                aria-describedby={`${key}-edit-hint`}
-                                                className="focus-ring w-full resize-none rounded-md border border-control-border bg-background px-2 py-1.5 text-body text-foreground"
-                                            />
-                                            {/* Buttons and shortcuts both, deliberately. The
-                                                shortcuts are faster once known and the buttons are
-                                                how you find out — and how you leave the editor
-                                                without taking your hand off the mouse. */}
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    onClick={saveEdit}
-                                                    disabled={!isEditDirty}
-                                                    className="h-9 px-3 text-caption"
-                                                >
-                                                    {t('chat.editSave')}
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={cancelEdit}
-                                                    className="h-9 px-3 text-caption"
-                                                >
-                                                    {t('common.cancel')}
-                                                </Button>
-                                                <span
-                                                    id={`${key}-edit-hint`}
-                                                    className="text-micro text-muted-foreground"
-                                                >
-                                                    {t('chat.editHint')}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        // typo, and it takes the whole message column: a text
+                                        // field narrower than the message it replaces reads as a
+                                        // different thing.
+                                        <MessageEditor
+                                            initialContent={content}
+                                            mentionables={mentionables}
+                                            onSave={next => {
+                                                closeEditor();
+                                                if (message.id) editMessage(message.id, next);
+                                            }}
+                                            onCancel={closeEditor}
+                                        />
                                     ) : blocks ? (
                                         // Block Kit owns its own layout, so it replaces the <p>
                                         // rather than sitting inside one: a header or a divider
@@ -879,19 +843,16 @@ export const MessageRow = memo(
                                                             <>
                                                                 {/* No Edit on a Block Kit message, whichever way
                                                                     the blocks arrived. From `content` JSON, the
-                                                                    editor is a plain textarea and would hand back
-                                                                    the payload to edit by hand. From `blocks$`,
-                                                                    `content` is only the server's summary —
-                                                                    editing it would leave the card saying one
-                                                                    thing and the summary another, and the server
-                                                                    does not rebuild `blocks$` on update. Delete
-                                                                    still applies: the message can still be wrong. */}
+                                                                    editor would hand back the payload to edit by
+                                                                    hand. From `blocks$`, `content` is only the
+                                                                    server's summary — editing it would leave the
+                                                                    card saying one thing and the summary another,
+                                                                    and the server does not rebuild `blocks$` on
+                                                                    update. Delete still applies: the message can
+                                                                    still be wrong. */}
                                                                 {!blocks && (
                                                                     <DropdownMenuItem
-                                                                        onSelect={() => {
-                                                                            setDraft(content);
-                                                                            setEditingKey(key);
-                                                                        }}
+                                                                        onSelect={() => setEditingKey(key)}
                                                                     >
                                                                         <Pencil size={14} aria-hidden />
                                                                         {t('chat.edit')}

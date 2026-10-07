@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { $getRoot, $getSelection, $isRangeSelection, type LexicalEditor } from 'lexical';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -10,11 +11,12 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // The row's action controls reach for the chat repository and the active place at
 // module scope; neither is available outside the app shell. Nothing here asserts on
 // them — this file is about whether the list renders at all.
+const updateChat = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({
-                chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
+                chat: { updateChat, deleteChat: vi.fn(), setReaction: vi.fn() },
             }),
         },
         session: {
@@ -38,11 +40,14 @@ import '../../../../i18n';
 import { MessageList } from './MessageList';
 import { useSavedItemsStore } from '../../../shared';
 import type { ThreadMeta } from '../utils';
-import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
+import { MSG_MENTION_CLASS, WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 // jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
 // layout effect to land on the newest message.
 Element.prototype.scrollIntoView = vi.fn();
+// Nor does it lay out ranges: the editor scrolls a focused selection into view through one.
+Range.prototype.getBoundingClientRect = () => new DOMRect();
+Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 
 const VIEWER = { uid: 'me', name: 'Me', cloudUid: 'me-cloud' };
 
@@ -428,6 +433,98 @@ describe('MessageList', () => {
         clickRowMenuItem('Save for later');
 
         expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'see you at noon' });
+    });
+
+    describe('editing my message', () => {
+        beforeEach(() => {
+            updateChat.mockReset();
+            updateChat.mockResolvedValue({ id: 'C1:1', content: 'see you at noon!' });
+        });
+
+        // A thread panel renders the same list with no thread callbacks, so this is its surface too.
+        const renderMine = () =>
+            render(
+                <MessageList
+                    messages={[message(1, 'me', 'see you at noon')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                />,
+                { wrapper }
+            );
+        const editorBody = () =>
+            screen.getByRole('textbox', { name: 'Edit message' }) as HTMLElement & { __lexicalEditor?: LexicalEditor };
+        // The editor loads its document in a microtask; typing before that would land in an empty box.
+        const openEditor = async () => {
+            clickRowMenuItem('Edit message');
+            await act(async () => {
+                await Promise.resolve();
+            });
+        };
+        const typeAtEnd = (text: string) =>
+            act(() =>
+                editorBody().__lexicalEditor?.update(
+                    () => {
+                        $getRoot().selectEnd();
+                        const selection = $getSelection();
+                        if ($isRangeSelection(selection)) selection.insertText(text);
+                    },
+                    { discrete: true }
+                )
+            );
+
+        it('opens the editor in place of the text, with no hover toolbar and the hover band held', async () => {
+            const { container } = renderMine();
+            await openEditor();
+
+            expect(editorBody()).toBeDefined();
+            expect(screen.queryByLabelText('More actions')).toBeNull();
+            expect(container.querySelector('[data-roving-group]')?.classList.contains('bg-accent/70')).toBe(true);
+        });
+
+        it('shows a listed @name in the message as a chip when the editor opens', async () => {
+            render(
+                <MessageList
+                    messages={[message(1, 'me', 'ping @Ada')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    mentionables={[{ id: 'u-ada', name: 'Ada' }]}
+                />,
+                { wrapper }
+            );
+            await openEditor();
+
+            await waitFor(() => expect(editorBody().querySelector('[data-lexical-text]')).not.toBeNull());
+            const chip = within(editorBody()).getByText('@Ada');
+            expect(chip.className).toContain(MSG_MENTION_CLASS);
+        });
+
+        it('saves what was typed through the repository and hands focus back to the message', async () => {
+            renderMine();
+            await openEditor();
+
+            await typeAtEnd('!');
+            await act(async () => {
+                fireEvent.keyDown(editorBody(), { key: 'Enter', keyCode: 13 });
+            });
+
+            await waitFor(() => expect(updateChat).toHaveBeenCalledWith({ id: 'C1:1', content: 'see you at noon!' }));
+            expect(screen.queryByRole('textbox', { name: 'Edit message' })).toBeNull();
+            expect(document.activeElement).toBe(screen.getByRole('article'));
+        });
+
+        it('leaves the message alone and hands focus back on Escape', async () => {
+            renderMine();
+            await openEditor();
+            editorBody().focus();
+
+            fireEvent.keyDown(editorBody(), { key: 'Escape' });
+
+            expect(updateChat).not.toHaveBeenCalled();
+            expect(screen.queryByRole('textbox', { name: 'Edit message' })).toBeNull();
+            expect(document.activeElement).toBe(screen.getByRole('article'));
+        });
     });
 
     // The toolbar is drawn from what the row can do, so a row the server has not accepted has
