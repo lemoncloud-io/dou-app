@@ -236,6 +236,25 @@ describe('PlaceRail place delete', () => {
         });
     });
 
+    it('withdraws the question when its place leaves the rail, as a cloud change makes it', () => {
+        const props = {
+            selectedPlaceId: 'place-1',
+            unreadByPlace: {},
+            isDefaultMode: false,
+            onSelectPlace: vi.fn(),
+            canManagePlaces: true,
+            onDeletePlace: vi.fn().mockResolvedValue(undefined),
+        };
+        const { rerender } = render(<PlaceRail places={places} {...props} />, { wrapper });
+        askToDelete();
+        expect(confirmation()).not.toBeNull();
+
+        rerender(<PlaceRail places={[{ id: 'other', name: 'Other', cid: 'theirs' }] as DomainPlace[]} {...props} />);
+
+        expect(confirmation()).toBeNull();
+        expect(props.onDeletePlace).not.toHaveBeenCalled();
+    });
+
     it('locks the delete item with the tiles while a switch is in flight', () => {
         renderRail({ isSwitching: true });
         askToDelete();

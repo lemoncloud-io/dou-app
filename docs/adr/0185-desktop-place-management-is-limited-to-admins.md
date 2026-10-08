@@ -32,8 +32,10 @@ is the account's own and open); it replaces none of them.
 - **One rule for all three actions.** `canManagePlaces` is a pure function; the tile and the menu
   read the same answer.
 - **A development build adds two accounts by email**: the shared sign-ins the team uses on the
-  development server. The list is a constant beside the rule, applied only when `env.buildStage` is
-  `LOCAL` or `DEV`. `env.buildStage` is baked into the bundle and cannot be set from a page.
+  development server. The list is a constant beside the rule, applied only when the build's own stage
+  value (`VITE_ENV`) names `LOCAL` or `DEV`. It is baked into the bundle and cannot be set from a
+  page. The config registry's `env.buildStage` is not used for this: it reads a missing stage as
+  `LOCAL`, and a production build that lost the value would then open the list.
 - **It hides entries; it does not protect anything.** The server decides, and a refusal is shown in
   the dialog or toast of the action that was refused.
 

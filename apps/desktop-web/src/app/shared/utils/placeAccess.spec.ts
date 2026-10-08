@@ -1,12 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
-    buildStage: 'DEV' as string | undefined,
     relayUser: null as Record<string, unknown> | null,
-}));
-
-vi.mock('@chatic/config', () => ({
-    config: { get: (key: string) => (key === 'env.buildStage' ? state.buildStage : undefined) },
 }));
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -45,26 +40,28 @@ describe('canManagePlaces', () => {
 
 describe('readPlaceManageAccess', () => {
     beforeEach(() => {
-        state.buildStage = 'DEV';
+        vi.stubEnv('VITE_ENV', 'DEV');
         state.relayUser = null;
     });
+    afterEach(() => vi.unstubAllEnvs());
 
-    it.each(['LOCAL', 'DEV'])('lets a shared development sign-in through on a %s build', buildStage => {
-        state.buildStage = buildStage;
+    it.each(['LOCAL', 'DEV', 'dev'])('lets a shared development sign-in through on a %s build', buildStage => {
+        vi.stubEnv('VITE_ENV', buildStage);
         state.relayUser = { userRole: 'user', email: 'developer@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(true);
         state.relayUser = { userRole: 'user', email: 'app@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(true);
     });
 
-    it.each(['PROD', undefined])('ignores the email list when the build stage is %s', buildStage => {
-        state.buildStage = buildStage;
+    // An unset or misspelt stage is the case that matters: it must not read as a development build.
+    it.each(['PROD', '', 'STAGING'])('ignores the email list when the build stage is %j', buildStage => {
+        vi.stubEnv('VITE_ENV', buildStage);
         state.relayUser = { userRole: 'user', email: 'developer@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(false);
     });
 
     it('lets an admin through on a production build', () => {
-        state.buildStage = 'PROD';
+        vi.stubEnv('VITE_ENV', 'PROD');
         state.relayUser = { userRole: 'admin', email: 'someone@example.com' };
         expect(readPlaceManageAccess()).toBe(true);
     });

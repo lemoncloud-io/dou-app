@@ -1,4 +1,3 @@
-import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 
 /**
@@ -31,15 +30,24 @@ export const canManagePlaces = (
 };
 
 /**
+ * Whether the bundle was built for LOCAL or DEV, read from the raw build value and not from the
+ * config registry. The registry reads an unset or misspelt stage as LOCAL, which is the right
+ * default for a developer's machine and the wrong one here: a production build that lost its stage
+ * would open the email list. So the value has to name LOCAL or DEV itself.
+ */
+const isDevelopmentBuild = (): boolean => {
+    const stage = String(import.meta.env.VITE_ENV ?? '').toUpperCase();
+    return stage === 'LOCAL' || stage === 'DEV';
+};
+
+/**
  * {@link canManagePlaces} for the signed-in relay account. The email list applies on LOCAL and DEV
- * builds only, read off the stage baked into the bundle: a build whose stage is not known yet
- * gets the empty list, the same as production.
+ * builds only: a build whose stage is missing gets the empty list, the same as production.
  *
  * Read per call. The relay account is a synchronous read of the stored token, so a caller that
  * renders on session signals sees a sign-in or an account change without holding a copy.
  */
 export const readPlaceManageAccess = (): boolean => {
-    const buildStage = config.get<string>('env.buildStage');
-    const allowedEmails = buildStage === 'LOCAL' || buildStage === 'DEV' ? DEV_BUILD_MANAGER_EMAILS : [];
+    const allowedEmails = isDevelopmentBuild() ? DEV_BUILD_MANAGER_EMAILS : [];
     return canManagePlaces(runtime.session.getRelaySessionUser() as PlaceManagerAccount | null, allowedEmails);
 };

@@ -39,8 +39,9 @@ apart.
 - **A development build also lets the team's two shared sign-ins through**, by email
   (`developer@lemoncloud.io` and `app@lemoncloud.io`), so the feature can be exercised on the
   development server without an administrator account. The list is applied only when the stage baked
-  into the bundle (`env.buildStage`) is `LOCAL` or `DEV`. A production build never reads it, and
-  neither does a build whose stage is not known yet.
+  into the bundle (`VITE_ENV`) names `LOCAL` or `DEV`. A production build never reads it, and
+  neither does a build whose stage is missing: the value is read raw for that reason, since the
+  config registry takes a missing stage for `LOCAL`.
 
 An owner who is not an administrator sees no **New place** tile and no place menu on the desktop,
 and still makes places in the mobile app. The rule hides entries; it is not what protects a place.
@@ -148,4 +149,5 @@ page stops reading that name once the list is empty, so the cloud's direct messa
 for any cloud with no place, rather than the deleted place's cached channels.
 
 The menu is locked while a switch is in flight, with the tiles, since deleting the current place
-ends in a switch of its own.
+ends in a switch of its own. The confirmation is withdrawn when its place leaves the list, as a
+cloud change makes it: the id it holds belongs to the cloud it was opened in.

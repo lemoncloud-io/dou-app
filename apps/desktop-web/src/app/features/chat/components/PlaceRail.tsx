@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -201,6 +201,14 @@ export const PlaceRail = ({
     // close and a second click.
     const deleting = useRef(false);
 
+    // The confirmation names a place of the cloud it was opened in. When that place leaves the
+    // list (a cloud change replaces the list) the question no longer has a subject, and its id
+    // must not be sent to whichever cloud the session is in now.
+    const deleteTargetListed = !!deleteTarget && places.some(place => place.id === deleteTarget.id);
+    useEffect(() => {
+        if (confirmingDelete && !deleteTargetListed && !deleting.current) setConfirmingDelete(false);
+    }, [confirmingDelete, deleteTargetListed]);
+
     const askToDelete = (place: DomainPlace) => {
         setDeleteTarget(place);
         setConfirmingDelete(true);
@@ -209,7 +217,7 @@ export const PlaceRail = ({
     const runDelete = async () => {
         // A switch that began under the open confirmation locks it as it locks the menu: deleting
         // the place the session is in would start a second one.
-        if (!deleteTarget || !onDeletePlace || deleting.current || isSwitching) return;
+        if (!deleteTarget || !deleteTargetListed || !onDeletePlace || deleting.current || isSwitching) return;
         deleting.current = true;
         setIsDeleting(true);
         try {
