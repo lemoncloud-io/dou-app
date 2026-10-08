@@ -34,6 +34,7 @@ import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { RoomSkeleton } from '../components/RoomSkeleton';
+import { StackInRow } from '../components/StackInRow';
 import { channelKindOf, hasDmInviteFlow, profilePlaceOf, resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
@@ -1118,7 +1119,15 @@ export const ChannelRoomPage = () => {
                                                 return (
                                                     // The wrapper carries `data-chat-no` for the
                                                     // search jump (useMessageJump scrolls to it).
-                                                    <div key={message.id} data-chat-no={message.chatNo}>
+                                                    // Keyed by `tempId` first: a send swaps its
+                                                    // optimistic id for the server's, and a key
+                                                    // that changed with it would remount the row
+                                                    // and play its entrance a second time.
+                                                    <StackInRow
+                                                        key={message.tempId ?? message.id}
+                                                        data-chat-no={message.chatNo}
+                                                        enter={!!message.isPending && message.isOwner}
+                                                    >
                                                         <ChannelMessageRow
                                                             message={message}
                                                             showProfileAndName={showProfileAndName}
@@ -1169,7 +1178,7 @@ export const ChannelRoomPage = () => {
                                                                 message.chatNo ? () => openThread(message) : undefined
                                                             }
                                                         />
-                                                    </div>
+                                                    </StackInRow>
                                                 );
                                             })}
                                             <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />

@@ -78,6 +78,16 @@ jest.mock('../components/ChannelMessageRow', () => ({
     ),
 }));
 jest.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
+// Records each row wrapper's mount and whether it asked for the entrance, so a remount shows up
+// as a second entry.
+const mockStackInMounts: boolean[] = [];
+jest.mock('../hooks/useStackIn', () => ({
+    useStackIn: (_ref: unknown, enabled: boolean) => {
+        require('react').useEffect(() => {
+            mockStackInMounts.push(enabled);
+        }, []);
+    },
+}));
 jest.mock('../components/DmInviteFooter', () => ({ DmInviteFooter: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 jest.mock('../components/MessageDetailDialog', () => ({ MessageDetailDialog: () => null }));
@@ -185,6 +195,7 @@ beforeEach(() => {
     mockRetryMessage.mockReset().mockResolvedValue({ chatNo: 4 });
     mockDeleteMessage.mockReset().mockResolvedValue(undefined);
     mockUseJoinPositions.mockReset();
+    mockStackInMounts.length = 0;
     (toast as jest.Mock).mockClear();
 });
 
@@ -330,5 +341,31 @@ describe('ChannelRoomPage — photos', () => {
         fireEvent.click(screen.getByTestId('press-tmp-1'));
 
         expect(screen.queryByTestId('action-sheet')).not.toBeInTheDocument();
+    });
+});
+
+describe('ChannelRoomPage — a sent message stacking onto the list', () => {
+    const pendingRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> =>
+        failedRow({ id: 'optimistic-1', tempId: 'optimistic-1', isFailed: false, isPending: true, ...over });
+
+    it('plays the entrance for my pending row only', () => {
+        mockMessages = [
+            failedRow({ id: 'c0', isFailed: false, isOwner: false, timestamp: new Date(0) }),
+            pendingRow(),
+        ];
+        render(<ChannelRoomPage />);
+
+        expect([...mockStackInMounts].sort()).toEqual([false, true]);
+    });
+
+    it('keeps the same row when the server answer swaps the optimistic id, so the entrance plays once', () => {
+        mockMessages = [pendingRow()];
+        const { rerender } = render(<ChannelRoomPage />);
+
+        mockMessages = [pendingRow({ id: 'c1', chatNo: 1, isPending: false })];
+        rerender(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('retry-c1')).toBeInTheDocument();
+        expect(mockStackInMounts).toEqual([true]);
     });
 });
