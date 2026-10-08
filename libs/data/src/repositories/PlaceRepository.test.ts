@@ -366,4 +366,20 @@ describe('PlaceRepository — the scope an answer is written under', () => {
         // Neither written into, nor pruned against, the partition the session moved to.
         expect(await idsIn('cloud-b', 'other')).toEqual(['b-place']);
     });
+
+    it('takes back a photo the refused update added to a place that had none', async () => {
+        const context = new DataContextHolder({ cid: 'cloud-a', uid: 'me' });
+        const places = createPartitionedMemoryStorage('site');
+        await places.forScope({ cid: 'cloud-a', uid: 'me' }).save('place-1', { id: 'place-1', name: 'Design' } as any);
+        const socket = { updatePlace: jest.fn().mockRejectedValue(new Error('403 NOT ALLOWED')) };
+        const repository = new PlaceRepository(socket as any, new PlaceLocalDataSource(context, places), context);
+
+        await expect(
+            repository.updatePlace({ id: 'place-1', name: 'Studio', thumbnail: 'data:image/jpeg;base64,AAAA' } as any)
+        ).rejects.toThrow('403 NOT ALLOWED');
+
+        const row = await places.forScope({ cid: 'cloud-a', uid: 'me' }).load('place-1');
+        expect(row?.name).toBe('Design');
+        expect(row?.thumbnail).toBeUndefined();
+    });
 });

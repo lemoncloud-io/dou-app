@@ -142,7 +142,11 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
             return domain;
         } catch (error) {
             if (existing) {
-                await this.placeLocalDataSource.cacheWrite(existing, requestContext);
+                // The cache write merges into the stored row, so the old row alone would leave
+                // behind a field the patch added (a photo on a place that had none). Each patched
+                // field is cleared first, and the old row then puts back the ones it had.
+                const cleared = Object.fromEntries(Object.keys(normalized as object).map(key => [key, undefined]));
+                await this.placeLocalDataSource.cacheWrite({ ...cleared, ...existing }, requestContext);
             }
             throw error;
         }

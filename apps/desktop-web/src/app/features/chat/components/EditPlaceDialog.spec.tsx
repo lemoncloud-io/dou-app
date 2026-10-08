@@ -112,6 +112,11 @@ describe('EditPlaceDialog', () => {
         expect(saveButton().disabled).toBe(true);
     });
 
+    it('does not offer a save for a stored name that only carries spaces around it', () => {
+        render(<EditPlaceDialog places={[{ ...design, name: ' Design ' }]} />);
+        expect(saveButton().disabled).toBe(true);
+    });
+
     it('does not offer a save when the name only gained spaces', () => {
         render(<EditPlaceDialog places={places} />);
         typeName(' Design ');

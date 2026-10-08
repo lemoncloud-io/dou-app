@@ -20,7 +20,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useCreatePlace } from '../../../shared';
 import { useCreatePlaceDialogStore } from '../stores';
-import { createPlaceFailure, PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, type PlaceFailure } from '../utils';
+import { PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
 /**
  * `enter`: the place exists, and the switch into it is what failed. The two `image` ones are about
@@ -142,7 +142,7 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
                 setUnenteredPlaceId(placeId);
             } catch (error) {
                 // Classified before the check: that is where the failure is logged.
-                const reason = createPlaceFailure(error);
+                const reason = placeFailure(error, 'CreatePlace');
                 if (closed()) return;
                 setFailure(reason);
                 setSubmitting(false);

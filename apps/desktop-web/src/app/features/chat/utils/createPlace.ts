@@ -44,5 +44,3 @@ export const placeFailure = (error: unknown, action: 'CreatePlace' | 'EditPlace'
             return 'other';
     }
 };
-
-export const createPlaceFailure = (error: unknown): PlaceFailure => placeFailure(error, 'CreatePlace');

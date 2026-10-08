@@ -86,7 +86,8 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     }, [place?.id]);
 
     const trimmed = name.trim();
-    const nameChanged = !!place && trimmed !== (place.name ?? '');
+    // Against the trimmed stored name: one saved with spaces around it is not a change to send back.
+    const nameChanged = !!place && trimmed !== (place.name ?? '').trim();
     const photoChanged = !!place && thumbnail !== (place.thumbnail || undefined);
     const canSave = !!trimmed && (nameChanged || photoChanged) && !submitting && !encoding;
 
