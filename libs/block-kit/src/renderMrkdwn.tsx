@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, createContext, useContext, type ReactNode } from 'react';
 
 import { SLACK_MARKS, decodeSlackEntities, markPattern } from './blockKit';
 import { CollapsibleCode } from './CollapsibleCode';
@@ -25,16 +25,42 @@ const INLINE = new RegExp(
     'gu'
 );
 
+/**
+ * Where a press on a link goes, when the caller has somewhere better than the
+ * anchor's own default.
+ *
+ * An anchor's default is right in a browser tab and in desktop's Electron shell,
+ * which hands a `_blank` window to the OS. It is wrong in the mobile WebView:
+ * with no window to open, it loads the target into the app's own WebView, which
+ * replaces DoU with the linked page — no way back, and the session still
+ * attached. So a caller that knows how to leave the app passes that here, and a
+ * caller that does not leaves the default alone.
+ */
+export const BlockKitLinkContext = createContext<((url: string) => void) | undefined>(undefined);
+
+const BlockLink = ({ href, label }: { href: string; label: string }) => {
+    const onLinkClick = useContext(BlockKitLinkContext);
+    return (
+        <a
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-link underline-offset-2 hover:underline"
+            onClick={
+                onLinkClick &&
+                (event => {
+                    event.preventDefault();
+                    onLinkClick(href);
+                })
+            }
+        >
+            {label}
+        </a>
+    );
+};
+
 const linkTo = (href: string, label: string, key: string): ReactNode => (
-    <a
-        key={key}
-        href={href}
-        target="_blank"
-        rel="noreferrer noopener"
-        className="text-link underline-offset-2 hover:underline"
-    >
-        {label}
-    </a>
+    <BlockLink key={key} href={href} label={label} />
 );
 
 const renderInline = (text: string, keyBase: string): ReactNode[] => {
