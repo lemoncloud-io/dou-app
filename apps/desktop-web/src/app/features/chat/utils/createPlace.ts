@@ -6,6 +6,9 @@ import { classifyWireError, extractErrorMessage } from '../../../shared';
 /** The longest place name the form accepts, the same cap the mobile app applies. */
 export const PLACE_NAME_MAX = 20;
 
+/** The largest photo the form takes, checked before the file is read at all. */
+export const PLACE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
 /** How many places one cloud holds, the same cap the mobile app applies before it asks the server. */
 export const PLACE_MAX = 10;
 

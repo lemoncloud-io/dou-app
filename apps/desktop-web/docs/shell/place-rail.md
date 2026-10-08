@@ -27,8 +27,14 @@ A cloud holds up to 10 places (`PLACE_MAX`; a relay subscription row in the list
 At the cap the tile stays, and clicking it says so and points at the mobile app, where another
 cloud is made — a tile that disappeared would only raise the question of where it went.
 
-The tile opens `CreatePlaceDialog`, which asks for a name of up to 20 characters. Submitting does
-two things in order, and they can fail apart:
+The tile opens `CreatePlaceDialog`, which asks for a name of up to 20 characters and, optionally, a
+photo. A photo over 10 MB is refused before it is read; one that cannot be encoded is refused after.
+Either way the dialog says so and keeps whatever photo was picked before. While a photo is being
+read the submit waits, so a place is never made without the photo the form goes on to show. The
+photo is resized the way a profile photo is (`prepareImage` with `AVATAR_IMAGE`) and goes out as the
+place's thumbnail in the create call.
+
+Submitting does two things in order, and they can fail apart:
 
 1. **Create.** `useCreatePlace` asks the place repository to make the place. The repository writes
    the new row into the place cache before it answers, so the tile appears on the rail without a
@@ -39,12 +45,19 @@ two things in order, and they can fail apart:
    when it lands does the dialog close.
 
 If the switch fails, the place already exists. The dialog stays open, says the place was made but
-could not be opened, and locks the name field: the place already carries that name. Submitting
+could not be opened, and locks the name and photo: the place already carries them. Submitting
 again only retries the switch, so a retry never makes a second place. Closing the dialog at that
 point is fine too — the new tile is on the rail and can be clicked like any other.
 
 While either step runs, Escape, the close button and the backdrop do nothing, so a failure message
 always has someone to read it.
+
+Once the session is inside the new place, the dialog closes and the home page opens the place
+profile dialog (`EditPlaceProfileDialog`) for it — the name and photo the person goes by in that
+place. It opens only after the switch has landed, because a place profile is written into the place
+the session is in; opened earlier it would have edited the profile of the place being left. Unlike
+the mobile app, which holds the person on that step, it is the ordinary edit dialog and can be
+closed to keep the account profile.
 
 ### Why the switch goes through the rail's own hook
 

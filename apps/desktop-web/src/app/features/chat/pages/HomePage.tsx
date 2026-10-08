@@ -843,7 +843,7 @@ export const HomePage = () => {
                 }
             />
             <CreateChannelDialog onCreated={openCreatedChannel} />
-            <CreatePlaceDialog onEnter={enterPlace} />
+            <CreatePlaceDialog onEnter={enterPlace} onEntered={openEditPlaceProfile} />
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />
