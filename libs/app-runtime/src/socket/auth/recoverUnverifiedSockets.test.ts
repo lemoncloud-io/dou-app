@@ -1,8 +1,11 @@
 import { recoverUnverifiedSockets } from './recoverUnverifiedSockets';
+import { clearResumeKick, noteResumeKick } from './socketVerifyTrace';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import type { ISocketManager } from '../types';
 import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
+
+jest.mock('./socketVerifyTrace', () => ({ noteResumeKick: jest.fn(), clearResumeKick: jest.fn() }));
 
 const RELAY = RELAY_SLOT;
 const CLOUD = slotKeyOf('cloud-1');
@@ -122,6 +125,18 @@ describe('recoverUnverifiedSockets', () => {
 
         expect(order).toEqual(['relay:disconnect', 'relay:connect']);
         expect(relay.auth.register).not.toHaveBeenCalled();
+    });
+
+    it('marks the reconnect it forces as a resume, before closing the slot', async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { authState: 'failed' });
+        (noteResumeKick as jest.Mock).mockClear().mockImplementation(key => order.push(`resume:${key}`));
+
+        await recoverUnverifiedSockets({ manager: makeManager({ relay }), delegate: makeDelegate(null) });
+
+        expect(order).toEqual([`resume:${RELAY}`, 'relay:disconnect', 'relay:connect']);
+        // Cleared after the reconnect, so a mark that opened no attempt is not left for a later one.
+        expect(clearResumeKick).toHaveBeenCalledWith(RELAY);
     });
 
     it('skips verified slots and unbound slots', async () => {

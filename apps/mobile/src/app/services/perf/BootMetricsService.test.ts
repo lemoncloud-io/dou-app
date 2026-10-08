@@ -196,6 +196,56 @@ describe('BootMetricsService — Firebase boot trace', () => {
         expect(reloadId).not.toBe(coldId);
     });
 
+    it('records first_screen once, at the first reveal, with the WebAppReady stretch beside it', () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
+        const { service, advance } = createService();
+
+        advance(900);
+        service.mark('web-app-ready');
+        advance(350);
+        service.recordReveal('first-screen');
+        // Android re-arms the splash on a warm start: that reveal is not the launch.
+        advance(5000);
+        service.recordReveal('first-screen');
+
+        const firstScreen = backend.stop.mock.calls.map(([record]) => record).filter(r => r.name === 'first_screen');
+        expect(firstScreen).toHaveLength(1);
+        expect(firstScreen[0]).toMatchObject({
+            attributes: { boot_type: 'cold', reveal: 'first-screen' },
+            metrics: { value_ms: 1250, web_app_ready: 900 },
+        });
+    });
+
+    it('records first_screen without web_app_ready when the splash lifted before it, as on a load failure', () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
+        const { service, advance } = createService();
+
+        advance(4000);
+        service.recordReveal('load-error');
+
+        const [record] = backend.stop.mock.calls.map(([r]) => r).filter(r => r.name === 'first_screen');
+        expect(record.attributes).toMatchObject({ reveal: 'load-error' });
+        expect(record.metrics).toEqual({ value_ms: 4000 });
+    });
+
+    it('records a reload session its own first_screen, from the reload baseline', () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
+        const { service, advance } = createService();
+        service.recordReveal('first-screen');
+
+        advance(10_000);
+        service.startReloadSession();
+        advance(600);
+        service.recordReveal('first-screen');
+
+        const records = backend.stop.mock.calls.map(([r]) => r).filter(r => r.name === 'first_screen');
+        expect(records).toHaveLength(2);
+        expect(records[1]).toMatchObject({ attributes: { boot_type: 'reload' }, metrics: { value_ms: 600 } });
+    });
+
     it('leaves the trace of a session that never reached WebAppReady unstopped', async () => {
         const backend = createBackend();
         configurePerfTraces(backend);

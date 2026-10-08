@@ -3,6 +3,8 @@ import { useCallback, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChat, DomainJoin } from '@chatic/data';
 
+import { beginChatSendTrace } from '../../../runtime/perf';
+
 interface SendMessageInput {
     channelId: string;
     content: string;
@@ -77,7 +79,20 @@ export const useChatMutations = () => {
             return Promise.reject(new Error('channelId and content are required'));
         }
         setIsSending(true);
-        return runtime.data.sendChatInCloud(cid, payload).finally(() => setIsSending(false));
+        const trace = beginChatSendTrace({ reply: !!payload.parentId });
+        return runtime.data
+            .sendChatInCloud(cid, payload)
+            .then(
+                chat => {
+                    trace.end('ok');
+                    return chat;
+                },
+                error => {
+                    trace.end('error');
+                    throw error;
+                }
+            )
+            .finally(() => setIsSending(false));
     }, []);
 
     const readMessage = useCallback(

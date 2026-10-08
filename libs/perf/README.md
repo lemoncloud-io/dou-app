@@ -41,6 +41,7 @@ src/
   traceId.ts      createPerfTraceId
   sampling.ts     PERF_SAMPLE_PERCENT · hashRunId · isSampledRun (log fallback only)
   perfNow.ts      performance.now() where it exists, else Date.now()
+  pageHides.ts    pageHideCount · isPageHidden — drop a measurement the page was hidden during
   backends/
     LogPerfTraceBackend.ts       info/PERF log entries, sampled by run
     DeferredPerfTraceBackend.ts  holds calls until the destination is known
@@ -60,6 +61,9 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `chat_room_open` | the tap that opens a room                 | the room's first commit showing messages | none yet                       |
 | `chat_room_sync` | the same tap                              | the room showing its synced, latest page | none yet                       |
 | `bridge_request` | — a sample (see below)                    | —                                        | none yet                       |
+| `chat_send`      | the send of a text message                | the server's answer to it                | none yet                       |
+| `socket_verify`  | — a sample (see below)                    | —                                        | none yet                       |
+| `first_screen`   | — a sample (see below)                    | —                                        | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -118,8 +122,16 @@ makes the native half of the wait visible.
 A web vital is reported by the browser after the fact, so it cannot be timed by a start and a stop.
 `recordPerfSample('web_vitals', { attributes: { vital: 'lcp' }, metrics: { value_ms } })` records it
 as a zero-length trace carrying the value in a metric. For these traces, read `value_ms` in the
-console. The trace's own duration means nothing. `bridge_request` is the other sample: one bridge
-round trip, measured by the web's bridge client, read from its `rtt_ms` metric.
+console. The trace's own duration means nothing. The other samples:
+
+- `bridge_request` — one bridge round trip, measured by the web's bridge client, read from its
+  `rtt_ms` metric.
+- `socket_verify` — one socket connection from `connecting` to authenticated, measured in
+  `libs/app-runtime`. It is a sample rather than a start and a stop because the first connections
+  happen before the WebView knows where traces go, and a held start would reach Firebase late.
+- `first_screen` — the launch from the boot baseline to the moment the launch splash lifts,
+  measured by the native shell. The `boot` trace stops at WebAppReady, before the first screen has
+  painted, and its target is defined on that stop, so the later moment is recorded beside it.
 
 ### Traces several modules contribute to: the active trace
 
