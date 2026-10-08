@@ -12,10 +12,13 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel. Ten stay out of it and
-are imported by path from the components that use them: `useSendImages` (see [Writes](#writes)); the
+One hook per file under `features/channels/hooks/`, exported from one barrel. Twelve stay out of it
+and are imported by path from the components that use them: `useSendImages` (see [Writes](#writes)); the
 photo grid's three, `usePhotoPicker` and the two choices it remembers, `usePhotoGridColumns` and
-`usePhotoSendGrouping` (all from `ChatImageAttach`); and the six behind a message's attachments,
+`usePhotoSendGrouping`; the attach panel's two, `useKeyboardMemory`, which sizes it, and
+`useAttachPanelSlot`, which hands the place under the composer between it and the keyboard (all from
+`ChatImageAttach`, and the room and the thread take the composer's motion classes from the last); and
+the six behind a message's attachments,
 `useImageAddressRefresh`, `useCachedImages`, `useVideoFrames`, `useInView`, `useFileDownloads` and
 `useImageExports` ([image-send.md](./image-send.md), [image-export.md](./image-export.md)). They fall
 into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
@@ -23,7 +26,7 @@ into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMem
 mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
 `use*Mutations` write hooks, and `useSendImages`.
 
-38 hooks, 32 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which six have none:
+40 hooks, 34 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which six have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \

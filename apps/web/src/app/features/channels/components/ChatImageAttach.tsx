@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type ChangeEvent,
+    type ReactNode,
+    type RefObject,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { AttachmentPickSource } from '@chatic/app-messages';
@@ -15,12 +24,13 @@ import {
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     AlertDialog,
-    AttachMenuSheet,
+    AttachPanel,
     AttachSourceSheet,
     ComposerAttachButton,
     PhotoEditor,
     PhotoGridSheet,
     RecentPhotoStrip,
+    SelectedPhotoStrip,
     type CropAspect,
     type PhotoEdit,
     type PhotoEditorItem,
@@ -33,12 +43,16 @@ import {
     type AttachmentPick,
     type AttachmentPicker,
 } from '../../../bridge/attachmentPicker';
+import { useAttachPanelSlot } from '../hooks/useAttachPanelSlot';
 import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
 import { editsDiffer, usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
 import { usePhotoSendGrouping } from '../hooks/usePhotoSendGrouping';
 import { albumAccept, DOCUMENT_ACCEPT, isAppleTouchWebKit, rejectionKey } from '../utils/attachSources';
 
 const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
+
+/** One empty pick for the row above the field, so an idle composer hands it the same array each render. */
+const NO_PHOTOS: PhotoItem[] = [];
 
 /**
  * How long after a tap the page may still open its own file input. iOS WebKit lets `click()` open a
@@ -50,14 +64,19 @@ export const INPUT_CLICK_WINDOW_MS = 800;
 
 interface UseChatImageAttachInput {
     /**
-     * Sends the accepted files as one message, or with `separately` as one message each —
-     * `useSendImages().sendImages`.
+     * Sends the accepted files as one message, or with `separately` as one message each, with
+     * `content` as the caption — `useSendImages().sendImages`.
      */
     sendImages: (files: ChatAttachmentSource[], options?: runtime.data.SendImagesOptions) => Promise<void>;
     /** Same lock as the composer: nobody to send to, or a message being edited. */
     disabled?: boolean;
-    /** The composer's textarea, so opening the menu can drop the keyboard it would otherwise keep. */
+    /** The composer's textarea, so opening the panel can drop the keyboard it would otherwise keep. */
     inputRef?: RefObject<HTMLTextAreaElement | null>;
+    /**
+     * Hands back a caption that went nowhere: nothing in the pick it was sent with could be sent. The
+     * page cleared its field at the press, so it can put the text back.
+     */
+    onUnsentText?: (text: string) => void;
     /** Test seam — the in-app picker's state. */
     picker?: PhotoPicker;
     /** Test seam — the app's video and document picker. */
@@ -69,25 +88,74 @@ interface UseChatImageAttachInput {
 interface ChatImageAttach {
     /** For the composer's leading slot. */
     button: ReactNode;
-    /** The menu, the pickers and the hidden inputs — render once, anywhere in the page. */
+    /**
+     * The pick waiting for the composer's send button, as a row of small thumbnails — render it inside
+     * the composer, directly above its field, and keep rendering it: it is empty while there is
+     * nothing to show there (nothing is picked, the panel is open and its recent row shows the pick,
+     * or the composer is locked), and it needs to stay mounted to fold itself away. Null only where
+     * the in-app pick does not exist.
+     */
+    strip: ReactNode;
+    /**
+     * The panel, the pickers and the hidden inputs — render once, inside the page's positioned
+     * full-height container: the panel lays itself along that container's bottom edge.
+     */
     overlays: ReactNode;
+    /** Whether the attach panel is open, in the keyboard's place under the composer. */
+    panelOpen: boolean;
+    /**
+     * px the composer keeps clear at the bottom for the panel — its height and the safe area while it
+     * is in place, 0 once it is gone. The page pads the composer by the larger of this and
+     * `--keyboard-height`; the message list follows the composer. A panel the keyboard is taking over
+     * from stays in place, and keeps this, until the keyboard covers it.
+     */
+    composerInset: number;
+    /**
+     * Whether the composer should move to a new `composerInset` over the panel's slide
+     * (`COMPOSER_INSET_MOTION`) rather than at once. True only while the panel slides.
+     */
+    composerInsetAnimated: boolean;
+    /**
+     * Something is picked — in the open panel, or above the composer once it has closed: the composer's
+     * send button sends it, typed text or not.
+     */
+    sendReady: boolean;
+    /**
+     * Sends the pick with `text` as its caption, and closes the panel if it is open. False when there
+     * was nothing to send — the page then sends its text as usual.
+     */
+    sendPicked: (text: string) => boolean;
+    /**
+     * The composer's field took focus: the keyboard takes the panel's place (`useAttachPanelSlot`). The
+     * pick stays, in `strip`.
+     */
+    closePanel: () => void;
 }
 
 /**
- * The composer's attach flow: the button in the input, the menu it opens, and the pickers behind the
- * menu's entries. Picked files are judged here — format, size, a photo tapped twice, the per-message
- * limit — and what passes goes to `sendImages` at once: from the file inputs, the camera and the app's
- * own picker there is no tray and no confirmation, the pick IS the send.
+ * The composer's attach flow: the button in the input, the panel it opens in the keyboard's place, and
+ * the pickers behind the panel's entries. Picked files are judged here — format, size, a photo tapped
+ * twice, the per-message limit — and what passes goes to `sendImages` at once: from the file inputs,
+ * the camera and the app's own picker there is no tray and no confirmation, the pick IS the send.
  *
- * The in-app grid is the one place a pick waits for a send button, since it already had one. Before
- * it is pressed the picked photos can be cropped, turned and mirrored in a full-screen editor over the
- * pick, and the grid's checkbox chooses between one message for the whole pick (the default,
- * remembered per device) and one message each. Both are the grid's alone: every other path sends as
- * it always did.
+ * The in-app pick is the one that waits for a send button. The panel's recent row and the grid behind
+ * it pick into one list; while something is picked the composer's send button sends it, with whatever
+ * is typed as its caption, and the grid's own button sends it without one. Before either is pressed
+ * the picked photos can be cropped, turned and mirrored in a full-screen editor over the grid, and the
+ * grid's checkbox chooses between one message for the whole pick (the default, remembered per device)
+ * and one message each. All of it is the in-app pick's alone: every other path sends as it always did.
+ *
+ * The panel stands in for the keyboard: it opens at the last keyboard height seen, the composer stays
+ * above it, and focusing the field hands its place back to the keyboard — the two trade places without
+ * moving the composer (`useAttachPanelSlot`). That keeps the pick — the
+ * field is where a caption is typed — and the pick stays on screen: a row of small thumbnails directly
+ * above the composer's field (`strip`), where each can be removed or opened in the editor, and the
+ * send button stays live for it. Photos never wait out of sight for a button that would send them.
+ * × and Escape (Android back) dismiss the panel, and the pick with it.
  *
  * Two ways to pick photos, and the shell decides which:
- * - **The in-app grid**, in an app that has the photo-library bridge: recent photos in the menu, the
- *   full grid behind "see all" and behind the photos entry. Opening the menu asks the shell once for
+ * - **The in-app pick**, in an app that has the photo-library bridge: recent photos in the panel, the
+ *   full grid behind "see all" and behind the photos entry. Opening the panel asks the shell once for
  *   the newest photos, and that answer is how the page learns the bridge is there.
  * - **The page's own file input** everywhere else — a browser, and an app built before the bridge.
  *   The app's WebView hands a file input to the OS chooser (the profile and channel photo fields
@@ -96,7 +164,7 @@ interface ChatImageAttach {
  * The camera entry is a capturing file input in every shell: it opens the camera directly and needs
  * nothing from the app.
  *
- * The files entry opens a second sheet — choose from the album (photos and videos) or from files
+ * The files entry opens a sheet — choose from the album (photos and videos) or from files
  * (documents). In an app that has the attachment picker both open the OS pickers through the shell,
  * which keeps the videos and documents and hands back their addresses: a large video never passes
  * through the page. Everywhere else they open the page's own inputs, whose files the page uploads
@@ -107,12 +175,14 @@ export const useChatImageAttach = ({
     sendImages,
     disabled = false,
     inputRef,
+    onUnsentText,
     picker: injected,
     shellPicker = shellAttachmentPicker,
     now = Date.now,
 }: UseChatImageAttachInput): ChatImageAttach => {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const slot = useAttachPanelSlot(inputRef);
+    const { hide: hidePanel } = slot;
     const [permissionOpen, setPermissionOpen] = useState(false);
     const [sourceOpen, setSourceOpen] = useState(false);
     const libraryRef = useRef<HTMLInputElement>(null);
@@ -129,14 +199,17 @@ export const useChatImageAttach = ({
     const picker = injected ?? own;
     const inGrid = picker.supported === true;
     const grouping = usePhotoSendGrouping();
+    const panelOpen = slot.open && !disabled;
+    const sendReady = picker.picked.length > 0 && !picker.preparing && !disabled;
 
-    // The editor over the grid's pick. `editsAtOpen` is what ✕ goes back to: the edits made since the
-    // editor opened are the ones it throws away.
+    // The editor over the pick, opened from the grid or from the row above the composer. `editsAtOpen`
+    // is what ✕ goes back to: the edits made since the editor opened are the ones it throws away.
     const [editorOpen, setEditorOpen] = useState(false);
+    const [editorOver, setEditorOver] = useState<'grid' | 'composer'>('grid');
     const [editorIndex, setEditorIndex] = useState(0);
     const [discardOpen, setDiscardOpen] = useState(false);
     const editsAtOpen = useRef<ReadonlyMap<string, PhotoEdit>>(new Map());
-    const editorVisible = editorOpen && picker.gridOpen && !disabled;
+    const editorVisible = editorOpen && !disabled && (editorOver === 'composer' || picker.gridOpen);
     const editorAt = Math.min(editorIndex, Math.max(0, picker.picked.length - 1));
 
     /**
@@ -153,6 +226,7 @@ export const useChatImageAttach = ({
                 photosOnly = false,
                 editFailed = 0,
                 separately = false,
+                caption = '',
             }: {
                 refusedByShell?: AttachmentPick['refused'];
                 photosOnly?: boolean;
@@ -160,6 +234,8 @@ export const useChatImageAttach = ({
                 editFailed?: number;
                 /** The grid's "one message each". */
                 separately?: boolean;
+                /** What was typed when the composer's send button sent the pick. */
+                caption?: string;
             } = {}
         ) => {
             const { accepted, rejected }: ChatAttachmentJudgement<ChatAttachmentSource> = photosOnly
@@ -194,13 +270,20 @@ export const useChatImageAttach = ({
                 const [first] = rejected;
                 toast({ title: t(rejectionKey(first, first.item), { max: IMAGE_MESSAGE_SLOT_MAX }) });
             }
-            if (accepted.length === 0) return;
+            if (accepted.length === 0) {
+                // The caption's only way out was this pick; it goes back to the field instead.
+                if (caption) onUnsentText?.(caption);
+                return;
+            }
+            const options: runtime.data.SendImagesOptions = {};
             // A single item is the same message either way, so it goes exactly as any other pick does.
+            if (separately && accepted.length > 1) options.separately = true;
+            if (caption) options.content = caption;
             const sending =
-                separately && accepted.length > 1 ? sendImages(accepted, { separately: true }) : sendImages(accepted);
+                options.separately || options.content ? sendImages(accepted, options) : sendImages(accepted);
             sending.catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
         },
-        [sendImages, t]
+        [sendImages, onUnsentText, t]
     );
 
     const pickedFrom = useCallback(
@@ -215,21 +298,38 @@ export const useChatImageAttach = ({
     const handlePhotosPicked = pickedFrom(true);
     const handleAttachmentsPicked = pickedFrom(false);
 
-    const openMenu = () => {
-        // The composer keeps the caret through taps on its own chrome, this button included — so the
-        // keyboard stays up unless it is dropped here, and the sheet would open under it.
-        inputRef?.current?.blur();
-        const opening = !open;
-        setOpen(opening);
-        // Asked on every open, not once: the library changes while the app is away, and the answer
-        // is also how an unknown shell is learned.
-        if (opening && picker.supported !== false) void picker.probe();
+    // A lock that lands while the panel is up (a message being edited) closes it, rather than leaving
+    // it to come back when the lock lifts. Before paint, so the panel and the composer leave together.
+    useLayoutEffect(() => {
+        if (disabled) hidePanel();
+    }, [disabled, hidePanel]);
+
+    /** × and Escape: the person is done attaching, so the pick goes too. */
+    const dismissPanel = () => {
+        hidePanel();
+        picker.clearPicked();
     };
 
-    // Close first, then open the picker: the OS chooser covers the page, and a sheet still open
-    // behind it is what the user comes back to otherwise.
+    const togglePanel = () => {
+        if (panelOpen) {
+            dismissPanel();
+            return;
+        }
+        // Before the blur below: whether the keyboard is up decides how the panel arrives.
+        slot.show();
+        // The composer keeps the caret through taps on its own chrome, this button included — so the
+        // keyboard stays up unless it is dropped here. With it up, the panel is already in place behind
+        // it, and the keyboard sliding away is what reveals it.
+        inputRef?.current?.blur();
+        // Asked on every open, not once: the library changes while the app is away, and the answer
+        // is also how an unknown shell is learned.
+        if (picker.supported !== false) void picker.probe();
+    };
+
+    // Close first, then open the picker: the OS chooser covers the page, and what it picks is sent at
+    // once — the panel has nothing left to do. The panel's own pick stays for its next opening.
     const pickFrom = (ref: RefObject<HTMLInputElement | null>) => () => {
-        setOpen(false);
+        hidePanel();
         ref.current?.click();
     };
 
@@ -262,41 +362,68 @@ export const useChatImageAttach = ({
     };
 
     const openSources = () => {
-        setOpen(false);
+        hidePanel();
         setSourceOpen(true);
     };
 
-    const openGrid = (preselect?: { id: string; src: string }) => {
-        setOpen(false);
+    // The grid opens over the panel and closes back onto it, on the same pick.
+    const openGrid = () => {
         if (picker.access === 'denied') {
             setPermissionOpen(true);
             return;
         }
-        picker.openGrid(preselect);
+        picker.openGrid();
+    };
+
+    const toggleRecent = (id: string) => {
+        const photo = picker.recent.find(item => item.id === id);
+        if (photo) picker.toggle(photo);
     };
 
     // Judged like any pick, since the grid now lists videos too; what the shell would not keep is
     // reported the way its own picker's refusals are. The grouping is read at the press: what the box
-    // says then is what the person chose.
-    const sendPicked = () => {
+    // says then is what the person chose. Whichever button sent it, the panel the pick lives in closes.
+    const sendPick = (caption = '') => {
         if (picker.preparing) return;
         const separately = !grouping.grouped;
+        hidePanel();
         picker
             .takePicked()
             .then(picked =>
-                send(picked.items, { refusedByShell: picked.refused, editFailed: picked.editFailed, separately })
+                send(picked.items, {
+                    refusedByShell: picked.refused,
+                    editFailed: picked.editFailed,
+                    separately,
+                    caption,
+                })
             )
-            .catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
+            .catch(() => {
+                toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' });
+                if (caption) onUnsentText?.(caption);
+            });
+    };
+
+    // The composer's send button, with the field's text as the caption — from the open panel or from
+    // the row above the composer alike. The grid's and the editor's buttons send the photos alone and
+    // leave the text where it is.
+    const sendPicked = (text: string): boolean => {
+        if (!sendReady) return false;
+        sendPick(text.trim());
+        return true;
     };
 
     /** A video, and a photo read and found to be a GIF, are shown in the editor but not edited. */
     const isEditable = (item: PhotoItem) => item.kind !== 'video' && picker.editAssets.get(item.id)?.editable !== false;
 
-    /** Opens the editor at a tapped strip photo, or — from the Edit button — at the first editable one. */
-    const openEditor = (id?: string) => {
+    /**
+     * Opens the editor at a tapped strip photo, or — from the grid's Edit button — at the first editable
+     * one. `over` is where it closes back to: the grid, or the composer and the row above its field.
+     */
+    const openEditor = (over: 'grid' | 'composer', id?: string) => {
         if (picker.preparing || picker.picked.length === 0) return;
         const at =
             id !== undefined ? picker.picked.findIndex(item => item.id === id) : picker.picked.findIndex(isEditable);
+        setEditorOver(over);
         setEditorIndex(Math.max(0, at));
         editsAtOpen.current = picker.edits;
         setDiscardOpen(false);
@@ -308,28 +435,36 @@ export const useChatImageAttach = ({
         setDiscardOpen(false);
     };
 
+    // "완료" and ✕ go back to where the editor was opened. Over the composer, the bytes it read go as it
+    // closes, as they go when the grid closes: the pick waits there for as long as a caption takes.
+    const leaveEditor = () => {
+        closeEditor();
+        if (editorOver === 'composer') picker.releaseBytes();
+    };
+
     // ✕ keeps nothing made since the editor opened, so it asks first — but only when that is something.
     const cancelEditor = () => {
         if (editsDiffer(editsAtOpen.current, picker.edits)) setDiscardOpen(true);
-        else closeEditor();
+        else leaveEditor();
     };
 
     const discardEdits = () => {
         picker.restoreEdits(editsAtOpen.current);
-        closeEditor();
+        leaveEditor();
     };
 
-    // The editor's send is the grid's: the editor closes onto the grid, which says it is preparing.
+    // The editor's send is the grid's: opened over the grid it closes onto it, which says it is
+    // preparing; opened over the composer, the row there says so. The bytes it read go to the send.
     const sendFromEditor = () => {
         closeEditor();
-        sendPicked();
+        sendPick();
     };
 
-    // The editor lives on the grid: once the grid has gone — a send finished, the sheet was closed —
-    // there is nothing for it to show.
+    // An editor opened over the grid lives on it: once the grid has gone — a send finished, the sheet
+    // was closed — there is nothing for it to show. One opened over the composer has no grid under it.
     useEffect(() => {
-        if (!picker.gridOpen) closeEditor();
-    }, [picker.gridOpen]);
+        if (!picker.gridOpen && editorOver === 'grid') closeEditor();
+    }, [picker.gridOpen, editorOver]);
 
     // The photo on screen is read first, then the ones either side, so a swipe usually lands on one
     // that is ready. Asking again for what is read or on its way costs nothing. Once the editor closes,
@@ -349,10 +484,10 @@ export const useChatImageAttach = ({
 
     const button = (
         <ComposerAttachButton
-            open={open}
-            onClick={openMenu}
+            open={panelOpen}
+            onClick={togglePanel}
             disabled={disabled}
-            label={open ? t('chat.attach.close') : t('chat.attach.open')}
+            label={panelOpen ? t('chat.attach.close') : t('chat.attach.open')}
         />
     );
 
@@ -361,13 +496,52 @@ export const useChatImageAttach = ({
             <RecentPhotoStrip
                 title={t('chat.attach.recentTitle')}
                 seeAllLabel={t('chat.attach.seeAll')}
-                onSeeAll={() => openGrid()}
+                onSeeAll={openGrid}
                 photos={picker.recent}
-                onSelect={id => openGrid(picker.recent.find(p => p.id === id))}
+                picked={picker.picked.map(item => item.id)}
+                onToggle={toggleRecent}
+                max={IMAGE_MESSAGE_SLOT_MAX}
                 photoLabel={position => t('chat.attach.recentPhoto', { position })}
                 videoLabel={position => t('chat.attach.recentVideo', { position })}
             />
         ) : undefined;
+
+    // The pick above the composer while the panel is closed — closed for the keyboard, most often:
+    // still on screen, still the send button's. While the panel is open its recent row shows the pick.
+    const removePicked = (id: string) => {
+        const item = picker.picked.find(photo => photo.id === id);
+        if (item) picker.toggle(item);
+    };
+    const stripShown = !panelOpen && !disabled && picker.picked.length > 0;
+    // Mounted whenever the in-app pick exists, and handed an empty pick while there is nothing to show:
+    // the row folds itself away, which it can only do while it is still here. The 8px between it and
+    // the field is the row's own margin, inside what it opens and closes, so the composer grows and
+    // shrinks in one movement — the same space on this wrapper would move on a timing of its own.
+    const strip = inGrid ? (
+        <div
+            // The field keeps the caret through a tap on the row, as it does through the composer's own
+            // chrome: removing a photo while typing its caption must not drop the keyboard and the
+            // composer with it. `mousedown` too — on iOS WebKit the focus moves there.
+            onPointerDown={event => event.preventDefault()}
+            onMouseDown={event => event.preventDefault()}
+            // While the send reads the pick the row stays, faded and inert: the field has already
+            // cleared, and a video coming down from iCloud can take a while to become a message.
+            aria-busy={(stripShown && picker.preparing) || undefined}
+            className={`transition-opacity${picker.preparing ? ' pointer-events-none opacity-50' : ''}`}
+        >
+            <SelectedPhotoStrip
+                size="compact"
+                className="mb-2"
+                label={t('chat.attach.pickedTitle')}
+                photos={stripShown ? picker.picked : NO_PHOTOS}
+                onRemove={removePicked}
+                onSelect={id => openEditor('composer', id)}
+                removeLabel={position => t('chat.attach.removePicked', { position })}
+                selectLabel={position => t('chat.attach.edit.select', { position })}
+                editedLabel={t('chat.attach.edit.edited')}
+            />
+        </div>
+    ) : null;
 
     const limitedNotice =
         picker.access === 'limited' ? (
@@ -453,15 +627,23 @@ export const useChatImageAttach = ({
                 onChange={handlePhotosPicked}
                 data-testid="chat-attach-camera"
             />
-            <AttachMenuSheet
-                open={open && !disabled}
-                onOpenChange={setOpen}
-                title={t('chat.attach.menuTitle')}
+            <AttachPanel
+                open={slot.panel.open}
+                height={slot.panel.height}
+                enter={slot.panel.enter}
+                exit={slot.panel.exit}
+                onTransitionEnd={slot.panel.onTransitionEnd}
                 recent={recent}
-                onPhoto={inGrid ? () => openGrid() : pickFrom(libraryRef)}
+                onPhoto={inGrid ? openGrid : pickFrom(libraryRef)}
                 onCamera={pickFrom(cameraRef)}
                 onFile={openSources}
-                labels={{ photo: t('chat.attach.photo'), camera: t('chat.attach.camera'), file: t('chat.attach.file') }}
+                onClose={dismissPanel}
+                labels={{
+                    title: t('chat.attach.menuTitle'),
+                    photo: t('chat.attach.photo'),
+                    camera: t('chat.attach.camera'),
+                    file: t('chat.attach.file'),
+                }}
             />
             <AttachSourceSheet
                 open={sourceOpen && !disabled}
@@ -501,12 +683,13 @@ export const useChatImageAttach = ({
                     max={IMAGE_MESSAGE_SLOT_MAX}
                     onCamera={() => {
                         picker.closeGrid();
+                        hidePanel();
                         cameraRef.current?.click();
                     }}
                     sendLabel={sendLabel}
                     sending={picker.preparing}
-                    onSend={sendPicked}
-                    onEdit={openEditor}
+                    onSend={() => sendPick()}
+                    onEdit={id => openEditor('grid', id)}
                     editDisabled={picker.preparing || !picker.picked.some(isEditable)}
                     grouped={grouping.grouped}
                     onGroupedChange={grouping.setGrouped}
@@ -532,7 +715,7 @@ export const useChatImageAttach = ({
                     onIndexChange={setEditorIndex}
                     onEditChange={picker.setEdit}
                     onCancel={cancelEditor}
-                    onDone={closeEditor}
+                    onDone={leaveEditor}
                     onSend={sendFromEditor}
                     sendLabel={sendLabel}
                     sending={picker.preparing}
@@ -580,5 +763,15 @@ export const useChatImageAttach = ({
         </>
     );
 
-    return { button, overlays };
+    return {
+        button,
+        strip,
+        overlays,
+        panelOpen,
+        composerInset: slot.composerInset,
+        composerInsetAnimated: slot.composerInsetAnimated,
+        sendReady,
+        sendPicked,
+        closePanel: slot.handOver,
+    };
 };

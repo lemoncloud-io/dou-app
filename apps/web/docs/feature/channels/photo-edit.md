@@ -10,18 +10,25 @@
 > `EditedPhotoImage` and `photoEdit.ts` in `libs/web-ui-kit/src/composites/media/`. How the grid
 > lists, picks and sends is in [image-send.md](./image-send.md).
 
-Only the in-app grid (`PhotoGridSheet`, in an app with the photo-library bridge) edits. The page's
-file inputs, the camera and the app's own picker still send what was picked at once, and so does a
-browser; desktop-web has its own tray and is unchanged. The grid is the one place a pick already
+Only the in-app pick (in an app with the photo-library bridge) edits: the grid (`PhotoGridSheet`), and
+the attach panel's recent row, which picks into the grid's list. The editor opens over the grid, or —
+once the panel has closed and the pick waits above the composer's field — over the composer, from
+that row of thumbnails. The page's file
+inputs, the camera and the app's own picker still send what was picked at once, and so does a
+browser; desktop-web has its own tray and is unchanged. The in-app pick is the one that already
 waited for a send button, so editing fits there without adding a step anywhere else.
 
 ## Opening it
 
 - **"편집"** in the grid's footer opens the editor at the first picked item that can be edited.
-- **A tap on a thumbnail** in the picked strip opens it at that item.
+- **A tap on a thumbnail** in the grid's picked strip opens it at that item.
+- **A tap on a thumbnail** in the row above the composer's field opens it at that item, with no grid
+  under it ([image-send.md](./image-send.md#picking--usechatimageattach)). It closes back onto the
+  composer. The editor takes the focus as it opens, so a keyboard up for a caption goes down behind it
+  and does not come back up as it closes.
 
-"편집" is greyed when nothing picked can be edited — only videos, or GIFs already read (below). Both
-are shut while the grid is reading the pick for a send.
+"편집" is greyed when nothing picked can be edited — only videos, or GIFs already read (below). All
+three are shut while the pick is being read for a send.
 
 ## The screen
 
@@ -36,11 +43,11 @@ The count and the strip show only when two or more items are picked, as in the i
 
 What the three exits do:
 
-| Exit                                                 | What happens                                                                                                                                                                   |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ✕ (and Escape or Android back outside the crop tool) | Back to the grid without the edits made since the editor opened. When there are any, a dialog asks first — "편집을 취소할까요?", "계속 편집" / "편집 취소"                     |
-| "완료"                                               | Back to the grid with the edits kept                                                                                                                                           |
-| The send button                                      | The editor closes onto the grid and the grid's own send runs, as one message or one each by the grid's checkbox ([image-send.md](./image-send.md#picking--usechatimageattach)) |
+| Exit                                                 | What happens                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✕ (and Escape or Android back outside the crop tool) | Back to where it was opened — the grid or the composer — without the edits made since the editor opened. When there are any, a dialog asks first — "편집을 취소할까요?", "계속 편집" / "편집 취소"                                                                                                                                           |
+| "완료"                                               | Back to where it was opened, with the edits kept                                                                                                                                                                                                                                                                                             |
+| The send button                                      | The editor closes — onto the grid, which says it is preparing, or onto the composer, whose row fades meanwhile — and the pick is sent as the grid's button sends it, as one message or one each by the grid's checkbox ([image-send.md](./image-send.md#picking--usechatimageattach)). The photos go alone: text in the composer stays there |
 
 "Made since the editor opened" is a comparison of the edits then and now (`editsDiffer`), so an edit
 made and then undone leaves nothing to ask about. Cancelling puts back the edits the editor opened
@@ -73,10 +80,13 @@ already applied, and keep the crop on the same part of the photo.
 
 Edits live in `usePhotoPicker`, by photo id, for as long as the pick does. An edit that changes nothing
 — the preset alone does not count — is forgotten, so "원본으로" then "적용" sends the original. Unpicking
-a photo drops its edit without a word, and nothing is kept once the grid closes.
+a photo drops its edit without a word. The pick outlives the grid: closing the grid goes back to the
+attach panel with the pick and its edits, the row above the field shows them once the panel closes,
+and the composer's send button sends the photos as edited, with the typed text as their caption.
+Dismissing the panel (× or back) lets the edits go with the pick.
 
-An edited photo's thumbnail in the picked strip is drawn with its edit, filling its square, with a
-small pencil mark ("편집됨" to a screen reader).
+An edited photo's thumbnail in a picked strip — the grid's, and the row above the composer — is drawn
+with its edit, filling its square, with a small pencil mark ("편집됨" to a screen reader).
 
 ## Reading the photo for the editor
 
@@ -95,8 +105,12 @@ that is ready.
 - **A read cannot be called back.** One that lands after its photo was unpicked, or after the pick was
   let go, is dropped. A photo picked again in a new pick while an earlier pick's read of it is still out
   is read again, once that read is over, since reads stay one at a time.
-- **What is read is kept for the send.** The send uses the same bytes and does not read the photo
-  again. It waits for an editor read only when that read is for a photo in the pick, and then uses its
+- **What is read is kept for the send — while the grid is open.** The send uses the same bytes and
+  does not read the photo again. Closing the grid lets the bytes go: the pick may then wait under the
+  composer for as long as a caption takes to type, and ten photos' bytes are some 50 MB. An editor
+  opened from the row above the composer lets them go as it closes with "완료" or ✕, for the same
+  reason (`releaseBytes`); its own send button uses them. A send from the composer reads them again;
+  the editor's copies and the edits stay, so the strips show the photos as edited. It waits for an editor read only when that read is for a photo in the pick, and then uses its
   bytes, so each photo is still read once. It does not wait for a read of a photo unpicked since, which
   is dropped when it lands and can take up to the read's two-minute timeout for an original kept only
   in iCloud; meanwhile the page can hold that read's base64 beside the send's own. Nor does it wait
@@ -112,8 +126,8 @@ and the copy is only ever shown in the page. A GIF's copy is the GIF itself, so 
 strip's edited thumbnail draws from the same copy.
 
 Everything read for a photo — its bytes, its copy's object URL, its edit — is let go when it is
-unpicked; everything read for the pick when the pick is sent, when it is cleared, and when the grid
-closes.
+unpicked; everything read for the pick when the pick is sent and when it is cleared (the panel
+dismissed); the bytes alone when the grid closes, and when an editor opened over the composer closes.
 
 ## The edit is drawn at the send
 
@@ -173,3 +187,7 @@ jsdom decodes nothing and has no canvas, so the drawing itself is checked agains
 - Pick a 24 MP photo (an iPhone 15 or later at its default), rotate it, send it: it arrives at about
   16.7 MP, not blank.
 - Swipe through ten picked photos in the editor: the WebView stays up, and each shows within a read.
+- Pick two photos in the attach panel's recent row, open "전체 보기", crop one, close the grid, type a
+  caption and press the composer's send: one message with the cropped photo, the other and the text.
+- Pick two photos in the recent row and tap the field: both wait above it. Tap one, crop it, "완료":
+  the keyboard stays down and the row shows the crop; type a caption and send.

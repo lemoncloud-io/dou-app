@@ -15,6 +15,7 @@ import {
     PAGE_SIZE,
     pageAhead,
     pageToLoad,
+    RECENT_COUNT,
     usePhotoPicker,
     type PickedFromGrid,
 } from './usePhotoPicker';
@@ -86,28 +87,58 @@ describe('usePhotoPicker', () => {
         expect(result.current.recent).toEqual([]);
     });
 
-    it('probes for the four newest photos to preview in the menu', async () => {
+    it('probes for the thirty newest items to pick from in the panel', async () => {
         const library = fakeLibrary({ photos: jest.fn().mockResolvedValue(page(['a', 'b', 'c', 'd'])) });
         const { result } = setup(library);
 
         await act(() => result.current.probe());
 
-        expect(library.photos).toHaveBeenCalledWith({ limit: 4, thumbSize: expect.any(Number) });
+        expect(RECENT_COUNT).toBe(30);
+        expect(library.photos).toHaveBeenCalledWith({ limit: 30, thumbSize: expect.any(Number) });
         expect(result.current.supported).toBe(true);
         expect(result.current.recent.map(p => p.id)).toEqual(['a', 'b', 'c', 'd']);
         expect(result.current.recent[0].src).toBe('data:a');
     });
 
-    it('opens the grid with a strip photo already picked and loads the first page and the albums', async () => {
+    // The panel's recent row and the grid pick into one list: "see all" opens the grid on it.
+    it('opens the grid on the pick already made in the panel, and loads the first page and the albums', async () => {
         const library = fakeLibrary();
         const { result } = setup(library);
+        await act(() => result.current.probe());
+        act(() => result.current.toggle(result.current.recent[1]));
 
-        act(() => result.current.openGrid({ id: 'b', src: 'data:b' }));
+        act(() => result.current.openGrid());
 
         await waitFor(() => expect(gridIds(result.current)).toEqual(['a', 'b', 'c']));
         expect(result.current.gridOpen).toBe(true);
-        expect(result.current.picked.map(p => p.id)).toEqual(['b']);
+        expect(result.current.picked).toEqual([{ id: 'b', src: 'data:b' }]);
         await waitFor(() => expect(result.current.albums).toHaveLength(1));
+        // Picked on in the grid, after it in order.
+        act(() => result.current.toggle({ id: 'c', src: 'data:c' }));
+        expect(result.current.picked.map(p => p.id)).toEqual(['b', 'c']);
+    });
+
+    it('goes back to the panel with the pick when the grid closes, and opens on it again', () => {
+        const { result } = setup(fakeLibrary());
+        act(() => result.current.openGrid());
+        act(() => result.current.toggle({ id: 'a', src: 'data:a' }));
+
+        act(() => result.current.closeGrid());
+        expect(result.current.gridOpen).toBe(false);
+        expect(result.current.picked.map(p => p.id)).toEqual(['a']);
+
+        act(() => result.current.openGrid());
+        expect(result.current.picked.map(p => p.id)).toEqual(['a']);
+    });
+
+    it('lets the whole pick go when it is cleared', () => {
+        const { result } = setup(fakeLibrary());
+        act(() => result.current.toggle({ id: 'a', src: 'data:a' }));
+        act(() => result.current.toggle({ id: 'b', src: 'data:b' }));
+
+        act(() => result.current.clearPicked());
+
+        expect(result.current.picked).toEqual([]);
     });
 
     it('keeps pick order and stops at the cap', () => {
@@ -279,7 +310,8 @@ describe('usePhotoPicker', () => {
             .mockResolvedValueOnce(page(['fav1']));
         const { result } = setup(fakeLibrary({ photos }));
 
-        act(() => result.current.openGrid({ id: 'x', src: '' }));
+        act(() => result.current.toggle({ id: 'x', src: '' }));
+        act(() => result.current.openGrid());
         await waitFor(() => expect(result.current.albums).toHaveLength(1));
         act(() => result.current.selectAlbum('all'));
         await waitFor(() => expect(gridIds(result.current)).toEqual(['fav1']));
@@ -677,6 +709,7 @@ describe('usePhotoPicker', () => {
         // Frozen meanwhile: a pick changed now would be cleared, unsent, when the read ends.
         act(() => result.current.toggle({ id: 'p', src: '' }));
         act(() => result.current.closeGrid());
+        act(() => result.current.clearPicked());
         expect(result.current.picked.map(p => p.id)).toEqual(['v']);
         expect(result.current.gridOpen).toBe(true);
 
@@ -1145,7 +1178,7 @@ describe('usePhotoPicker — editing before the send', () => {
         const { result } = setupEditing(fakeLibrary({ read: reads.read }));
         pickAll(result, [{ id: 'a' }]);
         act(() => result.current.loadForEdit('a'));
-        act(() => result.current.closeGrid());
+        act(() => result.current.clearPicked());
         pickAll(result, [{ id: 'a' }]);
 
         act(() => result.current.loadForEdit('a'));
@@ -1157,7 +1190,7 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(rendition).toHaveBeenCalledTimes(1);
     });
 
-    it('lets go of everything read for the pick when the grid closes', async () => {
+    it('lets go of everything read for the pick when it is cleared', async () => {
         const reads = heldReads();
         const { result } = setupEditing(fakeLibrary({ read: reads.read }));
         pickAll(result, [{ id: 'a' }, { id: 'b' }]);
@@ -1166,7 +1199,7 @@ describe('usePhotoPicker — editing before the send', () => {
         await waitFor(() => expect(result.current.editAssets.get('a')?.status).toBe('ready'));
         act(() => result.current.setEdit('a', turned));
 
-        act(() => result.current.closeGrid());
+        act(() => result.current.clearPicked());
         // `b` was on its way; it lands for a pick that is gone.
         await reads.land('b');
         await act(async () => undefined);
@@ -1175,6 +1208,107 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(result.current.editAssets.size).toBe(0);
         expect(result.current.edits.size).toBe(0);
         expect(rendition).toHaveBeenCalledTimes(1);
+    });
+
+    // The pick goes back to the panel, where the composer's send can still send it as edited.
+    it('keeps the pick, its edits and copies when the grid closes, and reads the photos again at the send', async () => {
+        const reads = heldReads();
+        const { result } = setupEditing(fakeLibrary({ read: reads.read }));
+        pickAll(result, [{ id: 'a' }, { id: 'b' }]);
+        act(() => result.current.loadForEdit('a'));
+        await reads.land('a');
+        await waitFor(() => expect(result.current.editAssets.get('a')?.status).toBe('ready'));
+        act(() => result.current.setEdit('a', turned));
+
+        act(() => result.current.closeGrid());
+
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+        expect(result.current.picked.map(p => p.id)).toEqual(['a', 'b']);
+        expect([...result.current.edits]).toEqual([['a', turned]]);
+        expect(result.current.editAssets.get('a')?.status).toBe('ready');
+        expect(result.current.picked[0].edited?.edit).toEqual(turned);
+        expect(reads.read).toHaveBeenCalledTimes(1);
+
+        let taking: Promise<PickedFromGrid> = Promise.resolve({ items: [], refused: [] });
+        act(() => {
+            taking = result.current.takePicked();
+        });
+        // The bytes went with the grid: `a` is read again, then `b`, and `a` is drawn with its edit.
+        await waitFor(() => expect(reads.read).toHaveBeenCalledTimes(2));
+        expect(reads.read).toHaveBeenLastCalledWith({ id: 'a', src: 'data:a' });
+        await reads.land('a');
+        await waitFor(() => expect(reads.read).toHaveBeenCalledTimes(3));
+        await reads.land('b');
+        let picked: PickedFromGrid = { items: [], refused: [] };
+        await act(async () => {
+            picked = await taking;
+        });
+
+        expect(bake).toHaveBeenCalledWith(expect.objectContaining({ name: 'a.jpg' }), turned);
+        expect(picked.items.map(item => item.name)).toEqual(['a-edit.jpg', 'b.jpg']);
+    });
+
+    // An editor opened from the composer's row, with the grid closed, reads as the grid's does; the
+    // bytes then go as it closes, and the pick waits on as edited.
+    it('reads for an editor with the grid closed, and lets only the bytes go when they are released', async () => {
+        const reads = heldReads();
+        const { result } = setupEditing(fakeLibrary({ read: reads.read }));
+        pickAll(result, [{ id: 'a' }, { id: 'b' }]);
+        act(() => result.current.closeGrid());
+
+        act(() => result.current.loadForEdit('a', 'b'));
+        // Released with `a` under way and `b` waiting: `a` finishes, `b` is not read.
+        act(() => result.current.releaseBytes());
+        await reads.land('a');
+        await waitFor(() => expect(result.current.editAssets.get('a')?.status).toBe('ready'));
+        await act(async () => undefined);
+        expect(reads.read).toHaveBeenCalledTimes(1);
+        act(() => result.current.setEdit('a', turned));
+
+        // And released again once `a` is in: its bytes go, its copy and its edit stay.
+        act(() => result.current.releaseBytes());
+        expect(result.current.picked.map(p => p.id)).toEqual(['a', 'b']);
+        expect(result.current.picked[0].edited?.edit).toEqual(turned);
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+
+        let taking: Promise<PickedFromGrid> = Promise.resolve({ items: [], refused: [] });
+        act(() => {
+            taking = result.current.takePicked();
+        });
+        await waitFor(() => expect(reads.read).toHaveBeenCalledTimes(2));
+        expect(reads.read).toHaveBeenLastCalledWith({ id: 'a', src: 'data:a' });
+        await reads.land('a');
+        await waitFor(() => expect(reads.read).toHaveBeenCalledTimes(3));
+        await reads.land('b');
+        await act(async () => {
+            await taking;
+        });
+        expect(bake).toHaveBeenCalledWith(expect.objectContaining({ name: 'a.jpg' }), turned);
+    });
+
+    it('keeps the bytes a send is using, whatever asks for them to go meanwhile', async () => {
+        const reads = heldReads();
+        const { result } = setupEditing(fakeLibrary({ read: reads.read }));
+        pickAll(result, [{ id: 'a' }, { id: 'b' }]);
+        act(() => result.current.loadForEdit('b'));
+        await reads.land('b');
+        await waitFor(() => expect(result.current.editAssets.get('b')?.status).toBe('ready'));
+
+        let taking: Promise<PickedFromGrid> = Promise.resolve({ items: [], refused: [] });
+        act(() => {
+            taking = result.current.takePicked();
+        });
+        await waitFor(() => expect(reads.read).toHaveBeenCalledTimes(2));
+        act(() => result.current.releaseBytes());
+        await reads.land('a');
+        let picked: PickedFromGrid = { items: [], refused: [] };
+        await act(async () => {
+            picked = await taking;
+        });
+
+        // `b` went from the editor's read: it was not read a second time.
+        expect(reads.read).toHaveBeenCalledTimes(2);
+        expect(picked.items.map(item => item.name)).toEqual(['a.jpg', 'b.jpg']);
     });
 
     it('lets go of everything read for the pick once it is sent', async () => {

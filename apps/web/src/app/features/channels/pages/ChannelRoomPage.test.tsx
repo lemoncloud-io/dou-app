@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -54,7 +54,18 @@ jest.mock('@chatic/web-ui-kit', () => ({
     FloatingDateChip: () => null,
     ImageAvatar: () => null,
     SystemNotice: () => null,
-    MessageInput: ({ onSend }: any) => <button data-testid="send" onClick={() => onSend('hello')} />,
+    // The field and the send button, and what the room tells the button: enough to drive the send.
+    MessageInput: ({ onSend, value, onChange, inputRef, sendReady }: any) => (
+        <>
+            <textarea
+                data-testid="composer-input"
+                ref={inputRef}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+            />
+            <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
+        </>
+    ),
 }));
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
@@ -104,8 +115,31 @@ jest.mock('../hooks/useSendImages', () => ({
         };
     },
 }));
+// The attach panel as the room sees it: whether its pick is ready to send, whether the panel is open,
+// the row of picked photos it hands the composer, and what the room calls.
+let mockAttachReady = false;
+let mockPanelOpen = false;
+let mockAttachStrip = false;
+let mockAttachInset = 0;
+let mockAttachInsetAnimated = false;
+const mockSendPicked = jest.fn();
+const mockClosePanel = jest.fn();
+let mockAttachInput: { onUnsentText?: (text: string) => void } = {};
 jest.mock('../components/ChatImageAttach', () => ({
-    useChatImageAttach: () => ({ button: null, overlays: null }),
+    useChatImageAttach: (input: { onUnsentText?: (text: string) => void }) => {
+        mockAttachInput = input;
+        return {
+            button: null,
+            strip: mockAttachStrip ? <div data-testid="attach-strip" /> : null,
+            overlays: null,
+            panelOpen: mockPanelOpen,
+            composerInset: mockAttachInset,
+            composerInsetAnimated: mockAttachInsetAnimated,
+            sendReady: mockAttachReady,
+            sendPicked: mockSendPicked,
+            closePanel: mockClosePanel,
+        };
+    },
 }));
 jest.mock('../lib', () => ({
     ...jest.requireActual('../lib/channelStereoPolicy'),
@@ -281,6 +315,117 @@ describe('ChannelRoomPage — photos', () => {
         mockSendImagesInputs.length = 0;
         mockImageRetry.mockReset();
         mockImageCanRetry = true;
+        mockAttachReady = false;
+        mockPanelOpen = false;
+        mockAttachStrip = false;
+        mockAttachInset = 0;
+        mockAttachInsetAnimated = false;
+        mockSendPicked.mockReset().mockReturnValue(true);
+        mockClosePanel.mockReset();
+    });
+
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+
+    it('sends the photos picked in the panel with the text as their caption, and clears the field', () => {
+        mockAttachReady = true;
+        mockPanelOpen = true;
+        render(<ChannelRoomPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    // Typing closed the panel for the keyboard; the photos wait above the field, and still take the press.
+    it('sends the photos waiting above the field, the panel closed, with the text as their caption', () => {
+        mockAttachReady = true;
+        mockAttachStrip = true;
+        render(<ChannelRoomPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    it('puts the waiting photos inside the composer bar, directly above the field', () => {
+        mockAttachStrip = true;
+        render(<ChannelRoomPage />);
+
+        const strip = screen.getByTestId('attach-strip');
+        // Inside the bar, so its measured height — what the list clears — carries the row.
+        expect(strip.parentElement).toBe(field().parentElement);
+        expect(strip.compareDocumentPosition(field()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('sends the text as a message of its own while nothing is picked', () => {
+        render(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'false');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).not.toHaveBeenCalled();
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hello' });
+    });
+
+    it('sends the text as usual when the panel turns out to have nothing to send', () => {
+        mockAttachReady = true;
+        mockSendPicked.mockReturnValue(false);
+        render(<ChannelRoomPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hello' });
+    });
+
+    it('closes the attach panel when the field takes focus, for the keyboard', () => {
+        render(<ChannelRoomPage />);
+
+        act(() => field().focus());
+
+        expect(mockClosePanel).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the composer above the attach panel, as it does above the keyboard', () => {
+        mockAttachInset = 336;
+        render(<ChannelRoomPage />);
+
+        const composer = field().parentElement as HTMLElement;
+        expect(composer.getAttribute('style')).toContain('max(var(--keyboard-height, 0px), 336px)');
+        // The keyboard moves it at once: no transition unless the panel's slide asks for one.
+        expect(composer.className).not.toContain('transition-[padding-bottom]');
+    });
+
+    it('moves the composer over the attach panel’s slide while the panel moves it', () => {
+        mockAttachInset = 336;
+        mockAttachInsetAnimated = true;
+        render(<ChannelRoomPage />);
+
+        const composer = field().parentElement as HTMLElement;
+        expect(composer).toHaveClass(
+            'transition-[padding-bottom]',
+            'duration-300',
+            '[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]',
+            'motion-reduce:transition-none'
+        );
+    });
+
+    it('puts a caption whose photos could not go back in an empty field, and leaves new text alone', () => {
+        render(<ChannelRoomPage />);
+
+        act(() => mockAttachInput.onUnsentText?.('caption'));
+        expect(field().value).toBe('caption');
+
+        fireEvent.change(field(), { target: { value: 'newer' } });
+        act(() => mockAttachInput.onUnsentText?.('caption'));
+        expect(field().value).toBe('newer');
     });
 
     it("sends photos to the room's own cloud, like a text", () => {

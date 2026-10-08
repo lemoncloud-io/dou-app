@@ -957,6 +957,7 @@
             "gridPhoto": "Photo {{position}}",
             "gridVideo": "Video {{position}}",
             "removePicked": "Remove photo {{position}}",
+            "pickedTitle": "Photos and videos to send",
             "send": "Send {{count}}",
             "preparing": "Preparing…",
             "grouped": "Send as one message",

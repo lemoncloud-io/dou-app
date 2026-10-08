@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '../types';
 
@@ -48,10 +48,16 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder, disabled, onSend }: any) => (
+    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady }: any) => (
         <div data-testid="composer" data-disabled={String(!!disabled)}>
             {placeholder}
-            <button data-testid="send" onClick={() => onSend?.('hello')} />
+            <textarea
+                data-testid="composer-input"
+                ref={inputRef}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+            />
+            <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend?.('hello')} />
         </div>
     ),
     ImageAvatar: ({ src }: any) => <img data-testid="root-avatar" src={src} alt="" />,
@@ -86,7 +92,16 @@ jest.mock('../components/MessageActionSheet', () => ({
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 // The image send and the attach flow have their own tests; here only what the thread hands them.
-const mockAttachInputs: { disabled?: boolean }[] = [];
+const mockAttachInputs: { disabled?: boolean; onUnsentText?: (text: string) => void }[] = [];
+// The attach panel as the thread sees it: whether its pick is ready to send, whether the panel is open,
+// the row of picked photos it hands the composer, and what the thread calls.
+let mockAttachReady = false;
+let mockPanelOpen = false;
+let mockAttachStrip = false;
+let mockAttachInset = 0;
+let mockAttachInsetAnimated = false;
+const mockSendPicked = jest.fn();
+const mockClosePanel = jest.fn();
 const mockSendImagesInputs: { cid: string; channelId: string; parentId?: string }[] = [];
 jest.mock('../hooks/useSendImages', () => ({
     useSendImages: (input: { cid: string; channelId: string; parentId?: string }) => {
@@ -97,7 +112,17 @@ jest.mock('../hooks/useSendImages', () => ({
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: (input: { disabled?: boolean }) => {
         mockAttachInputs.push(input);
-        return { button: null, overlays: null };
+        return {
+            button: null,
+            strip: mockAttachStrip ? <div data-testid="attach-strip" /> : null,
+            overlays: null,
+            panelOpen: mockPanelOpen,
+            composerInset: mockAttachInset,
+            composerInsetAnimated: mockAttachInsetAnimated,
+            sendReady: mockAttachReady,
+            sendPicked: mockSendPicked,
+            closePanel: mockClosePanel,
+        };
     },
 }));
 // The barrel is mocked to keep `@chatic/assets` out of jest; `profilePlaceOf` is a pure rule, so
@@ -428,6 +453,106 @@ describe('ThreadPage — 사진 첨부', () => {
         render(<ThreadPage />);
 
         expect(mockSendImagesInputs.at(-1)?.cid).toBe('cloud-b');
+    });
+});
+
+describe('ThreadPage — photos from the attach panel', () => {
+    beforeEach(() => {
+        mockAttachReady = false;
+        mockPanelOpen = false;
+        mockAttachStrip = false;
+        mockAttachInset = 0;
+        mockAttachInsetAnimated = false;
+        mockSendPicked.mockReset().mockReturnValue(true);
+        mockClosePanel.mockReset();
+        mockChats = [chat()];
+    });
+
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+
+    it('sends the photos picked in the panel with the text as their caption, and clears the field', () => {
+        mockAttachReady = true;
+        mockPanelOpen = true;
+        render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    it('sends the photos waiting above the field, the panel closed, with the text as their caption', () => {
+        mockAttachReady = true;
+        mockAttachStrip = true;
+        render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    it('puts the waiting photos inside the composer bar, directly above the field', () => {
+        mockAttachStrip = true;
+        render(<ThreadPage />);
+
+        const strip = screen.getByTestId('attach-strip');
+        const composer = screen.getByTestId('composer');
+        expect(strip.parentElement).toBe(composer.parentElement);
+        expect(strip.nextElementSibling).toBe(composer);
+    });
+
+    it('sends the reply as text while nothing is picked', () => {
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).not.toHaveBeenCalled();
+        expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes the attach panel when the field takes focus, for the keyboard', () => {
+        render(<ThreadPage />);
+
+        act(() => field().focus());
+
+        expect(mockClosePanel).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the composer above the attach panel, as it does above the keyboard', () => {
+        mockAttachInset = 336;
+        render(<ThreadPage />);
+
+        const composer = screen.getByTestId('composer').parentElement as HTMLElement;
+        expect(composer.getAttribute('style')).toContain('max(var(--keyboard-height, 0px), 336px)');
+        // The keyboard moves it at once: no transition unless the panel's slide asks for one.
+        expect(composer.className).not.toContain('transition-[padding-bottom]');
+    });
+
+    it('moves the composer over the attach panel’s slide while the panel moves it', () => {
+        mockAttachInset = 336;
+        mockAttachInsetAnimated = true;
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('composer').parentElement).toHaveClass(
+            'transition-[padding-bottom]',
+            'duration-300',
+            '[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]',
+            'motion-reduce:transition-none'
+        );
+    });
+
+    it('puts a caption whose photos could not go back in an empty field', () => {
+        render(<ThreadPage />);
+
+        act(() => mockAttachInputs.at(-1)?.onUnsentText?.('caption'));
+
+        expect(field().value).toBe('caption');
     });
 });
 

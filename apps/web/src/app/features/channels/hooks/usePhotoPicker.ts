@@ -21,9 +21,12 @@ import {
 import { photoLibrary, photoPreviewSrc, type PhotoLibrary } from '../../../bridge/photoLibrary';
 import { bakePhotoEdit, makeEditRendition, type EditRendition } from '../utils/bakePhotoEdit';
 
-/** How many previews the attach menu shows before "see all". */
-const RECENT_COUNT = 4;
-/** The attach menu's preview tile, and the album list's cover, in CSS pixels. */
+/**
+ * How many items the attach panel's recent row offers to pick from before "see all": a few screens of
+ * its sideways scroll, and one list request the shell answers with small previews.
+ */
+export const RECENT_COUNT = 30;
+/** The attach panel's recent tile, and the album list's cover, in CSS pixels. */
 const RECENT_TILE = 90;
 const COVER_TILE = 64;
 /** One page of the grid. Pages by offset start at multiples of it, so a page is also an index. */
@@ -55,11 +58,13 @@ export interface PhotoPicker {
     supported: boolean | null;
     access: PhotoLibraryAccess | null;
     recent: PhotoItem[];
-    /** Asks the shell once for the newest photos — call when the attach menu opens. */
+    /** Asks the shell once for the newest photos — call when the attach panel opens. */
     probe(): Promise<void>;
 
     gridOpen: boolean;
-    openGrid(preselect?: PhotoItem): void;
+    /** Opens the grid on whatever is picked already — the panel's recent row and the grid share one pick. */
+    openGrid(): void;
+    /** Closes the grid and keeps the pick, its edits and the editor's copies; only the bytes read go. */
     closeGrid(): void;
 
     albumsOpen: boolean;
@@ -84,13 +89,22 @@ export interface PhotoPicker {
     setVisibleRange(range: PhotoGridRange): void;
 
     /**
-     * What is picked, in pick order. A photo whose edit is drawn carries it as `edited` — once the
-     * editor's copy is read and the edit changes something — so the picked strip shows the photo as
-     * it will be sent.
+     * What is picked, in pick order — from the panel's recent row and from the grid alike. A photo
+     * whose edit is drawn carries it as `edited` — once the editor's copy is read and the edit changes
+     * something — so the picked strip shows the photo as it will be sent.
      */
     picked: PhotoItem[];
     /** Picks or unpicks. Unpicking a photo also drops what was read for it, and its edit, silently. */
     toggle(photo: PhotoItem): void;
+    /** Lets the whole pick go, with everything read for it — the panel dismissed. Not while preparing. */
+    clearPicked(): void;
+    /**
+     * Lets go of the photo bytes read for the pick, and of what the editor was still waiting to read,
+     * keeping the pick, its edits and the editor's copies: the pick goes back to wait under the
+     * composer. `closeGrid` does it as the grid closes; an editor opened over the composer does it as
+     * it closes. A read under way finishes and is kept. Not while preparing — the send is using them.
+     */
+    releaseBytes(): void;
     /**
      * Reads the picked photos and keeps the picked videos in the shell, one at a time in pick order,
      * then clears the pick and closes the grid. A photo the editor already read is not read again, one
@@ -223,7 +237,7 @@ export const editsDiffer = (a: ReadonlyMap<string, PhotoEdit>, b: ReadonlyMap<st
     return false;
 };
 
-/** How a video the shell would not keep is reported — in the words the attach menu already uses. */
+/** How a video the shell would not keep is reported — in the words the attach panel already uses. */
 const refusalOf = (error: unknown): RefusedAttachment['reason'] => {
     const code = (error as { code?: string } | null)?.code;
     if (code === 'UNSUPPORTED') return 'unsupported';
@@ -359,7 +373,7 @@ export const offsetRequest = ({
 };
 
 /**
- * The in-app photo picker's state: what the attach menu previews, which album the grid shows and which
+ * The in-app photo picker's state: what the attach panel previews, which album the grid shows and which
  * of it has loaded, and what is picked. The library itself is read through the shell (`photoLibrary`);
  * this hook only holds what the screen needs of it.
  *
@@ -377,9 +391,17 @@ export const offsetRequest = ({
  * turn, mirror) and the photo's bytes are untouched until the send, which draws only the photos whose
  * edit changes something and sends every other one as it was read. The editor shows a smaller copy of
  * each photo (`makeEditRendition`), read when it is shown; the bytes read for it are kept for the send.
- * Everything read for a photo — its bytes, its copy, its edit — is let go when it is unpicked, when
- * the pick is sent or cleared, and when the grid closes. A copy still being made when that happens is
+ * Everything read for a photo — its bytes, its copy, its edit — is let go when it is unpicked, and
+ * everything read for the pick when it is sent or cleared. A copy still being made when that happens is
  * revoked as it lands.
+ *
+ * The pick outlives the grid. The attach panel's recent row picks into the same list, the grid opens on
+ * it, and closing the grid goes back to the panel with it, where the composer's send button can send
+ * it — and once the panel closes for the keyboard, the pick waits above the composer as a row of
+ * thumbnails. So closing the grid keeps the pick, its edits and the editor's copies (the strips draw
+ * edited photos from them) and lets go only of the bytes: a whole photo each, and the pick may now
+ * wait for as long as the person types. An editor opened from the composer's row lets them go as it
+ * closes, for the same reason (`releaseBytes`). A send from the composer reads those photos again.
  *
  * `max` caps the pick — the per-message image limit, passed in so the grid and the send agree on it.
  * `columns` is the grid's column count, used to size the first page's previews before the grid has
@@ -817,12 +839,10 @@ export const usePhotoPicker = ({
     };
 
     const openGrid = useCallback(
-        (preselect?: PhotoItem) => {
+        () => {
             setGridOpen(true);
             gridOpenRef.current = true;
             setAlbumsOpen(false);
-            releasePick();
-            setPicked(preselect ? [plainItem(preselect)] : []);
             resetList();
             pumpRef.current();
             void library
@@ -841,19 +861,37 @@ export const usePhotoPicker = ({
                 })
                 .catch(() => undefined);
         },
-        // `resetList`, `releasePick` and `setPicked` touch refs and setters only.
+        // `resetList` touches refs and setters only.
 
         [library]
     );
+
+    // The pick goes back under the composer; the bytes read for it do not (see above). What the editor
+    // was still waiting to read is dropped with them — a read under way finishes and is kept.
+    const releaseBytes = useCallback(() => {
+        if (preparingRef.current) return;
+        filesRef.current = new Map();
+        waitingRef.current = [];
+    }, []);
 
     const closeGrid = useCallback(() => {
         // The grid stays while a send reads the pick; it closes itself when the read is done.
         if (preparingRef.current) return;
         gridOpenRef.current = false;
         setGridOpen(false);
-        // The pick itself is cleared when the grid next opens, but what was read for it goes now.
-        releasePick();
-    }, []);
+        releaseBytes();
+    }, [releaseBytes]);
+
+    // Frozen while a send reads the pick, like `toggle`: the send clears it when the read is done.
+    const clearPicked = useCallback(
+        () => {
+            if (preparingRef.current) return;
+            setPicked([]);
+            releasePick();
+        },
+        // `setPicked` and `releasePick` touch refs and setters only.
+        []
+    );
 
     const selectAlbum = useCallback(
         (id: string) => {
@@ -1023,6 +1061,8 @@ export const usePhotoPicker = ({
         setVisibleRange,
         picked: pickedView,
         toggle,
+        clearPicked,
+        releaseBytes,
         takePicked,
         preparing,
         manageSelection,

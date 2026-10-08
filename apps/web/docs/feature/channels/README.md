@@ -101,17 +101,17 @@ handshake lists both messages ([image-export.md](./image-export.md)).
 
 ## Documents
 
-| File                                                   | What it covers                                                                                                                         |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [data-layer.md](./data-layer.md)                       | the 38 hooks: observing, sync registration, paging, read cursors, the writes                                                           |
-| [image-send.md](./image-send.md)                       | Photos, videos and documents: the attach menu and pickers, the send, the tiles, cards and viewer, the image cache, retry and leftovers |
-| [photo-edit.md](./photo-edit.md)                       | Editing grid photos before the send: the editor, the edit it keeps, reading for it, drawing the edit at the send, limits               |
-| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                               |
-| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                            |
-| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                   |
-| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                                                              |
-| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite                                                 |
-| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                             |
+| File                                                   | What it covers                                                                                                                          |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [data-layer.md](./data-layer.md)                       | the 38 hooks: observing, sync registration, paging, read cursors, the writes                                                            |
+| [image-send.md](./image-send.md)                       | Photos, videos and documents: the attach panel and pickers, the send, the tiles, cards and viewer, the image cache, retry and leftovers |
+| [photo-edit.md](./photo-edit.md)                       | Editing grid photos before the send: the editor, the edit it keeps, reading for it, drawing the edit at the send, limits                |
+| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                                |
+| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                             |
+| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                    |
+| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list and the four dialogs                                                                               |
+| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite                                                  |
+| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                              |
 
 ## How to verify
 

@@ -1,12 +1,17 @@
 # ADR-0179: Photos are edited in the grid and may go as one message each
 
-> Status: Accepted · Decided: 2026-10-07 · Implemented: `feat/photo-edit-before-send`
-> · Scope: `apps/web/src/app/features/channels/` (`ChatImageAttach`, `usePhotoPicker`,
-> `usePhotoSendGrouping`, `utils/bakePhotoEdit`) · `libs/web-ui-kit` (`PhotoEditor`, `EditedPhotoImage`,
-> `photoEdit`, `cropBox`, `PhotoGridSheet`, `SelectedPhotoStrip`) · `libs/app-runtime`
-> (`sendImages`'s `separately`) · `libs/config` `ui.photoSendGrouped`
+> Status: Accepted · Decided: 2026-10-07 (the editor, one message each), 2026-10-08 (the attach
+> panel, the caption, the pick waiting above the composer, the keyboard handover) · Implemented:
+> `feat/photo-edit-before-send` · Scope: `apps/web/src/app/features/channels/` (`ChatImageAttach`,
+> `usePhotoPicker`, `usePhotoSendGrouping`, `useKeyboardMemory`, `useAttachPanelSlot`,
+> `utils/bakePhotoEdit`, `ChannelRoomPage`, `ThreadPage`)
+> · `libs/web-ui-kit` (`PhotoEditor`, `EditedPhotoImage`, `photoEdit`, `cropBox`, `PhotoGridSheet`,
+> `SelectedPhotoStrip`, `AttachPanel`, `RecentPhotoStrip`, `MessageInput`) · `libs/app-runtime`
+> (`sendImages`'s `separately` and `content`) · `libs/data` (`createPendingImageChat`'s `content`)
+> · `libs/config` `ui.photoSendGrouped`
 > · Supersedes in part [ADR-0123](./0123-picking-a-photo-sends-it-and-the-shell-decides-how-it-is-picked.md):
-> its decision 1, "the pick is the send", for the in-app photo grid only
+> its decision 1, "the pick is the send", for the in-app pick only — the photo grid and the attach
+> panel's recent row
 > · The module docs are [apps/web channels/photo-edit.md](../../apps/web/docs/feature/channels/photo-edit.md),
 > [apps/web channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md) and
 > [libs/app-runtime data/image-send.md](../../libs/app-runtime/docs/data/image-send.md)
@@ -27,6 +32,18 @@ Two things were asked for in that grid, both common in the chat apps people comp
   setting. Telegram Desktop saves its "Group items" box; Telegram Android has a one-time "send
   without grouping". NAVER WORKS always bundles.
 
+Then, in the same round, the attach menu itself. It was a modal bottom sheet over the composer: the
+page dimmed, the composer hidden behind it, and its recent-photos strip only a way into the grid — a
+tap opened the grid with that photo picked. Asked for instead: the menu should come up under the
+message box the way the keyboard does, and ticking a photo in it should light the composer's send
+button; and the grid's footer should slide in when the first photo is picked rather than appear. That
+put a picked photo and typed text side by side under one send button for the first time, so what the
+button does with the text had to be decided too. And typing that text means tapping the field, which
+closes the panel as the keyboard takes its place — so where the pick is, and what the button does,
+while the field has the focus needed deciding as well. Last, how the two trade places: the keyboard
+and the panel were to read as one surface, as they do in KakaoTalk, with the composer never jumping
+when one replaces the other.
+
 What the code had to work with:
 
 - **The grid holds only previews.** They are centre squares of at most about 440 px. The photo itself
@@ -39,13 +56,19 @@ What the code had to work with:
   encode WebP, and any canvas keeps only a GIF's first frame.
 - **The web ships before the app.** Anything native needs an app release, and a fallback for the apps
   already installed.
-- **One `sendImages` call was one message.**
+- **One `sendImages` call was one message**, and a photo message carried no text from mobile, though
+  the message itself can: both the mobile and the desktop feed draw a message with text and uploads.
+- **The WebView does not shrink for the keyboard.** The shell injects the keyboard's height as
+  `--keyboard-height` and fires no event for it; the composer pads itself up by it. It reports from
+  the keyboard's own events, at different moments: iOS as the keyboard starts to slide, already with
+  its final height, Android only once the slide has finished, and a browser never.
 
 ## Decision
 
-1. **Only the in-app grid changes.** The file inputs, the camera, the app's own picker and browsers
-   keep "the pick is the send", and so does desktop-web. The grid already waited for a press, so it
-   gains no step; anywhere else this would have added one.
+1. **Only the in-app pick changes** — the grid, and the attach panel's recent row (decisions 7 and 8). The
+   file inputs, the camera, the app's own picker and browsers keep "the pick is the send", and so does
+   desktop-web. The grid already waited for a press, so it gains no step; anywhere else this would have
+   added one.
 2. **A web editor, in the kit.** Full-screen and black like the image viewer: a pager over the
    picked items in pick order; ✕, a "2 / 5" count and "완료" above; the picked strip, a
    "자르기·회전" tool and the send button below. The tool has a crop box with corner and edge
@@ -74,6 +97,51 @@ What the code had to work with:
    room while it goes waits for its last message. A bundled send never waits for another bundled send,
    so a room that never sends one each sends as before. The choice is kept per device in
    `ui.photoSendGrouped` (local lane, `internal`). The cap stays ten per pick either way.
+7. **The attach menu becomes a panel in the keyboard's place.** No sheet and no dimming: the panel lies
+   under the composer, where the keyboard would be. It is as tall as the last keyboard seen on the page
+   (306 px plus the safe area before any), so trading one for the other does not move the composer.
+   The + becomes ×. Opening it drops the keyboard; focusing the field gives the place back to the
+   keyboard (decision 12 says how the two trade places). × and Escape — Android back, delivered as Escape — dismiss
+   it; it is a non-modal dialog marked open, so the app's back handler reaches it, and it answers only
+   while nothing is open above it. The grid, the camera and files open from it as they did from the menu.
+8. **The recent row picks, into the grid's list.** The row offers the newest 30 items in a sideways
+   scroll; a tap picks or unpicks in place, with the grid's dimming and order badge, under the same cap.
+   The row and the grid are one pick: "see all" opens the grid on it, and closing the grid goes back to
+   the panel with the pick and its edits. While anything is picked, the composer's send button is live
+   with an empty field and sends the pick, by the grouping choice and with its edits, and closes the
+   panel if it is open. A grid send closes the panel too. × and Escape let the pick go; focusing the
+   field keeps it, so a caption can be typed after picking, and the pick stays on screen above the
+   field (decision 11).
+9. **What is typed goes in the photo message, as its caption.** When the composer's send button sends
+   the pick, the text in the field becomes the photo message's own text (`sendImages`'s `content`),
+   and the field is cleared. With one message each, only the first carries it, so it is said once. The
+   grid's and the editor's "N장 보내기" send the photos alone and leave the text in the field: they are
+   not the composer's button, and nothing on them says the text would go. A caption whose pick ended up
+   with nothing that passed the check goes back into the field.
+10. **The grid's footer slides.** It rises from below when the first item is picked and goes back down
+    when the last is unpicked, on the panel's timing (300 ms, the viewer's curve), at once under reduced
+    motion.
+11. **The pick waits above the composer.** Whenever something is picked and the panel is closed, the
+    pick shows directly above the composer's field as a row of small thumbnails (the kit's
+    `SelectedPhotoStrip` at its compact size), and the send button stays the pick's. So pick → type →
+    send is one message with its caption, whether the panel is open at the press or not. × on a
+    thumbnail unpicks it, keeping the keyboard up; a tap opens the editor at it, with no grid under it.
+    The row is part of the composer's bar, so the message list clears it the way it clears the field,
+    and it carries a soft surface of its own, since the bar has none and the list scrolls behind it.
+    Of the ways the panel closes, only its × and back let the pick go; leaving the room drops it too.
+    The row opens from nothing as it fills and folds away as it empties, on the panel's timing, so the
+    composer grows and shrinks in one movement rather than by a row at a time.
+12. **The keyboard and the panel hand the place over as one surface.** Neither moves the composer
+    when it replaces the other. + with the keyboard up puts the panel in place at once, behind the
+    keyboard and at its height, and the keyboard slides away to reveal it; in the app a focused field
+    counts as a keyboard up, since Android reports one only once it has risen. Focusing the field
+    leaves the panel in place while the keyboard rises over it and removes it at once 300 ms after the
+    keyboard's height first arrives — the rise on iOS, a margin on Android. With no height after
+    800 ms (a hardware or floating keyboard), and at once in a browser, the panel slides down instead.
+    Where there is no keyboard to trade with — +, ×, back, and every other close — the panel slides
+    (300 ms, the viewer's curve) and the composer moves with it on the same timing. The composer pads
+    by the larger of the keyboard and the panel throughout, and moves over a slide only when the panel
+    moves it: the keyboard's own changes stay instant, as before.
 
 ## Consequences
 
@@ -87,10 +155,11 @@ What the code had to work with:
 - **The pending row of an edited pick appears later.** The edits are drawn before the send starts,
   one photo at a time, and each is a full decode and encode of the photo. The row then shows the
   edited photos from its first frame.
-- **Bytes cross the bridge once, and are held for as long as the pick.** A photo read for the editor
-  is not read again at the send. Until the send, the pick's photos stay in page memory — at most ten,
-  which the send holds anyway once it starts — and they are let go on unpick, on send and when the
-  grid closes.
+- **Bytes cross the bridge once while the grid is open.** A photo read for the editor is not read
+  again at a send from the grid. Until then the pick's photos stay in page memory — at most ten, which
+  the send holds anyway once it starts. Closing the grid lets the bytes go and keeps the pick, its
+  edits and the editor's smaller copies: the pick may now wait in the panel for as long as a caption
+  takes to type. A send from the composer reads the photos again, edited ones included.
 - **Canvas orientation on WKWebView is unmeasured.** The page relies on an `<img>` drawn upright, which
   `decodeImage` measured in Chrome only. A portrait photo needs checking on an iOS device before this
   is trusted there.
@@ -106,9 +175,78 @@ What the code had to work with:
   sends, not only its own message.
 - **No app release, and no new bridge message.** The grid and `ReadPhoto` already exist in every app
   that shows the grid. desktop-web calls `sendImages` with one argument and is unaffected.
+- **A photo message from mobile can carry text.** It is one message, numbered once, with one read
+  marker and one set of reactions, and a retry sends the text with the photos again. Desktop-web still
+  sends its tray's text as a message of its own before the pictures, so the same words and photos land
+  as one message from a phone and two from a desktop.
+- **A pick can outlive the panel, in sight.** Focusing the field closes the panel and keeps the pick,
+  and the composer grows by the row of thumbnails above its field (about 70 px) until the pick is sent
+  or let go. While anything is picked, every press of the send button sends it: a text meant as a
+  message of its own has to wait until the photos are sent or removed. An editor opened from that row
+  reads photos just as the grid's does, and lets their bytes go as it closes, so a send from the
+  composer reads them again.
+- **The handover leans on when the shell reports the keyboard.** The panel stays in place for 300 ms
+  past the first report. An iOS keyboard that took longer than that to rise would leave the panel's
+  last strip uncovered as it goes; one that never reports (hardware, floating) leaves the panel up for
+  800 ms before it slides away. A + in the app with the field focused counts as a keyboard up even
+  while an Android keyboard is still rising, so the panel is there a moment before the keyboard meets
+  it. A keyboard of another height than the panel — the first one on a page that guessed 306 px, or a
+  switch of keyboard — still moves the composer by the difference, at once, as any keyboard change
+  does. A panel opened from a browser, where no keyboard height is injected, is the design's 306 px.
+- **The list follows a slide frame by frame.** The composer's padding is what transitions, so its
+  measured height — the list's inset — changes on every frame of a slide, and the room re-renders
+  with it for those 300 ms. It has not been measured on a low-end Android.
 - **The decision record moves.** ADR-0123's decision 1 now speaks for the other pick paths only.
 
 ## Alternatives
+
+- **Text as a message of its own, before the photos, as desktop-web does.** It keeps every message one
+  kind and needs nothing from the runtime or the data layer. But on a phone the text and the photos
+  were picked and pressed together, under one button, and two messages for one press read as two
+  things said — with two read markers, two sets of reactions, and the risk that the text lands and the
+  photos fail. The two sends also number apart: the text goes at the press, the photos only once their
+  uploads are done, so a message sent meanwhile lands between them. Putting the text in the photo
+  message makes it one message, the shape Telegram's and WhatsApp's photo captions take, and the feeds
+  already draw it.
+- **Leave the text in the field; the button sends the photos only.** Simplest, and the field keeps
+  whatever the person was writing. But the button then means "photos" or "text" depending on what is
+  picked, a person who typed a line for the photos has to press twice, and between the presses a
+  message from someone else can land between the photos and the words about them.
+- **Keep the menu a sheet, with a send button of its own.** The sheet covers the composer, so the
+  text and the photos could not be seen together, and a second send button beside the composer's is
+  what the design removed. The panel in the keyboard's place keeps the composer on screen and gives
+  it the one button.
+- **Keep the pick out of sight while the panel is closed, and send it only from the open panel.** This
+  ADR's first answer: a pick waited, unseen, until the panel was opened again, and the send button
+  ignored it meanwhile, so photos never went from a panel that was not on screen. But "pick, then
+  type, then send" — the natural order — sent the text as a message of its own and left the photos
+  picked where nobody could see them; a caption only went with them if it was typed first or the panel
+  was reopened before the press. Showing the pick above the field keeps the guarantee that it is on
+  screen when it is sent, without making the person reopen anything.
+- **Keep the send button live for a pick out of sight.** One press would then send photos the person
+  could no longer see, with text they may have meant on its own. Rejected for the same reason the first
+  answer gave; the row above the field removes the "out of sight" rather than the send.
+- **Let the pick go whenever the panel closes.** No pick would ever wait at all. But focusing the field
+  is how a caption gets typed, and it closes the panel: a pick lost to that tap would make "pick, then
+  type" impossible. × and back are the explicit dismissals, so they let it go.
+- **Move the composer at once, and slide only the panel.** The panel's first version: the composer
+  took its new place in one step, as it does for the keyboard, while the panel took 300 ms. The two
+  visibly came apart — a gap under the composer while the panel rose, the composer dropping onto a
+  panel still on its way down.
+- **Close the panel at the focus, and hold its room for a fixed time.** The first answer to the
+  keyboard taking over: the panel slid away at once and the composer kept its room until the
+  keyboard's height came, or for 600 ms. The composer stayed put, but for that moment neither surface
+  was whole — the panel going down while the keyboard came up, the page showing between them — and
+  one fixed wait could not fit two platforms that report at different moments. Keeping the panel in
+  place until the keyboard covers it removes the gap instead of waiting it out.
+- **Remove the panel as soon as the keyboard's height arrives.** Right on Android, which reports once
+  the keyboard is up. iOS reports as the keyboard starts to rise, so the panel would vanish under a
+  keyboard still on its way and leave the same gap. 300 ms after the report fits both.
+- **Animate the keyboard's changes as well.** One rule for every change of the composer's offset. But
+  the shell reports the keyboard once per move — iOS at the start with the final height, Android at
+  the end — so a transition would trail the iOS keyboard on a curve that is not its own, and on Android
+  start only after the keyboard had arrived. The composer keeps tracking the keyboard as it always
+  has, and only the panel's own slides move it gradually.
 
 - **A native editor.** The system crop screens do not fit: iOS offers only
   `UIImagePickerController.allowsEditing`, a square crop of one image, and Android's

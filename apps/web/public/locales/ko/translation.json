@@ -957,6 +957,7 @@
             "gridPhoto": "사진 {{position}}",
             "gridVideo": "동영상 {{position}}",
             "removePicked": "{{position}}번째 사진 빼기",
+            "pickedTitle": "보낼 사진·동영상",
             "send": "{{count}}장 보내기",
             "preparing": "준비 중…",
             "grouped": "묶어 보내기",

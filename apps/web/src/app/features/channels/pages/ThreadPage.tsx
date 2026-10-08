@@ -12,6 +12,7 @@ import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chati
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
+import { COMPOSER_INSET_MOTION } from '../hooks/useAttachPanelSlot';
 import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
@@ -155,6 +156,8 @@ export const ThreadPage = () => {
         sendImages: imageSend.sendImages,
         disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
         inputRef,
+        // Same as the room: a caption whose photos all failed the check comes back to an empty field.
+        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
     });
     // Reactions fold from the UNFILTERED window — the events are hidden rows in it.
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
@@ -222,6 +225,12 @@ export const ThreadPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Photos picked in the attach panel take the press, with the text as their caption — see the
+        // room's handleSend. The panel only opens once the root is loaded, so they reply to it.
+        if (attach.sendReady && attach.sendPicked(trimmed)) {
+            setContent('');
+            return;
+        }
         // No root, no reply — the send needs the root's full id (bare chatNo 404s).
         if (!trimmed || !stableChannelId || !thread.root?.id) return;
 
@@ -471,15 +480,29 @@ export const ThreadPage = () => {
 
             <div
                 ref={composerRef}
-                className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
+                // The keyboard takes the attach panel's place: focusing the field closes the panel.
+                onFocus={event => {
+                    // React types a bubbled focus target as the element listening, which it need not be.
+                    if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
+                }}
+                // The room's rule: moves with the attach panel's slide, and at once for the keyboard.
+                className={`absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2${
+                    attach.composerInsetAnimated ? ` ${COMPOSER_INSET_MOTION}` : ''
+                }`}
                 style={{
-                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(var(--keyboard-height, 0px) + 8px))`,
+                    // The room's rule: above the keyboard or the attach panel in its place — the larger,
+                    // while they trade places — else the home indicator. The list clears the composer
+                    // by its measured height.
+                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(max(var(--keyboard-height, 0px), ${attach.composerInset}px) + 8px))`,
                 }}
             >
+                {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
+                {attach.strip}
                 <MessageInput
                     value={content}
                     onChange={setContent}
                     onSend={handleSend}
+                    sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}

@@ -55,17 +55,17 @@ belongs to the viewer's save or share, which acknowledges it once the file is us
 
 ## Picking — `useChatImageAttach`
 
-The composer's leading button opens the attach menu — photos, camera, files. "Files" opens a second
+The composer's leading button opens the attach panel (below) — photos, camera, files. "Files" opens a
 sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and then from the album
 (photos and videos). The design also shows a third row, document scan; it is not drawn, since no
 shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
 
-| Shell                                   | Photos                                                                       |
-| --------------------------------------- | ---------------------------------------------------------------------------- |
-| app with the photo-library bridge       | recent photos and videos in the menu, and the in-app grid (`PhotoGridSheet`) |
-| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser         |
+| Shell                                   | Photos                                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------------- |
+| app with the photo-library bridge       | recent photos and videos in the panel, and the in-app grid (`PhotoGridSheet`) |
+| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser          |
 
-The page learns which by asking: opening the menu requests the newest photos (`ListPhotos`), and an
+The page learns which by asking: opening the panel requests the newest photos (`ListPhotos`), and an
 app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A
 timeout is not learned from. The older app's own photo bridge is not used as a fallback: it ignores
 what the page asks for and returns a device path the page cannot read, while the file input returns
@@ -124,11 +124,106 @@ or from the upload's start, where iOS refuses a file that is gone) would only fa
 message offers delete alone. A conversion that failed in passing (`SYSTEM`, such as the app leaving the
 screen mid-way) stays retryable.
 
+**The panel takes the keyboard's place.** `AttachPanel` is not a sheet. It lays itself along the
+bottom of the room's (or the thread's) page container — exactly where the soft keyboard sits, under
+the composer. Nothing is dimmed, the composer stays live directly above it, and its + turns into ×.
+Its height is the last keyboard height seen on the page: `useKeyboardMemory` watches the root's
+`style`, where the shell injects `--keyboard-height`, and keeps the last real one for the page's life
+— one keyboard per device, so a height seen in one room serves the next. The shell's height runs down
+to the screen edge, safe area included, so the panel's body is that height less the safe area and the
+whole panel is as tall as the keyboard: trading one for the other moves nothing. Before any keyboard
+has been seen, the body is the design's 306 px. The page keeps its composer and its list clear of the
+panel as it does of the keyboard
+([layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place)).
+
+**The keyboard and the panel hand over like one surface** (`useAttachPanelSlot`, the KakaoTalk
+behaviour). Opening the panel drops the keyboard (the field is blurred), and focusing the field gives
+the place back to the keyboard; neither moves the composer:
+
+- **+ with the keyboard up** — or, in the app, with the field focused, since Android reports the
+  keyboard's height only once it is up — puts the panel in place at once, behind the keyboard and at
+  its height; the keyboard then slides away and reveals it.
+- **Focusing the field** in the app keeps the panel in place while the keyboard rises over it, and
+  removes it at once 300 ms after the keyboard's height first arrives (`KEYBOARD_COVER_MS`: iOS sends
+  it as the keyboard starts to rise, Android once it is up). Without a height in 800 ms
+  (`KEYBOARD_WAIT_MS` — a hardware or floating keyboard) the panel slides down instead, as for ×. In a
+  browser no height ever comes, so it slides down at once.
+- **+ with no keyboard** slides the panel up from below, and **×, back, camera, files and a send**
+  slide it down. The composer moves with it, on the same 300 ms and the viewer's curve; under the
+  system's reduced-motion setting both move at once.
+
+How the composer's padding does this — the larger of the keyboard and the panel, moving over a slide
+only when the panel moves it — is in
+[layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place). The button
+reads + again from the focus on, while the panel may still be in place under the keyboard; pressed
+then, it keeps the panel where it is.
+
+× and Escape dismiss the panel, and Android back does too: while open, the panel is a non-modal
+`role="dialog"` with `data-state="open"`, the shape `useBackHandler` looks for, so back reaches it as
+Escape. It answers only while it is the topmost open overlay, so a grid or an editor opened above it
+takes the press first. A composer lock that lands while it is open (a message being edited) slides it
+down. Camera and "files" close it and open what they always did.
+
+**Picking in the panel.** The recent row offers the 30 newest items (`RECENT_COUNT`) in a row that
+scrolls sideways. A tap picks or unpicks in place: a picked tile dims and carries the grid's lime
+badge with its place in the pick order, and at ten the unpicked tiles lock. The row and the grid pick
+into one list (`usePhotoPicker`'s `picked`): "전체 보기" and the photos entry open the grid on it — its
+edit button and its "묶어 보내기" checkbox with it — and closing the grid goes back to the panel with
+the pick, and its edits, intact. A photo picked deep in the grid is part of the pick too, though the
+row shows only the newest 30.
+
+**The composer's send button sends the pick.** While anything is picked — in the open panel, or
+waiting above the field once the panel has closed (below) — the send button is live even with an empty
+field (`MessageInput`'s `sendReady`); only a composer lock, and a send already reading the pick, turn
+it back to the text's. Pressing it sends the pick — by the remembered "묶어 보내기" choice, with every
+edit — with whatever is typed as its caption, then clears the field and closes the panel if it is
+open. The caption is the photo message's own text (`sendImages`'s
+`content`): one message carrying the words and the photos, which the mobile and the desktop feed both
+already draw. With "묶어 보내기" off it rides on the first message only
+([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+The grid's and the editor's "N장 보내기" send the photos alone and leave the text in the composer;
+sending from either closes the panel too. A caption whose pick turned out to have nothing that passed
+the check goes back into the field (`onUnsentText`), unless something new was typed meanwhile.
+
+**What lets the pick go:** sending it, unpicking, × or Escape (back) on the panel, and leaving the
+room. Focusing the field, camera, "files" and a composer lock close the panel and keep the pick, so a
+caption can be typed after picking.
+
+**The pick waits above the field.** Whenever something is picked and the panel is closed — focusing
+the field closed it, most often — the pick stays on screen as a row of small thumbnails directly above
+the composer's field (`useChatImageAttach`'s `strip`, the kit's `SelectedPhotoStrip` at its `compact`
+size: 48 px tiles, 8 px apart, in pick order, scrolling sideways). The send button stays the pick's
+the whole time, so pick → type → send is one message with its caption, and a photo is never sent from
+somewhere the person cannot see it. While the panel is open its recent row shows the pick instead, and
+while the composer is locked the row is hidden (the pick comes back with the lock's end).
+
+- **× on a thumbnail** unpicks it, the way unpicking in the grid does, edit and all. The field keeps
+  its caret through the tap, so removing a photo while typing does not drop the keyboard. Once the
+  last one is gone the button needs text again.
+- **A tap on a thumbnail** opens the photo editor at that item, with no grid under it; "완료" and ✕
+  go back to the composer ([photo-edit.md](./photo-edit.md#opening-it)).
+- **A video** keeps its play mark; **an edited photo** is drawn with its edit and a pencil mark.
+- **While a send reads the pick** the row stays, faded and inert, until the pending row takes its
+  place — the field has already cleared, and a video still in iCloud can take a while.
+
+The row is rendered inside the composer's bar, above the field, so the bar's measured height — what
+the message list clears — carries it, and it rides up with the keyboard as the field does
+([layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place)). It is
+always there while the in-app pick exists, handed an empty pick while there is nothing to show: it
+opens from nothing as photos arrive and folds away as they go — the panel opening over it, the last
+one removed, the send — on the panel's timing. The 8 px above the field is the row's own margin, in
+what it opens and closes, so the composer grows and shrinks in one movement. The bar itself has no
+surface, so the row brings a soft one: a rounded card in the field's own glass (white at 80%, black at
+80% in the dark theme, blurred), flush with the field's left edge and 8 px above it.
+Without it, a photo message scrolled under the composer ran into the thumbnails; on the room's plain
+background the card does not show.
+
 In the grid (`usePhotoPicker`) picks keep their order across albums; one page loads at a time, and a
 page that lands after the album changed is dropped. Denied access opens a settings prompt instead of an
 empty grid; iOS limited access shows a "choose more" row that re-lists after the system sheet closes.
 
-**The grid's footer.** Once something is picked, a row sits above the send button: "편집" on the left,
+**The grid's footer.** It slides up from below when the first item is picked and back down when the
+last one is unpicked, on the panel's timing. Once something is picked, a row sits above the send button: "편집" on the left,
 which opens the editor at the first picked item that can be edited, and — once two or more are
 picked — a "묶어 보내기" checkbox on the right (below). A tap on a thumbnail in the picked strip opens
 the editor at that item. The editor, the edit it keeps and how an edited photo is drawn at the send
@@ -193,8 +288,8 @@ witness.
 `devicePixelRatio`, rounded up to 16 (`thumbSize`; a 390pt phone at three columns asks about 400px). The
 app answers a square crop of that size ([apps/mobile native/photo-library.md](../../../../mobile/docs/native/photo-library.md)),
 except that iOS answers a size above 352px and up to 440px at 352px. That is the rendition Photos keeps of
-every photo: past it, each preview is a decode of the original and a page takes seconds. The menu's recent
-strip and the album covers ask for theirs the same way. An app from before the field answers its old
+every photo: past it, each preview is a decode of the original and a page takes seconds. The panel's
+recent row and the album covers ask for theirs the same way. An app from before the field answers its old
 ~256px previews, which draw a little soft and need no fallback.
 
 **Fast scroll.** A grid longer than three screens shows a handle on its right edge while it scrolls,
@@ -218,12 +313,13 @@ pinch only changes how many fit on screen.
 **Videos in the grid.** Every list asks for photos and videos (`mediaTypes: ['image', 'video']`). An app
 from before videos ignores the field and lists photos only, so asking costs it nothing; one that lists
 a video also has `KeepLibraryVideo`, which arrived in the same build. A video draws as its poster frame
-with a play mark and its length (`m:ss`) — in the grid, the menu's recent strip, and the picked strip
-(there without the length). On Android the app lists videos only once the user has granted video access
+with a play mark and its length (`m:ss`) — in the grid, the panel's recent row, and the picked strips
+of the grid and above the composer (there without the length). On Android the app lists videos only once the user has granted video access
 as well; it asks for that once (ADR-0171).
 
 **Sending** reads the pick one item at a time in pick order: a photo with `ReadPhoto` (base64 — the app
-converts HEIC to JPEG and removes the location) unless the editor already read it, a photo with an edit
+converts HEIC to JPEG and removes the location) unless the editor already read it and the grid is still
+open, a photo with an edit
 drawn with it ([photo-edit.md](./photo-edit.md#the-edit-is-drawn-at-the-send)), a video with
 `KeepLibraryVideo`, which copies it into
 the app's pick folder and answers with the same shell-file reference "Choose from album" gives — from
@@ -232,7 +328,9 @@ it: an Android video that is not H.264/AAC `mp4` is `UNSUPPORTED`, one over the 
 conversion's estimate) is `TOO_LARGE`. An item that cannot be read or kept is refused alone, and the
 rest still go. The grid stays open with its send button greyed out as "준비 중…" until every item is
 read — a video stored only in iCloud can take minutes to come down, with no progress to show — then
-closes, and the pending row appears with everything that was read. A `NOT_FOUND` from
+closes, and the pending row appears with everything that was read. A send from the composer closes the
+panel at the press, and its row appears the same way, once the pick is read; meanwhile the row of
+thumbnails above the field stays, faded. A `NOT_FOUND` from
 `KeepLibraryVideo` — an app that lists videos but cannot keep one, which no release ships — is learned
 for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
@@ -244,9 +342,10 @@ refusals carries the item's `kind`, so a too-large one names that kind's limit, 
 video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
 is shown once, naming the kind whose limit was passed or what an unknown format looked like. From the
 file inputs, the camera and the app's own picker, whatever passes is sent at once — there is no tray
-and no confirmation, the pick is the send. The in-app grid always waited for its send button, and
-before it is pressed its pick can be edited and split into one message each (above, and ADR-0179,
-which narrows ADR-0123's "the pick is the send" to the other paths). A grid photo whose edit could not
+and no confirmation, the pick is the send. The in-app pick — the panel's recent row and the grid —
+waits for a send button, and before it is pressed it can be edited, split into one message each and
+given a caption (above, and ADR-0179, which narrows ADR-0123's "the pick is the send" to the other
+paths). A grid photo whose edit could not
 be drawn is refused alone, and its notice ("편집한 사진을 만들지 못했어요") is the one shown for that pick,
 ahead of any other reason.
 
@@ -492,9 +591,22 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/hooks/usePhotoPicker apps/web/src/app/bridge/photoLibrary \
   apps/web/src/app/features/channels/hooks/usePhotoGridColumns \
   apps/web/src/app/features/channels/hooks/usePhotoSendGrouping \
-  apps/web/src/app/features/channels/utils/bakePhotoEdit
-npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage
+  apps/web/src/app/features/channels/hooks/useKeyboardMemory \
+  apps/web/src/app/features/channels/hooks/useAttachPanelSlot \
+  apps/web/src/app/features/channels/utils/bakePhotoEdit \
+  apps/web/src/app/features/channels/pages/ChannelRoomPage apps/web/src/app/features/channels/pages/ThreadPage
+npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage \
+  AttachPanel MessageInput
 ```
+
+The panel's place and motion need a device, iOS and Android both, since their keyboards report at
+different moments: open it with the keyboard up and the composer should not move, nor should anything
+flash between the keyboard and the panel; tap the field and the keyboard should rise over the panel
+the same way. With no keyboard up, + and × (and Android back) should move the composer with the panel,
+in one motion; so should a tap on the field with a hardware keyboard attached, a moment later. Then
+pick two photos, tap the field and type: the two slide in above the field as the keyboard comes up, ×
+on one leaves the keyboard up, a tap on the other opens the editor, and the send button sends the one
+left with the text as one message.
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and
 [libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md).

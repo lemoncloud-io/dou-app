@@ -24,6 +24,7 @@ import {
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
+import { COMPOSER_INSET_MOTION } from '../hooks/useAttachPanelSlot';
 import { useSendImages } from '../hooks/useSendImages';
 import { isPendingImageChat } from '../utils/imageTiles';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -379,7 +380,13 @@ export const ChannelRoomPage = () => {
     const composerLocked = isPeerGone || editing.isEditing;
     // Photos go to the room's own cloud, the same one a text sent from here goes to.
     const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
-    const attach = useChatImageAttach({ sendImages: imageSend.sendImages, disabled: composerLocked, inputRef });
+    const attach = useChatImageAttach({
+        sendImages: imageSend.sendImages,
+        disabled: composerLocked,
+        inputRef,
+        // A caption whose photos all failed the check comes back, unless something new was typed since.
+        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
+    });
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
@@ -570,6 +577,13 @@ export const ChannelRoomPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Photos picked in the attach panel take the press — the panel open, or closed with them waiting
+        // above the field — and what is typed goes in their message as its caption rather than as a
+        // message of its own.
+        if (attach.sendReady && attach.sendPicked(trimmed)) {
+            setContent('');
+            return;
+        }
         if (!trimmed || !stableChannelId) return;
 
         setContent('');
@@ -1208,21 +1222,41 @@ export const ChannelRoomPage = () => {
                 // reason MessageInput cancels both).
                 onPointerDown={keepCaretOnInput}
                 onMouseDown={keepCaretOnInput}
+                // The keyboard takes the attach panel's place: focusing the field closes the panel.
+                onFocus={event => {
+                    // React types a bubbled focus target as the element listening, which it need not be.
+                    if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
+                }}
                 // Floating composer (Figma 2948-28188 / 2948-29566): the bar itself has NO surface —
                 // the translucent pill is the only chrome, so the message list stays visible right up
                 // to the screen edge and scrolls behind it.
-                className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
+                // Moves over the attach panel's slide while the panel moves it, and at once otherwise: the
+                // keyboard's own changes must land the moment the shell reports them.
+                className={`absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2${
+                    attach.composerInsetAnimated ? ` ${COMPOSER_INSET_MOTION}` : ''
+                }`}
                 style={{
-                    // 8px above the keyboard when it is up, otherwise clear the home indicator.
-                    // max(), never a sum — the keyboard already reaches the screen edge, so adding
-                    // the safe-bottom inset on top of it is what made the bottom gap look oversized.
-                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(var(--keyboard-height, 0px) + 8px))`,
+                    // 8px above the keyboard — or the attach panel standing in its place — when it is
+                    // up, otherwise clear the home indicator. max(), never a sum — the keyboard already
+                    // reaches the screen edge, so adding the safe-bottom inset on top of it is what
+                    // made the bottom gap look oversized. The panel's inset carries its safe area for
+                    // the same reason. The larger of the keyboard and the panel, not either one: while
+                    // they trade places both are there, and the composer stays where the taller puts
+                    // it. The list clears the composer by its measured height, so this one padding is
+                    // what keeps both above the panel.
+                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(max(var(--keyboard-height, 0px), ${attach.composerInset}px) + 8px))`,
                 }}
             >
+                {/* Photos picked in the attach panel wait here once it has closed, above the field
+                    their caption is typed in. Inside the bar, so its measured height — what the list
+                    clears — carries them, and they ride up with the keyboard as the pill does. Always
+                    rendered: the row folds itself away when it empties. */}
+                {attach.strip}
                 <MessageInput
                     value={content}
                     onChange={setContent}
                     onSend={handleSend}
+                    sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.room.inputPlaceholder')}
