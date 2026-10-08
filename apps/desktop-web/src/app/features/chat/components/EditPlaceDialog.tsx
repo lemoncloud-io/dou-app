@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ImagePlus } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
+import type { DomainPlace } from '@chatic/data';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -18,84 +19,82 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreatePlace } from '../../../shared';
-import { useCreatePlaceDialogStore } from '../stores';
-import { createPlaceFailure, PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, type PlaceFailure } from '../utils';
+import { useUpdatePlace } from '../../../shared';
+import { useEditPlaceDialogStore } from '../stores';
+import { PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
-/**
- * `enter`: the place exists, and the switch into it is what failed. The two `image` ones are about
- * the photo just picked, before anything was sent.
- */
-type Failure = PlaceFailure | 'enter' | 'imageTooLarge' | 'imageFailed';
+/** The two `image` ones are about the photo just picked, before anything was sent. */
+type Failure = PlaceFailure | 'imageTooLarge' | 'imageFailed';
 
 // Only the failures a second try can fix say "try again"; a refusal says what it is.
 const FAILURE_KEY: Record<Failure, string> = {
-    denied: 'place.create.failed.denied',
+    denied: 'place.edit.failed.denied',
     network: 'errors.network',
-    other: 'place.create.failed',
-    enter: 'place.create.enterFailed',
+    other: 'place.edit.failed',
     imageTooLarge: 'place.create.imageTooLarge',
     imageFailed: 'place.create.imageFailed',
 };
 
 const IMAGE_MAX_MB = PLACE_IMAGE_MAX_BYTES / (1024 * 1024);
 
-interface CreatePlaceDialogProps {
-    /**
-     * Move the session into the new place, rejecting when the switch fails. The host passes its own
-     * switch so the rail it renders locks while this one runs.
-     */
-    onEnter: (placeId: string) => Promise<void>;
-    /** Runs once the session is inside the new place, for what can only be done from in there. */
-    onEntered?: (placeId: string) => void;
+interface EditPlaceDialogProps {
+    /** The places on the rail. The dialog edits the one the store names, and closes if it leaves. */
+    places: readonly DomainPlace[];
 }
 
 /**
- * Make a place in the active cloud and go into it. Two steps that can fail apart: once the place
- * is made, a failed switch keeps the dialog open and the next submit only switches, so a retry
- * never makes a second place. The photo is optional and goes out with the create call.
+ * Change the name or photo of a place that already exists. Only what was changed is sent, and the
+ * save stays off until something was. The form is separate from the one that makes a place: that
+ * one carries a second step, entering the place, and this one ends when the save lands.
  */
-export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps) => {
+export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     const { t } = useTranslation();
-    const isOpen = useCreatePlaceDialogStore(s => s.isOpen);
-    const setOpen = useCreatePlaceDialogStore(s => s.setOpen);
-    const { createPlace } = useCreatePlace();
+    const placeId = useEditPlaceDialogStore(s => s.placeId);
+    const close = useEditPlaceDialogStore(s => s.close);
+    const { updatePlace } = useUpdatePlace();
+    const place = placeId ? places.find(p => p.id === placeId) : undefined;
+    const isOpen = !!place;
 
     const [name, setName] = useState('');
+    // The photo as the form shows it: the place's own URL until one is picked, `undefined` once removed.
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
     const fileRef = useRef<HTMLInputElement>(null);
-    // A photo is being read. The submit waits for it: a place made now would go out without the
-    // photo the form is about to show, and the desktop has no way to add one afterwards.
+    // A photo is being read. The save waits for it, or it would go out without the photo shown next.
     const [encoding, setEncoding] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [failure, setFailure] = useState<Failure | null>(null);
-    // A place this dialog made but has not entered yet: what the next submit retries.
-    const [unenteredPlaceId, setUnenteredPlaceId] = useState<string | null>(null);
 
-    const trimmed = name.trim();
-
-    // Counts the times the dialog has closed. A submit remembers the count it started under and
-    // stops when it reads another, so a request that answers after the close does nothing more.
+    // Counts the times the dialog has opened or closed. A request remembers the count it started
+    // under and stops when it reads another, so an answer for a form that is gone does nothing.
     const session = useRef(0);
 
-    // Start clean on every close, whoever closed it. The host closes the dialog when the cloud
-    // changes under it, and a place left unentered there must not be retried from another cloud.
+    // The store names a place the rail no longer has: it was deleted, or the cloud changed under
+    // the dialog. Clear the name so a place with that id cannot reopen the form later.
     useEffect(() => {
-        if (isOpen) return;
+        if (placeId && !place) close();
+    }, [placeId, place, close]);
+
+    // Start from the place as it is, each time the dialog opens on one. Keyed on the id alone: the
+    // row itself changes while a save is in flight, and that must not wipe what is being typed.
+    useEffect(() => {
         session.current += 1;
-        setName('');
-        setThumbnail(undefined);
+        setName(place?.name ?? '');
+        setThumbnail(place?.thumbnail || undefined);
         setEncoding(false);
         setSubmitting(false);
         setFailure(null);
-        setUnenteredPlaceId(null);
-    }, [isOpen]);
+    }, [place?.id]);
+
+    const trimmed = name.trim();
+    const nameChanged = !!place && trimmed !== (place.name ?? '');
+    const photoChanged = !!place && thumbnail !== (place.thumbnail || undefined);
+    const canSave = !!trimmed && (nameChanged || photoChanged) && !submitting && !encoding;
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the place is being made, as in the
-        // channel dialog: closing then would drop a failure message with nobody to read it.
+        // Escape, the X and the backdrop are ignored while the save runs, as in the create dialog:
+        // closing then would drop a failure message with nobody to read it.
         if (next || submitting) return;
-        setOpen(false);
+        close();
     };
 
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,8 +114,8 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
             if (!avatar) throw new Error('Failed to prepare place image');
             if (session.current === startedIn) setThumbnail(avatar);
         } catch (error) {
-            logger.warn('PLACE', '[CreatePlace] image failed', { error });
-            // The photo picked before, if any, is kept: this one simply was not taken.
+            logger.warn('PLACE', '[EditPlace] image failed', { error });
+            // The photo shown before is kept: this one simply was not taken.
             if (session.current === startedIn) setFailure('imageFailed');
         } finally {
             if (session.current === startedIn) setEncoding(false);
@@ -125,55 +124,35 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (submitting || encoding || !trimmed) return;
+        if (!place || !canSave) return;
         setSubmitting(true);
         setFailure(null);
         const startedIn = session.current;
-        // The store is read as well: the count only moves once the close has rendered.
-        const closed = () => session.current !== startedIn || !useCreatePlaceDialogStore.getState().isOpen;
-
-        let placeId = unenteredPlaceId;
-        if (!placeId) {
-            try {
-                placeId = (await createPlace({ name: trimmed, thumbnail })).id;
-                // Made, but for the cloud the dialog was open in: the place stays on that
-                // cloud's rail, and the session is not moved into it from wherever it is now.
-                if (closed()) return;
-                setUnenteredPlaceId(placeId);
-            } catch (error) {
-                // Classified before the check: that is where the failure is logged.
-                const reason = createPlaceFailure(error);
-                if (closed()) return;
-                setFailure(reason);
-                setSubmitting(false);
-                return;
-            }
-        }
-
         try {
-            await onEnter(placeId);
+            await updatePlace({
+                id: place.id,
+                ...(nameChanged && { name: trimmed }),
+                // An empty string for a removed photo, the value the web app sends for the same edit.
+                ...(photoChanged && { thumbnail: thumbnail ?? '' }),
+            });
         } catch (error) {
-            logger.error('PLACE', '[CreatePlace] enter failed', { error, placeId });
-            if (closed()) return;
-            setFailure('enter');
+            // Classified before the check: that is where the failure is logged.
+            const reason = placeFailure(error, 'EditPlace');
+            if (session.current !== startedIn) return;
+            setFailure(reason);
             setSubmitting(false);
             return;
         }
-
-        if (closed()) return;
-        setOpen(false);
-        toast({ description: t('place.create.created') });
-        onEntered?.(placeId);
+        if (session.current !== startedIn) return;
+        close();
+        toast({ description: t('place.edit.saved') });
     };
-
-    // The place carries its name and photo once it is made; only the switch is left then.
-    const locked = submitting || unenteredPlaceId !== null;
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
-                <DialogTitle>{t('place.create.title')}</DialogTitle>
-                <DialogDescription>{t('place.create.description')}</DialogDescription>
+                <DialogTitle>{t('place.edit.title')}</DialogTitle>
+                <DialogDescription>{t('place.edit.description')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
                     <div className="flex items-center gap-3">
                         <Avatar className="h-14 w-14 rounded-xl">
@@ -187,7 +166,7 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled={locked || encoding}
+                                disabled={submitting || encoding}
                                 onClick={() => fileRef.current?.click()}
                             >
                                 {t(thumbnail ? 'place.create.changePhoto' : 'place.create.photo')}
@@ -197,7 +176,7 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    disabled={locked || encoding}
+                                    disabled={submitting || encoding}
                                     onClick={() => setThumbnail(undefined)}
                                 >
                                     {t('place.create.removePhoto')}
@@ -214,18 +193,18 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="place-name">{t('place.create.nameLabel')}</Label>
+                        <Label htmlFor="edit-place-name">{t('place.create.nameLabel')}</Label>
                         <Input
-                            id="place-name"
+                            id="edit-place-name"
                             autoFocus
                             value={name}
                             maxLength={PLACE_NAME_MAX}
                             onChange={e => setName(e.target.value)}
                             placeholder={t('place.create.namePlaceholder')}
-                            disabled={locked}
-                            aria-describedby="place-name-hint"
+                            disabled={submitting}
+                            aria-describedby="edit-place-name-hint"
                         />
-                        <p id="place-name-hint" className="text-micro text-muted-foreground">
+                        <p id="edit-place-name-hint" className="text-micro text-muted-foreground">
                             {t('place.create.nameHint', { max: PLACE_NAME_MAX })}
                         </p>
                     </div>
@@ -243,10 +222,10 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
                             onClick={() => handleOpenChange(false)}
                             disabled={submitting}
                         >
-                            {t('place.create.cancel')}
+                            {t('common.cancel')}
                         </Button>
-                        <Button type="submit" disabled={submitting || encoding || !trimmed}>
-                            {submitting ? t('place.create.creating') : t('place.create.submit')}
+                        <Button type="submit" disabled={!canSave}>
+                            {submitting ? t('place.edit.saving') : t('place.edit.submit')}
                         </Button>
                     </DialogFooter>
                 </form>

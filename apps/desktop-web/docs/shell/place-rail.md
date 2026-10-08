@@ -102,3 +102,27 @@ a create still in flight when the dialog closes too: its answer is dropped, so t
 moved into a place of the cloud that was just left. The place itself is made, and is on that cloud's
 rail the next time it is opened. A close that lands after the switch was sent cannot call it back;
 only the dialog's own follow-up, the notice or the failure line, is dropped then.
+
+## Editing a place
+
+Right-clicking a place tile opens its menu, for an account that manages places in a cloud where a
+place could be made (the same `canCreatePlace` answer that draws the **New place** tile). The Home
+tile has no menu, and neither does the relay subscription row that shares the list: it is not a
+place anybody made (`isManagedPlace`).
+
+**Edit place** opens `EditPlaceDialog` on that place, with its name and photo as they are. The name
+keeps the 20-character cap and the photo the 10 MB one, read and resized the same way as in the
+create form. Save stays off until something differs from the place, and while a photo is being read.
+
+Only what changed is sent (`useUpdatePlace`): a name left alone is not written again, and a removed
+photo goes out as an empty one, the value the web app sends for the same edit. The repository writes the change
+into the place cache before the server answers, so the tile changes at once, and puts the old row
+back if the server refuses. A refusal keeps the dialog open with what was typed and says whether
+trying again can help.
+
+The form is not the create form with a mode. Making a place has a second step, entering it, and a
+retry state between the two; folding an edit into that would put a branch through every part of it.
+
+The dialog names a place by id, and that place belongs to the cloud it was opened in. So it closes
+when the place leaves the rail, which a cloud change does too since the rail lists the active
+cloud's places only, and an answer that arrives after that is dropped.

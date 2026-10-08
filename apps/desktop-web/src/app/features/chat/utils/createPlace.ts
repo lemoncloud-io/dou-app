@@ -17,20 +17,24 @@ export const PLACE_MAX = 10;
  * the same list without being a place anyone made, so it does not count.
  */
 export const isAtPlaceLimit = (places: readonly Pick<DomainPlace, 'stereo'>[]): boolean =>
-    places.filter(place => place.stereo !== 'place').length >= PLACE_MAX;
+    places.filter(isManagedPlace).length >= PLACE_MAX;
+
+/** A place that somebody made, as against the relay subscription row that shares the list. */
+export const isManagedPlace = (place: Pick<DomainPlace, 'stereo'>): boolean => place.stereo !== 'place';
 
 /**
- * Why a new place was not made, as far as the person can act on it:
- * - `denied`: this account may not make places here. Trying again changes nothing.
+ * Why a place was not made, changed or deleted, as far as the person can act on it:
+ * - `denied`: this account may not do that here. Trying again changes nothing.
  * - `network`: the server was not reached. Trying again is the answer.
  * - `other`: anything else, which may pass on a second try.
  */
-export type CreatePlaceFailure = 'denied' | 'network' | 'other';
+export type PlaceFailure = 'denied' | 'network' | 'other';
 
-export const createPlaceFailure = (error: unknown): CreatePlaceFailure => {
+/** `action` only names the attempt in the log. */
+export const placeFailure = (error: unknown, action: 'CreatePlace' | 'EditPlace' | 'DeletePlace'): PlaceFailure => {
     const raw = extractErrorMessage(error);
     // The wire text belongs in the log, not in the dialog.
-    logger.error('PLACE', '[CreatePlace] failed', { error, raw });
+    logger.error('PLACE', `[${action}] failed`, { error, raw });
     switch (classifyWireError(raw)) {
         case 'denied':
             return 'denied';
@@ -40,3 +44,5 @@ export const createPlaceFailure = (error: unknown): CreatePlaceFailure => {
             return 'other';
     }
 };
+
+export const createPlaceFailure = (error: unknown): PlaceFailure => placeFailure(error, 'CreatePlace');

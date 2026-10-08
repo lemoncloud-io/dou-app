@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, Plus, User } from 'lucide-react';
+import { Home, Pencil, Plus, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -11,8 +11,14 @@ import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
-import { isAtPlaceLimit, PLACE_MAX } from '../utils';
+import { isAtPlaceLimit, isManagedPlace, PLACE_MAX } from '../utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuTrigger,
+} from '@chatic/ui-kit/components/ui/context-menu';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -42,9 +48,13 @@ interface PlaceRailProps {
     /** A cloud/place switch is in flight — disable the tiles to block a second switch. */
     isSwitching?: boolean;
     onSelectPlace: (placeId: string) => void;
-    /** The account may add a place to the active cloud — draws the "new place" tile after the list. */
-    canCreatePlace?: boolean;
+    /**
+     * The account manages the places of the active cloud: draws the "new place" tile after the
+     * list, and gives each place tile its menu.
+     */
+    canManagePlaces?: boolean;
     onCreatePlace?: () => void;
+    onEditPlace?: (placeId: string) => void;
 }
 
 const tileInitial = (name: string): string => name.trim().charAt(0).toUpperCase() || '#';
@@ -61,6 +71,8 @@ interface PlaceTileProps {
     unreadLabel?: string;
     isSwitching?: boolean;
     onSelect: (placeId: string) => void;
+    /** The tile's menu items. A tile without them has no menu at all. */
+    menu?: ReactNode;
 }
 
 /** One place, Figma Workspace Rail style: a 48px icon box with the name under it.
@@ -76,53 +88,67 @@ const PlaceTile = ({
     unreadLabel,
     isSwitching,
     onSelect,
-}: PlaceTileProps) => (
-    <Hint label={name}>
-        <button
-            onClick={() => onSelect(id)}
-            disabled={isSwitching}
-            aria-label={unread > 0 ? unreadLabel : name}
-            aria-current={isActive ? 'true' : undefined}
-            className={cn(
-                'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
-                isSwitching && 'cursor-not-allowed',
-                isSwitching && !isActive && 'opacity-40'
-            )}
-        >
-            <span className="relative">
-                <span
-                    className={cn(
-                        'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                        isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
-                    )}
-                >
-                    {thumbnail ? (
-                        <img src={thumbnail} alt="" className="h-full w-full object-cover" />
-                    ) : glyph ? (
-                        glyph
-                    ) : (
-                        tileInitial(name)
-                    )}
-                </span>
-                {/* A dot, as on the cloud tiles and channel rows. A count here summed
-                    messages across rows that only dot, so "12" pointed at nothing a
-                    row inside would admit to. */}
-                {unread > 0 && (
-                    <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
-                )}
-            </span>
-            <span
+    menu,
+}: PlaceTileProps) => {
+    const tile = (
+        <Hint label={name}>
+            <button
+                onClick={() => onSelect(id)}
+                disabled={isSwitching}
+                aria-label={unread > 0 ? unreadLabel : name}
+                aria-current={isActive ? 'true' : undefined}
                 className={cn(
-                    'max-w-full truncate text-callout font-medium leading-tight transition-colors',
-                    // A faded label measured under AA; the quieter tone is a token that clears it.
-                    isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
+                    'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
+                    isSwitching && 'cursor-not-allowed',
+                    isSwitching && !isActive && 'opacity-40'
                 )}
             >
-                {name}
-            </span>
-        </button>
-    </Hint>
-);
+                <span className="relative">
+                    <span
+                        className={cn(
+                            'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
+                            isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
+                        )}
+                    >
+                        {thumbnail ? (
+                            <img src={thumbnail} alt="" className="h-full w-full object-cover" />
+                        ) : glyph ? (
+                            glyph
+                        ) : (
+                            tileInitial(name)
+                        )}
+                    </span>
+                    {/* A dot, as on the cloud tiles and channel rows. A count here summed
+                    messages across rows that only dot, so "12" pointed at nothing a
+                    row inside would admit to. */}
+                    {unread > 0 && (
+                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
+                    )}
+                </span>
+                <span
+                    className={cn(
+                        'max-w-full truncate text-callout font-medium leading-tight transition-colors',
+                        // A faded label measured under AA; the quieter tone is a token that clears it.
+                        isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
+                    )}
+                >
+                    {name}
+                </span>
+            </button>
+        </Hint>
+    );
+    if (!menu) return tile;
+    return (
+        <ContextMenu>
+            <ContextMenuTrigger asChild>
+                {/* Plain wrapper, as on the cloud tiles: composing the Radix trigger onto Hint's
+                    own trigger drops onContextMenu. */}
+                <div className="contents">{tile}</div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-52">{menu}</ContextMenuContent>
+        </ContextMenu>
+    );
+};
 
 /**
  * Second rail. Each icon is a place (a site within the active cloud); selecting
@@ -136,8 +162,9 @@ export const PlaceRail = ({
     isDefaultMode,
     isSwitching,
     onSelectPlace,
-    canCreatePlace,
+    canManagePlaces,
     onCreatePlace,
+    onEditPlace,
 }: PlaceRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -223,11 +250,24 @@ export const PlaceRail = ({
                                     unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
                                     isSwitching={isSwitching}
                                     onSelect={onSelectPlace}
+                                    menu={
+                                        // The relay subscription row shares the list and is nobody's
+                                        // to edit, so it gets no menu.
+                                        canManagePlaces && isManagedPlace(place) && onEditPlace ? (
+                                            <ContextMenuItem
+                                                disabled={isSwitching}
+                                                onSelect={() => onEditPlace(place.id)}
+                                            >
+                                                <Pencil size={14} aria-hidden />
+                                                {t('place.edit.action')}
+                                            </ContextMenuItem>
+                                        ) : undefined
+                                    }
                                 />
                             ))}
                             {/* After the list, where a new place will land. A switch in flight locks
                                 it with the tiles: the dialog ends in a switch of its own. */}
-                            {canCreatePlace && onCreatePlace && (
+                            {canManagePlaces && onCreatePlace && (
                                 <PlaceTile
                                     id="create-place"
                                     name={t('place.create.open')}

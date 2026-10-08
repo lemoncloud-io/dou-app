@@ -44,6 +44,7 @@ const places = [{ id: 'place-1', name: 'Design', cid: 'mine' }] as DomainPlace[]
 
 const renderRail = (props: Partial<ComponentProps<typeof PlaceRail>> = {}) => {
     const onCreatePlace = vi.fn();
+    const onEditPlace = vi.fn();
     render(
         <PlaceRail
             places={places}
@@ -51,13 +52,14 @@ const renderRail = (props: Partial<ComponentProps<typeof PlaceRail>> = {}) => {
             unreadByPlace={{}}
             isDefaultMode={false}
             onSelectPlace={vi.fn()}
-            canCreatePlace
+            canManagePlaces
             onCreatePlace={onCreatePlace}
+            onEditPlace={onEditPlace}
             {...props}
         />,
         { wrapper }
     );
-    return { onCreatePlace };
+    return { onCreatePlace, onEditPlace };
 };
 
 const createTile = () => screen.queryByRole('button', { name: i18next.t('place.create.open') });
@@ -71,13 +73,15 @@ describe('PlaceRail new place tile', () => {
         const tile = createTile();
 
         expect(tile).toBeTruthy();
-        expect(tiles.indexOf(tile as HTMLElement)).toBe(tiles.indexOf(screen.getByRole('button', { name: 'Design' })) + 1);
+        expect(tiles.indexOf(tile as HTMLElement)).toBe(
+            tiles.indexOf(screen.getByRole('button', { name: 'Design' })) + 1
+        );
         fireEvent.click(tile as HTMLElement);
         expect(onCreatePlace).toHaveBeenCalledTimes(1);
     });
 
     it('is not drawn where the account cannot make a place', () => {
-        renderRail({ canCreatePlace: false });
+        renderRail({ canManagePlaces: false });
         expect(createTile()).toBeNull();
     });
 
@@ -103,5 +107,42 @@ describe('PlaceRail new place tile', () => {
 
         expect(onCreatePlace).not.toHaveBeenCalled();
         expect(toast.mock.calls[0][0].title).toBe(i18next.t('place.create.limit', { max: PLACE_MAX }));
+    });
+});
+
+describe('PlaceRail place menu', () => {
+    const openMenu = (name: string) => fireEvent.contextMenu(screen.getByRole('button', { name }));
+    const editItem = () => screen.queryByRole('menuitem', { name: i18next.t('place.edit.action') });
+
+    it('opens the edit form for the place whose tile was right-clicked', () => {
+        const { onEditPlace } = renderRail();
+        openMenu('Design');
+        fireEvent.click(editItem() as HTMLElement);
+        expect(onEditPlace).toHaveBeenCalledWith('place-1');
+    });
+
+    it('locks the menu with the tiles while a switch is in flight', () => {
+        const { onEditPlace } = renderRail({ isSwitching: true });
+        openMenu('Design');
+        fireEvent.click(editItem() as HTMLElement);
+        expect(onEditPlace).not.toHaveBeenCalled();
+    });
+
+    it('has no menu for an account that does not manage places', () => {
+        renderRail({ canManagePlaces: false });
+        openMenu('Design');
+        expect(editItem()).toBeNull();
+    });
+
+    it("has no menu on the relay subscription row, which is nobody's place to edit", () => {
+        renderRail({ places: [{ id: 'relay', name: 'Relay', cid: 'mine', stereo: 'place' }] as DomainPlace[] });
+        openMenu('Relay');
+        expect(editItem()).toBeNull();
+    });
+
+    it('has no menu on the Home tile', () => {
+        renderRail({ isDefaultMode: true });
+        openMenu(i18next.t('place.home'));
+        expect(editItem()).toBeNull();
     });
 });

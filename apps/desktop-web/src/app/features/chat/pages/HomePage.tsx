@@ -51,6 +51,7 @@ import {
     CloudRail,
     CreatePlaceDialog,
     DesktopLayout,
+    EditPlaceDialog,
     OnboardingDialog,
     PlaceRail,
     SidebarHeader,
@@ -74,7 +75,7 @@ import {
     pendingOpenRoute,
     pendingRedirectPlace,
 } from '../utils';
-import { useCreatePlaceDialogStore, useThreadStore } from '../stores';
+import { useCreatePlaceDialogStore, useEditPlaceDialogStore, useThreadStore } from '../stores';
 import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
 const isWindowActive = (): boolean =>
@@ -151,7 +152,7 @@ export const HomePage = () => {
     // Read on every render: the relay account is a synchronous read, and this page renders on the
     // session signals above, which is when the answer can change.
     const mayManagePlaces = readPlaceManageAccess();
-    const mayCreatePlace = canCreatePlace(clouds, activeCloudId, {
+    const mayManagePlacesHere = canCreatePlace(clouds, activeCloudId, {
         isGuest,
         isCloudActive,
         canManage: mayManagePlaces,
@@ -159,6 +160,9 @@ export const HomePage = () => {
     // The form belongs to the cloud it was opened in: a place it made there cannot be entered from
     // another, so a cloud change (a notification tap can cause one under an open dialog) closes it.
     useEffect(() => setCreatePlaceOpen(false), [activeCloudId, setCreatePlaceOpen]);
+    // The edit form needs no such effect: it closes itself when its place leaves the list, which a
+    // cloud change does.
+    const openEditPlace = useEditPlaceDialogStore(s => s.open);
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
     const { isAvailable: canStartDm, startDm, isStarting } = useStartDm();
@@ -754,8 +758,9 @@ export const HomePage = () => {
                             clearJumpOrigin();
                             switchPlace(placeId);
                         }}
-                        canCreatePlace={mayCreatePlace}
+                        canManagePlaces={mayManagePlacesHere}
                         onCreatePlace={() => setCreatePlaceOpen(true)}
+                        onEditPlace={openEditPlace}
                     />
                 }
                 sidebar={
@@ -852,6 +857,7 @@ export const HomePage = () => {
             />
             <CreateChannelDialog onCreated={openCreatedChannel} />
             <CreatePlaceDialog onEnter={enterPlace} onEntered={openEditPlaceProfile} />
+            <EditPlaceDialog places={places} />
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />
