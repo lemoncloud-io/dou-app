@@ -73,18 +73,18 @@ DoU is an Nx monorepo powering a real-time messaging and community platform acro
 
 ## Tech Stack
 
-| Category         | Technology                             |
-| ---------------- | -------------------------------------- |
-| **Framework**    | React 19.2, React Native 0.83          |
-| **Language**     | TypeScript 5.9 (strict mode)           |
-| **Build**        | Vite 7, Metro, Nx 22                   |
-| **Styling**      | Tailwind CSS 3.4, Radix UI (shadcn/ui) |
-| **State**        | Zustand 5, TanStack Query 5            |
-| **Routing**      | React Router 6, React Navigation 7     |
-| **Forms**        | React Hook Form 7                      |
-| **i18n**         | i18next 25                             |
-| **Testing**      | Vitest 4, Jest 30, Testing Library     |
-| **Code Quality** | ESLint 9, Prettier, Husky, Commitlint  |
+| Category         | Technology                                     |
+| ---------------- | ---------------------------------------------- |
+| **Framework**    | React 19.2, React Native 0.83                  |
+| **Language**     | TypeScript 5.9 (strict mode)                   |
+| **Build**        | Vite 7, Metro, Nx 22                           |
+| **Styling**      | Tailwind CSS 3.4, Radix UI (shadcn/ui)         |
+| **State**        | Zustand 5, TanStack Query 5                    |
+| **Routing**      | React Router 6, React Navigation 7             |
+| **Forms**        | React Hook Form 7                              |
+| **i18n**         | i18next 25                                     |
+| **Testing**      | Vitest 4, Jest 30, Testing Library, Playwright |
+| **Code Quality** | ESLint 9, Prettier, Husky, Commitlint          |
 
 ## Architecture
 
@@ -136,6 +136,7 @@ graph TB
 dou-app/
 ├── apps/
 │   ├── web/                 # Main web application (port 5003)
+│   ├── web-e2e/             # Playwright E2E of web inside a fake native shell
 │   ├── admin-v2/            # Admin dashboard (port 5001)
 │   ├── landing/             # Marketing site & policy pages (port 5004)
 │   ├── desktop-web/         # Web client for the Desktop shell (port 5005)
@@ -468,7 +469,8 @@ Android `envConfigFiles`), not by the script. See
 `deploy-dev`/`deploy-prod` auto-detect which apps changed and only build/deploy the affected ones —
 this is the only path that ships `desktop-web` (see the note in
 [Building & Deployment](#building--deployment)). `verify.yml` was added later than the rest; before
-it, nothing in CI ran a type check or a test.
+it, nothing in CI ran a type check or a test. Its second job, `e2e`, runs the web app in a real browser
+inside a fake native shell ([apps/web-e2e](./apps/web-e2e/README.md)) when `web-e2e` is affected.
 
 ## Code Quality
 
@@ -488,6 +490,8 @@ yarn prettier:staged        # Format staged files only
 # Test
 npx nx test web             # Test specific project
 npx nx test                 # Run all tests
+yarn web:e2e                # Web in a real browser, inside a fake native shell (apps/web-e2e/README.md)
+yarn web:e2e:ui             # The same, in Playwright's UI mode (yarn web:e2e:install once first)
 yarn desktop:test:sandbox   # Electron preload under sandbox — run when touching apps/desktop/src/preload
 
 # Cache

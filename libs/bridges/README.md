@@ -42,6 +42,10 @@ the upload queue ([`@chatic/logger`](../logger/README.md)); the handlers that an
 `apps/desktop/src/main/index.ts`); and the injection that puts a channel on `window` in the first
 place — each shell does that for itself.
 
+`AppBridgeHost` has one host outside a shell: `apps/web-e2e` runs it in a Node test process as the
+fake native shell its browser tests talk to. That is why it must stay free of React Native and DOM
+dependencies.
+
 ## Design principles
 
 1. **The vocabulary is read, never extended.** `WEB_MESSAGE_RESPONSE_TYPE` is consulted twice —

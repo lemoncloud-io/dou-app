@@ -115,3 +115,83 @@ jobs:
             #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
             #   test        @chatic/landing               red
+
+    # `apps/web` in its native (WebView) mode, driven in Chromium and WebKit against a fake native
+    # shell and a fake relay (`apps/web-e2e`). A job of its own so it runs beside the gate above
+    # rather than after it, and so its browsers are only installed when there is something to run.
+    #
+    # Skipped when `web-e2e` is not affected — the web app, the libs it builds from and the e2e
+    # project itself are what move it — and the mobile injection script it loads is unchanged.
+    e2e:
+        name: web e2e (fake native shell)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # `nx show projects --affected` compares against the base commit, so it needs history.
+                  fetch-depth: 0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Get Yarn cache path
+              id: yarn-cache-dir-path
+              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+            - name: Cache dependencies
+              id: cache-dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
+
+            - name: Install dependencies
+              if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
+              run: yarn install --frozen-lockfile
+
+            # A pull request is compared with its base branch, a push with the commit before it. A push
+            # with no usable previous commit (a new branch) runs the suite rather than guess.
+            #
+            # The mobile app's injection script counts too: the fake shell loads it by path, so no
+            # dependency edge makes `web-e2e` affected by it (apps/web-e2e/README.md § The shell).
+            # `projects=` on a line of its own, so a failing `nx` fails this step instead of reading as
+            # "not affected".
+            - name: Is web-e2e affected
+              id: affected
+              env:
+                  BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+              run: |
+                  if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  projects=$(npx nx show projects --affected --base="$BASE" --head=HEAD)
+                  changed=$(git diff --name-only "$BASE" HEAD)
+                  if grep -qx 'web-e2e' <<<"$projects" \
+                      || grep -qx 'apps/mobile/src/app/webview/utils/injectionScripts.ts' <<<"$changed"; then
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "run=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Install Playwright browsers
+              if: ${{ steps.affected.outputs.run == 'true' }}
+              run: npx playwright install --with-deps chromium webkit
+
+            - name: E2E
+              if: ${{ steps.affected.outputs.run == 'true' }}
+              run: npx nx run web-e2e:e2e
+
+            - name: Upload the report
+              if: ${{ failure() && steps.affected.outputs.run == 'true' }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: web-e2e-report
+                  path: dist/.playwright/apps/web-e2e
+                  retention-days: 14

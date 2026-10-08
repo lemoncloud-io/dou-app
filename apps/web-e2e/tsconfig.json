@@ -1,0 +1,17 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "out-tsc",
+        "tsBuildInfoFile": "out-tsc/tsconfig.tsbuildinfo",
+        "types": ["node"]
+    },
+    "include": ["playwright.config.ts", "src/**/*.ts"],
+    "references": [
+        {
+            "path": "../../libs/bridges"
+        },
+        {
+            "path": "../../libs/app-messages"
+        }
+    ]
+}
