@@ -21,9 +21,11 @@ export interface MessageViewer {
 // An id is "mine" when it matches either my account id (optimistic messages carry it)
 // or my per-channel cloud user id (the server rewrites the owner to this once the
 // message persists) — so my own rows stay identified across the optimistic→persisted
-// swap. A surface that asks "is this message mine" should go through here; the rule is subtle
-// enough that a second copy would drift. Message rows, the mentions inbox, the OS
-// notifications and the unread badge do; some older checks still compare the account id alone.
+// swap. This answers "is this id mine". "Is this message mine" goes through `isOwnChat` below,
+// which adds the webhook rule — message rows, the mentions inbox, the OS and cross-cloud banners and
+// the unread badge all ask it, since a second copy of the rule would drift. Only `useChatOutbox`
+// compares `ownerId` with the account id directly, on purpose: the failed rows it resends are always
+// optimistic rows I wrote, which carry that id.
 export const isViewerId = (userId: string | undefined, viewer: MessageViewer): boolean =>
     (!!viewer.uid && userId === viewer.uid) || (!!viewer.cloudUid && userId === viewer.cloudUid);
 
@@ -38,3 +40,15 @@ export const viewerPlaceProfile = (
 ): PlaceProfileEntry | undefined =>
     (viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
     (viewer.uid ? placeProfiles[viewer.uid] : undefined);
+
+/** A message an integration sent (`stereo: 'webhook'`), as opposed to one a person wrote. */
+export const isWebhookChat = (chat: { stereo?: string }): boolean => chat.stereo === 'webhook';
+
+/**
+ * Whether a message is mine. A webhook never is, whatever owner id the server stamped on it: an id
+ * equal to mine would otherwise offer Delete, borrow my avatar, drop the card from the unread
+ * divider and count, silence its banner and clear the sidebar badge. Every surface asks this one
+ * question, so none of them can disagree about the same message.
+ */
+export const isOwnChat = (chat: { ownerId?: string; stereo?: string }, viewer: MessageViewer): boolean =>
+    !isWebhookChat(chat) && isViewerId(chat.ownerId, viewer);

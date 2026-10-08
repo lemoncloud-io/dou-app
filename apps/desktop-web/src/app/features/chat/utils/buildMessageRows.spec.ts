@@ -76,3 +76,121 @@ describe('buildMessageRows — author avatar', () => {
         expect(groups[1]).toMatchObject({ isMine: false, avatar: undefined });
     });
 });
+
+describe('buildMessageRows — webhook sender', () => {
+    const groupsOf = (rows: ReturnType<typeof buildMessageRows>) =>
+        rows.flatMap(row => (row.kind === 'group' ? [row.group] : []));
+    const webhook = (over: Partial<DomainChat>) => chat({ stereo: 'webhook', ownerId: 'hook', ...over });
+
+    it('marks a webhook group and names it from owner$ when the server sends it', () => {
+        const rows = buildMessageRows(
+            [
+                webhook({
+                    id: 'C1:1',
+                    chatNo: 1,
+                    content: 'alarm',
+                    owner$: { name: 'hello-alarm' } as DomainChat['owner$'],
+                }),
+            ],
+            VIEWER
+        );
+
+        expect(groupsOf(rows)[0]).toMatchObject({ isWebhook: true, ownerName: 'hello-alarm', namePending: false });
+    });
+
+    // The unconfirmed case: the server may not embed owner$ for the system sender.
+    it('falls back to "Webhook" when owner$ is absent, even while the roster is loading', () => {
+        const rows = buildMessageRows(
+            [webhook({ id: 'C1:1', chatNo: 1, content: 'alarm' })],
+            VIEWER,
+            undefined,
+            0,
+            true
+        );
+
+        expect(groupsOf(rows)[0]).toMatchObject({ isWebhook: true, ownerName: 'Webhook', namePending: false });
+    });
+
+    it('keeps a person without a name on the skeleton / "Unknown" path, not the webhook label', () => {
+        const loading = buildMessageRows([chat({ id: 'C1:1', chatNo: 1, content: 'hi' })], VIEWER, undefined, 0, true);
+        const settled = buildMessageRows([chat({ id: 'C1:1', chatNo: 1, content: 'hi' })], VIEWER);
+
+        expect(groupsOf(loading)[0]).toMatchObject({ isWebhook: false, namePending: true });
+        expect(groupsOf(settled)[0]).toMatchObject({ isWebhook: false, ownerName: 'Unknown' });
+    });
+
+    it('never merges a webhook into a person block, even with the same ownerId', () => {
+        const rows = buildMessageRows(
+            [
+                chat({ id: 'C1:1', chatNo: 1, ownerId: 'same', content: 'person' }),
+                chat({ id: 'C1:2', chatNo: 2, ownerId: 'same', stereo: 'webhook', content: 'card' }),
+                chat({ id: 'C1:3', chatNo: 3, ownerId: 'same', content: 'person again' }),
+            ],
+            VIEWER,
+            new Map([['same', 'Sam']])
+        );
+
+        expect(groupsOf(rows).map(group => group.isWebhook)).toEqual([false, true, false]);
+    });
+
+    it('splits webhook posts that carry different sender names under one system owner', () => {
+        const named = (name: string) => ({ name }) as DomainChat['owner$'];
+        const rows = buildMessageRows(
+            [
+                webhook({ id: 'C1:1', chatNo: 1, content: 'a', owner$: named('deploy-bot') }),
+                webhook({ id: 'C1:2', chatNo: 2, content: 'b', owner$: named('hello-alarm') }),
+            ],
+            VIEWER
+        );
+
+        expect(groupsOf(rows).map(group => group.ownerName)).toEqual(['deploy-bot', 'hello-alarm']);
+    });
+
+    // The sender is not a member, but its owner id can still collide with a roster entry or a Place
+    // nick. A webhook is named by what it carries, never by a person who shares its id.
+    it('names a webhook from owner$ or "Webhook" even when its ownerId is on the roster or has a Place nick', () => {
+        const rows = buildMessageRows(
+            [
+                webhook({ id: 'C1:1', chatNo: 1, ownerId: 'sam', content: 'a' }),
+                webhook({ id: 'C1:2', chatNo: 2, ownerId: 'sam', content: 'b' }),
+            ],
+            VIEWER,
+            new Map([['sam', 'Sam']]),
+            0,
+            false,
+            { sam: { nick: 'Sammy' } }
+        );
+
+        const groups = groupsOf(rows);
+        expect(groups).toHaveLength(1);
+        expect(groups[0]).toMatchObject({ isWebhook: true, ownerName: 'Webhook' });
+        expect(groups[0].messages).toHaveLength(2);
+    });
+
+    // The viewer's own id on a webhook must not turn the card into "my message" (Delete, my avatar,
+    // skipped by the unread divider).
+    it('never treats a webhook as mine, even when its ownerId is the viewer', () => {
+        const rows = buildMessageRows(
+            [
+                chat({ id: 'C1:1', chatNo: 1, ownerId: 'me', content: 'read' }),
+                webhook({ id: 'C1:2', chatNo: 2, ownerId: 'me-cloud', content: 'card' }),
+            ],
+            { ...VIEWER, photo: 'data:me' },
+            undefined,
+            1
+        );
+
+        expect(kinds(rows)).toEqual(['date', 'group', 'unread', 'group']);
+        expect(groupsOf(rows)[1]).toMatchObject({ isWebhook: true, isMine: false, avatar: undefined });
+    });
+
+    it('still merges consecutive webhook messages from one sender', () => {
+        const rows = buildMessageRows(
+            [webhook({ id: 'C1:1', chatNo: 1, content: 'a' }), webhook({ id: 'C1:2', chatNo: 2, content: 'b' })],
+            VIEWER
+        );
+
+        expect(groupsOf(rows)).toHaveLength(1);
+        expect(groupsOf(rows)[0].messages).toHaveLength(2);
+    });
+});
