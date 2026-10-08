@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChat } from '@chatic/data';
 
+import { beginChatSendTrace } from '../../../runtime/perf';
 import { toResendPayload, useChatMutations } from './useChatMutations';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -15,7 +16,10 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
+jest.mock('../../../runtime/perf', () => ({ beginChatSendTrace: jest.fn() }));
+
 const sendChatInCloud = runtime.data.sendChatInCloud as jest.Mock;
+const endSendTrace = jest.fn();
 const getCloudRepositories = runtime.data.getCloudRepositories as jest.Mock;
 // The app graph's chat repository — a send or an unsent-row delete must never reach it.
 const appSendChat = jest.fn();
@@ -26,6 +30,7 @@ const chat = (fields: Partial<DomainChat>): DomainChat => fields as DomainChat;
 
 beforeEach(() => {
     jest.clearAllMocks();
+    (beginChatSendTrace as jest.Mock).mockReturnValue({ end: endSendTrace });
     sendChatInCloud.mockResolvedValue(chat({ id: 'c1:9', chatNo: 9 }));
     cloudCacheDelete.mockResolvedValue(undefined);
     getCloudRepositories.mockReturnValue({ chat: { cacheDelete: cloudCacheDelete } });
@@ -63,6 +68,46 @@ describe('useChatMutations — cloud-addressed send', () => {
         });
 
         await waitFor(() => expect(result.current.isPending.send).toBe(false));
+    });
+});
+
+describe('useChatMutations — chat_send trace', () => {
+    it('times a send to its answer and records it as ok', async () => {
+        const { result } = renderHook(() => useChatMutations());
+
+        await act(async () => {
+            await result.current.sendMessage('cloud-a', { channelId: 'c1', content: 'hi' });
+        });
+
+        expect(beginChatSendTrace).toHaveBeenCalledWith({ reply: false });
+        expect(endSendTrace).toHaveBeenCalledWith('ok');
+    });
+
+    it('records a failed send as an error, and still rejects', async () => {
+        sendChatInCloud.mockRejectedValue(new Error('offline'));
+        const { result } = renderHook(() => useChatMutations());
+
+        await expect(result.current.sendMessage('cloud-a', { channelId: 'c1', content: 'hi' })).rejects.toThrow(
+            'offline'
+        );
+        expect(endSendTrace).toHaveBeenCalledWith('error');
+    });
+
+    it('tells a thread reply from a top-level send', async () => {
+        const { result } = renderHook(() => useChatMutations());
+
+        await act(async () => {
+            await result.current.sendMessage('cloud-a', { channelId: 'c1', content: 'hi', parentId: 'c1:3' });
+        });
+
+        expect(beginChatSendTrace).toHaveBeenCalledWith({ reply: true });
+    });
+
+    it('times nothing for a send it refuses before sending', async () => {
+        const { result } = renderHook(() => useChatMutations());
+
+        await expect(result.current.sendMessage('cloud-a', { channelId: 'c1', content: '' })).rejects.toThrow();
+        expect(beginChatSendTrace).not.toHaveBeenCalled();
     });
 });
 

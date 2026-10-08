@@ -5,9 +5,13 @@ import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } 
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
+import { beginMediaSendTiming } from '../mediaSendTrace';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
 jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
+// The send's perf sample is observed, not recorded: each call hands back a timing that does nothing.
+const idleTiming = () => ({ mark: jest.fn(), end: jest.fn() });
+jest.mock('../mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
 
 /** The clouds whose socket is held right now, as `runInCloud` would hold them. */
 const held: string[] = [];
@@ -572,6 +576,70 @@ describe('useSendImages — one message per file', () => {
         const previews = chat.createPendingImageChat.mock.calls.map(call => call[0].localThumbUrls);
         expect(previews).toEqual([[expect.any(String)], [expect.any(String)], [expect.any(String)]]);
         expect(new Set(previews.flat()).size).toBe(3);
+        unmount();
+    });
+
+    // Timed from the row, a later message would count the earlier ones' sends as its own, and a pick of
+    // ten would spend the whole per-minute sample budget at the press.
+    it("starts each message's send sample at its own turn, not when the rows are written", async () => {
+        const order: string[] = [];
+        jest.mocked(beginMediaSendTiming).mockImplementation(({ files }) => {
+            order.push(`sample ${files[0].name}`);
+            return idleTiming();
+        });
+        chat.createPendingImageChat.mockImplementation(async () => {
+            order.push('create');
+            return `row-${++rowSeq}`;
+        });
+        mockSendImageMessage.mockImplementation(async (picked: File[]) => {
+            order.push(`send ${picked[0].name}`);
+            return sent;
+        });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        try {
+            await act(() => result.current.sendImages(three(), separately));
+        } finally {
+            jest.mocked(beginMediaSendTiming).mockImplementation(() => idleTiming());
+        }
+
+        expect(order).toEqual([
+            'create',
+            'create',
+            'create',
+            'sample a.jpg',
+            'send a.jpg',
+            'sample b.jpg',
+            'send b.jpg',
+            'sample c.jpg',
+            'send c.jpg',
+        ]);
+        unmount();
+    });
+
+    it("starts a bundled send's sample before its row is written, as it always has", async () => {
+        const order: string[] = [];
+        jest.mocked(beginMediaSendTiming).mockImplementation(() => {
+            order.push('sample');
+            return idleTiming();
+        });
+        chat.createPendingImageChat.mockImplementation(async () => {
+            order.push('create');
+            return `row-${++rowSeq}`;
+        });
+        mockSendImageMessage.mockImplementation(async () => {
+            order.push('send');
+            return sent;
+        });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        try {
+            await act(() => result.current.sendImages(three()));
+        } finally {
+            jest.mocked(beginMediaSendTiming).mockImplementation(() => idleTiming());
+        }
+
+        expect(order).toEqual(['sample', 'create', 'send']);
         unmount();
     });
 

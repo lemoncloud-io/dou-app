@@ -29,8 +29,17 @@ A feature owns its own relative paths; `routes/` composes them by importing each
 `routes/index.tsx` under a `<group>/*` prefix, for example:
 
 ```tsx
-const ChannelRoutes = lazy(() => import('../features/channels').then(m => ({ default: m.ChannelRoutes })));
+const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.MyPageRoutes })));
 ```
+
+`channels` is the one group fetched before it is asked for. Its import lives in
+`routes/routeChunks.ts` (`loadChannelRoutes`), shared by the lazy route and the private shell, which
+preloads it once the app goes idle (`usePreloadOnIdle`, or two seconds after mount where there is no
+idle callback, as in the iOS WKWebView). The home list does not load it itself: features do not
+reach each other, and the idle preload has it in hand well before a first tap is likely. The room is
+the screen opened most, and without the preload the first room of a session waited about a second
+for this chunk before it could mount. A preload that fails is swallowed; the route meets the same
+failure when it loads, and reports it there.
 
 ## The `ROUTES` builder — the one source of absolute paths
 

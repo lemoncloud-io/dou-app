@@ -44,7 +44,16 @@ export const clearActivePerfTrace = (name: PerfTraceName, trace?: PerfTrace): vo
  */
 export const endActivePerfTrace = (name: PerfTraceName, subject: string, outcome: string): void => {
     const trace = getActivePerfTrace(name, subject);
-    if (!trace) return;
+    if (trace) endPerfTrace(name, trace, outcome);
+};
+
+/**
+ * Ends `trace` itself: records `outcome`, stops it, and frees the slot if the slot still holds it.
+ * For a module ending the trace it took, which may since have been replaced in the slot — looking it
+ * up by subject instead would end whichever trace is there now. A trace already stopped is left as
+ * it was.
+ */
+export const endPerfTrace = (name: PerfTraceName, trace: PerfTrace, outcome: string): void => {
     clearActivePerfTrace(name, trace);
     trace.putAttribute('outcome', outcome);
     trace.stop();

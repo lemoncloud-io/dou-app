@@ -631,6 +631,48 @@ describe('ChannelMessageRow', () => {
             expect(preview).toHaveAttribute('data-url', 'https://status.example.com');
         });
 
+        // The card's links follow the bubble's rule. Left to the anchor's default, the native
+        // shell loads the page into this WebView: DoU is replaced by it, with no way back.
+        describe('links in the card', () => {
+            const linkMessage = () =>
+                blockMessage([
+                    {
+                        type: 'context',
+                        elements: [{ type: 'mrkdwn', text: '<https://s3.example.com/r.json|원문 보기>' }],
+                    },
+                ]);
+            // The span wrapping the card carries the long-press handlers.
+            const cardTrigger = () => screen.getByRole('link').closest('.inline-flex') as HTMLElement;
+
+            it('opens a tapped link outside the webview instead of following the anchor', () => {
+                render(<ChannelMessageRow {...baseProps} message={linkMessage()} />);
+
+                const followed = fireEvent.click(screen.getByRole('link', { name: '원문 보기' }));
+
+                expect(followed).toBe(false);
+                expect(openExternalUrl).toHaveBeenCalledWith('https://s3.example.com/r.json');
+            });
+
+            it('swallows the click that ends a long press, so the action sheet wins', () => {
+                jest.useFakeTimers();
+                try {
+                    const props = { ...baseProps, message: linkMessage() };
+                    render(<ChannelMessageRow {...props} />);
+
+                    fireEvent.pointerDown(cardTrigger(), { pointerType: 'touch' });
+                    act(() => {
+                        jest.advanceTimersByTime(500);
+                    });
+                    fireEvent.click(screen.getByRole('link'));
+
+                    expect(props.onLongPress).toHaveBeenCalled();
+                    expect(openExternalUrl).not.toHaveBeenCalled();
+                } finally {
+                    jest.useRealTimers();
+                }
+            });
+        });
+
         // Three states the card must not take. A tombstone shows nothing of the body; a
         // pending or failed send is drawn BY the bubble (spinner, retry, destructive tint), and
         // a card would present an unlanded message as a finished one.

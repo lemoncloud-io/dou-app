@@ -1,5 +1,44 @@
 # Changelog
 
+## [2026-10-08] - No version updates
+
+### Features
+
+- (perf,app-runtime,web) measure socket requests and attachment sends by type (ADR-0181)
+
+## [2026-10-08] - root@0.86.3, @chatic/desktop-web@0.20.2
+
+### Bug Fixes
+
+- (desktop-web) re-read a failed cloud list when the relay verifies
+
+## [2026-10-08] - No version updates
+
+### Bug Fixes
+
+- (block-kit,web) open a block kit card's links in the os browser, not over the app
+
+## [2026-10-08] - root@0.86.2, @chatic/web@0.66.1
+
+### Features
+
+- (data,perf,app-runtime,web) split a room sync's fetch from its cache write
+
+### Documentation
+
+- (adr) number the room-entry fetch decision 0176, not 0164
+
+### Other
+
+- perf: (app-runtime,web) send a room's feed request at the tap, once per entry (ADR-0176)
+- perf: (web) preload the room route chunk once the app is idle
+
+## [2026-10-08] - No version updates
+
+### Features
+
+- (perf,web,app-runtime,mobile) time message sends, socket verification and the first screen
+
 ## [2026-10-07] - No version updates
 
 ### Bug Fixes

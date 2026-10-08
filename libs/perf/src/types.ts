@@ -13,7 +13,12 @@ export type PerfTraceName =
     | 'web_vitals'
     | 'chat_room_open'
     | 'chat_room_sync'
-    | 'bridge_request';
+    | 'bridge_request'
+    | 'chat_send'
+    | 'socket_verify'
+    | 'first_screen'
+    | 'socket_request'
+    | 'chat_send_media';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {

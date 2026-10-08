@@ -456,10 +456,16 @@ export const ChannelMessageRow = ({
                                     // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
                                     // so its raw-body path is unreachable from here. A message with nothing
                                     // drawable never enters this arm — it stays in the bubble as text.
+                                    //
+                                    // `onLinkClick` for the same reason the bubble's links take it: an
+                                    // anchor's default would load the page into this WebView in the
+                                    // native shell, and a hold that opened the action sheet must not
+                                    // also follow the link.
                                     <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
                                         <BlockKitMessage
                                             blocks={drawnBlocks}
                                             raw={content}
+                                            onLinkClick={handleUrlClick}
                                             labels={{
                                                 expandCode: count => t('chat.room.codeBlock.expand', { count }),
                                                 collapseCode: t('chat.room.codeBlock.collapse'),

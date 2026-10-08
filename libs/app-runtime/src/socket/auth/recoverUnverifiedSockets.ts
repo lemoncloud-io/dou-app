@@ -2,6 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import { Coalescer } from '../../utils/coalescer';
 import { authIdRegistry } from './authIdRegistry';
+import { clearResumeKick, noteResumeKick } from './socketVerifyTrace';
 import { getAuthStatus, needsSocketKick } from './authStatus';
 import { getSocketManager } from '../runtime';
 import { createSocketSessionDelegate } from './sessionDelegate';
@@ -73,6 +74,8 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
             data: { kind, cid: key, state: client.state, status, wasExpired },
         });
 
+        // The reconnect below is this kick's, so `socket_verify` records it as a resume.
+        noteResumeKick(key);
         // Close first so the re-seed below happens on a disconnected controller (register on a
         // half-open socket would fire auth.update into the void and burn a failure).
         await client.disconnect(1000, 'wake-recovery').catch(() => undefined);
@@ -101,5 +104,8 @@ const doRecover = async ({ manager, delegate }: RecoverUnverifiedSocketsDeps): P
                 data: { kind, cid: key },
             });
         });
+        // A reconnect that opened an attempt has spent the mark already; one that did not must not
+        // leave it for a later, unrelated attempt.
+        clearResumeKick(key);
     }
 };

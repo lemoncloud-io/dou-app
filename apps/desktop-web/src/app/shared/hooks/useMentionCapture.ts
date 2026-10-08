@@ -1,7 +1,7 @@
 import { runtime } from '@chatic/app-runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isMentioned, isNotifiableChat, isViewerId, messagePlainText, resolveMyMentionNames } from '../utils';
+import { isMentioned, isNotifiableChat, isOwnChat, messagePlainText, resolveMyMentionNames } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';
 
 const chatAuthorId = (chat: ChannelLastChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
@@ -36,7 +36,7 @@ export const useMentionCapture = (): void => {
         const identity = runtime.session.getGlobalSessionContext().identity;
         const viewer = { uid: identity.userId, name: '', cloudUid: channel.$join?.userId ?? null };
         const authorId = chatAuthorId(chat);
-        const isMe = isViewerId(authorId, viewer);
+        const isMe = isOwnChat({ ownerId: authorId, stereo: chat.stereo }, viewer);
         // Precedence: own message → not-a-mention → already-read → capture.
         if (isMe) return;
         if (!isMentioned(content, resolveMyMentionNames())) return;

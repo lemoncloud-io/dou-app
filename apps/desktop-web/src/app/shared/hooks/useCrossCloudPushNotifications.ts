@@ -9,7 +9,7 @@ import {
     findPushChannel,
     isDndActive,
     isMentioned,
-    isViewerId,
+    isOwnChat,
     messagePlainText,
     pushBody,
     readCacheRecords,
@@ -59,7 +59,8 @@ const presentPush = async (
     // `data.uid` is the recipient — me — in that same id space, so either that or my account id
     // marks it as mine.
     const myUid = runtime.session.getGlobalSessionContext().identity.userId;
-    if (data.ownerId && isViewerId(String(data.ownerId), { uid: myUid, name: '', cloudUid: data.uid ?? null })) return;
+    const viewer = { uid: myUid, name: '', cloudUid: data.uid ?? null };
+    if (data.ownerId && isOwnChat({ ownerId: String(data.ownerId), stereo: data.stereo }, viewer)) return;
     // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
     const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
     // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space

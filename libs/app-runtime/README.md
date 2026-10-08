@@ -21,7 +21,7 @@ grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | g
 
 Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
 `apps/testbed`. The surface itself is locked symbol by symbol by
-[`src/public-surface.test.ts`](./src/public-surface.test.ts): 79 value exports across the seven
+[`src/public-surface.test.ts`](./src/public-surface.test.ts): 81 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 
 This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
@@ -313,7 +313,8 @@ and re-registers, which is how the SDK re-sends `auth.update` on a live connecti
 
 `useChatSync(channelId)` registers a sync target by ref-count and primes the room in one call:
 the cache's highest `chatNo` becomes the plan's baseline through `updateLocalSnapshot`, and only a
-cold cache fetches a first page. The target belongs to the cloud selected when it registers and runs
+cold cache fetches a first page — through `fetchRoomFeed`, which joins the fetch the tap that opened
+the room may already have started (`prefetchRoomFeed`), so an entry sends one request. The target belongs to the cloud selected when it registers and runs
 on that cloud's slot; a switch re-registers it under the next cloud, and the previous one leaves
 through the grace window. Live messages then arrive as `chat.sync` pushes and land in the
 same cache by idempotent `chatNo` merge. Unmounting disposes the ref; the last dispose stops the
@@ -332,18 +333,18 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                                     | What it covers                                                                                                                      |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)                                  | The session hub. Three stores and their keys, the typed signal and batching, the scope's three views, the use cases, the hooks      |
-| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the renewers per server, the two guards  |
-| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-server `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK |
-| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting    |
-| [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, `updateLocalSnapshot`                |
-| [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows         |
-| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the three factories, the offline outbox, invited-cloud durability                                                 |
-| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it  |
-| [docs/http/](./docs/http/README.md)                                        | `HttpManager`. The three routes, the sealed transport, the staleness port, and the two late-bound registries                        |
-| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                        |
+| Folder                                                                     | What it covers                                                                                                                             |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| [docs/session/](./docs/session/README.md)                                  | The session hub. Three stores and their keys, the typed signal and batching, the scope's three views, the use cases, the hooks             |
+| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the renewers per server, the two guards         |
+| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-server `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK        |
+| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting           |
+| [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, the room-feed dedupe, `updateLocalSnapshot` |
+| [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows                |
+| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the three factories, the offline outbox, invited-cloud durability                                                        |
+| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it         |
+| [docs/http/](./docs/http/README.md)                                        | `HttpManager`. The three routes, the sealed transport, the staleness port, and the two late-bound registries                               |
+| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                               |
 
 ## How to verify
 
@@ -355,7 +356,7 @@ cd libs/app-runtime && npx eslint src             # flat config — run it from 
 
 - Type checking must be `tsc -b`. Inside `libs/app-runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 79 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 81 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `apps/testbed` and `libs/data`. That workflow type checks all of them.

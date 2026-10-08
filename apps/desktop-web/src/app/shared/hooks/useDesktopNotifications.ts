@@ -11,7 +11,7 @@ import {
     isDndActive,
     isMentioned,
     isNotifiableChat,
-    isViewerId,
+    isOwnChat,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
@@ -82,7 +82,7 @@ export const useDesktopNotifications = (): void => {
         // persisted message outside the relay is owned by my per-channel cloud user id, so "mine"
         // is either id — the same rule the message list and the mentions inbox use.
         const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
-        if (isViewerId(chat.ownerId, viewer)) return;
+        if (isOwnChat(chat, viewer)) return;
 
         // Mentions-only channels: drop anything that doesn't @-mention me
         // (global profile name + this place's nick, plus @channel/@here).

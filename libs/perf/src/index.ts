@@ -6,6 +6,7 @@
  * - `PerfTrace.ts` — the trace handle and the backend port
  * - `runtime.ts`  — the process-wide slot instrumentation points call through
  * - `activeTraces.ts` — the trace in progress per name, for traces several modules contribute to
+ * - `pageHides.ts` — whether the page was hidden during a measurement, so it can be dropped
  * - `backends/`   — the log-pipeline fallback, and the buffer the WebView uses until it knows
  *                   which backend the installed app supports
  *
@@ -18,6 +19,7 @@ export * from './types';
 export * from './limits';
 export * from './sampling';
 export * from './perfNow';
+export * from './pageHides';
 export * from './traceId';
 export * from './PerfTrace';
 export * from './runtime';

@@ -13,7 +13,7 @@ per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either.
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
 It is spread across three folders on purpose, and the split follows dependency direction rather than
-subject: `socket/auth/` holds the wiring and the policy (19 source files, 16 tests), `session/auth/`
+subject: `socket/auth/` holds the wiring and the policy (21 source files, 18 tests), `session/auth/`
 holds the material it reads and writes ([docs/session/](../session/README.md)), and the two guards
 that _trigger_ renewal are React hooks in `session/hooks/app/`. The renewers live with the socket
 because `socket/auth → session` is an existing edge and the reverse is not; putting them under
@@ -149,11 +149,12 @@ that same key — it seeds, signs and writes back for the cloud the slot serves.
 only in the log lines. The order is the contract:
 
 1. `manager.ensure(config)` — creates the client, which attaches the controller. A slot with no `auth` logs an error, connects anyway, and returns a no-op cleanup.
-2. Subscribe `onAuthState` → `manager.setAuthenticated(key, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(key)`.
-3. Subscribe `onTokenRefresh` → `delegate.commitRefreshedToken(key, view)`, then re-read the registration and hand it to the `authId` registry ([signing.md](./signing.md#the-authid-registry)).
-4. `delegate.getAuthRegistration(key)` → `auth.register({ token, authId, sign })`, then **`gate.stop()` immediately** — before connecting.
-5. Subscribe `client.onMessage` for `device.save:ok`, which calls `gate.start()`; and `client.onState` for `closed` / `closing` / `idle`, which calls `gate.stop()` again.
-6. `manager.connect(key)`.
+2. Attach `observeSocketVerify` — the `socket_verify` sample ([docs/socket/](../socket/README.md#how-long-a-slot-takes-to-verify-socket_verify)) — before connecting, so the first attempt's `connecting` is seen.
+3. Subscribe `onAuthState` → `manager.setAuthenticated(key, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(key)`.
+4. Subscribe `onTokenRefresh` → `delegate.commitRefreshedToken(key, view)`, then re-read the registration and hand it to the `authId` registry ([signing.md](./signing.md#the-authid-registry)).
+5. `delegate.getAuthRegistration(key)` → `auth.register({ token, authId, sign })`, then **`gate.stop()` immediately** — before connecting.
+6. Subscribe `client.onMessage` for `device.save:ok`, which calls `gate.start()`; and `client.onState` for `closed` / `closing` / `idle`, which calls `gate.stop()` again.
+7. `manager.connect(key)`.
 
 **Why the gate exists.** The backend refuses `auth.update` on a connection with no registered device,
 and the SDK sends `device.save` and `auth.update` from two independent `connected` listeners with
@@ -440,8 +441,10 @@ has no CORS header and reaches the browser as a network failure.
 calls on its own foreground signal. It walks both kinds, skips unbound slots, and acts only where
 `needsSocketKick(status)` holds — a slot that looks `verified` is left alone, because churning a warm
 connection costs more than it fixes. For each one it disconnects with code 1000, re-registers from
-the delegate when the slot was terminally expired (and closes the gate again), and reconnects.
-Concurrent calls share one pass through a `Coalescer`.
+the delegate when the slot was terminally expired (and closes the gate again), and reconnects. It
+marks the slot with `noteResumeKick` before disconnecting and clears the mark after reconnecting, so
+`socket_verify` records that attempt as a `resume` and no later one inherits it. Concurrent calls
+share one pass through a `Coalescer`.
 
 ## What not to do
 
@@ -457,7 +460,7 @@ Concurrent calls share one pass through a `Coalescer`.
 
 ## Notes for implementers and tests
 
-- Fourteen of the seventeen source files here have a matching `*.test.ts`; `reauthDelegate.ts`, `types.ts` and `index.ts` do not. The command is what answers whether they pass.
+- Eighteen of the twenty-one source files here have a matching `*.test.ts`; `reauthDelegate.ts`, `types.ts` and `index.ts` do not. The command is what answers whether they pass.
 - Everything takes its dependencies as an argument with a lazily resolved default — `AuthSignalDeps`, `RecoverUnverifiedSocketsDeps`, `RequestRelaySessionRefreshDeps`, `RelayExpiryDeps`. A test injects; it does not reset a module. The two that do need a reset seam expose one: `resetRelayRefreshCoalescing()` and `resetRevokedSessionHandling()`.
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.

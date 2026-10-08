@@ -77,6 +77,11 @@ the Activity is recreated and the splash is shown again. `BootSplashState.arm()`
 `onCreate`, and `BootSplashService` forwards every reveal instead of remembering one — a remembered
 "already hidden" would leave the second splash up until its cap.
 
+**The first reveal of a boot is also a measurement.** `DependencyProvider` subscribes
+`BootMetricsService.recordReveal` to the reveals, which records the `first_screen` sample once per
+boot session — see [boot-metrics.md](./boot-metrics.md#the-firebase-first_screen-sample). A warm
+start's second reveal records nothing.
+
 ## The crash-reload cover
 
 When the WebView's content process dies (`onContentProcessDidTerminate` / `onRenderProcessGone`)

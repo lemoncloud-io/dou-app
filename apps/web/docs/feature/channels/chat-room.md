@@ -78,7 +78,10 @@ from `@chatic/block-kit`, so the row and the renderer cannot disagree) decide wh
 a `BlockKitMessage` card instead of a bubble. Nothing drawable falls back to the plain body in a
 bubble. Three states never reach the card: a tombstone, a pending send and a failed send — the
 bubble draws those states, and a card would show a finished-looking message for a send that has not
-landed.
+landed. The card's links (a Slack `<url|label>` such as a webhook's source link) go to the row's
+`handleUrlClick` through `BlockKitMessage`'s `onLinkClick`, the same path as a link in a bubble.
+The lib's own default is a plain `target="_blank"` anchor, which the iOS shell's WebView answers by
+loading the page over the app itself.
 
 **Truncation is the bubble's affordance.** Over 200 characters the bubble cuts, appends an ellipsis
 outside the tokenizer's output, and offers "view all" → `MessageDetailDialog`. A card never

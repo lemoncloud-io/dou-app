@@ -288,11 +288,13 @@ observer per cache per screen, not a convenience.
 - **Do not fetch the newest page on mount.** The sync layer primes a cold room
   (`usePrimeChat`) and `useForegroundChatRefresh` covers a warm one. The two conditions are
   mirrored on purpose — cold fetches there, warm fetches here, every entry fetches the newest page
-  exactly once. Add a third and every room entry doubles its requests. Older pages are a different
-  request, and two things ask for them on entry: the room's prefetch (`useChatScroll`), when less
-  than two viewports of history sit above the reader — a first page of mostly reactions and replies,
-  a tall viewport — stopping at that distance or at the first row; and a pending message jump
-  (`useMessageJump`), until its target is in the window or its page budget is spent.
+  exactly once. Add a third and every room entry doubles its requests. The home row tap's
+  `prefetchRoomFeed` is not a third: it starts the same `fetchRoomFeed` the two join, so a list entry
+  still sends one request for the newest page. Older pages are a different request, and two things
+  ask for them on entry: the room's prefetch (`useChatScroll`), when less than two viewports of
+  history sit above the reader — a first page of mostly reactions and replies, a tall viewport —
+  stopping at that distance or at the first row; and a pending message jump (`useMessageJump`),
+  until its target is in the window or its page budget is spent.
 - **Do not derive display names in a list row with `useChannelTitle`.** It calls `useMyProfile`,
   which triggers a fetch per call. Lists resolve `myNick` once in the parent and call
   `resolveChannelTitle` directly.

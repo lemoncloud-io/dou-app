@@ -90,11 +90,12 @@ sequenceDiagram
     UI->>L: observeList(query) [via R]
     L-->>UI: local snapshot (emitted once, immediately)
 
-    UI->>R: refreshList(query)
+    UI->>R: refreshList(query, options?)
     R->>R: capture scope via getRequestContext()
     R->>S: fetchChat(query)
     S-->>R: ChatView[]
     R->>R: map view → DomainChat
+    R-->>UI: options.onFetched() · before the write
     R->>L: cacheWriteMany(items, captured scope)
     L->>L: scheduleListReemit(prefixes) · 50ms debounce
     L-->>UI: re-emits only the affected observers

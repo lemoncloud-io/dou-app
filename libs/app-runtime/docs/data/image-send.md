@@ -189,6 +189,32 @@ panel. Desktop sends its text as a message of its own and passes none.
   retried later lands after the pictures sent meanwhile, as any retried message does (above), and
   its text lands with it.
 
+## How long a send took: `chat_send_media`
+
+Every send and retry is timed as a `chat_send_media` Firebase Performance sample
+(`data/mediaSendTrace.ts`), from the send to its end, with each phase it passed as a `<phase>_ms`
+metric: `row_ms`, `converted_ms` (only when a shell video was converted), `socket_ms`,
+`prepared_ms`, `upload_started_ms`, `bytes_sent_ms`, `upload_completed_ms` and `sent_ms`. The ports
+mark them as they settle. The sequence calls `complete` once every put has settled — uploaded or
+failed — so that call is the end of the transfer.
+
+| Attribute | Values                                                                |
+| --------- | --------------------------------------------------------------------- |
+| `kind`    | `image` / `video` / `file` when every file is that kind, else `mixed` |
+| `count`   | `1` / `2-5` / `6+`                                                    |
+| `size`    | the picked total: `<1mb` / `1-10mb` / `10-50mb` / `50mb+`             |
+| `thread`  | `reply` / `root`                                                      |
+| `outcome` | `ok`; `partial` — sent, with files left out as a failed row; `error`  |
+
+Metrics besides the phases: `value_ms` (the whole send), `bytes_kb` (the picked total), `files`,
+and `retry` (1 for a retry — the attributes are at Firebase's cap of five).
+
+- **A sample, timed here.** The native backend forgets a trace left open for two minutes, and a
+  large video can take longer; as a start and a stop, the slowest sends would be the missing ones.
+- **Started at the send, not the pick.** A picker hides the page, and a send that spans hidden time
+  is dropped — so is one sent from a hidden page.
+- **Ten a minute**, a guard against a burst of retries in the shared trace budget.
+
 ## Shell files and video conversion
 
 A shell file (`ShellFileRef`, see [the uploads doc](../../../data/docs/uploads/README.md)) is sent from

@@ -15,7 +15,7 @@ a target's, and it is described under [Background receive](#background-receive).
 ## Layout
 
 ```text
-socket/sync/                          10 source files, 9 tests
+socket/sync/                          11 source files, 10 tests
 ├── SyncManager.ts          436 lines  the class — 10 public methods
 ├── plans.ts                280 lines  createSyncPlans — the five app-domain plans
 ├── BackgroundReceiver.ts   285 lines  the receive loop of every bound slot that is not the active one
@@ -23,6 +23,7 @@ socket/sync/                          10 source files, 9 tests
 ├── types.ts                           SyncWatchEntry · SyncTargetListing · SyncRegisterOptions · SyncRuntimeOptions · SyncManagerDeps · ISyncManager · BackgroundReceiverDeps · BackgroundReceiveRepositories · BackgroundReceiveTrigger · BackgroundDelta
 ├── constants.ts                       UNREGISTER_GRACE_MS · BACKGROUND_RECEIVE_INTERVAL_MS · BACKGROUND_RECEIVE_DEBOUNCE_MS · BACKGROUND_PLACE_REFRESH_MS
 ├── refusedChannels.ts                 what the server refused, for a room to read
+├── roomFeed.ts                        fetchRoomFeed · prefetchRoomFeed — one chat.feed per room entry, 2s reuse
 ├── runtime.ts                         getSyncManager — the one creation point · startBackgroundReceive · refreshBackgroundClouds
 ├── index.ts                           the `sync` facade group
 └── hooks/useSyncTarget.ts             useSyncTarget + the three named wrappers
@@ -353,6 +354,40 @@ yet" by the list alone:
 
 The status is per room and cloud: opening another room starts it at `pending`. Callers that only
 need the sync (a sidebar preview) ignore it.
+
+### One fetch per room entry
+
+The first page goes through `fetchRoomFeed(cid, channelId)` (`socket/sync/roomFeed.ts`), and so does
+the warm room's refresh in the web. A caller that finds that room's fetch in flight, or one that
+finished within the last two seconds, gets its result instead of sending the same request again. A
+failed fetch is forgotten at once, so `retryPrime` sends a new one. A caller that has to know the page
+is from now passes `fresh` and always sends: the web's refresh on a foreground return does, because a
+fetch still in flight may have been sent before the app was suspended.
+
+That is what lets the fetch start before the room exists. `prefetchRoomFeed(cid, channelId)` is called
+at the tap that opens a room. If that cloud's slot is already verified, it starts the fetch at once,
+while the page transition runs and the room page mounts. It reads the cache alongside, only to record
+in the trace whether the room was cold or warm. The read is issued first, so it still sees the cache
+from before the fetch writes to it, but the fetch does not wait for it: in a browser run, awaiting the
+read first sent the request with the route change (41–49ms after the tap) rather than at the tap
+(0–1ms).
+
+Before the request it registers the room's chat target and disposes it at once. A `chat.sync` push
+reaches only registered targets, so a message sent between the fetch's answer and the room page's own
+registration would otherwise be dropped. The dispose leaves the target in its 30-second grace, live,
+and the room's registration joins it. From the home list the target is usually there already (home
+registers every channel of the active place), but `prefetchRoomFeed` does not rely on its caller.
+
+The prime then joins that fetch when it gets there. The two-second reuse covers a fetch that already
+finished by then; without it, the room's own sync would send the same request a second time.
+`prefetchRoomFeed` never rejects. When it did not start, or it failed, the room fetches as it always
+did.
+
+`fetchRoomFeed` is also where the `chat_room_sync` trace's fetch phases are marked: the fetch that
+starts takes the room's trace if no fetch has, and a caller that joined marks nothing. The exception
+is a new room entry no fetch has taken — a second tap on the same room while its first fetch is out.
+It waits on that fetch too, so it takes the trace for it. A new entry is never answered by a fetch
+that finished before it began; it sends its own.
 
 ### What not to do
 

@@ -223,10 +223,9 @@ describe('MessageList', () => {
     it('quotes the server summary, not the folded blocks, when deleting a blocks$ message', () => {
         const withBlocksField = {
             ...message(1, 'me', WEBHOOK_SEND_ERROR_REPORT.content),
+            // Mine, so the delete menu is reachable: a webhook message is never mine, and what this
+            // pins is the dialog's quoting, which does not depend on the sender.
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
-            // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
-            // user bubble, not a system notice.
-            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
         } as DomainChat;
 
         render(<MessageList messages={[withBlocksField]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
@@ -828,5 +827,56 @@ describe('MessageList first page failed', () => {
         expect(screen.queryByText('Write the first message')).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(onRetryLoad).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('MessageList webhook sender', () => {
+    const webhookCard = (chatNo: number, ownerId: string, owner?: { name: string }): DomainChat =>
+        ({
+            ...message(chatNo, ownerId, WEBHOOK_SEND_ERROR_REPORT.content),
+            stereo: 'webhook',
+            blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
+            ...(owner ? { owner$: owner } : {}),
+        }) as unknown as DomainChat;
+
+    it('badges the sender as an app and renders its name as plain text, not a profile trigger', () => {
+        render(
+            <MessageList
+                messages={[webhookCard(1, 'hook', { name: 'Alarm Bot' })]}
+                isLoading={false}
+                viewer={VIEWER}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('App')).toBeDefined();
+        expect(screen.getByText('Alarm Bot')).toBeDefined();
+        expect(screen.queryByRole('button', { name: 'Alarm Bot' })).toBeNull();
+        // The avatar is no popover trigger either: its only possible name is the initial.
+        expect(screen.queryByRole('button', { name: 'A' })).toBeNull();
+    });
+
+    // owner$ is not confirmed to arrive for webhook messages, so the no-owner$ case is pinned too.
+    it('labels the sender "Webhook" when the server sent no owner$', () => {
+        render(<MessageList messages={[webhookCard(1, 'hook')]} isLoading={false} viewer={VIEWER} />, { wrapper });
+
+        expect(screen.getByText('Webhook')).toBeDefined();
+        expect(screen.getByText('App')).toBeDefined();
+        expect(screen.queryByRole('button', { name: 'Webhook' })).toBeNull();
+    });
+
+    it('keeps a person as a profile trigger with no app badge', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'hi')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByRole('button', { name: 'Ada' })).toBeDefined();
+        expect(screen.queryByText('App')).toBeNull();
     });
 });
