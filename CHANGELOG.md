@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-08] - No version updates
+
+### Bug Fixes
+
+- (desktop-web/profile) read the account card from the relay session
+
 ## [2026-10-08] - root@0.87.2, @chatic/desktop-web@0.20.4
 
 ### Bug Fixes
