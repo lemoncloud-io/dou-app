@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, User } from 'lucide-react';
+import { Home, Plus, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -11,6 +11,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
+import { isAtPlaceLimit, PLACE_MAX } from '../utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     DropdownMenu,
@@ -23,6 +24,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
+    MobileAppPointer,
     ScrollHint,
     useAccountName,
     useAccountResetOnLogout,
@@ -40,6 +42,9 @@ interface PlaceRailProps {
     /** A cloud/place switch is in flight — disable the tiles to block a second switch. */
     isSwitching?: boolean;
     onSelectPlace: (placeId: string) => void;
+    /** The account may add a place to the active cloud — draws the "new place" tile after the list. */
+    canCreatePlace?: boolean;
+    onCreatePlace?: () => void;
 }
 
 const tileInitial = (name: string): string => name.trim().charAt(0).toUpperCase() || '#';
@@ -131,6 +136,8 @@ export const PlaceRail = ({
     isDefaultMode,
     isSwitching,
     onSelectPlace,
+    canCreatePlace,
+    onCreatePlace,
 }: PlaceRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -159,6 +166,16 @@ export const PlaceRail = ({
     const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
     const tapRef = useRef({ count: 0, last: 0 });
     const placeScroll = useScrollOverflow<HTMLDivElement>();
+
+    // At the cap the tile stays and the click says why: a tile that vanished would only raise
+    // "where did it go". More room is another cloud, and those are made in the mobile app.
+    const onCreateTile = () => {
+        if (isAtPlaceLimit(places)) {
+            toast({ title: t('place.create.limit', { max: PLACE_MAX }), description: <MobileAppPointer /> });
+            return;
+        }
+        onCreatePlace?.();
+    };
 
     const onSecretTap = () => {
         const now = Date.now();
@@ -194,19 +211,34 @@ export const PlaceRail = ({
                             onSelect={onSelectPlace}
                         />
                     ) : (
-                        places.map(place => (
-                            <PlaceTile
-                                key={place.id}
-                                id={place.id}
-                                name={place.name ?? place.id}
-                                thumbnail={place.thumbnail}
-                                isActive={place.id === selectedPlaceId}
-                                unread={unreadByPlace[place.id] ?? 0}
-                                unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
-                                isSwitching={isSwitching}
-                                onSelect={onSelectPlace}
-                            />
-                        ))
+                        <>
+                            {places.map(place => (
+                                <PlaceTile
+                                    key={place.id}
+                                    id={place.id}
+                                    name={place.name ?? place.id}
+                                    thumbnail={place.thumbnail}
+                                    isActive={place.id === selectedPlaceId}
+                                    unread={unreadByPlace[place.id] ?? 0}
+                                    unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
+                                    isSwitching={isSwitching}
+                                    onSelect={onSelectPlace}
+                                />
+                            ))}
+                            {/* After the list, where a new place will land. A switch in flight locks
+                                it with the tiles: the dialog ends in a switch of its own. */}
+                            {canCreatePlace && onCreatePlace && (
+                                <PlaceTile
+                                    id="create-place"
+                                    name={t('place.create.open')}
+                                    glyph={<Plus size={22} strokeWidth={2} aria-hidden />}
+                                    isActive={false}
+                                    unread={0}
+                                    isSwitching={isSwitching}
+                                    onSelect={onCreateTile}
+                                />
+                            )}
+                        </>
                     )}
                 </div>
                 {placeScroll.below && <ScrollHint edge="bottom" surface="rail-elevated" />}

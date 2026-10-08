@@ -17,6 +17,7 @@ export * from './useDeviceTokenRegistration';
 export * from './useCrossCloudPushNotifications';
 export * from './useCloudSwitchFlow';
 export * from './useSelectPlace';
+export * from './useCreatePlace';
 export * from './usePlaceUnreadCounts';
 export * from './useCloudCatalog';
 export * from './useClouds';
