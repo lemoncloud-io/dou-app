@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-10-08] - root@0.87.0, @chatic/web@0.67.0
+
+### Features
+
+- (web-ui-kit) let a host drive the attach panel's slide, and hold the recent row's place
+- (web) attach from a panel under the composer, with picks and a caption (ADR-0179)
+- (web-ui-kit) put the attach menu under the composer and make the picker's rows slide
+- (data,app-runtime) carry a caption on a photo message
+- (web,config) edit picked photos before sending, and send them as one or one each (ADR-0179)
+- (web-ui-kit) add a photo editor and an edit row on the photo grid
+- (app-runtime) send picked files as one message each when asked, in pick order
+
+### Bug Fixes
+
+- (web) slide the attach panel and the composer in the same frame, and keep picks in sight
+
+### Documentation
+
+- (ui-kit) name the photo grid footer and the photo editor among the toast-lift bars
+
 ## [2026-10-08] - No version updates
 
 ### Features
