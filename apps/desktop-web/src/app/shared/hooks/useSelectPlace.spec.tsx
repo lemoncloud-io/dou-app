@@ -65,6 +65,60 @@ describe('useSelectPlace', () => {
         expect(onFailed).toHaveBeenCalledTimes(1);
     });
 
+    it('lets a caller wait for the switch into a place', async () => {
+        switchSite.mockReset();
+        switchSite.mockResolvedValueOnce(undefined);
+        const { result } = renderHook(() => useSelectPlace());
+
+        await act(async () => {
+            await result.current.enterPlace('site-2');
+        });
+
+        expect(switchSite).toHaveBeenCalledWith('site-2');
+    });
+
+    it('hands a failed awaited switch back to the caller', async () => {
+        switchSite.mockReset();
+        switchSite.mockRejectedValueOnce(new Error('switch failed'));
+        const { result } = renderHook(() => useSelectPlace());
+
+        await expect(result.current.enterPlace('site-2')).rejects.toThrow('switch failed');
+    });
+
+    // A cloud's first place is auto-selected the moment it shows up, which is before its creator
+    // asks to enter it: two switches for one place went out.
+    it('joins a switch into the same place that is already running', async () => {
+        switchSite.mockReset();
+        let land!: () => void;
+        switchSite.mockReturnValueOnce(new Promise<void>(resolve => (land = resolve)));
+        const { result } = renderHook(() => useSelectPlace());
+
+        act(() => {
+            result.current.switchPlace('site-2');
+        });
+        let entered = false;
+        const entering = result.current.enterPlace('site-2').then(() => (entered = true));
+        await Promise.resolve();
+        expect(entered).toBe(false);
+
+        await act(async () => {
+            land();
+            await entering;
+        });
+
+        expect(entered).toBe(true);
+        expect(switchSite).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not switch into the place the session is already in', async () => {
+        switchSite.mockReset();
+        const { result } = renderHook(() => useSelectPlace());
+
+        await result.current.enterPlace('site-1');
+
+        expect(switchSite).not.toHaveBeenCalled();
+    });
+
     it('does not report a switch that succeeded', async () => {
         switchSite.mockReset();
         switchSite.mockResolvedValueOnce(undefined);

@@ -6,3 +6,4 @@ export * from './useOnboardingStore';
 export * from './useShortcutsDialogStore';
 export * from './useQuickSwitcherStore';
 export * from './useSidebarOrderStore';
+export * from './useCreatePlaceDialogStore';

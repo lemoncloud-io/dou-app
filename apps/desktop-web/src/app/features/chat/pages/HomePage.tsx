@@ -19,6 +19,7 @@ import {
     useChannels,
     useDebugModeStore,
     useCloudPushBadgeStore,
+    canCreatePlace,
     useClouds,
     useCloudSwitchFlow,
     useMessageJumpStore,
@@ -47,6 +48,7 @@ import {
     ChannelList,
     ChatPane,
     CloudRail,
+    CreatePlaceDialog,
     DesktopLayout,
     OnboardingDialog,
     PlaceRail,
@@ -71,7 +73,7 @@ import {
     pendingOpenRoute,
     pendingRedirectPlace,
 } from '../utils';
-import { useThreadStore } from '../stores';
+import { useCreatePlaceDialogStore, useThreadStore } from '../stores';
 import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
 const isWindowActive = (): boolean =>
@@ -108,7 +110,7 @@ export const HomePage = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const selectedPlaceId = isDefaultMode ? 'default' : selectedSiteId;
 
-    const { switchPlace, isSwitching: isPlaceSwitching } = useSelectPlace();
+    const { switchPlace, enterPlace, isSwitching: isPlaceSwitching } = useSelectPlace();
     const { switchCloud, isSwitching: isCloudSwitching } = useCloudSwitchFlow();
     // True while a cloud/place switch handshake is in flight — disables the rail tiles and
     // suppresses the idle auto-select so it can't thrash against a mid-switch selection.
@@ -143,6 +145,12 @@ export const HomePage = () => {
     const requestMessageJump = useMessageJumpStore(s => s.request);
     const setJumpOrigin = useMessageJumpStore(s => s.setOrigin);
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
+    const setCreatePlaceOpen = useCreatePlaceDialogStore(s => s.setOpen);
+    const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
+    const mayCreatePlace = canCreatePlace(clouds, activeCloudId, { isGuest, isCloudActive });
+    // The form belongs to the cloud it was opened in: a place it made there cannot be entered from
+    // another, so a cloud change (a notification tap can cause one under an open dialog) closes it.
+    useEffect(() => setCreatePlaceOpen(false), [activeCloudId, setCreatePlaceOpen]);
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
     const { isAvailable: canStartDm, startDm, isStarting } = useStartDm();
@@ -738,6 +746,8 @@ export const HomePage = () => {
                             clearJumpOrigin();
                             switchPlace(placeId);
                         }}
+                        canCreatePlace={mayCreatePlace}
+                        onCreatePlace={() => setCreatePlaceOpen(true)}
                     />
                 }
                 sidebar={
@@ -833,6 +843,7 @@ export const HomePage = () => {
                 }
             />
             <CreateChannelDialog onCreated={openCreatedChannel} />
+            <CreatePlaceDialog onEnter={enterPlace} onEntered={openEditPlaceProfile} />
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />

@@ -48,7 +48,35 @@ vi.mock('../stores', () => ({
 }));
 
 import i18n from '../../../i18n';
-import { useClouds } from './useClouds';
+import { canCreatePlace, useClouds, type RailCloud } from './useClouds';
+
+describe('canCreatePlace', () => {
+    const clouds: RailCloud[] = [
+        { id: 'default', name: 'Home', status: 'active', kind: 'home' },
+        { id: 'mine', name: 'Studio', status: 'active', kind: 'owned' },
+        { id: 'lapsed', name: 'Archive', status: 'expired', kind: 'owned' },
+        { id: 'blocked', name: 'Old', status: 'suspended', kind: 'owned' },
+        { id: 'joined', name: 'Friends', status: 'active', kind: 'invited' },
+    ];
+
+    const allowed = { isGuest: false, isCloudActive: true };
+
+    it('offers a new place inside a cloud the account owns and can open', () => {
+        expect(canCreatePlace(clouds, 'mine', allowed)).toBe(true);
+    });
+
+    it.each(['default', 'joined', 'lapsed', 'blocked', 'unknown', null])('does not offer one in %s', activeCloudId => {
+        expect(canCreatePlace(clouds, activeCloudId, allowed)).toBe(false);
+    });
+
+    it('does not offer one to a guest account', () => {
+        expect(canCreatePlace(clouds, 'mine', { ...allowed, isGuest: true })).toBe(false);
+    });
+
+    it('does not offer one while the session is not active in a cloud', () => {
+        expect(canCreatePlace(clouds, 'mine', { ...allowed, isCloudActive: false })).toBe(false);
+    });
+});
 
 describe('useClouds', () => {
     beforeEach(() => {
