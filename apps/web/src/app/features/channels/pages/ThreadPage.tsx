@@ -12,6 +12,7 @@ import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chati
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
@@ -46,6 +47,20 @@ import { toCloudId } from '../../../hooks/useCloudScope';
 
 const MAX_INPUT_LENGTH = 5000;
 
+/** px the reply list keeps clear above the composer, on top of the composer's own height. */
+const LIST_COMPOSER_GAP = 16;
+
+/**
+ * The list's bottom padding for a composer `height` px tall, written straight onto the list, with the
+ * newest reply kept in view — for the frames the composer moves without the page rendering them
+ * (`followFooter`).
+ */
+const clearComposer = (list: HTMLElement | null, height: number) => {
+    if (!list) return;
+    list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
+    list.scrollTo({ top: list.scrollHeight });
+};
+
 /**
  * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
  *
@@ -79,7 +94,13 @@ export const ThreadPage = () => {
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
-    const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
+    const {
+        headerRef,
+        footerRef: composerRef,
+        headerHeight,
+        footerHeight: composerHeight,
+        followFooter: followComposer,
+    } = useChromeInsets();
 
     // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
@@ -155,6 +176,13 @@ export const ThreadPage = () => {
         sendImages: imageSend.sendImages,
         disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
         inputRef,
+        composerRef,
+        // The room's rule: through the attach panel's slide the list follows the composer frame by
+        // frame without a render — clearing it, and keeping the newest reply in view as the effect
+        // below does once the composer has settled.
+        onComposerSlide: sliding => followComposer(sliding ? height => clearComposer(listRef.current, height) : null),
+        // Same as the room: a caption whose photos all failed the check comes back to an empty field.
+        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
     });
     // Reactions fold from the UNFILTERED window — the events are hidden rows in it.
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
@@ -222,6 +250,12 @@ export const ThreadPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Photos picked in the attach panel take the press, with the text as their caption — see the
+        // room's handleSend. The panel only opens once the root is loaded, so they reply to it.
+        if (attach.sendReady && attach.sendPicked(trimmed)) {
+            setContent('');
+            return;
+        }
         // No root, no reply — the send needs the root's full id (bare chatNo 404s).
         if (!trimmed || !stableChannelId || !thread.root?.id) return;
 
@@ -417,7 +451,7 @@ export const ThreadPage = () => {
             <div
                 ref={listRef}
                 className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
-                style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + 16 }}
+                style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + LIST_COMPOSER_GAP }}
             >
                 {isLoading && !root ? (
                     <div data-testid="thread-loading" className="flex min-h-full items-center justify-center">
@@ -471,15 +505,28 @@ export const ThreadPage = () => {
 
             <div
                 ref={composerRef}
+                // The keyboard takes the attach panel's place: focusing the field closes the panel.
+                onFocus={event => {
+                    // React types a bubbled focus target as the element listening, which it need not be.
+                    if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
+                }}
+                // The room's rule: no transition — the keyboard moves it at once, the attach panel's slide
+                // frame by frame.
                 className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
-                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(var(--keyboard-height, 0px) + 8px))`,
+                    // The room's rule: above the keyboard or the attach panel in its place — the larger,
+                    // while they trade places — else the home indicator. The list clears the composer
+                    // by its measured height.
+                    paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
+                {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
+                {attach.strip}
                 <MessageInput
                     value={content}
                     onChange={setContent}
                     onSend={handleSend}
+                    sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}

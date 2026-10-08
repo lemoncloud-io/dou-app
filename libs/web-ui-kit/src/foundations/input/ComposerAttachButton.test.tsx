@@ -15,7 +15,7 @@ describe('ComposerAttachButton', () => {
     });
 
     // The same spot closes what it opened, so the glyph has to say which one a tap will do.
-    it('swaps the plus for a close mark while the menu is open', () => {
+    it('swaps the plus for a close mark while the panel is open', () => {
         const { container, rerender } = render(<ComposerAttachButton open={false} onClick={jest.fn()} />);
         const closedGlyph = container.querySelector('svg')?.getAttribute('class');
 

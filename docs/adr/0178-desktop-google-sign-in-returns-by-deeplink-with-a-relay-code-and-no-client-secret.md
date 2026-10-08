@@ -1,4 +1,4 @@
-# 0178. Desktop Google sign-in returns by deeplink with a one-time code, and the app holds no client secret
+# 0178. Desktop Google sign-in returns by deeplink with a relay code, and the app holds no client secret
 
 Date: 2026-10-07
 
@@ -17,7 +17,7 @@ Two things were also wrong on the route we kept:
 
 ## Decision
 
-Keep the browser hand-off. The link that comes back to the app carries a one-time relay code and the nonce this app sent with the start — never a provider token, never a session.
+Keep the browser hand-off. The link that comes back to the app carries a relay code and the nonce this app sent with the start — never a provider token, never a session.
 
 The app exchanges the code only when all of these hold:
 
@@ -43,6 +43,6 @@ The scheme the hand-off page opens follows the stage — `chatic-dev` on local a
 - The nonce has to survive the relay's round trip. If the relay drops it, or mangles the `redirect` address, every sign-in stops at the hand-off page with a failure, visibly, rather than passing unchecked. A real sign-in on the packaged dev app (macOS) showed the relay returning it.
 - A sign-in started just before a web deploy by the old bundle carries no nonce and is refused once; the person starts again.
 - A link opened during a real sign-in can still spoil that sign-in (the record is used up) but cannot complete one.
-- What this does not stop: an app on the same machine that claims the protocol scheme receives the code, and nothing in this repository keeps it from exchanging that code itself — the nonce never reaches the server, so it proves nothing to a party that never needed it. The code being meant for one use bounds that, and closing it needs the relay to bind the code to a challenge sent at the start. It is accepted while Google sign-in is dev-only.
+- What this does not stop: an app on the same machine that claims the protocol scheme receives the code, and nothing in this repository keeps it from exchanging that code itself — the nonce never reaches the server, so it proves nothing to a party that never needed it. Nothing here bounds that: this repository does not show that the relay refuses a code that was already exchanged, so the app does not rely on it. Closing it needs the relay to use a code up on its first exchange and to bind it to a challenge sent at the start. It is accepted while Google sign-in is dev-only.
 - This repository does not show that the server refuses a code exchange signed by a different device than the one that started the login; the record exists only on the installation that started it, and nothing stronger is claimed.
 - Social sign-in stays off in production. Turning it on waits for the scheme-claim decision above, for invited cloud memberships following the account, and for a real sign-in confirming the same user as on mobile.

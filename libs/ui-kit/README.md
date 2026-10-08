@@ -175,8 +175,8 @@ Three files hold something the name does not give away:
     taller of `--safe-bottom` and `--keyboard-height`, plus `--toast-lift` — the height of the tallest bar
     a screen keeps pinned to the bottom. The toaster sits above the router and cannot see what is
     showing, so each bar asks for its own lift with `useToastLift(px)` while it is mounted (the
-    tab bar, `web-ui-kit`'s `FloatingButton` and `MediaViewer`); the hook keeps them in one registry
-    so bars can mount and unmount in any order. The sum is exported as `SNACKBAR_OFFSET` and set on the viewport as
+    tab bar, and `web-ui-kit`'s `FloatingButton`, photo-grid footer, `MediaViewer` and `PhotoEditor`);
+    the hook keeps them in one registry so bars can mount and unmount in any order. The sum is exported as `SNACKBAR_OFFSET` and set on the viewport as
     `--snackbar-offset`, which the host's `snackbar-in` / `snackbar-out` keyframes read so the slide
     starts and ends fully below the screen edge. The exit keyframe starts from Radix's
     `--radix-toast-swipe-end-y`, so a swiped toast keeps moving instead of snapping back first; the

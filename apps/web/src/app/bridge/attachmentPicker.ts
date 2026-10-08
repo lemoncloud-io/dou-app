@@ -7,7 +7,7 @@ import { base64ToFile } from './photoLibrary';
 
 /**
  * The app's own picker for chat videos and documents, and its video conversion — or `null` from
- * `pick` in every shell that has neither, which the attach menu takes as "use the page's own input".
+ * `pick` in every shell that has neither, which the attach panel takes as "use the page's own input".
  *
  * Videos and documents stay in the shell: it copies what was picked into its own folder and answers
  * with addresses, which the upload then sends from there. Photos are kept there too, already prepared,

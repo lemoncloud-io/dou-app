@@ -11,11 +11,20 @@ const TRACK_INSET = 8;
 /** How long the handle stays after the last scroll or drag. */
 const HIDE_AFTER_MS = 1500;
 
+/** The handle's run: the scroller's height, less the insets at both ends and what covers its bottom. */
+const trackLength = (viewportHeight: number, insetBottom: number) =>
+    Math.max(0, viewportHeight - insetBottom - TRACK_INSET * 2);
+
 export interface GridScrubberProps {
     /** The element the handle scrolls. Its parent must be positioned: the handle lays over its right edge. */
     scroller: HTMLElement | null;
     /** The scrolled content's height — the handle re-measures when it changes, without showing itself. */
     contentHeight: number;
+    /**
+     * How much of the scroller's bottom something lies over — the photo grid's footer. The track stops
+     * above it, so the handle is never dragged out of sight under it. Default 0.
+     */
+    insetBottom?: number;
     className?: string;
 }
 
@@ -30,7 +39,7 @@ export interface GridScrubberProps {
  *
  * Its presses never reach the sheet around it — a drag down the handle is a scroll, not a dismissal.
  */
-export const GridScrubber = ({ scroller, contentHeight, className }: GridScrubberProps) => {
+export const GridScrubber = ({ scroller, contentHeight, insetBottom = 0, className }: GridScrubberProps) => {
     const [eligible, setEligible] = React.useState(false);
     const [offset, setOffset] = React.useState(0);
     const [visible, setVisible] = React.useState(false);
@@ -47,11 +56,11 @@ export const GridScrubber = ({ scroller, contentHeight, className }: GridScrubbe
                 scrollTop: scroller.scrollTop,
                 scrollHeight: scroller.scrollHeight,
                 viewportHeight,
-                track: viewportHeight - TRACK_INSET * 2,
+                track: trackLength(viewportHeight, insetBottom),
                 handle: HANDLE_HEIGHT,
             })
         );
-    }, [scroller]);
+    }, [scroller, insetBottom]);
 
     const clearHide = () => {
         if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
@@ -110,7 +119,7 @@ export const GridScrubber = ({ scroller, contentHeight, className }: GridScrubbe
             offset: active.startOffset + (event.clientY - active.startY),
             scrollHeight: scroller.scrollHeight,
             viewportHeight,
-            track: viewportHeight - TRACK_INSET * 2,
+            track: trackLength(viewportHeight, insetBottom),
             handle: HANDLE_HEIGHT,
         });
     };
@@ -128,7 +137,8 @@ export const GridScrubber = ({ scroller, contentHeight, className }: GridScrubbe
         <div
             aria-hidden
             data-testid="photo-grid-scrubber"
-            className={cn('pointer-events-none absolute bottom-2 right-0 top-2 w-8', className)}
+            style={{ bottom: TRACK_INSET + insetBottom }}
+            className={cn('pointer-events-none absolute right-0 top-2 w-8', className)}
         >
             <div
                 onPointerDown={onPointerDown}

@@ -7,7 +7,9 @@ import {
     ChevronDown,
     Clock,
     Copy,
+    Crop,
     Download,
+    FlipHorizontal2,
     House,
     ChevronLeft,
     ChevronRight,
@@ -19,7 +21,9 @@ import {
     type LucideIcon,
     type LucideProps,
     MoreHorizontal,
+    Pencil,
     Plus,
+    RotateCcw,
     Search,
     Settings,
     Sparkles,
@@ -74,6 +78,14 @@ export const IconLeave: LucideIcon = LogOut;
 export const IconTrash: LucideIcon = Trash2;
 /** Save a file to the device — the idle state of a chat document card's download button. */
 export const IconDownload: LucideIcon = Download;
+/** The photo editor's crop & rotate tool. */
+export const IconCrop: LucideIcon = Crop;
+/** Turn a photo a quarter to the left — the crop & rotate tool's rotate button. */
+export const IconRotateLeft: LucideIcon = RotateCcw;
+/** Mirror a photo left-right — the crop & rotate tool's flip button. */
+export const IconFlipHorizontal: LucideIcon = FlipHorizontal2;
+/** Edit — the photo grid's edit button, and the mark on a picked photo that has been edited. */
+export const IconEdit: LucideIcon = Pencil;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
