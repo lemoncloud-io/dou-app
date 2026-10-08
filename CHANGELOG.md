@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-08] - root@0.86.3, @chatic/desktop-web@0.20.2
+
+### Bug Fixes
+
+- (desktop-web) re-read a failed cloud list when the relay verifies
+
 ## [2026-10-08] - No version updates
 
 ### Bug Fixes
