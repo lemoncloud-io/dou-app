@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web/channels) stack a sent message onto the room list instead of popping it in
+
+## [2026-10-08] - No version updates
+
+### Features
+
 - (perf,app-runtime,web) measure socket requests and attachment sends by type (ADR-0181)
 
 ## [2026-10-08] - root@0.86.3, @chatic/desktop-web@0.20.2
