@@ -5,10 +5,10 @@ import { useRef } from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { ChatAttachmentSource } from '@chatic/data';
-import { IDENTITY_PHOTO_EDIT, type PhotoEdit } from '@chatic/web-ui-kit';
+import { IDENTITY_PHOTO_EDIT, SLIDE_MS, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
-import { KEYBOARD_COVER_MS, KEYBOARD_WAIT_MS } from '../hooks/useAttachPanelSlot';
+import { ATTACH_INSET_VAR, KEYBOARD_COVER_MS, KEYBOARD_WAIT_MS } from '../hooks/useAttachPanelSlot';
 import type { PhotoPicker } from '../hooks/usePhotoPicker';
 import { INPUT_CLICK_WINDOW_MS, useChatImageAttach } from './ChatImageAttach';
 
@@ -80,11 +80,13 @@ const photo = (name: string, type = 'image/jpeg', lastModified = 1) => new File(
 
 /** What the composer's send button got back from `sendPicked`, last press. */
 let sentPicked: boolean | undefined;
+/** What the hook told the page about the panel's slide moving the composer, in order. */
+let composerSlides: boolean[] = [];
 
 /**
- * The hook as a page wires it: the composer's field (the ref, its focus closing the panel), the row of
- * picked photos above it, a stand-in for the composer's send button handing `caption` to `sendPicked`,
- * and what the page reads off it.
+ * The hook as a page wires it: the composer's bar (its ref, which the panel's slot pads), and in it the
+ * row of picked photos and the field (its ref, its focus closing the panel); a stand-in for the
+ * composer's send button handing `caption` to `sendPicked`; and what the page reads off it.
  */
 const Harness = ({
     sendImages,
@@ -104,12 +106,25 @@ const Harness = ({
     onUnsentText?: (text: string) => void;
 }) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const attach = useChatImageAttach({ sendImages, disabled, inputRef, picker, shellPicker, now, onUnsentText });
+    const composerRef = useRef<HTMLDivElement>(null);
+    const attach = useChatImageAttach({
+        sendImages,
+        disabled,
+        inputRef,
+        composerRef,
+        onComposerSlide: sliding => composerSlides.push(sliding),
+        picker,
+        shellPicker,
+        now,
+        onUnsentText,
+    });
     return (
         <div style={{ position: 'relative' }}>
             {attach.button}
-            <div data-testid="strip-slot">{attach.strip}</div>
-            <textarea ref={inputRef} aria-label="composer" onFocus={attach.closePanel} />
+            <div ref={composerRef} data-testid="composer-bar">
+                <div data-testid="strip-slot">{attach.strip}</div>
+                <textarea ref={inputRef} aria-label="composer" onFocus={attach.closePanel} />
+            </div>
             <button
                 type="button"
                 data-testid="composer-send"
@@ -118,18 +133,17 @@ const Harness = ({
                     sentPicked = attach.sendPicked(caption);
                 }}
             />
-            <output
-                data-testid="attach-state"
-                data-panel-open={String(attach.panelOpen)}
-                data-composer-inset={attach.composerInset}
-                data-composer-animated={String(attach.composerInsetAnimated)}
-            />
+            <output data-testid="attach-state" data-panel-open={String(attach.panelOpen)} />
             {attach.overlays}
         </div>
     );
 };
 
 const state = () => screen.getByTestId('attach-state');
+/** px the composer's bar keeps clear for the panel, as the panel's slot last wrote it. */
+const inset = () => parseFloat(screen.getByTestId('composer-bar').style.getPropertyValue(ATTACH_INSET_VAR)) || 0;
+/** Runs the panel's slide to its end, frame by frame, as the page would see it. */
+const slideOver = () => act(() => jest.advanceTimersByTime(SLIDE_MS + 32));
 
 const pick = (testId: string, files: File[]) => {
     const input = screen.getByTestId(testId) as HTMLInputElement;
@@ -146,6 +160,7 @@ beforeEach(() => {
     mockGrouped = true;
     mockSetGrouped.mockClear();
     sentPicked = undefined;
+    composerSlides = [];
 });
 
 afterEach(() => {
@@ -312,7 +327,7 @@ describe('useChatImageAttach — in-app grid', () => {
             { id: 'r1', src: 'data:r1' },
             { id: 'r2', src: 'data:r2' },
         ];
-        const picked = Array.from({ length: 10 }, (_, i) => ({ id: i === 0 ? 'r1' : `g${i}`, src: '' }));
+        const picked = Array.from({ length: 10 }, (_, i) => ({ id: i === 0 ? 'r1' : `g${i}`, src: `data:g${i}` }));
         render(<Harness sendImages={jest.fn()} picker={gridPicker({ recent, picked })} />);
 
         openMenu();
@@ -841,11 +856,25 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
     });
     const openButton = () => screen.getByRole('button', { name: 'chat.attach.open' });
     const panel = () => screen.getByRole('dialog', { name: 'chat.attach.menuTitle' });
+    // Found while it slides away too, when it is inert and out of the accessibility tree's reach.
+    const panelInPage = () =>
+        document.querySelector<HTMLElement>('[role="dialog"][aria-label="chat.attach.menuTitle"]');
+    /** How far below its place the panel is drawn, in % of its height, as the slot last wrote it. */
+    const below = () => {
+        const match = /^translateY\((-?[\d.e-]+)%\)$/.exec(panelInPage()?.style.transform ?? '');
+        return match ? parseFloat(match[1]) : null;
+    };
     const inject = (name: string, value: string) =>
         act(() => {
             document.documentElement.style.setProperty(name, value);
         });
     const flush = () => act(async () => undefined);
+    beforeEach(() => {
+        jest.useFakeTimers();
+    });
+    afterEach(() => {
+        jest.useRealTimers();
+    });
 
     it('opens under the composer, turns + into ×, and drops the keyboard', () => {
         render(<Harness sendImages={jest.fn()} picker={gridPicker()} />);
@@ -874,14 +903,25 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
 
         // The body leaves out the safe area the panel adds below it: the whole is the keyboard's 336.
         expect(panel().style.height).toBe('calc(302px + var(--safe-bottom, 0px))');
-        expect(state()).toHaveAttribute('data-composer-inset', '336');
-        // No keyboard to stand in for: the panel rises from below, and the composer with it.
-        expect(panel()).not.toHaveClass('transition-none');
-        expect(state()).toHaveAttribute('data-composer-animated', 'true');
-        // Once the panel's slide has ended, the composer answers the keyboard at once again. jsdom has
-        // no TransitionEvent, so the property the slide ran on is set by hand.
-        fireEvent(panel(), Object.assign(new Event('transitionend', { bubbles: true }), { propertyName: 'transform' }));
-        expect(state()).toHaveAttribute('data-composer-animated', 'false');
+        // No keyboard to stand in for: the panel rises from below, and the composer with it — moved by
+        // the slot, frame by frame, with no transition of the panel's own.
+        expect(panel()).toHaveClass('transition-none');
+        expect(below()).toBe(100);
+        expect(inset()).toBe(0);
+        expect(composerSlides).toEqual([true]);
+        act(() => jest.advanceTimersByTime(SLIDE_MS / 3));
+        const midway = below() ?? 100;
+        expect(midway).toBeGreaterThan(0);
+        expect(midway).toBeLessThan(100);
+        expect(inset()).toBeCloseTo((1 - midway / 100) * 336, 6);
+
+        slideOver();
+
+        // In place, told so, and the composer clear of all of it; the page stops following.
+        expect(below()).toBe(0);
+        expect(panel()).toHaveClass('translate-y-0');
+        expect(inset()).toBe(336);
+        expect(composerSlides).toEqual([true, false]);
     });
 
     it('takes the place of a keyboard that is up without moving the composer', () => {
@@ -893,9 +933,10 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
         fireEvent.click(openButton());
 
         // As tall as the keyboard, in place at once: the composer stays where the keyboard held it.
-        expect(panel()).toHaveClass('transition-none');
-        expect(state()).toHaveAttribute('data-composer-inset', '336');
-        expect(state()).toHaveAttribute('data-composer-animated', 'false');
+        expect(panel()).toHaveClass('transition-none', 'translate-y-0');
+        expect(below()).toBeNull();
+        expect(inset()).toBe(336);
+        expect(composerSlides).toEqual([]);
         expect(field).not.toHaveFocus();
     });
 
@@ -903,14 +944,27 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
         const picker = gridPicker({ picked: [recent[0]] });
         render(<Harness sendImages={jest.fn()} picker={picker} />);
         fireEvent.click(openButton());
+        slideOver();
+        const whole = inset();
+        composerSlides = [];
 
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.close' }));
 
         expect(state()).toHaveAttribute('data-panel-open', 'false');
-        expect(state()).toHaveAttribute('data-composer-inset', '0');
-        expect(state()).toHaveAttribute('data-composer-animated', 'true');
         expect(picker.clearPicked).toHaveBeenCalledTimes(1);
         expect(openButton()).toBeInTheDocument();
+        // Still in the page on its way down, the composer coming down with it.
+        expect(panelInPage()).toHaveAttribute('data-state', 'closed');
+        expect(composerSlides).toEqual([true]);
+        act(() => jest.advanceTimersByTime(SLIDE_MS / 3));
+        // The composer's edge and the panel's, drawn from the same position on the same frame.
+        expect(inset()).toBeCloseTo((1 - (below() ?? 0) / 100) * whole, 6);
+
+        slideOver();
+
+        expect(inset()).toBe(0);
+        expect(panelInPage()).not.toBeInTheDocument();
+        expect(composerSlides).toEqual([true, false]);
     });
 
     // Android back reaches the page as Escape on the topmost open dialog, which the panel is.
@@ -922,8 +976,10 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
         fireEvent.keyDown(document, { key: 'Escape' });
 
         expect(state()).toHaveAttribute('data-panel-open', 'false');
-        expect(state()).toHaveAttribute('data-composer-animated', 'true');
         expect(picker.clearPicked).toHaveBeenCalledTimes(1);
+        slideOver();
+        expect(inset()).toBe(0);
+        expect(panelInPage()).not.toBeInTheDocument();
     });
 
     it('lets the grid above it take Escape first', () => {
@@ -956,7 +1012,9 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
             const picker = gridPicker({ picked: [recent[0]] });
             render(<Harness sendImages={jest.fn()} picker={picker} />);
             fireEvent.click(openButton());
-            const inset = state().getAttribute('data-composer-inset');
+            slideOver();
+            const held = inset();
+            composerSlides = [];
 
             focusField();
 
@@ -964,28 +1022,31 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
             expect(picker.clearPicked).not.toHaveBeenCalled();
             // Still there under the rising keyboard, and still holding the composer where it was.
             expect(panel()).toHaveAttribute('data-state', 'open');
-            expect(state()).toHaveAttribute('data-composer-inset', inset);
+            expect(inset()).toBe(held);
             await act(async () => {
                 document.documentElement.style.setProperty('--keyboard-height', '320px');
             });
             act(() => jest.advanceTimersByTime(KEYBOARD_COVER_MS));
 
-            // Covered: gone at once, the composer on the keyboard's height from here.
-            expect(state()).toHaveAttribute('data-composer-inset', '0');
-            expect(state()).toHaveAttribute('data-composer-animated', 'false');
-            expect(screen.queryByRole('dialog', { name: 'chat.attach.menuTitle' })).not.toBeInTheDocument();
+            // Covered: gone at once, nothing sliding, the composer on the keyboard's height from here.
+            expect(inset()).toBe(0);
+            expect(composerSlides).toEqual([]);
+            expect(panelInPage()).not.toBeInTheDocument();
         });
 
         it('slides the panel down with the composer when no keyboard comes', () => {
             render(<Harness sendImages={jest.fn()} picker={gridPicker()} />);
             fireEvent.click(openButton());
+            slideOver();
             focusField();
-            expect(state()).not.toHaveAttribute('data-composer-inset', '0');
+            expect(inset()).not.toBe(0);
 
             act(() => jest.advanceTimersByTime(KEYBOARD_WAIT_MS));
 
-            expect(state()).toHaveAttribute('data-composer-inset', '0');
-            expect(state()).toHaveAttribute('data-composer-animated', 'true');
+            expect(composerSlides).toEqual([true, false, true]);
+            slideOver();
+            expect(inset()).toBe(0);
+            expect(panelInPage()).not.toBeInTheDocument();
         });
     });
 
@@ -993,12 +1054,15 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
         const picker = gridPicker({ picked: [recent[0]] });
         render(<Harness sendImages={jest.fn()} picker={picker} />);
         fireEvent.click(openButton());
+        slideOver();
+        composerSlides = [];
 
         act(() => screen.getByRole('textbox', { name: 'composer' }).focus());
 
         expect(state()).toHaveAttribute('data-panel-open', 'false');
-        expect(state()).toHaveAttribute('data-composer-inset', '0');
-        expect(state()).toHaveAttribute('data-composer-animated', 'true');
+        expect(composerSlides).toEqual([true]);
+        slideOver();
+        expect(inset()).toBe(0);
         expect(picker.clearPicked).not.toHaveBeenCalled();
     });
 
@@ -1009,7 +1073,8 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
 
         rerender(<Harness sendImages={jest.fn()} picker={picker} disabled />);
         expect(state()).toHaveAttribute('data-panel-open', 'false');
-        expect(state()).toHaveAttribute('data-composer-inset', '0');
+        slideOver();
+        expect(inset()).toBe(0);
         rerender(<Harness sendImages={jest.fn()} picker={picker} />);
 
         expect(state()).toHaveAttribute('data-panel-open', 'false');
@@ -1021,11 +1086,13 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
         const camera = jest.spyOn(screen.getByTestId('chat-attach-camera') as HTMLInputElement, 'click');
 
         fireEvent.click(openButton());
+        slideOver();
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.camera' }));
         expect(camera).toHaveBeenCalledTimes(1);
         expect(state()).toHaveAttribute('data-panel-open', 'false');
         // Down with the composer, as for ×.
-        expect(state()).toHaveAttribute('data-composer-animated', 'true');
+        expect(composerSlides).toEqual([true, false, true]);
+        slideOver();
 
         fireEvent.click(openButton());
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
@@ -1194,6 +1261,94 @@ describe('useChatImageAttach — the panel in the keyboard’s place', () => {
     });
 });
 
+describe('useChatImageAttach — the recent row while the app is asked for its library', () => {
+    const recent = [
+        { id: 'r1', src: 'data:r1' },
+        { id: 'r2', src: 'data:r2' },
+    ];
+    const openButton = () => screen.getByRole('button', { name: 'chat.attach.open' });
+    const row = () => document.querySelector<HTMLElement>('[data-recent-strip]');
+    const placeholders = () => document.querySelectorAll('[data-recent-placeholder]');
+    /** A picker whose library has not been asked yet, and a way to answer the probe the panel sends. */
+    const unasked = () => {
+        let answer: () => void = () => undefined;
+        const probe = jest.fn(
+            () =>
+                new Promise<void>(resolve => {
+                    answer = resolve;
+                })
+        );
+        const picker: PhotoPicker = { ...unsupportedPicker(), supported: null, probe };
+        return { picker, answer: () => act(async () => answer()) };
+    };
+    beforeEach(() => {
+        mockNative = true;
+        jest.useFakeTimers();
+    });
+    afterEach(() => {
+        mockNative = false;
+        jest.useRealTimers();
+    });
+
+    it('stands in skeleton tiles from the panel’s first frame, and fills in where it stands', async () => {
+        const { picker, answer } = unasked();
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        fireEvent.click(openButton());
+
+        // There before the answer, at its full size, so the entries under it start where they stay.
+        const standing = row();
+        expect(standing).toBeInTheDocument();
+        expect(placeholders().length).toBeGreaterThan(0);
+        // The answer, as the picker renders it: the library is there, with its newest items.
+        rerender(<Harness sendImages={jest.fn()} picker={{ ...picker, supported: true, access: 'granted', recent }} />);
+        await answer();
+
+        expect(row()).toBe(standing);
+        expect(standing).not.toHaveAttribute('inert');
+        expect(placeholders()).toHaveLength(0);
+        expect(screen.getByRole('button', { name: 'chat.attach.recentPhoto:{"position":2}' })).toBeInTheDocument();
+    });
+
+    it('closes the row when the app turns out to have no library', async () => {
+        const { picker, answer } = unasked();
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(openButton());
+        expect(row()).toBeInTheDocument();
+
+        rerender(<Harness sendImages={jest.fn()} picker={{ ...picker, supported: false }} />);
+        await answer();
+
+        // Closing rather than cut out: still there while its height goes, and out of reach meanwhile.
+        expect(row()).toHaveAttribute('inert');
+        act(() => jest.advanceTimersByTime(SLIDE_MS + 100));
+        expect(row()).not.toBeInTheDocument();
+    });
+
+    it('stops waiting once a probe has come back with no answer, closing the row for this time', async () => {
+        const { picker, answer } = unasked();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(openButton());
+
+        // A transient failure: the probe is over, and whether there is a library is still not known.
+        await answer();
+
+        expect(row()).toHaveAttribute('inert');
+        act(() => jest.advanceTimersByTime(SLIDE_MS + 100));
+        expect(row()).not.toBeInTheDocument();
+    });
+
+    it('draws no row in a browser, which never has a library', () => {
+        mockNative = false;
+        const { picker } = unasked();
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+
+        fireEvent.click(openButton());
+
+        expect(row()).not.toBeInTheDocument();
+    });
+});
+
 describe('useChatImageAttach — the pick above the composer', () => {
     const recent = [
         { id: 'r1', src: 'data:r1' },
@@ -1234,6 +1389,30 @@ describe('useChatImageAttach — the pick above the composer', () => {
         expect(thumb(2).querySelector('[data-video-mark]')).toBeInTheDocument();
         expect(ready()).toBe('true');
         expect(picker.clearPicked).not.toHaveBeenCalled();
+    });
+
+    it('shows the pick above the composer while the panel is open, when some of it is not in the recent row', () => {
+        // Picked in the grid, past the newest items the panel's row offers.
+        const older = { id: 'g40', src: 'data:g40' };
+        render(<Harness sendImages={jest.fn()} picker={gridPicker({ picked: [recent[0], older] })} />);
+
+        fireEvent.click(openButton());
+
+        // The row cannot show all of it, so the composer does — the whole pick, in pick order.
+        expect(state()).toHaveAttribute('data-panel-open', 'true');
+        expect(
+            within(row() as HTMLElement).getAllByRole('button', { name: /chat\.attach\.edit\.select/ })
+        ).toHaveLength(2);
+        expect(ready()).toBe('true');
+    });
+
+    it('shows the pick above the composer while the open panel draws no recent row to show it in', () => {
+        render(<Harness sendImages={jest.fn()} picker={gridPicker({ picked: [recent[0]], access: 'denied' })} />);
+
+        fireEvent.click(openButton());
+
+        expect(state()).toHaveAttribute('data-panel-open', 'true');
+        expect(row()).toBeInTheDocument();
     });
 
     // The row folds itself away as it empties, which takes it staying mounted: the panel opening over

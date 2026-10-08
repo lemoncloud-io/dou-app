@@ -149,14 +149,15 @@ the place back to the keyboard; neither moves the composer:
   (`KEYBOARD_WAIT_MS` — a hardware or floating keyboard) the panel slides down instead, as for ×. In a
   browser no height ever comes, so it slides down at once.
 - **+ with no keyboard** slides the panel up from below, and **×, back, camera, files and a send**
-  slide it down. The composer moves with it, on the same 300 ms and the viewer's curve; under the
-  system's reduced-motion setting both move at once.
+  slide it down. The composer moves with it, on the same frames: one frame loop moves both, 300 ms on
+  the viewer's curve, and a slide asked for mid-slide turns around from where the panel has got to.
+  Under the system's reduced-motion setting both move at once.
 
-How the composer's padding does this — the larger of the keyboard and the panel, moving over a slide
-only when the panel moves it — is in
-[layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place). The button
-reads + again from the focus on, while the panel may still be in place under the keyboard; pressed
-then, it keeps the panel where it is.
+How the composer's padding does this — the larger of the keyboard and the panel, the panel's share
+written by the slot at once or frame by frame, and the list following without a render per frame — is
+in [layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place). The
+button reads + again from the focus on, while the panel may still be in place under the keyboard;
+pressed then, it keeps the panel where it is.
 
 × and Escape dismiss the panel, and Android back does too: while open, the panel is a non-modal
 `role="dialog"` with `data-state="open"`, the shape `useBackHandler` looks for, so back reaches it as
@@ -170,7 +171,16 @@ badge with its place in the pick order, and at ten the unpicked tiles lock. The 
 into one list (`usePhotoPicker`'s `picked`): "전체 보기" and the photos entry open the grid on it — its
 edit button and its "묶어 보내기" checkbox with it — and closing the grid goes back to the panel with
 the pick, and its edits, intact. A photo picked deep in the grid is part of the pick too, though the
-row shows only the newest 30.
+row shows only the newest 30 — so the whole pick shows above the composer as well (below).
+
+**The row is there before the library answers.** In the app, the first opening on a page asks the
+shell for the newest items (`ListPhotos`, the probe above), and the panel draws before the answer
+comes — 170 ms on an iOS simulator, seconds on an Android emulator. Meanwhile the row stands at its
+full size in skeleton tiles (the kit's `RecentPhotoStrip` `loading`), so "사진", "카메라" and "파일"
+under it are where they will stay; the photos take the tiles' places as they come. Told there is no
+library (an app before the bridge), denied access, an empty library, or a probe that failed this time,
+the row closes on the slide's timing and the entries rise with it. A browser never has a library and
+never draws the row.
 
 **The composer's send button sends the pick.** While anything is picked — in the open panel, or
 waiting above the field once the panel has closed (below) — the send button is live even with an empty
@@ -189,13 +199,15 @@ the check goes back into the field (`onUnsentText`), unless something new was ty
 room. Focusing the field, camera, "files" and a composer lock close the panel and keep the pick, so a
 caption can be typed after picking.
 
-**The pick waits above the field.** Whenever something is picked and the panel is closed — focusing
-the field closed it, most often — the pick stays on screen as a row of small thumbnails directly above
-the composer's field (`useChatImageAttach`'s `strip`, the kit's `SelectedPhotoStrip` at its `compact`
-size: 48 px tiles, 8 px apart, in pick order, scrolling sideways). The send button stays the pick's
-the whole time, so pick → type → send is one message with its caption, and a photo is never sent from
-somewhere the person cannot see it. While the panel is open its recent row shows the pick instead, and
-while the composer is locked the row is hidden (the pick comes back with the lock's end).
+**The pick waits above the field.** Whenever some of the pick is out of sight — the panel is closed
+(focusing the field closed it, most often), or it is open with a pick its recent row does not hold,
+one made in the grid past the newest 30 — the whole pick shows as a row of small thumbnails directly
+above the composer's field (`useChatImageAttach`'s `strip`, the kit's `SelectedPhotoStrip` at its
+`compact` size: 48 px tiles, 8 px apart, in pick order, scrolling sideways). The send button stays the
+pick's the whole time, so pick → type → send is one message with its caption, and a photo is never
+sent from somewhere the person cannot see it. While the open panel's recent row holds every picked
+item, that row shows the pick instead; while the composer is locked the row is hidden (the pick comes
+back with the lock's end).
 
 - **× on a thumbnail** unpicks it, the way unpicking in the grid does, edit and all. The field keeps
   its caret through the tap, so removing a photo while typing does not drop the keyboard. Once the
@@ -318,9 +330,10 @@ of the grid and above the composer (there without the length). On Android the ap
 as well; it asks for that once (ADR-0171).
 
 **Sending** reads the pick one item at a time in pick order: a photo with `ReadPhoto` (base64 — the app
-converts HEIC to JPEG and removes the location) unless the editor already read it and the grid is still
-open, a photo with an edit
-drawn with it ([photo-edit.md](./photo-edit.md#the-edit-is-drawn-at-the-send)), a video with
+converts HEIC to JPEG and removes the location) unless the editor has read it and still holds its
+bytes, which it does while the grid is open and for its own send button, opened over the grid or over
+the composer alike ([photo-edit.md](./photo-edit.md#reading-the-photo-for-the-editor)); a photo with an
+edit drawn with it ([photo-edit.md](./photo-edit.md#the-edit-is-drawn-at-the-send)); a video with
 `KeepLibraryVideo`, which copies it into
 the app's pick folder and answers with the same shell-file reference "Choose from album" gives — from
 there it is converted and uploaded as any app-picked video is. The app judges a video as it copies
@@ -593,6 +606,7 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/hooks/usePhotoSendGrouping \
   apps/web/src/app/features/channels/hooks/useKeyboardMemory \
   apps/web/src/app/features/channels/hooks/useAttachPanelSlot \
+  apps/web/src/app/features/channels/utils/slotSlide apps/web/src/app/ui/hooks/useChromeInsets \
   apps/web/src/app/features/channels/utils/bakePhotoEdit \
   apps/web/src/app/features/channels/pages/ChannelRoomPage apps/web/src/app/features/channels/pages/ThreadPage
 npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage \
@@ -603,10 +617,16 @@ The panel's place and motion need a device, iOS and Android both, since their ke
 different moments: open it with the keyboard up and the composer should not move, nor should anything
 flash between the keyboard and the panel; tap the field and the keyboard should rise over the panel
 the same way. With no keyboard up, + and × (and Android back) should move the composer with the panel,
-in one motion; so should a tap on the field with a hardware keyboard attached, a moment later. Then
-pick two photos, tap the field and type: the two slide in above the field as the keyboard comes up, ×
-on one leaves the keyboard up, a tap on the other opens the editor, and the send button sends the one
-left with the text as one message.
+in one motion; so should a tap on the field with a hardware keyboard attached, a moment later. Record
+the screen for those: frame by frame, the composer's pill and the panel's top edge move in the same
+frames, 8 px apart. + then × before the panel has risen should turn it around where it is, with no
+jump. Then pick two photos, tap the field and type: the two slide in above the field as the keyboard
+comes up, × on one leaves the keyboard up, a tap on the other opens the editor, and the send button
+sends the one left with the text as one message. Pick one from "전체 보기" past the newest 30 and close
+the grid: with the panel still open, the pick shows above the composer too. On a page's first opening
+in the app the recent row should be there from the first frame, in skeleton tiles, with the three
+entries under it not moving when the photos come; in an app built before the photo bridge, the row
+should close and the entries rise.
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and
 [libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md).

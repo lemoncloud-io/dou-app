@@ -1,6 +1,6 @@
 # ADR-0123: picking a photo sends it, and the shell decides how it is picked
 
-> Status: Accepted (decision 1 is Superseded for the in-app pick — the photo grid and the attach panel's recent row — by [ADR-0179](./0179-photos-are-edited-in-the-grid-and-may-go-as-one-message-each.md): its picks can be edited, sent as one message each and given a caption before a send button is pressed) · Decided: 2026-09-29
+> Status: Accepted (decision 1 is Superseded for the in-app pick — the photo grid and the attach panel's recent row — by [ADR-0179](./0179-the-in-app-photo-pick-waits-for-a-send-in-a-panel-in-the-keyboards-place.md): its picks can be edited, sent as one message each and given a caption before a send button is pressed) · Decided: 2026-09-29
 > Scope: `apps/web/src/app/features/channels/components/{ChatImageAttach,MessageImages,ChannelMessageRow}.tsx` ·
 > `apps/web/src/app/features/channels/hooks/usePhotoPicker.ts` · `apps/web/src/app/bridge/photoLibrary.ts` ·
 > `apps/web/src/app/features/channels/pages/{ChannelRoomPage,ThreadPage}.tsx` ·

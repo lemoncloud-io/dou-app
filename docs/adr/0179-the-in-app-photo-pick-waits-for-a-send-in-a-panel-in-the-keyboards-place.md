@@ -1,10 +1,11 @@
-# ADR-0179: Photos are edited in the grid and may go as one message each
+# ADR-0179: The in-app photo pick waits for a send in a panel in the keyboard's place, and can be edited, captioned and sent one message each
 
 > Status: Accepted · Decided: 2026-10-07 (the editor, one message each), 2026-10-08 (the attach
-> panel, the caption, the pick waiting above the composer, the keyboard handover) · Implemented:
-> `feat/photo-edit-before-send` · Scope: `apps/web/src/app/features/channels/` (`ChatImageAttach`,
-> `usePhotoPicker`, `usePhotoSendGrouping`, `useKeyboardMemory`, `useAttachPanelSlot`,
-> `utils/bakePhotoEdit`, `ChannelRoomPage`, `ThreadPage`)
+> panel, the caption, the pick waiting above the composer, the keyboard handover, one frame loop for
+> the panel's slides) · Implemented: `feat/photo-edit-before-send` · Scope:
+> `apps/web/src/app/features/channels/` (`ChatImageAttach`, `usePhotoPicker`, `usePhotoSendGrouping`,
+> `useKeyboardMemory`, `useAttachPanelSlot`, `utils/slotSlide`, `utils/bakePhotoEdit`,
+> `ChannelRoomPage`, `ThreadPage`) · `apps/web/src/app/ui/hooks/useChromeInsets`
 > · `libs/web-ui-kit` (`PhotoEditor`, `EditedPhotoImage`, `photoEdit`, `cropBox`, `PhotoGridSheet`,
 > `SelectedPhotoStrip`, `AttachPanel`, `RecentPhotoStrip`, `MessageInput`) · `libs/app-runtime`
 > (`sendImages`'s `separately` and `content`) · `libs/data` (`createPendingImageChat`'s `content`)
@@ -111,7 +112,10 @@ What the code had to work with:
    with an empty field and sends the pick, by the grouping choice and with its edits, and closes the
    panel if it is open. A grid send closes the panel too. × and Escape let the pick go; focusing the
    field keeps it, so a caption can be typed after picking, and the pick stays on screen above the
-   field (decision 11).
+   field (decision 11). In the app the row is drawn from the panel's first frame: while the shell has
+   not yet said whether it has a library at all, the row stands in skeleton tiles at its full height,
+   so the panel's entries under it are where they will stay; told there is none, it closes on the
+   slide's timing and the entries rise with it. A browser, which never has one, never draws it.
 9. **What is typed goes in the photo message, as its caption.** When the composer's send button sends
    the pick, the text in the field becomes the photo message's own text (`sendImages`'s `content`),
    and the field is cleared. With one message each, only the first carries it, so it is said once. The
@@ -121,9 +125,10 @@ What the code had to work with:
 10. **The grid's footer slides.** It rises from below when the first item is picked and goes back down
     when the last is unpicked, on the panel's timing (300 ms, the viewer's curve), at once under reduced
     motion.
-11. **The pick waits above the composer.** Whenever something is picked and the panel is closed, the
-    pick shows directly above the composer's field as a row of small thumbnails (the kit's
-    `SelectedPhotoStrip` at its compact size), and the send button stays the pick's. So pick → type →
+11. **The pick waits above the composer.** Whenever some of the pick is out of sight — the panel is
+    closed, or it is open with a pick its recent row does not hold, one made in the grid past the
+    newest 30 — the whole pick shows directly above the composer's field as a row of small thumbnails
+    (the kit's `SelectedPhotoStrip` at its compact size), and the send button stays the pick's. So pick → type →
     send is one message with its caption, whether the panel is open at the press or not. × on a
     thumbnail unpicks it, keeping the keyboard up; a tap opens the editor at it, with no grid under it.
     The row is part of the composer's bar, so the message list clears it the way it clears the field,
@@ -139,9 +144,15 @@ What the code had to work with:
     keyboard's height first arrives — the rise on iOS, a margin on Android. With no height after
     800 ms (a hardware or floating keyboard), and at once in a browser, the panel slides down instead.
     Where there is no keyboard to trade with — +, ×, back, and every other close — the panel slides
-    (300 ms, the viewer's curve) and the composer moves with it on the same timing. The composer pads
-    by the larger of the keyboard and the panel throughout, and moves over a slide only when the panel
-    moves it: the keyboard's own changes stay instant, as before.
+    (300 ms, the viewer's curve) and the composer moves with it on the same frames: one
+    `requestAnimationFrame` loop works out one position per frame and writes the panel's translate and
+    the composer's offset from it in the same call. Neither has a transition of its own, and the
+    kit's panel is moved by its host (`motion="external"`). A slide asked for mid-slide turns around
+    from where the panel has got to. The composer pads by the larger of the keyboard and the panel
+    throughout; the keyboard's own changes reach it through `--keyboard-height`, at once, as before,
+    and never go through the loop. The message list, which clears the composer by its measured
+    height, follows a slide in the frame the composer moves, its padding written directly rather than
+    rendered, and the page renders once as the slide stops.
 
 ## Consequences
 
@@ -158,8 +169,8 @@ What the code had to work with:
 - **Bytes cross the bridge once while the grid is open.** A photo read for the editor is not read
   again at a send from the grid. Until then the pick's photos stay in page memory — at most ten, which
   the send holds anyway once it starts. Closing the grid lets the bytes go and keeps the pick, its
-  edits and the editor's smaller copies: the pick may now wait in the panel for as long as a caption
-  takes to type. A send from the composer reads the photos again, edited ones included.
+  edits and the editor's smaller copies: the pick may now wait above the composer for as long as a
+  caption takes to type. A send from the composer reads the photos again, edited ones included.
 - **Canvas orientation on WKWebView is unmeasured.** The page relies on an `<img>` drawn upright, which
   `decodeImage` measured in Chrome only. A portrait photo needs checking on an iOS device before this
   is trusted there.
@@ -193,9 +204,18 @@ What the code had to work with:
   it. A keyboard of another height than the panel — the first one on a page that guessed 306 px, or a
   switch of keyboard — still moves the composer by the difference, at once, as any keyboard change
   does. A panel opened from a browser, where no keyboard height is injected, is the design's 306 px.
-- **The list follows a slide frame by frame.** The composer's padding is what transitions, so its
-  measured height — the list's inset — changes on every frame of a slide, and the room re-renders
-  with it for those 300 ms. It has not been measured on a low-end Android.
+- **A slide is JavaScript on the main thread, every frame.** The panel's transform no longer runs on
+  the compositor by itself: a frame the main thread misses is a frame both the panel and the composer
+  miss, together, rather than one where they part. Each frame writes two styles and lays out the
+  composer and the list, and renders nothing in React — before, the room re-rendered on each of the
+  slide's frames (about 19 of them), because the list's inset is the composer's measured height. The
+  composer's resizes go straight to the list for the slide's length (`useChromeInsets`'
+  `followFooter`), so something else that resizes the composer during a slide — the picked row
+  folding as × clears the pick — is followed the same way and rendered once at the end.
+- **The panel's first opening on a page draws a row that may not stay.** In an app built before the
+  photo bridge, and where access is denied or the library is empty, the skeleton row closes again a
+  moment after the panel has risen, instead of never being there; in an app with photos, the entries
+  under it no longer jump down by the row's height when the photos come.
 - **The decision record moves.** ADR-0123's decision 1 now speaks for the other pick paths only.
 
 ## Alternatives
@@ -247,6 +267,30 @@ What the code had to work with:
   the end — so a transition would trail the iOS keyboard on a curve that is not its own, and on Android
   start only after the keyboard had arrived. The composer keeps tracking the keyboard as it always
   has, and only the panel's own slides move it gradually.
+- **Two transitions on the same timing: the panel's transform and the composer's padding.** This
+  decision's first form, and the one that looked right in desktop Chrome. On the iOS simulator a
+  recording showed the panel already 246 pt down in the first moving frame of a close, with the
+  composer not yet moved: a transform transition is handed to the compositor and starts at once, a
+  padding transition is laid out on the main thread and starts a frame later. Matching duration and
+  curve cannot fix a difference in where each one runs.
+- **Move the composer with a transform as well.** Both would then run on the compositor and start
+  together. But the list clears the composer by its measured height, which a transform does not
+  change, so the list would have to move by a transform of its own, and the composer's padding would
+  still have to land on its final value at the end, in one jump of the layout under a composer that
+  had already arrived. One loop writing what each surface already uses keeps a single offset rule for
+  the keyboard and the panel alike.
+- **Let the list follow the composer by rendering the page, as it does for the keyboard.** No new
+  mechanism, but on every frame of a slide: a render of the whole room for each frame, which then
+  lands a frame after the composer has moved. The keyboard moves the composer once per move, so a
+  render there costs one; a slide costs one per frame.
+- **Draw the recent row only once the library has answered.** No row that may close again, but on
+  the first opening on a page the entries under it were pushed down by its height as the answer came —
+  about 170 ms after the panel rose on an iOS simulator, almost three seconds on an Android emulator.
+- **Keep the pick above the composer only while the panel is closed.** The open panel's recent row
+  was taken to show the pick. But it shows the newest 30 only, so a photo picked in the grid past
+  them went unseen while the panel was open, and the composer's send button sent it. Showing only the
+  picks the row cannot was considered too: the pick's order, and its edits, are the whole pick's, and
+  half of it in each place would read as two picks.
 
 - **A native editor.** The system crop screens do not fit: iOS offers only
   `UIImagePickerController.allowsEditing`, a square crop of one image, and Android's

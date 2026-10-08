@@ -73,6 +73,16 @@ interface UseChatImageAttachInput {
     /** The composer's textarea, so opening the panel can drop the keyboard it would otherwise keep. */
     inputRef?: RefObject<HTMLTextAreaElement | null>;
     /**
+     * The composer's bar, padded by `COMPOSER_PADDING_BOTTOM`: the panel's slot writes its share of that
+     * padding on it, at once or frame by frame with the panel's slide (`useAttachPanelSlot`).
+     */
+    composerRef?: RefObject<HTMLElement | null>;
+    /**
+     * Told `true` as the panel's slide starts moving the composer and `false` once it has stopped, so
+     * the page can keep its list in step without a render per frame.
+     */
+    onComposerSlide?: (sliding: boolean) => void;
+    /**
      * Hands back a caption that went nowhere: nothing in the pick it was sent with could be sent. The
      * page cleared its field at the press, so it can put the text back.
      */
@@ -91,9 +101,9 @@ interface ChatImageAttach {
     /**
      * The pick waiting for the composer's send button, as a row of small thumbnails — render it inside
      * the composer, directly above its field, and keep rendering it: it is empty while there is
-     * nothing to show there (nothing is picked, the panel is open and its recent row shows the pick,
-     * or the composer is locked), and it needs to stay mounted to fold itself away. Null only where
-     * the in-app pick does not exist.
+     * nothing to show there (nothing is picked, the panel is open and its recent row shows every picked
+     * item, or the composer is locked), and it needs to stay mounted to fold itself away. Null only
+     * where the in-app pick does not exist.
      */
     strip: ReactNode;
     /**
@@ -104,20 +114,8 @@ interface ChatImageAttach {
     /** Whether the attach panel is open, in the keyboard's place under the composer. */
     panelOpen: boolean;
     /**
-     * px the composer keeps clear at the bottom for the panel — its height and the safe area while it
-     * is in place, 0 once it is gone. The page pads the composer by the larger of this and
-     * `--keyboard-height`; the message list follows the composer. A panel the keyboard is taking over
-     * from stays in place, and keeps this, until the keyboard covers it.
-     */
-    composerInset: number;
-    /**
-     * Whether the composer should move to a new `composerInset` over the panel's slide
-     * (`COMPOSER_INSET_MOTION`) rather than at once. True only while the panel slides.
-     */
-    composerInsetAnimated: boolean;
-    /**
-     * Something is picked — in the open panel, or above the composer once it has closed: the composer's
-     * send button sends it, typed text or not.
+     * Something is picked — shown in the open panel, above the composer, or both: the composer's send
+     * button sends it, typed text or not.
      */
     sendReady: boolean;
     /**
@@ -175,16 +173,21 @@ export const useChatImageAttach = ({
     sendImages,
     disabled = false,
     inputRef,
+    composerRef,
+    onComposerSlide,
     onUnsentText,
     picker: injected,
     shellPicker = shellAttachmentPicker,
     now = Date.now,
 }: UseChatImageAttachInput): ChatImageAttach => {
     const { t } = useTranslation();
-    const slot = useAttachPanelSlot(inputRef);
+    const slot = useAttachPanelSlot({ inputRef, composerRef, onComposerSlide });
     const { hide: hidePanel } = slot;
     const [permissionOpen, setPermissionOpen] = useState(false);
     const [sourceOpen, setSourceOpen] = useState(false);
+    // A probe asked and not answered yet. Its answer is what `supported` turns into, but a probe that
+    // fails on the way leaves `supported` unknown, and the panel should stop waiting for it all the same.
+    const [probing, setProbing] = useState(false);
     const libraryRef = useRef<HTMLInputElement>(null);
     const cameraRef = useRef<HTMLInputElement>(null);
     const albumRef = useRef<HTMLInputElement>(null);
@@ -322,8 +325,13 @@ export const useChatImageAttach = ({
         // it, and the keyboard sliding away is what reveals it.
         inputRef?.current?.blur();
         // Asked on every open, not once: the library changes while the app is away, and the answer
-        // is also how an unknown shell is learned.
-        if (picker.supported !== false) void picker.probe();
+        // is also how an unknown shell is learned. Only that first answer has the recent row waiting.
+        if (picker.supported === null) {
+            setProbing(true);
+            void picker.probe().finally(() => setProbing(false));
+        } else if (picker.supported) {
+            void picker.probe();
+        }
     };
 
     // Close first, then open the picker: the OS chooser covers the page, and what it picks is sent at
@@ -491,13 +499,22 @@ export const useChatImageAttach = ({
         />
     );
 
+    // What the panel's recent row shows: the newest items, where the library can be read and was let.
+    const recentItems = inGrid && picker.access !== 'denied' ? picker.recent : NO_PHOTOS;
+    // In the app, the first opening on a page asks the library whether it is there at all, and the panel
+    // draws before it answers. The row stands there in skeleton tiles meanwhile, so the panel's entries
+    // under it are where they will stay once the photos come; told there is no library, the row closes
+    // and they rise with it. Kept in the panel for that, as long as the app may have a library, even
+    // with nothing to draw — it draws nothing then. A browser never has one, and never gets the row.
+    const recentPending = picker.supported === null && probing;
     const recent =
-        inGrid && picker.access !== 'denied' ? (
+        isNative() || inGrid ? (
             <RecentPhotoStrip
                 title={t('chat.attach.recentTitle')}
                 seeAllLabel={t('chat.attach.seeAll')}
                 onSeeAll={openGrid}
-                photos={picker.recent}
+                photos={recentItems}
+                loading={recentPending}
                 picked={picker.picked.map(item => item.id)}
                 onToggle={toggleRecent}
                 max={IMAGE_MESSAGE_SLOT_MAX}
@@ -506,13 +523,16 @@ export const useChatImageAttach = ({
             />
         ) : undefined;
 
-    // The pick above the composer while the panel is closed — closed for the keyboard, most often:
-    // still on screen, still the send button's. While the panel is open its recent row shows the pick.
+    // The pick above the composer whenever some of it is out of sight — while the panel is closed (for
+    // the keyboard, most often), and while it is open with a pick its recent row does not hold, one made
+    // in the grid past the newest items. Still on screen, still the send button's: nothing goes unseen.
+    // While the open panel's row holds every picked item, the row is where the pick shows.
     const removePicked = (id: string) => {
         const item = picker.picked.find(photo => photo.id === id);
         if (item) picker.toggle(item);
     };
-    const stripShown = !panelOpen && !disabled && picker.picked.length > 0;
+    const inRecentRow = new Set(panelOpen ? recentItems.map(item => item.id) : []);
+    const stripShown = !disabled && picker.picked.some(item => !inRecentRow.has(item.id));
     // Mounted whenever the in-app pick exists, and handed an empty pick while there is nothing to show:
     // the row folds itself away, which it can only do while it is still here. The 8px between it and
     // the field is the row's own margin, inside what it opens and closes, so the composer grows and
@@ -628,11 +648,13 @@ export const useChatImageAttach = ({
                 data-testid="chat-attach-camera"
             />
             <AttachPanel
+                ref={slot.panel.ref}
+                // The slot moves it, frame by frame with the composer (`useAttachPanelSlot`).
+                motion="external"
                 open={slot.panel.open}
                 height={slot.panel.height}
                 enter={slot.panel.enter}
                 exit={slot.panel.exit}
-                onTransitionEnd={slot.panel.onTransitionEnd}
                 recent={recent}
                 onPhoto={inGrid ? openGrid : pickFrom(libraryRef)}
                 onCamera={pickFrom(cameraRef)}
@@ -768,8 +790,6 @@ export const useChatImageAttach = ({
         strip,
         overlays,
         panelOpen,
-        composerInset: slot.composerInset,
-        composerInsetAnimated: slot.composerInsetAnimated,
         sendReady,
         sendPicked,
         closePanel: slot.handOver,

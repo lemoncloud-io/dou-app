@@ -12,7 +12,7 @@ import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chati
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
-import { COMPOSER_INSET_MOTION } from '../hooks/useAttachPanelSlot';
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
@@ -47,6 +47,20 @@ import { toCloudId } from '../../../hooks/useCloudScope';
 
 const MAX_INPUT_LENGTH = 5000;
 
+/** px the reply list keeps clear above the composer, on top of the composer's own height. */
+const LIST_COMPOSER_GAP = 16;
+
+/**
+ * The list's bottom padding for a composer `height` px tall, written straight onto the list, with the
+ * newest reply kept in view — for the frames the composer moves without the page rendering them
+ * (`followFooter`).
+ */
+const clearComposer = (list: HTMLElement | null, height: number) => {
+    if (!list) return;
+    list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
+    list.scrollTo({ top: list.scrollHeight });
+};
+
 /**
  * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
  *
@@ -80,7 +94,13 @@ export const ThreadPage = () => {
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
-    const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
+    const {
+        headerRef,
+        footerRef: composerRef,
+        headerHeight,
+        footerHeight: composerHeight,
+        followFooter: followComposer,
+    } = useChromeInsets();
 
     // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
@@ -156,6 +176,11 @@ export const ThreadPage = () => {
         sendImages: imageSend.sendImages,
         disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
         inputRef,
+        composerRef,
+        // The room's rule: through the attach panel's slide the list follows the composer frame by
+        // frame without a render — clearing it, and keeping the newest reply in view as the effect
+        // below does once the composer has settled.
+        onComposerSlide: sliding => followComposer(sliding ? height => clearComposer(listRef.current, height) : null),
         // Same as the room: a caption whose photos all failed the check comes back to an empty field.
         onUnsentText: text => setContent(current => (current.trim() ? current : text)),
     });
@@ -426,7 +451,7 @@ export const ThreadPage = () => {
             <div
                 ref={listRef}
                 className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
-                style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + 16 }}
+                style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + LIST_COMPOSER_GAP }}
             >
                 {isLoading && !root ? (
                     <div data-testid="thread-loading" className="flex min-h-full items-center justify-center">
@@ -485,15 +510,14 @@ export const ThreadPage = () => {
                     // React types a bubbled focus target as the element listening, which it need not be.
                     if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
                 }}
-                // The room's rule: moves with the attach panel's slide, and at once for the keyboard.
-                className={`absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2${
-                    attach.composerInsetAnimated ? ` ${COMPOSER_INSET_MOTION}` : ''
-                }`}
+                // The room's rule: no transition — the keyboard moves it at once, the attach panel's slide
+                // frame by frame.
+                className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
                     // The room's rule: above the keyboard or the attach panel in its place — the larger,
                     // while they trade places — else the home indicator. The list clears the composer
                     // by its measured height.
-                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(max(var(--keyboard-height, 0px), ${attach.composerInset}px) + 8px))`,
+                    paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
                 {/* The room's rule: picked photos wait above the field, inside the measured bar. */}

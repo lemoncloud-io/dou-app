@@ -1,6 +1,7 @@
 # photo edit — cropping, turning and mirroring picked photos before the send
 
-> Status: wired into the in-app photo grid. Canonical code:
+> Status: wired into the in-app pick — the photo grid, and the row of picked photos above the composer.
+> Canonical code:
 > [`components/ChatImageAttach.tsx`](../../../src/app/features/channels/components/ChatImageAttach.tsx)
 > (when the editor opens, what ✕, "완료" and the send do),
 > [`hooks/usePhotoPicker.ts`](../../../src/app/features/channels/hooks/usePhotoPicker.ts) (reading for
@@ -11,9 +12,10 @@
 > lists, picks and sends is in [image-send.md](./image-send.md).
 
 Only the in-app pick (in an app with the photo-library bridge) edits: the grid (`PhotoGridSheet`), and
-the attach panel's recent row, which picks into the grid's list. The editor opens over the grid, or —
-once the panel has closed and the pick waits above the composer's field — over the composer, from
-that row of thumbnails. The page's file
+the attach panel's recent row, which picks into the grid's list. The editor opens over the grid, or
+over the composer, from the row of thumbnails above the composer's field where the pick waits whenever
+some of it is out of sight (the panel closed, or open with a pick its recent row does not hold). The
+page's file
 inputs, the camera and the app's own picker still send what was picked at once, and so does a
 browser; desktop-web has its own tray and is unchanged. The in-app pick is the one that already
 waited for a send button, so editing fits there without adding a step anywhere else.
@@ -106,7 +108,7 @@ that is ready.
   let go, is dropped. A photo picked again in a new pick while an earlier pick's read of it is still out
   is read again, once that read is over, since reads stay one at a time.
 - **What is read is kept for the send — while the grid is open.** The send uses the same bytes and
-  does not read the photo again. Closing the grid lets the bytes go: the pick may then wait under the
+  does not read the photo again. Closing the grid lets the bytes go: the pick may then wait above the
   composer for as long as a caption takes to type, and ten photos' bytes are some 50 MB. An editor
   opened from the row above the composer lets them go as it closes with "완료" or ✕, for the same
   reason (`releaseBytes`); its own send button uses them. A send from the composer reads them again;

@@ -70,12 +70,14 @@ jest.mock('@chatic/web-ui-kit', () => ({
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
 jest.mock('../../../hooks/useMenuNavigate', () => ({ useMenuNavigate: () => jest.fn() }));
+const mockFollowFooter = jest.fn();
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
         headerRef: { current: null },
         footerRef: { current: null },
         headerHeight: 0,
         footerHeight: 0,
+        followFooter: mockFollowFooter,
     }),
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
@@ -120,21 +122,22 @@ jest.mock('../hooks/useSendImages', () => ({
 let mockAttachReady = false;
 let mockPanelOpen = false;
 let mockAttachStrip = false;
-let mockAttachInset = 0;
-let mockAttachInsetAnimated = false;
 const mockSendPicked = jest.fn();
 const mockClosePanel = jest.fn();
-let mockAttachInput: { onUnsentText?: (text: string) => void } = {};
+interface MockAttachInput {
+    onUnsentText?: (text: string) => void;
+    composerRef?: { current: HTMLElement | null };
+    onComposerSlide?: (sliding: boolean) => void;
+}
+let mockAttachInput: MockAttachInput = {};
 jest.mock('../components/ChatImageAttach', () => ({
-    useChatImageAttach: (input: { onUnsentText?: (text: string) => void }) => {
+    useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInput = input;
         return {
             button: null,
             strip: mockAttachStrip ? <div data-testid="attach-strip" /> : null,
             overlays: null,
             panelOpen: mockPanelOpen,
-            composerInset: mockAttachInset,
-            composerInsetAnimated: mockAttachInsetAnimated,
             sendReady: mockAttachReady,
             sendPicked: mockSendPicked,
             closePanel: mockClosePanel,
@@ -192,6 +195,7 @@ jest.mock('../hooks', () => ({
     useReadMarker: () => ({ markSent: jest.fn() }),
 }));
 
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { ChannelRoomPage } from './ChannelRoomPage';
 
 /** The arguments of the latest `useJoinPositions` call: (cid, channelId, active, all, cursors, isMember). */
@@ -318,8 +322,7 @@ describe('ChannelRoomPage — photos', () => {
         mockAttachReady = false;
         mockPanelOpen = false;
         mockAttachStrip = false;
-        mockAttachInset = 0;
-        mockAttachInsetAnimated = false;
+        mockFollowFooter.mockReset();
         mockSendPicked.mockReset().mockReturnValue(true);
         mockClosePanel.mockReset();
     });
@@ -393,28 +396,33 @@ describe('ChannelRoomPage — photos', () => {
         expect(mockClosePanel).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps the composer above the attach panel, as it does above the keyboard', () => {
-        mockAttachInset = 336;
+    it('keeps the composer above the attach panel, as it does above the keyboard, and hands the panel its bar', () => {
         render(<ChannelRoomPage />);
 
         const composer = field().parentElement as HTMLElement;
-        expect(composer.getAttribute('style')).toContain('max(var(--keyboard-height, 0px), 336px)');
-        // The keyboard moves it at once: no transition unless the panel's slide asks for one.
-        expect(composer.className).not.toContain('transition-[padding-bottom]');
+        // The panel's share of the padding is written on the bar by the panel's slot, never rendered.
+        expect(composer.style.paddingBottom).toBe(COMPOSER_PADDING_BOTTOM);
+        expect(mockAttachInput.composerRef?.current).toBe(composer);
+        // No transition: the keyboard moves it at once, and the panel's slide frame by frame.
+        expect(composer.className).not.toMatch(/transition/);
     });
 
-    it('moves the composer over the attach panel’s slide while the panel moves it', () => {
-        mockAttachInset = 336;
-        mockAttachInsetAnimated = true;
+    it('keeps the list clear of the composer through the attach panel’s slide without rendering each frame', () => {
         render(<ChannelRoomPage />);
+        const list = document.querySelector('.flex-col-reverse') as HTMLElement;
 
-        const composer = field().parentElement as HTMLElement;
-        expect(composer).toHaveClass(
-            'transition-[padding-bottom]',
-            'duration-300',
-            '[transition-timing-function:cubic-bezier(0.32,0.72,0,1)]',
-            'motion-reduce:transition-none'
-        );
+        act(() => mockAttachInput.onComposerSlide?.(true));
+
+        // Each frame's composer height goes straight to the list's padding, the room's 16px above it.
+        const follow = mockFollowFooter.mock.calls.at(-1)?.[0] as (height: number) => void;
+        follow(402);
+        expect(list.style.paddingBottom).toBe('418px');
+        follow(260.5);
+        expect(list.style.paddingBottom).toBe('276.5px');
+
+        act(() => mockAttachInput.onComposerSlide?.(false));
+
+        expect(mockFollowFooter).toHaveBeenLastCalledWith(null);
     });
 
     it('puts a caption whose photos could not go back in an empty field, and leaves new text alone', () => {

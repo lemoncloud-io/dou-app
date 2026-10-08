@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 import { isNative } from '@chatic/bridges';
+import { prefersReducedMotion, type AttachPanelHandle } from '@chatic/web-ui-kit';
 
 import { KEYBOARD_MIN_PX } from '../../../ui/hooks/useKeyboardOpen';
+import { createSlotSlide, type SlotSlide } from '../utils/slotSlide';
 import { injectedLength, useKeyboardMemory } from './useKeyboardMemory';
 
 /**
@@ -22,9 +24,6 @@ export const PANEL_FALLBACK_HEIGHT = 306;
 export const panelBodyHeight = (keyboard: number, safeBottom: number): number =>
     keyboard > 0 ? Math.max(0, keyboard - safeBottom) : PANEL_FALLBACK_HEIGHT;
 
-/** How long the panel's slide takes — and the composer's, which moves with it. */
-export const PANEL_SLIDE_MS = 300;
-
 /**
  * After the keyboard's height first arrives, how long until the keyboard covers the panel. iOS reports
  * the height as the keyboard starts to rise and Android once it is up, so one wait has to cover both:
@@ -39,21 +38,19 @@ export const KEYBOARD_COVER_MS = 300;
 export const KEYBOARD_WAIT_MS = 800;
 
 /**
- * How long a slide may run before the composer stops following it anyway. The panel says when its
- * slide has ended, but under reduced motion, or in a document that is not being drawn, the transition
- * it waits on never runs — and a composer left transitioning would trail the keyboard from then on.
+ * The custom property the slot writes on the composer: px it keeps clear at the bottom for the panel —
+ * the panel's whole height while it is in place, 0 once it is gone, and every height in between, frame
+ * by frame, while it slides. Only the slot writes it; the page never renders it.
  */
-const SLIDE_END_FALLBACK_MS = PANEL_SLIDE_MS + 100;
+export const ATTACH_INSET_VAR = '--attach-inset';
 
 /**
- * The classes that make the composer's bottom padding move with the panel: the panel's 300 ms on the
- * photo screens' curve. Applied only while `composerInsetAnimated` says so, so the keyboard still moves
- * the composer at once. The curve is spelled as a property: the arbitrary-value easing utility is
- * claimed by tailwindcss-animate as well, and a class two plugins claim emits no rule. Reduced motion
- * drops the transition, as it drops the panel's.
+ * The composer's bottom padding: 8px above the keyboard, or the attach panel standing in its place, and
+ * otherwise clear of the home indicator. The larger of the keyboard and the panel, never a sum — while
+ * the two trade places both are there, and the composer stays where the taller puts it; and the
+ * keyboard, like the panel's inset, already reaches the screen's edge, safe area included.
  */
-export const COMPOSER_INSET_MOTION =
-    'transition-[padding-bottom] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
+export const COMPOSER_PADDING_BOTTOM = `max(8px, var(--safe-bottom, 0px), calc(max(var(--keyboard-height, 0px), var(${ATTACH_INSET_VAR}, 0px)) + 8px))`;
 
 /** `instant`: the panel appears or goes in place, with the keyboard over it. `slide`: it moves. */
 export type PanelMotion = 'slide' | 'instant';
@@ -66,21 +63,25 @@ interface SlotState {
     phase: 'closed' | 'open' | 'handover';
     enter: PanelMotion;
     exit: PanelMotion;
-    /** The composer's offset is following a sliding panel. */
-    animated: boolean;
     /** Measured as the panel opens and kept while it is up, so a keyboard event meanwhile cannot move it. */
     body: number;
     safe: number;
 }
 
-const CLOSED: SlotState = {
-    phase: 'closed',
-    enter: 'slide',
-    exit: 'slide',
-    animated: false,
-    body: PANEL_FALLBACK_HEIGHT,
-    safe: 0,
-};
+const CLOSED: SlotState = { phase: 'closed', enter: 'slide', exit: 'slide', body: PANEL_FALLBACK_HEIGHT, safe: 0 };
+
+export interface AttachPanelSlotInput {
+    /** The composer's field: focused in the app, it is a keyboard on its way up. */
+    inputRef?: RefObject<HTMLTextAreaElement | null>;
+    /** The composer's bar, padded by `COMPOSER_PADDING_BOTTOM`: the slot writes `ATTACH_INSET_VAR` on it. */
+    composerRef?: RefObject<HTMLElement | null>;
+    /**
+     * Told `true` as a slide starts moving the composer, and `false` once it has stopped, so the page can
+     * keep what follows the composer — the message list — in step frame by frame without rendering
+     * itself on each one. Read at the call, so it may be a new function on every render.
+     */
+    onComposerSlide?: (sliding: boolean) => void;
+}
 
 export interface AttachPanelSlot {
     /**
@@ -89,21 +90,15 @@ export interface AttachPanelSlot {
      * under the rising keyboard.
      */
     open: boolean;
-    /** What the kit's `AttachPanel` takes. */
+    /** What the kit's `AttachPanel` takes, with `motion="external"`. */
     panel: {
         open: boolean;
         height: number;
         enter: PanelMotion;
         exit: PanelMotion;
-        onTransitionEnd: (state: 'open' | 'closed') => void;
+        /** The panel's handle: the slot moves its surface through a slide, and settles it at the end. */
+        ref: RefObject<AttachPanelHandle | null>;
     };
-    /**
-     * px the composer keeps clear at the bottom for the panel: its whole height (body and safe area)
-     * while it is in place, 0 once it is gone. The page pads by the larger of this and the keyboard.
-     */
-    composerInset: number;
-    /** Whether a change to `composerInset` should move the composer over the panel's slide. */
-    composerInsetAnimated: boolean;
     /** The + : the panel takes the keyboard's place, or rises from below when there is none. */
     show: () => void;
     /** ×, back, and everything that leaves the panel for something else: it slides down. */
@@ -131,22 +126,89 @@ export interface AttachPanelSlot {
  *   slides down with the composer, as for ×. In a browser no height ever comes, so it slides at once.
  * - **×, back and the rest** slide the panel down, and the composer descends with it.
  *
- * The composer's offset is the larger of the keyboard and `composerInset` throughout, which is what
- * keeps it still across a handover. It moves over the slide (`composerInsetAnimated`) only when the
- * panel moves it: the keyboard's own changes stay instant, so the composer keeps tracking the keyboard
- * exactly. The panel's height is the last keyboard seen on the page (`useKeyboardMemory`).
+ * The composer pads itself by the larger of the keyboard and the panel (`COMPOSER_PADDING_BOTTOM`),
+ * which is what keeps it still across a handover; the panel's share is `ATTACH_INSET_VAR`, written here
+ * on the composer. An instant change writes it in the commit that makes the change, before anything is
+ * painted. A slide writes it on every frame of one `requestAnimationFrame` loop (`createSlotSlide`) that
+ * writes the panel's translate in the same call, from the same eased position — the panel moves itself
+ * no longer (`motion="external"`) — so the composer's edge and the panel's stay 8px apart on every
+ * frame. A slide asked for mid-slide turns around from where the first one has got to. The keyboard's
+ * own changes never go through the loop: it moves the composer through `--keyboard-height`, at once, so
+ * the composer keeps tracking the keyboard exactly. Under reduced motion every change is instant.
+ *
+ * The panel's height is the last keyboard seen on the page (`useKeyboardMemory`).
  *
  * The state lives in a ref as well as in React state: the handlers read where the panel is at the
  * moment they run — a focus right after a +, a timer firing after a press — not where it was at the
  * last render.
  */
-export const useAttachPanelSlot = (inputRef?: RefObject<HTMLTextAreaElement | null>): AttachPanelSlot => {
+export const useAttachPanelSlot = ({
+    inputRef,
+    composerRef,
+    onComposerSlide,
+}: AttachPanelSlotInput = {}): AttachPanelSlot => {
     const [state, setState] = useState<SlotState>(CLOSED);
     const current = useRef(state);
     const update = useCallback((next: Partial<SlotState>) => {
         current.current = { ...current.current, ...next };
         setState(current.current);
     }, []);
+
+    const panelRef = useRef<AttachPanelHandle | null>(null);
+    // The page's side, read at the frame: the loop outlives the render that started it.
+    const page = useRef({ composerRef, onComposerSlide });
+    page.current = { composerRef, onComposerSlide };
+
+    // The panel's share of the composer's offset at a position of the slot (0 gone, 1 in place).
+    const placeComposer = useCallback((position: number) => {
+        const { body, safe } = current.current;
+        page.current.composerRef?.current?.style.setProperty(ATTACH_INSET_VAR, `${position * (body + safe)}px`);
+    }, []);
+
+    // Created once, on the first change; everything it touches is read through refs at the frame.
+    const slideRef = useRef<SlotSlide | null>(null);
+    const motion = useCallback((): SlotSlide => {
+        slideRef.current ??= createSlotSlide({
+            draw: position => {
+                // `translateY(100%)` is below its place, safe area and all, and `0` is in place.
+                const surface = panelRef.current?.surface;
+                if (surface) surface.style.transform = `translateY(${(1 - position) * 100}%)`;
+                placeComposer(position);
+            },
+            onStart: () => page.current.onComposerSlide?.(true),
+            onStop: () => page.current.onComposerSlide?.(false),
+            // The panel waits to be told: it rests where the slide started until then.
+            onArrive: () => panelRef.current?.settle(),
+        });
+        return slideRef.current;
+    }, [placeComposer]);
+    useEffect(
+        () => () => {
+            slideRef.current?.dispose();
+            slideRef.current = null;
+        },
+        []
+    );
+
+    // Moves the slot to where the state now puts it — before paint, in the commit that changed it, so the
+    // slide's first frame or the instant change is what is painted first. The panel's own effects run
+    // first (it is a child), so by now an opening panel is in the page, and a change is waiting on it.
+    const target = state.phase === 'closed' ? 0 : 1;
+    const how = state.phase === 'closed' ? state.exit : state.enter;
+    const placed = useRef(0);
+    useLayoutEffect(() => {
+        if (placed.current === target) return;
+        placed.current = target;
+        const slide = motion();
+        if (how === 'instant' || prefersReducedMotion()) {
+            slide.jump(target);
+            // Only the composer: the panel puts itself in place, or leaves, on its own in an instant
+            // change, and clears whatever a cut-short slide had drawn on it.
+            placeComposer(target);
+        } else {
+            slide.slide(target);
+        }
+    }, [target, how, motion, placeComposer]);
 
     // The handover under way: whether a height below a keyboard's has been seen since the focus (so the
     // next keyboard-sized one is the keyboard arriving), and its two timers.
@@ -171,7 +233,7 @@ export const useAttachPanelSlot = (inputRef?: RefObject<HTMLTextAreaElement | nu
         window.clearTimeout(watch.wait);
         watch.cover = window.setTimeout(() => {
             handover.current = null;
-            update({ phase: 'closed', exit: 'instant', animated: false });
+            update({ phase: 'closed', exit: 'instant' });
         }, KEYBOARD_COVER_MS);
     });
 
@@ -187,7 +249,6 @@ export const useAttachPanelSlot = (inputRef?: RefObject<HTMLTextAreaElement | nu
         update({
             phase: 'open',
             enter: keyboardUp ? 'instant' : 'slide',
-            animated: !keyboardUp,
             body: panelBodyHeight(keyboardHeight(), safe),
             safe,
         });
@@ -196,7 +257,7 @@ export const useAttachPanelSlot = (inputRef?: RefObject<HTMLTextAreaElement | nu
     const hide = useCallback(() => {
         stopHandover();
         if (current.current.phase === 'closed') return;
-        update({ phase: 'closed', exit: 'slide', animated: true });
+        update({ phase: 'closed', exit: 'slide' });
     }, [stopHandover, update]);
 
     const handOver = useCallback(() => {
@@ -210,32 +271,20 @@ export const useAttachPanelSlot = (inputRef?: RefObject<HTMLTextAreaElement | nu
             sawLow: injectedLength('--keyboard-height') < KEYBOARD_MIN_PX,
             wait: window.setTimeout(() => {
                 handover.current = null;
-                update({ phase: 'closed', exit: 'slide', animated: true });
+                update({ phase: 'closed', exit: 'slide' });
             }, KEYBOARD_WAIT_MS),
         };
     }, [hide, update]);
 
-    // A slide's end releases the composer — the slide that is running, not one it turned around from.
-    const onTransitionEnd = useCallback(
-        (end: 'open' | 'closed') => {
-            const { animated, phase } = current.current;
-            if (animated && (end === 'open') === (phase !== 'closed')) update({ animated: false });
-        },
-        [update]
-    );
-
-    useEffect(() => {
-        if (!state.animated) return undefined;
-        const timer = window.setTimeout(() => update({ animated: false }), SLIDE_END_FALLBACK_MS);
-        return () => window.clearTimeout(timer);
-    }, [state.animated, state.phase, update]);
-
-    const inPlace = state.phase !== 'closed';
     return {
         open: state.phase === 'open',
-        panel: { open: inPlace, height: state.body, enter: state.enter, exit: state.exit, onTransitionEnd },
-        composerInset: inPlace ? state.body + state.safe : 0,
-        composerInsetAnimated: state.animated,
+        panel: {
+            open: state.phase !== 'closed',
+            height: state.body,
+            enter: state.enter,
+            exit: state.exit,
+            ref: panelRef,
+        },
         show,
         hide,
         handOver,

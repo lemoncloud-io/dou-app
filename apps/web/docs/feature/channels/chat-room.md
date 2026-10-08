@@ -236,8 +236,12 @@ tags is not retried.
 
 `MessageInput` is a floating pill over the list, with no surface of its own, so messages scroll
 behind it right to the screen edge. Its bottom inset is
-`max(8px, --safe-bottom, --keyboard-height + 8px)` — a max, never a sum, or the keyboard's own
-edge-to-edge height gets the safe inset added on top of it.
+`max(8px, --safe-bottom, max(--keyboard-height, --attach-inset) + 8px)` — a max, never a sum, or the
+keyboard's own edge-to-edge height gets the safe inset added on top of it. `--attach-inset` is the
+attach panel standing in the keyboard's place, which the panel writes on the composer itself, at once
+or frame by frame as it slides; the larger of the two is what keeps the composer still while the
+keyboard and the panel trade places
+([layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place)).
 
 **The keyboard must not close between sends.** Three things together achieve that, and removing any
 one of them breaks it:
