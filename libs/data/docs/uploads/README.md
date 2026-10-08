@@ -86,9 +86,10 @@ native sender would first copy it to the shell as base64 in one bridge message, 
 survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
 from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
 
-The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the twelve server
-formats, each kind's own limit, the same item twice (a page file by name, size and time, a shell file
-by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
+The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the thirteen server
+formats (less the ones the calling app says it does not send — apps/web passes a filter that leaves
+out a ZIP archive), each kind's own limit, the same item twice (a page file by name, size and time, a
+shell file by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
 because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
 size-checked by its source: the shell's estimate and the check of its result decide that.
 

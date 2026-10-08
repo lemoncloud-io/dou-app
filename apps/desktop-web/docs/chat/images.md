@@ -27,12 +27,16 @@ Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.
 refusals by reason:
 
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
-  PNG, JPEG, GIF and WebP images, MP4 video, and PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents.
-  An empty or generic type (HWP arrives untyped on most systems) is read from the extension. A
-  video or document whose extension names another format is refused, because the receiver saves it
-  under that name.
+  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents,
+  and ZIP archives. An empty or generic type (HWP arrives untyped on most systems) is read from the
+  extension. A video or document whose extension names another format is refused, because the
+  receiver saves it under that name. That is also why an office file never goes up as an archive:
+  DOCX, XLSX, PPTX and HWPX are ZIP containers and a system without their apps may type them as one,
+  but their extension is another format's. Windows types a `.zip` as `application/x-zip-compressed`;
+  it is sent as `application/zip`. Nothing reads an archive's bytes here: an empty one, which the
+  server refuses when its upload completes, passes the tray and its upload fails.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
-  documents 50 MB. The server would refuse it with a 413 only after the whole transfer.
+  documents and archives 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `name-too-long`: the name as it will be sent (a document without an extension is given its
   format's) is over 255 UTF-8 bytes, the server's limit. Hangul is three bytes a character and an
   emoji four, so about 85 Hangul characters is already too many. The server measures the name

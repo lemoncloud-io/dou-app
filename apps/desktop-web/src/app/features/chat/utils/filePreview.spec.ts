@@ -19,10 +19,11 @@ describe('canPreview', () => {
     });
 
     // Nothing in the browser draws these without sending the file to someone else.
-    it('leaves office, Hancom and video files to their save card', () => {
+    it('leaves office, Hancom, archive and video files to their save card', () => {
         expect(canPreview(sent({ name: 'a.docx' }))).toBeNull();
         expect(canPreview(sent({ name: 'a.hwp' }))).toBeNull();
         expect(canPreview(sent({ name: 'a.xlsx' }))).toBeNull();
+        expect(canPreview(sent({ name: 'a.zip', contentType: 'application/zip' }))).toBeNull();
         expect(canPreview(sent({ kind: 'video', name: 'a.mp4', contentType: 'video/mp4' }))).toBeNull();
     });
 

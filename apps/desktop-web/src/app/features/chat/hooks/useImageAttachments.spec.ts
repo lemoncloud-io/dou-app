@@ -19,13 +19,13 @@ describe('useImageAttachments', () => {
     // A blocking dialog named only the first reason and nothing about how many were left out.
     it('adds what fits and reports every refusal in one toast', () => {
         const { result } = renderHook(() => useImageAttachments('C1'));
-        act(() => result.current.addFiles([file('a.png'), file('a.png'), file('a.zip', 'application/zip')]));
+        act(() => result.current.addFiles([file('a.png'), file('a.png'), file('a.7z', 'application/x-7z-compressed')]));
         expect(result.current.attachments.map(item => item.name)).toEqual(['a.png']);
         expect(toast).toHaveBeenCalledTimes(1);
         expect(toast.mock.calls[0][0]).toMatchObject({
             variant: 'destructive',
             description:
-                "1 file was already attached. 1 file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP or text documents can be attached.",
+                "1 file was already attached. 1 file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, and ZIP archives can be attached.",
         });
     });
 

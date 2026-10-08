@@ -5,13 +5,14 @@ import {
     chatAttachmentExtension,
     chatAttachmentFormat,
     CHAT_ATTACHMENT_MAX_NAME_BYTES,
+    CHAT_ATTACHMENT_ZIP_TYPE,
     isChatAttachmentNameTooLong,
 } from './chatAttachments';
 
 const MiB = 1024 * 1024;
 
 describe('chatAttachmentFormat', () => {
-    it('takes the twelve server formats by their type', () => {
+    it('takes the thirteen server formats by their type', () => {
         expect(chatAttachmentFormat({ name: 'a.png', type: 'image/png' })).toEqual({
             type: 'image/png',
             kind: 'image',
@@ -26,6 +27,7 @@ describe('chatAttachmentFormat', () => {
             ['a.hwp', 'application/x-hwp'],
             ['a.hwpx', 'application/hwp+zip'],
             ['a.txt', 'text/plain'],
+            ['a.zip', 'application/zip'],
         ]) {
             expect(chatAttachmentFormat({ name, type })).toEqual({ type, kind: 'file', name });
         }
@@ -41,6 +43,26 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'a.hwpx', type: 'application/octet-stream' })?.type).toBe(
             'application/hwp+zip'
         );
+        expect(chatAttachmentFormat({ name: 'logs.ZIP', type: '' })?.type).toBe('application/zip');
+        // An Android pick the system could not type arrives under the generic one.
+        expect(chatAttachmentFormat({ name: 'a.zip', type: 'application/octet-stream' })?.type).toBe('application/zip');
+    });
+
+    // Chromium on Windows types a `.zip` by the registry's name for it, not the registered one.
+    it('maps the names a ZIP archive is sometimes typed with', () => {
+        for (const type of ['application/x-zip-compressed', 'application/x-zip']) {
+            expect(chatAttachmentFormat({ name: 'logs.zip', type })).toEqual({
+                type: 'application/zip',
+                kind: 'file',
+                name: 'logs.zip',
+            });
+        }
+    });
+
+    // DOCX, XLSX, PPTX and HWPX are ZIP containers, and a system without their apps may say only that.
+    it('does not send an office file typed as a ZIP archive as an archive', () => {
+        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/x-zip-compressed' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.hwpx', type: 'application/zip' })).toBeNull();
     });
 
     it('maps the names Hancom files are sometimes typed with', () => {
@@ -59,11 +81,13 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: '.pdf', type: 'application/pdf' })?.name).toBe('.pdf.pdf');
         // A tail that is no format's extension would otherwise be saved as, say, a script.
         expect(chatAttachmentFormat({ name: 'run.js', type: 'text/plain' })?.name).toBe('run.js.txt');
+        expect(chatAttachmentFormat({ name: 'logs', type: 'application/zip' })?.name).toBe('logs.zip');
     });
 
     it('refuses a video or document whose extension says another format', () => {
         expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/pdf' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'clip.pdf', type: 'video/mp4' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'x.pdf', type: 'application/zip' })).toBeNull();
     });
 
     // The server does not check an image's name, and renaming one would only confuse the sender.
@@ -76,12 +100,12 @@ describe('chatAttachmentFormat', () => {
     it('refuses a file typed as an unsupported format whatever its name says', () => {
         expect(chatAttachmentFormat({ name: 'x.png', type: 'image/heic' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'x.png', type: 'image/svg+xml' })).toBeNull();
-        expect(chatAttachmentFormat({ name: 'x.pdf', type: 'application/zip' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'x.png', type: 'application/x-7z-compressed' })).toBeNull();
     });
 
     it('refuses what the server does not take', () => {
         expect(chatAttachmentFormat({ name: 'a.heic', type: 'image/heic' })).toBeNull();
-        expect(chatAttachmentFormat({ name: 'a.zip', type: 'application/zip' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.7z', type: 'application/x-7z-compressed' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.mov', type: 'video/quicktime' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'noext', type: '' })).toBeNull();
     });
@@ -123,9 +147,18 @@ describe('CHAT_ATTACHMENT_ACCEPT', () => {
     it('names every type and every extension, for a picker that knows only one of them', () => {
         const accept = CHAT_ATTACHMENT_ACCEPT.split(',');
         expect(accept).toEqual(
-            expect.arrayContaining(['image/png', 'video/mp4', 'application/x-hwp', '.hwp', '.hwpx', '.jpeg'])
+            expect.arrayContaining([
+                'image/png',
+                'video/mp4',
+                'application/x-hwp',
+                'application/zip',
+                '.hwp',
+                '.hwpx',
+                '.jpeg',
+                '.zip',
+            ])
         );
-        expect(accept).toHaveLength(12 + 13);
+        expect(accept).toHaveLength(13 + 14);
     });
 });
 
@@ -133,7 +166,8 @@ describe('chatAttachmentExtension', () => {
     it('gives the extension a saved file of a type should carry', () => {
         expect(chatAttachmentExtension('application/pdf')).toBe('pdf');
         expect(chatAttachmentExtension('image/jpeg')).toBe('jpg');
-        expect(chatAttachmentExtension('application/zip')).toBeUndefined();
+        expect(chatAttachmentExtension('application/zip')).toBe('zip');
+        expect(chatAttachmentExtension('application/x-7z-compressed')).toBeUndefined();
     });
 });
 
@@ -149,6 +183,15 @@ describe('chatAttachmentAccept', () => {
         expect(chatAttachmentAccept(['image', 'video']).split(',')).toEqual(
             expect.arrayContaining(['image/png', 'video/mp4', '.mp4', '.jpeg'])
         );
+    });
+
+    // An app that sends fewer formats than the server takes leaves them out of its picker.
+    it('leaves out the formats the app does not send', () => {
+        const accept = chatAttachmentAccept(['file'], format => format.type !== CHAT_ATTACHMENT_ZIP_TYPE).split(',');
+
+        expect(accept).not.toContain('application/zip');
+        expect(accept).not.toContain('.zip');
+        expect(accept).toEqual(expect.arrayContaining(['application/pdf', '.hwpx']));
     });
 
     it('keeps the full list the same as asking for every kind', () => {

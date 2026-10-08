@@ -23,7 +23,7 @@ describe('validateAttachments', () => {
     });
 
     it('refuses a format the server does not take, keeping the rest', () => {
-        const result = validateAttachments([], [file('a.zip', 'application/zip'), file('a.png')]);
+        const result = validateAttachments([], [file('a.7z', 'application/x-7z-compressed'), file('a.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ unsupported: 1 });
     });
@@ -34,6 +34,16 @@ describe('validateAttachments', () => {
             [file('clip.mp4', 'video/mp4'), file('a.pdf', 'application/pdf'), file('보고서.hwp', '')]
         );
         expect(result.accepted.map(f => f.name)).toEqual(['clip.mp4', 'a.pdf', '보고서.hwp']);
+        expect(result.rejected).toEqual({});
+    });
+
+    // Chromium on Windows types a `.zip` as `application/x-zip-compressed`.
+    it('takes a ZIP archive, however the system typed it', () => {
+        const result = validateAttachments(
+            [],
+            [file('a.zip', 'application/zip'), file('b.zip', 'application/x-zip-compressed'), file('c.zip', '')]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['a.zip', 'b.zip', 'c.zip']);
         expect(result.rejected).toEqual({});
     });
 
@@ -50,6 +60,16 @@ describe('validateAttachments', () => {
         );
         expect(result.accepted.map(f => f.name)).toEqual(['long.mp4']);
         expect(result.rejected).toEqual({ 'too-large': 2 });
+    });
+
+    it('holds a ZIP archive to the document limit, to the byte', () => {
+        const limit = 50 * 1024 * 1024;
+        const result = validateAttachments(
+            [],
+            [file('fits.zip', 'application/zip', limit), file('over.zip', 'application/zip', limit + 1)]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['fits.zip']);
+        expect(result.rejected).toEqual({ 'too-large': 1 });
     });
 
     // The server refuses a name over 255 UTF-8 bytes with a 400; a retry can only fail the same way.

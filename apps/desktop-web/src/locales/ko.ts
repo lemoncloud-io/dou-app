@@ -160,13 +160,13 @@ export const ko: EnTranslation = {
     'chat.attach.rejected.duplicate_one': '이미 첨부한 파일 {{count}}개는 추가하지 않았어요.',
     'chat.attach.rejected.duplicate_other': '이미 첨부한 파일 {{count}}개는 추가하지 않았어요.',
     'chat.attach.rejected.unsupported_one':
-        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서만 첨부할 수 있어요.',
+        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일만 첨부할 수 있어요.',
     'chat.attach.rejected.unsupported_other':
-        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서만 첨부할 수 있어요.',
+        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일만 첨부할 수 있어요.',
     'chat.attach.rejected.too-large_one':
-        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서는 {{file}}까지 보낼 수 있어요.',
+        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서와 ZIP 압축 파일은 {{file}}까지 보낼 수 있어요.',
     'chat.attach.rejected.too-large_other':
-        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서는 {{file}}까지 보낼 수 있어요.',
+        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서와 ZIP 압축 파일은 {{file}}까지 보낼 수 있어요.',
     'chat.attach.rejected.name-too-long_one':
         '파일 이름이 너무 길어 {{count}}개는 추가하지 않았어요. 이름을 줄여서 다시 시도해 주세요.',
     'chat.attach.rejected.name-too-long_other':

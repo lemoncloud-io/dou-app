@@ -107,8 +107,9 @@ all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
 
-The files input asks for every format the server takes — photos and `mp4` kept among files can go from
-there too — by type and by extension, and for the generic `application/octet-stream` as well
+The files input asks for every format this app sends — the server's formats but a ZIP archive, which
+only desktop sends (`sendsFromMobile`); photos and `mp4` kept among files can go from there too — by
+type and by extension, and for the generic `application/octet-stream` as well
 (`documentAccept`). On iOS and iPadOS WebKit it names the seven document formats only, since an image
 or video type there makes the system offer the photo library and the camera first. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
 against the type the Files app gives such a file, so the seven alone grey HWP and HWPX out of its
@@ -389,7 +390,7 @@ thumbnails above the field stays, faded. A `NOT_FOUND` from
 for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the twelve formats the server takes, each kind's
+entry's file input and the camera use its image-only form, `judgeChatImages`): the twelve formats this app sends (a ZIP archive, which the server also takes, is `unsupported` here: the phone cannot save one it receives), each kind's
 own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
 refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported

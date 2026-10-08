@@ -149,13 +149,13 @@ export const en = {
     'chat.attach.rejected.duplicate_one': '{{count}} file was already attached.',
     'chat.attach.rejected.duplicate_other': '{{count}} files were already attached.',
     'chat.attach.rejected.unsupported_one':
-        "{{count}} file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP or text documents can be attached.",
+        "{{count}} file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, and ZIP archives can be attached.",
     'chat.attach.rejected.unsupported_other':
-        "{{count}} files weren't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP or text documents can be attached.",
+        "{{count}} files weren't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, and ZIP archives can be attached.",
     'chat.attach.rejected.too-large_one':
-        '{{count}} file was too large. Images can be up to {{image}}, videos {{video}} and documents {{file}}.',
+        '{{count}} file was too large. Images can be up to {{image}}, videos {{video}}, and documents and ZIP archives {{file}}.',
     'chat.attach.rejected.too-large_other':
-        '{{count}} files were too large. Images can be up to {{image}}, videos {{video}} and documents {{file}}.',
+        '{{count}} files were too large. Images can be up to {{image}}, videos {{video}}, and documents and ZIP archives {{file}}.',
     'chat.attach.rejected.name-too-long_one':
         "{{count}} file wasn't added because its name is too long. Shorten the name and try again.",
     'chat.attach.rejected.name-too-long_other':
