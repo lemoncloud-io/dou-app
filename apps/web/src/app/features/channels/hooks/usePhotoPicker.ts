@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
     OnListPhotosPayload,
@@ -9,18 +9,24 @@ import type {
 import type { ChatAttachmentSource } from '@chatic/data';
 import {
     gridMetrics,
+    isIdentityPhotoEdit,
     thumbPixelSize,
     type PhotoAlbum,
+    type PhotoEdit,
     type PhotoGridRange,
     type PhotoItem,
     type PhotoItemKind,
 } from '@chatic/web-ui-kit';
 
 import { photoLibrary, photoPreviewSrc, type PhotoLibrary } from '../../../bridge/photoLibrary';
+import { bakePhotoEdit, makeEditRendition, type EditRendition } from '../utils/bakePhotoEdit';
 
-/** How many previews the attach menu shows before "see all". */
-const RECENT_COUNT = 4;
-/** The attach menu's preview tile, and the album list's cover, in CSS pixels. */
+/**
+ * How many items the attach panel's recent row offers to pick from before "see all": a few screens of
+ * its sideways scroll, and one list request the shell answers with small previews.
+ */
+export const RECENT_COUNT = 30;
+/** The attach panel's recent tile, and the album list's cover, in CSS pixels. */
 const RECENT_TILE = 90;
 const COVER_TILE = 64;
 /** One page of the grid. Pages by offset start at multiples of it, so a page is also an index. */
@@ -52,11 +58,13 @@ export interface PhotoPicker {
     supported: boolean | null;
     access: PhotoLibraryAccess | null;
     recent: PhotoItem[];
-    /** Asks the shell once for the newest photos — call when the attach menu opens. */
+    /** Asks the shell once for the newest photos — call when the attach panel opens. */
     probe(): Promise<void>;
 
     gridOpen: boolean;
-    openGrid(preselect?: PhotoItem): void;
+    /** Opens the grid on whatever is picked already — the panel's recent row and the grid share one pick. */
+    openGrid(): void;
+    /** Closes the grid and keeps the pick, its edits and the editor's copies; only the bytes read go. */
     closeGrid(): void;
 
     albumsOpen: boolean;
@@ -80,12 +88,28 @@ export interface PhotoPicker {
     /** What the grid shows now; the pages it needs are asked for, nearest first. */
     setVisibleRange(range: PhotoGridRange): void;
 
+    /**
+     * What is picked, in pick order — from the panel's recent row and from the grid alike. A photo
+     * whose edit is drawn carries it as `edited` — once the editor's copy is read and the edit changes
+     * something — so the picked strip shows the photo as it will be sent.
+     */
     picked: PhotoItem[];
+    /** Picks or unpicks. Unpicking a photo also drops what was read for it, and its edit, silently. */
     toggle(photo: PhotoItem): void;
+    /** Lets the whole pick go, with everything read for it — the panel dismissed. Not while preparing. */
+    clearPicked(): void;
+    /**
+     * Lets go of the photo bytes read for the pick, and of what the editor was still waiting to read,
+     * keeping the pick, its edits and the editor's copies: the pick goes back to wait under the
+     * composer. `closeGrid` does it as the grid closes; an editor opened over the composer does it as
+     * it closes. A read under way finishes and is kept. Not while preparing — the send is using them.
+     */
+    releaseBytes(): void;
     /**
      * Reads the picked photos and keeps the picked videos in the shell, one at a time in pick order,
-     * then clears the pick and closes the grid. An item that cannot be read or kept is refused alone;
-     * the rest still go.
+     * then clears the pick and closes the grid. A photo the editor already read is not read again, one
+     * it is still reading is waited for, and an edited one is drawn with its edit, one at a time too.
+     * An item that cannot be read, kept or drawn is refused alone; the rest still go.
      */
     takePicked(): Promise<PickedFromGrid>;
     /** Whether `takePicked` is still reading — the grid stays open, saying so, until it is done. */
@@ -93,12 +117,52 @@ export interface PhotoPicker {
 
     /** iOS limited access: let the user share more, then list again. */
     manageSelection(): Promise<void>;
+
+    /** What the editor has of each picked photo, by id — absent until `loadForEdit` asks for it. */
+    editAssets: ReadonlyMap<string, PhotoEditAsset>;
+    /**
+     * Reads picked photos for the editor, the one on screen first and then its neighbours. The ids
+     * replace whatever was still waiting, so a quick swipe through the pick reads where it stopped
+     * rather than everything it passed; a read already under way finishes. One photo at a time, like
+     * the send: each read holds a whole photo as base64 in page memory. What is read here is kept for
+     * the send, which then does not read it again. Videos are not read — nothing in them is editable.
+     * Called with no ids — the editor has closed — it drops what was waiting, so the pick's other
+     * photos are read only while the editor is up.
+     */
+    loadForEdit(...ids: string[]): void;
+    /** Each picked photo's edit, by id. An unedited photo has none. */
+    edits: ReadonlyMap<string, PhotoEdit>;
+    /** Records a photo's edit. An edit that changes nothing is forgotten, so the original goes. */
+    setEdit(id: string, edit: PhotoEdit): void;
+    /** Puts back the edits taken earlier from `edits` — the editor's "leave without keeping". */
+    restoreEdits(snapshot: ReadonlyMap<string, PhotoEdit>): void;
+}
+
+/** Where the editor's copy of one picked photo stands. */
+export interface PhotoEditAsset {
+    status: 'loading' | 'ready' | 'failed';
+    /** The editor's copy of the whole upright photo, once ready — an object URL this hook revokes. */
+    src?: string;
+    /** The original's upright pixel size, once ready: the space its edit is measured in. */
+    width?: number;
+    height?: number;
+    /**
+     * False for a GIF: shown, not edited — a canvas keeps only its first frame. Known once the photo
+     * is read: the library's list does not say what format a photo is.
+     */
+    editable: boolean;
 }
 
 /** What the grid hands to the send: what was read or kept, and what was not, in pick order. */
 export interface PickedFromGrid {
     items: ChatAttachmentSource[];
     refused: RefusedAttachment[];
+    /**
+     * How many edited photos could not be drawn with their edit. Each is refused alone, under a
+     * notice of its own: the original is not sent in its place, since it is not what the person
+     * chose to send. Absent when there were none.
+     */
+    editFailed?: number;
 }
 
 /**
@@ -118,6 +182,18 @@ interface Slot {
  */
 type Layout = 'none' | 'offset' | 'cursor';
 
+/** The editor's read under way — there is one at a time. */
+interface EditJob {
+    id: string;
+    /** The pick it reads for (`pickTokenRef` when it started): one let go since drops what it reads. */
+    token: number;
+    /**
+     * Settles once the read is over — its bytes kept, or the read failed or was dropped — and not when
+     * the editor's copy made after it is: the send waits for the bytes, never for the copy.
+     */
+    read: Promise<unknown>;
+}
+
 const toSlot = (item: PhotoLibraryItem): Slot =>
     item.mediaType === 'video'
         ? { id: item.id, kind: 'video', ...(item.durationMs !== undefined ? { durationMs: item.durationMs } : {}) }
@@ -131,7 +207,37 @@ const thumbOf = (item: PhotoLibraryItem): string => (item.thumbBase64 ? photoPre
 
 const isVideo = (item: PhotoItem) => item.kind === 'video';
 
-/** How a video the shell would not keep is reported — in the words the attach menu already uses. */
+const isGif = (file: File) => file.type === 'image/gif';
+
+/** A picked item as the grid handed it, without a drawn edit a caller may have passed back. */
+const plainItem = ({ id, src, kind, durationMs }: PhotoItem): PhotoItem => ({
+    id,
+    src,
+    ...(kind !== undefined ? { kind } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
+});
+
+const sameEdit = (a: PhotoEdit, b: PhotoEdit): boolean =>
+    a === b ||
+    (a.rotation === b.rotation &&
+        a.flipH === b.flipH &&
+        a.aspect === b.aspect &&
+        a.crop.x === b.crop.x &&
+        a.crop.y === b.crop.y &&
+        a.crop.width === b.crop.width &&
+        a.crop.height === b.crop.height);
+
+/** Whether two sets of edits differ — what decides if leaving the editor needs a confirmation. */
+export const editsDiffer = (a: ReadonlyMap<string, PhotoEdit>, b: ReadonlyMap<string, PhotoEdit>): boolean => {
+    if (a.size !== b.size) return true;
+    for (const [id, edit] of a) {
+        const other = b.get(id);
+        if (!other || !sameEdit(edit, other)) return true;
+    }
+    return false;
+};
+
+/** How a video the shell would not keep is reported — in the words the attach panel already uses. */
 const refusalOf = (error: unknown): RefusedAttachment['reason'] => {
     const code = (error as { code?: string } | null)?.code;
     if (code === 'UNSUPPORTED') return 'unsupported';
@@ -267,7 +373,7 @@ export const offsetRequest = ({
 };
 
 /**
- * The in-app photo picker's state: what the attach menu previews, which album the grid shows and which
+ * The in-app photo picker's state: what the attach panel previews, which album the grid shows and which
  * of it has loaded, and what is picked. The library itself is read through the shell (`photoLibrary`);
  * this hook only holds what the screen needs of it.
  *
@@ -281,6 +387,22 @@ export const offsetRequest = ({
  * land (`keptPages`): a long scroll would otherwise keep every preview it passed. An older app's list
  * keeps them — its pages can only be asked for in order, and its previews are the small ones.
  *
+ * Picked photos can be edited before they are sent. An edit is kept as instructions (crop, quarter
+ * turn, mirror) and the photo's bytes are untouched until the send, which draws only the photos whose
+ * edit changes something and sends every other one as it was read. The editor shows a smaller copy of
+ * each photo (`makeEditRendition`), read when it is shown; the bytes read for it are kept for the send.
+ * Everything read for a photo — its bytes, its copy, its edit — is let go when it is unpicked, and
+ * everything read for the pick when it is sent or cleared. A copy still being made when that happens is
+ * revoked as it lands.
+ *
+ * The pick outlives the grid. The attach panel's recent row picks into the same list, the grid opens on
+ * it, and closing the grid goes back to the panel with it, where the composer's send button can send
+ * it — and once the panel closes for the keyboard, the pick waits above the composer as a row of
+ * thumbnails. So closing the grid keeps the pick, its edits and the editor's copies (the strips draw
+ * edited photos from them) and lets go only of the bytes: a whole photo each, and the pick may now
+ * wait for as long as the person types. An editor opened from the composer's row lets them go as it
+ * closes, for the same reason (`releaseBytes`). A send from the composer reads those photos again.
+ *
  * `max` caps the pick — the per-message image limit, passed in so the grid and the send agree on it.
  * `columns` is the grid's column count, used to size the first page's previews before the grid has
  * measured itself.
@@ -290,12 +412,18 @@ export const usePhotoPicker = ({
     allTitle,
     columns = 3,
     library = photoLibrary,
+    bake = bakePhotoEdit,
+    rendition = makeEditRendition,
 }: {
     max: number;
     /** The "all photos" title until the shell's album list names it. */
     allTitle: string;
     columns?: number;
     library?: PhotoLibrary;
+    /** Test seam — draws a photo with its edit at the send. */
+    bake?: (file: File, edit: PhotoEdit) => Promise<File | null>;
+    /** Test seam — makes the editor's copy of a photo. */
+    rendition?: (file: File) => Promise<EditRendition | null>;
 }): PhotoPicker => {
     const [supported, setSupported] = useState<boolean | null>(library.isUnsupported() ? false : null);
     const [access, setAccess] = useState<PhotoLibraryAccess | null>(null);
@@ -309,7 +437,10 @@ export const usePhotoPicker = ({
     // page lands, before the state carrying them has rendered.
     const slotsRef = useRef<(Slot | undefined)[]>([]);
     const [thumbs, setThumbs] = useState<ReadonlyMap<string, string>>(new Map());
-    const [picked, setPicked] = useState<PhotoItem[]>([]);
+    const [picked, setPickedState] = useState<PhotoItem[]>([]);
+    // The same pick, for what runs outside a render: a toggle in the tick another started, a read that
+    // lands and must know whether its photo is still picked.
+    const pickedRef = useRef<PhotoItem[]>([]);
     const [preparing, setPreparing] = useState(false);
     const [firstPageLoading, setFirstPageLoading] = useState(false);
     // Read by `toggle` and `closeGrid` in the same tick `takePicked` starts, before the state lands.
@@ -342,6 +473,160 @@ export const usePhotoPicker = ({
     // Bumped on every album switch and every relist, so a page that lands for a list no longer shown is
     // dropped.
     const albumTokenRef = useRef(0);
+
+    // The editor's side of the pick. Each map has a ref beside its state: reads and the send run from
+    // promises, and must see what the latest tap left, not what the last render held.
+    /** Bytes read for a picked photo, by id — the editor reads them, the send reuses them. */
+    const filesRef = useRef(new Map<string, File>());
+    const [editAssets, setEditAssetsState] = useState<ReadonlyMap<string, PhotoEditAsset>>(new Map());
+    const assetsRef = useRef(new Map<string, PhotoEditAsset>());
+    const [edits, setEditsState] = useState<ReadonlyMap<string, PhotoEdit>>(new Map());
+    const editsRef = useRef<ReadonlyMap<string, PhotoEdit>>(new Map());
+    /** Photos the editor wants read next, nearest first. */
+    const waitingRef = useRef<string[]>([]);
+    /** The editor's read under way, until its copy is made too. */
+    const jobRef = useRef<EditJob | null>(null);
+    // Bumped whenever the whole pick is let go, so a read that lands for an earlier pick is dropped
+    // even when the same photo has been picked again since.
+    const pickTokenRef = useRef(0);
+
+    const setPicked = (next: PhotoItem[]) => {
+        pickedRef.current = next;
+        setPickedState(next);
+    };
+
+    const setAsset = (id: string, asset: PhotoEditAsset | undefined) => {
+        const next = new Map(assetsRef.current);
+        if (asset) next.set(id, asset);
+        else next.delete(id);
+        assetsRef.current = next;
+        setEditAssetsState(next);
+    };
+
+    const commitEdits = (next: ReadonlyMap<string, PhotoEdit>) => {
+        editsRef.current = next;
+        setEditsState(next);
+    };
+
+    /** Lets go of what was read for one photo: its bytes, the editor's copy, and its edit. */
+    const releasePhoto = (id: string) => {
+        filesRef.current.delete(id);
+        waitingRef.current = waitingRef.current.filter(waiting => waiting !== id);
+        const asset = assetsRef.current.get(id);
+        if (asset?.src) URL.revokeObjectURL(asset.src);
+        if (asset) setAsset(id, undefined);
+        if (editsRef.current.has(id)) {
+            const next = new Map(editsRef.current);
+            next.delete(id);
+            commitEdits(next);
+        }
+    };
+
+    /**
+     * Lets go of everything read for the pick. The bytes of ten photos can be some 50 MB, and none of
+     * it is worth anything once the pick is sent or abandoned.
+     */
+    const releasePick = () => {
+        pickTokenRef.current += 1;
+        filesRef.current = new Map();
+        waitingRef.current = [];
+        for (const asset of assetsRef.current.values()) if (asset.src) URL.revokeObjectURL(asset.src);
+        if (assetsRef.current.size > 0) {
+            assetsRef.current = new Map();
+            setEditAssetsState(assetsRef.current);
+        }
+        if (editsRef.current.size > 0) commitEdits(new Map());
+    };
+
+    // The editor copies are object URLs, which outlive the page's state unless revoked.
+    useEffect(
+        () => () => {
+            pickTokenRef.current += 1;
+            for (const asset of assetsRef.current.values()) if (asset.src) URL.revokeObjectURL(asset.src);
+        },
+        []
+    );
+
+    // The editor's read loop: the next waiting photo, read, then its copy made, then the next. A read
+    // whose photo was unpicked meanwhile, or whose pick was let go, is dropped when it lands — a read
+    // already sent to the shell cannot be called back.
+    const pumpEditRef = useRef<() => void>(() => undefined);
+    pumpEditRef.current = () => {
+        if (jobRef.current || preparingRef.current) return;
+        const id = waitingRef.current.shift();
+        if (id === undefined) return;
+        const token = pickTokenRef.current;
+        const wanted = () => token === pickTokenRef.current && pickedRef.current.some(item => item.id === id);
+        setAsset(id, { status: 'loading', editable: true });
+
+        // The bytes, apart from the copy made from them: the send waits for this part alone.
+        const read = (async (): Promise<File | undefined> => {
+            let file: File;
+            try {
+                file = filesRef.current.get(id) ?? (await library.read({ id }));
+            } catch {
+                if (wanted()) setAsset(id, { status: 'failed', editable: true });
+                return undefined;
+            }
+            if (!wanted()) return undefined;
+            filesRef.current.set(id, file);
+            return file;
+        })();
+        const copy = async () => {
+            const file = await read;
+            // The send started meanwhile: it needs the bytes, which are kept, and not a copy for an
+            // editor that has closed.
+            if (!file || preparingRef.current) return;
+            let made: EditRendition | null = null;
+            try {
+                made = await rendition(file);
+            } catch {
+                made = null;
+            }
+            // Asked again once the copy is made, since the send does not wait for it: a copy for a photo
+            // unpicked meanwhile, or one made while the pick was being sent, has nothing left to show it.
+            if (!wanted() || preparingRef.current) {
+                if (made) URL.revokeObjectURL(made.src);
+                return;
+            }
+            const editable = !isGif(file);
+            // A photo the page cannot decode cannot be edited, but it was read and still goes as it is.
+            setAsset(id, made ? { status: 'ready', editable, ...made } : { status: 'failed', editable });
+        };
+        jobRef.current = { id, token, read };
+        void copy().finally(() => {
+            jobRef.current = null;
+            pumpEditRef.current();
+        });
+    };
+
+    const loadForEdit = useCallback((...ids: string[]) => {
+        if (preparingRef.current) return;
+        const photos = new Set(pickedRef.current.filter(item => !isVideo(item)).map(item => item.id));
+        // The photo under way is not asked for twice — unless that read is for a pick let go since,
+        // which drops what it reads: the same photo picked again is read again.
+        const job = jobRef.current;
+        const underWay = job && job.token === pickTokenRef.current ? job.id : undefined;
+        waitingRef.current = [...new Set(ids)].filter(
+            id => photos.has(id) && !assetsRef.current.has(id) && id !== underWay
+        );
+        pumpEditRef.current();
+    }, []);
+
+    // Frozen while a send reads the pick, like the pick itself: the send has already taken the edits.
+    const setEdit = useCallback((id: string, edit: PhotoEdit) => {
+        if (preparingRef.current || !pickedRef.current.some(item => item.id === id)) return;
+        const next = new Map(editsRef.current);
+        if (isIdentityPhotoEdit(edit)) next.delete(id);
+        else next.set(id, edit);
+        commitEdits(next);
+    }, []);
+
+    const restoreEdits = useCallback((snapshot: ReadonlyMap<string, PhotoEdit>) => {
+        if (preparingRef.current) return;
+        const ids = new Set(pickedRef.current.map(item => item.id));
+        commitEdits(new Map([...snapshot].filter(([id]) => ids.has(id))));
+    }, []);
 
     const probe = useCallback(async () => {
         if (library.isUnsupported()) {
@@ -554,11 +839,10 @@ export const usePhotoPicker = ({
     };
 
     const openGrid = useCallback(
-        (preselect?: PhotoItem) => {
+        () => {
             setGridOpen(true);
             gridOpenRef.current = true;
             setAlbumsOpen(false);
-            setPicked(preselect ? [preselect] : []);
             resetList();
             pumpRef.current();
             void library
@@ -582,12 +866,32 @@ export const usePhotoPicker = ({
         [library]
     );
 
+    // The pick goes back under the composer; the bytes read for it do not (see above). What the editor
+    // was still waiting to read is dropped with them — a read under way finishes and is kept.
+    const releaseBytes = useCallback(() => {
+        if (preparingRef.current) return;
+        filesRef.current = new Map();
+        waitingRef.current = [];
+    }, []);
+
     const closeGrid = useCallback(() => {
         // The grid stays while a send reads the pick; it closes itself when the read is done.
         if (preparingRef.current) return;
         gridOpenRef.current = false;
         setGridOpen(false);
-    }, []);
+        releaseBytes();
+    }, [releaseBytes]);
+
+    // Frozen while a send reads the pick, like `toggle`: the send clears it when the read is done.
+    const clearPicked = useCallback(
+        () => {
+            if (preparingRef.current) return;
+            setPicked([]);
+            releasePick();
+        },
+        // `setPicked` and `releasePick` touch refs and setters only.
+        []
+    );
 
     const selectAlbum = useCallback(
         (id: string) => {
@@ -631,25 +935,42 @@ export const usePhotoPicker = ({
     const toggle = useCallback(
         (photo: PhotoItem) => {
             if (preparingRef.current) return;
-            setPicked(previous => {
-                if (previous.some(p => p.id === photo.id)) return previous.filter(p => p.id !== photo.id);
-                return previous.length >= max ? previous : [...previous, photo];
-            });
+            const previous = pickedRef.current;
+            if (previous.some(p => p.id === photo.id)) {
+                setPicked(previous.filter(p => p.id !== photo.id));
+                releasePhoto(photo.id);
+                return;
+            }
+            if (previous.length < max) setPicked([...previous, plainItem(photo)]);
         },
+        // `setPicked` and `releasePhoto` touch refs and setters only.
         [max]
     );
 
     const takePicked = useCallback(async (): Promise<PickedFromGrid> => {
-        const chosen = picked;
+        const chosen = pickedRef.current;
+        const chosenEdits = editsRef.current;
         // The grid stays open while the pick is read: a video can take minutes to come down from
         // iCloud, and a sheet that closed at once would leave nothing on screen until the row appears.
         preparingRef.current = true;
         setPreparing(true);
+        waitingRef.current = [];
         const items: ChatAttachmentSource[] = [];
         const refused: RefusedAttachment[] = [];
+        let editFailed = 0;
         try {
-            // One at a time: each photo read holds a whole photo as base64 in page memory, and the shell
-            // copies one video at a time.
+            // An editor read still out for a photo in this pick finishes first, and its bytes are used:
+            // reading another beside it would hold two photos' base64 at once, and reading it again
+            // would fetch the same bytes twice. Nothing else the editor has under way is waited for —
+            // a read for a photo unpicked since is dropped when it lands, and the copy made after a
+            // read is for an editor that has closed. Awaited only when there is one, so a pick never
+            // opened in the editor starts reading in the same tick, as it always did.
+            const job = jobRef.current;
+            if (job && job.token === pickTokenRef.current && chosen.some(item => item.id === job.id)) {
+                await job.read;
+            }
+            // One at a time: each photo read holds a whole photo as base64 in page memory, each drawn
+            // edit a whole canvas, and the shell copies one video at a time.
             for (const item of chosen) {
                 if (isVideo(item)) {
                     try {
@@ -659,16 +980,29 @@ export const usePhotoPicker = ({
                     }
                     continue;
                 }
+                let file: File;
                 try {
-                    items.push(await library.read(item));
+                    file = filesRef.current.get(item.id) ?? (await library.read(item));
                 } catch {
                     refused.push({ name: '', kind: 'image', reason: 'unreadable' });
+                    continue;
                 }
+                const edit = chosenEdits.get(item.id);
+                // An unedited photo goes as its own bytes, exactly as read. A GIF is never edited — the
+                // editor does not offer it — so an edit somehow recorded for one is ignored, not drawn.
+                if (!edit || isIdentityPhotoEdit(edit) || isGif(file)) {
+                    items.push(file);
+                    continue;
+                }
+                const baked = await bake(file, edit).catch(() => null);
+                if (baked) items.push(baked);
+                else editFailed += 1;
             }
         } finally {
             preparingRef.current = false;
             setPreparing(false);
             setPicked([]);
+            releasePick();
             gridOpenRef.current = false;
             setGridOpen(false);
         }
@@ -678,8 +1012,22 @@ export const usePhotoPicker = ({
             setRecent(previous => previous.filter(item => !isVideo(item)));
             resetList();
         }
-        return { items, refused };
-    }, [library, picked]);
+        return editFailed > 0 ? { items, refused, editFailed } : { items, refused };
+    }, [library, bake]);
+
+    // The pick as the strip draws it: an edited photo carries its edit and the copy to draw it from,
+    // once both are there and the edit changes something.
+    const pickedView = useMemo(
+        () =>
+            picked.map(item => {
+                const edit = edits.get(item.id);
+                const asset = editAssets.get(item.id);
+                if (!edit || isIdentityPhotoEdit(edit) || asset?.status !== 'ready') return item;
+                if (!asset.src || !asset.width || !asset.height) return item;
+                return { ...item, edited: { src: asset.src, width: asset.width, height: asset.height, edit } };
+            }),
+        [picked, edits, editAssets]
+    );
 
     const manageSelection = useCallback(async () => {
         // The list below runs either way: whatever the sheet changed is on the device by now, and the
@@ -711,10 +1059,17 @@ export const usePhotoPicker = ({
         loading: firstPageLoading,
         photoAt,
         setVisibleRange,
-        picked,
+        picked: pickedView,
         toggle,
+        clearPicked,
+        releaseBytes,
         takePicked,
         preparing,
         manageSelection,
+        editAssets,
+        loadForEdit,
+        edits,
+        setEdit,
+        restoreEdits,
     };
 };

@@ -3,7 +3,7 @@
 > Scope: `apps/web/src/app/ui/layouts/UnifiedLayout.tsx`,
 > `apps/web/src/app/ui/components/{BottomNavigation,BottomNavSpacer}.tsx`,
 > `libs/web-ui-kit` `composites/navigation/FloatingTabBar.tsx`, `apps/web/src/styles.css`
-> (`--app-width`).
+> (`--app-width`), and the bottom insets of the chat composer (`ChannelRoomPage`, `ThreadPage`).
 
 `UnifiedLayout` wraps every route and renders the floating bottom navigation exactly once,
 showing or hiding it and picking the active tab from the current path. Pages never render their
@@ -81,11 +81,14 @@ above the taller of `--safe-bottom` and `--keyboard-height`. `AppRuntime` sits a
 the toaster cannot tell what is pinned to the bottom. Each bar tells it instead, by calling the
 kit's `useToastLift(px)` with its own height while it is mounted:
 
-| Bar                                | Lift                                   |
-| ---------------------------------- | -------------------------------------- |
-| `BottomNavigation` (home, my page) | 80px — the 62 + 18 geometry            |
-| `FloatingButton`'s CTA panel       | its measured height (`ResizeObserver`) |
-| `MediaViewer`'s share and save bar | 76px, while the bar shows              |
+| Bar                                                       | Lift                                          |
+| --------------------------------------------------------- | --------------------------------------------- |
+| `BottomNavigation` (home, my page)                        | 80px — the 62 + 18 geometry                   |
+| `FloatingButton`'s CTA panel                              | its measured height (`ResizeObserver`)        |
+| `PhotoGridSheet`'s pick footer (edit row, checkbox, send) | its measured height (`useBoxSize`)            |
+| `MediaViewer`'s share and save bar                        | 76px, while the bar shows                     |
+| `PhotoEditor`'s footer (strip, tool row, send)            | its measured height, while the editor is open |
+| `AttachPanel` (the chat composer's attach panel)          | its body height, while it is open             |
 
 The hook keeps every active lift in one registry and writes the tallest to `--toast-lift` on
 `<html>`, so bars can come and go in any order: a dialog's CTA that opens over the tab bar keeps its
@@ -99,9 +102,96 @@ Unlike `BottomNavSpacer`, the offset is one `calc()` — the keyframes need the 
 `--snackbar-offset`. A malformed inset collapses it to `0`, which leaves the snackbar flush with
 the bottom edge: worse-placed, still visible.
 
-On screens with a bottom composer (the chat room) nothing publishes a lift, so the snackbar sits
-over the composer until it times out or is swiped away. The decision and its alternatives are
-ADR-0160.
+On screens with a bottom composer (the chat room) nothing else publishes a lift, so the snackbar sits
+over the composer until it times out or is swiped away — above the attach panel while that is open, as
+it rides above the keyboard. The decision and its alternatives are ADR-0160.
+
+## The attach panel takes the keyboard's place
+
+The WebView does not shrink for the software keyboard: the keyboard covers the bottom of the page, and
+the shell injects its height as `--keyboard-height`. The chat composer floats at the bottom of the
+room and the thread and pads itself up by that height, and the message list clears the composer by
+the composer's measured border-box height (`useChromeInsets`), so one padding keeps both above the
+keyboard.
+
+The composer's attach panel (`AttachPanel`, opened from its + button) sits in that same place. It is
+laid along the bottom of the page's positioned container — it is rendered inside it, not portalled —
+and the composer pads by the larger of the two (`COMPOSER_PADDING_BOTTOM`):
+
+```
+padding-bottom: max(8px, var(--safe-bottom), calc(max(var(--keyboard-height), var(--attach-inset)) + 8px))
+```
+
+`--attach-inset` is the panel's share, and nothing renders it: the panel's slot (`useAttachPanelSlot`,
+inside `useChatImageAttach`, which the page hands its composer's ref) writes it on the composer's own
+element. It is the panel's whole height — its body and the safe area — while the panel is in place, 0
+once it is gone, and every height in between, frame by frame, while the panel slides (below). The list
+follows the composer as it does for the keyboard, with no rule of its own. The panel opens at the last
+keyboard height seen on the page, so the two are the same height; the shell's keyboard height already
+runs to the screen edge, so the panel's body is that height less the safe area, which the panel adds
+below itself.
+
+The keyboard and the panel hand the place over like one surface, and the larger-of rule is what keeps
+the composer still while they do: during a handover both are there, one behind the other.
+
+| What happens                       | The panel                                                     | The composer     |
+| ---------------------------------- | ------------------------------------------------------------- | ---------------- |
+| + with the keyboard up             | in place at once, behind the keyboard, which then slides away | does not move    |
+| + with no keyboard                 | slides up from below                                          | rises with it    |
+| the field takes focus, in the app  | stays in place under the rising keyboard, then goes at once   | does not move    |
+| the field takes focus, no keyboard | slides down — at once in a browser, after 800 ms in the app   | descends with it |
+| ×, back, camera, files, a send     | slides down                                                   | descends with it |
+
+"The keyboard is up" at the + is a height injected at the press, or — in the app — the field holding
+focus, since Android reports the height only once its keyboard has finished rising. On a focus, the
+panel goes 300 ms after the keyboard's height first arrives: the shell sends it from the keyboard's
+own events, iOS as the keyboard starts to rise and Android once it is up, so 300 ms is the rise on
+one and a margin on the other. A height already there at the focus does not count (it is a keyboard
+on its way down), nor does one too small to be a keyboard (`KEYBOARD_MIN_PX` — an accessory bar on
+its own, with a hardware keyboard). Past 800 ms with no height, the keyboard is taken not to be
+coming.
+
+**A slide moves the panel and the composer on the same frames.** Neither has a CSS transition. Every
+slide the panel makes on its own — + with no keyboard, ×, back and Escape, the browser's focus, the
+800 ms with no keyboard — runs one `requestAnimationFrame` loop (`utils/slotSlide.ts`) that works out
+one position per frame on the photo screens' curve (the kit's `slideEase`, 300 ms) and, in the same
+call, writes the panel's `translateY` (the panel's `motion="external"`: it draws no transition and
+takes its place when the slot calls `settle()`) and the composer's `--attach-inset`. Two transitions
+did not stay together: on iOS WebKit the panel's transform runs on the compositor from its first frame
+while the composer's padding is laid out on the main thread a frame later, so the composer trailed the
+panel's edge by a frame. A slide asked for while one is running — + then × in quick succession — turns
+around from where the first has got to, taking the share of 300 ms its distance is. An instant change
+(the keyboard trading places with the panel) writes `--attach-inset` in the commit that makes it, before
+anything is painted, and the panel puts itself in place or leaves on its own. Under reduced motion
+every change is instant. The keyboard's own changes never go through the loop: they arrive through
+`--keyboard-height`, at once, so the composer keeps tracking the keyboard exactly; on iOS the shell
+reports the keyboard's final height as its slide starts, and the composer goes there at once, as it
+always has.
+
+**The list follows the composer through a slide without rendering the page.** The list's inset is the
+composer's measured height, which `useChromeInsets` turns into a render of the whole room each time the
+composer's size changes — on every frame of a slide (about 19 renders in 300 ms). For the length of a
+slide the page instead hands the composer's resizes to `useChromeInsets`' `followFooter`, which passes
+each one to a function of the page's in the resize observer's callback — after layout, before paint —
+where the page writes the list's bottom padding straight onto it (the thread also keeps its newest
+reply in view, as it does whenever the composer moves). That lands in the very frame the composer
+moved, where the render it replaces would have come a frame later. As the slide stops, `followFooter`
+measures the composer once, writes that and renders it: one render per slide instead of one per frame.
+
+The panel stacks above the composer's bar (`z-30` against `z-20`): the bar has no surface of its own,
+but its bottom padding reaches down over the panel, and a tap there has to land on the panel. The
+panel's upward shadow and rounded top are what the composer rests on.
+
+Photos picked in the panel wait above the field whenever some of them are out of sight
+(`useChatImageAttach`'s `strip`): once the panel has closed, and while it is open with a pick its recent
+row does not hold. The pages render that row inside the composer's bar, before `MessageInput`, and give
+it no position of its own: the bar's measured height — the one inset the list follows — grows by the row, and the row
+rises with the keyboard because the bar does. The pages render it unconditionally: it opens from
+nothing as it fills and folds away as it empties, and it can only fold while it is still mounted. The
+8 px above the field is the row's own margin, inside the part that opens and closes, so it folds with
+the row rather than on a timing of its own. Like the field's pill, it carries a surface of its own — a
+soft rounded card sized to its thumbnails — since the list scrolls on behind the bar
+([channels image-send.md](../feature/channels/image-send.md#picking--usechatimageattach)).
 
 ## The app-width contract (`--app-width`)
 
@@ -186,6 +276,11 @@ sheet), and it is the mistake to watch for in a new one.
 - Fold and unfold with the message composer holding text. The layout is CSS, and nothing swaps a
   component on width, so the text survives — that is the property to protect when adding anything
   that reads a width in JavaScript.
+- The attach panel's slide: record the screen on an iOS device or simulator while pressing + and ×
+  with no keyboard up. In every frame the composer's pill and the panel's top edge should have moved
+  together, 8 px apart (until the composer comes to rest above the home indicator as the panel goes).
+  `apps/web` tests: `useAttachPanelSlot.test.ts`, `utils/slotSlide.test.ts`,
+  `ui/hooks/useChromeInsets.test.tsx`.
 
 ## Further reading
 

@@ -24,6 +24,7 @@ import {
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useSendImages } from '../hooks/useSendImages';
 import { isPendingImageChat } from '../utils/imageTiles';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -78,6 +79,17 @@ import { ROUTES } from '../../../routes/paths';
 // Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
 
+/** px the message list keeps clear above the composer, on top of the composer's own height. */
+const LIST_COMPOSER_GAP = 16;
+
+/**
+ * The list's bottom padding for a composer `height` px tall, written straight onto the list — for the
+ * frames the composer moves without the page rendering them (`followFooter`).
+ */
+const clearComposer = (list: HTMLElement | null, height: number) => {
+    if (list) list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
+};
+
 export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
     // The overflow (⋯) menu's own navigate: it lets the menu finish leaving before the page
@@ -111,7 +123,13 @@ export const ChannelRoomPage = () => {
     // Header/composer float as z-index overlays above the full-bleed message list (the translucent
     // glass treatment) instead of being flex-col siblings that push it down — the rest is corrected
     // via padding measured off their actual rendered height.
-    const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
+    const {
+        headerRef,
+        footerRef: composerRef,
+        headerHeight,
+        footerHeight: composerHeight,
+        followFooter: followComposer,
+    } = useChromeInsets();
 
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
     // The place this reader is standing in. Only a cloud-wide room needs it — see `profilePlaceOf`.
@@ -380,7 +398,20 @@ export const ChannelRoomPage = () => {
     const composerLocked = isPeerGone || editing.isEditing;
     // Photos go to the room's own cloud, the same one a text sent from here goes to.
     const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
-    const attach = useChatImageAttach({ sendImages: imageSend.sendImages, disabled: composerLocked, inputRef });
+    const attach = useChatImageAttach({
+        sendImages: imageSend.sendImages,
+        disabled: composerLocked,
+        inputRef,
+        composerRef,
+        // The attach panel's slide moves the composer on every frame. The list keeps clear of it in the
+        // same frame, its padding written straight from the composer's size rather than rendered — a
+        // render of this whole page per frame is what that spares. The list is `messagesEndRef`, the
+        // scroller `useChatScroll` hands back further down; this runs only once a slide starts.
+        onComposerSlide: sliding =>
+            followComposer(sliding ? height => clearComposer(messagesEndRef.current, height) : null),
+        // A caption whose photos all failed the check comes back, unless something new was typed since.
+        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
+    });
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
@@ -571,6 +602,13 @@ export const ChannelRoomPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Photos picked in the attach panel take the press — the panel open, or closed with them waiting
+        // above the field — and what is typed goes in their message as its caption rather than as a
+        // message of its own.
+        if (attach.sendReady && attach.sendPicked(trimmed)) {
+            setContent('');
+            return;
+        }
         if (!trimmed || !stableChannelId) return;
 
         setContent('');
@@ -975,7 +1013,7 @@ export const ChannelRoomPage = () => {
                         // therefore always clears the composer and gains extra room to scroll the
                         // last message above a raised keyboard. This side is the scroller's start
                         // edge, where padding IS honoured, so it stays padding.
-                        paddingBottom: composerHeight + 16,
+                        paddingBottom: composerHeight + LIST_COMPOSER_GAP,
                     }}
                 >
                     {isRoomLoading ? (
@@ -1217,21 +1255,38 @@ export const ChannelRoomPage = () => {
                 // reason MessageInput cancels both).
                 onPointerDown={keepCaretOnInput}
                 onMouseDown={keepCaretOnInput}
+                // The keyboard takes the attach panel's place: focusing the field closes the panel.
+                onFocus={event => {
+                    // React types a bubbled focus target as the element listening, which it need not be.
+                    if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
+                }}
                 // Floating composer (Figma 2948-28188 / 2948-29566): the bar itself has NO surface —
                 // the translucent pill is the only chrome, so the message list stays visible right up
                 // to the screen edge and scrolls behind it.
+                // No transition, ever: the keyboard's changes land the moment the shell reports them, and
+                // the attach panel's slide moves it frame by frame, together with the panel.
                 className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
-                    // 8px above the keyboard when it is up, otherwise clear the home indicator.
-                    // max(), never a sum — the keyboard already reaches the screen edge, so adding
-                    // the safe-bottom inset on top of it is what made the bottom gap look oversized.
-                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(var(--keyboard-height, 0px) + 8px))`,
+                    // 8px above the keyboard — or the attach panel standing in its place — when it is
+                    // up, otherwise clear the home indicator. max(), never a sum — the keyboard already
+                    // reaches the screen edge, so adding the safe-bottom inset on top of it is what
+                    // made the bottom gap look oversized. The panel's share (`--attach-inset`, which
+                    // the panel's slot writes on this element) carries its safe area for the same
+                    // reason. The list clears the composer by its measured height, so this one padding
+                    // is what keeps both above the panel.
+                    paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
+                {/* Photos picked in the attach panel wait here whenever the panel is not showing them
+                    all — once it has closed, most often — above the field their caption is typed in. Inside the bar, so its measured height — what the list
+                    clears — carries them, and they ride up with the keyboard as the pill does. Always
+                    rendered: the row folds itself away when it empties. */}
+                {attach.strip}
                 <MessageInput
                     value={content}
                     onChange={setContent}
                     onSend={handleSend}
+                    sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.room.inputPlaceholder')}

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '../types';
 
@@ -48,10 +48,16 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder, disabled, onSend }: any) => (
+    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady }: any) => (
         <div data-testid="composer" data-disabled={String(!!disabled)}>
             {placeholder}
-            <button data-testid="send" onClick={() => onSend?.('hello')} />
+            <textarea
+                data-testid="composer-input"
+                ref={inputRef}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+            />
+            <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend?.('hello')} />
         </div>
     ),
     ImageAvatar: ({ src }: any) => <img data-testid="root-avatar" src={src} alt="" />,
@@ -86,7 +92,20 @@ jest.mock('../components/MessageActionSheet', () => ({
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 // The image send and the attach flow have their own tests; here only what the thread hands them.
-const mockAttachInputs: { disabled?: boolean }[] = [];
+interface MockAttachInput {
+    disabled?: boolean;
+    onUnsentText?: (text: string) => void;
+    composerRef?: { current: HTMLElement | null };
+    onComposerSlide?: (sliding: boolean) => void;
+}
+const mockAttachInputs: MockAttachInput[] = [];
+// The attach panel as the thread sees it: whether its pick is ready to send, whether the panel is open,
+// the row of picked photos it hands the composer, and what the thread calls.
+let mockAttachReady = false;
+let mockPanelOpen = false;
+let mockAttachStrip = false;
+const mockSendPicked = jest.fn();
+const mockClosePanel = jest.fn();
 const mockSendImagesInputs: { cid: string; channelId: string; parentId?: string }[] = [];
 jest.mock('../hooks/useSendImages', () => ({
     useSendImages: (input: { cid: string; channelId: string; parentId?: string }) => {
@@ -95,9 +114,17 @@ jest.mock('../hooks/useSendImages', () => ({
     },
 }));
 jest.mock('../components/ChatImageAttach', () => ({
-    useChatImageAttach: (input: { disabled?: boolean }) => {
+    useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInputs.push(input);
-        return { button: null, overlays: null };
+        return {
+            button: null,
+            strip: mockAttachStrip ? <div data-testid="attach-strip" /> : null,
+            overlays: null,
+            panelOpen: mockPanelOpen,
+            sendReady: mockAttachReady,
+            sendPicked: mockSendPicked,
+            closePanel: mockClosePanel,
+        };
     },
 }));
 // The barrel is mocked to keep `@chatic/assets` out of jest; `profilePlaceOf` is a pure rule, so
@@ -107,12 +134,14 @@ jest.mock('../lib', () => ({
     profilePlaceOf: jest.requireActual('../lib/channelStereoPolicy').profilePlaceOf,
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
+const mockFollowFooter = jest.fn();
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
         headerRef: { current: null },
         footerRef: { current: null },
         headerHeight: 0,
         footerHeight: 0,
+        followFooter: mockFollowFooter,
     }),
 }));
 jest.mock('../hooks', () => ({
@@ -155,6 +184,7 @@ jest.mock('../hooks', () => ({
     }),
 }));
 
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { ThreadPage } from './ThreadPage';
 
 const chat = (over: Partial<DomainChat> = {}): DomainChat =>
@@ -428,6 +458,111 @@ describe('ThreadPage — 사진 첨부', () => {
         render(<ThreadPage />);
 
         expect(mockSendImagesInputs.at(-1)?.cid).toBe('cloud-b');
+    });
+});
+
+describe('ThreadPage — photos from the attach panel', () => {
+    beforeEach(() => {
+        mockAttachReady = false;
+        mockPanelOpen = false;
+        mockAttachStrip = false;
+        mockFollowFooter.mockReset();
+        mockSendPicked.mockReset().mockReturnValue(true);
+        mockClosePanel.mockReset();
+        mockChats = [chat()];
+    });
+
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+
+    it('sends the photos picked in the panel with the text as their caption, and clears the field', () => {
+        mockAttachReady = true;
+        mockPanelOpen = true;
+        render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    it('sends the photos waiting above the field, the panel closed, with the text as their caption', () => {
+        mockAttachReady = true;
+        mockAttachStrip = true;
+        render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    it('puts the waiting photos inside the composer bar, directly above the field', () => {
+        mockAttachStrip = true;
+        render(<ThreadPage />);
+
+        const strip = screen.getByTestId('attach-strip');
+        const composer = screen.getByTestId('composer');
+        expect(strip.parentElement).toBe(composer.parentElement);
+        expect(strip.nextElementSibling).toBe(composer);
+    });
+
+    it('sends the reply as text while nothing is picked', () => {
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).not.toHaveBeenCalled();
+        expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes the attach panel when the field takes focus, for the keyboard', () => {
+        render(<ThreadPage />);
+
+        act(() => field().focus());
+
+        expect(mockClosePanel).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the composer above the attach panel, as it does above the keyboard, and hands the panel its bar', () => {
+        render(<ThreadPage />);
+
+        const composer = screen.getByTestId('composer').parentElement as HTMLElement;
+        expect(composer.style.paddingBottom).toBe(COMPOSER_PADDING_BOTTOM);
+        expect(mockAttachInputs.at(-1)?.composerRef?.current).toBe(composer);
+        // No transition: the keyboard moves it at once, and the panel's slide frame by frame.
+        expect(composer.className).not.toMatch(/transition/);
+    });
+
+    it('keeps the list clear of the composer and the newest reply in view through the panel’s slide, without rendering each frame', () => {
+        render(<ThreadPage />);
+        const list = document.querySelector('.overflow-y-auto') as HTMLElement;
+        const scrollTo = jest.fn();
+        list.scrollTo = scrollTo as unknown as typeof list.scrollTo;
+        Object.defineProperty(list, 'scrollHeight', { value: 900, configurable: true });
+
+        act(() => mockAttachInputs.at(-1)?.onComposerSlide?.(true));
+
+        const follow = mockFollowFooter.mock.calls.at(-1)?.[0] as (height: number) => void;
+        follow(402);
+        expect(list.style.paddingBottom).toBe('418px');
+        expect(scrollTo).toHaveBeenLastCalledWith({ top: 900 });
+
+        act(() => mockAttachInputs.at(-1)?.onComposerSlide?.(false));
+
+        expect(mockFollowFooter).toHaveBeenLastCalledWith(null);
+    });
+
+    it('puts a caption whose photos could not go back in an empty field', () => {
+        render(<ThreadPage />);
+
+        act(() => mockAttachInputs.at(-1)?.onUnsentText?.('caption'));
+
+        expect(field().value).toBe('caption');
     });
 });
 
