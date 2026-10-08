@@ -231,7 +231,9 @@ message has to be on screen meanwhile. Then `sendImageMessage` runs prepare → 
 `completeUploads` / `sendPendingImageChat`, the shell's PUT sender, and the image preparer. It
 depends on none of them directly, so the retry and failure rules are tested with fakes. Whatever
 reached `stored` is sent. When nothing did, the row is marked failed and the same files can be
-retried on the same row. The full rules → [docs/uploads/](./docs/uploads/README.md).
+retried on the same row. A caption is written on the pending row and goes out in the same
+`chat.send` as the uploads, so a retry sends it too. The full rules →
+[docs/uploads/](./docs/uploads/README.md).
 
 ### 7. Reading an HTTP-only domain
 

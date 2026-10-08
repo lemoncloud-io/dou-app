@@ -56,10 +56,11 @@ export interface IChatRepository extends DisposableRepository {
     completeUploads(payload: UploadCompleteInput): Promise<CheckedUploadCompleteResult>;
     /**
      * Writes the optimistic row of an image message before any byte moves, one `sending` slot per
-     * image. With `pendingId` it re-arms that same row for a retry instead of adding another.
+     * image, and the message's text when it has one. With `pendingId` it re-arms that same row for a
+     * retry instead of adding another.
      */
     createPendingImageChat(input: PendingImageChatInput): Promise<string>;
-    /** Sends the pending row's message with its stored uploads and swaps in the server's row. Throws on failure. */
+    /** Sends the pending row's text with its stored uploads and swaps in the server's row. Throws on failure. */
     sendPendingImageChat(pendingId: string, input: { uploadIds: string[] }): Promise<DomainChat>;
     /** Marks the pending row and every one of its slots failed. A row that is gone is left gone. */
     failPendingImageChat(pendingId: string): Promise<void>;
@@ -91,6 +92,11 @@ export interface PendingImageChatInput {
      * rewrite of the same row, which keeps what the row already holds.
      */
     localFiles?: (PendingFileDetails | null)[];
+    /**
+     * Text sent in the same message as the files (a caption), trimmed. Absent or blank is a message
+     * of files alone. Left out on a rewrite of the same row, which keeps the text the row holds.
+     */
+    content?: string;
     /** Re-arm this row (a retry) rather than create one. */
     pendingId?: string;
 }
@@ -255,7 +261,15 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             });
             const slots = slotsWith(input.localFiles ? input.localFiles.map(detailsOf) : kept);
             await this.chatLocalDataSource.cacheWrite(
-                { id: input.pendingId, isPending: true, isFailed: false, upload$$: slots, updatedAtMs: Date.now() },
+                {
+                    id: input.pendingId,
+                    isPending: true,
+                    isFailed: false,
+                    upload$$: slots,
+                    // The write merges, so a rewrite that names no text keeps the row's own.
+                    ...(input.content !== undefined ? { content: input.content.trim() } : {}),
+                    updatedAtMs: Date.now(),
+                },
                 requestContext
             );
             return input.pendingId;
@@ -267,7 +281,12 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         const id = `optimistic-chat-images-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         this.pendingImageScopes.set(id, requestContext);
         const row = this.createOptimisticChat(
-            { channelId: input.channelId, content: '', ...(input.parentId ? { parentId: input.parentId } : {}) },
+            {
+                channelId: input.channelId,
+                // On the row from the start, so the pending message shows its text while the files go up.
+                content: input.content?.trim() ?? '',
+                ...(input.parentId ? { parentId: input.parentId } : {}),
+            },
             id,
             this.getNormalizedContext(requestContext)
         );
@@ -290,7 +309,8 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
         const payload: ChatSendInput = {
             channelId: pending.channelId,
-            content: '',
+            // The row's own text, not the caller's: a retry sends the text it was written with.
+            content: pending.content ?? '',
             uploadIds: input.uploadIds,
             ...(pending.parentId ? { parentId: pending.parentId } : {}),
         };

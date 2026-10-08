@@ -136,9 +136,9 @@ describe('@chatic/app-runtime public surface', () => {
         // Erased at runtime, so the check is that this compiles: it stops compiling if the type leaves
         // the group or `sendImages` stops taking it.
         type SendImages = ReturnType<typeof api.runtime.data.useSendImages>['sendImages'];
-        const options: api.runtime.data.SendImagesOptions = { separately: true };
+        const options: api.runtime.data.SendImagesOptions = { separately: true, content: 'caption' };
         const taken: Parameters<SendImages>[1] = options;
 
-        expect(taken).toEqual({ separately: true });
+        expect(taken).toEqual({ separately: true, content: 'caption' });
     });
 });

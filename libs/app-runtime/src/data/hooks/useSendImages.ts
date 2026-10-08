@@ -319,6 +319,7 @@ const keepUnsent = async (sent: PendingImages, files: ChatAttachmentSource[], re
     const localFiles = files.map(pendingFileDetails);
     const chat = chatOf(sent.cid);
     try {
+        // No text: the message these files were left out of has carried it.
         const pendingId = await chat.createPendingImageChat({
             channelId: sent.channelId,
             ...(sent.parentId ? { parentId: sent.parentId } : {}),
@@ -411,12 +412,18 @@ export interface UseSendImagesInput {
 export interface SendImagesOptions {
     /** One message per file, in pick order, instead of one message carrying them all. */
     separately?: boolean;
+    /**
+     * Text sent in the message with the files (a caption). The one bundled message carries it; one
+     * each, only the first message does, so the text is said once. Blank or absent sends files alone.
+     */
+    content?: string;
 }
 
 /**
- * Sends picked images as one message — or, with `separately`, as one message per file: writes the
- * pending row at once, runs the upload sequence on this shell's PUT, then swaps in the server's row —
- * or marks the row failed and keeps the files so the same pictures can be retried.
+ * Sends picked images as one message — or, with `separately`, as one message per file, and with
+ * `content` the text in the same message: writes the pending row at once, runs the upload sequence on
+ * this shell's PUT, then swaps in the server's row — or marks the row failed and keeps the files so
+ * the same pictures can be retried.
  *
  * Attaching to a channel also settles what an earlier page left behind: pending image rows with no
  * files in memory are marked failed (`canRetry` is false for them — delete is all that is left),
@@ -584,7 +591,7 @@ export const useSendImages = ({
      * neither a retry nor the sweep can take it before its sequence runs.
      */
     const writePending = useCallback(
-        async (files: ChatAttachmentSource[], inTurn: boolean): Promise<string> => {
+        async (files: ChatAttachmentSource[], inTurn: boolean, content: string): Promise<string> => {
             const urls = files.map(previewUrlOf);
             // Left out when every file is an image, so an image send writes the row it always has.
             const localFiles = files.map(pendingFileDetails);
@@ -595,6 +602,8 @@ export const useSendImages = ({
                     ...(parentId ? { parentId } : {}),
                     localThumbUrls: urls,
                     ...(localFiles.some(Boolean) ? { localFiles } : {}),
+                    // Kept on the row, which sends it and keeps it for a retry: the entry never holds it.
+                    ...(content ? { content } : {}),
                 });
             } catch (error) {
                 urls.forEach(revoke);
@@ -626,6 +635,7 @@ export const useSendImages = ({
             // One file is one message either way, and goes exactly as it would without the option.
             const separately = options.separately === true && files.length > 1;
             const messages = separately ? files.map(file => [file]) : [files];
+            const content = options.content?.trim() ?? '';
             const errors: unknown[] = [];
             const turn = takeRoomTurn(`${cid}/${channelId}/${parentId ?? ''}`, separately);
 
@@ -640,7 +650,10 @@ export const useSendImages = ({
                 for (const message of messages) {
                     if (pendingIds.length > 0) await pastMillisecond(writtenAt);
                     try {
-                        pendingIds.push(await writePending(message, separately));
+                        // The text rides on the first message only, so it is said once.
+                        pendingIds.push(
+                            await writePending(message, separately, pendingIds.length === 0 ? content : '')
+                        );
                     } catch (error) {
                         errors.push(error);
                         break;

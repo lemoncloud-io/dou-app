@@ -764,6 +764,104 @@ describe('useSendImages — one message per file', () => {
     });
 });
 
+describe('useSendImages — text with the pictures', () => {
+    const three = () => [new File(['a'], 'a.jpg'), new File(['b'], 'b.jpg'), new File(['c'], 'c.jpg')];
+    const writes = () => chat.createPendingImageChat.mock.calls.map(call => call[0]);
+
+    it('writes the text, trimmed, on the row of the one bundled message', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' })
+        );
+
+        await act(() => result.current.sendImages(three(), { content: '  look at this \n' }));
+
+        expect(writes()).toEqual([
+            {
+                channelId: 'ch-1',
+                parentId: 'root-1',
+                localThumbUrls: [expect.any(String), expect.any(String), expect.any(String)],
+                content: 'look at this',
+            },
+        ]);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('writes the text on the first message only when each file goes alone', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three(), { separately: true, content: 'look at this' }));
+
+        expect(writes().map(write => write.content)).toEqual(['look at this', undefined, undefined]);
+        writes()
+            .slice(1)
+            .forEach(write => expect(write).not.toHaveProperty('content'));
+        unmount();
+    });
+
+    it('writes the text on the one message a single file makes, with the option or without', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages([new File(['a'], 'a.jpg')], { content: 'one' }));
+        await act(() => result.current.sendImages([new File(['b'], 'b.jpg')], { separately: true, content: 'two' }));
+
+        expect(writes().map(write => write.content)).toEqual(['one', 'two']);
+        unmount();
+    });
+
+    // The text went out with the message the files were left out of; a second copy would repeat it.
+    it('writes the row of the files a sent message left out without the text', async () => {
+        const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
+        mockSendImageMessage.mockResolvedValueOnce(partial);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files(), { content: 'look at this' }));
+
+        const [message, leftover] = writes();
+        expect(message).toMatchObject({ content: 'look at this' });
+        expect(leftover).not.toHaveProperty('content');
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(await chat.createPendingImageChat.mock.results[1].value);
+        unmount();
+    });
+
+    // The repository sends the row's own text, so a retry that named none keeps the text it was written with.
+    it('retries on the same row without naming the text, and sends it through that row', async () => {
+        mockSendImageMessage
+            .mockResolvedValueOnce(failed)
+            .mockImplementationOnce(async (_files: File[], ports: { send: (input: unknown) => Promise<unknown> }) => {
+                await ports.send({ uploadIds: ['up-1'] });
+                return sent;
+            });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        await act(() => result.current.sendImages(files(), { content: 'look at this' }));
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+
+        await act(async () => void (await result.current.retry(pendingId)));
+
+        const rearm = writes()[writes().length - 1];
+        expect(rearm).toMatchObject({ pendingId });
+        expect(rearm).not.toHaveProperty('content');
+        expect(chat.sendPendingImageChat).toHaveBeenCalledWith(pendingId, { uploadIds: ['up-1'] });
+        unmount();
+    });
+
+    it('writes the row it always has when there is no text, or only blank text', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+        await act(() => result.current.sendImages(files(), { content: ' \n ' }));
+        await act(() => result.current.sendImages(files(), { separately: true, content: '' }));
+
+        const plain = { channelId: 'ch-1', localThumbUrls: expect.any(Array) };
+        expect(writes()).toEqual([plain, plain, plain, plain]);
+        unmount();
+    });
+});
+
 describe('useSendImages — preparations across messages', () => {
     const separately = { separately: true } as const;
     const photo = (name: string) => new File([name], name);

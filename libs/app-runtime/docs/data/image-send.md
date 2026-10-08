@@ -8,7 +8,8 @@
 
 `data.useSendImages({ cid, channelId, parentId?, put, putShellFile?, prepareVideo?, onVideoRefused?, beforeSweep?, waitForConnection? })`
 sends picked attachments — page files, and in the mobile app shell files too — as one message, or
-as one message per file (§ One message, or one per file), and returns
+as one message per file (§ One message, or one per file), with text in it when asked (§ Text with
+the pictures), and returns
 `{ sendImages, retry, canRetry, discard }`. It holds no rules about uploads itself. It binds the data
 layer's `sendImageMessage` to the room's cloud and to the PUT the shell passes in, and it keeps the
 picked files for as long as a retry could still need them.
@@ -33,7 +34,8 @@ answers at once when the socket is already up. Desktop passes none and starts at
 
 `sendImages` resolves once the send has settled, sent or failed — every message of it, when it sends
 one per file. A caller that has to follow the pictures with another message awaits it. Desktop sends
-the composer's text first, at the press, and the pictures after it, so it awaits nothing.
+the composer's text first, at the press, and the pictures after it, so it awaits nothing. The mobile
+app's attach panel puts the text in the photo message instead (`content`).
 
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
@@ -46,10 +48,11 @@ whichever cloud is on screen by the time it ends.
 ## What happens on send
 
 1. **A pending row goes into the cache first** (`chat.createPendingImageChat`), with an object-URL
-   preview per file, so the message is on screen before anything is prepared or uploaded. The list
-   is cut to ten first, so the row never shows a slot that will not be sent. A video or document
-   also passes its name, type and size (`localFiles`), which its slot keeps for the card drawn in
-   place of a preview. A send of images only passes none and writes the row it always has.
+   preview per file and the message's text when it has one, so the message is on screen before
+   anything is prepared or uploaded. The list is cut to ten first, so the row never shows a slot
+   that will not be sent. A video or document also passes its name, type and size (`localFiles`),
+   which its slot keeps for the card drawn in place of a preview. A send of images only passes none
+   and writes the row it always has.
 2. **The sequence runs** on ports the hook binds: `prepare` is `prepareChatAttachment(file)` for an
    image. A video or document (`chatAttachmentFormat` in `@chatic/data`) is not redrawn: it goes up
    as its original with no dimensions, under the server's content type and a name that ends in its
@@ -161,6 +164,30 @@ A turn is held for thirty seconds at most (`PREPARE_TURN_CEILING_MS`). Nothing i
 that long — a page video's poster, the slowest, gives up after ten — so a preparation still running
 then no longer holds the next one back. One that never settled would otherwise stall every later
 one-each send on the page until a reload; it still holds its own message.
+
+## Text with the pictures
+
+`sendImages(files, { content })` sends text in the photo message itself: one message carrying the
+text and the pictures, which the mobile feed and desktop already draw. It is the mobile app's
+caption — the composer's text, when the composer's send button sends what was picked in the attach
+panel. Desktop sends its text as a message of its own and passes none.
+
+- **Bundled, the one message carries it. One each, the first message only**, so the text is said
+  once, with the first picture, and the others go as pictures alone. A single file is one message
+  either way and carries it.
+- **It lives on the row, not in the page's memory.** The hook writes it onto the pending row
+  (`createPendingImageChat({ …, content })`), and `sendPendingImageChat` sends whatever the row
+  holds ([the uploads doc](../../../data/docs/uploads/README.md#pending-image-rows)). So the pending
+  message shows its text while the files go up, and a retry, which re-arms the row with its previews
+  only, sends the same text again.
+- **Files split off a sent message carry none.** Files the server or the shell left out of a sent
+  message are written as a failed row of their own (§ What happens on send, § Shell files); the text
+  went out with the message they were left out of, so retrying that row sends the files alone.
+- **Trimmed, and blank is none.** Text that trims to nothing writes exactly the row a send without
+  it writes, so a caller that never passes it — desktop — sends as before.
+- **A retried first message keeps its text.** A one-each pick whose first message fails and is
+  retried later lands after the pictures sent meanwhile, as any retried message does (above), and
+  its text lands with it.
 
 ## Shell files and video conversion
 
