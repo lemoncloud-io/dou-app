@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import type * as ReactDom from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -186,6 +186,42 @@ describe('ChannelList preview line', () => {
         const preview = previewOnHover();
         expect(preview).toMatch(/Message deleted$/);
         expect(preview).not.toMatch(/regrettable/);
+    });
+});
+
+describe('ChannelList channel section "+"', () => {
+    const SELF = { id: 'S1', name: 'me', stereo: 'self' } as DomainChannel;
+    const addChannel = () => screen.queryByRole('button', { name: i18next.t('rail.addChannel') });
+    const renderWith = (props: Partial<ComponentProps<typeof ChannelList>>) =>
+        render(
+            <ChannelList
+                channels={[SELF]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+                {...props}
+            />,
+            { wrapper }
+        );
+
+    it('keeps the "+" in a place whose only room is notes-to-self, so its first channel can be made', () => {
+        const onCreateChannel = vi.fn();
+        renderWith({ onCreateChannel });
+
+        fireEvent.click(addChannel() as HTMLElement);
+        expect(onCreateChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws no empty channel section on Home, where channels cannot be made', () => {
+        renderWith({ onCreateChannel: vi.fn(), isDefaultMode: true });
+        expect(addChannel()).toBeNull();
+    });
+
+    it('hides the empty channel section while a filter is on, like every other section', () => {
+        renderWith({ onCreateChannel: vi.fn(), query: 'me' });
+        expect(addChannel()).toBeNull();
     });
 });
 
