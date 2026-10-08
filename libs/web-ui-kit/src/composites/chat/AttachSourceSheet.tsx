@@ -54,14 +54,14 @@ const SourceRow = ({ icon, label, onClick }: SourceRowProps) => (
 );
 
 /**
- * The second step of the attach menu's files entry: where the file comes from — the file browser
+ * The second step of the attach panel's files entry: where the file comes from — the file browser
  * (documents) or the album (photos and videos, mixed). Two sources rather than one picker because the
  * systems' own pickers split them the same way: the photo library picker cannot reach a PDF, and the
  * document browser does not show the library.
  *
- * Figma `3749:29651`: a titled list rather than the attach menu's row of tiles. The sources are
+ * Figma `3749:29651`: a titled list rather than the attach panel's row of tiles. The sources are
  * phrases, not single words, and a list keeps each one readable at any length; the title says which
- * entry of the menu this narrows. The sheet edge (rounded top, shadow) still matches the menu's, so
+ * entry of the panel this narrows. The sheet edge (rounded top, shadow) still matches the panel's, so
  * the step reads as the same surface. The title is drawn in the body rather than through the sheet's
  * own header, which sets a larger type and a glass band the design does not have.
  *

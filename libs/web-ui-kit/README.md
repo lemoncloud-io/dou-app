@@ -58,10 +58,10 @@ dismiss, ARIA wiring. Nothing visual is pulled in: `AlertDialog.tsx` goes as far
 styled wrappers inject `buttonVariants` and `mt-2` through a Radix `Slot`, which concatenates rather
 than tailwind-merges and breaks the two-up action row.
 
-The grep also lists four files that import `useToastLift` from `toaster` — a hook, not a primitive.
+The grep also lists five files that import `useToastLift` from `toaster` — a hook, not a primitive.
 Every bar this kit pins to the bottom of the screen (`FloatingButton`, the photo grid's footer,
-`MediaViewer`'s action bar, `PhotoEditor`'s toolbar) publishes its height through it, so the app's
-snackbar rests above the bar instead of on its buttons.
+`MediaViewer`'s action bar, `PhotoEditor`'s toolbar, `AttachPanel`) publishes its height through it,
+so the app's snackbar rests above the bar instead of on its buttons.
 
 `cn` is the one other thing taken from that package, as `@chatic/lib/utils` — 81 files import it.
 
@@ -72,7 +72,10 @@ snackbar rests above the bar instead of on its buttons.
    Radix owns the open state, not this lib. What a component may hold is the state of one gesture:
    `BottomSheet`'s drag offset, `PullToRefresh`'s pull distance and the refresh that pull started,
    `SwipeActionRow`'s sideways offset. It ends with the gesture, and what the gesture means —
-   closing, refreshing, which row's actions are out — is still the host's.
+   closing, refreshing, which row's actions are out — is still the host's. A slide is held the same
+   way: `AttachPanel` and the photo grid's footer stay mounted while they slide out after the host has
+   already closed them, and `SelectedPhotoStrip` keeps drawing a removed photo while its space closes,
+   and its last photo while the whole row closes. That is all they keep — the host still owns the list.
 2. **i18n-agnostic.** Labels default to English (`selectLabel = 'Select photo'`) and every one is a
    prop. A Korean string hard-coded in a component is a bug; a Korean string in a JSDoc comment
    naming a Figma layer is not.
@@ -90,7 +93,7 @@ snackbar rests above the bar instead of on its buttons.
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 102 spec files and 82 story files against 98 exported
+6. **Every component has a test and a story.** 103 spec files and 82 story files against 98 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -169,7 +172,7 @@ libs/web-ui-kit/src/
     layout(4) · subscription(7) · feedback(2) · navigation(2)
 ```
 
-Eight files are internal — used across a group but absent from every barrel, so grepping the public
+Nine files are internal — used across a group but absent from every barrel, so grepping the public
 API will not find them:
 
 - `foundations/avatar/avatarBase.tsx` — `AvatarShell`, the ringed circle `ChatAvatar` and
@@ -186,6 +189,19 @@ API will not find them:
 - `composites/overlay/viewerShell.ts` — what the two full-screen photo screens, `MediaViewer` and
   `PhotoEditor`, share: the slide-in timing, the guard against events bubbling out of a portal, and
   the pager's swipe thresholds. One copy, so a swipe turns both screens' pages the same way.
+- `composites/overlay/slidePresence.ts` — how something slides into its resting place and back out:
+  `AttachPanel` and the photo grid's footer up from below (on `transform`), `SelectedPhotoStrip` open
+  from no height (on `height`). A CSS transition rather than the Radix overlays' keyframes, because a
+  keyframe always plays from its first frame and a panel closed halfway up would jump to its resting
+  place first; the element stays mounted until its exit has played. A change can also be `instant` —
+  in place, or gone, in the very commit that asks, with no transition at all — which is how the attach
+  panel trades places with the soft keyboard: the keyboard does the moving, and the panel only has to be
+  there, or not, under it. Each change reports once it has settled (`AttachPanel`'s `onTransitionEnd`,
+  the strip's `onExited`), on `transitionend` or, where that never comes (a hidden tab), after the
+  slide's length plus 100ms; under reduced motion every change is instant and reports at once. The
+  easing is `VIEWER_MOTION`'s, written out as a property — an arbitrary `ease-[…]` class emits no rule
+  with tailwindcss-animate installed — and `slideEase` is the same curve as a function, for the one
+  motion CSS cannot carry: the strip's scroll toward a photo that is still widening into it.
 - `composites/media/useBoxSize.ts` — an element's measured size, kept current through a
   `ResizeObserver`. An edited photo is drawn by one CSS `matrix()` that has to know its box, which no
   CSS length can supply.
@@ -330,7 +346,7 @@ accessible names; leave pixel values to the story.
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 102 spec files and the stories
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 103 spec files and the stories
 npx jest --config libs/web-ui-kit/jest.config.js
 ```
 
