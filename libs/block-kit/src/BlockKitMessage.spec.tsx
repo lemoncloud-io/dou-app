@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { BlockTextObject, KnownBlock } from './blockKit';
 import { blocksToPlainText } from './blocksToPlainText';
@@ -52,6 +52,29 @@ describe('BlockKitMessage', () => {
         draw([{ type: 'section', text: { type: 'mrkdwn', text: '<https://x.dev|the docs>' } }]);
         const link = screen.getByRole('link', { name: 'the docs' });
         expect(link.getAttribute('href')).toBe('https://x.dev');
+    });
+
+    // A caller that knows how to leave its shell takes the press; the anchor must not
+    // also follow it, or the mobile WebView loads the target over the app.
+    it('hands a pressed link to the caller instead of following it', () => {
+        const onLinkClick = vi.fn();
+        render(
+            <BlockKitMessage
+                blocks={[{ type: 'section', text: { type: 'mrkdwn', text: '<https://x.dev|the docs>' } }]}
+                raw=""
+                onLinkClick={onLinkClick}
+            />
+        );
+        const followed = fireEvent.click(screen.getByRole('link', { name: 'the docs' }));
+        expect(followed).toBe(false);
+        expect(onLinkClick).toHaveBeenCalledWith('https://x.dev');
+    });
+
+    // The builder and desktop have no handler to give, and the anchor's default is
+    // right for both: a browser tab, and an Electron window the shell hands to the OS.
+    it('leaves the anchor default alone when the caller has no handler', () => {
+        draw([{ type: 'section', text: { type: 'mrkdwn', text: '<https://x.dev>' } }]);
+        expect(fireEvent.click(screen.getByRole('link', { name: 'https://x.dev' }))).toBe(true);
     });
 
     it('draws a section with fields', () => {

@@ -5,7 +5,7 @@ import { cn } from '@chatic/lib/utils';
 import { BlockKitLabelsContext, DEFAULT_BLOCK_KIT_LABELS, type BlockKitLabels } from './blockKitLabels';
 import { decodeSlackEntities, hasDrawableBlocks, type BlockTextObject, type KnownBlock } from './blockKit';
 import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
-import { renderMrkdwn } from './renderMrkdwn';
+import { BlockKitLinkContext, renderMrkdwn } from './renderMrkdwn';
 
 // Newlines are significant in every Slack text object — a field is routinely
 // "*Label*\nvalue" — and nothing else in the block reinstates them.
@@ -94,6 +94,11 @@ interface BlockKitMessageProps {
     renderFallback?: (raw: string) => ReactNode;
     /** The caller's translation of the renderer's own words; see `BlockKitLabels`. Missing ones read in English. */
     labels?: Partial<BlockKitLabels>;
+    /**
+     * Opens a link in place of the anchor's default; see `BlockKitLinkContext`.
+     * Absent, a link behaves as a plain `target="_blank"` anchor.
+     */
+    onLinkClick?: (url: string) => void;
 }
 
 /**
@@ -105,7 +110,13 @@ interface BlockKitMessageProps {
  * a stack of JSON fragments, so it falls back to the original body instead —
  * one unreadable thing beats several.
  */
-export const BlockKitMessage = ({ blocks, raw, renderFallback, labels }: BlockKitMessageProps): ReactNode => {
+export const BlockKitMessage = ({
+    blocks,
+    raw,
+    renderFallback,
+    labels,
+    onLinkClick,
+}: BlockKitMessageProps): ReactNode => {
     if (!hasDrawableBlocks(blocks)) {
         return (
             <p className={cn('select-text break-words text-body text-foreground', TEXT_FLOW)}>
@@ -115,9 +126,11 @@ export const BlockKitMessage = ({ blocks, raw, renderFallback, labels }: BlockKi
     }
     return (
         <BlockKitLabelsContext.Provider value={{ ...DEFAULT_BLOCK_KIT_LABELS, ...labels }}>
-            <div className="flex select-text flex-col gap-2 break-words text-body text-foreground">
-                {blocks.map(drawBlock)}
-            </div>
+            <BlockKitLinkContext.Provider value={onLinkClick}>
+                <div className="flex select-text flex-col gap-2 break-words text-body text-foreground">
+                    {blocks.map(drawBlock)}
+                </div>
+            </BlockKitLinkContext.Provider>
         </BlockKitLabelsContext.Provider>
     );
 };
