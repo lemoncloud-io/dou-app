@@ -150,6 +150,16 @@ or backslash from native data (a localized app name, an odd Android device-model
 otherwise break out of the literal and throw inside a script with no `<script src>` to attribute the
 error to.
 
+**The web's E2E suite runs this file too.** [`apps/web-e2e`](../../../web-e2e/README.md) loads
+`injectionScripts.ts` by path at run time and injects `getSyncInjectionScript`'s output into the page,
+so the page under test boots with the globals the app sets. Three things are therefore a contract with
+it: the file's path, the export's name, and the file having **type-only imports** — a value import
+would pull the app's runtime into a Node test process. There is deliberately no dependency edge from
+that project to this app, whose typecheck is excluded; instead the `e2e` job in `verify.yml` names
+this file by path and runs when it changes. Moving or renaming it breaks both the suite and that
+trigger, so a move updates the two paths (`apps/web-e2e/src/support/fake-shell/appInjection.ts` and
+the workflow) in the same change.
+
 ## Device contacts
 
 `GetContacts` is answered by `useDeviceHandler` through `DeviceService.getContacts`, which returns
