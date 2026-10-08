@@ -2,6 +2,13 @@
 
 ## [2026-10-08] - No version updates
 
+### Features
+
+- (web,web-ui-kit) send files with a caption, keep each room's draft, open a sender's profile
+- (mobile) offer every server format in the files picker, limited by its own kind
+
+## [2026-10-08] - No version updates
+
 ### Bug Fixes
 
 - (desktop-web/profile) read the account card from the relay session
