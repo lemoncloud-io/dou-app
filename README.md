@@ -491,6 +491,7 @@ yarn prettier:staged        # Format staged files only
 npx nx test web             # Test specific project
 npx nx test                 # Run all tests
 yarn web:e2e                # Web in a real browser, inside a fake native shell (apps/web-e2e/README.md)
+yarn web:e2e:ui             # The same, in Playwright's UI mode (yarn web:e2e:install once first)
 yarn desktop:test:sandbox   # Electron preload under sandbox — run when touching apps/desktop/src/preload
 
 # Cache

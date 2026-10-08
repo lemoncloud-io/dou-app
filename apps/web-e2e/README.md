@@ -14,8 +14,10 @@ fallback that never fires because the old-app answer was never exercised.
 ## Run it
 
 ```bash
-npx playwright install chromium webkit   # once per machine (CI adds --with-deps)
-yarn web:e2e                              # = npx nx run web-e2e:e2e
+yarn web:e2e:install   # once per machine: Chromium and WebKit (CI adds --with-deps)
+yarn web:e2e           # the suite, as CI runs it (= npx nx run web-e2e:e2e)
+yarn web:e2e:ui        # Playwright's UI mode: pick, run and step through scenarios
+yarn web:e2e:headed    # the suite in visible browser windows
 ```
 
 Playwright starts the web app's Vite dev server on port 5390 (`WEB_E2E_PORT` moves it) with every
@@ -24,11 +26,11 @@ the rest are empty or local, so a developer's own `apps/web/.env` does not reach
 server already on that port is reused as it is, with whatever environment it was started with; in CI
 it always starts its own.
 
-One file, one browser, a visible window:
+The last two call Playwright directly rather than through Nx, so its own arguments pass through —
+one file, one browser:
 
 ```bash
-cd apps/web-e2e
-npx playwright test src/specs/attachment-picker.spec.ts --project=webkit-ios --headed
+yarn web:e2e:headed attachment-picker --project=webkit-ios
 ```
 
 A failure leaves a trace and a screenshot in `dist/.playwright/apps/web-e2e/test-results/<test>/`
