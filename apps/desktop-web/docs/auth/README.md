@@ -11,6 +11,12 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
+The Profile page offers the button to an account with no email, and it judges that from the relay
+session, which is the account's. Inside a cloud the active session is that cloud's, whose user has
+a uid and a name of its own and no email, so reading it there drew a signed-in account as a guest.
+The Account card's name, email and user id come from the relay session for the same reason. The
+"This place" card still falls back to the name the cloud knows, which is the one people there see.
+
 The steps, in order:
 
 1. **Register the device**, if there is no session yet (below).
