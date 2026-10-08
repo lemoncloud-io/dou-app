@@ -7,9 +7,10 @@ const session = vi.hoisted(() => ({
     startWebTransportInit: vi.fn(),
     createCredentialsByProvider: vi.fn(),
     toast: vi.fn(),
+    warn: vi.fn(),
 }));
 
-vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: vi.fn(), warn: vi.fn() } }));
+vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: vi.fn(), warn: session.warn } }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         boot: { startWebTransportInit: session.startWebTransportInit },
@@ -26,7 +27,7 @@ vi.mock('@chatic/config', () => ({
     config: { get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined) },
 }));
 
-import '../../../../i18n';
+import i18n from '../../../../i18n';
 import { setStorageAdapter } from '@chatic/shared';
 
 import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart } from '../utils';
@@ -45,6 +46,7 @@ describe('useSocialLogin.start', () => {
         session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.createCredentialsByProvider.mockReset().mockRejectedValue(new Error('relay rejected'));
         session.toast.mockReset();
+        session.warn.mockReset();
         vi.stubGlobal('open', open);
     });
 
@@ -61,7 +63,7 @@ describe('useSocialLogin.start', () => {
         expect(open).toHaveBeenCalledWith(expect.stringContaining('/oauth/google/authorize?redirect='), '_blank');
     });
 
-    it('stamps a start that is fresh and has a nonce, without sending the nonce to the relay yet', async () => {
+    it('stamps a fresh start and sends its nonce on the relay redirect address', async () => {
         const before = Date.now();
         const { result } = renderHook(() => useSocialLogin());
 
@@ -71,7 +73,8 @@ describe('useSocialLogin.start', () => {
         expect(record?.nonce).toMatch(/^[0-9a-f]{32}$/);
         expect(record!.startedAt).toBeGreaterThanOrEqual(before);
         expect(record!.startedAt).toBeLessThan(before + OAUTH_LOGIN_START_TTL_MS);
-        expect(String(open.mock.calls[0][0])).not.toContain(record!.nonce);
+        const redirect = new URL(String(open.mock.calls[0][0])).searchParams.get('redirect') ?? '';
+        expect(new URL(redirect).searchParams.get('nonce')).toBe(record!.nonce);
     });
 
     it('replaces an earlier start, so only the latest login can be completed', async () => {
@@ -186,7 +189,10 @@ describe('useSocialLogin.start', () => {
             const { result } = renderHook(() => useSocialLogin());
 
             await act(() =>
-                result.current.completeFromHandoff({ provider: 'google', code: 'c' }, { notifyFailure: true })
+                result.current.completeFromHandoff(
+                    { provider: 'google', code: 'c', nonce: 'n1' },
+                    { notifyFailure: true }
+                )
             );
 
             expect(session.toast).toHaveBeenCalledTimes(1);
@@ -197,10 +203,47 @@ describe('useSocialLogin.start', () => {
             startRecord();
             const { result } = renderHook(() => useSocialLogin());
 
-            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c' }));
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
 
             expect(session.toast).not.toHaveBeenCalled();
             expect(result.current.isError).toBe(true);
+        });
+    });
+
+    describe('a link that comes back', () => {
+        const startRecord = () => saveOAuthLoginStart({ provider: 'google', startedAt: Date.now(), nonce: 'n1' });
+
+        it('is exchanged once when it carries the nonce of the start', async () => {
+            startRecord();
+            session.createCredentialsByProvider.mockResolvedValue(undefined);
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
+
+            expect(session.createCredentialsByProvider).toHaveBeenCalledTimes(1);
+            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'c');
+            expect(session.toast).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['carries no nonce', undefined],
+            ['carries another nonce', 'other'],
+        ])('is refused, told once and used up when it %s', async (_name, nonce) => {
+            startRecord();
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'secret-code', nonce }));
+
+            expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+            expect(session.toast).toHaveBeenCalledTimes(1);
+            expect(session.toast).toHaveBeenCalledWith(
+                expect.objectContaining({ description: i18n.t('auth.social.notStarted') })
+            );
+            expect(takeOAuthLoginStart()).toBeNull();
+            // The reason is logged; neither the code nor the nonce is.
+            expect(session.warn).toHaveBeenCalledWith('AUTH', expect.any(String), {
+                reason: nonce ? 'nonce-mismatch' : 'nonce-missing',
+            });
         });
     });
 });

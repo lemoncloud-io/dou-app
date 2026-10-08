@@ -28,9 +28,10 @@ import {
  * `start` registers the device first when there is no session — the backend's sign-in contract expects a
  * device session first — and only then records and opens the browser.
  *
- * `start` records that this app began the login, and `completeFromHandoff` is the only way a code that
- * arrived from outside (the deeplink, the hand-off page) gets exchanged: it needs that record. Without
- * it, any link opened on the machine could sign the person in as someone else.
+ * `start` records that this app began the login and sends the record's nonce along with the relay
+ * round trip; `completeFromHandoff` is the only way a code that arrived from outside (the deeplink,
+ * the hand-off page) gets exchanged: it needs that record and the nonce coming back with the code.
+ * Without them, any link opened on the machine could sign the person in as someone else.
  */
 export const useSocialLogin = () => {
     const { t } = useTranslation();
@@ -72,8 +73,9 @@ export const useSocialLogin = () => {
             }
             // Written after the registration, so the ten-minute window is not spent on it, and before the
             // browser opens: the deeplink can come back before this call returns control.
-            saveOAuthLoginStart(createOAuthLoginStart(provider, Date.now()));
-            const url = buildAuthorizeUrl(provider);
+            const record = createOAuthLoginStart(provider, Date.now());
+            saveOAuthLoginStart(record);
+            const url = buildAuthorizeUrl(provider, record.nonce);
             if (isNative()) window.open(url, '_blank');
             else window.location.assign(url);
             return true;
