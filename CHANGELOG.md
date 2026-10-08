@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-08] - No version updates
+
+### Bug Fixes
+
+- (block-kit,web) open a block kit card's links in the os browser, not over the app
+
 ## [2026-10-08] - root@0.86.2, @chatic/web@0.66.1
 
 ### Features
