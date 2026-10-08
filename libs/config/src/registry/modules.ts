@@ -19,7 +19,7 @@ import type { ConfigRegistryModule } from '../types';
  * A duplicate key across modules keeps the first declaration and reports the later one — the boot
  * does not fail (see `ConfigRegistry`).
  *
- * 87 keys across 12 domains. `allModules.spec.ts` asserts the count, so that test is the number
+ * 88 keys across 12 domains. `allModules.spec.ts` asserts the count, so that test is the number
  * that cannot drift — this line is a reader's convenience.
  */
 export const ALL_MODULES: readonly ConfigRegistryModule[] = [

@@ -76,6 +76,45 @@ describe('MessageInput', () => {
         expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     });
 
+    // Photos picked in the attach panel go with or without a caption.
+    describe('with something besides text to send', () => {
+        it('enables send with an empty field and fires onSend with an empty string', () => {
+            const onSend = jest.fn();
+            render(<MessageInput value="  " onChange={jest.fn()} onSend={onSend} sendReady />);
+
+            const send = screen.getByRole('button', { name: 'Send' });
+            expect(send).toHaveAttribute('aria-disabled', 'false');
+
+            fireEvent.click(send);
+            expect(onSend).toHaveBeenCalledWith('');
+        });
+
+        it('hands over typed text trimmed, as the caption', () => {
+            const onSend = jest.fn();
+            render(<MessageInput value="  caption " onChange={jest.fn()} onSend={onSend} sendReady />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+            expect(onSend).toHaveBeenCalledWith('caption');
+        });
+
+        it('still sends nothing while the composer is disabled', () => {
+            const onSend = jest.fn();
+            render(<MessageInput value="" onChange={jest.fn()} onSend={onSend} sendReady disabled />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+            expect(onSend).not.toHaveBeenCalled();
+        });
+
+        // The border is the field's: lit by text, not by photos waiting beside it.
+        it('leaves the field’s border idle while nothing is typed', () => {
+            const { container, rerender } = render(<MessageInput value="" onChange={jest.fn()} sendReady />);
+            expect(container.firstChild).toHaveClass('border-input-border');
+
+            rerender(<MessageInput value="hi" onChange={jest.fn()} sendReady />);
+            expect(container.firstChild).toHaveClass('border-focus-border');
+        });
+    });
+
     // The attach button lives in the pill (Figma 3749:27998) but the input must not learn what it is.
     it('draws a leading slot before the textarea, and nothing when none is given', () => {
         const { rerender } = render(<MessageInput value="" onChange={jest.fn()} />);

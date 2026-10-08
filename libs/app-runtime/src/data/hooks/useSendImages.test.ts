@@ -5,9 +5,13 @@ import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } 
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
+import { beginMediaSendTiming } from '../mediaSendTrace';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
 jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
+// The send's perf sample is observed, not recorded: each call hands back a timing that does nothing.
+const idleTiming = () => ({ mark: jest.fn(), end: jest.fn() });
+jest.mock('../mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
 
 /** The clouds whose socket is held right now, as `runInCloud` would hold them. */
 const held: string[] = [];
@@ -531,6 +535,866 @@ describe('useSendImages', () => {
     });
 });
 
+describe('useSendImages — one message per file', () => {
+    const three = () => [new File(['a'], 'a.jpg'), new File(['b'], 'b.jpg'), new File(['c'], 'c.jpg')];
+    const separately = { separately: true } as const;
+    const rowsWritten = () => Promise.all(chat.createPendingImageChat.mock.results.map(result => result.value));
+
+    it('writes every row, in pick order, before the first message is prepared', async () => {
+        const order: string[] = [];
+        chat.createPendingImageChat.mockImplementation(async ({ pendingId }: { pendingId?: string }) => {
+            order.push(pendingId ? 'rewrite' : 'create');
+            return pendingId ?? `row-${++rowSeq}`;
+        });
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => {
+            order.push(`prepare ${file.name}`);
+            return { original: { file }, thumbnail: null };
+        });
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                for (const file of picked) await ports.prepare(file);
+                order.push('start');
+                return sent;
+            }
+        );
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three(), separately));
+
+        expect(order).toEqual([
+            'create',
+            'create',
+            'create',
+            'prepare a.jpg',
+            'start',
+            'prepare b.jpg',
+            'start',
+            'prepare c.jpg',
+            'start',
+        ]);
+        // One preview per row, each its own file's.
+        const previews = chat.createPendingImageChat.mock.calls.map(call => call[0].localThumbUrls);
+        expect(previews).toEqual([[expect.any(String)], [expect.any(String)], [expect.any(String)]]);
+        expect(new Set(previews.flat()).size).toBe(3);
+        unmount();
+    });
+
+    // Timed from the row, a later message would count the earlier ones' sends as its own, and a pick of
+    // ten would spend the whole per-minute sample budget at the press.
+    it("starts each message's send sample at its own turn, not when the rows are written", async () => {
+        const order: string[] = [];
+        jest.mocked(beginMediaSendTiming).mockImplementation(({ files }) => {
+            order.push(`sample ${files[0].name}`);
+            return idleTiming();
+        });
+        chat.createPendingImageChat.mockImplementation(async () => {
+            order.push('create');
+            return `row-${++rowSeq}`;
+        });
+        mockSendImageMessage.mockImplementation(async (picked: File[]) => {
+            order.push(`send ${picked[0].name}`);
+            return sent;
+        });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        try {
+            await act(() => result.current.sendImages(three(), separately));
+        } finally {
+            jest.mocked(beginMediaSendTiming).mockImplementation(() => idleTiming());
+        }
+
+        expect(order).toEqual([
+            'create',
+            'create',
+            'create',
+            'sample a.jpg',
+            'send a.jpg',
+            'sample b.jpg',
+            'send b.jpg',
+            'sample c.jpg',
+            'send c.jpg',
+        ]);
+        unmount();
+    });
+
+    it("starts a bundled send's sample before its row is written, as it always has", async () => {
+        const order: string[] = [];
+        jest.mocked(beginMediaSendTiming).mockImplementation(() => {
+            order.push('sample');
+            return idleTiming();
+        });
+        chat.createPendingImageChat.mockImplementation(async () => {
+            order.push('create');
+            return `row-${++rowSeq}`;
+        });
+        mockSendImageMessage.mockImplementation(async () => {
+            order.push('send');
+            return sent;
+        });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        try {
+            await act(() => result.current.sendImages(three()));
+        } finally {
+            jest.mocked(beginMediaSendTiming).mockImplementation(() => idleTiming());
+        }
+
+        expect(order).toEqual(['sample', 'create', 'send']);
+        unmount();
+    });
+
+    // Pending rows sort by `createdAt` in milliseconds; two rows stamped alike lose their pick order.
+    it('stamps each row a later millisecond than the row before it', async () => {
+        // Where the repository takes the row's `createdAt`. An instant write is the case at stake.
+        const stamps: number[] = [];
+        chat.createPendingImageChat.mockImplementation(async () => {
+            stamps.push(Date.now());
+            return `row-${++rowSeq}`;
+        });
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three(), separately));
+
+        expect(stamps).toHaveLength(3);
+        stamps.slice(1).forEach((stamp, i) => expect(stamp).toBeGreaterThan(stamps[i]));
+        unmount();
+    });
+
+    it('sends the messages in pick order, each one only once the one before it has settled', async () => {
+        const settle: (() => void)[] = [];
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { send: (input: { uploadIds: string[] }) => Promise<unknown> }) => {
+                await new Promise<void>(resolve => settle.push(resolve));
+                await ports.send({ uploadIds: [`up-${picked[0].name}`] });
+                return sent;
+            }
+        );
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const picked = three();
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages(picked, separately)));
+        for (let k = 0; k < picked.length; k += 1) {
+            await waitFor(() => expect(settle).toHaveLength(k + 1));
+            // The next message has not started while this one is still on its way.
+            await act(() => new Promise(resolve => setTimeout(resolve, 5)));
+            expect(mockSendImageMessage).toHaveBeenCalledTimes(k + 1);
+            act(() => settle[k]());
+        }
+        await act(() => sending);
+
+        const rows = await rowsWritten();
+        mockSendImageMessage.mock.calls.forEach(([files], k) => {
+            expect(files).toHaveLength(1);
+            expect(files[0]).toBe(picked[k]);
+        });
+        expect(chat.sendPendingImageChat.mock.calls.map(call => call[0])).toEqual(rows);
+        unmount();
+    });
+
+    it('still sends the next message when one fails, and marks only that row failed', async () => {
+        mockSendImageMessage.mockResolvedValueOnce(sent).mockResolvedValueOnce(failed).mockResolvedValueOnce(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three(), separately));
+
+        const [first, second, third] = await rowsWritten();
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(3);
+        expect(chat.failPendingImageChat.mock.calls).toEqual([[second]]);
+        expect(result.current.canRetry(first)).toBe(false);
+        expect(result.current.canRetry(second)).toBe(true);
+        expect(result.current.canRetry(third)).toBe(false);
+        unmount();
+    });
+
+    it('retries a failed message on its own row with its own file, leaving the others alone', async () => {
+        mockSendImageMessage
+            .mockResolvedValueOnce(failed)
+            .mockResolvedValueOnce(sent)
+            .mockResolvedValueOnce(failed)
+            .mockResolvedValueOnce(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const picked = three();
+        await act(() => result.current.sendImages(picked, separately));
+        const [first, , third] = await rowsWritten();
+
+        await act(async () => void (await result.current.retry(third)));
+
+        expect(chat.createPendingImageChat).toHaveBeenLastCalledWith(expect.objectContaining({ pendingId: third }));
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(4);
+        expect(mockSendImageMessage.mock.calls[3][0]).toHaveLength(1);
+        expect(mockSendImageMessage.mock.calls[3][0][0]).toBe(picked[2]);
+        expect(result.current.canRetry(third)).toBe(false);
+        // The first row's failure is untouched by the third one's retry.
+        expect(result.current.canRetry(first)).toBe(true);
+        unmount();
+    });
+
+    it('sends one file the same way with or without the option', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' })
+        );
+        const photo = new File(['a'], 'a.jpg');
+
+        await act(() => result.current.sendImages([photo]));
+        await act(() => result.current.sendImages([photo], separately));
+
+        const [bundled, separate] = chat.createPendingImageChat.mock.calls.map(call => call[0]);
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(2);
+        expect(bundled).toEqual({
+            channelId: 'ch-1',
+            parentId: 'root-1',
+            localThumbUrls: [expect.stringMatching(/^blob:/)],
+        });
+        expect(separate).toEqual({ ...bundled, localThumbUrls: [expect.stringMatching(/^blob:/)] });
+        expect(runInCloud).toHaveBeenCalledTimes(2);
+        mockSendImageMessage.mock.calls.forEach(([files]) => {
+            expect(files).toHaveLength(1);
+            expect(files[0]).toBe(photo);
+        });
+        unmount();
+    });
+
+    it('keeps the whole pick in one message without the option, or with it off', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three()));
+        await act(() => result.current.sendImages(three(), { separately: false }));
+
+        expect(chat.createPendingImageChat.mock.calls.map(call => call[0].localThumbUrls.length)).toEqual([3, 3]);
+        expect(mockSendImageMessage.mock.calls.map(call => call[0].length)).toEqual([3, 3]);
+        unmount();
+    });
+
+    it('cuts the pick to ten before writing, so at most ten messages go', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const many = Array.from({ length: 12 }, (_, i) => new File([String(i)], `${i}.jpg`));
+
+        await act(() => result.current.sendImages(many, separately));
+
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(10);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(10);
+        expect(mockSendImageMessage.mock.calls.map(call => call[0][0])).toEqual(many.slice(0, 10));
+        unmount();
+    });
+
+    // Every row is already on screen as sending; stopping the queue would leave the later ones so.
+    it('keeps sending the queued messages after the screen leaves, and keeps no files once they settle', async () => {
+        let finishFirst: (value: SendImageResult) => void = () => undefined;
+        mockSendImageMessage
+            .mockImplementationOnce(() => new Promise<SendImageResult>(resolve => (finishFirst = resolve)))
+            .mockResolvedValueOnce(failed)
+            .mockResolvedValueOnce(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages(three(), separately)));
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(1));
+        const rows = await rowsWritten();
+        unmount();
+        // Still in flight, so the screen leaving kept every file.
+        expect(revoked).toHaveLength(0);
+
+        await act(async () => {
+            finishFirst(sent);
+            await sending;
+        });
+
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(3);
+        expect(chat.failPendingImageChat.mock.calls).toEqual([[rows[1]]]);
+        // The failed one is left to delete: its screen has gone, and its files with it.
+        rows.forEach(row => expect(result.current.canRetry(row)).toBe(false));
+        expect(revoked).toHaveLength(3);
+    });
+
+    it('still sends the rows written before one that could not be written, then rejects', async () => {
+        chat.createPendingImageChat
+            .mockImplementationOnce(async () => `row-${++rowSeq}`)
+            .mockRejectedValueOnce(new Error('cache'));
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const picked = three();
+
+        await act(() => expect(result.current.sendImages(picked, separately)).rejects.toThrow('cache'));
+
+        // The third file is never shown as sending, since nothing would send it.
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(2);
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        expect(mockSendImageMessage.mock.calls[0][0][0]).toBe(picked[0]);
+        // The sent row's preview went with its send, the unwritten row's with its write.
+        expect(revoked).toHaveLength(2);
+        unmount();
+    });
+});
+
+describe('useSendImages — text with the pictures', () => {
+    const three = () => [new File(['a'], 'a.jpg'), new File(['b'], 'b.jpg'), new File(['c'], 'c.jpg')];
+    const writes = () => chat.createPendingImageChat.mock.calls.map(call => call[0]);
+
+    it('writes the text, trimmed, on the row of the one bundled message', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() =>
+            useBound({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' })
+        );
+
+        await act(() => result.current.sendImages(three(), { content: '  look at this \n' }));
+
+        expect(writes()).toEqual([
+            {
+                channelId: 'ch-1',
+                parentId: 'root-1',
+                localThumbUrls: [expect.any(String), expect.any(String), expect.any(String)],
+                content: 'look at this',
+            },
+        ]);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('writes the text on the first message only when each file goes alone', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three(), { separately: true, content: 'look at this' }));
+
+        expect(writes().map(write => write.content)).toEqual(['look at this', undefined, undefined]);
+        writes()
+            .slice(1)
+            .forEach(write => expect(write).not.toHaveProperty('content'));
+        unmount();
+    });
+
+    it('writes the text on the one message a single file makes, with the option or without', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages([new File(['a'], 'a.jpg')], { content: 'one' }));
+        await act(() => result.current.sendImages([new File(['b'], 'b.jpg')], { separately: true, content: 'two' }));
+
+        expect(writes().map(write => write.content)).toEqual(['one', 'two']);
+        unmount();
+    });
+
+    // The text went out with the message the files were left out of; a second copy would repeat it.
+    it('writes the row of the files a sent message left out without the text', async () => {
+        const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
+        mockSendImageMessage.mockResolvedValueOnce(partial);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files(), { content: 'look at this' }));
+
+        const [message, leftover] = writes();
+        expect(message).toMatchObject({ content: 'look at this' });
+        expect(leftover).not.toHaveProperty('content');
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(await chat.createPendingImageChat.mock.results[1].value);
+        unmount();
+    });
+
+    // The repository sends the row's own text, so a retry that named none keeps the text it was written with.
+    it('retries on the same row without naming the text, and sends it through that row', async () => {
+        mockSendImageMessage
+            .mockResolvedValueOnce(failed)
+            .mockImplementationOnce(async (_files: File[], ports: { send: (input: unknown) => Promise<unknown> }) => {
+                await ports.send({ uploadIds: ['up-1'] });
+                return sent;
+            });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        await act(() => result.current.sendImages(files(), { content: 'look at this' }));
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+
+        await act(async () => void (await result.current.retry(pendingId)));
+
+        const rearm = writes()[writes().length - 1];
+        expect(rearm).toMatchObject({ pendingId });
+        expect(rearm).not.toHaveProperty('content');
+        expect(chat.sendPendingImageChat).toHaveBeenCalledWith(pendingId, { uploadIds: ['up-1'] });
+        unmount();
+    });
+
+    it('writes the row it always has when there is no text, or only blank text', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+        await act(() => result.current.sendImages(files(), { content: ' \n ' }));
+        await act(() => result.current.sendImages(files(), { separately: true, content: '' }));
+
+        const plain = { channelId: 'ch-1', localThumbUrls: expect.any(Array) };
+        expect(writes()).toEqual([plain, plain, plain, plain]);
+        unmount();
+    });
+});
+
+describe('useSendImages — preparations across messages', () => {
+    const separately = { separately: true } as const;
+    const photo = (name: string) => new File([name], name);
+    let active = 0;
+    let peak = 0;
+    const holds = new Map<string, () => void>();
+
+    // Every preparation counts towards `active`; one whose file is listed waits for `holds.get(name)`.
+    const holdPreparing = (...names: string[]) =>
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => {
+            active += 1;
+            peak = Math.max(peak, active);
+            if (names.includes(file.name)) await new Promise<void>(resolve => holds.set(file.name, resolve));
+            active -= 1;
+            return { original: { file }, thumbnail: null };
+        });
+
+    beforeEach(() => {
+        active = 0;
+        peak = 0;
+        holds.clear();
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                for (const file of picked) await ports.prepare(file);
+                return sent;
+            }
+        );
+    });
+
+    // The page's preparation turn outlives a test; one left held would stall the next file's one-each sends.
+    afterEach(() => holds.forEach(release => release()));
+
+    // Bundled sends prepared side by side before one-each picks existed, and desktop sends nothing else.
+    it('prepares two bundled messages side by side, as before', async () => {
+        holdPreparing('a.jpg', 'b.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            sending = Promise.all([
+                result.current.sendImages([photo('a.jpg')]),
+                result.current.sendImages([photo('b.jpg')]),
+            ]);
+        });
+        await waitFor(() => expect(prepareChatAttachment).toHaveBeenCalledTimes(2));
+
+        await act(async () => {
+            holds.forEach(release => release());
+            await sending;
+        });
+        expect(peak).toBe(2);
+        unmount();
+    });
+
+    it('prepares a one-each message one at a time with a one-each queue in another room', async () => {
+        holdPreparing('a.jpg');
+        const room = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const thread = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1', parentId: 'root-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            sending = Promise.all([
+                room.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately),
+                thread.result.current.sendImages([photo('c.jpg'), photo('d.jpg')], separately),
+            ]);
+        });
+        await waitFor(() => expect(holds.has('a.jpg')).toBe(true));
+        // The thread's queue is on its way and waiting on its preparation, not on the room's queue.
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(2));
+        expect(prepareChatAttachment).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            holds.get('a.jpg')?.();
+            await sending;
+        });
+        expect(prepareChatAttachment).toHaveBeenCalledTimes(4);
+        expect(peak).toBe(1);
+        room.unmount();
+        thread.unmount();
+    });
+
+    it('lets a retried one-each message wait for the preparation under way in its queue', async () => {
+        holdPreparing('b.jpg');
+        mockSendImageMessage
+            .mockImplementationOnce(async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                await ports.prepare(picked[0]);
+                return failed;
+            })
+            .mockImplementation(async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                await ports.prepare(picked[0]);
+                return sent;
+            });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately)));
+        await waitFor(() => expect(holds.has('b.jpg')).toBe(true));
+        const [first] = await Promise.all(chat.createPendingImageChat.mock.results.map(r => r.value));
+
+        let retrying: Promise<boolean> = Promise.resolve(false);
+        act(() => void (retrying = result.current.retry(first)));
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(3));
+        await act(() => new Promise(resolve => setTimeout(resolve, 5)));
+        expect(prepareChatAttachment).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+            holds.get('b.jpg')?.();
+            await Promise.all([sending, retrying]);
+        });
+        expect(prepareChatAttachment).toHaveBeenCalledTimes(3);
+        expect(peak).toBe(1);
+        unmount();
+    });
+
+    it('prepares a bundled message beside a one-each queue’s preparation, and retries it the same way', async () => {
+        holdPreparing('a.jpg');
+        mockSendImageMessage
+            .mockImplementationOnce(async () => failed)
+            .mockImplementation(async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
+                for (const file of picked) await ports.prepare(file);
+                return sent;
+            });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-2' }));
+        const queue = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        await act(() => result.current.sendImages([photo('x.jpg')]));
+        const [bundled] = await Promise.all(chat.createPendingImageChat.mock.results.map(r => r.value));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => void (sending = queue.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately)));
+        await waitFor(() => expect(holds.has('a.jpg')).toBe(true));
+        let other: Promise<unknown> = Promise.resolve();
+        act(() => {
+            other = Promise.all([result.current.retry(bundled), result.current.sendImages([photo('y.jpg')])]);
+        });
+        // The retry and the new send each prepared while the queue's preparation was still held.
+        await waitFor(() => expect(prepareChatAttachment).toHaveBeenCalledTimes(3));
+        expect(peak).toBe(2);
+
+        await act(async () => {
+            holds.get('a.jpg')?.();
+            await Promise.all([sending, other]);
+        });
+        unmount();
+        queue.unmount();
+    });
+
+    it('lets the next one-each preparation go once one has held the turn for thirty seconds', async () => {
+        jest.useFakeTimers();
+        let unstick: () => void = () => undefined;
+        try {
+            let startedAt = 0;
+            (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => {
+                if (file.name === 'a.jpg') {
+                    startedAt = Date.now();
+                    await new Promise<void>(resolve => (unstick = resolve));
+                }
+                return { original: { file }, thumbnail: null };
+            });
+            const advance = (ms: number) => act(() => jest.advanceTimersByTimeAsync(ms));
+            const stuck = renderHook(() => useBound({ cid: 'stuck', channelId: 'ch-1' }));
+            const other = renderHook(() => useBound({ cid: 'stuck', channelId: 'ch-2' }));
+            const prepared = () => (prepareChatAttachment as jest.Mock).mock.calls.map(([file]) => file.name);
+
+            let sending: Promise<unknown> = Promise.resolve();
+            act(() => void (sending = stuck.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately)));
+            while (!prepared().includes('a.jpg')) await advance(1);
+            act(() => {
+                sending = Promise.all([
+                    sending,
+                    other.result.current.sendImages([photo('c.jpg'), photo('d.jpg')], separately),
+                ]);
+            });
+            // The other room's first message is on its way, waiting for its turn to prepare.
+            while (mockSendImageMessage.mock.calls.length < 2) await advance(1);
+
+            await advance(startedAt + 30_000 - 1 - Date.now());
+            expect(prepared()).toEqual(['a.jpg']);
+            await advance(1);
+            expect(prepared().slice(0, 2)).toEqual(['a.jpg', 'c.jpg']);
+
+            // The stuck preparation still holds its own message; once it lands, everything settles.
+            unstick();
+            await advance(100);
+            await act(() => sending);
+            expect(prepared()).toEqual(['a.jpg', 'c.jpg', 'd.jpg', 'b.jpg']);
+            stuck.unmount();
+            other.unmount();
+        } finally {
+            unstick();
+            jest.useRealTimers();
+        }
+    });
+});
+
+describe('useSendImages — order in a room', () => {
+    const separately = { separately: true } as const;
+    const photo = (name: string) => new File([name], name);
+    /** What reached the server, in the order its sends arrived: each message as its files' names. */
+    const server: string[] = [];
+    const holding = new Set<string>();
+    const releases = new Map<string, () => void>();
+    const failingOnce = new Set<string>();
+
+    const nameOf = (picked: File[]) => picked.map(file => file.name).join('+');
+    const hold = (name: string) => holding.add(name);
+    const release = (name: string) => releases.get(name)?.();
+    /** Resolves once the named message is on its way and waiting at its hold. */
+    const reached = (name: string) => waitFor(() => expect(releases.has(name)).toBe(true));
+    // Long enough for a send that is free to go to reach the server.
+    const settleALittle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)));
+
+    beforeEach(() => {
+        server.length = 0;
+        holding.clear();
+        releases.clear();
+        failingOnce.clear();
+        mockSendImageMessage.mockImplementation(
+            async (picked: File[], ports: { send: (input: { uploadIds: string[] }) => Promise<unknown> }) => {
+                const name = nameOf(picked);
+                if (holding.delete(name)) await new Promise<void>(resolve => releases.set(name, resolve));
+                if (failingOnce.delete(name)) return failed;
+                await ports.send({ uploadIds: [`up-${name}`] });
+                server.push(name);
+                return sent;
+            }
+        );
+    });
+
+    // A room's queue outlives a test; one left held would keep the next test's sends in that room waiting.
+    afterEach(() => {
+        holding.clear();
+        releases.forEach(go => go());
+    });
+
+    it('sends a bundled pick made while a one-each queue runs after the whole queue, showing its row at once', async () => {
+        hold('a.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let queue: Promise<void> = Promise.resolve();
+        act(
+            () => void (queue = result.current.sendImages([photo('a.jpg'), photo('b.jpg'), photo('c.jpg')], separately))
+        );
+        await reached('a.jpg');
+        let later: Promise<void> = Promise.resolve();
+        act(() => void (later = result.current.sendImages([photo('d.jpg'), photo('e.jpg')])));
+        await waitFor(() => expect(chat.createPendingImageChat).toHaveBeenCalledTimes(4));
+        await settleALittle();
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            release('a.jpg');
+            await Promise.all([queue, later]);
+        });
+        expect(server).toEqual(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg+e.jpg']);
+        unmount();
+    });
+
+    it('sends a second one-each pick made while the first runs after it, never between its messages', async () => {
+        hold('a.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let first: Promise<void> = Promise.resolve();
+        act(
+            () => void (first = result.current.sendImages([photo('a.jpg'), photo('b.jpg'), photo('c.jpg')], separately))
+        );
+        await reached('a.jpg');
+        let second: Promise<void> = Promise.resolve();
+        act(() => void (second = result.current.sendImages([photo('d.jpg'), photo('e.jpg')], separately)));
+        await waitFor(() => expect(chat.createPendingImageChat).toHaveBeenCalledTimes(5));
+        await settleALittle();
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            release('a.jpg');
+            await Promise.all([first, second]);
+        });
+        expect(server).toEqual(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg']);
+        unmount();
+    });
+
+    it('holds a one-each pick behind a bundled send that is itself waiting for the queue ahead', async () => {
+        hold('a.jpg');
+        hold('d.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately)));
+        await reached('a.jpg');
+        act(() => {
+            sending = Promise.all([
+                sending,
+                result.current.sendImages([photo('d.jpg')]),
+                result.current.sendImages([photo('e.jpg'), photo('f.jpg')], separately),
+            ]);
+        });
+        await settleALittle();
+
+        act(() => release('a.jpg'));
+        await reached('d.jpg');
+        // The bundled send made before the second queue holds that queue back while it is on its way.
+        await settleALittle();
+        expect(server).toEqual(['a.jpg', 'b.jpg']);
+
+        await act(async () => {
+            release('d.jpg');
+            await sending;
+        });
+        expect(server).toEqual(['a.jpg', 'b.jpg', 'd.jpg', 'e.jpg', 'f.jpg']);
+        unmount();
+    });
+
+    it('keeps the queue open for a pick still waiting when the one ahead of it settles', async () => {
+        hold('a.jpg');
+        hold('c.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            sending = Promise.all([
+                result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately),
+                result.current.sendImages([photo('c.jpg'), photo('d.jpg')], separately),
+            ]);
+        });
+        await reached('a.jpg');
+        act(() => release('a.jpg'));
+        // The first queue has settled; the second one is on its way.
+        await reached('c.jpg');
+        expect(server).toEqual(['a.jpg', 'b.jpg']);
+
+        act(() => void (sending = Promise.all([sending, result.current.sendImages([photo('e.jpg')])])));
+        await settleALittle();
+        expect(server).toEqual(['a.jpg', 'b.jpg']);
+
+        await act(async () => {
+            release('c.jpg');
+            await sending;
+        });
+        expect(server).toEqual(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg']);
+        unmount();
+    });
+
+    it('starts a one-each pick only once a bundled send already on its way in the room has settled', async () => {
+        hold('x.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages([photo('x.jpg')])));
+        await reached('x.jpg');
+        act(
+            () =>
+                void (sending = Promise.all([
+                    sending,
+                    result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately),
+                ]))
+        );
+        await waitFor(() => expect(chat.createPendingImageChat).toHaveBeenCalledTimes(3));
+        await settleALittle();
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            release('x.jpg');
+            await sending;
+        });
+        expect(server).toEqual(['x.jpg', 'a.jpg', 'b.jpg']);
+        unmount();
+    });
+
+    it('does not hold a send in another room or in the thread while a one-each queue runs', async () => {
+        hold('a.jpg');
+        const room = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const thread = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1', parentId: 'root-1' }));
+        const elsewhere = renderHook(() => useBound({ cid: 'c', channelId: 'ch-2' }));
+
+        let queue: Promise<void> = Promise.resolve();
+        act(() => void (queue = room.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately)));
+        await reached('a.jpg');
+        await act(() => thread.result.current.sendImages([photo('t.jpg')]));
+        await act(() => elsewhere.result.current.sendImages([photo('e.jpg'), photo('f.jpg')], separately));
+        expect(server).toEqual(['t.jpg', 'e.jpg', 'f.jpg']);
+
+        await act(async () => {
+            release('a.jpg');
+            await queue;
+        });
+        expect(server).toEqual(['t.jpg', 'e.jpg', 'f.jpg', 'a.jpg', 'b.jpg']);
+        room.unmount();
+        thread.unmount();
+        elsewhere.unmount();
+    });
+
+    // What desktop does: bundled sends only, which never waited on one another.
+    it('sends a bundled pick at once while an earlier bundled one is still on its way', async () => {
+        hold('a.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages([photo('a.jpg')])));
+        await reached('a.jpg');
+        act(() => void (sending = Promise.all([sending, result.current.sendImages([photo('b.jpg')])])));
+        await settleALittle();
+        expect(server).toEqual(['b.jpg']);
+
+        await act(async () => {
+            release('a.jpg');
+            await sending;
+        });
+        expect(server).toEqual(['b.jpg', 'a.jpg']);
+        unmount();
+    });
+
+    it('opens no queue for one file sent with the option, which goes as it would without it', async () => {
+        hold('a.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<unknown> = Promise.resolve();
+        act(() => void (sending = result.current.sendImages([photo('a.jpg')], separately)));
+        await reached('a.jpg');
+        act(() => void (sending = Promise.all([sending, result.current.sendImages([photo('b.jpg')])])));
+        await settleALittle();
+        expect(server).toEqual(['b.jpg']);
+
+        await act(async () => {
+            release('a.jpg');
+            await sending;
+        });
+        unmount();
+    });
+
+    it('sends a retry when it is tapped, without waiting for the queue still running', async () => {
+        failingOnce.add('a.jpg');
+        hold('b.jpg');
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let queue: Promise<void> = Promise.resolve();
+        act(
+            () => void (queue = result.current.sendImages([photo('a.jpg'), photo('b.jpg'), photo('c.jpg')], separately))
+        );
+        await reached('b.jpg');
+        const [first] = await Promise.all(chat.createPendingImageChat.mock.results.map(r => r.value));
+
+        await act(async () => void (await result.current.retry(first)));
+        expect(server).toEqual(['a.jpg']);
+
+        await act(async () => {
+            release('b.jpg');
+            await queue;
+        });
+        expect(server).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+        unmount();
+    });
+
+    it('lets the room go on after a queue whose rows could not be written', async () => {
+        chat.createPendingImageChat.mockRejectedValueOnce(new Error('cache'));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() =>
+            expect(result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately)).rejects.toThrow('cache')
+        );
+        await act(() => result.current.sendImages([photo('d.jpg')]));
+
+        expect(server).toEqual(['d.jpg']);
+        unmount();
+    });
+});
+
 describe('useSendImages — previews while sending', () => {
     const thumb = (name: string) => new File(['t'], `${name}-thumb.jpg`, { type: 'image/jpeg' });
     const order: string[] = [];
@@ -884,6 +1748,30 @@ describe('useSendImages — shell files', () => {
         expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
         // Converting it again would be refused the same way.
         expect(result.current.canRetry(leftover)).toBe(false);
+        unmount();
+    });
+
+    // Sent one per file, the refused video fails its own row rather than splitting off a leftover row.
+    it('fails a refused video on its own row when each file goes alone, and still sends the next file', async () => {
+        prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'TOO_LARGE' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const photo = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+        (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
+            original: { file },
+            thumbnail: null,
+        }));
+
+        await act(() => result.current.sendImages([mov(), photo], { separately: true }));
+
+        const [videoRow, photoRow] = await Promise.all(chat.createPendingImageChat.mock.results.map(r => r.value));
+        expect(chat.createPendingImageChat).toHaveBeenCalledTimes(2);
+        expect(onVideoRefused).toHaveBeenCalledWith('too-large');
+        expect(chat.failPendingImageChat.mock.calls).toEqual([[videoRow]]);
+        expect(result.current.canRetry(videoRow)).toBe(false);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        expect(mockSendImageMessage.mock.calls[0][0]).toEqual([photo]);
+        expect(result.current.canRetry(photoRow)).toBe(false);
         unmount();
     });
 

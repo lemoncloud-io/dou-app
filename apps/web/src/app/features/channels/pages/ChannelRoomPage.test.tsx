@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -54,17 +54,30 @@ jest.mock('@chatic/web-ui-kit', () => ({
     FloatingDateChip: () => null,
     ImageAvatar: () => null,
     SystemNotice: () => null,
-    MessageInput: ({ onSend }: any) => <button data-testid="send" onClick={() => onSend('hello')} />,
+    // The field and the send button, and what the room tells the button: enough to drive the send.
+    MessageInput: ({ onSend, value, onChange, inputRef, sendReady }: any) => (
+        <>
+            <textarea
+                data-testid="composer-input"
+                ref={inputRef}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+            />
+            <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
+        </>
+    ),
 }));
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
 jest.mock('../../../hooks/useMenuNavigate', () => ({ useMenuNavigate: () => jest.fn() }));
+const mockFollowFooter = jest.fn();
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
         headerRef: { current: null },
         footerRef: { current: null },
         headerHeight: 0,
         footerHeight: 0,
+        followFooter: mockFollowFooter,
     }),
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
@@ -78,6 +91,16 @@ jest.mock('../components/ChannelMessageRow', () => ({
     ),
 }));
 jest.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
+// Records each row wrapper's mount and whether it asked for the entrance, so a remount shows up
+// as a second entry.
+const mockStackInMounts: boolean[] = [];
+jest.mock('../hooks/useStackIn', () => ({
+    useStackIn: (_ref: unknown, enabled: boolean) => {
+        require('react').useEffect(() => {
+            mockStackInMounts.push(enabled);
+        }, []);
+    },
+}));
 jest.mock('../components/DmInviteFooter', () => ({ DmInviteFooter: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 jest.mock('../components/MessageDetailDialog', () => ({ MessageDetailDialog: () => null }));
@@ -104,8 +127,32 @@ jest.mock('../hooks/useSendImages', () => ({
         };
     },
 }));
+// The attach panel as the room sees it: whether its pick is ready to send, whether the panel is open,
+// the row of picked photos it hands the composer, and what the room calls.
+let mockAttachReady = false;
+let mockPanelOpen = false;
+let mockAttachStrip = false;
+const mockSendPicked = jest.fn();
+const mockClosePanel = jest.fn();
+interface MockAttachInput {
+    onUnsentText?: (text: string) => void;
+    composerRef?: { current: HTMLElement | null };
+    onComposerSlide?: (sliding: boolean) => void;
+}
+let mockAttachInput: MockAttachInput = {};
 jest.mock('../components/ChatImageAttach', () => ({
-    useChatImageAttach: () => ({ button: null, overlays: null }),
+    useChatImageAttach: (input: MockAttachInput) => {
+        mockAttachInput = input;
+        return {
+            button: null,
+            strip: mockAttachStrip ? <div data-testid="attach-strip" /> : null,
+            overlays: null,
+            panelOpen: mockPanelOpen,
+            sendReady: mockAttachReady,
+            sendPicked: mockSendPicked,
+            closePanel: mockClosePanel,
+        };
+    },
 }));
 jest.mock('../lib', () => ({
     ...jest.requireActual('../lib/channelStereoPolicy'),
@@ -158,6 +205,7 @@ jest.mock('../hooks', () => ({
     useReadMarker: () => ({ markSent: jest.fn() }),
 }));
 
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { ChannelRoomPage } from './ChannelRoomPage';
 
 /** The arguments of the latest `useJoinPositions` call: (cid, channelId, active, all, cursors, isMember). */
@@ -185,6 +233,7 @@ beforeEach(() => {
     mockRetryMessage.mockReset().mockResolvedValue({ chatNo: 4 });
     mockDeleteMessage.mockReset().mockResolvedValue(undefined);
     mockUseJoinPositions.mockReset();
+    mockStackInMounts.length = 0;
     (toast as jest.Mock).mockClear();
 });
 
@@ -281,6 +330,121 @@ describe('ChannelRoomPage — photos', () => {
         mockSendImagesInputs.length = 0;
         mockImageRetry.mockReset();
         mockImageCanRetry = true;
+        mockAttachReady = false;
+        mockPanelOpen = false;
+        mockAttachStrip = false;
+        mockFollowFooter.mockReset();
+        mockSendPicked.mockReset().mockReturnValue(true);
+        mockClosePanel.mockReset();
+    });
+
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+
+    it('sends the photos picked in the panel with the text as their caption, and clears the field', () => {
+        mockAttachReady = true;
+        mockPanelOpen = true;
+        render(<ChannelRoomPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    // Typing closed the panel for the keyboard; the photos wait above the field, and still take the press.
+    it('sends the photos waiting above the field, the panel closed, with the text as their caption', () => {
+        mockAttachReady = true;
+        mockAttachStrip = true;
+        render(<ChannelRoomPage />);
+        fireEvent.change(field(), { target: { value: 'hello' } });
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(field().value).toBe('');
+    });
+
+    it('puts the waiting photos inside the composer bar, directly above the field', () => {
+        mockAttachStrip = true;
+        render(<ChannelRoomPage />);
+
+        const strip = screen.getByTestId('attach-strip');
+        // Inside the bar, so its measured height — what the list clears — carries the row.
+        expect(strip.parentElement).toBe(field().parentElement);
+        expect(strip.compareDocumentPosition(field()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('sends the text as a message of its own while nothing is picked', () => {
+        render(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'false');
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).not.toHaveBeenCalled();
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hello' });
+    });
+
+    it('sends the text as usual when the panel turns out to have nothing to send', () => {
+        mockAttachReady = true;
+        mockSendPicked.mockReturnValue(false);
+        render(<ChannelRoomPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hello' });
+    });
+
+    it('closes the attach panel when the field takes focus, for the keyboard', () => {
+        render(<ChannelRoomPage />);
+
+        act(() => field().focus());
+
+        expect(mockClosePanel).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the composer above the attach panel, as it does above the keyboard, and hands the panel its bar', () => {
+        render(<ChannelRoomPage />);
+
+        const composer = field().parentElement as HTMLElement;
+        // The panel's share of the padding is written on the bar by the panel's slot, never rendered.
+        expect(composer.style.paddingBottom).toBe(COMPOSER_PADDING_BOTTOM);
+        expect(mockAttachInput.composerRef?.current).toBe(composer);
+        // No transition: the keyboard moves it at once, and the panel's slide frame by frame.
+        expect(composer.className).not.toMatch(/transition/);
+    });
+
+    it('keeps the list clear of the composer through the attach panel’s slide without rendering each frame', () => {
+        render(<ChannelRoomPage />);
+        const list = document.querySelector('.flex-col-reverse') as HTMLElement;
+
+        act(() => mockAttachInput.onComposerSlide?.(true));
+
+        // Each frame's composer height goes straight to the list's padding, the room's 16px above it.
+        const follow = mockFollowFooter.mock.calls.at(-1)?.[0] as (height: number) => void;
+        follow(402);
+        expect(list.style.paddingBottom).toBe('418px');
+        follow(260.5);
+        expect(list.style.paddingBottom).toBe('276.5px');
+
+        act(() => mockAttachInput.onComposerSlide?.(false));
+
+        expect(mockFollowFooter).toHaveBeenLastCalledWith(null);
+    });
+
+    it('puts a caption whose photos could not go back in an empty field, and leaves new text alone', () => {
+        render(<ChannelRoomPage />);
+
+        act(() => mockAttachInput.onUnsentText?.('caption'));
+        expect(field().value).toBe('caption');
+
+        fireEvent.change(field(), { target: { value: 'newer' } });
+        act(() => mockAttachInput.onUnsentText?.('caption'));
+        expect(field().value).toBe('newer');
     });
 
     it("sends photos to the room's own cloud, like a text", () => {
@@ -330,5 +494,31 @@ describe('ChannelRoomPage — photos', () => {
         fireEvent.click(screen.getByTestId('press-tmp-1'));
 
         expect(screen.queryByTestId('action-sheet')).not.toBeInTheDocument();
+    });
+});
+
+describe('ChannelRoomPage — a sent message stacking onto the list', () => {
+    const pendingRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> =>
+        failedRow({ id: 'optimistic-1', tempId: 'optimistic-1', isFailed: false, isPending: true, ...over });
+
+    it('plays the entrance for my pending row only', () => {
+        mockMessages = [
+            failedRow({ id: 'c0', isFailed: false, isOwner: false, timestamp: new Date(0) }),
+            pendingRow(),
+        ];
+        render(<ChannelRoomPage />);
+
+        expect([...mockStackInMounts].sort()).toEqual([false, true]);
+    });
+
+    it('keeps the same row when the server answer swaps the optimistic id, so the entrance plays once', () => {
+        mockMessages = [pendingRow()];
+        const { rerender } = render(<ChannelRoomPage />);
+
+        mockMessages = [pendingRow({ id: 'c1', chatNo: 1, isPending: false })];
+        rerender(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('retry-c1')).toBeInTheDocument();
+        expect(mockStackInMounts).toEqual([true]);
     });
 });

@@ -58,6 +58,17 @@ once messages exist. The gate is `rawChats.some(chat => chat.chatNo === 1)`: hol
 the thread's beginning is loaded, where "oldest loaded group and nothing more to fetch" was an
 inference that flipped as pages landed and walked the intro down the history.
 
+**A message I send stacks in.** Its row mounts pending and grows from zero height to its own over
+220ms, so the rows above are pushed up rather than jumping (`useStackIn`, through `StackInRow`). It
+animates height, not a transform: at the bottom of a reversed list, only a growing row moves its
+neighbours, and the sender is always pinned to the bottom while it runs, so the WebKit history
+correction in **Scrolling** never measures a row mid-growth. Only a row of mine that mounts pending
+plays it, so an older page or someone else's message appears at once. A send still in flight when I
+left and came back mounts pending too and plays it again on return — rare enough to leave alone.
+Rows are keyed by `tempId ?? id`, because the server's answer replaces the optimistic id and a key
+that changed with it would remount the row and play the entrance again. The decision is read at
+mount, so a retried failed row does not replay it, and reduced motion skips it.
+
 While the list is scrolling, `FloatingDateChip` shows the date of the group crossing the top edge
 and fades once scrolling stops.
 
@@ -236,8 +247,12 @@ tags is not retried.
 
 `MessageInput` is a floating pill over the list, with no surface of its own, so messages scroll
 behind it right to the screen edge. Its bottom inset is
-`max(8px, --safe-bottom, --keyboard-height + 8px)` — a max, never a sum, or the keyboard's own
-edge-to-edge height gets the safe inset added on top of it.
+`max(8px, --safe-bottom, max(--keyboard-height, --attach-inset) + 8px)` — a max, never a sum, or the
+keyboard's own edge-to-edge height gets the safe inset added on top of it. `--attach-inset` is the
+attach panel standing in the keyboard's place, which the panel writes on the composer itself, at once
+or frame by frame as it slides; the larger of the two is what keeps the composer still while the
+keyboard and the panel trade places
+([layout-shell.md](../../shell/layout-shell.md#the-attach-panel-takes-the-keyboards-place)).
 
 **The keyboard must not close between sends.** Three things together achieve that, and removing any
 one of them breaks it:
@@ -347,6 +362,9 @@ pin always won.
 - Attachment behaviour is pinned by `chatAttachment.test.ts` (scheme filter, empty attachment,
   colour mapping) and `MessageAttachment.test.tsx` (field rendering, external open, no link for a
   dangerous scheme, rail colour, seconds-based `ts`).
+- The send entrance is pinned by `useStackIn.test.ts` (the keyframes, mount-only decision, reduced
+  motion, clip release) and by the stacking cases in `ChannelRoomPage.test.tsx` (only my pending row
+  asks for it, and the optimistic-to-server id swap does not remount the row).
 - A webhook message is indistinguishable from a user message for unread and push purposes, so the
   client does nothing special for it; `isSystem` is `stereo === 'system'` alone, which is why it
   draws as an ordinary bubble.
