@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, Pencil, Plus, User } from 'lucide-react';
+import { Home, Pencil, Plus, Trash2, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -11,7 +11,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
-import { isAtPlaceLimit, isManagedPlace, PLACE_MAX } from '../utils';
+import { isAtPlaceLimit, isManagedPlace, PLACE_MAX, placeFailure, type PlaceFailure } from '../utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
     ContextMenu,
@@ -55,7 +55,16 @@ interface PlaceRailProps {
     canManagePlaces?: boolean;
     onCreatePlace?: () => void;
     onEditPlace?: (placeId: string) => void;
+    /** Deletes the place, rejecting when the server refuses. Asked only after the rail has confirmed. */
+    onDeletePlace?: (placeId: string) => Promise<void>;
 }
+
+// Only the failures a second try can fix say "try again"; a refusal says what it is.
+const DELETE_FAILURE_KEY: Record<PlaceFailure, string> = {
+    denied: 'place.delete.failed.denied',
+    network: 'errors.network',
+    other: 'place.delete.failed',
+};
 
 const tileInitial = (name: string): string => name.trim().charAt(0).toUpperCase() || '#';
 
@@ -165,6 +174,7 @@ export const PlaceRail = ({
     canManagePlaces,
     onCreatePlace,
     onEditPlace,
+    onDeletePlace,
 }: PlaceRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -180,6 +190,40 @@ export const PlaceRail = ({
     const [confirmingLogout, setConfirmingLogout] = useState(false);
 
     const runLogout = () => void resetAccount().finally(() => logout());
+
+    // The place the delete confirmation is about, and whether it is showing. Two values: the place
+    // is kept after the close so the title still names it while the dialog fades out.
+    const [deleteTarget, setDeleteTarget] = useState<DomainPlace | null>(null);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    // Set before the first await, so it is already true when the confirm button's own close runs
+    // in the same click. The state above only arrives with the next render, too late for both that
+    // close and a second click.
+    const deleting = useRef(false);
+
+    const askToDelete = (place: DomainPlace) => {
+        setDeleteTarget(place);
+        setConfirmingDelete(true);
+    };
+
+    const runDelete = async () => {
+        // A switch that began under the open confirmation locks it as it locks the menu: deleting
+        // the place the session is in would start a second one.
+        if (!deleteTarget || !onDeletePlace || deleting.current || isSwitching) return;
+        deleting.current = true;
+        setIsDeleting(true);
+        try {
+            await onDeletePlace(deleteTarget.id);
+            toast({ title: t('toast.placeDeleted') });
+        } catch (error) {
+            // The place is still there: the row is only dropped once the server has agreed.
+            toast({ variant: 'destructive', title: t(DELETE_FAILURE_KEY[placeFailure(error, 'DeletePlace')]) });
+        } finally {
+            deleting.current = false;
+            setIsDeleting(false);
+            setConfirmingDelete(false);
+        }
+    };
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
     const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', accountName, photo);
@@ -252,15 +296,31 @@ export const PlaceRail = ({
                                     onSelect={onSelectPlace}
                                     menu={
                                         // The relay subscription row shares the list and is nobody's
-                                        // to edit, so it gets no menu.
-                                        canManagePlaces && isManagedPlace(place) && onEditPlace ? (
-                                            <ContextMenuItem
-                                                disabled={isSwitching}
-                                                onSelect={() => onEditPlace(place.id)}
-                                            >
-                                                <Pencil size={14} aria-hidden />
-                                                {t('place.edit.action')}
-                                            </ContextMenuItem>
+                                        // to edit or delete, so it gets no menu.
+                                        canManagePlaces && isManagedPlace(place) && (onEditPlace || onDeletePlace) ? (
+                                            <>
+                                                {onEditPlace && (
+                                                    <ContextMenuItem
+                                                        disabled={isSwitching}
+                                                        onSelect={() => onEditPlace(place.id)}
+                                                    >
+                                                        <Pencil size={14} aria-hidden />
+                                                        {t('place.edit.action')}
+                                                    </ContextMenuItem>
+                                                )}
+                                                {/* Locked during a switch as well: deleting the place
+                                                    the session is in starts a switch of its own. */}
+                                                {onDeletePlace && (
+                                                    <ContextMenuItem
+                                                        disabled={isSwitching}
+                                                        onSelect={() => askToDelete(place)}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 size={14} aria-hidden />
+                                                        {t('place.delete.action')}
+                                                    </ContextMenuItem>
+                                                )}
+                                            </>
                                         ) : undefined
                                     }
                                 />
@@ -336,6 +396,18 @@ export const PlaceRail = ({
                 description={t('rail.menu.logoutGuest.description')}
                 confirmLabel={t('rail.menu.logout')}
                 onConfirm={runLogout}
+            />
+            <ConfirmDialog
+                open={confirmingDelete}
+                // The confirm button closes the dialog as part of its click. While a delete runs
+                // that close is refused, so the confirmation stays up, locked, until the answer.
+                onOpenChange={open => !open && !deleting.current && setConfirmingDelete(false)}
+                title={t('place.delete.title', { name: deleteTarget?.name ?? '' })}
+                description={t('place.delete.description')}
+                confirmLabel={t('place.delete.confirm')}
+                onConfirm={() => void runDelete()}
+                // Locked during a switch too, so the confirm cannot be pressed into the early return above.
+                isPending={isDeleting || !!isSwitching}
             />
         </div>
     );

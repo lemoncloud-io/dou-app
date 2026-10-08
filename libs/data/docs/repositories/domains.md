@@ -67,9 +67,10 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Place
 
-`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `updatePlace` · `cache*`
+`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `updatePlace` · `deletePlace` · `cache*`
 
-- Based on `PlaceGateway` (`place.create/update`) plus `UserGateway.mySite` for listing.
+- Based on `PlaceGateway` (`place.create/update/delete`) plus `UserGateway.mySite` for listing.
+- `deletePlace(id)` — asks the server first and removes the local row only after it agrees. It is not optimistic like `deleteChannel`: the app moves the session out of a place whose row has gone, and a refusal that restored the row would not move it back.
 - A Place is the workspace unit a user belongs to or created. Rather than a periodic delta sync, it re-reads the current cloud's place list with `refreshList` on a scope (cid) switch.
 - Local-first: remote results are written to `PlaceLocalDataSource` and then read through `observe*`.
 

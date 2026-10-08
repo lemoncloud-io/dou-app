@@ -126,3 +126,26 @@ retry state between the two; folding an edit into that would put a branch throug
 The dialog names a place by id, and that place belongs to the cloud it was opened in. So it closes
 when the place leaves the rail, which a cloud change does too since the rail lists the active
 cloud's places only, and an answer that arrives after that is dropped.
+
+## Deleting a place
+
+**Delete place** is the second item of the same menu, under the same rule. It asks first
+(`ConfirmDialog`), naming the place, because a delete removes the place for everyone in it and
+cannot be undone. While the delete runs the confirmation stays up with its buttons locked: the
+confirm button would otherwise close the dialog in the same click, leaving the menu free to start a
+second delete over the first.
+
+The order is the reverse of an edit: the server is asked first, and the tile leaves the rail only
+once it has agreed (`PlaceRepository.deletePlace`). Removing the tile first would be wrong for the
+place the session is in. The home page moves the session to another place as soon as the selected
+one is missing from the list, and a refusal that then put the tile back would not bring the session
+back with it. A refusal says so in a toast, by kind, and the tile never moved.
+
+When the deleted place is the one the session was in, that same move takes over (`placeToEnter`):
+the place last used in this cloud if it is still there, otherwise the first one. When it was the
+cloud's last place there is nowhere to move, and the session still names the deleted place. The home
+page stops reading that name once the list is empty, so the cloud's direct messages are shown, as
+for any cloud with no place, rather than the deleted place's cached channels.
+
+The menu is locked while a switch is in flight, with the tiles, since deleting the current place
+ends in a switch of its own.

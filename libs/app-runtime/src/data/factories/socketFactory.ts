@@ -114,10 +114,11 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
             read: chatGateway.read,
         },
         place: {
-            // Create/update through PlaceGateway; the list still comes from UserGateway.mySite (same
-            // entity as site).
+            // Create/update/delete through PlaceGateway; the list still comes from UserGateway.mySite
+            // (same entity as site).
             create: placeGateway.create,
             update: placeGateway.update,
+            delete: placeGateway.delete,
             mySite: userGateway.mySite,
         },
         user: {

@@ -19,6 +19,7 @@ export * from './useCloudSwitchFlow';
 export * from './useSelectPlace';
 export * from './useCreatePlace';
 export * from './useUpdatePlace';
+export * from './useDeletePlace';
 export * from './usePlaceUnreadCounts';
 export * from './useCloudCatalog';
 export * from './useClouds';

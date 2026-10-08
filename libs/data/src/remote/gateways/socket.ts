@@ -36,7 +36,7 @@ export type ChannelSocketDomainGateway = Pick<
     'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'startDm'
 >;
 export type JoinSocketDomainGateway = Pick<JoinGateway, 'update'> & Pick<ChatGateway, 'read'>;
-export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update'> & Pick<UserGateway, 'mySite'>;
+export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update' | 'delete'> & Pick<UserGateway, 'mySite'>;
 export type DeviceSocketDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync' | 'updateRemote'>;
 
 /**
