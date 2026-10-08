@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-08] - root@0.86.2, @chatic/web@0.66.1
+
+### Features
+
+- (data,perf,app-runtime,web) split a room sync's fetch from its cache write
+
+### Documentation
+
+- (adr) number the room-entry fetch decision 0176, not 0164
+
+### Other
+
+- perf: (app-runtime,web) send a room's feed request at the tap, once per entry (ADR-0176)
+- perf: (web) preload the room route chunk once the app is idle
+
 ## [2026-10-08] - No version updates
 
 ### Features
