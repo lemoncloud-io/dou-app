@@ -39,8 +39,8 @@ What this lib does **not** own: message names, payload shapes and the request→
 ([`@chatic/app-messages`](../app-messages/README.md)); the log entry contract, the hub, masking and
 the upload queue ([`@chatic/logger`](../logger/README.md)); the handlers that answer messages
 (`apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts`,
-`apps/desktop/src/main/index.ts`); and the injection that puts a channel on `window` in the first
-place — each shell does that for itself.
+`apps/desktop/src/main/bridgeHandlers.ts`); and the injection that puts a channel on `window` in
+the first place — each shell does that for itself.
 
 ## Design principles
 
@@ -108,7 +108,7 @@ flowchart TD
 
     WC["webClient — WebBridgeClient<br/><i>refId map · readiness buffer · timers</i>"]:::web
     NA["NativeBridgeAdapter<br/><i>window.* postMessage · DOM message</i>"]:::web
-    IM["InMemoryAdapter<br/><i>loopback — no consumer</i>"]:::web
+    IM["InMemoryAdapter<br/><i>loopback — mobile contract suite</i>"]:::web
     Host["AppBridgeHost<br/><i>handler map · event buffer · handshake</i>"]:::app
     Com["common/<br/><i>JsonProtocol · MessageQueue · isNative</i>"]:::com
     Fwd["logger/<br/><i>setupBridgeLogger · createNativeForwarder</i>"]:::com
@@ -126,10 +126,13 @@ flowchart TD
 ```
 
 The web half and the app half do not import each other — with one exception, drawn dashed:
-`InMemoryAdapter` imports `IAppBridgeHost` so a loopback can drive a host with no WebView. **Nothing
-in the repo constructs an `InMemoryAdapter`, including this lib's own specs**, which use a
-hand-rolled `jest.Mocked<BridgeAdapter>` instead. The same is true of `configureEnvironment`,
-`setAdapter` and `destroy()`: exercised by the specs, called by nobody else.
+`InMemoryAdapter` imports `IAppBridgeHost` so a loopback can drive a host with no WebView. **Its one
+consumer is a test outside this lib** — `apps/mobile`'s bridge contract suite
+(`useWebMessageRouter.contract.test.ts`), which puts a real `WebBridgeClient`, this adapter, a real
+`AppBridgeHost` and the real router in one process to assert what a web caller receives. This lib's
+own specs use a hand-rolled `jest.Mocked<BridgeAdapter>` instead. No product code constructs one.
+`configureEnvironment` and `setAdapter` are exercised by the specs and called by nobody else;
+`destroy()` is also called by that suite, to drop its client between cases.
 
 ```bash
 grep -rn "InMemoryAdapter\|configureEnvironment\|setAdapter(" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v '^libs/bridges'
@@ -368,7 +371,7 @@ native runtime
                                           resolveCacheDomainVersions })
                 useWebMessageRouter()     registerHandler per domain hook
   apps/desktop  createWindow()          new AppBridgeHost({ sendToWeb: IPC })
-                registerHandlers(host, win) · startUpdater(host, …)
+                registerHandlers(host, deps) · startUpdater(host, …)
 ```
 
 `AppBridgeHost` registers one handler in its own constructor — `WebAppReady` — because that message
@@ -411,6 +414,12 @@ order.
 deploys ahead of the app, so this is an ordinary outcome and not an incident — `@chatic/db` turns
 three specific `NOT_FOUND`s into learned fallbacks, and `apps/desktop-web` swallows others to degrade
 gracefully.
+
+Which messages a shell leaves to this answer is a decision, not an accident. Each shell has a
+contract suite beside its handlers — `apps/mobile`'s `useWebMessageRouter.contract.test.ts` and
+`apps/desktop`'s `bridgeHandlers.contract.test.ts` — that fails until every request in
+`WEB_MESSAGE_RESPONSE_TYPE` is either registered or listed as unsupported there, with a reason. The
+handshake does not consult those lists: `supportedWebMessages` still names the whole map.
 
 ### 5. A plain browser
 

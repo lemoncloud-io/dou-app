@@ -241,6 +241,11 @@ Declare the request and response types in
 and Swift under `ios/Bridges/`. See [docs/native/README.md](./docs/native/README.md) and
 [docs/native/service.md](./docs/native/service.md).
 
+A new message has to be decided in every shell, not only this one: each shell's bridge contract
+suite fails until the request is handled there or listed as unsupported with a reason — step 5 of
+[adding a message](../../libs/app-messages/README.md#adding-a-message), and
+[docs/webview/README.md](./docs/webview/README.md#the-bridge-contract) for this shell's suite.
+
 ### 3. A push arrives
 
 Firebase delivers to native. In the background the native side increments the badge and marks the

@@ -34,10 +34,11 @@ Electron main process, neither of which has a `window`.
 
 What this package does **not** own: delivery, request/reply matching, readiness buffering and
 timeouts ([`@chatic/bridges`](../bridges/README.md)); the handlers that answer these messages
-(`apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts`, `apps/desktop/src/main/index.ts`); the
-storage engines behind the cache messages ([`@chatic/db`](../db/README.md)); which cache domain is
-routed to which engine ([`@chatic/app-runtime`](../app-runtime/README.md)); the `LogEntry` contract
-that `AppLogInfo` mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
+(`apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts`,
+`apps/desktop/src/main/bridgeHandlers.ts`); the storage engines behind the cache messages
+([`@chatic/db`](../db/README.md)); which cache domain is routed to which engine
+([`@chatic/app-runtime`](../app-runtime/README.md)); the `LogEntry` contract that `AppLogInfo`
+mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 
 ## Design principles
 
@@ -50,8 +51,9 @@ that `AppLogInfo` mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
    between two release trains.
 3. **A request names its reply once, and the compiler checks it.**
    `as const satisfies Record<WebMessageType, AppMessageType>` makes the map total: add a request to
-   `WebMessagePayloadMap` and omit its row here, and the package stops compiling. Nothing else in
-   the add-a-message procedure fails on its own.
+   `WebMessagePayloadMap` and omit its row here, and the package stops compiling. The other check
+   is downstream, in each shell's contract suite (step 5 below); nothing else in the procedure fails
+   on its own.
 4. **A retired message keeps its declaration.** The web deploys ahead of the app, so a web build
    that predates a removal is still installed against the newest shell and still sends the old
    message. Deleting the type deletes the handler, which answers `NOT_FOUND`, which surfaces as a
@@ -257,8 +259,11 @@ bridge.registerHandler('FetchBadgeCount', async (_message: WebMessageData<'Fetch
 3. Add `OnX: OnXPayload` to `AppMessageDataMap`, under the matching section.
 4. Add `X: 'OnX'` to `WEB_MESSAGE_RESPONSE_TYPE`. **This is the step that fails to compile if you
    forget it**, and therefore the one that catches steps 2 and 3 having drifted.
-5. Register a handler in every shell that should answer it — `apps/mobile`'s
-   `useWebMessageRouter`, `apps/desktop`'s `registerHandlers`, or both.
+5. Decide it in **every** shell: register a handler — `apps/mobile`'s `useWebMessageRouter`,
+   `apps/desktop`'s `registerHandlers` (`bridgeHandlers.ts`) — or add it to that shell's unsupported
+   list with a one-line reason (`MOBILE_UNSUPPORTED` in `useWebMessageRouter.contract.test.ts`,
+   `DESKTOP_UNSUPPORTED` in `bridgeHandlers.contract.test.ts`). Each shell's contract suite fails
+   until the message is one or the other, and fails again if a line outlives its message.
 
 For an app→web push with no request behind it, do step 1 and step 3 only. Eight messages are in that
 shape: `OnUpdateDeviceInfo`, `OnBackPressed`, `OnNavigate`, `OnReceiveNotification`,
@@ -334,6 +339,10 @@ npx tsc -b libs/app-messages/tsconfig.json --force     # the whole gate
 - The compile-time checks that matter are assertions, not tests: the `satisfies` clause on
   `WEB_MESSAGE_RESPONSE_TYPE`, and `AppLogInfoLogContext` over in `@chatic/bridges`. Both fail the
   type check and neither produces a test failure, so a green jest run says nothing about them.
+- The map is exercised at run time from the shells' side: `apps/mobile`'s
+  `useWebMessageRouter.contract.test.ts` and `apps/desktop`'s `bridgeHandlers.contract.test.ts` read
+  it to require every request be handled or listed as unsupported. They run under
+  `nx test @chatic/mobile` and `nx test @chatic/desktop`, not under this package.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves or is deleted — `tsc -b` does
   not clean orphaned `.d.ts` files. `rm -rf dist/out-tsc` and look again.
 - Downstream: 157 files in nine projects import this barrel — `apps/mobile` (79), `apps/web` (43),
