@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-08] - root@0.87.1, @chatic/desktop-web@0.20.3
+
+### Bug Fixes
+
+- (desktop-web) register the device before social login starts
+
 ## [2026-10-08] - root@0.87.0, @chatic/web@0.67.0
 
 ### Features
