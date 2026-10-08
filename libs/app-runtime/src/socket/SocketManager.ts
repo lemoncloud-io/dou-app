@@ -9,6 +9,7 @@ import {
 } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
+import { pageHideCount, perfNow } from '@chatic/perf';
 import type {
     ISocketManager,
     ScopedSocketClient,
@@ -16,6 +17,8 @@ import type {
     SlotKey,
     SlotStatus,
     SocketClientListener,
+    SocketKind,
+    SocketRequestSample,
     SocketSlotClientListener,
     SocketState,
     SocketStateListener,
@@ -23,6 +26,7 @@ import type {
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
+import { getSocketErrorCode } from './utils/socketErrorCode';
 import { RELAY_SLOT, kindOf, slotKeyOf } from './utils/slotKey';
 
 /** A push subscription that must be re-bound whenever the active client is replaced. */
@@ -92,6 +96,8 @@ export class SocketManager implements ISocketManager {
     private requestedActive: SlotKey | null = null;
     // The effective active slot as of the last syncActive, so a move is logged once, when it happens.
     private lastActiveKey: SlotKey | null = null;
+    // Who is told each request's round trip (setRequestObserver). Unset, requests read no clock.
+    private requestObserver: ((sample: SocketRequestSample) => void) | undefined;
 
     /**
      * Ensures the slot keyed by `config.cid` is bound to `config`. Reuses the slot when its config is
@@ -201,12 +207,15 @@ export class SocketManager implements ISocketManager {
             // not an async arrow.
             request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> => {
                 const client = requireSlot(`request(${type})`);
+                const settle = this.timeRequest(kind, type);
                 return (client.request(type as any, data as any, options) as Promise<T>).then(
                     value => {
+                        settle();
                         socketFailureReporter.recordSuccess(key);
                         return value;
                     },
                     error => {
+                        settle(error);
                         // Annotated BEFORE it is reported, so the entry's `error` carries the
                         // caller's name too. The annotator only appends, so the leading status the
                         // reporter classifies on is untouched.
@@ -422,15 +431,49 @@ export class SocketManager implements ISocketManager {
         const client = this.requireActiveClient(`request(${type})`);
         // requireActiveClient has just proven an active slot exists.
         const key = this.getActiveKey()!;
+        const settle = this.timeRequest(kindOf(key), type);
         try {
             const value = (await client.request(type as any, data as any, options)) as T;
+            settle();
             socketFailureReporter.recordSuccess(key);
             return value;
         } catch (error) {
+            settle(error);
             const annotated = annotateSocketError(error, kindOf(key), 'request', type);
             socketFailureReporter.recordFailure(key, 'request', type, annotated);
             throw annotated;
         }
+    }
+
+    public setRequestObserver(observer: ((sample: SocketRequestSample) => void) | undefined): void {
+        this.requestObserver = observer;
+    }
+
+    /**
+     * Starts timing one request for the observer, and returns what settles it: no argument for an
+     * answer, the error for a rejection. The observer is the one set when the request left, so a
+     * request in flight across a change reports where it started.
+     *
+     * A request the page was hidden during is not handed over: its round trip would include the time
+     * the OS kept the page suspended. And the observer cannot change what the caller sees — one that
+     * throws is logged, never turned into the request's failure.
+     */
+    private timeRequest(kind: SocketKind, type: string): (error?: unknown) => void {
+        const observer = this.requestObserver;
+        if (!observer) return () => undefined;
+        const startedAt = perfNow();
+        const hidesAtStart = pageHideCount();
+        let settled = false;
+        return (...args: [unknown?]) => {
+            if (settled || pageHideCount() !== hidesAtStart) return;
+            settled = true;
+            const outcome = args.length === 0 ? 'ok' : String(getSocketErrorCode(args[0]) ?? 'error');
+            try {
+                observer({ type, kind, outcome, roundTripMs: Math.round(perfNow() - startedAt) });
+            } catch (error) {
+                logger.warn('SOCKET', '[SocketManager] request observer threw', { error, data: { type } });
+            }
+        };
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {

@@ -23,6 +23,7 @@ import {
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
+import { beginMediaSendTiming, type MediaSendTiming } from '../mediaSendTrace';
 
 interface PendingImages {
     /** The cloud the row was written in — where its upload and its send go, whatever is selected by then. */
@@ -40,6 +41,8 @@ interface PendingImages {
     inFlight: boolean;
     /** The screen that sent it has left; drop the entry as soon as its send settles. */
     detached: boolean;
+    /** The `chat_send_media` sample of the send in progress — the first one, or a retry's. */
+    timing?: MediaSendTiming;
 }
 
 /**
@@ -385,7 +388,9 @@ export const useSendImages = ({
         async (pendingId: string) => {
             const entry = pendingImages.get(pendingId);
             if (!entry) return;
+            const timing = entry.timing;
             const { converted, refused } = await convertVideos(entry);
+            if (converted.size > 0) timing?.mark('converted');
             // Positions in the pick of what goes to the sequence, which numbers its slots by its own list.
             const sending = entry.files.map((_, index) => index).filter(index => !refused.includes(index));
             let result: SendImageResult = { status: 'failed', reason: 'no-stored-upload', failedSlots: refused.length };
@@ -395,6 +400,7 @@ export const useSendImages = ({
                     // the front starts the send while the socket is still reconnecting.
                     const wait = waitForConnectionRef.current;
                     if (wait && !(await wait(entry.cid))) log('image message: socket not back in time');
+                    timing?.mark('socket');
                     // Collected as each file is prepared; when the last one is, the row switches to them.
                     const previews: (Blob | null)[] = entry.files.map(
                         (_, index) => converted.get(index)?.poster?.preview ?? null
@@ -419,18 +425,40 @@ export const useSendImages = ({
                                 : await prepareAttachment(source);
                             const thumbnail = prepared.thumbnail?.file;
                             if (!video && thumbnail && !isShellFileRef(thumbnail)) previews[index] = thumbnail;
-                            if (next === sending.length) await switchToThumbnailPreviews(pendingId, previews);
+                            if (next === sending.length) {
+                                await switchToThumbnailPreviews(pendingId, previews);
+                                timing?.mark('prepared');
+                            }
                             return prepared;
                         },
-                        start: payload => repository.startUploads(payload),
-                        complete: payload => repository.completeUploads(payload),
+                        // Each port marks its phase of `chat_send_media` as it settles. The sequence calls
+                        // `complete` once every put has settled, so its call is the end of the byte transfer.
+                        start: async payload => {
+                            const tickets = await repository.startUploads(payload);
+                            timing?.mark('upload_started');
+                            return tickets;
+                        },
+                        complete: async payload => {
+                            timing?.mark('bytes_sent');
+                            const completed = await repository.completeUploads(payload);
+                            timing?.mark('upload_completed');
+                            return completed;
+                        },
                         put: putFor(putRef.current, putShellFileRef.current),
-                        send: ({ uploadIds }) => repository.sendPendingImageChat(pendingId, { uploadIds }),
+                        send: async ({ uploadIds }) => {
+                            const sent = await repository.sendPendingImageChat(pendingId, { uploadIds });
+                            timing?.mark('sent');
+                            return sent;
+                        },
                     };
                     return sendImageMessage(
                         sending.map(index => entry.files[index]),
                         ports
                     );
+                }).catch(error => {
+                    // A send that could not even hold its cloud (no slot bound) still ends its sample.
+                    timing?.end('error');
+                    throw error;
                 });
             }
             if (result.status === 'sent') {
@@ -439,11 +467,13 @@ export const useSendImages = ({
                 // Read before the release, which forgets what the shell lost along with the entry.
                 const lost = unsent.filter(isGone);
                 const again = unsent.filter(file => !isGone(file));
+                timing?.end(left.length > 0 ? 'partial' : 'ok');
                 release(pendingId);
                 if (again.length > 0) await keepUnsent(entry, again);
                 if (lost.length > 0) await keepUnsent(entry, lost, false);
                 return;
             }
+            timing?.end('error');
             await chatOf(entry.cid)
                 .failPendingImageChat(pendingId)
                 .catch(error => {
@@ -466,6 +496,8 @@ export const useSendImages = ({
             const urls = files.map(previewUrlOf);
             // Left out when every file is an image, so an image send writes the row it always has.
             const localFiles = files.map(pendingFileDetails);
+            // Started at the send, after the pick: the page is hidden while a picker is up.
+            const timing = beginMediaSendTiming({ files, reply: !!parentId, retry: false });
             let pendingId: string;
             try {
                 pendingId = await chatOf(cid).createPendingImageChat({
@@ -475,9 +507,11 @@ export const useSendImages = ({
                     ...(localFiles.some(Boolean) ? { localFiles } : {}),
                 });
             } catch (error) {
+                timing.end('error');
                 urls.forEach(revoke);
                 throw error;
             }
+            timing.mark('row');
             pendingImages.set(pendingId, {
                 cid,
                 channelId,
@@ -487,6 +521,7 @@ export const useSendImages = ({
                 thumbnailed: false,
                 inFlight: true,
                 detached: !attachedRef.current,
+                timing,
             });
             changed();
             await run(pendingId);
@@ -502,6 +537,7 @@ export const useSendImages = ({
             // Claimed before the first await, so a second tap in the same moment finds it taken.
             entry.inFlight = true;
             changed();
+            const timing = beginMediaSendTiming({ files: entry.files, reply: !!entry.parentId, retry: true });
             try {
                 await chatOf(entry.cid).createPendingImageChat({
                     channelId: entry.channelId,
@@ -510,10 +546,13 @@ export const useSendImages = ({
                     pendingId,
                 });
             } catch {
+                timing.end('error');
                 // The row is gone (deleted meanwhile): its files have nothing left to belong to.
                 release(pendingId);
                 return false;
             }
+            timing.mark('row');
+            entry.timing = timing;
             await run(pendingId);
             return true;
         },

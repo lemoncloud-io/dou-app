@@ -97,6 +97,17 @@ export type SocketSlotClientListener = (key: SlotKey, client: ClientSocketV2 | n
  */
 export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send' | 'onType'>;
 
+/** One app-originated socket request, as it settled. What `setRequestObserver` is handed. */
+export interface SocketRequestSample {
+    /** The request's message type, e.g. `chat.send`. */
+    type: string;
+    kind: SocketKind;
+    /** `ok`, or the leading status the request was rejected with (`408`, `503`…), else `error`. */
+    outcome: string;
+    /** Call → settle, on the page's monotonic clock. */
+    roundTripMs: number;
+}
+
 /**
  * Socket manager with an ACTIVE-FACADE interface: it holds a relay slot (always) and the slots of the
  * clouds its owner binds, keyed by the cloud each one serves, but most methods operate on the
@@ -128,6 +139,15 @@ export interface ISocketManager {
 
     // ── Request/push surface gateways bind to. Active-facade: the slot setActiveSlot names, else relay.
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
+    /**
+     * Hands every request made through this manager — the active facade's and every scoped client's —
+     * to `observer` as it settles, or stops with `undefined`. With no observer, requests read no clock.
+     * A request the page was hidden during is not handed over, and an observer that throws is logged
+     * without touching the request.
+     * Requests the SDK sends on its own (`device.save`, `auth.*`, a sync plan's catch-up) do not pass
+     * through here and are not seen.
+     */
+    setRequestObserver(observer: ((sample: SocketRequestSample) => void) | undefined): void;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
     /**

@@ -109,6 +109,106 @@ describe('SocketManager request facade', () => {
     });
 });
 
+describe('SocketManager request observer', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('hands each settled request to the observer: its type, kind, outcome and round trip', async () => {
+        const client = makeClient();
+        client.request.mockResolvedValueOnce('ok').mockRejectedValueOnce(new Error('408 REQUEST TIMEOUT - chat.feed'));
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const observer = jest.fn();
+        manager.setRequestObserver(observer);
+
+        await manager.request('chat.send');
+        await manager.request('chat.feed').catch(() => undefined);
+
+        expect(observer).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ type: 'chat.send', kind: 'relay', outcome: 'ok' })
+        );
+        expect(observer).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'chat.feed', outcome: '408' }));
+        expect(observer.mock.calls[0][0].roundTripMs).toEqual(expect.any(Number));
+    });
+
+    it("observes a scoped client's requests under that slot's kind", async () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        cloud.request.mockRejectedValueOnce({ message: 'no leading status' });
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        manager.ensure(onCloud({ url: 'wss://cloud.test/socket', deviceId: 'device-1' }));
+        const observer = jest.fn();
+        manager.setRequestObserver(observer);
+
+        await manager
+            .getScopedClient(CLOUD)
+            .request('profile.get')
+            .catch(() => undefined);
+
+        expect(observer).toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'profile.get', kind: 'cloud', outcome: 'error' })
+        );
+    });
+
+    it('keeps an observer that throws from changing what the caller sees', async () => {
+        const relay = makeClient();
+        relay.request.mockResolvedValue('answer');
+        mockedCreate.mockReturnValue(relay);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const observer = jest.fn(() => {
+            throw new Error('observer broke');
+        });
+        manager.setRequestObserver(observer);
+
+        await expect(manager.request('chat.send')).resolves.toBe('answer');
+        await expect(manager.getScopedClient(RELAY).request('chat.feed')).resolves.toBe('answer');
+
+        // Once per request: the throw is not taken for the request's own failure and reported again.
+        expect(observer).toHaveBeenCalledTimes(2);
+    });
+
+    it('hands over nothing for a request the page was hidden during', async () => {
+        let answer: (value: string) => void = () => undefined;
+        const client = makeClient();
+        client.request.mockReturnValue(new Promise(resolve => (answer = resolve)) as never);
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const observer = jest.fn();
+        manager.setRequestObserver(observer);
+
+        const pending = manager.request('chat.feed');
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+        answer('late');
+        await pending;
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+
+    it('stops handing requests over once the observer is removed', async () => {
+        const client = makeClient();
+        client.request.mockResolvedValue('ok');
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const observer = jest.fn();
+        manager.setRequestObserver(observer);
+        manager.setRequestObserver(undefined);
+
+        await manager.request('chat.send');
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+});
+
 describe('SocketManager error annotation', () => {
     beforeEach(() => {
         mockedCreate.mockReset();

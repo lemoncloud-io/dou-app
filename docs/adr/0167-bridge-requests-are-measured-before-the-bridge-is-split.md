@@ -1,6 +1,6 @@
 # ADR-0167: Bridge requests are measured before the bridge is split
 
-> Status: Accepted · Decided: 2026-10-06 · Implemented: `perf/bridge-request-timing`
+> Status: Accepted, amended in part by [ADR-0181](./0181-requests-and-attachment-sends-are-measured-by-type.md) (per-type caps) · Decided: 2026-10-06 · Implemented: `perf/bridge-request-timing`
 > · Scope: libs/bridges `WebBridgeClient.setRequestObserver`, `BridgeAdapter` payload lengths ·
 > libs/perf `bridge_request` · apps/web `runtime/perf/bridgeRequestTrace`
 > · The module docs are [libs/bridges](../../libs/bridges/README.md) and

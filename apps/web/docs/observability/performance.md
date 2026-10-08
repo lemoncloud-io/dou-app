@@ -24,16 +24,18 @@ holding a trace until it expires.
 
 ## What the web records
 
-| Trace            | Taken in                                                                   | Attributes                                         |
-| ---------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
-| `cloud_switch`   | `useSwitchCloudSession` (`libs/app-runtime`)                               | `outcome`: `ok` / `error`                          |
-| `site_switch`    | `switchSite` (`libs/app-runtime`), below its same-place no-op              | `outcome`: `ok` / `error`                          |
-| `web_vitals`     | `webVitalsReporter.ts`, FCP and LCP only, as samples (value in `value_ms`) | `vital`: `fcp` / `lcp`                             |
-| `chat_room_open` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
-| `chat_room_sync` | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
-| `bridge_request` | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)             | `type` · `outcome`                                 |
-| `chat_send`      | `useChatMutations.sendMessage` — [below](#chat_send)                       | `thread` · `outcome`                               |
-| `socket_verify`  | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
+| Trace             | Taken in                                                                   | Attributes                                         |
+| ----------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
+| `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                               | `outcome`: `ok` / `error`                          |
+| `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op              | `outcome`: `ok` / `error`                          |
+| `web_vitals`      | `webVitalsReporter.ts`, FCP and LCP only, as samples (value in `value_ms`) | `vital`: `fcp` / `lcp`                             |
+| `chat_room_open`  | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
+| `chat_room_sync`  | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
+| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)             | `type` · `outcome`                                 |
+| `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                       | `thread` · `kind` (`text`) · `outcome`             |
+| `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc    | `kind` · `count` · `size` · `thread` · `outcome`   |
+| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)             | `type` · `kind` · `outcome`                        |
+| `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -250,7 +252,7 @@ background, rather than when its timer resumes. Its attributes are at the same c
 - Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useChatMutations src/app/features/channels/hooks/useRoomOpenTrace
 src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
   from `apps/web`;
-  `npx jest src/socket/sync/roomFeed src/socket/sync/hooks/useSyncTarget src/socket/auth/socketVerifyTrace`
+  `npx jest src/socket/sync/roomFeed src/socket/sync/hooks/useSyncTarget src/socket/auth/socketVerifyTrace src/socket/SocketManager src/data/mediaSendTrace src/data/hooks/useSendImages`
   from `libs/app-runtime`; `npx jest src/repositories/ChatRepository` from `libs/data`;
   `npx jest src/activeTraces src/pageHides` from `libs/perf`; and `npx jest src/app/services/perf` from
   `apps/mobile` (`first_screen`).
@@ -296,6 +298,9 @@ Three limits keep it from distorting what it measures:
   traces: 300 per ten minutes in the foreground and 30 in the background (the Android SDK's defaults
   in firebase-perf 22.0.4; the iOS SDK's were not checked). Uncapped, a busy session would spend that budget on this trace and drop
   `chat_room_open`. The first ten of each minute are kept, which leans towards the start of a burst.
+- **Three of a type a minute** (`BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE`), within those ten. A
+  room entry's burst repeats a few cache reads, and without it they used the whole minute; the
+  console's per-`type` breakdown then had nothing for the rarer types.
 - **Three before the report.** Until WebAppReady names the backend, every trace waits in one hold of
   100 entries and a sample takes two of them. A late report would otherwise let this trace push the
   boot-time `web_vitals` out of the hold.
@@ -314,12 +319,34 @@ and the write that replaces the row — the time the message shows as pending.
 | Attribute | Values                                                                       |
 | --------- | ---------------------------------------------------------------------------- |
 | `thread`  | `reply` for a thread reply (the server resolves its root first), else `root` |
+| `kind`    | always `text` — the same attribute `chat_send_media` carries                 |
 | `outcome` | `ok`, or `error` when the send rejected — offline, refused, timed out        |
 
-- **Text sends only.** Image sends go through `useSendImages` and an upload first; they are not timed
-  here.
+- **Text sends only.** Attachment sends go through `useSendImages` and an upload first, and are timed
+  there as `chat_send_media` (see `libs/app-runtime`'s image-send doc), by `kind`.
 - **A retry is a send.** `retryMessage` resends through `sendMessage`, so it is timed like one.
 - **Ten a minute** (`CHAT_SEND_TRACES_PER_MINUTE`), for the same shared budget `bridge_request` is
   capped for. A burst keeps its first ten.
 - **Hidden time is never in a sample.** A send from a hidden page is not timed, and one the page was
   hidden during is dropped by leaving its trace unstopped, which records nothing.
+
+## `socket_request`
+
+One socket request's round trip, per request type. It is the server's answer time with nothing the
+screens add: `chat_room_sync`'s feed phase includes the cache write, `chat_send` the optimistic row.
+
+- **Where it is taken.** `SocketManager` times every request made through it — the active facade's
+  and every scoped client's — and hands each to the observer `main.tsx` sets
+  (`observeSocketRequests`). Requests the SDK sends on its own (`device.save`, `auth.*`, a sync plan's
+  catch-up) do not pass through it; `socket_verify` and `site_switch` cover the first two.
+- **Attributes:** `type` (`chat.send`, `chat.feed`…), `kind` (`relay` / `cloud`), `outcome` (`ok`, or
+  the leading status it was rejected with — `408`, `503` — else `error`). Metric: `rtt_ms`.
+- **Sampled like `bridge_request`, in different runs.** One run in ten, but the next tenth of the
+  run-hash range (`isSocketRequestSampledRun`), so the two traces never stack their caps on one run.
+- **Ten a minute, three of a type**, three while traces are held for the report. The per-type cap
+  keeps a rare type such as `chat.send` visible next to `chat.feed`.
+- **Hidden time is never in a sample.** `SocketManager` hands over no request the page was hidden
+  during, and the web records none from a hidden page.
+- **Firebase only.** The log fallback samples the first tenth of runs, and this trace the second, so
+  on an app build without the perf handlers it records nothing. That is accepted: those builds are
+  on their way out, and the bridge trace already covers them.
