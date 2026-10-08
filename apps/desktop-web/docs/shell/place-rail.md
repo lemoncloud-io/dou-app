@@ -37,7 +37,8 @@ apart.
   the session. Inside a cloud the session reports the cloud user, who has a role of their own there;
   read from that, the answer would change from cloud to cloud for the same person.
 - **A development build also lets the team's two shared sign-ins through**, by email
-  (`developer@lemoncloud.io` and `app@lemoncloud.io`), so the feature can be exercised on the
+  (`developer@lemoncloud.io` and `app@lemoncloud.io`, read from the token's `email` or, for an email
+  sign-in, its `loginId`), so the feature can be exercised on the
   development server without an administrator account. The list is applied only when the stage baked
   into the bundle (`VITE_ENV`) names `LOCAL` or `DEV`. A production build never reads it, and
   neither does a build whose stage is missing: the value is read raw for that reason, since the

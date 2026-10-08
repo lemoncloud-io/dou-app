@@ -39,6 +39,19 @@ is the account's own and open); it replaces none of them.
 - **It hides entries; it does not protect anything.** The server decides, and a refusal is shown in
   the dialog or toast of the action that was refused.
 
+## Measured on the development server (2026-10-08)
+
+Signed in as one of the two shared accounts, in a cloud it owns:
+
+- The relay token gave `userRole: 'user'`, not `'admin'`, and carried no `email`. The address was
+  under `loginId`. So the role alone would have shown that account nothing, and the list has to read
+  `loginId` as well as `email`.
+- The server accepted `place.create`, `place.update` and `place.delete` from it, as an owner. The
+  desktop rule is therefore narrower than what the server allows an owner to do.
+
+Not measured: which accounts carry `'admin'` in production, and what the server answers an account
+that is not the owner.
+
 ## Consequences
 
 - An owner who is not an administrator loses the **New place** tile on the desktop that the previous

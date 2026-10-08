@@ -27,9 +27,14 @@ describe('canManagePlaces', () => {
         expect(canManagePlaces({ userRole: 'user', email: ' Dev@Example.com ' }, allowed)).toBe(true);
     });
 
+    it('reads the address from the sign-in id when the token carries no email', () => {
+        expect(canManagePlaces({ userRole: 'user', loginId: 'dev@example.com' }, allowed)).toBe(true);
+    });
+
     it.each([
         ['an ordinary account', { userRole: 'user', email: 'someone@example.com' }],
         ['an account with no email', { userRole: 'user' }],
+        ['an account whose sign-in id is not a listed address', { userRole: 'user', loginId: '1000050' }],
         ['an account with an empty email', { userRole: 'user', email: '' }],
         ['no account', null],
         ['an undefined account', undefined],
@@ -49,7 +54,8 @@ describe('readPlaceManageAccess', () => {
         vi.stubEnv('VITE_ENV', buildStage);
         state.relayUser = { userRole: 'user', email: 'developer@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(true);
-        state.relayUser = { userRole: 'user', email: 'app@lemoncloud.io' };
+        // The shape the development server's token has: the address under `loginId`, no `email`.
+        state.relayUser = { userRole: 'user', loginId: 'app@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(true);
     });
 
