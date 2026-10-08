@@ -31,6 +31,11 @@ describe('PlaceSocketDataSource', () => {
             await dataSource.updatePlace(payload, context);
             expect(mockGateways.place.update).toHaveBeenCalledWith(payload);
         });
+
+        it('deletePlace sends the request as the place.delete action', async () => {
+            await dataSource.deletePlace({ id: 'place-1' });
+            expect(mockGateways.place.delete).toHaveBeenCalledWith({ id: 'place-1' });
+        });
     });
 
     describe('inbound mapping (View → Domain)', () => {

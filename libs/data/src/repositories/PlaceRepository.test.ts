@@ -11,6 +11,7 @@ describe('PlaceRepository', () => {
             fetchPlace: jest.fn(),
             createPlace: jest.fn(),
             updatePlace: jest.fn(),
+            deletePlace: jest.fn(),
         };
         const placeLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -47,6 +48,55 @@ describe('PlaceRepository', () => {
             expect.objectContaining({ id: 'place-1', name: 'Before' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
+    });
+
+    it('drops the place from the cache once the server has deleted it', async () => {
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        const order: string[] = [];
+        placeSocketDataSource.deletePlace.mockImplementation(async () => void order.push('remote'));
+        placeLocalDataSource.cacheDelete.mockImplementation(async () => void order.push('cache'));
+
+        await repository.deletePlace('place-1');
+
+        expect(placeSocketDataSource.deletePlace).toHaveBeenCalledWith({ id: 'place-1' });
+        expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+        expect(order).toEqual(['remote', 'cache']);
+    });
+
+    it('drops the row from the cloud the delete started in, even when the scope moves before the answer', async () => {
+        const placeSocketDataSource = { deletePlace: jest.fn() };
+        const placeLocalDataSource = { cacheDelete: jest.fn() };
+        let context = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+        const repository = new PlaceRepository(placeSocketDataSource as any, placeLocalDataSource as any, {
+            getContext: () => context,
+            setContext: () => undefined,
+        });
+        // The session moves to another cloud while the server is still answering.
+        placeSocketDataSource.deletePlace.mockImplementation(async () => {
+            context = { cid: 'cloud-b', sid: 'site-9', uid: 'me-b' };
+        });
+
+        await repository.deletePlace('place-1');
+
+        expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
+    it('leaves the cache alone when the server refuses the delete', async () => {
+        const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+        placeSocketDataSource.deletePlace.mockRejectedValue(new Error('403 NOT ALLOWED'));
+
+        await expect(repository.deletePlace('place-1')).rejects.toThrow('403 NOT ALLOWED');
+
+        expect(placeLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+        expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 
     it('normalizes a sid-only update payload to carry id (= sid) for remote and optimistic cache', async () => {
@@ -315,5 +365,21 @@ describe('PlaceRepository — the scope an answer is written under', () => {
         expect(await idsIn('cloud-a', 'me')).toEqual(['a-place']);
         // Neither written into, nor pruned against, the partition the session moved to.
         expect(await idsIn('cloud-b', 'other')).toEqual(['b-place']);
+    });
+
+    it('takes back a photo the refused update added to a place that had none', async () => {
+        const context = new DataContextHolder({ cid: 'cloud-a', uid: 'me' });
+        const places = createPartitionedMemoryStorage('site');
+        await places.forScope({ cid: 'cloud-a', uid: 'me' }).save('place-1', { id: 'place-1', name: 'Design' } as any);
+        const socket = { updatePlace: jest.fn().mockRejectedValue(new Error('403 NOT ALLOWED')) };
+        const repository = new PlaceRepository(socket as any, new PlaceLocalDataSource(context, places), context);
+
+        await expect(
+            repository.updatePlace({ id: 'place-1', name: 'Studio', thumbnail: 'data:image/jpeg;base64,AAAA' } as any)
+        ).rejects.toThrow('403 NOT ALLOWED');
+
+        const row = await places.forScope({ cid: 'cloud-a', uid: 'me' }).load('place-1');
+        expect(row?.name).toBe('Design');
+        expect(row?.thumbnail).toBeUndefined();
     });
 });

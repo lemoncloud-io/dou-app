@@ -7,3 +7,4 @@ export * from './useShortcutsDialogStore';
 export * from './useQuickSwitcherStore';
 export * from './useSidebarOrderStore';
 export * from './useCreatePlaceDialogStore';
+export * from './useEditPlaceDialogStore';

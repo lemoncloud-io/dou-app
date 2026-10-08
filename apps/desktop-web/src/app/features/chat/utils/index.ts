@@ -23,3 +23,4 @@ export * from './landingTarget';
 export * from './jumpReturn';
 export * from './firstVisibleChatNo';
 export * from './createPlace';
+export * from './placeToEnter';

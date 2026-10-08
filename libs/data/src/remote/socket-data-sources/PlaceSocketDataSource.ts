@@ -8,6 +8,7 @@ import type { DataContext } from '../../repositories/types';
 
 export type PlaceCreateInput = Parameters<PlaceSocketDomainGateway['create']>[0];
 export type PlaceUpdateInput = Parameters<PlaceSocketDomainGateway['update']>[0];
+export type PlaceDeleteInput = Parameters<PlaceSocketDomainGateway['delete']>[0];
 
 export interface IPlaceSocketDataSource {
     /** Requests the places (= sites) a user can reach and returns them as domain models. */
@@ -16,6 +17,8 @@ export interface IPlaceSocketDataSource {
     createPlace(payload: PlaceCreateInput, context: DataContext): Promise<DomainPlace>;
     /** Requests an edit to a place. */
     updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace>;
+    /** Requests deletion of a place. The contract does not say what the answer holds, so it is dropped. */
+    deletePlace(payload: PlaceDeleteInput): Promise<void>;
 }
 
 /**
@@ -53,5 +56,9 @@ export class PlaceSocketDataSource implements IPlaceSocketDataSource {
     public async updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace> {
         const remote = await this.gateway.update<MySiteView>(payload);
         return toDomainPlace((remote || {}) as MySiteView, context);
+    }
+
+    public async deletePlace(payload: PlaceDeleteInput): Promise<void> {
+        await this.gateway.delete(payload);
     }
 }

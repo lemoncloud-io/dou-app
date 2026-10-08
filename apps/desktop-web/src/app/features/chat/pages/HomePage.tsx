@@ -20,6 +20,7 @@ import {
     useDebugModeStore,
     useCloudPushBadgeStore,
     canCreatePlace,
+    readPlaceManageAccess,
     useClouds,
     useCloudSwitchFlow,
     useMessageJumpStore,
@@ -31,6 +32,7 @@ import {
     useMentionsPanelStore,
     useReadCursorStore,
     useSelectPlace,
+    useDeletePlace,
     useKnownChannelsStore,
     useLastChannelStore,
     useSelectedChannelStore,
@@ -50,6 +52,7 @@ import {
     CloudRail,
     CreatePlaceDialog,
     DesktopLayout,
+    EditPlaceDialog,
     OnboardingDialog,
     PlaceRail,
     SidebarHeader,
@@ -73,8 +76,8 @@ import {
     pendingOpenRoute,
     pendingRedirectPlace,
 } from '../utils';
-import { useCreatePlaceDialogStore, useThreadStore } from '../stores';
-import { originFor, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
+import { useCreatePlaceDialogStore, useEditPlaceDialogStore, useThreadStore } from '../stores';
+import { originFor, placeToEnter, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -137,9 +140,14 @@ export const HomePage = () => {
     // A subscription cloud with no place at all still lists its 1:1s. Only once the places are known
     // to be empty — while they load or a switch is in flight, "no place" just means "not yet".
     const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
-    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(selectedSiteId ?? undefined, {
-        whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
-    });
+    // With no place left the session's site id is not read at all: after the cloud's last place is
+    // deleted it still names that place, and its cached channels would be listed in place of the 1:1s.
+    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(
+        hasNoPlace ? undefined : (selectedSiteId ?? undefined),
+        {
+            whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
+        }
+    );
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);
@@ -147,10 +155,21 @@ export const HomePage = () => {
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const setCreatePlaceOpen = useCreatePlaceDialogStore(s => s.setOpen);
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
-    const mayCreatePlace = canCreatePlace(clouds, activeCloudId, { isGuest, isCloudActive });
+    // Read on every render: the relay account is a synchronous read, and this page renders on the
+    // session signals above, which is when the answer can change.
+    const mayManagePlaces = readPlaceManageAccess();
+    const mayManagePlacesHere = canCreatePlace(clouds, activeCloudId, {
+        isGuest,
+        isCloudActive,
+        canManage: mayManagePlaces,
+    });
     // The form belongs to the cloud it was opened in: a place it made there cannot be entered from
     // another, so a cloud change (a notification tap can cause one under an open dialog) closes it.
     useEffect(() => setCreatePlaceOpen(false), [activeCloudId, setCreatePlaceOpen]);
+    // The edit form needs no such effect: it closes itself when its place leaves the list, which a
+    // cloud change does.
+    const openEditPlace = useEditPlaceDialogStore(s => s.open);
+    const { deletePlace } = useDeletePlace();
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
     const { isAvailable: canStartDm, startDm, isStarting } = useStartDm();
@@ -392,18 +411,12 @@ export const HomePage = () => {
             // fall through to the first place instead of waiting forever.
             if (places.length > 0) pendingPlaceRef.current = null;
         }
-        const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
-        if (!inList && places.length > 0) {
-            // The place you last had open in this cloud, when it still exists; the first
-            // place only when there is none. Returning to a cloud used to always land on
-            // its first place, whatever you had left it on.
-            const remembered = activeCloudId ? useLastChannelStore.getState().placeByCloud[activeCloudId] : undefined;
-            const targetId = remembered && places.some(p => p.id === remembered) ? remembered : places[0]?.id;
-            // switchPlace → switchSite gives the place its per-place token + socket
-            // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
-            // stuck on the empty state after a cloud-account login.
-            if (targetId) switchPlace(targetId);
-        }
+        const remembered = activeCloudId ? useLastChannelStore.getState().placeByCloud[activeCloudId] : undefined;
+        const targetId = placeToEnter(places, selectedPlaceId, remembered);
+        // switchPlace → switchSite gives the place its per-place token + socket
+        // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
+        // stuck on the empty state after a cloud-account login.
+        if (targetId) switchPlace(targetId);
     }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace, activeCloudId]);
 
     // Keep an index of this cloud's channels per place, built from the places you
@@ -746,8 +759,10 @@ export const HomePage = () => {
                             clearJumpOrigin();
                             switchPlace(placeId);
                         }}
-                        canCreatePlace={mayCreatePlace}
+                        canManagePlaces={mayManagePlacesHere}
                         onCreatePlace={() => setCreatePlaceOpen(true)}
+                        onEditPlace={openEditPlace}
+                        onDeletePlace={deletePlace}
                     />
                 }
                 sidebar={
@@ -844,6 +859,7 @@ export const HomePage = () => {
             />
             <CreateChannelDialog onCreated={openCreatedChannel} />
             <CreatePlaceDialog onEnter={enterPlace} onEntered={openEditPlaceProfile} />
+            <EditPlaceDialog places={places} />
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />

@@ -2,19 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
-import { createPlaceFailure, isAtPlaceLimit, PLACE_MAX } from './createPlace';
+import { isAtPlaceLimit, PLACE_MAX, placeFailure } from './createPlace';
 
-describe('createPlaceFailure', () => {
+describe('placeFailure', () => {
     it('reads a refusal as one a second try cannot fix', () => {
-        expect(createPlaceFailure(new Error('403 NOT ALLOWED - action[create] is invalid'))).toBe('denied');
+        expect(placeFailure(new Error('403 NOT ALLOWED - action[create] is invalid'), 'CreatePlace')).toBe('denied');
     });
 
     it('reads an unreachable server as a network failure', () => {
-        expect(createPlaceFailure(new Error('Network timeout'))).toBe('network');
+        expect(placeFailure(new Error('Network timeout'), 'CreatePlace')).toBe('network');
     });
 
     it('leaves anything else as a failure that may pass on a retry', () => {
-        expect(createPlaceFailure(new Error('500 INTERNAL'))).toBe('other');
+        expect(placeFailure(new Error('500 INTERNAL'), 'CreatePlace')).toBe('other');
     });
 });
 

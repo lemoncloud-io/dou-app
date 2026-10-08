@@ -11,7 +11,7 @@ current. Nothing on the rail fetches.
 ## Making a place
 
 After the last place tile there is a **New place** tile, when the account can make one here.
-`canCreatePlace` decides that, from two things:
+`canCreatePlace` decides that, from three things:
 
 - **The account's role allows it.** A guest may not make a place, and neither may a session that is
   not active in a cloud. Both come from the session (`useRuntimeProfile`), which reports the role of
@@ -20,8 +20,33 @@ After the last place tile there is a **New place** tile, when the account can ma
   invite is its owner's to arrange. A suspended or expired cloud cannot be entered, so nothing can
   be made in it.
 
-This is the same rule the mobile app applies. It only decides whether the tile is drawn: the server
-still refuses a create it does not allow, and the dialog says so.
+- **The account manages places.** `readPlaceManageAccess` answers that, and the section below says
+  how.
+
+The first two are the rule the mobile app applies; the third is the desktop's own. All of it only
+decides whether the tile is drawn: the server still refuses a create it does not allow, and the
+dialog says so.
+
+## Who manages places
+
+Making, editing and deleting a place on the desktop are for one kind of account for now: an
+administrator. `canManagePlaces` is the rule, and all three actions read it, so they cannot drift
+apart.
+
+- **The role is the relay account's**, read from the relay token (`getRelaySessionUser`), not from
+  the session. Inside a cloud the session reports the cloud user, who has a role of their own there;
+  read from that, the answer would change from cloud to cloud for the same person.
+- **A development build also lets the team's two shared sign-ins through**, by email
+  (`developer@lemoncloud.io` and `app@lemoncloud.io`, read from the token's `email` or, for an email
+  sign-in, its `loginId`), so the feature can be exercised on the
+  development server without an administrator account. The list is applied only when the stage baked
+  into the bundle (`VITE_ENV`) names `LOCAL` or `DEV`. A production build never reads it, and
+  neither does a build whose stage is missing: the value is read raw for that reason, since the
+  config registry takes a missing stage for `LOCAL`.
+
+An owner who is not an administrator sees no **New place** tile and no place menu on the desktop,
+and still makes places in the mobile app. The rule hides entries; it is not what protects a place.
+The server decides what an account may do, and a refusal is shown where the action was started.
 
 A cloud holds up to 10 places (`PLACE_MAX`; a relay subscription row in the list is not counted).
 At the cap the tile stays, and clicking it says so and points at the mobile app, where another
@@ -79,3 +104,51 @@ a create still in flight when the dialog closes too: its answer is dropped, so t
 moved into a place of the cloud that was just left. The place itself is made, and is on that cloud's
 rail the next time it is opened. A close that lands after the switch was sent cannot call it back;
 only the dialog's own follow-up, the notice or the failure line, is dropped then.
+
+## Editing a place
+
+Right-clicking a place tile opens its menu, for an account that manages places in a cloud where a
+place could be made (the same `canCreatePlace` answer that draws the **New place** tile). The Home
+tile has no menu, and neither does the relay subscription row that shares the list: it is not a
+place anybody made (`isManagedPlace`).
+
+**Edit place** opens `EditPlaceDialog` on that place, with its name and photo as they are. The name
+keeps the 20-character cap and the photo the 10 MB one, read and resized the same way as in the
+create form. Save stays off until something differs from the place, and while a photo is being read.
+
+Only what changed is sent (`useUpdatePlace`): a name left alone is not written again, and a removed
+photo goes out as an empty one, the value the web app sends for the same edit. The repository writes the change
+into the place cache before the server answers, so the tile changes at once, and puts the old row
+back if the server refuses. A refusal keeps the dialog open with what was typed and says whether
+trying again can help.
+
+The form is not the create form with a mode. Making a place has a second step, entering it, and a
+retry state between the two; folding an edit into that would put a branch through every part of it.
+
+The dialog names a place by id, and that place belongs to the cloud it was opened in. So it closes
+when the place leaves the rail, which a cloud change does too since the rail lists the active
+cloud's places only, and an answer that arrives after that is dropped.
+
+## Deleting a place
+
+**Delete place** is the second item of the same menu, under the same rule. It asks first
+(`ConfirmDialog`), naming the place, because a delete removes the place for everyone in it and
+cannot be undone. While the delete runs the confirmation stays up with its buttons locked: the
+confirm button would otherwise close the dialog in the same click, leaving the menu free to start a
+second delete over the first.
+
+The order is the reverse of an edit: the server is asked first, and the tile leaves the rail only
+once it has agreed (`PlaceRepository.deletePlace`). Removing the tile first would be wrong for the
+place the session is in. The home page moves the session to another place as soon as the selected
+one is missing from the list, and a refusal that then put the tile back would not bring the session
+back with it. A refusal says so in a toast, by kind, and the tile never moved.
+
+When the deleted place is the one the session was in, that same move takes over (`placeToEnter`):
+the place last used in this cloud if it is still there, otherwise the first one. When it was the
+cloud's last place there is nowhere to move, and the session still names the deleted place. The home
+page stops reading that name once the list is empty, so the cloud's direct messages are shown, as
+for any cloud with no place, rather than the deleted place's cached channels.
+
+The menu is locked while a switch is in flight, with the tiles, since deleting the current place
+ends in a switch of its own. The confirmation is withdrawn when its place leaves the list, as a
+cloud change makes it: the id it holds belongs to the cloud it was opened in.

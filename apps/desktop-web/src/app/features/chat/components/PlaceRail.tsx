@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, Plus, User } from 'lucide-react';
+import { Home, Pencil, Plus, Trash2, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -11,8 +11,14 @@ import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
-import { isAtPlaceLimit, PLACE_MAX } from '../utils';
+import { isAtPlaceLimit, isManagedPlace, PLACE_MAX, placeFailure, type PlaceFailure } from '../utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuTrigger,
+} from '@chatic/ui-kit/components/ui/context-menu';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -42,10 +48,23 @@ interface PlaceRailProps {
     /** A cloud/place switch is in flight — disable the tiles to block a second switch. */
     isSwitching?: boolean;
     onSelectPlace: (placeId: string) => void;
-    /** The account may add a place to the active cloud — draws the "new place" tile after the list. */
-    canCreatePlace?: boolean;
+    /**
+     * The account manages the places of the active cloud: draws the "new place" tile after the
+     * list, and gives each place tile its menu.
+     */
+    canManagePlaces?: boolean;
     onCreatePlace?: () => void;
+    onEditPlace?: (placeId: string) => void;
+    /** Deletes the place, rejecting when the server refuses. Asked only after the rail has confirmed. */
+    onDeletePlace?: (placeId: string) => Promise<void>;
 }
+
+// Only the failures a second try can fix say "try again"; a refusal says what it is.
+const DELETE_FAILURE_KEY: Record<PlaceFailure, string> = {
+    denied: 'place.delete.failed.denied',
+    network: 'errors.network',
+    other: 'place.delete.failed',
+};
 
 const tileInitial = (name: string): string => name.trim().charAt(0).toUpperCase() || '#';
 
@@ -61,6 +80,8 @@ interface PlaceTileProps {
     unreadLabel?: string;
     isSwitching?: boolean;
     onSelect: (placeId: string) => void;
+    /** The tile's menu items. A tile without them has no menu at all. */
+    menu?: ReactNode;
 }
 
 /** One place, Figma Workspace Rail style: a 48px icon box with the name under it.
@@ -76,53 +97,67 @@ const PlaceTile = ({
     unreadLabel,
     isSwitching,
     onSelect,
-}: PlaceTileProps) => (
-    <Hint label={name}>
-        <button
-            onClick={() => onSelect(id)}
-            disabled={isSwitching}
-            aria-label={unread > 0 ? unreadLabel : name}
-            aria-current={isActive ? 'true' : undefined}
-            className={cn(
-                'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
-                isSwitching && 'cursor-not-allowed',
-                isSwitching && !isActive && 'opacity-40'
-            )}
-        >
-            <span className="relative">
-                <span
-                    className={cn(
-                        'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                        isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
-                    )}
-                >
-                    {thumbnail ? (
-                        <img src={thumbnail} alt="" className="h-full w-full object-cover" />
-                    ) : glyph ? (
-                        glyph
-                    ) : (
-                        tileInitial(name)
-                    )}
-                </span>
-                {/* A dot, as on the cloud tiles and channel rows. A count here summed
-                    messages across rows that only dot, so "12" pointed at nothing a
-                    row inside would admit to. */}
-                {unread > 0 && (
-                    <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
-                )}
-            </span>
-            <span
+    menu,
+}: PlaceTileProps) => {
+    const tile = (
+        <Hint label={name}>
+            <button
+                onClick={() => onSelect(id)}
+                disabled={isSwitching}
+                aria-label={unread > 0 ? unreadLabel : name}
+                aria-current={isActive ? 'true' : undefined}
                 className={cn(
-                    'max-w-full truncate text-callout font-medium leading-tight transition-colors',
-                    // A faded label measured under AA; the quieter tone is a token that clears it.
-                    isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
+                    'group flex w-full flex-col items-center gap-1 rounded-lg focus-ring',
+                    isSwitching && 'cursor-not-allowed',
+                    isSwitching && !isActive && 'opacity-40'
                 )}
             >
-                {name}
-            </span>
-        </button>
-    </Hint>
-);
+                <span className="relative">
+                    <span
+                        className={cn(
+                            'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
+                            isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
+                        )}
+                    >
+                        {thumbnail ? (
+                            <img src={thumbnail} alt="" className="h-full w-full object-cover" />
+                        ) : glyph ? (
+                            glyph
+                        ) : (
+                            tileInitial(name)
+                        )}
+                    </span>
+                    {/* A dot, as on the cloud tiles and channel rows. A count here summed
+                    messages across rows that only dot, so "12" pointed at nothing a
+                    row inside would admit to. */}
+                    {unread > 0 && (
+                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
+                    )}
+                </span>
+                <span
+                    className={cn(
+                        'max-w-full truncate text-callout font-medium leading-tight transition-colors',
+                        // A faded label measured under AA; the quieter tone is a token that clears it.
+                        isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
+                    )}
+                >
+                    {name}
+                </span>
+            </button>
+        </Hint>
+    );
+    if (!menu) return tile;
+    return (
+        <ContextMenu>
+            <ContextMenuTrigger asChild>
+                {/* Plain wrapper, as on the cloud tiles: composing the Radix trigger onto Hint's
+                    own trigger drops onContextMenu. */}
+                <div className="contents">{tile}</div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-52">{menu}</ContextMenuContent>
+        </ContextMenu>
+    );
+};
 
 /**
  * Second rail. Each icon is a place (a site within the active cloud); selecting
@@ -136,8 +171,10 @@ export const PlaceRail = ({
     isDefaultMode,
     isSwitching,
     onSelectPlace,
-    canCreatePlace,
+    canManagePlaces,
     onCreatePlace,
+    onEditPlace,
+    onDeletePlace,
 }: PlaceRailProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -153,6 +190,48 @@ export const PlaceRail = ({
     const [confirmingLogout, setConfirmingLogout] = useState(false);
 
     const runLogout = () => void resetAccount().finally(() => logout());
+
+    // The place the delete confirmation is about, and whether it is showing. Two values: the place
+    // is kept after the close so the title still names it while the dialog fades out.
+    const [deleteTarget, setDeleteTarget] = useState<DomainPlace | null>(null);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    // Set before the first await, so it is already true when the confirm button's own close runs
+    // in the same click. The state above only arrives with the next render, too late for both that
+    // close and a second click.
+    const deleting = useRef(false);
+
+    // The confirmation names a place of the cloud it was opened in. When that place leaves the
+    // list (a cloud change replaces the list) the question no longer has a subject, and its id
+    // must not be sent to whichever cloud the session is in now.
+    const deleteTargetListed = !!deleteTarget && places.some(place => place.id === deleteTarget.id);
+    useEffect(() => {
+        if (confirmingDelete && !deleteTargetListed && !deleting.current) setConfirmingDelete(false);
+    }, [confirmingDelete, deleteTargetListed]);
+
+    const askToDelete = (place: DomainPlace) => {
+        setDeleteTarget(place);
+        setConfirmingDelete(true);
+    };
+
+    const runDelete = async () => {
+        // A switch that began under the open confirmation locks it as it locks the menu: deleting
+        // the place the session is in would start a second one.
+        if (!deleteTarget || !deleteTargetListed || !onDeletePlace || deleting.current || isSwitching) return;
+        deleting.current = true;
+        setIsDeleting(true);
+        try {
+            await onDeletePlace(deleteTarget.id);
+            toast({ title: t('toast.placeDeleted') });
+        } catch (error) {
+            // The place is still there: the row is only dropped once the server has agreed.
+            toast({ variant: 'destructive', title: t(DELETE_FAILURE_KEY[placeFailure(error, 'DeletePlace')]) });
+        } finally {
+            deleting.current = false;
+            setIsDeleting(false);
+            setConfirmingDelete(false);
+        }
+    };
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
     const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', accountName, photo);
@@ -223,11 +302,40 @@ export const PlaceRail = ({
                                     unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
                                     isSwitching={isSwitching}
                                     onSelect={onSelectPlace}
+                                    menu={
+                                        // The relay subscription row shares the list and is nobody's
+                                        // to edit or delete, so it gets no menu.
+                                        canManagePlaces && isManagedPlace(place) && (onEditPlace || onDeletePlace) ? (
+                                            <>
+                                                {onEditPlace && (
+                                                    <ContextMenuItem
+                                                        disabled={isSwitching}
+                                                        onSelect={() => onEditPlace(place.id)}
+                                                    >
+                                                        <Pencil size={14} aria-hidden />
+                                                        {t('place.edit.action')}
+                                                    </ContextMenuItem>
+                                                )}
+                                                {/* Locked during a switch as well: deleting the place
+                                                    the session is in starts a switch of its own. */}
+                                                {onDeletePlace && (
+                                                    <ContextMenuItem
+                                                        disabled={isSwitching}
+                                                        onSelect={() => askToDelete(place)}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 size={14} aria-hidden />
+                                                        {t('place.delete.action')}
+                                                    </ContextMenuItem>
+                                                )}
+                                            </>
+                                        ) : undefined
+                                    }
                                 />
                             ))}
                             {/* After the list, where a new place will land. A switch in flight locks
                                 it with the tiles: the dialog ends in a switch of its own. */}
-                            {canCreatePlace && onCreatePlace && (
+                            {canManagePlaces && onCreatePlace && (
                                 <PlaceTile
                                     id="create-place"
                                     name={t('place.create.open')}
@@ -296,6 +404,18 @@ export const PlaceRail = ({
                 description={t('rail.menu.logoutGuest.description')}
                 confirmLabel={t('rail.menu.logout')}
                 onConfirm={runLogout}
+            />
+            <ConfirmDialog
+                open={confirmingDelete}
+                // The confirm button closes the dialog as part of its click. While a delete runs
+                // that close is refused, so the confirmation stays up, locked, until the answer.
+                onOpenChange={open => !open && !deleting.current && setConfirmingDelete(false)}
+                title={t('place.delete.title', { name: deleteTarget?.name ?? '' })}
+                description={t('place.delete.description')}
+                confirmLabel={t('place.delete.confirm')}
+                onConfirm={() => void runDelete()}
+                // Locked during a switch too, so the confirm cannot be pressed into the early return above.
+                isPending={isDeleting || !!isSwitching}
             />
         </div>
     );

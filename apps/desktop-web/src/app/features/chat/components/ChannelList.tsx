@@ -524,8 +524,8 @@ export const ChannelList = ({
                 <span className="text-caption text-muted-foreground">
                     {t(isDefaultMode ? 'chat.noChannelsHintDefault' : 'chat.noChannelsHint')}
                 </span>
-                {/* The Channels section (and its "+") only renders with channels in it, so the
-                    empty state carries the create action itself. */}
+                {/* No rows at all means no sections either, so the empty state carries the create
+                    action itself. */}
                 {!isDefaultMode && onCreateChannel && (
                     <button
                         type="button"
@@ -591,6 +591,9 @@ export const ChannelList = ({
     // filter that matches no 1:1 hides it, like every other section.
     const showDmSection =
         visibleDms.length > 0 || memberRows.length > 0 || ((!!onCreateDm || isDefaultMode) && !isFiltering);
+    // Same for channels: a place whose only room is the notes-to-self one has rows, so the empty
+    // state above never shows, and its first channel would have nowhere to start from either.
+    const showChannelSection = visibleRegular.length > 0 || (!isDefaultMode && !!onCreateChannel && !isFiltering);
     // Home has no "+": a 1:1 there starts from a phone number, which only the mobile app does. An
     // empty section says so rather than leaving a heading with nothing under it and no way in.
     const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
@@ -815,7 +818,7 @@ export const ChannelList = ({
                     <Divider />
                 </>
             )}
-            {visibleRegular.length > 0 && (
+            {showChannelSection && (
                 <>
                     <SortableSection
                         id="ch"

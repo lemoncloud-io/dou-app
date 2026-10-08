@@ -59,7 +59,7 @@ describe('canCreatePlace', () => {
         { id: 'joined', name: 'Friends', status: 'active', kind: 'invited' },
     ];
 
-    const allowed = { isGuest: false, isCloudActive: true };
+    const allowed = { isGuest: false, isCloudActive: true, canManage: true };
 
     it('offers a new place inside a cloud the account owns and can open', () => {
         expect(canCreatePlace(clouds, 'mine', allowed)).toBe(true);
@@ -71,6 +71,10 @@ describe('canCreatePlace', () => {
 
     it('does not offer one to a guest account', () => {
         expect(canCreatePlace(clouds, 'mine', { ...allowed, isGuest: true })).toBe(false);
+    });
+
+    it('does not offer one to an account that does not manage places', () => {
+        expect(canCreatePlace(clouds, 'mine', { ...allowed, canManage: false })).toBe(false);
     });
 
     it('does not offer one while the session is not active in a cloud', () => {
