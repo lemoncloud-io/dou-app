@@ -12,6 +12,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Skeleton,
     avatarStyle,
+    isPlaceholderName,
     resolveDisplay,
     useAccountName,
     useCopyToClipboard,
@@ -63,12 +64,23 @@ const SectionTitle = ({ children }: { children: string }) => (
 export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile
-    // and the account email from the active session token.
+    // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile.
+    // `userId` is my uid in the session I am connected to — inside a cloud that is the cloud's own
+    // uid, which is what the place profiles are keyed by.
     const { userId } = runtime.session.useSessionIdentity();
     const { photo } = runtime.session.useRuntimeProfile();
     const accountName = useAccountName();
-    const accountUser = runtime.session.getActiveSessionUser() as { email?: string } | null;
+    // The Account card is about the account, so it reads the relay session. The active session's
+    // user would be the cloud's inside a cloud: another uid, another name and no email, which drew a
+    // signed-in account as a guest and offered it Google sign-in again.
+    const accountUser = runtime.session.getRelaySessionUser() as {
+        uid?: string;
+        id?: string;
+        email?: string;
+        name?: string;
+        userRole?: string;
+    } | null;
+    const accountUid = accountUser?.uid ?? accountUser?.id;
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const { start: startSocialLogin, isStarting } = useSocialLogin();
@@ -103,9 +115,15 @@ export const ProfilePage = () => {
     const placeStateKnown = !!cachedPlaceProfile || placeRead !== null;
 
     const fallback = t('profile.unknown');
-    const name = accountName || fallback;
+    // Same rule as `useAccountName`, for the account's own name: a guest's is a bare UUID.
+    const ownName = isPlaceholderName(accountUser?.name)
+        ? accountUser?.userRole === 'guest'
+            ? t('profile.guestName')
+            : ''
+        : (accountUser?.name ?? '').trim();
+    const name = ownName || fallback;
     const email = accountUser?.email || t('profile.notSet');
-    const uid = userId ?? fallback;
+    const uid = accountUid ?? fallback;
     // No email on the account ⇒ a Guest Session (Social Login backfills the
     // email) — offer the in-app Google link (ADR 0009; replaces the session).
     // Dev-only until the backend can restore joined clouds (see oauth.ts).
@@ -121,7 +139,7 @@ export const ProfilePage = () => {
     const initial = (placeProfile?.nick?.trim() || accountName).charAt(0).toUpperCase() || '?';
 
     const handleCopyUid = () => {
-        if (userId) copy(userId);
+        if (accountUid) copy(accountUid);
     };
 
     return (
@@ -196,7 +214,7 @@ export const ProfilePage = () => {
                         <ProfileField
                             label={t('profile.id')}
                             value={uid}
-                            onCopy={userId ? handleCopyUid : undefined}
+                            onCopy={accountUid ? handleCopyUid : undefined}
                             copied={copied}
                             copyLabel={t('profile.copy')}
                             copiedLabel={t('profile.copied')}
