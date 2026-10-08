@@ -1,4 +1,6 @@
-import { albumAccept, DOCUMENT_ACCEPT, isAppleTouchWebKit, rejectionKey } from './attachSources';
+import { CHAT_ATTACHMENT_ACCEPT } from '@chatic/data';
+
+import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from './attachSources';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15';
 const IPAD_DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15';
@@ -24,12 +26,25 @@ describe('page input accept lists', () => {
     });
 
     it('offers the document formats, by type and extension, and no image type from files', () => {
-        expect(DOCUMENT_ACCEPT.split(',')).toEqual(expect.arrayContaining(['application/pdf', '.hwp', '.hwpx']));
-        expect(DOCUMENT_ACCEPT).not.toContain('image/');
+        expect(documentAccept(true).split(',')).toEqual(expect.arrayContaining(['application/pdf', '.hwp', '.hwpx']));
+        expect(documentAccept(true)).not.toContain('image/');
     });
 
     it('also takes the generic type from files, the only one iOS WebKit lets HWP and HWPX through under', () => {
-        expect(DOCUMENT_ACCEPT.split(',')).toContain('application/octet-stream');
+        expect(documentAccept(true).split(',')).toContain('application/octet-stream');
+    });
+
+    it('offers every server format from files outside iOS WebKit, and nothing past them but the generic type', () => {
+        const accept = documentAccept(false).split(',');
+        expect(accept).toEqual(
+            expect.arrayContaining(['image/png', '.webp', 'video/mp4', '.mp4', 'application/pdf', '.hwpx'])
+        );
+        expect(accept).toEqual([...CHAT_ATTACHMENT_ACCEPT.split(','), 'application/octet-stream']);
+        expect(accept.some(type => type.includes('*'))).toBe(false);
+    });
+
+    it('keeps the documents-only list on iOS WebKit, so its input still opens Files directly', () => {
+        expect(documentAccept(true)).not.toMatch(/image\/|video\//);
     });
 });
 

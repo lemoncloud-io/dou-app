@@ -682,7 +682,8 @@
             "unmute": "알림 켜기",
             "leave": "나가기",
             "delete": "삭제"
-        }
+        },
+        "draft": "초안"
     },
     "channelManage": {
         "title": "채팅방 관리",
@@ -837,7 +838,9 @@
             "codeBlock": {
                 "expand": "자세히 보기 ({{count}}줄)",
                 "collapse": "간략히 보기"
-            }
+            },
+            "openProfile": "{{name}} 프로필 보기",
+            "openMembers": "대화 상대 보기"
         },
         "settings": {
             "title": "방 설정",
@@ -992,7 +995,7 @@
             "limitedNotice": "선택한 사진만 보여요",
             "limitedMore": "더 선택",
             "rejected": {
-                "unsupported": "보낼 수 없는 파일 형식이에요",
+                "unsupported": "보낼 수 없는 파일 형식이에요. 사진(JPG·PNG·GIF·WEBP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·TXT 파일을 보낼 수 있어요",
                 "unsupportedImage": "PNG, JPEG, GIF, WEBP 사진만 보낼 수 있어요",
                 "unsupportedVideo": "이 동영상 형식은 보낼 수 없어요",
                 "too-large": {
@@ -1083,7 +1086,9 @@
                 "savedSomeItems": "{{saved}}개를 저장했어요 · {{failed}}개는 저장하지 못했어요",
                 "savedPhotosVideosNeedUpdate": "사진 {{n}}장을 저장했어요 · 동영상은 앱을 업데이트하면 저장할 수 있어요"
             },
-            "viewerPlay": "동영상 재생"
+            "viewerPlay": "동영상 재생",
+            "pickedFiles": "보낼 파일",
+            "removeFile": "{{name}} 빼기"
         }
     },
     "search": {

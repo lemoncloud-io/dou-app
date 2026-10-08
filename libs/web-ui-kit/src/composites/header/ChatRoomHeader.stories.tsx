@@ -75,6 +75,29 @@ export const GroupWithMemberStack: Story = {
     },
 };
 
+// 1:1 chat whose avatar + name open the peer's profile — the zone is one button.
+export const DirectOpensProfile: Story = {
+    args: {
+        kind: 'direct',
+        title: '<친구 이름>',
+        avatar: <ProfileAvatar src={AVATAR} size={42} />,
+        onIdentityClick: () => undefined,
+        identityLabel: 'View profile',
+    },
+};
+
+// Group whose participant stack opens the member list; the title stays inert.
+export const GroupStackOpensMembers: Story = {
+    args: {
+        kind: 'group',
+        title: '<그룹방 이름>',
+        avatar: <ProfileAvatar src={AVATAR} size={42} />,
+        meta: <AvatarGroup avatars={['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(stackAvatar)} count={50} max={5} />,
+        onMetaClick: () => undefined,
+        metaLabel: 'View members',
+    },
+};
+
 // Self chat — solid-silhouette self glyph (ring) + title, overflow opens a dropdown.
 export const SelfWithMenu: Story = {
     args: {

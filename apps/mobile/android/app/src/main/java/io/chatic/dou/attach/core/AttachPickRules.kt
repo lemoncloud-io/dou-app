@@ -39,11 +39,20 @@ object AttachPickRules {
     const val SWEEP_AGE_MS = 24L * 60 * 60 * 1000
 
     /**
-     * What the documents picker offers: the server's seven document formats, the labels Hancom's own
-     * tools give HWP and HWPX, and `application/octet-stream` — most systems do not know HWP, and a
-     * file they do not know is offered under that type or not at all.
+     * What the documents picker offers: the server's twelve formats — its four photo formats, MP4 and
+     * its seven document formats, so a photo or video kept in Downloads can be sent too — plus the
+     * generic types an HWP the system does not know arrives under: the labels Hancom's own tools give
+     * HWP and HWPX, and `application/octet-stream`, without which such a file is not offered at all. No
+     * wildcard, and no photo or video type the server would refuse (HEIC, QuickTime). A pick from here
+     * is still reported as a [Kind.FILE]; the web tells a photo or a video by its type. Its size limit
+     * is the one its format implies, see [limitKindForDocument].
      */
     val DOCUMENT_MIME_TYPES = listOf(
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "video/mp4",
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -104,6 +113,37 @@ object AttachPickRules {
     fun kindOf(source: Source, mimeType: String?): Kind = when (source) {
         Source.DOCUMENT -> Kind.FILE
         Source.MEDIA -> if (mimeType?.lowercase()?.startsWith("image/") == true) Kind.IMAGE else Kind.VIDEO
+    }
+
+    /** The four photo formats the server takes, by MIME type and by extension. */
+    private val PHOTO_MIME_TYPES = setOf("image/png", "image/jpeg", "image/gif", "image/webp")
+    private val PHOTO_EXTENSIONS = setOf("png", "jpg", "jpeg", "gif", "webp")
+
+    /**
+     * Which kind's size limit a documents-picker item is held to. The item is still reported as a
+     * [Kind.FILE], but the web sends a photo or an MP4 from here as a photo or a video, and the server
+     * caps those at their own limits — so a 120 MB MP4 must not be refused at the file limit, and a
+     * 30 MB PNG must not pass under it. The declared type decides; only when there is none, or it is
+     * `application/octet-stream` (what a provider says when it does not know), does the name's
+     * extension. Anything else is a [Kind.FILE].
+     */
+    fun limitKindForDocument(mimeType: String?, fileName: String?): Kind {
+        val type = mimeType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+        if (type.isNotEmpty() && type != OCTET_STREAM) {
+            return when {
+                type in PHOTO_MIME_TYPES -> Kind.IMAGE
+                type == "video/mp4" -> Kind.VIDEO
+                else -> Kind.FILE
+            }
+        }
+        val name = fileName.orEmpty()
+        val dot = name.lastIndexOf('.')
+        val extension = if (dot > 0) name.substring(dot + 1).lowercase() else ""
+        return when {
+            extension in PHOTO_EXTENSIONS -> Kind.IMAGE
+            extension == "mp4" -> Kind.VIDEO
+            else -> Kind.FILE
+        }
     }
 
     /** The content type to report: as the OS declared it, or `application/octet-stream` when it does not know. */

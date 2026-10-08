@@ -77,11 +77,11 @@ videos too, in an app that has them (below).
 
 The second sheet's two entries depend on the shell too:
 
-| Shell                                   | Choose from album / Choose from files                                                                                    |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app                              |
-| app built before the picker, or browser | the page's own file input: photos and `mp4`, or the seven document formats (and any file, judged after the pick — below) |
-| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from                                      |
+| Shell                                   | Choose from album / Choose from files                                                                                       |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app                                 |
+| app built before the picker, or browser | the page's own file input: photos and `mp4`, or every format the server takes (and any file, judged after the pick — below) |
+| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from                                         |
 
 In the app the shell copies what was picked into its own folder and answers with addresses, never
 bytes (`bridge/attachmentPicker.ts`). Photos picked alongside are kept there too, already prepared like
@@ -89,7 +89,12 @@ the grid's, and the page reads their bytes one photo at a time (`ReadAttachment`
 pick order: the page resizes every photo itself, and ten photos in the pick's own answer would be some
 200MB of base64, enough to take the WebView down — the grid reads one at a time for the same reason. A
 photo whose read fails is refused alone, as `unreadable`. The pick resolves once every photo is read,
-so the pending row appears with all of them.
+so the pending row appears with all of them. That is the album's pick, which goes out at once. The
+documents picker's pick waits above the field (below), so a photo in it — the documents picker offers
+the four photo formats too — stays in the shell as an address while it waits, and is read the same way,
+one at a time, only when the send button is pressed (`readPhotos`). A waiting photo costs the page no
+memory, and one over the 20MB photo limit is refused when it is picked, by the size the shell reported,
+before any of its bytes cross the bridge.
 
 The page asks at the tap, since the message itself opens the picker. An app without it answers
 `NOT_FOUND` within one round trip, and the page then opens its own input in the same tap — as long as
@@ -102,8 +107,10 @@ all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
 
-The files input asks for the seven document formats by type and by extension, and for the generic
-`application/octet-stream` as well. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
+The files input asks for every format the server takes — photos and `mp4` kept among files can go from
+there too — by type and by extension, and for the generic `application/octet-stream` as well
+(`documentAccept`). On iOS and iPadOS WebKit it names the seven document formats only, since an image
+or video type there makes the system offer the photo library and the camera first. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
 against the type the Files app gives such a file, so the seven alone grey HWP and HWPX out of its
 document picker; the generic type admits them, and with them any other file. That is safe because the
 page judges every pick itself (`chatAttachmentFormat`, which reads an untyped file's extension) and
@@ -195,8 +202,42 @@ The grid's and the editor's "N장 보내기" send the photos alone and leave the
 sending from either closes the panel too. A caption whose pick turned out to have nothing that passed
 the check goes back into the field (`onUnsentText`), unless something new was typed meanwhile.
 
+**Files wait above the field too.** What "choose from files" gives — from the app's documents picker
+or the page's files input — is not sent at the pick. It is judged then, exactly as any pick is, with
+the one notice for the first reason met, and what passes waits directly above the composer's field as
+a row of chips (the kit's `PickedFileStrip`: the kind's glyph, the name cut short with its extension
+kept, the size, and ×), under the photo thumbnails when both wait. The composer's send button is live
+for them, empty field or not, and sends them with whatever is typed as the message's caption — one
+message. With an in-app pick waiting as well, the press reads the pick first and sends the photos and
+the files together as one message, photos first; the "묶어 보내기" box is the grid's and speaks for its
+photos alone, so it does not split that message. A photo among the files that is still in the app is
+read at this press, before the in-app pick: one that cannot be read is refused alone under the
+`unreadable` notice and the rest still go, and a read that fails outright keeps the files and the
+in-app pick waiting and puts the caption back, as a pick that cannot be read does. The grid's and the editor's "N장 보내기" send the photos alone and leave the
+files waiting. Files picked again join the row after those already there; the same page file picked a
+second time is refused as `duplicate`. The per-message ten counts the waiting files and the in-app pick
+together: past it a file is refused under the `limit` notice, the app's files picker is asked for no
+more than the room left (and not opened at all, with the notice, when there is none), and the grid and
+the recent row lock their unpicked tiles at what is left. Only × on a chip, and the send, let a file go
+— closing the panel, × and Escape included, does not, since the file was never in it. **The waiting
+files are kept per room or thread**, as part of its composer draft (`useComposerDraftStore`, in memory
+only, never written out; [chat-room.md](./chat-room.md#the-composers-draft)): the hook takes a `scope`
+— the channel id, or `channelId#rootNo` for a thread — and when it changes, puts the new
+conversation's files in place before it paints, and lets the in-app pick and the panel go. That covers
+leaving the room and coming back while the app runs, and the router keeping `ChannelRoomPage` and
+`ThreadPage` mounted when only their params change (a push banner tapped in one room opens another):
+a file picked for one room is never sent from the next. A send that finishes reading after the
+composer moved on still takes the sent files out of the conversation they waited in. Without a
+`scope` the hook keeps nothing. A composer lock hides the
+row and holds the send; while a send reads the in-app pick or the waiting photos the row fades with the
+thumbnails and the button waits, so the files cannot go twice. A file from the app — a photo included —
+is only an address in the page; one left waiting for a day can be swept from the app's folder, and
+then fails at the send as any gone shell file does. In a browser, where the in-app pick does not exist,
+`strip` is rendered only while a file waits.
+
 **What lets the pick go:** sending it, unpicking, × or Escape (back) on the panel, and leaving the
-room. Focusing the field, camera, "files" and a composer lock close the panel and keep the pick, so a
+room — moving to another room or thread in the same page included: unlike the waiting files, the
+in-app pick is not part of the room's draft. Focusing the field, camera, "files" and a composer lock close the panel and keep the pick, so a
 caption can be typed after picking.
 
 **The pick waits above the field.** Whenever some of the pick is out of sight — the panel is closed
@@ -354,11 +395,12 @@ own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked t
 refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
 video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
 is shown once, naming the kind whose limit was passed or what an unknown format looked like. From the
-file inputs, the camera and the app's own picker, whatever passes is sent at once — there is no tray
-and no confirmation, the pick is the send. The in-app pick — the panel's recent row and the grid —
-waits for a send button, and before it is pressed it can be edited, split into one message each and
-given a caption (above, and ADR-0179, which narrows ADR-0123's "the pick is the send" to the other
-paths). A grid photo whose edit could not
+photos entry's input, the camera and "choose from album", whatever passes is sent at once — there is
+no tray and no confirmation, the pick is the send. The in-app pick — the panel's recent row and the
+grid — waits for a send button, and before it is pressed it can be edited, split into one message each
+and given a caption (above, and ADR-0179, which narrows ADR-0123's "the pick is the send" to the other
+paths). "Choose from files" waits for the send button too, above the field, and takes the typed text as
+its caption (above, and ADR-0182). A grid photo whose edit could not
 be drawn is refused alone, and its notice ("편집한 사진을 만들지 못했어요") is the one shown for that pick,
 ahead of any other reason.
 
@@ -610,7 +652,7 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/utils/bakePhotoEdit \
   apps/web/src/app/features/channels/pages/ChannelRoomPage apps/web/src/app/features/channels/pages/ThreadPage
 npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage \
-  AttachPanel MessageInput
+  AttachPanel MessageInput PickedFileStrip
 ```
 
 The panel's place and motion need a device, iOS and Android both, since their keyboards report at

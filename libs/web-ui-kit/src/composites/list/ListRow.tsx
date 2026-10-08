@@ -9,6 +9,14 @@ export interface ListRowProps extends Omit<React.HTMLAttributes<HTMLElement>, 't
     title: React.ReactNode;
     /** Secondary text below the title. */
     subtitle?: React.ReactNode;
+    /**
+     * A small glyph leading the subtitle's line, in the subtitle's own colour — what the line is, when
+     * it is not what it usually is (e.g. a pencil on a chat row showing the unsent draft instead of the
+     * last message). A glyph rather than a coloured word keeps the row's only colour for what needs
+     * attention (the unread badge), and leaves the line's width to the text. Shown even without a
+     * subtitle; give it its own accessible name.
+     */
+    subtitleIcon?: React.ReactNode;
     /** Trailing slot (chevron / toggle / badge). */
     trailing?: React.ReactNode;
     /** Renders the title in the destructive color (e.g. Delete room). */
@@ -31,6 +39,7 @@ export const ListRow = ({
     leading,
     title,
     subtitle,
+    subtitleIcon,
     trailing,
     destructive = false,
     onClick,
@@ -59,7 +68,16 @@ export const ListRow = ({
                 >
                     {title}
                 </span>
-                {subtitle && <span className="truncate text-[14px] leading-[1.4] text-description">{subtitle}</span>}
+                {(subtitle || subtitleIcon) && (
+                    <span className="truncate text-[14px] leading-[1.4] text-description">
+                        {subtitleIcon && (
+                            <span className="mr-1 inline-flex align-[-2px]" data-slot="subtitle-icon">
+                                {subtitleIcon}
+                            </span>
+                        )}
+                        {subtitle}
+                    </span>
+                )}
             </span>
             {trailing && <span className="flex shrink-0 items-center">{trailing}</span>}
         </Root>

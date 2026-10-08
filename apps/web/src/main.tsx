@@ -15,6 +15,7 @@ import { migrateLegacyPreferences, syncThemeFromSharedKey } from './app/config/l
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
+import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
@@ -98,6 +99,10 @@ runtime.boot.initAppRuntime({
         repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
     },
 });
+
+// A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
+// next account on this device never opens a room onto them.
+runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
 
 // Read the previous session's fate — a session that died without a clean
 // pagehide is logged as page-crash (ADR-0097 S7). It carries no buffer: the dead

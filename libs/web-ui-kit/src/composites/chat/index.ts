@@ -14,3 +14,4 @@ export * from './AttachSourceSheet';
 export * from './MessageMediaTiles';
 export * from './MessageFileCard';
 export * from './messageFile';
+export * from './PickedFileStrip';

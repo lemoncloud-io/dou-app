@@ -84,6 +84,12 @@ export interface ChannelMessageRowProps {
     onOpenThread?: () => void;
     /** The in-place editor, when this message is the one being edited. Absent means read. */
     edit?: MessageEditState;
+    /**
+     * Opens the sender's profile from their avatar or name. Handed exactly the name and photo this
+     * row drew, so the profile can never introduce the person differently from the row it was opened
+     * from. Absent leaves both inert.
+     */
+    onOpenProfile?: (sender: MessageSender) => void;
 }
 
 /**
@@ -98,6 +104,13 @@ export interface MessageEditState {
     hasFailed: boolean;
     onSave: () => void;
     onCancel: () => void;
+}
+
+/** Who sent a row, as the row drew them. */
+export interface MessageSender {
+    id: string;
+    name: string;
+    avatar?: string | null;
 }
 
 /**
@@ -130,6 +143,7 @@ export const ChannelMessageRow = ({
     formatThreadTime,
     onOpenThread,
     edit,
+    onOpenProfile,
 }: ChannelMessageRowProps) => {
     const { t } = useTranslation();
     const mine = message.isOwner;
@@ -295,11 +309,31 @@ export const ChannelMessageRow = ({
     // Avatar slot for `other` rows — the real avatar on the first message of a
     // group, a same-size spacer otherwise so stacked bubbles stay aligned. 32px
     // matches the Figma message-row avatar (node 3209:27250).
+    const avatarImage = ownerAvatar ? (
+        <ImageAvatar src={ownerAvatar} alt={ownerDisplayName} size={32} />
+    ) : (
+        <DefaultAvatar size={32} />
+    );
+    // Only a row that shows its sender opens the sender: mine never does, a grouped follow-up has
+    // no avatar to press, and a row with no owner id has nobody to open.
+    const openProfile =
+        onOpenProfile && !mine && showProfileAndName && message.ownerId
+            ? () => onOpenProfile({ id: message.ownerId as string, name: ownerDisplayName, avatar: ownerAvatar })
+            : undefined;
     const avatar = mine ? undefined : showProfileAndName ? (
-        ownerAvatar ? (
-            <ImageAvatar src={ownerAvatar} alt={ownerDisplayName} size={32} />
+        openProfile ? (
+            // A real button, outside the bubble's long-press target, so a tap here never reaches
+            // the action sheet or the image viewer.
+            <button
+                type="button"
+                onClick={openProfile}
+                aria-label={t('chat.room.openProfile', { name: ownerDisplayName })}
+                className="block rounded-full"
+            >
+                {avatarImage}
+            </button>
         ) : (
-            <DefaultAvatar size={32} />
+            avatarImage
         )
     ) : (
         <span className="block size-[32px] shrink-0" />
@@ -389,7 +423,23 @@ export const ChannelMessageRow = ({
             wide={!!drawnBlocks}
             className={cn(!showProfileAndName && '-mt-1')}
         >
-            {!mine && showProfileAndName && <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>}
+            {!mine &&
+                showProfileAndName &&
+                (openProfile ? (
+                    // The avatar is the labelled control; the name is a second, larger target for the
+                    // same action, kept out of the tab order so a keyboard meets it once.
+                    <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-hidden
+                        onClick={openProfile}
+                        className="text-left text-xs text-muted-foreground"
+                    >
+                        {ownerDisplayName}
+                    </button>
+                ) : (
+                    <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>
+                ))}
             {/* `w-full` rather than shrink-to-fit. A fenced block's `whitespace-pre` line has no
                 break opportunity, so its min-content contribution is the WHOLE line, and every
                 shrink-to-fit ancestor (this row, the bubble's `w-fit`) is obliged to honour it —

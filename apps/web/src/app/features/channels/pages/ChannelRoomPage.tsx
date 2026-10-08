@@ -22,14 +22,16 @@ import {
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
-import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { useComposerDraft } from '../hooks/useComposerDraft';
 import { useSendImages } from '../hooks/useSendImages';
 import { isPendingImageChat } from '../utils/imageTiles';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DmInviteFooter } from '../components/DmInviteFooter';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
+import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { MessageDetailDialog } from '../components/MessageDetailDialog';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
@@ -102,7 +104,9 @@ export const ChannelRoomPage = () => {
     const location = useLocation();
 
     // UI state management
-    const [content, setContent] = useState('');
+    // The composer's text is this room's draft: kept when the room is left, and swapped when the route
+    // moves to another room without remounting. Keyed like `stableChannelId` below.
+    const [content, setContent] = useComposerDraft(channelId || 'default');
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     // The long-pressed message the action sheet targets (null = sheet closed).
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
@@ -111,6 +115,12 @@ export const ChannelRoomPage = () => {
     // of the chip that was long-pressed (which tab the sheet opens on).
     const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
+    // The person whose profile was last opened over the room: a snapshot of what the row or the
+    // header showed when it was tapped, so the profile names them the way the tap target did. It is
+    // kept after closing so the dialog still shows them while it slides away; `profileOpen` is the
+    // open state.
+    const [profileTarget, setProfileTarget] = useState<MessageSender | null>(null);
+    const [profileOpen, setProfileOpen] = useState(false);
 
     // State for the floating pill that shows the date group crossing the top edge while scrolling
     const [floatingDate, setFloatingDate] = useState('');
@@ -401,6 +411,8 @@ export const ChannelRoomPage = () => {
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
         disabled: composerLocked,
+        // The route keeps this page mounted from one room to the next; what waits is this room's.
+        scope: stableChannelId,
         inputRef,
         composerRef,
         // The attach panel's slide moves the composer on every frame. The list keeps clear of it in the
@@ -706,6 +718,19 @@ export const ChannelRoomPage = () => {
         [navigate, stableChannelId]
     );
 
+    // A sender's avatar or name, or a 1:1's header. My own profile is never opened here: my rows
+    // are inert and a 1:1 peer is by definition not me, so reaching this with my id is a roster
+    // glitch. Opening it would offer "profile settings" without the editor behind it, which this
+    // room does not mount — that path stays on the settings screen.
+    const openMemberProfile = useCallback(
+        (sender: MessageSender) => {
+            if (!sender.id || sender.id === userId) return;
+            setProfileTarget(sender);
+            setProfileOpen(true);
+        },
+        [userId]
+    );
+
     // One tap on the action sheet's quick row (or a pick from the full sheet): toggle
     // against the folded state — hasMyReaction matches on the normalised fold key, so
     // an emoji differing only by variation selector still turns mine off.
@@ -905,6 +930,14 @@ export const ChannelRoomPage = () => {
               return <AvatarGroup avatars={avatars} count={channel?.memberCount ?? 1} max={5} />;
           })();
 
+    // The peer as their profile introduces them: the same naming chain the rows use and the peer's
+    // place-profile photo, the one the header already shows. Null outside a 1:1, or while the roster
+    // has not named the peer yet.
+    const dmProfile: MessageSender | null =
+        isDmChat && dmPeer?.id
+            ? { id: dmPeer.id, name: resolveUserName(dmPeer.id, nameSources), avatar: dmPeer.thumbnail }
+            : null;
+
     // The thread's opening description block — one per stereo (see RoomIntro). It is not an empty
     // state: it renders in the empty branch AND at the top of a live thread, so it survives the
     // first message. A DM cannot be invited into, and a guest / inactive cloud cannot issue one.
@@ -976,6 +1009,20 @@ export const ChannelRoomPage = () => {
                     // showing that for a beat reads as having opened the wrong room.
                     loading={isChannelLoading}
                     onBack={() => navigate(-1)}
+                    // A 1:1's avatar and title are the peer, so they open the peer's profile.
+                    onIdentityClick={dmProfile ? () => openMemberProfile(dmProfile) : undefined}
+                    identityLabel={dmProfile ? t('chat.room.openProfile', { name: dmProfile.name }) : undefined}
+                    // A group's participant stack opens the screen that lists everyone — settings,
+                    // the same way the ⋯ menu reaches it. Plain `navigate`: no menu to wait out.
+                    onMetaClick={
+                        isGroupChat
+                            ? () =>
+                                  navigate(ROUTES.channels.settings(stableChannelId), {
+                                      state: { roomDistance: 1 },
+                                  })
+                            : undefined
+                    }
+                    metaLabel={isGroupChat ? t('chat.room.openMembers') : undefined}
                     moreMenu={
                         <DropdownMenuItem
                             onClick={() =>
@@ -1215,6 +1262,7 @@ export const ChannelRoomPage = () => {
                                                             onOpenThread={
                                                                 message.chatNo ? () => openThread(message) : undefined
                                                             }
+                                                            onOpenProfile={openMemberProfile}
                                                         />
                                                     </StackInRow>
                                                 );
@@ -1302,6 +1350,20 @@ export const ChannelRoomPage = () => {
             {attach.overlays}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
+
+            {/* View and report only. Removing a member stays on the settings screen, where the
+                roster it changes is in view; my own profile is never opened from here (see
+                `openMemberProfile`), so the self row and its editor are not wired. */}
+            {/* Mounted from the first tap on, so a room nobody opens a profile in never builds it. */}
+            {profileTarget && (
+                <MemberProfileDialog
+                    open={profileOpen}
+                    onOpenChange={setProfileOpen}
+                    member={profileTarget}
+                    memberIsOwner={profileTarget.id === channel?.ownerId}
+                    canKick={false}
+                />
+            )}
 
             <MessageActionSheet
                 open={!!actionMessage && !emojiPickerOpen}

@@ -18,14 +18,28 @@ export const albumAccept = (appleTouchWebKit: boolean): string =>
     chatAttachmentAccept(appleTouchWebKit ? ['image'] : ['image', 'video']);
 
 /**
- * What the page's own "choose from files" input takes: the server's seven document formats, plus the
- * generic `application/octet-stream`. iOS WebKit matches neither HWP's MIME types nor its `.hwp`/`.hwpx`
- * extensions against the type Files gives such a file, so with the seven alone it greys HWP and HWPX
- * out. The generic type is what lets them through — and with them any other file, which the page's own
- * judgement (`chatAttachmentFormat`) then refuses. It keeps the document picker opening directly, where
- * no `accept` at all would first offer the photo library and the camera.
+ * What the page's own "choose from files" input takes on iOS and iPadOS WebKit: the server's seven
+ * document formats, plus the generic `application/octet-stream`. iOS WebKit matches neither HWP's MIME
+ * types nor its `.hwp`/`.hwpx` extensions against the type Files gives such a file, so with the seven
+ * alone it greys HWP and HWPX out. The generic type is what lets them through — and with them any other
+ * file, photos and MP4s in Files included, which the page's own judgement (`chatAttachmentFormat`) then
+ * takes or refuses. It keeps the document picker opening directly, where no `accept` at all, or an
+ * image or video type in it, would first offer the photo library and the camera.
  */
-export const DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'])},application/octet-stream`;
+const APPLE_DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'])},application/octet-stream`;
+
+/**
+ * What the page's own "choose from files" input takes: every format the server takes, so a photo or an
+ * MP4 kept among files can be sent from here too, and nothing it would refuse. On iOS WebKit that is
+ * `APPLE_DOCUMENT_ACCEPT`, which already lets any Files item through by the generic type, and must not name
+ * an image or video type (see there). Elsewhere — Android's WebView, desktop browsers — the twelve
+ * formats are named outright, plus the generic type, under which a system that does not know HWP
+ * offers it.
+ */
+export const documentAccept = (appleTouchWebKit: boolean): string =>
+    appleTouchWebKit
+        ? APPLE_DOCUMENT_ACCEPT
+        : `${chatAttachmentAccept(['image', 'video', 'file'])},application/octet-stream`;
 
 const typeOf = (item: ChatAttachmentSource): string => item.type;
 

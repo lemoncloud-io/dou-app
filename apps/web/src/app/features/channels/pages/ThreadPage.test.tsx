@@ -14,9 +14,10 @@ let mockHasMore = false;
 let mockCanLoadMore = true;
 const mockLoadMore = jest.fn();
 const mockSendMessage = jest.fn();
+let mockRootNo = '7';
 
 jest.mock('react-router-dom', () => ({
-    useParams: () => ({ channelId: 'ch1', rootNo: '7' }),
+    useParams: () => ({ channelId: 'ch1', rootNo: mockRootNo }),
     useLocation: () => ({ state: mockLocationState }),
 }));
 jest.mock('react-i18next', () => ({
@@ -185,6 +186,7 @@ jest.mock('../hooks', () => ({
 }));
 
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { useComposerDraftStore } from '../stores/useComposerDraftStore';
 import { ThreadPage } from './ThreadPage';
 
 const chat = (over: Partial<DomainChat> = {}): DomainChat =>
@@ -198,6 +200,9 @@ beforeAll(() => {
 
 beforeEach(() => {
     mockLocationState = null;
+    mockRootNo = '7';
+    // The composer's draft store is the real one: each case starts with no draft anywhere.
+    useComposerDraftStore.setState({ texts: {}, held: {} });
     mockChats = [];
     mockIsLoading = false;
     mockChannel = { id: 'ch1', stereo: 'group' };
@@ -684,5 +689,63 @@ describe('ThreadPage — a deleted root', () => {
 
         expect(screen.queryByTestId('root-images')).not.toBeInTheDocument();
         expect(screen.queryByTestId('root-chips')).not.toBeInTheDocument();
+    });
+});
+
+describe('ThreadPage — the composer draft', () => {
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+    const drafts = () => useComposerDraftStore.getState().texts;
+
+    beforeEach(() => {
+        mockAttachReady = false;
+        mockSendPicked.mockReset().mockReturnValue(true);
+        mockChats = [chat(), chat({ id: 'ch1:8', chatNo: 8, content: 'another root' })];
+    });
+
+    it('keeps the thread’s draft under the thread, apart from the room’s', () => {
+        useComposerDraftStore.getState().setText('ch1', 'for the room');
+        useComposerDraftStore.getState().setText('ch1#7', 'for the thread');
+        render(<ThreadPage />);
+
+        expect(field().value).toBe('for the thread');
+        expect(mockAttachInputs.at(-1)).toMatchObject({ scope: 'ch1#7' });
+        fireEvent.change(field(), { target: { value: 'typed in the thread' } });
+        expect(drafts()).toEqual({ ch1: 'for the room', 'ch1#7': 'typed in the thread' });
+    });
+
+    it('swaps to the next thread’s draft when the route moves without remounting', () => {
+        useComposerDraftStore.getState().setText('ch1#8', 'for thread 8');
+        const { rerender } = render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: 'for thread 7' } });
+
+        mockRootNo = '8';
+        rerender(<ThreadPage />);
+        expect(field().value).toBe('for thread 8');
+        expect(mockAttachInputs.at(-1)).toMatchObject({ scope: 'ch1#8' });
+
+        mockRootNo = '7';
+        rerender(<ThreadPage />);
+        expect(field().value).toBe('for thread 7');
+    });
+
+    it('lets the draft go once the reply is sent', () => {
+        useComposerDraftStore.getState().setText('ch1#7', 'hello');
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).toHaveBeenCalledTimes(1);
+        expect(drafts()).toEqual({});
+    });
+
+    it('lets the draft go once it is sent as a caption', () => {
+        mockAttachReady = true;
+        useComposerDraftStore.getState().setText('ch1#7', 'hello');
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(drafts()).toEqual({});
     });
 });

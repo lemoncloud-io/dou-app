@@ -131,6 +131,42 @@ enum AttachmentPickerCore {
         }
     }
 
+    /// The longest name, in UTF-8 bytes, a file system holds.
+    static let maxNameBytes = 255
+
+    /// The name a documents-picker copy is written under: `name` (already through `diskName`), with
+    /// the photo extension its type implies appended when the type is one of the four photo formats
+    /// and the name does not already end in a matching extension. `readAttachment` decides a picked
+    /// photo's type from its extension alone, so a PNG named `scan` in Files could otherwise be sent
+    /// but never read back. The base is cut, on a character boundary, so the result still fits
+    /// `maxNameBytes`. Any other item keeps its name.
+    static func documentName(_ name: String, mimeType: String?) -> String {
+        guard let type = normalizedMimeType(mimeType), let ext = photoExtension(mimeType: type) else { return name }
+        if photoMimeType(fileExtension: (name as NSString).pathExtension) == type { return name }
+        let suffix = ".\(ext)"
+        var base = name
+        while !base.isEmpty, base.utf8.count + suffix.utf8.count > maxNameBytes { base.removeLast() }
+        return "\(base.isEmpty ? "photo" : base)\(suffix)"
+    }
+
+    /// The extension a photo of one of the server's four types is written with.
+    static func photoExtension(mimeType: String) -> String? {
+        switch mimeType {
+        case "image/jpeg": return "jpg"
+        case "image/png": return "png"
+        case "image/gif": return "gif"
+        case "image/webp": return "webp"
+        default: return nil
+        }
+    }
+
+    /// A MIME type without parameters, lower-cased; `nil` when there is none.
+    private static func normalizedMimeType(_ raw: String?) -> String? {
+        let type = (raw ?? "").split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+        return type.isEmpty ? nil : type
+    }
+
     // MARK: - Pick-time refusal
 
     enum Kind: String {
@@ -158,6 +194,22 @@ enum AttachmentPickerCore {
         case .file: limit = max.file
         }
         return limit > 0 && size > limit
+    }
+
+    /// Which kind's limit a documents-picker item is held to, and refused under. The item is still
+    /// reported as a file, but the web sends a photo or an MP4 from Files as a photo or a video and the
+    /// server caps those at their own limits — so a 120 MB MP4 must not be refused at the file limit,
+    /// and a 30 MB PNG must not pass under it. The system's type decides; only when there is none, or
+    /// it is `application/octet-stream`, does the name's extension. Anything else is a file. The copy
+    /// is sent as it is, never converted, so the caller checks it with `needsExport: false`.
+    static func limitKindForDocument(mimeType: String?, fileName: String?) -> Kind {
+        if let type = normalizedMimeType(mimeType), type != "application/octet-stream" {
+            if photoExtension(mimeType: type) != nil { return .image }
+            return type == "video/mp4" ? .video : .file
+        }
+        let ext = ((fileName ?? "") as NSString).pathExtension
+        if photoMimeType(fileExtension: ext) != nil { return .image }
+        return ext.lowercased() == "mp4" ? .video : .file
     }
 
     /// What `pick` opens for: at least one item, so a picker is never opened without a limit.

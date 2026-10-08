@@ -682,7 +682,8 @@
             "unmute": "Unmute",
             "leave": "Leave",
             "delete": "Delete"
-        }
+        },
+        "draft": "Draft"
     },
     "channelManage": {
         "title": "Manage chats",
@@ -837,7 +838,9 @@
             "codeBlock": {
                 "expand": "View more ({{count}} lines)",
                 "collapse": "View less"
-            }
+            },
+            "openProfile": "View {{name}}'s profile",
+            "openMembers": "View members"
         },
         "settings": {
             "title": "Room Settings",
@@ -992,7 +995,7 @@
             "limitedNotice": "Only the photos you chose are shown",
             "limitedMore": "Choose more",
             "rejected": {
-                "unsupported": "This file type can't be sent",
+                "unsupported": "This file type can't be sent. You can send photos (JPG, PNG, GIF, WEBP), MP4 videos, and PDF, Word, Excel, PowerPoint, Hangul (HWP) and TXT files",
                 "unsupportedImage": "Only PNG, JPEG, GIF and WEBP photos can be sent",
                 "unsupportedVideo": "This video format can't be sent",
                 "too-large": {
@@ -1083,7 +1086,9 @@
                 "savedSomeItems": "{{saved}} saved · {{failed}} failed",
                 "savedPhotosVideosNeedUpdate": "Saved {{n}} photos · videos can be saved after updating the app"
             },
-            "viewerPlay": "Play video"
+            "viewerPlay": "Play video",
+            "pickedFiles": "Files to send",
+            "removeFile": "Remove {{name}}"
         }
     },
     "search": {
