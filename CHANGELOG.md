@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-08] - root@0.89.0, @chatic/desktop-web@0.22.0
+
+### Features
+
+- (desktop-web,data) delete a place from its rail tile, server first
+- (desktop-web) edit a place's name and photo from its rail tile
+- (desktop-web) offer a new place to admins, not to every owner
+
+### Bug Fixes
+
+- (desktop-web) keep the channel "+" in a place with no channel yet
+- (desktop-web) read the dev sign-in address from the token's loginId
+- (desktop-web) keep the dev sign-in list shut without a build stage
+- (data,desktop-web) take back a field a refused place update added
+
 ## [2026-10-08] - root@0.88.0, @chatic/desktop-web@0.21.0
 
 ### Features
