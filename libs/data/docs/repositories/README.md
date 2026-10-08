@@ -95,7 +95,7 @@ classDiagram
         <<interface>>
         +observeList(query, cb) Unsubscribe
         +observeLastList(channelIds, cb) Unsubscribe
-        +refreshList(query) Promise
+        +refreshList(query, options?) Promise
         +sendChat(payload) Promise
         +cacheClearByChannelId(channelId) Promise
     }

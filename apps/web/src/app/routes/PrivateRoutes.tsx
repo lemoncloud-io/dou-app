@@ -4,8 +4,9 @@ import { HomeRoutes } from '../features/home';
 import { UnifiedLayout } from '../ui/layouts';
 import { InviteEntryGate } from './InviteEntryGate';
 import { useBootSplashHold } from '../runtime/bootSplash';
+import { loadChannelRoutes, usePreloadOnIdle } from './routeChunks';
 
-const ChannelRoutes = lazy(() => import('../features/channels').then(m => ({ default: m.ChannelRoutes })));
+const ChannelRoutes = lazy(() => loadChannelRoutes().then(m => ({ default: m.ChannelRoutes })));
 const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.MyPageRoutes })));
 const SubscriptionRoutes = lazy(() =>
     import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
@@ -78,15 +79,18 @@ const withSuspense = (Component: React.ComponentType) => (
  * `EmailBindRequestHost` is the same seam for `stores/useEmailBindRequest` — answers a request from
  * anywhere a cloud with no email is noticed (the switcher's unbound row, "구독 관리"'s banner).
  */
-const PrivateShell = () => (
-    <>
-        <UnifiedLayout />
-        <Suspense fallback={null}>
-            <AddCloudFlowHost />
-            <EmailBindRequestHost />
-        </Suspense>
-    </>
-);
+const PrivateShell = () => {
+    usePreloadOnIdle(loadChannelRoutes);
+    return (
+        <>
+            <UnifiedLayout />
+            <Suspense fallback={null}>
+                <AddCloudFlowHost />
+                <EmailBindRequestHost />
+            </Suspense>
+        </>
+    );
+};
 
 export const privateRoutes = [
     {

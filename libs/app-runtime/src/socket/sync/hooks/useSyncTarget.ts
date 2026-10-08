@@ -4,9 +4,10 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import { logger } from '@chatic/bridges';
-import { endActivePerfTrace, getActivePerfTrace } from '@chatic/perf';
+import { getActivePerfTrace } from '@chatic/perf';
 
 import { getSyncManager } from '../runtime';
+import { fetchRoomFeed } from '../roomFeed';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
@@ -111,24 +112,10 @@ const usePrimeChat = (channelId: string | undefined, cid: string): ChatSyncState
             );
 
             // Cold cache: only here do we fetch — a warm room reads from cache and streams via push.
-            if (lastNo === 0) {
-                // The first fetch for a trace owns it; a later one (a re-verification) would only
-                // overwrite what describes the fetch the room actually waited on.
-                const active = getActivePerfTrace('chat_room_sync', channelId);
-                const trace = active && !active.hasMetric('feed_sent') ? active : undefined;
-                trace?.putAttribute('cache', 'miss');
-                trace?.mark('feed_sent');
-                const result = await repos.chat.refreshList({ channelId });
-                trace?.putMetric('fetched', result.fetchedCount);
-                trace?.putMetric('latest_no', result.latestNo);
-                trace?.mark('feed_done');
-                // Nothing written means no list re-emission for the page to wait on: the room is as
-                // synced as it will get, so the trace ends here.
-                if (trace && result.fetchedCount === 0) endActivePerfTrace('chat_room_sync', channelId, 'synced');
-            }
+            // A fetch the tap already started for this room is joined rather than sent again.
+            if (lastNo === 0) await fetchRoomFeed(cid, channelId, { cache: 'miss' });
             settle('ready');
         })().catch(error => {
-            endActivePerfTrace('chat_room_sync', channelId, 'error');
             logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', {
                 error,
                 data: { channelId, cid },

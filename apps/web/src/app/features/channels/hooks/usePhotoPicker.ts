@@ -606,8 +606,9 @@ export const usePhotoPicker = ({
     );
 
     const setVisibleRange = useCallback((range: PhotoGridRange) => {
-        if (range.start !== rangeRef.current.start)
-            {directionRef.current = range.start > rangeRef.current.start ? 1 : -1;}
+        if (range.start !== rangeRef.current.start) {
+            directionRef.current = range.start > rangeRef.current.start ? 1 : -1;
+        }
         rangeRef.current = range;
         pumpRef.current();
     }, []);

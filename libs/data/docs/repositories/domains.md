@@ -30,7 +30,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Chat
 
-`observeList` · `observeLastList` · `refreshList(query)` · `getChat` · `sendChat` · `updateChat` ·
+`observeList` · `observeLastList` · `refreshList(query, options?)` · `getChat` · `sendChat` · `updateChat` ·
 `deleteChat` · `setReaction` · `cache*` · `cacheClearByChannelId(channelId)` · `startUploads` ·
 `completeUploads` · `createPendingImageChat` · `sendPendingImageChat` · `failPendingImageChat` ·
 `listPendingImageChats(channelId)`
@@ -40,7 +40,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - `createPendingImageChat` · `sendPendingImageChat` · `failPendingImageChat` · `listPendingImageChats` — the pending row of an image message, written **before** any byte moves, with local-only `PendingUploadSlot`s; the send swaps the server row in the way `sendChat` does, then reads it back once with `chat.get`, because the send's answer carries no image address. The sequence that drives them, and why the rows outlive a reload → [uploads](../uploads/README.md#pending-image-rows).
 - `updateChat` — optimistic: the new body is written to the cache before the request and rolled back if it fails. Callers must not write the cache themselves; two writers race over one row.
 - `deleteChat` — **not optimistic.** The server soft-deletes (`PUT { hidden: true }`), and the row is hidden only once that answer arrives. It used to hide first and restore on failure, but the restore could not work: `cacheWrite` merges, so writing the previous record back cannot clear a key that record never had — and `hidden` was a key the optimistic write added. A failed delete left the message looking deleted while it was alive on the server. There is no rollback now because there is no optimistic write to undo (ADR-0103).
-- `refreshList` — merges the `chat.feed` response into local. It can return cursor metadata (`cursorNo`, `readNo`, …) as a `ChatRefreshResult`, but **the render source for messages is always the local stream.** The returned metadata is input for pagination only.
+- `refreshList` — merges the `chat.feed` response into local. It can return cursor metadata (`cursorNo`, `readNo`, …) as a `ChatRefreshResult`, but **the render source for messages is always the local stream.** The returned metadata is input for pagination only. An optional `onFetched` callback runs once the server page arrives, before the cache write, so a caller timing the refresh can tell the two apart.
 - The list query key is built from **every field that reaches storage** — seven parts: `chats`, `channel`, `cursor`, `limit`, `unsent`, `sort`, `keyword` (`local/data-sources/ChatLocalDataSource.ts`). Drop even one and two different reads collapse onto one key and share a wrong answer. That is why an earlier page and the latest page are different queries.
 - `setReaction` is a UI write command (`chat.reaction`). `observeLastList` is the per-channel last-message path the home preview uses (ADR-0057).
 - `canModifyMessage(chat, isMine)` / `isMessageEdited(chat)` (`src/domain/messageEdit.ts`) — whether a message may be edited or deleted, and whether it has been. They live here, not in an app, because both clients ask them and one of the answers is a stopgap: the server has no edit flag, so `isMessageEdited` infers an edit from `updatedAt` moving past `createdAt`. **`apps/desktop-web` still carries its own copy of both rules** — this one is canonical, and the copies are merged the day a real server flag arrives (ADR-0103).

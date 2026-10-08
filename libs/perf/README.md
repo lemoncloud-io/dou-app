@@ -135,8 +135,9 @@ console. The trace's own duration means nothing. The other samples:
 
 ### Traces several modules contribute to: the active trace
 
-`chat_room_sync` is begun by a tap in the web, has its phases marked by the sync hooks in
-`libs/app-runtime`, and is ended by the room page. None of them can hand the handle to the next, so
+`chat_room_sync` is begun by a tap in the web, has its phases marked by `fetchRoomFeed` in
+`libs/app-runtime` (which the tap itself can start, before the room exists), and is ended by the room
+page. None of them can hand the handle to the next, so
 they meet at `setActivePerfTrace(name, subject, trace)` / `getActivePerfTrace(name, subject)`: one
 trace in progress per name, keyed by what it is about (the channel, here).
 
@@ -147,6 +148,9 @@ trace in progress per name, keyed by what it is about (the channel, here).
 - **`clearActivePerfTrace(name, trace)` clears only that trace**, so a module finishing an old trace
   cannot clear the newer one that replaced it. `endActivePerfTrace(name, subject, outcome)` records
   the outcome, stops the trace and clears it, for whichever module learns the measured thing is over.
+  `endPerfTrace(name, trace, outcome)` does the same to a handle the caller already holds: a module
+  ending the trace it took must not look it up by subject, which would end whichever trace replaced
+  it.
 - **`trace.hasMetric(key)`** lets the module that ends a trace ask whether a phase another module
   marks has been reached — the room page ends `chat_room_sync` on the first list emission after the
   sync marked `feed_done`.

@@ -128,6 +128,33 @@ describe('ChatRepository', () => {
         expect(result).toEqual({ fetchedCount: 1, latestNo: 3, cursorNo: 2, readNo: 3, total: 1 });
     });
 
+    it('tells the caller when the server page arrived, before writing it to the cache', async () => {
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        const order: string[] = [];
+        chatSocketDataSource.fetchChat.mockImplementation(async () => {
+            order.push('fetch');
+            return { list: [{ id: 'm1', channelId: 'ch-1', chatNo: 1 }], total: 1 };
+        });
+        chatLocalDataSource.cacheWriteMany.mockImplementation(async () => {
+            order.push('write');
+        });
+
+        await repository.refreshList({ channelId: 'ch-1' } as any, { onFetched: () => order.push('fetched') });
+
+        expect(order).toEqual(['fetch', 'fetched', 'write']);
+    });
+
+    it('does not report a page that never arrived', async () => {
+        const { repository, chatSocketDataSource } = createRepository();
+        chatSocketDataSource.fetchChat.mockRejectedValue(new Error('socket closed'));
+        const onFetched = jest.fn();
+
+        await expect(repository.refreshList({ channelId: 'ch-1' } as any, { onFetched })).rejects.toThrow(
+            'socket closed'
+        );
+        expect(onFetched).not.toHaveBeenCalled();
+    });
+
     it('reports the highest chatNo of the page written, and 0 for an empty page', async () => {
         const { repository, chatSocketDataSource } = createRepository();
         chatSocketDataSource.fetchChat.mockResolvedValue({
