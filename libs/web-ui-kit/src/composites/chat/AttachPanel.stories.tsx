@@ -1,8 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { AttachPanel, ComposerAttachButton, MessageInput, RecentPhotoStrip } from '@chatic/web-ui-kit';
+import {
+    AttachPanel,
+    type AttachPanelHandle,
+    ComposerAttachButton,
+    MessageInput,
+    prefersReducedMotion,
+    RecentPhotoStrip,
+    SLIDE_MS,
+    slideEase,
+} from '@chatic/web-ui-kit';
 
 /**
  * The panel as the chat room places it: in the page's positioned container, under the composer, which
@@ -272,3 +281,155 @@ const HandoverDemo = () => {
 };
 
 export const KeyboardHandover: Story = { render: () => <HandoverDemo /> };
+
+/**
+ * The panel moved by its host (`motion="external"`): one frame loop writes the panel's translate and the
+ * composer's bottom padding from the same eased value, so the composer's top stays the same 8px above the
+ * panel's on every frame. Two transitions — the panel's transform and the composer's padding — start a
+ * frame apart on iOS WebKit, and the composer visibly trails. Tap + and × quickly to see a slide turn
+ * around from wherever the last frame left it.
+ */
+const HostMovedDemo = () => {
+    const height = 306;
+    const [open, setOpen] = useState(false);
+    const [log, setLog] = useState<string[]>([]);
+    const panelRef = useRef<AttachPanelHandle>(null);
+    const composerRef = useRef<HTMLDivElement>(null);
+    // Where the last frame left both: 0 with the panel below, 1 with it in place.
+    const progress = useRef(0);
+    const frame = useRef(0);
+    const startedAt = useRef(0);
+
+    const draw = (value: number) => {
+        progress.current = value;
+        const surface = panelRef.current?.surface;
+        if (surface) surface.style.transform = `translateY(${(1 - value) * 100}%)`;
+        const composer = composerRef.current;
+        if (composer) composer.style.paddingBottom = `calc(${value} * (${height}px + var(--safe-bottom, 0px)) + 8px)`;
+    };
+
+    // A layout effect, so the slide's first frame is drawn before the commit that started it is painted.
+    useLayoutEffect(() => {
+        const from = progress.current;
+        const to = open ? 1 : 0;
+        if (from === to || prefersReducedMotion()) {
+            draw(to);
+            panelRef.current?.settle();
+            return undefined;
+        }
+        draw(from);
+        let start: number | null = null;
+        const step = (now: number) => {
+            start ??= now;
+            const t = Math.min(1, (now - start) / SLIDE_MS);
+            draw(from + (to - from) * slideEase(t));
+            if (t < 1) frame.current = requestAnimationFrame(step);
+            else panelRef.current?.settle();
+        };
+        frame.current = requestAnimationFrame(step);
+        // A newer change takes over from wherever this one has got to.
+        return () => cancelAnimationFrame(frame.current);
+    }, [open]);
+
+    const toggle = () => {
+        startedAt.current = performance.now();
+        setOpen(value => !value);
+    };
+
+    return (
+        <div className="relative mx-auto h-[700px] w-[375px] overflow-hidden border border-input-border bg-background">
+            <ol className="space-y-1 p-4 text-[13px] text-description">
+                <li>Tap + and ×: the composer rides the panel's top edge.</li>
+                {log.map((line, i) => (
+                    <li key={i}>{line}</li>
+                ))}
+            </ol>
+            <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 px-4 pt-2" style={{ paddingBottom: 8 }}>
+                <MessageInput
+                    value=""
+                    onChange={() => undefined}
+                    onSend={() => undefined}
+                    placeholder="메시지를 입력해 주세요"
+                    leadingSlot={<ComposerAttachButton open={open} onClick={toggle} />}
+                />
+            </div>
+            <AttachPanel
+                ref={panelRef}
+                motion="external"
+                open={open}
+                height={height}
+                onClose={toggle}
+                onTransitionEnd={state =>
+                    setLog(previous => [
+                        `${state} after ${Math.round(performance.now() - startedAt.current)}ms`,
+                        ...previous.slice(0, 6),
+                    ])
+                }
+                labels={{ photo: '사진', camera: '카메라', file: '파일', title: '첨부' }}
+                onPhoto={() => undefined}
+                onCamera={() => undefined}
+                onFile={() => undefined}
+            />
+        </div>
+    );
+};
+
+export const HostMovedSlide: Story = { render: () => <HostMovedDemo /> };
+
+type Library = 'asking' | 'answered' | 'none';
+
+/**
+ * The first open in the app, before the shell has said whether it can read the library: the recent row
+ * is drawn with skeleton tiles, so photos, camera and files are where they will stay. Answer with photos
+ * and they take the skeletons' places; answer that there is no library and the row folds away, the tiles
+ * rising with it.
+ */
+const LoadingRowDemo = () => {
+    const [library, setLibrary] = useState<Library>('asking');
+    const [round, setRound] = useState(0);
+    const button = 'rounded-full border border-input-border px-3 py-1 text-[13px]';
+    return (
+        <div className="relative mx-auto h-[700px] w-[375px] overflow-hidden border border-input-border bg-background">
+            <div className="flex flex-wrap gap-2 p-4">
+                <button type="button" className={button} onClick={() => setLibrary('answered')}>
+                    Library answers
+                </button>
+                <button type="button" className={button} onClick={() => setLibrary('none')}>
+                    No library
+                </button>
+                <button
+                    type="button"
+                    className={button}
+                    onClick={() => {
+                        setLibrary('asking');
+                        setRound(value => value + 1);
+                    }}
+                >
+                    Open again
+                </button>
+            </div>
+            <AttachPanel
+                key={round}
+                open
+                height={306}
+                onClose={() => undefined}
+                labels={{ photo: '사진', camera: '카메라', file: '파일', title: '첨부' }}
+                recent={
+                    <RecentPhotoStrip
+                        title="최근 사진"
+                        seeAllLabel="전체 보기"
+                        onSeeAll={() => undefined}
+                        loading={library === 'asking'}
+                        photos={library === 'answered' ? photos : []}
+                        onToggle={() => undefined}
+                    />
+                }
+                onPhoto={() => undefined}
+                onCamera={() => undefined}
+                onFile={() => undefined}
+            />
+        </div>
+    );
+};
+
+export const RecentRowWhileAsking: Story = { render: () => <LoadingRowDemo /> };

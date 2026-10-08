@@ -2,8 +2,10 @@ import * as React from 'react';
 
 /**
  * Something that slides into its resting place and back out: `AttachPanel` and the photo grid's footer
- * (up from below, on `transform`), and the picked-photo strip (open from nothing, on `height`).
- * Kit-internal, in neither barrel — it is how those move, not a component.
+ * (up from below, on `transform`), and the picked-photo and recent-photo strips (open from nothing, on
+ * `height`). The hook is kit-internal — it is how those move, not a component. The slide's timing is
+ * not: `SLIDE_MS`, `slideEase` and `prefersReducedMotion` are in the overlay barrel, for a host that
+ * moves `AttachPanel` itself and has to move something of its own on the very same frames.
  *
  * A CSS transition, not the `animate-in`/`animate-out` keyframes the Radix overlays use: a keyframe
  * always plays from its first frame, so a panel closed halfway up would jump to its resting place before
@@ -39,8 +41,9 @@ export const SLIDE_MOTION = `transition-transform ${SLIDE_TIMING}`;
 export const SLIDE_FALLBACK_MS = SLIDE_MS + 100;
 
 /**
- * The slide's curve as a function of progress (0…1), for the one motion CSS cannot carry: a scroll
- * position, moved alongside a width that a transition is growing on the same curve.
+ * The slide's curve as a function of progress (0…1), for motion CSS cannot carry: a scroll position,
+ * moved alongside a width that a transition is growing on the same curve, and a host's own frame loop
+ * that moves `AttachPanel` (`motion="external"`) together with its composer.
  */
 export const slideEase = (progress: number): number => {
     if (progress <= 0) return 0;
@@ -71,6 +74,12 @@ export const prefersReducedMotion = (): boolean =>
 /** `slide`: moves over `SLIDE_MS`. `instant`: is simply there, or gone, with no transition at all. */
 export type SlideMode = 'slide' | 'instant';
 
+/**
+ * What moves the element through a slide. `self`: its own CSS transition. `external`: the caller, which
+ * writes the element's position itself on every frame of a loop of its own.
+ */
+export type SlideMotion = 'self' | 'external';
+
 /** Where a change leaves the element. */
 export type SlideState = 'open' | 'closed';
 
@@ -79,8 +88,17 @@ export interface SlidePresenceOptions {
     enter?: SlideMode;
     /** How it leaves when `open` turns false. Default `slide`. */
     exit?: SlideMode;
-    /** The property whose transition is the slide: its end is the end of the change. Default `transform`. */
+    /**
+     * The property whose transition is the slide: its end is the end of the change. Default `transform`.
+     * Moved `external`ly, the property the caller writes inline.
+     */
     property?: string;
+    /**
+     * What moves it through a slide. Default `self`: a transition on `property`, whose `transitionend`
+     * ends the change. `external`: the caller, frame by frame, writing `property` inline — see
+     * `SlidePresence.finish`. Instant changes are the same either way.
+     */
+    motion?: SlideMotion;
     /**
      * Called once a change has settled: when its slide has ended, at once for an instant one. Once per
      * change — a change overtaken by the next one never reports — and never for the state the element
@@ -101,8 +119,18 @@ export interface SlidePresence<T extends HTMLElement> {
     instant: boolean;
     /** Goes on the element that slides. */
     ref: React.RefObject<T | null>;
-    /** Goes on the same element: a change is over when its transition on `property` ends. */
+    /**
+     * Goes on the same element: a change is over when its transition on `property` ends. Ignored for an
+     * `external` mover, whose slide is over when it says so.
+     */
     onTransitionEnd: (event: React.TransitionEvent<T>) => void;
+    /**
+     * `external` only: the caller's slide toward the current `open` has reached its end. It does what a
+     * transition's end does — a closed element leaves the page, and `onSettled` reports the change — and
+     * it moves the element's resting class to where it now is. Does nothing while no change is waiting
+     * (an instant one has already settled, or the fallback got there first) and for a `self` mover.
+     */
+    finish: () => void;
 }
 
 /**
@@ -118,37 +146,62 @@ export interface SlidePresence<T extends HTMLElement> {
  * under way is cut where it stands rather than finished. The attach panel needs both: it appears in
  * place behind a keyboard that is about to slide away, and goes in place once a keyboard has covered it.
  * Under reduced motion every change is instant.
+ *
+ * Moved `external`ly, a slide has no transition: the caller writes the element's position inline on
+ * every frame, and says when it is done (`finish`). The element mounts in the commit that opens it, so
+ * the caller has it from the start, and `shown` — its resting class — stays where the last settled
+ * change left it until the caller finishes: a frame the caller has not drawn yet shows the slide's
+ * first frame, never its last. The caller's inline position is left alone, except by an instant change,
+ * which clears it: in place means in place, whatever the last frame said.
  */
 export const useSlidePresence = <T extends HTMLElement>(
     open: boolean,
-    { enter = 'slide', exit = 'slide', property = 'transform', onSettled }: SlidePresenceOptions = {}
+    { enter = 'slide', exit = 'slide', property = 'transform', motion = 'self', onSettled }: SlidePresenceOptions = {}
 ): SlidePresence<T> => {
     const ref = React.useRef<T | null>(null);
     const [mountedState, setMounted] = React.useState(open);
     const [shownState, setShown] = React.useState(open);
 
+    const external = motion === 'external';
     const reduced = prefersReducedMotion();
     const enterInstant = enter === 'instant' || reduced;
     const exitInstant = exit === 'instant' || reduced;
     // Derived in render rather than waiting for the effect below to catch the state up: an instant
     // change must be right in the commit that asks for it, or the commit in between is a slide's start.
+    // An external mover needs the element in that commit too, to draw the slide's first frame on it.
     const instant = open ? enterInstant : exitInstant;
-    const mounted = open ? mountedState || enterInstant : mountedState && !exitInstant;
-    const shown = open && (enterInstant || shownState);
+    const mounted = open ? mountedState || enterInstant || external : mountedState && !exitInstant;
+    const shown = open ? enterInstant || shownState : external && shownState;
 
     // The change waiting for its end, if any. A ref: it is bookkeeping, never drawn.
     const pending = React.useRef<SlideState | null>(null);
     const settledRef = React.useRef(onSettled);
     settledRef.current = onSettled;
+    const externalRef = React.useRef(external);
+    externalRef.current = external;
+    const propertyRef = React.useRef(property);
+    propertyRef.current = property;
     const settle = React.useCallback((state: SlideState) => {
         if (pending.current !== state) return;
         pending.current = null;
         settledRef.current?.(state);
     }, []);
+    // A slide that has reached its end, however that was learned. An external mover's element only now
+    // takes its resting class: until here it held the slide's start.
+    const land = React.useCallback(
+        (state: SlideState) => {
+            if (pending.current !== state) return;
+            if (state === 'closed') setMounted(false);
+            if (externalRef.current) setShown(state === 'open');
+            settle(state);
+        },
+        [settle]
+    );
 
     React.useLayoutEffect(() => {
         if (!open) {
-            setShown(false);
+            // An external mover takes it down from where the last change left it.
+            if (!external || exitInstant) setShown(false);
             if (exitInstant) {
                 setMounted(false);
                 // Turned instant on its way out: the element is gone now, and so is the slide it was in.
@@ -165,40 +218,48 @@ export const useSlidePresence = <T extends HTMLElement>(
             setMounted(true);
             return;
         }
-        if (shownState) return;
+        // An external mover brings it in; it rests in place once that is finished.
+        if (external || shownState) return;
         // Reading layout commits the position the element was drawn at — out of place, or wherever an
         // exit had carried it — as the style the transition starts from. Without it the browser sees
         // only the final position and the element appears there without moving.
         ref.current?.getBoundingClientRect();
         setShown(true);
-    }, [open, enterInstant, exitInstant, mountedState, shownState, settle]);
+    }, [open, external, enterInstant, exitInstant, mountedState, shownState, settle]);
 
-    // One entry per change of `open`. Read through a ref so a change of mode alone starts nothing.
+    // One entry per change of `open`. Read through a ref so a change of mode alone starts nothing. A
+    // layout effect, so that a change is waiting before anything else in its commit — a host finishing
+    // a slide that has nowhere to go — can say it is over.
     const instantRef = React.useRef(instant);
     instantRef.current = instant;
     const lastOpen = React.useRef(open);
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         if (lastOpen.current === open) return undefined;
         lastOpen.current = open;
         const state: SlideState = open ? 'open' : 'closed';
         pending.current = state;
         if (instantRef.current) {
+            // Whatever an external mover last drew — a slide this change cut short — goes with it.
+            if (externalRef.current) ref.current?.style.removeProperty(propertyRef.current);
             settle(state);
             return undefined;
         }
-        const timer = window.setTimeout(() => {
-            if (!open) setMounted(false);
-            settle(state);
-        }, SLIDE_FALLBACK_MS);
+        const timer = window.setTimeout(() => land(state), SLIDE_FALLBACK_MS);
         return () => window.clearTimeout(timer);
-    }, [open, settle]);
+    }, [open, settle, land]);
 
     const onTransitionEnd = (event: React.TransitionEvent<T>) => {
-        // A transition inside the element (a tile fading in) bubbles here too.
-        if (event.target !== event.currentTarget || event.propertyName !== property) return;
+        // A transition inside the element (a tile fading in) bubbles here too. Moved externally, the
+        // element runs no slide transition of its own: whatever ends, it is not the slide.
+        if (external || event.target !== event.currentTarget || event.propertyName !== property) return;
         if (!open) setMounted(false);
         settle(open ? 'open' : 'closed');
     };
 
-    return { mounted, shown, instant, ref, onTransitionEnd };
+    const finish = React.useCallback(() => {
+        const state = pending.current;
+        if (externalRef.current && state !== null) land(state);
+    }, [land]);
+
+    return { mounted, shown, instant, ref, onTransitionEnd, finish };
 };

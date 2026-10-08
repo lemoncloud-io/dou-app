@@ -127,6 +127,236 @@ describe('RecentPhotoStrip', () => {
             expect(container.querySelector('[data-video-mark]')).toBeInTheDocument();
         });
     });
+
+    // The panel's tiles under the row must be where they will stay from the panel's first frame, before
+    // the shell has said whether it can read the library at all.
+    describe('while the library has not answered', () => {
+        const strip = (overrides: Partial<RecentPhotoStripProps> = {}) => (
+            <RecentPhotoStrip
+                title="최근 사진"
+                seeAllLabel="전체 보기"
+                onSeeAll={jest.fn()}
+                photos={[]}
+                loading
+                photoLabel={p => `최근 ${p}`}
+                onToggle={jest.fn()}
+                {...overrides}
+            />
+        );
+        const placeholders = () => Array.from(document.querySelectorAll<HTMLElement>('[data-recent-placeholder]'));
+        /** The row itself: inside the part that opens and closes, and the one that says it is busy. */
+        const row = () => document.querySelector('[data-recent-strip]')?.firstElementChild?.firstElementChild;
+
+        it('draws its title over skeleton tiles the size of the photos to come', () => {
+            render(strip());
+
+            expect(screen.getByText('최근 사진')).toBeInTheDocument();
+            expect(placeholders()).toHaveLength(6);
+            for (const tile of placeholders()) {
+                expect(tile).toHaveClass('size-[90px]', 'rounded-[12px]', 'bg-muted', 'motion-safe:animate-pulse');
+                expect(tile).toHaveAttribute('aria-hidden', 'true');
+            }
+            expect(row()).toHaveAttribute('aria-busy', 'true');
+            // Nothing to pick yet.
+            expect(screen.queryAllByRole('button', { name: /최근/ })).toHaveLength(0);
+        });
+
+        it('draws as many skeleton tiles as asked', () => {
+            render(strip({ placeholderCount: 3 }));
+
+            expect(placeholders()).toHaveLength(3);
+        });
+
+        // What "see all" would open may not exist: the shell may have no library to read.
+        it('holds "see all" until the first photo is in', () => {
+            const onSeeAll = jest.fn();
+            const { rerender } = render(strip({ onSeeAll }));
+            fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+            expect(screen.getByRole('button', { name: '전체 보기' })).toBeDisabled();
+            expect(onSeeAll).not.toHaveBeenCalled();
+
+            rerender(strip({ onSeeAll, photos: photos(1) }));
+            fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+            expect(onSeeAll).toHaveBeenCalledTimes(1);
+        });
+
+        it('puts each photo in its own place’s tile as it arrives, leaving the tiles after it be', () => {
+            const { rerender } = render(strip({ placeholderCount: 4 }));
+            const [, second, third, fourth] = placeholders();
+
+            rerender(strip({ placeholderCount: 4, photos: photos(1) }));
+
+            expect(screen.getAllByRole('button', { name: /최근/ })).toHaveLength(1);
+            // The same elements, not equal ones: every skeleton tile looks alike.
+            const left = placeholders();
+            expect(left).toHaveLength(3);
+            [second, third, fourth].forEach((tile, i) => expect(left[i]).toBe(tile));
+            // The first real tile stands where the first skeleton stood.
+            const scroller = second.parentElement as HTMLElement;
+            expect(scroller.firstElementChild).toBe(screen.getByRole('button', { name: '최근 1' }));
+        });
+
+        it('draws only photos once the library has answered', () => {
+            const { rerender } = render(strip());
+
+            rerender(strip({ loading: false, photos: photos(2) }));
+
+            expect(placeholders()).toHaveLength(0);
+            expect(screen.getAllByRole('button', { name: /최근/ })).toHaveLength(2);
+            expect(row()).not.toHaveAttribute('aria-busy');
+        });
+
+        // Each photo fades in over the muted square its tile starts as, as PreviewImage does everywhere.
+        it('fades each arriving photo in over its tile', () => {
+            const { rerender } = render(strip());
+
+            rerender(strip({ loading: false, photos: photos(1) }));
+
+            const tile = screen.getByRole('button', { name: '최근 1' });
+            expect(tile).toHaveClass('bg-muted');
+            expect(tile.querySelector('img')).toHaveClass('opacity-0', 'transition-opacity');
+            expect(within(tile).getByTestId('preview-skeleton')).toBeInTheDocument();
+        });
+
+        it('draws nothing when asked for no skeleton tiles and nothing has arrived', () => {
+            const { container } = render(strip({ placeholderCount: 0 }));
+
+            expect(container).toBeEmptyDOMElement();
+        });
+    });
+
+    describe('opening and closing', () => {
+        /** The row's natural height in these tests: the title row and a row of tiles. */
+        const NATURAL = 144;
+        const originalMatchMedia = window.matchMedia;
+        const strip = () => document.querySelector('[data-recent-strip]') as HTMLElement | null;
+        const content = () => strip()?.firstElementChild as HTMLElement;
+        const placeholders = () => document.querySelectorAll('[data-recent-placeholder]');
+        const recent = (overrides: Partial<RecentPhotoStripProps> = {}) => (
+            <RecentPhotoStrip
+                title="최근 사진"
+                seeAllLabel="전체 보기"
+                onSeeAll={jest.fn()}
+                photos={[]}
+                photoLabel={p => `최근 ${p}`}
+                onToggle={jest.fn()}
+                {...overrides}
+            />
+        );
+        const recordLayoutReads = () => {
+            const reads: (string | null)[] = [];
+            jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+                reads.push(strip()?.getAttribute('data-shown') ?? null);
+                return new DOMRect();
+            });
+            return reads;
+        };
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(NATURAL);
+        });
+        afterEach(() => {
+            jest.useRealTimers();
+            window.matchMedia = originalMatchMedia;
+        });
+
+        it('is simply there, at its own height, when it first draws with something', () => {
+            const reads = recordLayoutReads();
+            render(recent({ loading: true }));
+
+            expect(reads).toEqual([]);
+            expect(strip()).toHaveAttribute('data-shown', 'true');
+            expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+        });
+
+        it('keeps its place when its skeleton tiles give way to photos', () => {
+            const reads = recordLayoutReads();
+            const { rerender } = render(recent({ loading: true }));
+            const before = strip();
+
+            rerender(recent({ photos: photos(3) }));
+
+            expect(strip()).toBe(before);
+            expect(reads).toEqual([]);
+            expect(strip()).toHaveAttribute('data-shown', 'true');
+            expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+        });
+
+        // The shell turned out to have no library to read: the tiles under the row rise as it goes.
+        it('folds away from its height when nothing comes, still showing its skeletons, then draws nothing', () => {
+            const { rerender, container } = render(recent({ loading: true, placeholderCount: 4 }));
+
+            rerender(recent({ loading: false }));
+
+            expect(strip()).toHaveAttribute('data-shown', 'false');
+            expect(strip()).toHaveStyle({ height: '0px' });
+            expect(strip()).toHaveClass('overflow-hidden', 'transition-[height]', 'duration-300');
+            expect(content()).toHaveClass('translate-y-2', 'opacity-0', 'transition-[transform,opacity]');
+            expect(placeholders()).toHaveLength(4);
+            expect(strip()).toHaveAttribute('inert');
+            expect(strip()).toHaveAttribute('aria-hidden', 'true');
+
+            // Only its own height ends the fold.
+            transitionEnd(content(), 'transform');
+            expect(strip()).toBeInTheDocument();
+            transitionEnd(strip() as HTMLElement, 'height');
+            expect(container).toBeEmptyDOMElement();
+        });
+
+        it('keeps showing the photos it had while it folds away', () => {
+            const { rerender } = render(recent({ photos: photos(2) }));
+
+            rerender(recent({ photos: [] }));
+
+            expect(strip()?.querySelectorAll('img')).toHaveLength(2);
+            expect(screen.queryByRole('button', { name: '최근 1' })).not.toBeInTheDocument();
+        });
+
+        it('folds away after the slide’s length when the end of the move is never reported', () => {
+            const { rerender } = render(recent({ loading: true }));
+
+            rerender(recent({ loading: false }));
+            act(() => jest.advanceTimersByTime(SLIDE_MS));
+            expect(strip()).toBeInTheDocument();
+
+            act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS - SLIDE_MS));
+            expect(strip()).not.toBeInTheDocument();
+        });
+
+        it('opens from no height when photos come to a row that had none', () => {
+            const reads = recordLayoutReads();
+            const { rerender } = render(recent());
+            expect(strip()).not.toBeInTheDocument();
+
+            rerender(recent({ photos: photos(3) }));
+
+            // Laid out closed first, so the height has somewhere to move from.
+            expect(reads).toEqual(['false']);
+            expect(strip()).toHaveAttribute('data-shown', 'true');
+            expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+            expect(content()).toHaveClass('translate-y-0', 'opacity-100');
+            expect(strip()).not.toHaveAttribute('inert');
+        });
+
+        it('folds away at once for a reader who asked for less motion', () => {
+            window.matchMedia = jest.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+            const { rerender, container } = render(recent({ loading: true }));
+            expect(strip()).toHaveClass('transition-none');
+
+            rerender(recent({ loading: false }));
+
+            expect(container).toBeEmptyDOMElement();
+        });
+
+        // Space the host wants around the row opens and closes with it.
+        it('puts the host’s class on the row, inside the part that opens and closes', () => {
+            render(recent({ photos: photos(1), className: 'mb-2' }));
+
+            expect(strip()).not.toHaveClass('mb-2');
+            expect(content().firstElementChild).toHaveClass('mb-2');
+        });
+    });
 });
 
 describe('PhotoGridTile', () => {

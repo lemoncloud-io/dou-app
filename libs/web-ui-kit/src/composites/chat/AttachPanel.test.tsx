@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import * as React from 'react';
 
-import { SLIDE_MS } from '../overlay/slidePresence';
-import { AttachPanel, type AttachPanelProps } from './AttachPanel';
+import { SLIDE_FALLBACK_MS, SLIDE_MS } from '../overlay/slidePresence';
+import { AttachPanel, type AttachPanelHandle, type AttachPanelProps } from './AttachPanel';
 
 const labels = { photo: '사진', camera: '카메라', file: '파일', title: '첨부' };
 
@@ -208,6 +209,99 @@ describe('AttachPanel', () => {
             render(<AttachPanel {...props({ onTransitionEnd })} />);
             act(() => jest.advanceTimersByTime(SLIDE_MS * 2));
 
+            expect(onTransitionEnd).not.toHaveBeenCalled();
+        });
+    });
+
+    // The host moves the panel and its composer from one frame loop, so the two cannot part by a frame.
+    describe('moved by its host', () => {
+        const handle = React.createRef<AttachPanelHandle>();
+        const external = (overrides: Partial<AttachPanelProps> = {}) => (
+            <AttachPanel ref={handle} {...props({ motion: 'external', ...overrides })} />
+        );
+        const settle = () => act(() => handle.current?.settle());
+
+        beforeEach(() => jest.useFakeTimers());
+
+        it('hands its host the element that slides, while it is in the page', () => {
+            const { rerender } = render(external({ open: false }));
+            expect(handle.current?.surface).toBeNull();
+
+            rerender(external());
+            expect(handle.current?.surface).toBe(panel());
+        });
+
+        it('draws no transition of its own, rising from below only as its host moves it', () => {
+            const onTransitionEnd = jest.fn();
+            const { rerender } = render(external({ open: false, onTransitionEnd }));
+
+            rerender(external({ onTransitionEnd }));
+            const dialog = panel() as HTMLElement;
+            // In the page at once, at the slide's start, for the host's first frame.
+            expect(dialog).toHaveClass('translate-y-full', 'transition-none');
+            expect(dialog).not.toHaveClass('transition-transform');
+            expect(dialog).toHaveAttribute('data-state', 'open');
+            dialog.style.transform = 'translateY(0%)';
+            act(() => jest.advanceTimersByTime(SLIDE_MS));
+            expect(onTransitionEnd).not.toHaveBeenCalled();
+
+            settle();
+            expect(dialog).toHaveClass('translate-y-0', 'transition-none');
+            expect(onTransitionEnd.mock.calls).toEqual([['open']]);
+        });
+
+        it('stays in the page, closed and untouchable, until its host’s slide down is over', () => {
+            const onTransitionEnd = jest.fn();
+            const { rerender } = render(external({ onTransitionEnd }));
+
+            rerender(external({ open: false, onTransitionEnd }));
+            const dialog = panel() as HTMLElement;
+            expect(dialog).toHaveAttribute('data-state', 'closed');
+            expect(dialog).toHaveAttribute('inert');
+            // Where the slide starts, until the host has drawn its first frame.
+            expect(dialog).toHaveClass('translate-y-0');
+            expect(onTransitionEnd).not.toHaveBeenCalled();
+
+            settle();
+            expect(panel()).not.toBeInTheDocument();
+            expect(onTransitionEnd.mock.calls).toEqual([['closed']]);
+        });
+
+        it('comes to rest anyway when its host never says its slide is over', () => {
+            const onTransitionEnd = jest.fn();
+            const { rerender } = render(external({ onTransitionEnd }));
+
+            rerender(external({ open: false, onTransitionEnd }));
+            act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS));
+
+            expect(panel()).not.toBeInTheDocument();
+            expect(onTransitionEnd.mock.calls).toEqual([['closed']]);
+        });
+
+        it('keeps instant changes its own, clearing what its host last drew', () => {
+            const onTransitionEnd = jest.fn();
+            const { rerender } = render(external({ onTransitionEnd }));
+            rerender(external({ open: false, onTransitionEnd }));
+            (panel() as HTMLElement).style.transform = 'translateY(60%)';
+
+            rerender(external({ enter: 'instant', onTransitionEnd }));
+            expect(panel()).toHaveClass('translate-y-0');
+            expect((panel() as HTMLElement).style.transform).toBe('');
+
+            rerender(external({ open: false, exit: 'instant', onTransitionEnd }));
+            expect(panel()).not.toBeInTheDocument();
+            expect(onTransitionEnd.mock.calls).toEqual([['open'], ['closed']]);
+        });
+
+        // Its own transition says when a slide ends; a stray settle must not cut one short.
+        it('ignores settle while it moves itself', () => {
+            const onTransitionEnd = jest.fn();
+            const { rerender } = render(<AttachPanel ref={handle} {...props({ onTransitionEnd })} />);
+            rerender(<AttachPanel ref={handle} {...props({ open: false, onTransitionEnd })} />);
+
+            settle();
+
+            expect(panel()).toBeInTheDocument();
             expect(onTransitionEnd).not.toHaveBeenCalled();
         });
     });

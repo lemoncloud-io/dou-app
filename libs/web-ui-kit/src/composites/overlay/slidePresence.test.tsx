@@ -1,7 +1,16 @@
 import { act, render, screen } from '@testing-library/react';
 import * as React from 'react';
 
-import { SLIDE_MS, slideEase, useSlidePresence, type SlidePresenceOptions } from './slidePresence';
+import * as kit from '@chatic/web-ui-kit';
+
+import {
+    prefersReducedMotion,
+    SLIDE_FALLBACK_MS,
+    SLIDE_MS,
+    slideEase,
+    useSlidePresence,
+    type SlidePresenceOptions,
+} from './slidePresence';
 
 /** jsdom has no `TransitionEvent`; React reads `propertyName` off whatever event arrives. */
 const transitionEnd = (element: Element, propertyName: string) => {
@@ -12,8 +21,12 @@ const transitionEnd = (element: Element, propertyName: string) => {
     });
 };
 
+/** The latest render's `finish`: what an external mover calls once its own slide is over. */
+let finishSlide: () => void = () => undefined;
+
 const Panel = ({ open, ...options }: { open: boolean } & SlidePresenceOptions) => {
-    const { mounted, shown, instant, ref, onTransitionEnd } = useSlidePresence<HTMLDivElement>(open, options);
+    const { mounted, shown, instant, ref, onTransitionEnd, finish } = useSlidePresence<HTMLDivElement>(open, options);
+    finishSlide = finish;
     if (!mounted) return null;
     return (
         <div ref={ref} data-testid="panel" data-shown={shown} data-instant={instant} onTransitionEnd={onTransitionEnd}>
@@ -318,6 +331,218 @@ describe('useSlidePresence', () => {
 
             expect(onSettled).not.toHaveBeenCalled();
         });
+    });
+});
+
+// The attach panel moved by its host, frame by frame, so the host's composer moves on the very same frames.
+describe('useSlidePresence moved externally', () => {
+    const originalMatchMedia = window.matchMedia;
+    const external = { motion: 'external' } as const;
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => {
+        jest.useRealTimers();
+        jest.restoreAllMocks();
+        window.matchMedia = originalMatchMedia;
+    });
+
+    const finish = () => act(() => finishSlide());
+
+    it('mounts below its place in the commit that opens it, and rests in place once the mover finishes', () => {
+        firstCommit.length = 0;
+        const starts = recordSlideStarts();
+        const onSettled = jest.fn();
+        const at = (open: boolean) => (
+            <>
+                <Panel open={open} {...external} onSettled={onSettled} />
+                <Probe open={open} />
+            </>
+        );
+        const { rerender } = render(at(false));
+
+        rerender(at(true));
+
+        // There at once for the mover to draw on, at the slide's start, and no transition was set up.
+        expect(firstCommit).toEqual([{ present: true, shown: 'false' }]);
+        expect(starts).toEqual([]);
+        act(() => jest.advanceTimersByTime(SLIDE_MS));
+        expect(panel()).toHaveAttribute('data-shown', 'false');
+        expect(onSettled).not.toHaveBeenCalled();
+
+        finish();
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+        expect(onSettled.mock.calls).toEqual([['open']]);
+    });
+
+    it('stays where it was in the commit that closes it, and leaves the page once the mover finishes', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open {...external} onSettled={onSettled} />);
+
+        rerender(<Panel open={false} {...external} onSettled={onSettled} />);
+        // Its resting class is still in place: a frame the mover has not drawn yet shows the slide's start.
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+        transitionEnd(panel() as HTMLElement, 'transform');
+        expect(panel()).toBeInTheDocument();
+
+        finish();
+        expect(panel()).not.toBeInTheDocument();
+        expect(onSettled.mock.calls).toEqual([['closed']]);
+    });
+
+    it('reports only the change the mover finished, after turning around on its way out', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open={false} {...external} onSettled={onSettled} />);
+        rerender(<Panel open {...external} onSettled={onSettled} />);
+        finish();
+
+        rerender(<Panel open={false} {...external} onSettled={onSettled} />);
+        rerender(<Panel open {...external} onSettled={onSettled} />);
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+        finish();
+        act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS * 2));
+
+        expect(panel()).toBeInTheDocument();
+        expect(onSettled.mock.calls).toEqual([['open'], ['open']]);
+    });
+
+    it('starts the next opening from below once a close has finished', () => {
+        const { rerender } = render(<Panel open {...external} />);
+        rerender(<Panel open={false} {...external} />);
+        finish();
+
+        rerender(<Panel open {...external} />);
+
+        expect(panel()).toHaveAttribute('data-shown', 'false');
+    });
+
+    it('does nothing when finished with no change waiting', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open {...external} onSettled={onSettled} />);
+        finish();
+        expect(onSettled).not.toHaveBeenCalled();
+
+        rerender(<Panel open={false} {...external} onSettled={onSettled} />);
+        finish();
+        finish();
+        expect(onSettled.mock.calls).toEqual([['closed']]);
+    });
+
+    // Its own transition ends a self-moved slide; a stray finish must not cut it short.
+    it('ignores finish when it moves itself', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open onSettled={onSettled} />);
+        rerender(<Panel open={false} onSettled={onSettled} />);
+
+        finish();
+
+        expect(panel()).toBeInTheDocument();
+        expect(onSettled).not.toHaveBeenCalled();
+    });
+
+    // A hidden tab runs no frames: the mover's loop stalls, and the element must still come to rest.
+    it('settles a slide the mover never finishes once the slide’s length has passed', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open={false} {...external} onSettled={onSettled} />);
+
+        rerender(<Panel open {...external} onSettled={onSettled} />);
+        act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS));
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+
+        rerender(<Panel open={false} {...external} onSettled={onSettled} />);
+        act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS));
+        expect(panel()).not.toBeInTheDocument();
+        expect(onSettled.mock.calls).toEqual([['open'], ['closed']]);
+    });
+
+    // A slide with nowhere to go — + and × in one frame — is over before the first frame is drawn.
+    it('takes a finish from a host’s layout effect in the very commit that changes it', () => {
+        const onSettled = jest.fn();
+        const Host = ({ open }: { open: boolean }) => {
+            const seen = React.useRef(open);
+            React.useLayoutEffect(() => {
+                if (seen.current === open) return;
+                seen.current = open;
+                finishSlide();
+            }, [open]);
+            return <Panel open={open} {...external} onSettled={onSettled} />;
+        };
+        const { rerender } = render(<Host open={false} />);
+
+        rerender(<Host open />);
+
+        expect(onSettled.mock.calls).toEqual([['open']]);
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+    });
+
+    it('clears what the mover last drew on an instant change, and is in place at once', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open {...external} onSettled={onSettled} />);
+        rerender(<Panel open={false} {...external} onSettled={onSettled} />);
+        (panel() as HTMLElement).style.transform = 'translateY(40%)';
+
+        rerender(<Panel open enter="instant" {...external} onSettled={onSettled} />);
+
+        expect((panel() as HTMLElement).style.transform).toBe('');
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+        expect(onSettled.mock.calls).toEqual([['open']]);
+    });
+
+    it('leaves what the mover draws alone through a slide', () => {
+        const { rerender } = render(<Panel open {...external} />);
+        rerender(<Panel open={false} {...external} />);
+        (panel() as HTMLElement).style.transform = 'translateY(40%)';
+
+        rerender(<Panel open {...external} />);
+        expect((panel() as HTMLElement).style.transform).toBe('translateY(40%)');
+
+        finish();
+        expect((panel() as HTMLElement).style.transform).toBe('translateY(40%)');
+    });
+
+    it('is gone at once for an instant exit, as when it moves itself', () => {
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open {...external} onSettled={onSettled} />);
+
+        rerender(<Panel open={false} exit="instant" {...external} onSettled={onSettled} />);
+
+        expect(panel()).not.toBeInTheDocument();
+        expect(onSettled.mock.calls).toEqual([['closed']]);
+    });
+
+    it('treats every change as instant for a reader who asked for less motion', () => {
+        reduceMotion();
+        const onSettled = jest.fn();
+        const { rerender } = render(<Panel open={false} {...external} onSettled={onSettled} />);
+
+        rerender(<Panel open {...external} onSettled={onSettled} />);
+        expect(panel()).toHaveAttribute('data-shown', 'true');
+
+        rerender(<Panel open={false} {...external} onSettled={onSettled} />);
+        expect(panel()).not.toBeInTheDocument();
+        expect(onSettled.mock.calls).toEqual([['open'], ['closed']]);
+    });
+});
+
+// A host's own frame loop moves its composer on these, beside an externally moved attach panel.
+describe('the slide timing in the barrel', () => {
+    const originalMatchMedia = window.matchMedia;
+    afterEach(() => {
+        window.matchMedia = originalMatchMedia;
+    });
+
+    it('is the timing the kit’s own slides use', () => {
+        expect(kit.SLIDE_MS).toBe(SLIDE_MS);
+        expect(kit.slideEase).toBe(slideEase);
+        expect(kit.prefersReducedMotion).toBe(prefersReducedMotion);
+        expect(kit.SLIDE_MS).toBe(300);
+    });
+
+    it('says whether the reader asked for less motion', () => {
+        window.matchMedia = jest.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+        expect(kit.prefersReducedMotion()).toBe(false);
+        expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+
+        reduceMotion();
+        expect(kit.prefersReducedMotion()).toBe(true);
     });
 });
 
