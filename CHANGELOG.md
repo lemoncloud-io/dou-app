@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-08] - root@0.87.2, @chatic/desktop-web@0.20.4
+
+### Bug Fixes
+
+- (desktop-web) take a sign-in link only with the nonce this app sent
+
+### Documentation
+
+- (desktop-web/auth) stop claiming the relay code is single-use
+
 ## [2026-10-08] - root@0.87.1, @chatic/desktop-web@0.20.3
 
 ### Bug Fixes
