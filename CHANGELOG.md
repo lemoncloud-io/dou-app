@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-08] - No version updates
+
+### Features
+
+- (perf,web,app-runtime,mobile) time message sends, socket verification and the first screen
+
 ## [2026-10-07] - No version updates
 
 ### Bug Fixes
