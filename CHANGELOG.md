@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-08] - root@0.88.0, @chatic/desktop-web@0.21.0
+
+### Features
+
+- (desktop-web) give a new place a photo and open my profile in it
+- (desktop-web) make a place from the place rail, not only the phone
+
 ## [2026-10-08] - No version updates
 
 ### Features
