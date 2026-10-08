@@ -26,12 +26,14 @@ export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
     cloud.status === 'suspended' || cloud.status === 'expired';
 
 /**
- * Whether a place can be made from where the session is. Two things have to hold, as in the mobile
- * app.
+ * Whether a place can be made from where the session is. Three things have to hold.
  *
  * The account's role has to allow it: a guest may not, and neither may a session that is not
  * active in a cloud. Both are read off the session (`useRuntimeProfile`), which reports the role of
  * the cloud user while a cloud is connected.
+ *
+ * The account has to be one that manages places (`canManage`, from `readPlaceManageAccess`). The
+ * mobile app has no such condition: there every owner makes places.
  *
  * And the cloud has to be the account's own: not Home, which has no places to add to, and not a
  * cloud joined by invite. The request goes over the active cloud's socket, so it has to be the
@@ -42,9 +44,9 @@ export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
 export const canCreatePlace = (
     clouds: readonly RailCloud[],
     activeCloudId: string | null,
-    role: { isGuest: boolean; isCloudActive: boolean }
+    role: { isGuest: boolean; isCloudActive: boolean; canManage: boolean }
 ): boolean => {
-    if (role.isGuest || !role.isCloudActive || !activeCloudId) return false;
+    if (role.isGuest || !role.isCloudActive || !role.canManage || !activeCloudId) return false;
     const active = clouds.find(cloud => cloud.id === activeCloudId);
     return active?.kind === 'owned' && !isLapsedCloud(active);
 };

@@ -11,7 +11,7 @@ current. Nothing on the rail fetches.
 ## Making a place
 
 After the last place tile there is a **New place** tile, when the account can make one here.
-`canCreatePlace` decides that, from two things:
+`canCreatePlace` decides that, from three things:
 
 - **The account's role allows it.** A guest may not make a place, and neither may a session that is
   not active in a cloud. Both come from the session (`useRuntimeProfile`), which reports the role of
@@ -20,8 +20,31 @@ After the last place tile there is a **New place** tile, when the account can ma
   invite is its owner's to arrange. A suspended or expired cloud cannot be entered, so nothing can
   be made in it.
 
-This is the same rule the mobile app applies. It only decides whether the tile is drawn: the server
-still refuses a create it does not allow, and the dialog says so.
+- **The account manages places.** `readPlaceManageAccess` answers that, and the section below says
+  how.
+
+The first two are the rule the mobile app applies; the third is the desktop's own. All of it only
+decides whether the tile is drawn: the server still refuses a create it does not allow, and the
+dialog says so.
+
+## Who manages places
+
+Making, editing and deleting a place on the desktop are for one kind of account for now: an
+administrator. `canManagePlaces` is the rule, and all three actions read it, so they cannot drift
+apart.
+
+- **The role is the relay account's**, read from the relay token (`getRelaySessionUser`), not from
+  the session. Inside a cloud the session reports the cloud user, who has a role of their own there;
+  read from that, the answer would change from cloud to cloud for the same person.
+- **A development build also lets the team's two shared sign-ins through**, by email
+  (`developer@lemoncloud.io` and `app@lemoncloud.io`), so the feature can be exercised on the
+  development server without an administrator account. The list is applied only when the stage baked
+  into the bundle (`env.buildStage`) is `LOCAL` or `DEV`. A production build never reads it, and
+  neither does a build whose stage is not known yet.
+
+An owner who is not an administrator sees no **New place** tile and no place menu on the desktop,
+and still makes places in the mobile app. The rule hides entries; it is not what protects a place.
+The server decides what an account may do, and a refusal is shown where the action was started.
 
 A cloud holds up to 10 places (`PLACE_MAX`; a relay subscription row in the list is not counted).
 At the cap the tile stays, and clicking it says so and points at the mobile app, where another

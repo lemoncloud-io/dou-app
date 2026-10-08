@@ -20,6 +20,7 @@ import {
     useDebugModeStore,
     useCloudPushBadgeStore,
     canCreatePlace,
+    readPlaceManageAccess,
     useClouds,
     useCloudSwitchFlow,
     useMessageJumpStore,
@@ -147,7 +148,14 @@ export const HomePage = () => {
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     const setCreatePlaceOpen = useCreatePlaceDialogStore(s => s.setOpen);
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
-    const mayCreatePlace = canCreatePlace(clouds, activeCloudId, { isGuest, isCloudActive });
+    // Read on every render: the relay account is a synchronous read, and this page renders on the
+    // session signals above, which is when the answer can change.
+    const mayManagePlaces = readPlaceManageAccess();
+    const mayCreatePlace = canCreatePlace(clouds, activeCloudId, {
+        isGuest,
+        isCloudActive,
+        canManage: mayManagePlaces,
+    });
     // The form belongs to the cloud it was opened in: a place it made there cannot be entered from
     // another, so a cloud change (a notification tap can cause one under an open dialog) closes it.
     useEffect(() => setCreatePlaceOpen(false), [activeCloudId, setCreatePlaceOpen]);
