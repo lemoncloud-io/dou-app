@@ -98,11 +98,15 @@ final class AttachmentPicker: NSObject {
         }
     }
 
-    /// The server's seven document formats. HWP and HWPX have no system type, so they are named by
-    /// their extension; that type matches any file with it, and is the installed Hancom app's own
-    /// type when there is one.
+    /// Every format the server takes — its four photo formats, MP4 and its seven document formats — so
+    /// a photo or a video kept in Files can be sent from here too. Nothing beyond them: a file the
+    /// server would refuse is not offered. The pick still reports every item as a file; the web tells a
+    /// photo or a video by its format. HWP and HWPX have no system type, so they are named by their
+    /// extension; that type matches any file with it, and is the installed Hancom app's own type when
+    /// there is one.
     private static var documentTypes: [UTType] {
-        [.pdf, .plainText] + ["docx", "xlsx", "pptx", "hwp", "hwpx"].compactMap { UTType(filenameExtension: $0, conformingTo: .data) }
+        [.png, .jpeg, .gif, .webP, .mpeg4Movie, .pdf, .plainText]
+            + ["docx", "xlsx", "pptx", "hwp", "hwpx"].compactMap { UTType(filenameExtension: $0, conformingTo: .data) }
     }
 
     /// Deletes pick folders untouched for a day. A folder's age is its newest change, so one whose
@@ -515,14 +519,21 @@ private final class PickSession: NSObject, PHPickerViewControllerDelegate, UIDoc
     /// Moves the picker's copy (in the app's own inbox) into a pick folder.
     private static func takeDocument(_ url: URL, max: AttachmentPickerCore.MaxBytes, into collected: inout Collected) {
         let fm = FileManager.default
-        let name = AttachmentPickerCore.diskName(url.lastPathComponent, fallback: "file")
-        guard let size = AttachmentPicker.fileSize(url) else { return collected.refuse(name, kind: .file, .unreadable) }
-        if AttachmentPickerCore.isTooLarge(kind: .file, size: size, needsExport: false, max: max) {
-            try? fm.removeItem(at: url)
-            return collected.refuse(name, kind: .file, .tooLarge)
-        }
         // Read before the move: the type is the system's for this file, HWP's usually none.
         let contentType = (try? url.resourceValues(forKeys: [.contentTypeKey]))?.contentType?.preferredMIMEType
+        // A photo whose name lacks its extension gets one, so `readAttachment` can read it back.
+        let name = AttachmentPickerCore.documentName(
+            AttachmentPickerCore.diskName(url.lastPathComponent, fallback: "file"),
+            mimeType: contentType
+        )
+        // Held to, and refused under, the limit its format implies: the web sends a photo or an MP4
+        // from here as a photo or a video. It is still reported as a file below.
+        let limitKind = AttachmentPickerCore.limitKindForDocument(mimeType: contentType, fileName: name)
+        guard let size = AttachmentPicker.fileSize(url) else { return collected.refuse(name, kind: .file, .unreadable) }
+        if AttachmentPickerCore.isTooLarge(kind: limitKind, size: size, needsExport: false, max: max) {
+            try? fm.removeItem(at: url)
+            return collected.refuse(name, kind: limitKind, .tooLarge)
+        }
         guard let folder = try? AttachmentPicker.newFolder() else { return collected.refuse(name, kind: .file, .unreadable) }
         let target = folder.appendingPathComponent(name)
         do {

@@ -107,7 +107,68 @@ final class AttachmentPickerCoreTests: XCTestCase {
         }
     }
 
+    func testDocumentName_aPhotoFromFilesGetsTheExtensionItsTypeImplies() {
+        XCTAssertEqual(Core.documentName("scan", mimeType: "image/png"), "scan.png")
+        XCTAssertEqual(Core.documentName("scan", mimeType: "image/jpeg"), "scan.jpg")
+        XCTAssertEqual(Core.documentName("anim", mimeType: "image/gif"), "anim.gif")
+        XCTAssertEqual(Core.documentName("sticker", mimeType: "IMAGE/WEBP"), "sticker.webp")
+        XCTAssertEqual(Core.documentName("scan.dat", mimeType: "image/png"), "scan.dat.png", "a foreign extension is kept")
+        XCTAssertEqual(Core.documentName("photo.jpg", mimeType: "image/png"), "photo.jpg.png", "readAttachment would call it JPEG")
+        // A matching extension, in any case or spelling, is left alone.
+        XCTAssertEqual(Core.documentName("IMG_0001.JPEG", mimeType: "image/jpeg"), "IMG_0001.JPEG")
+        XCTAssertEqual(Core.documentName("IMG_0001.jpg", mimeType: "image/jpeg"), "IMG_0001.jpg")
+        XCTAssertEqual(Core.documentName("scan.PNG", mimeType: "image/png"), "scan.PNG")
+    }
+
+    func testDocumentName_leavesEverythingButTheFourPhotoTypesAlone() {
+        XCTAssertEqual(Core.documentName("clip", mimeType: "video/mp4"), "clip")
+        XCTAssertEqual(Core.documentName("report", mimeType: "application/pdf"), "report")
+        XCTAssertEqual(Core.documentName("IMG_0001", mimeType: "image/heic"), "IMG_0001")
+        XCTAssertEqual(Core.documentName("scan", mimeType: nil), "scan")
+        XCTAssertEqual(Core.documentName("scan", mimeType: "application/octet-stream"), "scan")
+    }
+
+    func testDocumentName_staysWithinTheFileSystemsNameLimit() {
+        let long = String(repeating: "가", count: 85) // 255 bytes of UTF-8, the most a name may hold
+        let named = Core.documentName(long, mimeType: "image/png")
+        XCTAssertTrue(named.hasSuffix(".png"))
+        XCTAssertLessThanOrEqual(named.utf8.count, Core.maxNameBytes)
+        XCTAssertEqual(named, String(repeating: "가", count: 83) + ".png", "cut on a character boundary")
+    }
+
     // MARK: - Pick-time refusal
+
+    func testLimitKindForDocument_theDeclaredTypeDecides() {
+        for type in ["image/png", "image/jpeg", "image/gif", "image/webp", "IMAGE/PNG", "image/png; q=1"] {
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "scan"), .image, type)
+        }
+        XCTAssertEqual(Core.limitKindForDocument(mimeType: "video/mp4", fileName: "clip"), .video)
+        XCTAssertEqual(Core.limitKindForDocument(mimeType: "application/pdf", fileName: "minutes.pdf"), .file)
+        XCTAssertEqual(Core.limitKindForDocument(mimeType: "text/plain", fileName: "notes.txt"), .file)
+        XCTAssertEqual(Core.limitKindForDocument(mimeType: "application/pdf", fileName: "looks-like.png"), .file, "the type wins over the name")
+        XCTAssertEqual(Core.limitKindForDocument(mimeType: "image/heic", fileName: "IMG_0001.heic"), .file, "not a photo the server takes")
+        XCTAssertEqual(Core.limitKindForDocument(mimeType: "video/quicktime", fileName: "clip.mov"), .file)
+    }
+
+    func testLimitKindForDocument_withNoUsefulTypeTheExtensionDecides() {
+        for type in [nil, "", " ", "application/octet-stream"] as [String?] {
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "scan.PNG"), .image)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "photo.jpeg"), .image)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "sticker.webp"), .image)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "clip.MP4"), .video)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "report.hwp"), .file)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: "noextension"), .file)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: nil), .file)
+        }
+    }
+
+    func testLimitKindForDocument_aLargeMp4PassesAndALargePngIsRefused() {
+        let max = Core.MaxBytes(image: 20 * Self.mib, video: 300 * Self.mib, file: 50 * Self.mib)
+        let mp4 = Core.limitKindForDocument(mimeType: "video/mp4", fileName: "clip.mp4")
+        XCTAssertFalse(Core.isTooLarge(kind: mp4, size: 120 * Self.mib, needsExport: false, max: max))
+        let png = Core.limitKindForDocument(mimeType: "image/png", fileName: "scan.png")
+        XCTAssertTrue(Core.isTooLarge(kind: png, size: 30 * Self.mib, needsExport: false, max: max))
+    }
 
     func testTooLarge_byKind_neverForAVideoThatWillBeConverted() {
         let max = Core.MaxBytes(image: 20 * Self.mib, video: 300 * Self.mib, file: 50 * Self.mib)
