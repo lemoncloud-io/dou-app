@@ -58,6 +58,7 @@ import {
 import {
     useHydrateDmPeers,
     useMessageViewer,
+    useHeldChannel,
     useNextUnreadShortcut,
     usePendingLanding,
     useReadCounts,
@@ -89,7 +90,7 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
 };
 
 export const HomePage = () => {
-    const { clouds, activeCloudId } = useClouds();
+    const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
     const { places, isLoading: placesLoading } = usePlaces();
     // Unread is aggregated once in the always-mounted shell (ShellUnreadSync) and
     // published to the store — read it here for the rail/place switcher.
@@ -144,15 +145,24 @@ export const HomePage = () => {
     const openCreateChannel = useCreateChannelDialogStore(s => s.open);
     // Only this screen opens the new-message picker, so its open state stays local.
     const [isNewDmOpen, setIsNewDmOpen] = useState(false);
-    const { isAvailable: canStartDm, startDm } = useStartDm();
+    const { isAvailable: canStartDm, startDm, isStarting } = useStartDm();
+    // Which sidebar person row asked for the 1:1 in flight; `isStarting` says whether it still is.
+    const [startingPeerId, setStartingPeerId] = useState<string | null>(null);
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
+    // The thread panel's channel outlives a place switch: the list is replaced under an unchanged
+    // selection, and a panel rebuilt for the same room would fetch everything again.
+    const threadChannel = useHeldChannel(
+        channels.find(channel => channel.id === selectedChannelId),
+        selectedChannelId,
+        isLoading
+    );
     const {
         threadRootId: openThreadRootId,
         settingsChannelId,
         profileTarget,
         savedOpen,
         activityOpen,
-    } = useTrailingPanelOwners();
+    } = useTrailingPanelOwners(threadChannel?.id, isLoading);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
@@ -173,10 +183,12 @@ export const HomePage = () => {
     const {
         pendingChannelRef,
         pendingPlaceRef,
+        awaitedPlaceRef,
         pendingJumpRef,
         pendingOpenAtBottomRef,
         pendingThreadRef,
         armPendingExpiry,
+        abandonPending,
     } = usePendingLanding();
     // The place an open request named, kept for the redirect that settles a held open, and the room
     // that redirect has already moved once (see the redirect effect below).
@@ -195,8 +207,27 @@ export const HomePage = () => {
             return;
         }
         pendingThreadRef.current = null;
-        openThread(rootId);
+        openThread(rootId, channelId);
     };
+
+    // Switch to the place a deferred open is bound for, and hold the landing until it has settled.
+    // Only a switch that really started is waited for. A switch that fails gives the open up: the
+    // session stays in the place it left, so the open would otherwise wait for a place that never
+    // comes. One refused because another switch is running cannot be waited for either — the running
+    // one heads somewhere this open did not choose — so it is given up too; a refusal because the
+    // session is already in the place just stops the wait.
+    const switchPlaceForOpen = (placeId: string) => {
+        if (switchPlace(placeId, abandonPending)) {
+            awaitedPlaceRef.current = placeId;
+        } else if (isPlaceSwitching) {
+            abandonPending();
+        } else {
+            awaitedPlaceRef.current = null;
+        }
+    };
+    // A room every place lists but each holds separately: it opens in the place that named it.
+    const isPlaceBound = (channelId: string) =>
+        channels.some(channel => channel.id === channelId && isSelfChannel(channel));
 
     const here: ReaderLocation = {
         cloudId: activeCloudId ?? 'default',
@@ -224,10 +255,14 @@ export const HomePage = () => {
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
     const jumpToSaved = (channelId: string, chatNo?: number, requestedPlaceId?: string, threadRootId?: string) => {
+        // Locked like the rail while a switch runs, whichever place it names: a second open would
+        // re-arm the landing, drop the place the first one waits for, and send its channel to the
+        // wrong place's list. During a switch the "current" place is already the one being switched to.
+        if (isSwitching) return;
         recordOrigin(channelId);
         // A 1:1 opens where it is listed, which its recorded place need not be.
         const placeId = openPlaceFor(
-            { placeId: requestedPlaceId ?? '', channelId },
+            { placeId: requestedPlaceId ?? '', channelId, placeBound: isPlaceBound(channelId) },
             { placeId: selectedPlaceId, dmPlaces }
         );
         if (placeId && placeId !== selectedPlaceId) {
@@ -238,7 +273,7 @@ export const HomePage = () => {
             pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
             pendingJumpRef.current = !threadRootId && chatNo != null ? { channelId, chatNo } : null;
             armPendingExpiry();
-            switchPlace(placeId);
+            switchPlaceForOpen(placeId);
             return;
         }
         selectChannel(channelId);
@@ -280,7 +315,10 @@ export const HomePage = () => {
         }
         // Another cloud's rooms are not loaded either; that switch lands first and redirects after.
         const placeId = sameCloud
-            ? openPlaceFor(pendingOpen, { placeId: selectedPlaceId, dmPlaces })
+            ? openPlaceFor(
+                  { ...pendingOpen, placeBound: isPlaceBound(channelId) },
+                  { placeId: selectedPlaceId, dmPlaces }
+              )
             : pendingOpen.placeId;
         const route = pendingOpenRoute(
             { ...pendingOpen, placeId },
@@ -302,7 +340,10 @@ export const HomePage = () => {
         } else if (route === 'switch-place') {
             pendingChannelRef.current = channelId;
             armPendingExpiry();
-            void switchAfterHandshake(() => switchPlace(placeId));
+            // Held from now, not from when the handshake lets the switch go: the room may be listed
+            // in the place being left.
+            awaitedPlaceRef.current = placeId;
+            void switchAfterHandshake(() => switchPlaceForOpen(placeId));
         } else if (route === 'wait') {
             // Land on it through the pending-channel effect once the list carries it.
             pendingChannelRef.current = channelId;
@@ -410,10 +451,11 @@ export const HomePage = () => {
             dmPlaces,
             redirectedId: redirectedPendingRef.current,
             namedPlaceId: pendingNamedPlaceRef.current,
+            placeBound: !!pendingId && isPlaceBound(pendingId),
         });
         if (!placeId) return;
         redirectedPendingRef.current = pendingId;
-        switchPlace(placeId);
+        switchPlaceForOpen(placeId);
     }, [listedChannelIds, isLoading, isSwitching, dmPlaces, selectedPlaceId, switchPlace]);
 
     useEffect(() => {
@@ -425,12 +467,14 @@ export const HomePage = () => {
             pendingChannelId: pendingChannelRef.current,
             selectedChannelId,
             rememberedChannelId: useLastChannelStore.getState().byScope[scope],
+            placeSettled: !awaitedPlaceRef.current || (selectedSiteId === awaitedPlaceRef.current && !isSwitching),
         });
         if (!landing) return;
         selectChannel(landing.channelId);
         if (landing.kind === 'pending') {
             const pending = landing.channelId;
             pendingChannelRef.current = null;
+            awaitedPlaceRef.current = null;
             redirectedPendingRef.current = null;
             pendingNamedPlaceRef.current = '';
             // A deferred notification open lands at the latest message.
@@ -453,6 +497,8 @@ export const HomePage = () => {
         requestOpenAtBottom,
         activeCloudId,
         selectedPlaceId,
+        selectedSiteId,
+        isSwitching,
     ]);
 
     // Remember the channel you have open in this cloud+place so returning restores it.
@@ -473,7 +519,7 @@ export const HomePage = () => {
         if (!pending) return;
         if (selectedChannelId === pending.channelId && channels.some(channel => channel.id === pending.channelId)) {
             pendingThreadRef.current = null;
-            openThread(pending.rootId);
+            openThread(pending.rootId, pending.channelId);
         }
     }, [channels, selectedChannelId, openThread]);
 
@@ -578,6 +624,8 @@ export const HomePage = () => {
     const jumpOrigin = useMessageJumpStore(s => s.origin);
     const clearJumpOrigin = useMessageJumpStore(s => s.clearOrigin);
     const returnToOrigin = (origin: MessageJumpOrigin) => {
+        // Locked while a switch runs, for the reason jumpToSaved gives.
+        if (isSwitching) return;
         // Going back ends the detour; it is not the start of a new one.
         clearJumpOrigin();
         const { channelId, anchorChatNo, threadRootId } = origin;
@@ -593,7 +641,7 @@ export const HomePage = () => {
                 if (origin.placeId && origin.placeId !== 'default') pendingPlaceRef.current = origin.placeId;
                 void switchAfterHandshake(() => switchCloud(origin.cloudId));
             } else if (origin.placeId) {
-                switchPlace(origin.placeId);
+                switchPlaceForOpen(origin.placeId);
             }
             return;
         }
@@ -674,6 +722,9 @@ export const HomePage = () => {
                             void switchCloud(cloudId);
                         }}
                         isSwitching={railLocked}
+                        isCatalogError={isCloudsError}
+                        isRetryingCatalog={isFetchingClouds}
+                        onRetryCatalog={() => void refetchClouds()}
                     />
                 }
                 rail2={
@@ -719,7 +770,15 @@ export const HomePage = () => {
                                 // with no place would only ever offer no one.
                                 onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
                                 memberPeers={memberPeers}
-                                onStartDm={canStartDm && !hasNoPlace ? peerId => void startDm(peerId) : undefined}
+                                onStartDm={
+                                    canStartDm && !hasNoPlace
+                                        ? peerId => {
+                                              setStartingPeerId(peerId);
+                                              void startDm(peerId);
+                                          }
+                                        : undefined
+                                }
+                                startingPeerId={isStarting ? startingPeerId : null}
                             />
                         </div>
                     </>
@@ -740,9 +799,9 @@ export const HomePage = () => {
                     ) : profileTarget ? (
                         // Stacked on whichever panel it opened from; closing it shows that panel again.
                         <ProfilePanel />
-                    ) : openThreadRootId && selectedChannel ? (
+                    ) : openThreadRootId && threadChannel ? (
                         <ThreadPanel
-                            channel={selectedChannel}
+                            channel={threadChannel}
                             rootId={openThreadRootId}
                             members={members}
                             membersLoading={membersLoading}

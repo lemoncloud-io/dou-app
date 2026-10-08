@@ -1,36 +1,28 @@
 import { useTranslation } from 'react-i18next';
 
-import { AlertCircle, Loader2 } from 'lucide-react';
-
 import { cn } from '@chatic/lib/utils';
-import { CloudAvatar, IconCheckCircleSolid } from '@chatic/web-ui-kit';
+import {
+    CloudAvatar,
+    CloudStatusBadge,
+    type CloudStatusVariant,
+    IconCheckCircleSolid,
+    IconChevronRight,
+    IconSpinner,
+} from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
+import { type CloudRowState, isCloudEnterable, needsCloudAttention, resolveCloudRowState } from '../../../../utils';
 import { CloudUnreadBadge } from './CloudUnreadBadge';
-import { CLOUD_AVATAR_CLASS, SELECTED_HIGHLIGHT, getCloudDisplayName, isProvisioning, needsEmailBind } from './shared';
+import { SELECTED_HIGHLIGHT, getCloudDisplayName, needsEmailBind } from './shared';
 
-const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
-    const { t } = useTranslation();
-
-    // 'active' has no badge — selection is shown by the trailing green check instead (Figma 2933-9794).
-    // Only non-active states carry an informational badge.
-    const configs: Partial<Record<NonNullable<CloudView['status']>, { label: string; className: string }>> = {
-        reserved: { label: t('cloudSessionSheet.statusReserved'), className: 'text-label' },
-        suspended: { label: t('cloudSessionSheet.statusSuspended'), className: 'text-yellow-600 dark:text-yellow-400' },
-        expired: { label: t('cloudSessionSheet.statusExpired'), className: 'text-gray-400' },
-        error: { label: t('cloudSessionSheet.statusError'), className: 'text-red-500' },
-    };
-
-    const config = status ? configs[status] : null;
-    if (!config) return null;
-
-    return (
-        // `shrink-0`: the name row is now `min-w-0`, so without this the status pill would be the
-        // thing that squashes instead of the name.
-        <div className="flex shrink-0 items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
-            <span className={`text-[14px] font-medium leading-[1.19] ${config.className}`}>{config.label}</span>
-        </div>
-    );
+/** The badge each row state wears in the switcher, and its word. `null` is a plain row. */
+const BADGE: Record<CloudRowState, { variant: CloudStatusVariant; key: string } | null> = {
+    provisioning: { variant: 'provisioning', key: 'statusProvisioning' },
+    setupFailed: { variant: 'failed', key: 'statusFailed' },
+    dropScheduled: { variant: 'ending', key: 'statusEnding' },
+    restricted: { variant: 'restricted', key: 'statusRestricted' },
+    released: null,
+    ready: null,
 };
 
 interface CloudItemProps {
@@ -40,14 +32,22 @@ interface CloudItemProps {
     /** presence badge: any unread across this cloud's places (last-visited snapshot). */
     hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
-    onErrorClick: () => void;
+    /** Raised instead of `onSelectCloud` for a row that cannot be entered — it opens cloud management. */
+    onInspectCloud: (cloudId: string) => void;
     /** Raised instead of `onSelectCloud` when the row `needsEmailBind` — see that helper. */
     onRequestEmailBind?: (cloudId: string) => void;
 }
 
 /**
- * One owned-cloud row of the switcher. Renaming is NOT offered here — the Figma switcher has no
- * pencil and `/mypage/cloud-profile` is the single rename path (ADR-0091).
+ * One owned-cloud row of the switcher — the Figma "DoU/Cloud Row" (4887-15268): avatar, name, the
+ * state badge and, for a row that has something to explain, the one-line caption and a chevron
+ * into cloud management.
+ *
+ * A row either enters its cloud or explains itself, never both. A live cloud (ready, or scheduled
+ * to end at the next renewal — still usable until then) switches; every other state has no
+ * session to switch to, so the tap opens the cloud's management hub instead, where the state is
+ * explained and a failed or held cloud is released. Renaming is NOT offered here — `/mypage/
+ * cloud-manage/:id/edit` is the single rename path.
  */
 export const CloudItem = ({
     cloud,
@@ -55,102 +55,107 @@ export const CloudItem = ({
     isDisabled,
     hasUnread,
     onSelectCloud,
-    onErrorClick,
+    onInspectCloud,
     onRequestEmailBind,
 }: CloudItemProps) => {
     const { t } = useTranslation();
-    const isError = cloud.status === 'error';
-    const isActive = cloud.status === 'active';
-    const unbound = needsEmailBind(cloud);
-    // An error row can't be entered but IS tappable — the tap is what explains the state. The
-    // button-level `disabled` below used to cover every non-active status, so `onErrorClick` was
-    // unreachable and the row's only voice was the raw server trace it printed.
-    const disabled = isDisabled || isSelected || (!isActive && !isError);
+    const state = resolveCloudRowState(cloud);
+    const enterable = isCloudEnterable(state);
+    const attention = needsCloudAttention(state);
+    const badge = BADGE[state];
+    const isRestricted = state === 'restricted';
+    // An unbound cloud is live (not `disabled`) but there's nothing to sign into it with yet —
+    // route the tap at fixing that instead of switching.
+    const unbound = enterable && needsEmailBind(cloud);
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
+    // A row that explains itself stays tappable whatever else is going on; only a switch in flight
+    // or the row already being the session blocks it.
+    const disabled = isDisabled || isSelected;
+
+    const handleClick = () => {
+        if (disabled || !cloud.id) return;
+        if (!enterable) {
+            onInspectCloud(cloud.id);
+            return;
+        }
+        if (unbound && onRequestEmailBind) {
+            onRequestEmailBind(cloud.id);
+            return;
+        }
+        onSelectCloud(cloud.id);
+    };
 
     return (
         <button
-            onClick={() => {
-                if (isError) {
-                    onErrorClick();
-                    return;
-                }
-                // An unbound cloud is `active` (not `disabled`) but there's nothing to sign into it
-                // with yet — route the tap at fixing that instead of switching.
-                if (unbound && onRequestEmailBind) {
-                    if (cloud.id) onRequestEmailBind(cloud.id);
-                    return;
-                }
-                if (!disabled && cloud.id) onSelectCloud(cloud.id);
-            }}
-            disabled={isDisabled || (!isActive && !isError)}
+            onClick={handleClick}
+            disabled={disabled}
             className={cn(
                 'flex w-full items-center gap-3 rounded-xl px-2 py-2 transition-colors',
                 isSelected && SELECTED_HIGHLIGHT,
+                isRestricted && 'bg-secondary',
                 disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
-            {/* Avatar — provisioning/error states show a glyph in the placeholder disc; the active
-                cloud uses the AppHeader-style initials avatar (CloudAvatar) derived from its name. */}
-            {isProvisioning(cloud.status) ? (
-                <div className={CLOUD_AVATAR_CLASS}>
-                    <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
-                </div>
-            ) : isError ? (
-                <div className={CLOUD_AVATAR_CLASS}>
-                    <AlertCircle size={20} className="text-red-500" />
-                </div>
-            ) : (
-                <CloudAvatar name={displayName} size="lg" />
-            )}
+            <CloudAvatar name={displayName} size="lg" />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {hasName ? (
                     // `min-w-0` + `truncate` on the NAME only: a long cloud name is clipped with an
                     // ellipsis while the unread badge stays fully visible (Figma 3486:25664).
                     <div className="flex min-w-0 items-center gap-[6px]">
-                        <span className="truncate text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                        <span
+                            className={cn(
+                                'truncate text-[15px] font-medium leading-[1.19] tracking-[-0.02em]',
+                                isRestricted ? 'text-placeholder' : 'text-foreground'
+                            )}
+                        >
                             {displayName}
                         </span>
                         {hasUnread && <CloudUnreadBadge />}
-                        <CloudStatusBadge status={cloud.status} />
                     </div>
                 ) : (
                     <div className="flex items-center gap-[6px]">
-                        <AlertCircle size={18} className="text-white" />
                         <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                             {t('cloudSessionSheet.setupProfile')}
                         </span>
                     </div>
                 )}
-                <span
-                    className={cn(
-                        'truncate text-left text-[14px] leading-[1.19] tracking-[-0.01em]',
-                        unbound
-                            ? 'font-medium text-point-blue underline underline-offset-2'
-                            : 'font-normal text-description'
-                    )}
-                >
-                    {unbound ? t('cloudSessionSheet.emailRequired') : (cloud.email ?? '')}
-                </span>
-                {isProvisioning(cloud.status) && (
-                    <span className="text-left text-[12px] leading-[1.3] text-[#9FA2A7]">
-                        {t('cloudSessionSheet.statusReservedDescription')}
+                {/* The caption is the design's one sentence for every state that needs a look; the
+                    badge says which state. The record's own `error` is a server-side provisioning
+                    trace that names internals, so it never reaches the row — the sheet logs it. */}
+                {attention ? (
+                    <span
+                        className={cn(
+                            'truncate text-left text-[13px] leading-[1.4] tracking-[-0.065px]',
+                            isRestricted ? 'text-placeholder' : 'text-description'
+                        )}
+                    >
+                        {t('cloudSessionSheet.checkInfo')}
                     </span>
-                )}
-                {/* The record's own `error` is a server-side provisioning trace
-                    (".accountNo[...] is invalid (duplicated by ...)") — it names internals, not
-                    anything the user can act on. The row states the outcome instead; the raw trace
-                    goes to the log from the sheet's `onErrorClick`. */}
-                {isError && (
-                    <span className="text-left text-[11px] leading-[1.3] text-red-400">
-                        {t('cloudSessionSheet.statusErrorDescription')}
+                ) : state === 'provisioning' ? null : (
+                    <span
+                        className={cn(
+                            'truncate text-left text-[14px] leading-[1.19] tracking-[-0.01em]',
+                            unbound
+                                ? 'font-medium text-point-blue underline underline-offset-2'
+                                : 'font-normal text-description'
+                        )}
+                    >
+                        {unbound ? t('cloudSessionSheet.emailRequired') : (cloud.email ?? '')}
                     </span>
                 )}
             </div>
-            {/* Selection mark — trailing filled lime check disc (Figma 3477-23611). `text-primary`
-                IS the lime: --primary resolves to hsl(76 87% 49%) === #b0ea10 (Figma main1_Color). */}
-            {isSelected && <IconCheckCircleSolid size={28} className="shrink-0 text-primary" />}
+            <span className="flex shrink-0 items-center gap-1.5">
+                {state === 'provisioning' && <IconSpinner className="size-5 animate-spin text-point-blue" />}
+                {badge && <CloudStatusBadge variant={badge.variant} label={t(`cloudSessionSheet.${badge.key}`)} />}
+                {/* Selection mark — trailing filled lime check disc (Figma 3477-23611). `text-primary`
+                    IS the lime: --primary resolves to hsl(76 87% 49%) === #b0ea10 (Figma main1_Color). */}
+                {isSelected ? (
+                    <IconCheckCircleSolid size={28} className="text-primary" />
+                ) : (
+                    !enterable && <IconChevronRight className="size-[18px] text-description" />
+                )}
+            </span>
         </button>
     );
 };

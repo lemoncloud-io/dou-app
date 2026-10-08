@@ -19,6 +19,8 @@ const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.co
 // Read once: the shell injects it before any page script, and a per-render read would be a
 // fresh dependency for the status effect below.
 const api = getCustomUiApi();
+// Undefined on a production shell, which does not take bundles — the panel then hides Apply.
+const apply = api?.apply;
 
 /**
  * Custom web bundle PoC (desktop shell only): swap the whole UI for a downloaded ZIP.
@@ -84,20 +86,24 @@ export const DebugCustomUiPage = () => {
                 </div>
             )}
 
-            <label className="flex flex-col gap-1 text-micro text-muted-foreground">
-                Bundle ZIP URL
-                <input
-                    value={zipUrl}
-                    onChange={e => setZipUrl(e.target.value)}
-                    placeholder="https://example.com/custom-web.zip"
-                    className="h-10 rounded-lg border border-control-border bg-background px-3 text-callout text-foreground outline-none focus:border-focus-border"
-                />
-            </label>
+            {apply && (
+                <label className="flex flex-col gap-1 text-micro text-muted-foreground">
+                    Bundle ZIP URL
+                    <input
+                        value={zipUrl}
+                        onChange={e => setZipUrl(e.target.value)}
+                        placeholder="https://example.com/custom-web.zip"
+                        className="h-10 rounded-lg border border-control-border bg-background px-3 text-callout text-foreground outline-none focus:border-focus-border"
+                    />
+                </label>
+            )}
 
             <div className="flex items-center gap-2">
-                <Button size="sm" disabled={busy || !zipUrl.trim()} onClick={() => void run(api.apply(zipUrl.trim()))}>
-                    Apply
-                </Button>
+                {apply && (
+                    <Button size="sm" disabled={busy || !zipUrl.trim()} onClick={() => void run(apply(zipUrl.trim()))}>
+                        Apply
+                    </Button>
+                )}
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => void run(api.disable())}>
                     Reset
                 </Button>

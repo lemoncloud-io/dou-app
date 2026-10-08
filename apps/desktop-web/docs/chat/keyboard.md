@@ -27,6 +27,16 @@ The message toolbar is `inert` unless its message is hovered, focused, or has so
 emoji grid, the delete dialog). Whether the device can hover is a live media query
 (`useMediaQuery('(hover: hover)')`). It used to be read once at import.
 
+A row gets a toolbar only when it has something to draw, and `MessageRow` decides that from the same
+three flags the toolbar renders from: reactions (any settled row), Reply (a settled row where the feed
+passes `onOpenThread`), and the "More" menu (the row has text, it is a settled row with attachments,
+or it is mine to edit or delete). A file or photo sent without text gets "More" in the main feed and
+the thread panel alike, for Save for later: someone else's holds that one item, since there is no
+text to copy or edit and the row is not mine to delete; mine adds it to Edit and Delete. Its saved
+snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), because the Saved pane shows
+only that text. A row still in flight or failed has no reactions, Reply or Save, so without text it
+has no toolbar; a deleted row never has one.
+
 ## Hover-revealed controls
 
 A control that waits for hover (an image's save bar, the tray's "×", a Mentions or Saved row's
@@ -42,7 +52,9 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
 
 - `useEscapeClose` (`shared/hooks/useEscapeClose.ts`) closes a panel on Escape, but not an Escape that
   something above it already handled (`defaultPrevented`). Escape in the inline message editor
-  cancels the edit and used to close the thread panel as well.
+  cancels the edit and used to close the thread panel as well. The editor takes the key itself, from
+  the body, a toolbar button or Cancel alike; an Escape the emoji picker or the mention list took
+  arrives already handled and cancels nothing.
 - The image viewer steps with ←/→ only when no control inside it has handled the key.
 
 ## Focus when something opens or closes
@@ -55,6 +67,9 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
   the channel has messages, a menu item leaves with its menu). Their `onCloseAutoFocus` is
   `focusComposerIfDropped` (`shared/utils/composerFocus.ts`): it waits a microtask so the opener
   return runs first, and acts only if focus is still on `<body>`.
+- **The message editor** takes focus when it opens, with the caret at the end, and gives it back to
+  the message row it was opened on when it closes by save or cancel. The row is the feed's roving
+  item, so the arrow keys carry on from there and typing a letter goes to the room's message box.
 - **After a channel is deleted or left** (header menu, settings panel or sidebar row), the confirm
   has already closed and the room it returned focus to is gone. `useChannelActions` leaves a
   one-shot request in `useComposerFocusStore`, keyed by the removed channel, and `ChatPane` spends it

@@ -37,6 +37,45 @@ describe('usePendingLanding', () => {
         expect(result.current.pendingThreadRef.current).toBeNull();
     });
 
+    it('stops waiting for a place when the expiry fires', () => {
+        const { result } = renderHook(() => usePendingLanding());
+        armAll(result.current);
+        result.current.awaitedPlaceRef.current = 'P2';
+
+        act(() => {
+            vi.advanceTimersByTime(PENDING_LANDING_TTL_MS);
+        });
+
+        expect(result.current.awaitedPlaceRef.current).toBeNull();
+    });
+
+    it('drops the place an earlier open waited for when a new one is armed', () => {
+        const { result } = renderHook(() => usePendingLanding());
+        armAll(result.current);
+        result.current.awaitedPlaceRef.current = 'P2';
+
+        result.current.armPendingExpiry();
+
+        expect(result.current.awaitedPlaceRef.current).toBeNull();
+    });
+
+    it('abandons every pending landing and the awaited place at once', () => {
+        const { result } = renderHook(() => usePendingLanding());
+        armAll(result.current);
+        result.current.awaitedPlaceRef.current = 'P2';
+
+        act(() => {
+            result.current.abandonPending();
+        });
+
+        expect(result.current.pendingChannelRef.current).toBeNull();
+        expect(result.current.pendingPlaceRef.current).toBeNull();
+        expect(result.current.awaitedPlaceRef.current).toBeNull();
+        expect(result.current.pendingJumpRef.current).toBeNull();
+        expect(result.current.pendingOpenAtBottomRef.current).toBeNull();
+        expect(result.current.pendingThreadRef.current).toBeNull();
+    });
+
     it('restarts the expiry when re-armed', () => {
         const { result } = renderHook(() => usePendingLanding());
         armAll(result.current);

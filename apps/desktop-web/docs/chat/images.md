@@ -33,6 +33,12 @@ refusals by reason:
   under that name.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
   documents 50 MB. The server would refuse it with a 413 only after the whole transfer.
+- `name-too-long`: the name as it will be sent (a document without an extension is given its
+  format's) is over 255 UTF-8 bytes, the server's limit. Hangul is three bytes a character and an
+  emoji four, so about 85 Hangul characters is already too many. The server measures the name
+  composed (NFC) and so does the check, because macOS hands Hangul over decomposed. The server would
+  refuse it with a 400 after the file is declared, and a retry can only fail the same way. The name
+  is not shortened for the sender.
 - `duplicate`: the same name, size and modification time as a file already in the tray or in the same
   batch.
 - `limit`: over `MAX_ATTACHMENTS` (10).

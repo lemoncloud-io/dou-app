@@ -350,7 +350,12 @@ final class PhotoLibrary: NSObject {
     /// than handing back whichever cached rendition is nearest, which can be smaller than the tile.
     /// The crop is measured on the image PhotoKit returned, not on the asset's dimensions: the fast
     /// rendition is smaller, and a stored size need not match the orientation it is drawn in.
-    private static func squareThumbnail(_ asset: PHAsset, size: Int) -> String? {
+    ///
+    /// A size a little above the rendition Photos keeps of every photo is made at that rendition's
+    /// size instead (`PhotoLibraryCore.previewSide`): asking past it makes PhotoKit decode the original,
+    /// several times slower, for a tile drawn only slightly larger than the rendition.
+    private static func squareThumbnail(_ asset: PHAsset, size requested: Int) -> String? {
+        let size = PhotoLibraryCore.previewSide(requested)
         let box = PhotoLibraryCore.fitBox(width: asset.pixelWidth, height: asset.pixelHeight, size: size)
         let target = CGSize(width: box, height: box)
         guard let image = localImage(asset, size: target, mode: .highQualityFormat, resize: .exact)

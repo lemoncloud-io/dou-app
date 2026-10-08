@@ -13,9 +13,7 @@ const mockedClear = relaySession.clearAndRedirect as jest.Mock;
 
 /**
  * The shape the SDK actually hands us: `AuthSwitchError` says only which PHASE failed, and the
- * server's sentence — the only place the word "revoked" appears — rides in `cause`
- * (chatic-sockets-api `client-socket-v2/auth-controller.ts`). Reproduced from the live failure in
- * `.claude/20260910/DEBUG-17-30-25.md`.
+ * server's sentence — the only place the word "revoked" appears — rides in `cause`.
  */
 const authSwitchError = (causeMessage: string): Error => {
     const error = new Error('auth.switch failed: server') as Error & { cause?: unknown };

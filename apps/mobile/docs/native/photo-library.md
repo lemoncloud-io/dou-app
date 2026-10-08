@@ -135,7 +135,7 @@ takes none, and React Native rejects a call with the wrong count.
 - **Preview size.** `ListPhotos` and `ListPhotoAlbums` (its covers) take `thumbSize`: the side of a
   square, in pixels — the tile's size on screen times the device pixel ratio. The shell rounds and
   clamps it to 64–720 (720 covers two columns on a 440pt phone at 3×) and answers the photo's centre
-  square at that side, JPEG quality 0.8. It asks the library for the photo fitted in a box whose side
+  square at that side (on iOS, a size from 353 to 440 px is answered at 352: see the next point), JPEG quality 0.8. It asks the library for the photo fitted in a box whose side
   brings the short edge to `thumbSize` (`fitBox`: `thumbSize × long ÷ short`, rounded up), then crops
   the middle square of what came back and scales it to `thumbSize` — never up: a library image smaller
   than that stays its own size. The ratio is capped at 3:1, so a panorama is decoded at three times the
@@ -150,6 +150,24 @@ takes none, and React Native rejects a call with the wrong count.
   would cost a full image decode per tile, for a difference hard to see. Without `thumbSize` the preview is what it was before
   the field — about 256 px on the long edge, uncropped, quality 0.7 — which is what a web from before it
   gets, and what an app from before it answers anyway.
+- **iOS answers a size just above the stored rendition from it.** Photos keeps a small rendition of
+  every photo, and a square up to 352 px is cut from it. Past that, PhotoKit decodes the original.
+    - **Measured:** on an iPhone 14 Pro (iOS 26.7) with 21,550 photos, a preview took about 5 ms up to
+      352 px and about 35 ms from 368 px up. The photo's shape made no difference, and neither did
+      `resizeMode .exact` against `.fast`. iOS 18.3 and 26.3 simulators with 12 MP JPEGs gave the same
+      boundary (4–5 ms against 26–31 ms). A three-column page of 60 at 400 px took 1.3–2.2 s.
+    - **The rule:** a size above 352 px and at most 440 px (1.25×) is made at 352 px (`previewSide`,
+      `storedPreviewSide`, `storedPreviewReach`). A three-column tile on a 3× phone is 384–432 px, inside
+      it; four and five columns ask for less. A three-column page then takes 0.16–0.57 s, and the tile draws the square 9–23% larger.
+    - **Two columns on a 3× phone** ask for about 600 px, past the reach. They still get the original at
+      full sharpness, at the old speed.
+    - **Video poster frames** take the same path.
+    - **The web is unaffected.** It compares the sizes it asked for, not the pixels it got, so it does
+      not fetch a 352 px answer again.
+    - **Asking only for what is stored is not an alternative.** `deliveryMode .fastFormat` is instant
+      but answers about 40 px.
+    - **Android is unchanged.** `loadThumbnail` took the same time from 288 to 592 px on an API 35
+      emulator, and it has its own ceiling, described above.
 - **Previews never wait on the network.** iOS makes them from what Photos keeps on the device — the
   sharp rendition if it is there, the fast one if not; waiting on iCloud for each of 60 would
   outlast the web's request timeout. The fast rendition can come back smaller than asked; its square
@@ -223,7 +241,8 @@ takes none, and React Native rejects a call with the wrong count.
 
 Why the shell, not the web, prepares the form — and what the Android permission costs at release —
 is ADR-0150. Why videos are kept in the shell rather than read across the bridge is ADR-0171. Why
-previews are square at the tile's size, and why pages can be cut by offset, is ADR-0174.
+previews are square at the tile's size, and why pages can be cut by offset, is ADR-0174. Why iOS
+answers 353–440 px at 352 is ADR-0177.
 `READ_MEDIA_VIDEO` falls under Play's photo and video permissions policy like `READ_MEDIA_IMAGES`: the
 app's Play declaration has to name it before an Android release that lists videos ships.
 

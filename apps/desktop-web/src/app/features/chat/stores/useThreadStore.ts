@@ -3,7 +3,9 @@ import { create } from 'zustand';
 interface ThreadState {
     /** Thread root id whose panel is open, or null when closed. */
     openRootId: string | null;
-    open: (rootId: string) => void;
+    /** The channel the thread was opened in — a root id (a bare chatNo) means nothing without it. */
+    openChannelId: string | null;
+    open: (rootId: string, channelId: string) => void;
     close: () => void;
 }
 
@@ -16,6 +18,7 @@ interface ThreadState {
  */
 export const useThreadStore = create<ThreadState>(set => ({
     openRootId: null,
-    open: rootId => set({ openRootId: rootId }),
-    close: () => set({ openRootId: null }),
+    openChannelId: null,
+    open: (rootId, channelId) => set({ openRootId: rootId, openChannelId: channelId }),
+    close: () => set({ openRootId: null, openChannelId: null }),
 }));

@@ -1,5 +1,6 @@
 module.exports = {
     testEnvironment: 'jsdom',
+    setupFiles: ['<rootDir>/jest.setup.ts'],
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
     moduleNameMapper: {
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',

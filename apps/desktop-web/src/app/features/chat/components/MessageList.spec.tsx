@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { $getRoot, $getSelection, $isRangeSelection, type LexicalEditor } from 'lexical';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -10,11 +11,12 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // The row's action controls reach for the chat repository and the active place at
 // module scope; neither is available outside the app shell. Nothing here asserts on
 // them — this file is about whether the list renders at all.
+const updateChat = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({
-                chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
+                chat: { updateChat, deleteChat: vi.fn(), setReaction: vi.fn() },
             }),
         },
         session: {
@@ -36,12 +38,16 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 import '../../../../i18n';
 
 import { MessageList } from './MessageList';
+import { useSavedItemsStore } from '../../../shared';
 import type { ThreadMeta } from '../utils';
-import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
+import { MSG_MENTION_CLASS, WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 // jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
 // layout effect to land on the newest message.
 Element.prototype.scrollIntoView = vi.fn();
+// Nor does it lay out ranges: the editor scrolls a focused selection into view through one.
+Range.prototype.getBoundingClientRect = () => new DOMRect();
+Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 
 const VIEWER = { uid: 'me', name: 'Me', cloudUid: 'me-cloud' };
 
@@ -64,6 +70,23 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
         createdAt: 1_700_000_000_000 + chatNo,
     }) as DomainChat;
 
+// A reply that is only a file: no text, so nothing in the row but the attachment.
+const fileOnlyReply = (chatNo: number, ownerId: string): DomainChat =>
+    ({
+        ...message(chatNo, ownerId, ''),
+        uploadIds: ['U1'],
+        upload$$: [
+            {
+                id: 'U1',
+                status: 'stored',
+                stereo: 'file',
+                name: 'report.docx',
+                contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                contentSize: 26_300,
+            },
+        ],
+    }) as unknown as DomainChat;
+
 /**
  * A smoke render of the two derivations that live inside the component rather than in
  * a pure util — the thread-footer view and the reactor-name resolver.
@@ -71,7 +94,7 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
  * Both were shipped calling a helper the file never imported, which threw a
  * ReferenceError the moment either ran. No gate caught it: vite strips types without
  * resolving free identifiers, `typescript-eslint` disables `no-undef` on TS files, and
- * nothing rendered this component. See `.claude/20260804/DEBUG-10-36-17.md`.
+ * nothing rendered this component.
  *
  * So the assertions are deliberately shallow. The point is that these two paths
  * execute at all, which is exactly what was missing.
@@ -159,8 +182,7 @@ describe('MessageList', () => {
     });
 
     // `blocks$` (server field) outranks the `content` JSON fallback above. Fixture is the
-    // server's own sample payload
-    // (resolveChatBlocks.spec.ts uses the same two files).
+    // shared webhook sample (resolveChatBlocks.spec.ts uses the same two constants).
     it('draws blocks$ ahead of content — header, sections and context all reach the DOM', () => {
         const withBlocksField = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
@@ -310,27 +332,218 @@ describe('MessageList', () => {
     // A thread passes no `onOpenThread` (no thread inside a thread), and a file sent on its own has
     // no text. The row still has to offer Delete to the person who sent it.
     it('offers Delete on my file-only reply in a thread', () => {
-        const fileOnly = {
-            ...message(1, 'me', ''),
-            uploadIds: ['U1'],
-            upload$$: [
-                {
-                    id: 'U1',
-                    status: 'stored',
-                    stereo: 'file',
-                    name: 'report.docx',
-                    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    contentSize: 26_300,
-                },
-            ],
-        } as unknown as DomainChat;
-
-        render(<MessageList messages={[fileOnly]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
-            wrapper,
-        });
+        render(
+            <MessageList messages={[fileOnlyReply(1, 'me')]} isLoading={false} viewer={VIEWER} names={new Map()} />,
+            { wrapper }
+        );
         clickRowMenuItem('Delete message');
 
         expect(screen.getByRole('alertdialog')).toBeDefined();
+    });
+
+    // Reacting is only reachable from the toolbar, so a file-only reply from somebody else, which
+    // has no text and nothing of mine to edit or delete, still needs the toolbar for its reactions.
+    it("offers reactions on somebody else's file-only reply in a thread", () => {
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'ada')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByLabelText('Add reaction')).toBeDefined();
+    });
+
+    // A file sent on its own is as worth coming back to as a text, so its menu holds Save for
+    // later. Only that: there is no text to copy or edit, and somebody else's file is not mine
+    // to delete. The thread panel passes no `onOpenThread`; the main feed does.
+    it.each([
+        ['in a thread', undefined],
+        ['in the main feed', vi.fn()],
+    ])("offers only Save for later on somebody else's file-only message %s", (_where, onOpenThread) => {
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'ada')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                onOpenThread={onOpenThread}
+            />,
+            { wrapper }
+        );
+        fireEvent.keyDown(screen.getByLabelText('More actions'), { key: 'Enter' });
+
+        expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Save for later']);
+    });
+
+    it.each([
+        ['in a thread', undefined],
+        ['in the main feed', vi.fn()],
+    ])('offers Save for later on my file-only message %s, next to Delete', (_where, onOpenThread) => {
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'me')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map()}
+                onOpenThread={onOpenThread}
+            />,
+            { wrapper }
+        );
+        fireEvent.keyDown(screen.getByLabelText('More actions'), { key: 'Enter' });
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+
+        expect(items).toContain('Save for later');
+        expect(items).toContain('Delete message');
+        expect(items).not.toContain('Copy');
+    });
+
+    // The saved pane shows the snapshot's text and nothing else, so a file saved as its empty
+    // `content` would sit there as a blank row. It reads the way the sidebar previews it.
+    it('saves a file-only message under what it carries, not its empty text', () => {
+        useSavedItemsStore.setState({ items: {} });
+        render(
+            <MessageList
+                messages={[fileOnlyReply(1, 'ada')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+        clickRowMenuItem('Save for later');
+
+        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'File', ownerName: 'Ada' });
+    });
+
+    it('saves a text message under its text', () => {
+        useSavedItemsStore.setState({ items: {} });
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'see you at noon')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+        clickRowMenuItem('Save for later');
+
+        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'see you at noon' });
+    });
+
+    describe('editing my message', () => {
+        beforeEach(() => {
+            updateChat.mockReset();
+            updateChat.mockResolvedValue({ id: 'C1:1', content: 'see you at noon!' });
+        });
+
+        // A thread panel renders the same list with no thread callbacks, so this is its surface too.
+        const renderMine = () =>
+            render(
+                <MessageList
+                    messages={[message(1, 'me', 'see you at noon')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                />,
+                { wrapper }
+            );
+        const editorBody = () =>
+            screen.getByRole('textbox', { name: 'Edit message' }) as HTMLElement & { __lexicalEditor?: LexicalEditor };
+        // The editor loads its document in a microtask; typing before that would land in an empty box.
+        const openEditor = async () => {
+            clickRowMenuItem('Edit message');
+            await act(async () => {
+                await Promise.resolve();
+            });
+        };
+        const typeAtEnd = (text: string) =>
+            act(() =>
+                editorBody().__lexicalEditor?.update(
+                    () => {
+                        $getRoot().selectEnd();
+                        const selection = $getSelection();
+                        if ($isRangeSelection(selection)) selection.insertText(text);
+                    },
+                    { discrete: true }
+                )
+            );
+
+        it('opens the editor in place of the text, with no hover toolbar and the hover band held', async () => {
+            const { container } = renderMine();
+            await openEditor();
+
+            expect(editorBody()).toBeDefined();
+            expect(screen.queryByLabelText('More actions')).toBeNull();
+            expect(container.querySelector('[data-roving-group]')?.classList.contains('bg-accent/70')).toBe(true);
+        });
+
+        it('shows a listed @name in the message as a chip when the editor opens', async () => {
+            render(
+                <MessageList
+                    messages={[message(1, 'me', 'ping @Ada')]}
+                    isLoading={false}
+                    viewer={VIEWER}
+                    names={new Map()}
+                    mentionables={[{ id: 'u-ada', name: 'Ada' }]}
+                />,
+                { wrapper }
+            );
+            await openEditor();
+
+            await waitFor(() => expect(editorBody().querySelector('[data-lexical-text]')).not.toBeNull());
+            const chip = within(editorBody()).getByText('@Ada');
+            expect(chip.className).toContain(MSG_MENTION_CLASS);
+        });
+
+        it('saves what was typed through the repository and hands focus back to the message', async () => {
+            renderMine();
+            await openEditor();
+
+            await typeAtEnd('!');
+            await act(async () => {
+                fireEvent.keyDown(editorBody(), { key: 'Enter', keyCode: 13 });
+            });
+
+            await waitFor(() => expect(updateChat).toHaveBeenCalledWith({ id: 'C1:1', content: 'see you at noon!' }));
+            expect(screen.queryByRole('textbox', { name: 'Edit message' })).toBeNull();
+            expect(document.activeElement).toBe(screen.getByRole('article'));
+        });
+
+        it('leaves the message alone and hands focus back on Escape', async () => {
+            renderMine();
+            await openEditor();
+            editorBody().focus();
+
+            fireEvent.keyDown(editorBody(), { key: 'Escape' });
+
+            expect(updateChat).not.toHaveBeenCalled();
+            expect(screen.queryByRole('textbox', { name: 'Edit message' })).toBeNull();
+            expect(document.activeElement).toBe(screen.getByRole('article'));
+        });
+    });
+
+    // The toolbar is drawn from what the row can do, so a row the server has not accepted has
+    // nothing to draw: every reaction needs an id to address. An empty pill would hover over it.
+    it.each([
+        ['pending', { isPending: true }],
+        ['failed', { isFailed: true }],
+    ])("draws no toolbar on somebody else's %s file-only reply", (_state, flags) => {
+        const { container } = render(
+            <MessageList
+                messages={[{ ...fileOnlyReply(1, 'ada'), ...flags } as DomainChat]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(container.querySelector('[data-row-actions]')).toBeNull();
     });
 
     it('hangs the first toolbar under the author line in a thread, not over it', () => {

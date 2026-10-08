@@ -26,6 +26,15 @@ export const sortPlansByTier = (plans: ProductView[]): ProductView[] =>
 export const selectSellablePlans = (plans: ProductView[], platform: StorePlatform | undefined): ProductView[] =>
     platform ? sortPlansByTier(plans.filter(p => p.platform === platform)) : [];
 
+/**
+ * Whether the catalog sells a tier above the one in force — what decides which "no more clouds"
+ * dialog the add-cloud flow shows: an offer to change the plan, or a plain "this is the most".
+ * An unresolved current plan reads as "a higher tier may exist", so the offer is made; the picker
+ * then applies the real adjacency rules.
+ */
+export const hasHigherTier = (current: ProductView | undefined, sellable: ProductView[]): boolean =>
+    sellable.some(plan => (plan.sort ?? 0) > (current?.sort ?? 0));
+
 /** Joins a `#`-prefixed product id (a membership's `productId`, say) back to its plan. */
 export const findPlanById = (plans: ProductView[], productId?: string | null): ProductView | undefined => {
     const key = stripPlanId(productId);

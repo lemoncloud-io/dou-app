@@ -65,10 +65,10 @@ export const ROUTES = {
         account: {
             info: '/mypage/account',
             edit: '/mypage/edit',
-            cloudProfile: '/mypage/cloud-profile',
             withdrawal: '/mypage/withdrawal',
         },
-        cloud: { manage: '/mypage/cloud-manage' }, // cloud OWNERSHIP, distinct from `account` (login credentials)
+        // cloud OWNERSHIP, distinct from `account` (login credentials); one cloud's tree below the list
+        cloud: { manage: '/mypage/cloud-manage', hub: (id) => …, edit: (id) => …, detail: (id) => …, places: (id) => … },
         settings: {
             root: '/mypage/settings',
             notifications: '/mypage/settings/notifications',

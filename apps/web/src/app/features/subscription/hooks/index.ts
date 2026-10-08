@@ -1,5 +1,6 @@
 export * from './useAddCloud';
 export * from './useCloudEmailGuard';
+export * from './useCloudManageScene';
 export * from './useCloudQuota';
 export * from './useNativeCatalog';
 export * from './usePlanCatalog';

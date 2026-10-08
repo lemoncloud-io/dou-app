@@ -3,6 +3,7 @@ import {
     EXPIRED_HOLD_MS,
     daysUntil,
     deriveBanner,
+    deriveCloudManageBanner,
     deriveInfoRows,
     isRestoreTransition,
     isWithinExpiredHold,
@@ -131,5 +132,19 @@ describe('isRestoreTransition', () => {
         expect(isRestoreTransition('none', 'active')).toBe(false);
         expect(isRestoreTransition('active', 'active')).toBe(false);
         expect(isRestoreTransition('cancelScheduled', 'expired')).toBe(false);
+    });
+});
+
+describe('deriveCloudManageBanner', () => {
+    it('leads with a block, then a lapse, then a queued change', () => {
+        expect(deriveCloudManageBanner('blocked', true)).toBe('blocked');
+        expect(deriveCloudManageBanner('expired', true)).toBe('expired');
+        expect(deriveCloudManageBanner('active', true)).toBe('pendingChange');
+    });
+
+    it('shows nothing for a plan that is simply running, ending, or absent', () => {
+        expect(deriveCloudManageBanner('active', false)).toBeUndefined();
+        expect(deriveCloudManageBanner('cancelScheduled', false)).toBeUndefined();
+        expect(deriveCloudManageBanner('none', false)).toBeUndefined();
     });
 });

@@ -433,12 +433,12 @@ elsewhere on close moves it in `onCloseAutoFocus` and calls `preventDefault()`.
   `tsconfig.spec.json` because there are no specs.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf` and look again.
 - Downstream, a changed identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `libs/web-ui-kit` and `libs/shared`. `.github/workflows/verify.yml` excludes **`desktop-web`** from
-  its typecheck step — 50 files, the second-largest consumer — so run that one by hand.
+  `libs/web-ui-kit` and `libs/shared`. `.github/workflows/verify.yml` type checks `desktop-web` (50 files, the
+  second-largest consumer) along with the others.
 
 ```bash
 npx nx typecheck web
-npx nx typecheck desktop-web     # not covered by CI
+npx nx typecheck desktop-web
 npx nx typecheck admin-v2
 npx nx typecheck @chatic/web-ui-kit
 npx nx typecheck @chatic/shared

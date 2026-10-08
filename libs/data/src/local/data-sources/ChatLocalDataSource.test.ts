@@ -224,4 +224,22 @@ describe('ChatLocalDataSource', () => {
         // A cursor should page older messages instead of repeating the live tail.
         expect(olderPage?.list.map(item => item.id)).toEqual(['m1', 'm2']);
     });
+
+    // A thread opened from far back fetches its root by id, which caches one old row beside a
+    // contiguous recent page. The feed reads the newest `limit` rows, so that row must stay out of it.
+    it('keeps a single far-older cached row out of the newest page', async () => {
+        const chats = createPartitionedMemoryStorage('chat');
+        const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
+
+        await dataSource.cacheWriteMany([
+            { id: 'm5', channelId: 'ch-1', chatNo: 5, content: 'old thread root' } as any,
+            { id: 'm98', channelId: 'ch-1', chatNo: 98, content: 'a' } as any,
+            { id: 'm99', channelId: 'ch-1', chatNo: 99, content: 'b' } as any,
+            { id: 'm100', channelId: 'ch-1', chatNo: 100, content: 'c' } as any,
+        ]);
+
+        const newest = await dataSource.cacheReadList({ channelId: 'ch-1', limit: 3 } as any);
+
+        expect(newest?.list.map(item => item.id)).toEqual(['m98', 'm99', 'm100']);
+    });
 });

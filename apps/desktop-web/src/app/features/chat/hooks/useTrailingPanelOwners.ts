@@ -16,10 +16,26 @@ import { useThreadStore } from '../stores';
  * in the settings list) to check who someone is, so it stacks on that panel instead of replacing
  * it, and closing it shows the panel underneath again. It used to close the thread, and the reader
  * who stopped to check a name lost the conversation they were in.
+ *
+ * A thread belongs to the channel it was opened in. `shownChannelId` is the channel the pane is showing
+ * right now (see `useHeldChannel`, which keeps it through a place switch); it is undefined when the list
+ * has no such channel. The thread is handed out only while the two match. When they stop matching it is
+ * closed, because the close runs in an effect after the render that first sees the new channel: without
+ * the match a panel drawn in that render would ask the server about the old thread's number in the wrong
+ * room.
+ *
+ * One mismatch is not a verdict: a thread opened while the list is still loading (the restored
+ * selection is known before its channels are) has no channel to match yet. That is held — not drawn and
+ * not closed — until the list answers; `listLoading` is that answer's absence. A list that has loaded
+ * without the channel is a verdict and closes the thread.
  */
-export const useTrailingPanelOwners = () => {
-    const threadRootId = useThreadStore(s => s.openRootId);
+export const useTrailingPanelOwners = (shownChannelId: string | undefined, listLoading: boolean) => {
+    const openRootId = useThreadStore(s => s.openRootId);
+    const openChannelId = useThreadStore(s => s.openChannelId);
     const closeThread = useThreadStore(s => s.close);
+    const threadHere = openRootId !== null && openChannelId === shownChannelId;
+    const threadRootId = threadHere ? openRootId : null;
+    const awaitingList = openRootId !== null && !threadHere && shownChannelId === undefined && listLoading;
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
@@ -29,6 +45,9 @@ export const useTrailingPanelOwners = () => {
     const activityOpen = useMentionsPanelStore(s => s.isOpen);
     const closeActivity = useMentionsPanelStore(s => s.close);
 
+    useEffect(() => {
+        if (openRootId && !threadHere && !awaitingList) closeThread();
+    }, [openRootId, threadHere, awaitingList, closeThread]);
     useEffect(() => {
         if (threadRootId) {
             closeSettings();

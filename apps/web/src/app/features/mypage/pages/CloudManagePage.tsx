@@ -1,223 +1,138 @@
-import { ChevronLeft, Loader2, Pencil, User } from 'lucide-react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useQueryClient } from '@tanstack/react-query';
-
-import { logger } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { Button, Divider, IconPlus, IconSpinner, PromoBanner } from '@chatic/web-ui-kit';
 
-import type { DomainCloud } from '@chatic/data';
-
-import { useClouds } from '../../../hooks/useCloudCatalog';
-import { useDeleteCloud } from '../hooks/useDeleteCloud';
-import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
-import { CloudMembershipSummary } from '../../subscription';
-import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
+import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { ROUTES } from '../../../routes/paths';
+import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
+import { PageHeader } from '../../../ui/components';
+import { CloudManageBanner, CurrentPlanCard, useCloudManageScene, useCloudQuota } from '../../subscription';
+import { CloudManageRow } from '../components/CloudManageRow';
+import { SectionLabel } from '../components/SectionLabel';
 
 /**
- * "클라우드 관리" — the owned clouds, with release and the recovery-email gap.
+ * "클라우드 관리" — the owned clouds under the subscription that allows them (Figma 4472-75743
+ * without a subscription · 4998-50957 · 4998-50603 · 4998-52524 · 4998-52720 · 4999-53562 the list
+ * · 5000-54966 · 5002-56919 with a banner).
  *
- * Named for what it manages. It used to be `AccountManagePage` at `/mypage/account-manage`, which
- * read as the login-credentials screen (`/mypage/account`) and needed a doc section explaining that
- * it is not (`docs/feature/account/social-links.md`).
+ * The list is the relay catalog; everything the subscription has to say about it — the banner, the
+ * allowance figure, the plan card — comes composed from `features/subscription`, which is the only
+ * feature that derives the membership. A row opens the cloud's own hub; releasing a cloud moved
+ * there, so this screen holds no destructive action.
+ *
+ * The add button is away while a banner is up: a block, a lapse or a queued downgrade is the state
+ * in which the server would refuse the cloud, and the banner is what explains it. Otherwise the
+ * button stays whatever the allowance says — the add-cloud flow tells, it does not hide.
  */
 export const CloudManagePage = () => {
-    const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const { toast } = useToast();
-    const queryClient = useQueryClient();
-    const { data } = useClouds({ limit: -1 });
-    const clouds = data?.list ?? [];
-    const deleteCloud = useDeleteCloud();
-    const { logoutCloudSession } = useLogoutCloudSession();
-    const { selectedCloudId } = runtime.session.useSessionSelection();
-    // Raises the request the private router's `EmailBindRequestHost` answers — one dialog instance,
-    // shared with the cloud switcher and subscription management. This screen owns no verification flow of its own.
-    const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
+    const navigate = useNavigateWithTransition();
+    const isOnMobileApp = isNative();
 
-    const [confirmCloud, setConfirmCloud] = useState<DomainCloud | null>(null);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const { clouds, isPendingClouds } = useCloudSessionCatalog();
+    const { isLoading: isSceneLoading, hasSubscription, banner } = useCloudManageScene();
+    const { used, limit } = useCloudQuota();
+    const requestAddCloud = useAddCloudRequest(s => s.requestAddCloud);
 
-    const handleDeleteConfirm = async () => {
-        if (!confirmCloud?.id) return;
-        const isDeletingSelectedCloud = confirmCloud.id === selectedCloudId;
-        setDeletingId(confirmCloud.id);
-        setConfirmCloud(null);
-        try {
-            await deleteCloud.mutateAsync({ id: confirmCloud.id, cascade: true });
-            queryClient.setQueryData(runtime.data.cloudsKeys.list({ limit: -1 }), (old: any) => ({
-                ...old,
-                list: old?.list?.filter((c: any) => c.id !== confirmCloud.id) ?? [],
-                meta: { ...old?.meta, total: (old?.meta?.total ?? 1) - 1 },
-            }));
-            logger.info('CLOUD', 'cloud released', { cloudId: confirmCloud.id, wasActive: isDeletingSelectedCloud });
-            toast({ title: t('mypage.cloudManage.deleteSuccess') });
-            if (isDeletingSelectedCloud) {
-                await logoutCloudSession();
-                window.location.href = '/auth/login';
-            }
-        } catch (error) {
-            // The error was not even bound to a variable before this: releasing a cloud is
-            // irreversible and cascades, and a failure left nothing behind to explain it.
-            logger.error('CLOUD', 'cloud release failed', { error, data: { cloudId: confirmCloud.id } });
-            toast({ title: t('mypage.cloudManage.deleteFailed'), variant: 'destructive' });
-        } finally {
-            setDeletingId(null);
-        }
-    };
+    const isLoading = isSceneLoading || isPendingClouds;
+    // A figure needs both sides. An unresolved allowance is not zero (see `useCloudQuota`).
+    const figure = limit != null ? `${used} / ${limit}` : undefined;
 
-    return (
-        <div className="flex min-h-screen flex-col bg-background">
-            <header className="relative flex min-h-[48px] items-center justify-center px-4 py-3 pt-safe-top">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2" aria-label="Back">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">{t('mypage.cloudManage.title')}</h1>
-            </header>
-
-            <div className="flex flex-col px-4 pt-4">
-                {/* The membership is held per account, so it is stated once — above the list, not
-                    repeated on every row. Owned by `features/subscription`. */}
-                <CloudMembershipSummary />
-
+    const body = isLoading ? (
+        <div className="flex justify-center pt-20">
+            <IconSpinner className="size-6 animate-spin text-muted-foreground" />
+        </div>
+    ) : !hasSubscription ? (
+        // Same card the subscription list shows for an account that never subscribed, with the
+        // same call to action: the guide, which is where a first subscription starts.
+        <div className="flex flex-col gap-6 px-4 pt-2">
+            <SectionLabel title={t('mypage.cloudManage.sectionMine')} />
+            <div className="flex flex-col items-center gap-3 rounded-[18px] bg-card px-4 py-8 shadow-[0_2px_6px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                <span
+                    aria-hidden
+                    className="flex size-8 items-center justify-center rounded-full bg-primary/20 text-[18px] font-bold text-main-accent"
+                >
+                    !
+                </span>
+                <span className="text-center text-[17px] font-semibold text-foreground">
+                    {t('mypage.subscription.list.emptyTitle')}
+                </span>
+                <span className="text-center text-[14px] text-description">
+                    {isOnMobileApp
+                        ? t('mypage.subscription.list.emptyDescription')
+                        : t('mypage.subscription.mobileOnly')}
+                </span>
+            </div>
+            {isOnMobileApp && (
+                <Button size="lg" fullWidth onClick={() => navigate(ROUTES.subscription.guide)}>
+                    {t('mypage.subscription.subscribe')}
+                </Button>
+            )}
+        </div>
+    ) : (
+        <>
+            <div className="flex flex-col gap-4 pt-2">
+                <SectionLabel title={t('mypage.cloudManage.sectionMine')} figure={figure} />
+                <div className="px-4">
+                    <CloudManageBanner />
+                </div>
                 {clouds.length === 0 ? (
-                    <div className="flex items-center justify-center py-10 text-[14px] text-muted-foreground">
-                        {t('mypage.cloudManage.noAccounts')}
+                    <div className="px-4">
+                        <PromoBanner
+                            icon={
+                                <span aria-hidden className="text-[40px] leading-none">
+                                    ☁️
+                                </span>
+                            }
+                            title={t('mypage.cloudManage.emptyTip')}
+                        />
                     </div>
                 ) : (
-                    clouds.map((cloud, index) => {
-                        // A cloud whose provisioning failed has no email either, but binding one
-                        // fixes nothing — the switcher sends the user here to release it, so the row
-                        // says that instead of offering the email CTA.
-                        const setupFailed = cloud.status === 'error';
-                        // Same rule as `isUnboundCloud` in features/subscription: a cloud reaches
-                        // `active` with no email at all, and a released one is past caring.
-                        const needsEmail = !setupFailed && cloud.status !== 'expired' && !cloud.email;
-
-                        return (
-                            <div key={cloud.id}>
-                                <div className="flex flex-col gap-[10px] px-0 py-3">
-                                    <div className="flex items-center gap-3">
-                                        {/* Profile image */}
-                                        <div className="flex h-[62px] w-[62px] flex-shrink-0 items-center justify-center rounded-full border border-[#F4F5F5] bg-[rgba(0,43,126,0.04)]">
-                                            <User size={22} className="text-muted-foreground" />
-                                        </div>
-
-                                        {/* Name + email (registration button if missing) */}
-                                        <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                                            <div className="flex min-w-0 items-center gap-1">
-                                                <span className="truncate text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
-                                                    {cloud.name ?? cloud.email?.split('@')[0] ?? '-'}
-                                                </span>
-                                                {/* Rename has a single path (ADR-0091): CloudProfileEditPage
-                                                    edits only the active cloud, so the pencil only appears
-                                                    on that row — other owned clouds are not renameable here. */}
-                                                {cloud.id === selectedCloudId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => navigate(ROUTES.mypage.account.cloudProfile)}
-                                                        aria-label={t('mypage.cloudManage.editName')}
-                                                        className="flex-shrink-0 p-1 text-muted-foreground"
-                                                    >
-                                                        <Pencil size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {setupFailed ? (
-                                                <span className="text-[14px] leading-[1.19] tracking-[-0.01em] text-destructive">
-                                                    {t('mypage.cloudManage.setupFailed')}
-                                                </span>
-                                            ) : needsEmail ? (
-                                                <>
-                                                    <span className="text-[14px] leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                                                        {t('mypage.cloudManage.emailMissing')}
-                                                    </span>
-                                                    {/* Deliberately here and not next to Delete: the two
-                                                        actions must not sit side by side. */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => cloud.id && requestEmailBind(cloud.id)}
-                                                        className="self-start text-[14px] font-semibold leading-[1.19] text-point-blue underline underline-offset-2"
-                                                    >
-                                                        {t('mypage.cloudManage.registerEmail')}
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <span className="truncate text-[14px] leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                                                    {cloud.email}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Account deletion */}
-                                        <button
-                                            onClick={() => setConfirmCloud(cloud)}
-                                            disabled={cloud.id === deletingId}
-                                            className="flex-shrink-0 disabled:opacity-30"
-                                        >
-                                            {deletingId === cloud.id ? (
-                                                <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                                            ) : (
-                                                <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.01em] text-[#3A3C40] dark:text-foreground">
-                                                    {t('mypage.cloudManage.delete')}
-                                                </span>
-                                            )}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {index < clouds.length - 1 && <div className="border-t border-[#F4F5F5]" />}
-                            </div>
-                        );
-                    })
+                    <div className="flex flex-col gap-1.5 px-3">
+                        {clouds.map(cloud => (
+                            <CloudManageRow
+                                key={cloud.id}
+                                cloud={cloud}
+                                onOpen={cloudId => navigate(ROUTES.mypage.cloud.hub(cloudId))}
+                            />
+                        ))}
+                    </div>
+                )}
+                {!banner && (
+                    <div className="px-4 py-2">
+                        <button
+                            type="button"
+                            onClick={requestAddCloud}
+                            className="flex h-[50px] w-full items-center justify-center gap-2 rounded-full border border-input-border px-[25px] text-[16px] font-semibold tracking-[-0.08px] text-foreground active:bg-muted/50"
+                        >
+                            <IconPlus className="size-6" />
+                            {t('mypage.cloudManage.addCloud')}
+                            {figure && <span className="text-[16px] font-semibold text-foreground">{figure}</span>}
+                        </button>
+                    </div>
                 )}
             </div>
 
-            {/* Delete confirmation dialog */}
-            {confirmCloud && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    {/* The one notice-dialog width, spelled out rather than inherited: like
-                        `SubscriptionRequiredDialog`, this is a hand-rolled overlay rather than a
-                        `DialogContent`, so it cannot pick up the variant that declares
-                        `--dialog-width`. The expression is that variant's — its `100% - 48px` term
-                        is also what the old `mx-6` was doing by hand. Changing one without the
-                        other is the bug to watch for. */}
-                    <div className="w-full max-w-[min(311px,calc(100%-48px))] rounded-[18px] bg-card p-6">
-                        <h3 className="text-center text-[17px] font-semibold">
-                            {t('mypage.cloudManage.deleteConfirmTitle')}
-                        </h3>
-                        <p className="mt-2 text-center text-[14px] text-muted-foreground">
-                            {t('mypage.cloudManage.deleteConfirmDesc', {
-                                name: confirmCloud.name ?? confirmCloud.email,
-                            })}
-                        </p>
-                        {confirmCloud.id === selectedCloudId && (
-                            <p className="mt-2 text-center text-[13px] font-medium text-destructive">
-                                {t('mypage.cloudManage.deleteSelectedCloudWarning')}
-                            </p>
-                        )}
-                        <div className="mt-5 flex gap-3">
-                            <button
-                                onClick={() => setConfirmCloud(null)}
-                                className="flex-1 rounded-full border border-border py-2.5 text-[15px] font-medium"
-                            >
-                                {t('common.cancel')}
-                            </button>
-                            <button
-                                onClick={handleDeleteConfirm}
-                                disabled={deleteCloud.isPending}
-                                className="flex-1 rounded-full bg-destructive py-2.5 text-[15px] font-medium text-white disabled:opacity-50"
-                            >
-                                {t('mypage.cloudManage.delete')}
-                            </button>
-                        </div>
-                    </div>
+            <Divider variant="block" className="my-4" />
+
+            <div className="flex flex-col gap-2 pb-8">
+                <SectionLabel title={t('mypage.subscription.currentPlan')} />
+                <div className="px-4 py-2">
+                    <CurrentPlanCard />
                 </div>
-            )}
+            </div>
+        </>
+    );
+
+    return (
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+            {/* The page is the scrollport, so the bar sticks — see SettingsPage. */}
+            <div className="sticky top-0 z-20 shrink-0">
+                <PageHeader title={t('mypage.cloudManage.title')} />
+            </div>
+            {body}
         </div>
     );
 };

@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { $convertToMarkdownString } from '@lexical/markdown';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -20,6 +19,7 @@ import { shouldCaptureTyping } from '../utils';
 import type { Mentionable } from './MentionAutocomplete';
 import { AttachButton, ComposerAttachments } from './images';
 import {
+    $exportWireMarkdown,
     COMPOSER_NODES,
     COMPOSER_THEME,
     COMPOSER_TRANSFORMERS,
@@ -84,12 +84,12 @@ const ComposerInner = ({
     const hasText = useComposerDraftStore(s => (s.drafts[channelId] ?? '').trim().length > 0);
     const placeholderText = placeholder ?? t('chat.composer.placeholder');
 
-    // Drafts persist as markdown — the store's existing format, so old drafts
-    // load. Empty documents drop the entry instead of accumulating '' keys.
+    // Drafts persist as the wire string — what send would deliver. Empty documents
+    // drop the entry instead of accumulating '' keys.
     const handleChange = useCallback(
         (state: EditorState) => {
             state.read(() => {
-                const markdown = $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true);
+                const markdown = $exportWireMarkdown();
                 if (markdown.trim()) setDraft(channelId, markdown);
                 else clearDraft(channelId);
             });
@@ -98,10 +98,7 @@ const ComposerInner = ({
     );
 
     const submit = useCallback(() => {
-        const markdown = editor
-            .getEditorState()
-            .read(() => $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true))
-            .trim();
+        const markdown = editor.getEditorState().read($exportWireMarkdown).trim();
         if (!markdown && attachments.length === 0) return;
         onSend(
             markdown,
@@ -158,7 +155,7 @@ const ComposerInner = ({
         editor.update(() => {
             ($getSelection() ?? $getRoot().selectEnd()).insertText(emoji);
         });
-        editor.focus();
+        focusInput();
     };
 
     return (

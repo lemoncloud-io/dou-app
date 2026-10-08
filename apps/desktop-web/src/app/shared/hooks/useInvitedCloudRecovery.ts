@@ -10,7 +10,7 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
  * An invited cloud has no server-side list — its only durable record is the `invitecloud` cache
  * row the invite-accept flow writes. A profile that never ran that flow (the Electron shell beside
  * a browser session, a reinstall) has no row, so the cloud shows up only while the session is
- * inside it and vanishes on a switch or a reload (.claude/20260804/DEBUG-14-50-00.md). Both engine
+ * inside it and vanishes on a switch or a reload. Both engine
  * helpers already exist for the native app: `runtime.data.recoverInvitedCloudIfMissing` re-derives the cloud's
  * endpoints from a fresh delegation token, and `runtime.data.syncInvitedCloudName` fetches the authoritative
  * name over that cloud's socket — the row is written without one, which is why a recovered tile

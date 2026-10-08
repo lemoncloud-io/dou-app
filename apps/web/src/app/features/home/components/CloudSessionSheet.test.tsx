@@ -12,7 +12,8 @@ import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 // section's footer so it survives a collapse. Stubbing the kit away would test nothing.
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/shared', () => ({ useInterval: () => undefined }));
+const navigate = jest.fn();
+jest.mock('@chatic/shared', () => ({ useInterval: () => undefined, useNavigateWithTransition: () => navigate }));
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
@@ -271,7 +272,7 @@ describe('CloudSessionSheet — selection', () => {
 
         renderSheet();
 
-        // The pencil (and CloudNameEditDialog) were removed — /mypage/cloud-profile is the only path.
+        // The pencil (and CloudNameEditDialog) were removed — cloud management's edit screen is the only path.
         expect(screen.queryByRole('button', { name: /edit|이름|rename/i })).not.toBeInTheDocument();
     });
 });
@@ -360,7 +361,7 @@ describe('CloudSessionSheet — invited section', () => {
 describe('CloudSessionSheet — failed cloud row', () => {
     const rawError = '.accountNo[#mock:1001494] is invalid (duplicated by 1000038)';
 
-    it('explains the state and keeps the server trace out of the toast', () => {
+    it('opens the cloud in cloud management and keeps the server trace in the log', () => {
         catalog = {
             clouds: [{ id: 'CL9', status: 'error', error: rawError, createdAt: 1 }],
             isCloudsError: false,
@@ -369,13 +370,10 @@ describe('CloudSessionSheet — failed cloud row', () => {
         };
 
         renderSheet();
-        fireEvent.click(screen.getByText('cloudSessionSheet.statusErrorDescription'));
+        fireEvent.click(screen.getByText('cloudSessionSheet.checkInfo'));
 
-        expect(toast).toHaveBeenCalledWith({
-            title: 'cloudSessionSheet.statusErrorTitle',
-            description: 'cloudSessionSheet.statusErrorGuide',
-            variant: 'destructive',
-        });
+        expect(navigate).toHaveBeenCalledWith('/mypage/cloud-manage/CL9');
+        expect(toast).not.toHaveBeenCalled();
         // The trace is for the log, not the user.
         expect(logger.warn).toHaveBeenCalledWith('CLOUD', expect.any(String), {
             cloudId: 'CL9',

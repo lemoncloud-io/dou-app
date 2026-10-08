@@ -115,6 +115,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
 jest.mock('../../../hooks', () => ({
+    useActiveCloudPlaces: (...args: unknown[]) => useActiveCloudPlaces(...(args as [])),
     useMyProfile: () => ({ profile: { nick: 'me' } }),
     useUserPermissions: () => ({ canCreatePlace: true }),
     useCachedCloudNames: () => ({}),
@@ -244,7 +245,7 @@ let selectedPlaceId: string | null = 'site-1';
 let isSwitchingPlace = false;
 // The active cloud's rooms as the shared observation holds them — the Self Chat section reads it.
 let activeCloudChannels: unknown[] = [];
-const useHomePlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
+const useActiveCloudPlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
 // Whether the profile banner is up is the nudge hook's call; the page only places it.
@@ -262,7 +263,6 @@ const setSectionOpenMock = jest.fn();
 jest.mock('../hooks', () => ({
     useAddCloudFlow: () => ({ requestAddCloud: requestAddCloudMock }),
     useHomeSections: () => ({ isOpen: (id: string) => !collapsedSections[id], setOpen: setSectionOpenMock }),
-    useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
     usePlaceProfileNudge: (options: { nick?: string | null }) => usePlaceProfileNudge(options),
 }));
@@ -338,12 +338,12 @@ describe('HomePage — relay mode', () => {
         expect(screen.queryByTestId('promo-banner')).not.toBeInTheDocument();
     });
 
-    it('still runs useHomePlaces and useSwitchPlace', () => {
+    it('still runs useActiveCloudPlaces and useSwitchPlace', () => {
         render(<HomePage />);
 
         // THE load-bearing invariant: ChannelList keys off selectedPlaceId, which on relay only
         // ever comes from useSwitchPlace's auto-select. Dropping these empties the relay home.
-        expect(useHomePlaces).toHaveBeenCalled();
+        expect(useActiveCloudPlaces).toHaveBeenCalled();
         expect(useSwitchPlace).toHaveBeenCalled();
     });
 

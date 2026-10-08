@@ -173,6 +173,25 @@ enum PhotoLibraryCore {
         return min(size, min(width, height))
     }
 
+    /// The largest square preview Photos makes from the small rendition it keeps of every photo. Past
+    /// it, PhotoKit decodes the original instead: a preview took about 5 ms up to this side and about
+    /// 30 ms from 368 px, whatever the photo's shape — on an iPhone 14 Pro (iOS 26) with a library of
+    /// 12 MP photos, and the same on iOS 18 and 26 simulators.
+    static let storedPreviewSide = 352
+
+    /// The largest size answered at `storedPreviewSide`, 1.25× it: a tile drawn up to that much larger
+    /// than its preview stays close to sharp, and a page of them is ready several times sooner.
+    static let storedPreviewReach = storedPreviewSide * 5 / 4
+
+    /// The side a preview asked at `size` is made at: `storedPreviewSide` when `size` is above it and at
+    /// most `storedPreviewReach`, otherwise `size`. Three columns on a phone ask for 384–432 and get the
+    /// stored rendition; two columns on a 3× phone ask for about 600, past the reach, and get a decode
+    /// of the original at full sharpness.
+    static func previewSide(_ size: Int) -> Int {
+        guard size > storedPreviewSide, size <= storedPreviewReach else { return size }
+        return storedPreviewSide
+    }
+
     // MARK: - Parallel previews
 
     /// The most previews one list makes at the same time. Each one in flight holds a decode — up to a

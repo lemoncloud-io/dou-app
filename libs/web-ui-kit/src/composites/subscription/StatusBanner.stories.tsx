@@ -56,3 +56,13 @@ export const Narrow320: Story = {
         onClick: () => undefined,
     },
 };
+
+/** A queued downgrade: the title row still opens the detail, and the pill asks which clouds stay. */
+export const WithAction: Story = {
+    args: {
+        title: 'Changes apply from the next billing date',
+        description: 'From 2026-11-30 your plan becomes DoU Pro 1. Until then nothing changes.',
+        onClick: () => undefined,
+        action: { label: 'Choose the clouds to keep', onClick: () => undefined },
+    },
+};

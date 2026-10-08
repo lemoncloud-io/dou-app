@@ -14,10 +14,20 @@ export type Landing = { kind: 'pending' | 'fallback'; channelId: string } | null
 
 export const landingTarget = (
     channels: readonly Pick<DomainChannel, 'id' | 'unreadCount'>[],
-    state: { pendingChannelId: string | null; selectedChannelId: string | null; rememberedChannelId?: string }
+    state: {
+        pendingChannelId: string | null;
+        selectedChannelId: string | null;
+        rememberedChannelId?: string;
+        /**
+         * False while a place switch the pending open waits for is unfinished. A room listed in every
+         * place (the Self Channel) would otherwise land in the place being left.
+         */
+        placeSettled?: boolean;
+    }
 ): Landing => {
     const isListed = (id: string) => channels.some(channel => channel.id === id);
-    const { pendingChannelId, selectedChannelId, rememberedChannelId } = state;
+    const { pendingChannelId, selectedChannelId, rememberedChannelId, placeSettled = true } = state;
+    if (pendingChannelId && !placeSettled) return null;
     if (pendingChannelId && isListed(pendingChannelId)) return { kind: 'pending', channelId: pendingChannelId };
     if (selectedChannelId && isListed(selectedChannelId)) return null;
     // A place badged "1" used to open on whatever was first (or last read), which was routinely a

@@ -33,9 +33,14 @@ elsewhere.
 - **Everyone else in the place is listed too.** After the 1:1s, the section lists the place's
   members I have no 1:1 with there yet (`placeMemberPeers`, the same group-channel membership), by
   name. Clicking one starts the 1:1 through `useStartDm`, and the new room then takes the person's
-  place among the 1:1s. These rows have no room, so they cannot be dragged or starred, and a person
-  whose name has not loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the
-  members of a group channel they are in. Without them, a place where no one has a 1:1 with me
+  place among the 1:1s. Until the server answers, the clicked row shows a spinner and reads as
+  busy, and every person row ignores clicks (`aria-disabled`, not `disabled`, so the pressed row
+  keeps its focus for the arrow-key walk). `HomePage` keeps which row asked and passes it down with
+  the hook's `isStarting`; a failure is the hook's usual toast. Each row's accessible name says what
+  pressing it does — "Start a direct message with {name}" — since the visible text is only the name.
+  These rows have no room, so they cannot be dragged or starred, and a person whose name has not
+  loaded is not drawn — never a raw id — while `useHydrateDmPeers` loads the members of a group
+  channel they are in. Without them, a place where no one has a 1:1 with me
   showed an empty section.
 - **My notes-to-self room is listed in every place,** relay included. It belongs to the account and
   the server returns it whichever place is asked about. Two rules carry that: the sidebar lists a
@@ -137,6 +142,39 @@ place, the second stays put, and once the list loads without the room HomePage m
 `openPlaceFor` picks (`pendingRedirectPlace`) — once per room, and never while a switch is in
 flight, so a list that never gains the room cannot bounce between places.
 
+## Opening the Self Channel from another place
+
+The Self Channel is in every place's list, but each place holds its own messages in it: the server
+answers a read from the place the session is in. An item saved, mentioned or notified in place B
+therefore has to be opened from place B, which the 1:1 rule above (stay where I am when this place
+lists the room) would get wrong. `openPlaceFor` takes `placeBound` for this room: the named place wins
+when it lists the room, and this place is kept only when none was named. `pendingRedirectPlace` does
+the same for a held open, whose room is already listed here.
+
+Because the room is listed in the place being left too, the pending landing cannot use "the list
+carries it" as its signal. HomePage remembers the place a same-cloud open switched to
+(`awaitedPlaceRef`) and `landingTarget` holds the pending landing until the session is in that place
+and the `SWITCH_SITE` mutation has finished; the fallback landing waits with it, so a channel nobody
+picked is not opened from the target place's cached list in the meantime.
+
+Three rules keep that wait from pointing at a place that never comes:
+
+- A switch that fails (the engine has rolled the place back) gives the open up: `switchPlace` takes an
+  `onFailed` callback, and HomePage uses it to drop every pending landing. The reader keeps the place
+  they were in, and picking another place lands normally.
+- A second open while a switch runs does nothing (`jumpToSaved`, `returnToOrigin`), the way the place
+  rail is locked. Letting it through would re-arm the landing and drop the place the first open waits
+  for, and its channel would then land in the list of whichever place the pre-applied selection shows.
+- A notification open that reaches the switch step while another switch runs (`switchPlace` refuses it)
+  is given up for the same reason: the running switch heads somewhere the open did not choose. An open
+  whose place is already the session's has nothing to wait for and lands at once. A notification held
+  because the list is still loading takes no such lock; it is re-armed like any new open.
+
+The five ways in — saved items, mentions, a notification, the return bar after a jump, and message
+search — differ in what they know. The first four name a place (a return point records the place the
+reader stood in). Search names none: its rows come from the local cache by channel id and carry no
+place, so a Self Channel hit opens in the place the reader is in.
+
 ## Unread
 
 The place rail puts a dot on every place that lists an unread 1:1, so a dot always leads to a
@@ -159,6 +197,14 @@ Nick and photo are resolved **field by field**, so a place nick with no place ph
 photo. The same 1:1 can therefore look different from one place to another: that follows from
 profiles being per place (ADR-0113 decision 4), and ADR-0127 records why the cloud profile is the
 fallback.
+
+**Staying current.** A peer's place nick or photo edit reaches this window without waiting for the
+60s background poll: the server pushes a `profile.sync` frame to everyone who shares a room with the
+editor, and `useRealtimeProfileSync` answers it with the same profile delta pull the poll makes, on
+the same `profile-sync:<cid>:<sid>` cursor. The frame is only a nudge — its payload is not read, and
+an edit made in another place just costs one idempotent pull. Focusing the window pulls too, to catch
+what was missed while it was in the background. The older `channel.sync-site-profile` name is a deprecated
+request alias of the pull; the server never pushes it.
 
 **Filling the cache.** Only an opened room loads its members, so a peer nobody has opened a room with
 has no cached name. The sidebar loads the members of each listed 1:1 whose peer has neither a place

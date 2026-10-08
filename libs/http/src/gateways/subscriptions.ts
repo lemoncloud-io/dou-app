@@ -72,7 +72,7 @@ export interface SubscriptionHttpGateway {
      * only inside the `view === 'mine'` branch — so any authenticated session can read anyone's
      * clouds, `view=mine&userId=<victim>` included. Nothing in this file changes that; the console's
      * admin gate is the only check in the stack today, and a client gate is not a check. Fixing it
-     * belongs in chatic-backend-api. Named here so the next reader does not mistake the pinned
+     * belongs in the backend service. Named here so the next reader does not mistake the pinned
      * `view: 'admin'` for an authorization boundary — it is not one.
      *
      * The two membership calls above are different: the relay really does enforce `hasAdminRole`

@@ -38,7 +38,7 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
         callback: (result: DomainListResult<DomainPlace> | null) => void,
         contextOverride?: LocalDataSourceContextOverride
     ): () => void {
-        // A caller-supplied override pins the observer scope to a known {cid, uid} (see useHomePlaces);
+        // A caller-supplied override pins the observer scope to a known {cid, uid} (see useActiveCloudPlaces);
         // otherwise fall back to the live repository context.
         return this.placeLocalDataSource.observeList(query, callback, contextOverride ?? this.getRepositoryContext());
     }

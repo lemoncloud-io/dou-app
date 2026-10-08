@@ -7,7 +7,15 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { Hint, Skeleton, resolveDisplay, useReducedMotion, useRovingFocus, useSiteProfileMap } from '../../../shared';
+import {
+    Hint,
+    Skeleton,
+    resolveDisplay,
+    useReducedMotion,
+    useRovingFocus,
+    useSiteProfileMap,
+    viewerPlaceProfile,
+} from '../../../shared';
 import {
     buildMessageRows,
     firstVisibleChatNo,
@@ -19,6 +27,7 @@ import {
     type ThreadMeta,
 } from '../utils';
 import { DateSeparator } from './DateSeparator';
+import type { Mentionable } from './MentionAutocomplete';
 import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
 import type { MentionResolver } from './RichText';
@@ -31,12 +40,22 @@ interface MessageListProps {
     viewer: MessageViewer;
     /** channel member id → display name, used to name authors when owner$ is absent. */
     names?: ReadonlyMap<string, string>;
+    /** Roster the inline message editor offers for @-autocomplete and shows existing mentions from. */
+    mentionables?: Mentionable[];
     /** Member roster still loading — render a name skeleton instead of "Unknown". */
     membersLoading?: boolean;
     /** Read position when the channel was opened — drives the "new messages" divider. */
     baselineReadNo?: number;
     /** Thread panel only: total replies under the root — renders an "N replies" divider. */
     threadReplyCount?: number;
+    /**
+     * Thread panel only: the "load earlier replies" row for a thread whose older replies are not all
+     * loaded. It sits right under the root — inside the "N replies" divider when replies are showing,
+     * on its own when none are.
+     */
+    olderReplies?: ReactNode;
+    /** Thread panel only: older replies are still out, so the divider counts what is loaded, not the thread. */
+    repliesPartial?: boolean;
     onRetry?: (message: DomainChat) => void;
     /** Whether a failed message offers Retry (a picture message only while its pictures are in memory). */
     canRetry?: (message: DomainChat) => boolean;
@@ -99,9 +118,12 @@ export const MessageList = ({
     isLoading,
     viewer,
     names,
+    mentionables,
     membersLoading,
     baselineReadNo,
     threadReplyCount,
+    olderReplies,
+    repliesPartial,
     onRetry,
     canRetry,
     onDiscard,
@@ -206,16 +228,17 @@ export const MessageList = ({
         return chunks;
     }, [rows]);
 
-    // Name a reactor the same way an author is named: my own id resolves to me, others
-    // through the roster. Memoised because MessageRow is memo'd — a fresh closure here
-    // would re-render every row on each list render.
+    // Name a reactor the same way an author is named: the place nickname over the account name,
+    // my own id resolving to me and others through the roster. Memoised because MessageRow is
+    // memo'd — a fresh closure here would re-render every row on each list render.
     const reactorName = useMemo(() => {
         const resolve = (userId: string): string => {
-            if (isViewerId(userId, viewer)) return viewer.name;
-            return names?.get(userId) ?? '';
+            const mine = isViewerId(userId, viewer);
+            const place = mine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[userId];
+            return resolveDisplay(place, mine ? viewer.name : (names?.get(userId) ?? ''), undefined).name;
         };
         return resolve;
-    }, [names, viewer.uid, viewer.cloudUid, viewer.name]);
+    }, [names, placeProfiles, viewer]);
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -226,10 +249,7 @@ export const MessageList = ({
         for (const [rootKey, meta] of threadMeta) {
             const repliers = meta.repliers.slice(0, MAX_FOOTER_REPLIERS).map(replier => {
                 const isMine = isViewerId(replier.id, viewer);
-                const place = isMine
-                    ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
-                      (viewer.uid ? placeProfiles[viewer.uid] : undefined))
-                    : placeProfiles[replier.id];
+                const place = isMine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[replier.id];
                 const fallbackName = isMine ? viewer.name : (names?.get(replier.id) ?? '');
                 const display = resolveDisplay(place, fallbackName, replier.thumbnail);
                 return {
@@ -658,11 +678,21 @@ export const MessageList = ({
                                 // Slack-style thread divider: the reply count anchored left,
                                 // a hairline filling the rest of the row.
                                 return (
-                                    <div key={row.key} className="my-2 flex items-center gap-3 px-1">
-                                        <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
-                                            {t('chat.thread.replyCount', { count: row.count })}
-                                        </span>
-                                        <span className="h-px flex-1 bg-hairline" />
+                                    <div key={row.key} className="my-2 flex flex-col gap-2">
+                                        <div className="flex items-center gap-3 px-1">
+                                            <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
+                                                {t(
+                                                    repliesPartial
+                                                        ? 'chat.thread.replyCountLoaded'
+                                                        : 'chat.thread.replyCount',
+                                                    {
+                                                        count: row.count,
+                                                    }
+                                                )}
+                                            </span>
+                                            <span className="h-px flex-1 bg-hairline" />
+                                        </div>
+                                        {olderReplies}
                                     </div>
                                 );
                             }
@@ -685,6 +715,7 @@ export const MessageList = ({
                                     onOpenThread={onOpenThread}
                                     selfNames={selfNames}
                                     resolveMention={resolveMention}
+                                    mentionables={mentionables}
                                     highlightChatNo={highlight}
                                     withDayInTime={threadReplyCount !== undefined}
                                     reactions={reactions}
@@ -698,6 +729,8 @@ export const MessageList = ({
                         })}
                     </div>
                 ))}
+                {/* No reply is showing yet, so there is no divider to hold the row: it stands under the root. */}
+                {olderReplies && !rows.some(row => row.kind === 'replies') && olderReplies}
                 <div ref={bottomRef} />
             </div>
             {!atBottom &&

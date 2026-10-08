@@ -107,12 +107,19 @@ export const ROUTES = {
         account: {
             info: '/mypage/account',
             edit: '/mypage/edit',
-            cloudProfile: '/mypage/cloud-profile',
             withdrawal: '/mypage/withdrawal',
         },
-        /** Owned clouds (workspaces), not login credentials — see `account` above for those. */
+        /**
+         * Owned clouds (workspaces), not login credentials — see `account` above for those. One
+         * cloud's tree follows the place vocabulary: `hub` is the menu, `edit` writes, `detail`
+         * reads (the word `info` is not used — it reads as both), `places` lists what it holds.
+         */
         cloud: {
             manage: '/mypage/cloud-manage',
+            hub: (cloudId: string) => `/mypage/cloud-manage/${cloudId}`,
+            edit: (cloudId: string) => `/mypage/cloud-manage/${cloudId}/edit`,
+            detail: (cloudId: string) => `/mypage/cloud-manage/${cloudId}/detail`,
+            places: (cloudId: string) => `/mypage/cloud-manage/${cloudId}/places`,
         },
         /**
          * Device/app preferences, split out of the hub so `/mypage` can stay a short identity

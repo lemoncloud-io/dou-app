@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Trash2 } from 'lucide-react';
+import { Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -31,8 +31,18 @@ import {
     isLapsedCloud,
     useScrollOverflow,
     type RailCloud,
+    deleteCauseKey,
     useRemoveCloud,
 } from '../../../shared';
+import { RenameCloudDialog } from './RenameCloudDialog';
+
+/**
+ * Only the active, open cloud of yours can be renamed here: `cloud.update` goes out on the active
+ * slot's socket, so renaming another tile would send its id down this cloud's connection and
+ * write its row into this cloud's cache. A lapsed cloud cannot be opened, let alone edited.
+ */
+const canRename = (cloud: RailCloud, activeCloudId: string | null): boolean =>
+    cloud.kind === 'owned' && cloud.id === activeCloudId && !isLapsedCloud(cloud);
 
 /** The word a tile adds to its name when its cloud cannot be opened as it is. */
 const STATUS_KEY: Partial<Record<string, string>> = {
@@ -42,6 +52,15 @@ const STATUS_KEY: Partial<Record<string, string>> = {
     suspended: 'cloud.status.suspended',
     expired: 'cloud.status.expired',
 };
+
+/**
+ * Deleting an owned cloud releases it on the server, with everything in it. A cloud that cannot be opened
+ * as it is (the states the tile labels: still being set up, failed, suspended, expired) is one the user
+ * cannot even enter to check what they would lose, so its menu does not offer the delete. An invited cloud
+ * is only forgotten on this device, which is safe in any state.
+ */
+const canDelete = (cloud: RailCloud): boolean =>
+    cloud.kind === 'invited' || (cloud.kind === 'owned' && !(cloud.status && STATUS_KEY[cloud.status]));
 
 interface CloudRailProps {
     clouds: RailCloud[];
@@ -54,6 +73,11 @@ interface CloudRailProps {
     /** A cloud/place switch is in flight — disable the cloud buttons to block a
      * second switch mid-handshake (the pipeline is serial). */
     isSwitching?: boolean;
+    /** The cloud list could not be read. Owned clouds are missing from `clouds` (or the list is stale)
+     * until a retry lands, and the rail says so. */
+    isCatalogError?: boolean;
+    isRetryingCatalog?: boolean;
+    onRetryCatalog?: () => void;
 }
 
 /**
@@ -68,6 +92,9 @@ export const CloudRail = ({
     badgedClouds,
     onSelectCloud,
     isSwitching,
+    isCatalogError,
+    isRetryingCatalog,
+    onRetryCatalog,
 }: CloudRailProps) => {
     const { t } = useTranslation();
 
@@ -76,18 +103,33 @@ export const CloudRail = ({
     const { removeInvitedCloud, deleteOwnedCloud, isDeleting } = useRemoveCloud();
     const [pendingRemove, setPendingRemove] = useState<RailCloud | null>(null);
     const isOwnedRemoval = pendingRemove?.kind === 'owned';
+    // Renaming is the owner's edit, so only owned tiles offer it.
+    const [pendingRename, setPendingRename] = useState<RailCloud | null>(null);
+    // Why the last delete was refused, as a translation key so a language change redraws it. The
+    // dialog stays open for a retry, and says why.
+    const [removeErrorKey, setRemoveErrorKey] = useState<string | null>(null);
+
+    const closeRemoveDialog = () => {
+        setPendingRemove(null);
+        setRemoveErrorKey(null);
+    };
 
     const confirmRemove = async () => {
         if (!pendingRemove) return;
         const { id, kind } = pendingRemove;
+        setRemoveErrorKey(null);
+        let alreadyGone = false;
         try {
-            if (kind === 'owned') await deleteOwnedCloud(id);
+            if (kind === 'owned') alreadyGone = (await deleteOwnedCloud(id)) === 'already-gone';
             else removeInvitedCloud(id);
-        } catch {
-            return; // keep the dialog open so the user can retry
+        } catch (error) {
+            setRemoveErrorKey(deleteCauseKey(error));
+            return;
         }
+        // A cloud released before this delete is not an error to retry; the list has been refreshed.
+        if (alreadyGone) toast({ description: t('cloud.delete.alreadyGone') });
         if (id === activeCloudId) onSelectCloud('default');
-        setPendingRemove(null);
+        closeRemoveDialog();
     };
 
     const scroll = useScrollOverflow<HTMLDivElement>();
@@ -118,8 +160,8 @@ export const CloudRail = ({
                         const isActive = cloud.id === activeCloudId;
                         const isInactive = !!cloud.status && cloud.status !== 'active';
                         const isLapsed = isLapsedCloud(cloud);
-                        // Home/Default can't be removed; owned + invited clouds can.
-                        const removable = cloud.kind !== 'home';
+                        const renamable = canRename(cloud, activeCloudId);
+                        const removable = canDelete(cloud);
                         // A cloud that cannot be opened as it is says why before the click fails.
                         const statusKey = cloud.status ? STATUS_KEY[cloud.status] : undefined;
                         const tileLabel = statusKey
@@ -187,26 +229,58 @@ export const CloudRail = ({
                                 top-right — the same corner that means unread, one mispress
                                 from switching into the cloud it would remove. It lives in
                                 the tile's own menu now, which the Menu key opens too. */}
-                                {removable && (
+                                {(renamable || removable) && (
                                     <ContextMenuContent className="w-52">
-                                        <ContextMenuItem
-                                            disabled={isSwitching}
-                                            onSelect={() => setPendingRemove(cloud)}
-                                            className="text-destructive focus:text-destructive"
-                                        >
-                                            <Trash2 size={14} aria-hidden />
-                                            {t('cloud.remove.action')}
-                                        </ContextMenuItem>
+                                        {renamable && (
+                                            <ContextMenuItem
+                                                disabled={isSwitching}
+                                                onSelect={() => setPendingRename(cloud)}
+                                            >
+                                                <Pencil size={14} aria-hidden />
+                                                {t('cloud.rename.action')}
+                                            </ContextMenuItem>
+                                        )}
+                                        {removable && (
+                                            <ContextMenuItem
+                                                disabled={isSwitching}
+                                                onSelect={() => setPendingRemove(cloud)}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 size={14} aria-hidden />
+                                                {t('cloud.remove.action')}
+                                            </ContextMenuItem>
+                                        )}
                                     </ContextMenuContent>
                                 )}
                             </ContextMenu>
                         );
                     })}
+                    {isCatalogError && (
+                        // The same quiet tile as a cloud that cannot be opened, with the reload icon:
+                        // owned clouds that did not load would otherwise just be missing.
+                        <Hint label={t('cloud.loadFailed.hint')}>
+                            <button
+                                onClick={onRetryCatalog}
+                                disabled={isRetryingCatalog}
+                                aria-label={t('cloud.loadFailed.retry')}
+                                className="flex h-12 w-12 flex-col items-center justify-center rounded-[14px] border border-dashed border-muted-foreground text-muted-foreground transition-colors duration-150 ease-tactile tactile focus-ring disabled:cursor-not-allowed"
+                            >
+                                <RefreshCw size={16} aria-hidden className={cn(isRetryingCatalog && 'animate-spin')} />
+                            </button>
+                        </Hint>
+                    )}
                 </div>
                 {scroll.below && <ScrollHint edge="bottom" surface="rail" />}
             </div>
 
-            <AlertDialog open={!!pendingRemove} onOpenChange={open => !open && !isDeleting && setPendingRemove(null)}>
+            <RenameCloudDialog
+                open={!!pendingRename}
+                onOpenChange={open => !open && setPendingRename(null)}
+                cloudId={pendingRename?.id ?? ''}
+                currentName={pendingRename?.name ?? ''}
+            />
+
+            <AlertDialog open={!!pendingRemove} onOpenChange={open => !open && !isDeleting && closeRemoveDialog()}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
@@ -215,6 +289,11 @@ export const CloudRail = ({
                         <AlertDialogDescription>
                             {t(isOwnedRemoval ? 'cloud.delete.description' : 'cloud.remove.description')}
                         </AlertDialogDescription>
+                        {removeErrorKey && (
+                            <p role="alert" className="text-callout text-destructive">
+                                {t(removeErrorKey)}
+                            </p>
+                        )}
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>{t('cloud.delete.cancel')}</AlertDialogCancel>

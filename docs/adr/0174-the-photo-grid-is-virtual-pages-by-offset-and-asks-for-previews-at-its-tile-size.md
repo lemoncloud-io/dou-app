@@ -11,6 +11,11 @@
 > ~256 px previews and its "a preview that cannot be made is skipped" rule
 > · The module docs are [apps/mobile native/photo-library.md](../../apps/mobile/docs/native/photo-library.md)
 > and [apps/web channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md)
+>
+> **Amended by [ADR-0177](./0177-ios-answers-a-preview-just-above-the-stored-rendition-from-that-rendition.md)
+> (2026-10-07):** on iOS, a preview asked for above 352 px but within 1.25× of it is made at 352 px,
+> from the rendition Photos keeps of every photo. Past that size PhotoKit decodes the original, and a
+> three-column page on a real iPhone took 1.3–2.2 s instead of 0.16–0.57 s.
 
 ## Context
 

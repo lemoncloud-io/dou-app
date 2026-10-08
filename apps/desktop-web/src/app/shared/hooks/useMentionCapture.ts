@@ -1,7 +1,7 @@
 import { runtime } from '@chatic/app-runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isMentioned, isNotifiableChat, messagePlainText, resolveMyMentionNames } from '../utils';
+import { isMentioned, isNotifiableChat, isViewerId, messagePlainText, resolveMyMentionNames } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';
 
 const chatAuthorId = (chat: ChannelLastChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
@@ -31,12 +31,17 @@ export const useMentionCapture = (): void => {
         // hold things people wrote.
         if (!isNotifiableChat(chat)) return;
 
+        // Outside the relay a persisted message's owner is my per-channel cloud user id, not my
+        // account id, so "mine" is both ids — the same rule the message list uses.
         const identity = runtime.session.getGlobalSessionContext().identity;
+        const viewer = { uid: identity.userId, name: '', cloudUid: channel.$join?.userId ?? null };
         const authorId = chatAuthorId(chat);
-        const isMe = !!authorId && authorId === identity.userId;
+        const isMe = isViewerId(authorId, viewer);
         // Precedence: own message → not-a-mention → already-read → capture.
         if (isMe) return;
         if (!isMentioned(content, resolveMyMentionNames())) return;
+        // An id is the dedupe key of the inbox; a row without one cannot be stored.
+        if (!chat.id) return;
         const chatNo = chat.chatNo ?? 0;
         const cursor = useReadCursorStore.getState().cursors[channel.id] ?? 0;
         if (chatNo <= cursor) return;

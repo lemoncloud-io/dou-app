@@ -4,3 +4,4 @@ export * from './MentionsPlugin';
 export * from './composerPlugins';
 export * from './ComposerToolbar';
 export * from './ComposerActions';
+export * from './wireMarkdown';

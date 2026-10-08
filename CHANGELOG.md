@@ -1,5 +1,47 @@
 # Changelog
 
+## [2026-10-07] - No version updates
+
+### Bug Fixes
+
+- (web/channels) send on enter when a mouse or trackpad drives the page, not by user agent alone
+
+## [2026-10-07] - No version updates
+
+### Bug Fixes
+
+- (web/home) title a nameless invited cloud by its owner, not its raw cloud id
+
+## [2026-10-07] - root@0.86.1, @chatic/desktop-web@0.20.1
+
+### Bug Fixes
+
+- (desktop-web) show my place nickname without a reload
+
+## [2026-10-07] - root@0.86.0, @chatic/desktop-web@0.20.0
+
+### Features
+
+- (desktop-web) show a group channel's id in settings, with copy
+
+## [2026-10-07] - No version updates
+
+### Other
+
+- perf: (mobile) answer iOS previews just above 352 px from the stored rendition, not the original
+
+## [2026-10-07] - root@0.85.1, @chatic/desktop-web@0.19.5
+
+### Bug Fixes
+
+- (desktop-web) hide cloud delete on a cloud that cannot be opened
+
+## [2026-10-07] - No version updates
+
+### Features
+
+- (web,web-ui-kit) manage clouds as one list and one tree per cloud (ADR-0175)
+
 ## [2026-10-06] - root@0.85.0, @chatic/web@0.66.0
 
 ### Features

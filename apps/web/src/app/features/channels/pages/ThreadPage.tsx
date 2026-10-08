@@ -36,6 +36,7 @@ import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { messagePlainText } from '../utils/messagePlainText';
+import { isSendKey } from '../utils/composerEnter';
 import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
@@ -57,7 +58,6 @@ const MAX_INPUT_LENGTH = 5000;
 export const ThreadPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId, rootNo } = useParams<{ channelId: string; rootNo: string }>();
     /**
      * The root message handed over by the room (see its `openThread`). The cache's first emission
@@ -243,12 +243,9 @@ export const ThreadPage = () => {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.nativeEvent.isComposing) return;
-        if (isMobile && e.key === 'Enter') return;
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend(content);
-        }
+        if (!isSendKey(e.nativeEvent)) return;
+        e.preventDefault();
+        handleSend(content);
     };
 
     const handleCopy = async () => {

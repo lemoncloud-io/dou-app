@@ -33,3 +33,4 @@ export * from './pushBody';
 export * from './hoverReveal';
 export * from './composerFocus';
 export * from './radioGroup';
+export * from './viewer';

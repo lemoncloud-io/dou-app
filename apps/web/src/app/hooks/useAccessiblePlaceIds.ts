@@ -44,7 +44,7 @@ export const useCloudPlaceIds = ({ cid, uid }: CloudPartition): Set<string> | nu
 
     // Same scope pinning as the other cloud-scoped observers: the {cid, uid} override keys this off
     // the React session rather than the provider, whose ancestor commits a cloud switch after this
-    // hook has already subscribed (see useHomePlaces for the full account).
+    // hook has already subscribed (see useActiveCloudPlaces for the full account).
     useEffect(() => {
         if (!place) return;
         setPlaceIds(null);

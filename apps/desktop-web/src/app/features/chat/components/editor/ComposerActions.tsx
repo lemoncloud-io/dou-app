@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Send, Smile } from 'lucide-react';
@@ -15,35 +15,57 @@ interface ComposerActionsProps {
     onSend: () => void;
 }
 
+/**
+ * The smile button and its picker. Controlled so a pick can close it: leaving it open after a
+ * choice covers the message you were writing and makes the click read as if it did not register.
+ */
+export const ComposerEmojiButton = ({ onEmoji }: { onEmoji: (emoji: string) => void }) => {
+    const { t } = useTranslation();
+    const [isPickerOpen, setPickerOpen] = useState(false);
+    // Set when the picker closes because something was chosen: the caller has already put focus
+    // back in its text, and Radix would otherwise move it to this button a tick later.
+    const pickedRef = useRef(false);
+    return (
+        <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+                <Hint label={t('chat.composer.emoji')}>
+                    <button
+                        type="button"
+                        aria-label={t('chat.composer.emoji')}
+                        className="focus-ring tactile flex h-[38px] w-[30px] shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
+                    >
+                        <Smile className="h-[22px] w-[22px]" strokeWidth={1.75} />
+                    </button>
+                </Hint>
+            </PopoverTrigger>
+            <PopoverContent
+                align="end"
+                side="top"
+                className="w-auto p-2"
+                onCloseAutoFocus={event => {
+                    if (!pickedRef.current) return;
+                    pickedRef.current = false;
+                    event.preventDefault();
+                }}
+            >
+                <EmojiPicker
+                    onPick={emoji => {
+                        pickedRef.current = true;
+                        onEmoji(emoji);
+                        setPickerOpen(false);
+                    }}
+                />
+            </PopoverContent>
+        </Popover>
+    );
+};
+
 /** Emoji picker + send button, right of the input (Figma: bare smile · 38px send square). */
 export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsProps) => {
     const { t } = useTranslation();
-    // Controlled so a pick can close it. Leaving it open after a choice covers the
-    // message you were writing and makes the click read as if it did not register.
-    const [isPickerOpen, setPickerOpen] = useState(false);
     return (
         <>
-            <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
-                <PopoverTrigger asChild>
-                    <Hint label={t('chat.composer.emoji')}>
-                        <button
-                            type="button"
-                            aria-label={t('chat.composer.emoji')}
-                            className="focus-ring tactile flex h-[38px] w-[30px] shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
-                        >
-                            <Smile className="h-[22px] w-[22px]" strokeWidth={1.75} />
-                        </button>
-                    </Hint>
-                </PopoverTrigger>
-                <PopoverContent align="end" side="top" className="w-auto p-2">
-                    <EmojiPicker
-                        onPick={emoji => {
-                            onEmoji(emoji);
-                            setPickerOpen(false);
-                        }}
-                    />
-                </PopoverContent>
-            </Popover>
+            <ComposerEmojiButton onEmoji={onEmoji} />
             <Hint label={t('chat.composer.send')}>
                 <button
                     type="button"

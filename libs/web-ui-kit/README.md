@@ -85,7 +85,7 @@ than tailwind-merges and breaks the two-up action row.
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 95 spec files and 79 story files against 95 exported
+6. **Every component has a test and a story.** 96 spec files and 80 story files against 96 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -110,7 +110,7 @@ flowchart TD
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
     C["composites × 58<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 37<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 43 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 29 primitives</i>"]:::ext
@@ -156,8 +156,8 @@ libs/web-ui-kit/src/
 │   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
 │   ├── icons/              52 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
-├── foundations/   11 groups, 37 components
-│   avatar(7) · button(10) · input(7) · badge(5) · brand(2) ·
+├── foundations/   11 groups, 38 components
+│   avatar(7) · button(10) · input(7) · badge(6) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
 └── composites/    10 groups, 58 components
     chat(17) · list(6) · media(7) · overlay(6) · section(4) · header(3) ·
@@ -268,7 +268,8 @@ Seven components draw a circle and they are not interchangeable.
 
 Two inconsistencies are real and worth knowing before you match a design: `DefaultAvatar` rings
 itself with `border-border` while `AvatarShell` and `ProfileAvatar` use `border-avatar-ring`, and
-`ChatAvatar`'s `sm/md/lg` is 36/46/56 where `PlaceAvatar` and `CloudAvatar` read 36/40/46. Folding
+`ChatAvatar`'s `sm/md/lg` is 36/46/56 where `PlaceAvatar` and `CloudAvatar` read 36/40/46 (and
+`CloudAvatar` alone adds an `xl` of 86 for the cloud management screens' identity head). Folding
 all seven into one variant-driven `Avatar` is an open decision (ADR-0094, decision 6) that has not
 been taken; until it is, the divergence is the state of the code and not a bug to fix in passing.
 

@@ -63,8 +63,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     appVersion,
     platform: process.platform,
     customUi: {
-        apply: (zipUrl: string): Promise<CustomUiStatus> =>
-            ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'apply', zipUrl }),
+        // Absent off the dev channel, so a production page has no way to even send `apply`;
+        // main refuses it too (customUiRefusal). Compared to 'dev' exactly rather than reusing
+        // `stage`, whose fallback is 'dev' — a missing argument must close this, not open it.
+        ...(argValue('chatic-stage') === 'dev' && {
+            apply: (zipUrl: string): Promise<CustomUiStatus> =>
+                ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'apply', zipUrl }),
+        }),
         disable: (): Promise<CustomUiStatus> => ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'disable' }),
         status: (): Promise<CustomUiStatus> => ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'status' }),
     },

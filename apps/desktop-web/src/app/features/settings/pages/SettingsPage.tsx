@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +12,7 @@ import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { radioGroupOptions, useNotificationPrefsStore, VersionInfo } from '../../../shared';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
+import { ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
@@ -56,6 +58,7 @@ export const SettingsPage = () => {
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
+    const [reportOpen, setReportOpen] = useState(false);
     const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
     const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
@@ -291,10 +294,14 @@ export const SettingsPage = () => {
                             <Button variant="outline" size="sm" onClick={() => openShortcuts(true)}>
                                 {t('shortcuts.title')}
                             </Button>
+                            <Button variant="outline" size="sm" onClick={() => setReportOpen(true)}>
+                                {t('settings.report.action')}
+                            </Button>
                         </div>
                     </div>
                 </section>
             </div>
+            <ReportIssueDialog open={reportOpen} onOpenChange={setReportOpen} />
         </div>
     );
 };

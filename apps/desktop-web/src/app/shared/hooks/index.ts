@@ -22,6 +22,7 @@ export * from './useCloudCatalog';
 export * from './useClouds';
 export * from './useInvitedCloudRecovery';
 export * from './useRemoveCloud';
+export * from './useRenameCloud';
 export * from './useUser';
 export * from './useMyProfile';
 export * from './useAccountName';

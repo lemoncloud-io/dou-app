@@ -112,7 +112,14 @@ export const ChatPane = ({
     const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(pinScope);
     const isFavorite = channelId ? pinnedIds.includes(channelId) : false;
-    const openThread = useThreadStore(s => s.open);
+    const openThreadIn = useThreadStore(s => s.open);
+    // A thread is bound to the channel it was opened in; the root id alone is a bare chatNo.
+    const openThread = useCallback(
+        (rootId: string) => {
+            if (channelId) openThreadIn(rootId, channelId);
+        },
+        [openThreadIn, channelId]
+    );
     const labeled = useMemo(() => (channel ? [channel] : []), [channel]);
     const labelOf = useChannelLabels(labeled);
     // Saved-item / search jump: forward a target to MessageList only when it
@@ -143,7 +150,7 @@ export const ChatPane = ({
     const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
-    const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
+    const reactions = useMemo(() => foldReactions(messages, viewer), [messages, viewer]);
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's
@@ -388,6 +395,7 @@ export const ChatPane = ({
                     isLoading={isLoading}
                     viewer={viewer}
                     names={memberNames}
+                    mentionables={mentionables}
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
                     onRetry={composer.retry}

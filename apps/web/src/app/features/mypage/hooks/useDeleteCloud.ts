@@ -5,7 +5,7 @@ import type { DomainCloud } from '@chatic/data';
 
 /**
  * Releases one cloud. Moved down from `@chatic/app-runtime`'s `data/hooks/subscription.ts` to sit
- * with its only caller in this app (`CloudManagePage`).
+ * with its only caller in this app (`CloudDetailPage`).
  *
  * `cascade` is a named repository option now instead of a raw `params: { cascade: 1 }` bag — it
  * drops the cloud's dependent records along with the cloud row, and the wire encoding stays in

@@ -3,8 +3,8 @@ import { act, renderHook } from '@testing-library/react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
-import { COLD_LIST_WINDOW_MS } from '../../../hooks/useColdListWindow';
-import { useHomePlaces } from './useHomePlaces';
+import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
+import { useActiveCloudPlaces } from './useActiveCloudPlaces';
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -37,7 +37,7 @@ const emit = (rows: DomainPlace[]) => {
 const setActiveServer = (kind: 'relay' | 'cloud', cloudId?: string, userId: string | null = 'u1') =>
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: kind === 'cloud' ? { kind, cloudId } : { kind },
-        // useHomePlaces keys its cache-scope cid on the OPTIMISTIC selected cloud (session.cloud.cloudId),
+        // useActiveCloudPlaces keys its cache-scope cid on the OPTIMISTIC selected cloud (session.cloud.cloudId),
         // not the committed activeServer.cloudId — mirror that here.
         cloud: kind === 'cloud' ? { cloudId } : undefined,
         identity: { userId },
@@ -51,7 +51,7 @@ beforeEach(() => {
     setActiveServer('relay');
 });
 
-describe('useHomePlaces — 플레이스 목록 구독', () => {
+describe('useActiveCloudPlaces — observing the place list', () => {
     it("never hands out the previous cloud's rows, not even in the render where the selection moves", () => {
         // With a background session per cloud, the incoming cloud's socket is already up: a row
         // rendered in that render registers its place under the new cloud, and the auto-select
@@ -60,7 +60,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
         emit([place('a1')]);
         const seen: Array<{ ids: string[]; isLoading: boolean }> = [];
         const { rerender } = renderHook(() => {
-            const result = useHomePlaces();
+            const result = useActiveCloudPlaces();
             seen.push({ ids: result.places.map(p => p.id), isLoading: result.isLoading });
             return result;
         });
@@ -81,7 +81,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
     it('캐시를 구독해 목록을 노출하고 로딩을 해제한다', () => {
         emit([place('p1'), place('p2')]);
 
-        const { result } = renderHook(() => useHomePlaces());
+        const { result } = renderHook(() => useActiveCloudPlaces());
 
         // The {cid, uid} override pins the observer scope to the target cloud (relay → 'default').
         expect(observeListMock).toHaveBeenCalledWith(undefined, expect.any(Function), { cid: 'default', uid: 'u1' });
@@ -93,7 +93,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
         emit([place('a1')]);
         setActiveServer('cloud', 'cloud-A', 'u9');
 
-        renderHook(() => useHomePlaces());
+        renderHook(() => useActiveCloudPlaces());
 
         expect(observeListMock).toHaveBeenCalledWith(undefined, expect.any(Function), { cid: 'cloud-A', uid: 'u9' });
     });
@@ -101,7 +101,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
     it('refreshList를 호출하지 않는다 (목록 발견은 전역 background sync 담당)', () => {
         emit([place('p1')]);
 
-        renderHook(() => useHomePlaces());
+        renderHook(() => useActiveCloudPlaces());
 
         expect(refreshListMock).not.toHaveBeenCalled();
     });
@@ -110,7 +110,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
         const disposeA = emit([place('a1')]);
         setActiveServer('cloud', 'cloud-A');
 
-        const { result, rerender } = renderHook(() => useHomePlaces());
+        const { result, rerender } = renderHook(() => useActiveCloudPlaces());
         expect(result.current.places.map(p => p.id)).toEqual(['a1']);
 
         const disposeB = emit([place('b1')]);
@@ -130,7 +130,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
         const disposeOldUid = emit([place('stale')]);
         setActiveServer('cloud', 'cloud-A', 'old-uid');
 
-        const { result, rerender } = renderHook(() => useHomePlaces());
+        const { result, rerender } = renderHook(() => useActiveCloudPlaces());
         expect(result.current.places.map(p => p.id)).toEqual(['stale']);
 
         const disposeNewUid = emit([place('fresh')]);
@@ -152,7 +152,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
             emit([]);
             setActiveServer('cloud', 'cloud-cold', 'u1');
 
-            const { result } = renderHook(() => useHomePlaces());
+            const { result } = renderHook(() => useActiveCloudPlaces());
 
             expect(result.current.places).toEqual([]);
             expect(result.current.isLoading).toBe(true);
@@ -164,7 +164,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
             emit([]);
             setActiveServer('cloud', 'cloud-cold', 'u1');
 
-            const { result } = renderHook(() => useHomePlaces());
+            const { result } = renderHook(() => useActiveCloudPlaces());
             expect(result.current.isLoading).toBe(true);
 
             const onEmit = observeListMock.mock.calls.at(-1)?.[1] as (r: { list: DomainPlace[] }) => void;
@@ -181,7 +181,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
             emit([]);
             setActiveServer('cloud', 'cloud-cold', 'u1');
 
-            const { result } = renderHook(() => useHomePlaces());
+            const { result } = renderHook(() => useActiveCloudPlaces());
             expect(result.current.isLoading).toBe(true);
 
             act(() => {
@@ -196,7 +196,7 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
             emit([place('p1')]);
             setActiveServer('cloud', 'cloud-warm', 'u1');
 
-            const { result } = renderHook(() => useHomePlaces());
+            const { result } = renderHook(() => useActiveCloudPlaces());
 
             expect(result.current.isLoading).toBe(false);
         });

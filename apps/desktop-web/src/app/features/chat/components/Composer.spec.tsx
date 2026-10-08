@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -139,6 +139,22 @@ describe('Composer send', () => {
 
         expect(onSend).toHaveBeenCalledWith('caption', [attachment.file]);
     });
+
+    // The editor's markdown export backslash-escapes `_ * ~ \``; RichText has no escape syntax, so
+    // the reader would see the backslashes. The wire carries the text as typed; the text reaches
+    // the editor as a restored draft, which goes through the same import as an opened message.
+    it.each(['snake_case_name', 'a * b', '\\\\server\\share'])(
+        'sends %j without adding or dropping backslashes',
+        async text => {
+            useComposerDraftStore.setState({ drafts: { 'ch-1': text } });
+            const onSend = renderComposer([]);
+            await waitFor(() => expect((sendButton() as HTMLButtonElement).disabled).toBe(false));
+
+            await act(async () => fireEvent.click(sendButton()));
+
+            expect(onSend).toHaveBeenCalledWith(text, []);
+        }
+    );
 
     it('sends nothing when there is neither text nor a picture', async () => {
         const onSend = renderComposer([]);

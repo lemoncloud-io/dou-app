@@ -423,6 +423,4 @@ npx jest --config libs/db/jest.config.js      # every spec in the lib
   (`rm -rf libs/db/dist libs/db/out-tsc`) and look again.
 - Downstream: `@chatic/app-runtime` is the only direct dependent; through it a changed barrel
   identifier reaches `web`, `desktop-web`, `admin-v2` and `testbed`. `.github/workflows/verify.yml`
-  type checks `@chatic/app-runtime`, `admin-v2` and `testbed`, and excludes `web` and `desktop-web` —
-  those two are the ones to run by hand. `desktop-web` carries a long-standing 21-error baseline, so
-  compare against it rather than expecting zero.
+  type checks `@chatic/app-runtime`, `web`, `desktop-web`, `admin-v2` and `testbed`.

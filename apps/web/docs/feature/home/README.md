@@ -36,7 +36,7 @@ What it owns of each is the entry point and nothing behind it.
    follows it. Channels of several places are never fetched at once.
 4. **Relay hides places, it does not disconnect them.** The relay has exactly one place and it is
    auto-selected, so the list would add nothing — only the **render** is skipped.
-   `useHomePlaces`/`useSwitchPlace` still run, because the Chat section depends on `selectedPlaceId`
+   `useActiveCloudPlaces`/`useSwitchPlace` still run, because the Chat section depends on `selectedPlaceId`
    and a relay home without it is an empty screen.
 5. **A limit never removes a button.** `＋` entries stay visible at their cap and the attempt
    explains the refusal. "Why is this gone" is a worse question than "why can't I".
@@ -200,10 +200,19 @@ tap, as before.
 
 `CloudSessionSheet` has three collapsible sections: the synthetic relay row (selecting it calls
 `logoutCloudSession`), owned clouds with the active one pinned to the top, and invited clouds. Add-a-
-cloud is a **footer**, so it survives collapsing. A provisioning row is not selectable; while the
-sheet is open and any row is provisioning, a 30-second poll refetches and a ready cloud raises a
+cloud is a **footer**, so it survives collapsing. A row either enters its cloud or explains itself,
+never both: its badge is `resolveCloudRowState` from `app/utils` — the same mapping cloud management
+draws — and a row with no session to switch to (provisioning, failed, held) opens the cloud's hub
+under `/mypage/cloud-manage` instead, where the state is explained and a failed or held cloud is
+released. A cloud scheduled to end at the next renewal still enters; it is usable until then. While
+the sheet is open and any row is provisioning, a 30-second poll refetches and a ready cloud raises a
 toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
 invited clouds, or subscribe.
+
+An invited row is titled by its cloud name with the owner caption ("sunny's cloud", else "Invited
+cloud") under it. An invite can carry no cloud name, and the cached row has none until `cloud.get`
+fills it in after the first connect; until then the caption becomes the title and the second line
+goes, so the row never prints the raw cloud id.
 
 ## Pull to refresh
 

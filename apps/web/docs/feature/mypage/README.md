@@ -1,6 +1,6 @@
-# mypage — the account hub and everything one depth below it
+# mypage — the account hub and the tree below it
 
-`apps/web/src/app/features/mypage` owns the MY tab and the tree behind it: **14 pages** across three
+`apps/web/src/app/features/mypage` owns the MY tab and the tree behind it: **17 pages** across four
 depths, from the identity card at `/mypage` down to policy text and the Lab (experiments and the debug
 unlock). It is the
 app's settings surface, and it is also where three different kinds of profile meet — which is the
@@ -13,11 +13,11 @@ floating nav, safe areas, keyboard insets — belongs to
 
 ## Layout
 
-Fourteen pages, seven components, seven hooks, and `flags.ts` — one boolean waiting on a backend packet.
-The route table declares fifteen routes: the fourteen pages here plus feedback's, whose screen lives
-in another feature.
+Seventeen pages, ten components, nine hooks, one `lib/` helper, and `flags.ts` — one boolean waiting
+on a backend packet. The route table declares eighteen routes: the seventeen pages here plus
+feedback's, whose screen lives in another feature.
 
-### The three depths
+### The four depths
 
 | Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                      |
 | --------------------------------------------------------------- | -------------------------------- | ----------------------------------------------- |
@@ -25,8 +25,11 @@ in another feature.
 | `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card |
 | `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal    |
 | `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo     |
-| `CloudProfileEditPage`                                          | `/mypage/cloud-profile`          | the cloud **entity's** name, owner-only         |
-| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds — rename, release, recovery email  |
+| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them    |
+| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places |
+| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only         |
+| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released     |
+| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                      |
 | `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                |
 | `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout     |
 | `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                   |
@@ -66,7 +69,7 @@ This is the section to read before touching anything on these screens.
 | What                  | Where it is edited                 | Scope                                        |
 | --------------------- | ---------------------------------- | -------------------------------------------- |
 | **Account profile**   | `ProfileEditPage` (`/mypage/edit`) | the relay account — name, photo, email       |
-| **Cloud entity name** | `CloudProfileEditPage`             | the cloud organization itself                |
+| **Cloud entity name** | `CloudEditPage`                    | the cloud organization itself                |
 | **Place profile**     | home's `PlaceProfileEditDialog`    | your nickname and thumbnail inside one place |
 
 The hub's card, the header name and everything `/mypage/account` leads to are the **first** one, and
@@ -94,25 +97,56 @@ someone who is plainly signed in.
 
 ### Two rows change their destination, not their label
 
-- **Subscription.** The label is the same either way; `membership?.isValid` decides between the
-  membership screen and the guide. Someone who has never subscribed wants to be told what a cloud
-  is, not shown an empty plan screen. `useMembershipInfo()` is a react-query result, so the check is
-  `membership?.isValid === true`, not a bare boolean on the hook.
+- **Subscription.** Always the subscription list — it has a state for everyone, and its empty
+  state is what leads to the guide. Branching here on `isValid` sent a scheduled cancellation,
+  still paid for, to the pitch.
 - **Version.** It goes to the store **only when an update is actually pending**, and the
   up-to-date / update-available label shows on iOS only, because Android has no live-version source
   and a label there would be a guess. Otherwise the row is inert — it is informational and carries
   no hidden action.
 
-### The cloud row is gated on ownership, not on being connected
+### The cloud row shows for every signed-in account
 
-`useCloudSessionCatalog().clouds.length > 0`. The obvious-looking alternative, `isCloudActive`,
-means "currently switched into a non-default cloud", and gating on it hides the only release path
-for exactly the people who need it: someone over their allowance after a downgrade (deep-linked here
-from the subscription banner), and a lapsed subscriber whose leftover clouds still need deleting —
-both of whom are sitting on the default home, not inside a cloud.
+Cloud management has a state for everyone: an empty card that starts a subscription, the list, and
+the lapsed list whose leftover clouds still need releasing. It used to be gated on owning a cloud,
+which hid the first of those — and gating on `isCloudActive` ("currently switched into a non-default
+cloud") would be worse still, hiding the only release path from exactly the people who need it: a
+user over their allowance after a downgrade, or a lapsed subscriber, both sitting on DoU Home.
 
-Invited clouds are absent from that catalog on purpose. You cannot release someone else's cloud, so
-being a member of one must not summon the row.
+Invited clouds never appear in it. The list is the relay catalog (`view: 'mine'`), and you cannot
+release someone else's cloud.
+
+### Cloud management is one list and one tree per cloud
+
+`/mypage/cloud-manage` lists the owned clouds under the subscription that allows them. What the
+subscription has to say — the banner for a block, a lapse or a queued downgrade, the `used / limit`
+figure, the current plan card — is composed from [subscription](../subscription/README.md)'s barrel
+(`CloudManageBanner`, `CurrentPlanCard`, `useCloudManageScene`, `useCloudQuota`); this feature
+derives nothing about the membership itself. A row's badge comes from `resolveCloudRowState` in
+`app/utils`, and its name from `cloudDisplayName` beside it — the same two home's switcher draws,
+so a cloud never reads one way in the sheet and another here. The add button raises `stores/useAddCloudRequest` like home does, and is away
+while a banner is up — that is the state in which the server would refuse the cloud, and the
+banner is what explains it.
+
+A row opens the cloud's hub, which fans out into three screens that follow the `place` vocabulary:
+`edit` writes, `detail` reads (the word `info` is not used — it reads as both), `places` lists.
+
+**Two of them switch into the cloud first.** The rename is the cloud's own socket action
+(`cloud.update`), and the place list is the cloud's own cache, filled by its own sync — the relay
+holds the catalog row and nothing below it. So `CloudEditPage` and `CloudPlacesPage` call
+`useEnsureCloudSession`, which switches the whole app into the cloud on entry (once per cloud id,
+with a retry on failure) and keeps the user there afterwards; `CloudSessionGate` holds the body until
+it is live. The hub disables those two rows for a cloud that has no session to switch to — one
+still provisioning, one that failed, one the relay holds — and keeps the information screen, which
+is where that state is explained and where the cloud is released.
+
+**Releasing lives on the information screen, nowhere else.** It is irreversible and cascades, so it
+sits at the foot of the read-only facts behind a confirm, not on a list row. Releasing the ACTIVE
+cloud ends the cloud session and reloads: the session's tokens name a cloud that no longer exists.
+
+**Two designed things are not drawn.** The profile screen's photo slot — the cloud model has no
+image field, and a slot that could not save is worse than none — and the payment-failure banner,
+for the same reason the subscription screens leave it out: the relay has no grace-period signal.
 
 ### Language defaults to the device, and only a choice is remembered
 
@@ -183,10 +217,11 @@ because they have no nav.
 
 The feature exports its route table, which the router mounts under `/mypage/*`. Screens read state
 through hooks and never touch a core object: `useIsAccountGuest` for the hub's branch, `useMyUser`
-for the account profile, `useMembershipInfo` for the subscription row, `useCloudSessionCatalog` /
-`useClouds` for owned clouds, `runtime.session.useSessionSelection` and `useRuntimeProfile` for the
-session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for the language sheet and
-`useClearLocalCaches` for the clear-cache row.
+for the account profile, `useCloudSessionCatalog` / `useClouds` for owned clouds (`useOwnedCloud`
+narrows that to the cloud a URL names), `useEnsureCloudSession` to make that cloud the live session,
+`useActiveCloudPlaces` for its places, `runtime.session.useSessionSelection` and `useRuntimeProfile`
+for the session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for the language
+sheet and `useClearLocalCaches` for the clear-cache row.
 
 ### What not to do
 
@@ -203,9 +238,11 @@ session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for th
 
 ## Notes for implementers and tests
 
-- **Nine specs cover this feature**, and they cover the hooks rather than the screens: `useAppIcon`,
-  `useClearLocalCaches`, `useDevicePushMute`, `useLanguagePreference`, `useSocialLinks`,
-  `useUpdateProfile`, plus `AccountLinkSection`, `CloudManagePage` and `LoginPage`. The pages themselves are checked in the browser preview.
+- **Fourteen specs cover this feature**, and they cover the hooks and the pure parts rather than the
+  screens: `useAppIcon`, `useClearLocalCaches`, `useDevicePushMute`, `useEnsureCloudSession`,
+  `useLanguagePreference`, `useSocialLinks`, `useUpdateProfile`, `cloudStatusWord`, plus
+  `AccountLinkSection`, `CloudManageRow`, `CloudManagePage`, `CloudHubPage`, `CloudDetailPage` and `LoginPage`. The
+  pages themselves are checked in the browser preview.
 
     ```bash
     npx jest --config apps/web/jest.config.js features/mypage
@@ -224,9 +261,11 @@ session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for th
   The control renders disabled rather than claiming a success it cannot deliver. `AccountLinkSection`
   additionally hides itself when `link$` reads `'unknown'` — an account-security control that can
   lie is worse than one that admits it does not know.
-- **`CloudProfileEditPage` is reachable only from `CloudManagePage`**, behind the pencil on a cloud
-  you own. The account tree deliberately does not link it: a cloud's name is not an account
-  attribute. It redirects non-owners out on its own rather than trusting the caller.
+- **`CloudEditPage` is reachable only through the cloud's hub.** The account tree deliberately does
+  not link it: a cloud's name is not an account attribute. Every screen under `/mypage/cloud-manage/
+:id` leaves for the list on its own once the catalog says the id is not an owned cloud, rather
+  than trusting the caller — but only once the catalog has answered, so an in-flight fetch does not
+  bounce a legitimate owner.
 
 ## Further reading
 

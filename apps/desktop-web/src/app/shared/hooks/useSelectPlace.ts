@@ -10,12 +10,14 @@ import { runtime } from '@chatic/app-runtime';
  * the engine's `switchSite`, which optimistically pre-applies the sid (cached channels swap
  * instantly), moves the live socket session with SDK `auth.switch`, and rolls the sid back on
  * failure — no app-side loader or manual rollback. Mirrors apps/web `useSwitchPlace`.
- * `isSwitching` is exposed so the rail can disable the place tiles during a switch.
+ * `isSwitching` is exposed so the rail can disable the place tiles during a switch. `switchPlace`
+ * returns whether it started one: a request made mid-switch, or for the current place, is ignored.
+ * `onFailed` runs when a switch it started fails (after the engine rolled the place back), for a caller
+ * that was waiting on that place.
  *
  * The socket half is the whole point, and the import is load-bearing: `@chatic/web-core` exports
  * a hook of the same name that re-issues only the HTTP token. Channels come over the socket, so
- * under that one the server kept answering for the previous place and the sidebar read empty
- * (.claude/20260804/DEBUG-14-20-13.md).
+ * under that one the server kept answering for the previous place and the sidebar read empty.
  */
 export const useSelectPlace = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();
@@ -24,8 +26,8 @@ export const useSelectPlace = () => {
     const { toast } = useToast();
 
     const switchPlace = useCallback(
-        (placeId: string) => {
-            if (isSwitching || placeId === selectedSiteId) return;
+        (placeId: string, onFailed?: () => void): boolean => {
+            if (isSwitching || placeId === selectedSiteId) return false;
             // switchSite rolls its own sid back on failure, but said nothing about
             // it: the tile click simply did nothing, while the cloud rail toasts on
             // the same class of failure. Say it, the way the cloud rail does.
@@ -33,7 +35,9 @@ export const useSelectPlace = () => {
             void Promise.resolve(switchSite(placeId)).catch((e: unknown) => {
                 logger.error('SESSION', '[SelectPlace] switchFailed', { error: e });
                 toast({ title: t('place.switchFailed'), variant: 'destructive' });
+                onFailed?.();
             });
+            return true;
         },
         [switchSite, selectedSiteId, isSwitching, t, toast]
     );

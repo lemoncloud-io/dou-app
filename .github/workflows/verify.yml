@@ -63,6 +63,10 @@ jobs:
             - name: Code comment language
               run: yarn check:code-korean
 
+            # AGENTS.md's public-surface rule, for internal document paths left in comments and docs.
+            - name: Internal paths
+              run: yarn check:internal-paths
+
             # Green across all 26 projects, so no exclusions here.
             - name: Lint
               run: npx nx run-many -t lint
@@ -74,7 +78,7 @@ jobs:
             - name: Typecheck
               run: >
                   npx nx run-many -t typecheck
-                  --exclude=desktop-web,block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+                  --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 
             # `libs/db` and `libs/app-runtime` ran through a separate step until the root
             # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
@@ -84,15 +88,19 @@ jobs:
             - name: Test
               run: >
                   npx nx run-many -t test
-                  --exclude=block-kit,@chatic/landing
+                  --exclude=@chatic/landing
 
-            # Left out of the gate, with the reason. Measured 2026-09-14.
+            # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
-            #   typecheck   desktop-web                  21 errors, the long-standing baseline
-            #               @chatic/mobile               red
+            #   typecheck   @chatic/mobile               red
             #               @chatic/landing              red
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
+            #
+            #   `desktop-web` left the TYPECHECK list on 2026-10-06, and nothing was traded away for it:
+            #   its errors (21 when first counted) are gone, measured 0 from a clean build of every lib
+            #   (`rm -rf libs/*/dist libs/*/out-tsc apps/desktop-web/out-tsc`, then `tsc -b` and
+            #   `nx run desktop-web:typecheck`). They were fixed, not silenced.
             #
             #   `web` left the TEST list on 2026-09-17, and nothing was traded away for it either:
             #   the 7 failures were three stale test files, not product bugs. Two had been left
@@ -106,7 +114,4 @@ jobs:
             #   lib, spec AND storybook. Source, tests and stories are all type checked.
             #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
-            #   test        block-kit                     6 spec files, but no jest config and no
-            #                                             test script, so nothing runs them. Giving
-            #                                             it one is a decision, not a fix.
-            #               @chatic/landing               red
+            #   test        @chatic/landing               red

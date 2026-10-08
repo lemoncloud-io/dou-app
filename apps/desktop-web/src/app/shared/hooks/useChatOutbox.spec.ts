@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { logger } from '@chatic/bridges';
 import type { DataRepositories, DomainChat } from '@chatic/data';
 import type * as AppRuntimeModule from '@chatic/app-runtime';
 import { runtime } from '@chatic/app-runtime';
@@ -415,6 +416,69 @@ describe('createCloudOutbox', () => {
         expect(b.cacheDelete.mock.invocationCallOrder[0]).toBeLessThan(sendInCloud.mock.invocationCallOrder[0]);
     });
 
+    describe('a failed read of unsent rows', () => {
+        let warn: ReturnType<typeof vi.spyOn>;
+        beforeEach(() => {
+            warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+        });
+        afterEach(() => {
+            warn.mockRestore();
+        });
+
+        // The read failing is not the same fact as the channel holding no unsent rows: the first
+        // leaves rows in the cache that this sweep never saw.
+        const failingChannel = (failing: Set<string>) => {
+            const cloud = fakeCloud({
+                unsent: [
+                    chat({ id: 'row-bad', channelId: 'ch-bad', ownerId: 'uid-b', isFailed: true }),
+                    chat({ id: 'row-ok', channelId: 'ch-ok', ownerId: 'uid-b', isFailed: true }),
+                ],
+            });
+            const read = vi.mocked(cloud.graph.chat.cacheReadList);
+            const healthy = read.getMockImplementation() as NonNullable<ReturnType<typeof read.getMockImplementation>>;
+            read.mockImplementation(async query =>
+                failing.has(query.channelId) ? Promise.reject(new Error('db locked')) : healthy(query)
+            );
+            return cloud;
+        };
+
+        it('logs the skipped channel and still sweeps the others', async () => {
+            const cloud = failingChannel(new Set(['ch-bad']));
+            const { outbox, sweep } = setup({ 'cloud-b': cloud.graph }, { 'cloud-b': 'uid-b' });
+
+            await sweep('cloud-b');
+
+            expect(outbox.pending().map(entry => entry.id)).toEqual(['row-ok']);
+            expect(warn).toHaveBeenCalledWith(
+                'CHAT',
+                expect.stringContaining('skipped'),
+                expect.objectContaining({ cid: 'cloud-b', channelIds: ['ch-bad'] })
+            );
+        });
+
+        it('logs nothing when every read succeeds', async () => {
+            const cloud = failingChannel(new Set());
+            const { sweep } = setup({ 'cloud-b': cloud.graph }, { 'cloud-b': 'uid-b' });
+
+            await sweep('cloud-b');
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it('picks the skipped channel up on the next sweep, once its read works again', async () => {
+            const failing = new Set(['ch-bad', 'ch-ok']);
+            const cloud = failingChannel(failing);
+            const { outbox, sweep } = setup({ 'cloud-b': cloud.graph }, { 'cloud-b': 'uid-b' });
+
+            await sweep('cloud-b');
+            expect(outbox.pending()).toEqual([]);
+
+            failing.clear();
+            await sweep('cloud-b');
+
+            expect(outbox.pending().map(entry => entry.id)).toEqual(['row-bad', 'row-ok']);
+        });
+    });
+
     it('keeps landing claims per cloud, so equal row ids in two clouds do not collide', async () => {
         // Both clouds hold a landed `ch-1:7` — ids are only unique inside a cloud. One shared claim
         // set would let cloud-a's claim hide cloud-b's twin, and cloud-b's already-delivered message
@@ -471,6 +535,24 @@ describe('useChatOutbox', () => {
             expect(clouds.sendInCloud).toHaveBeenCalledWith('cloud-b', expect.objectContaining({ content: 'hi' }))
         );
         expect(b.cacheDelete).toHaveBeenCalledWith('row-b');
+    });
+
+    it('logs a sweep that fails outright instead of swallowing it', async () => {
+        const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+        const b = fakeCloud();
+        vi.mocked(b.graph.channel.cacheReadList).mockRejectedValue(new Error('db locked'));
+        clouds.graphs['cloud-b'] = b.graph;
+        verify(['default', 'cloud-b']);
+        renderHook(() => useChatOutbox());
+
+        await waitFor(() =>
+            expect(warn).toHaveBeenCalledWith(
+                'CHAT',
+                expect.stringContaining('sweep failed'),
+                expect.objectContaining({ cid: 'cloud-b' })
+            )
+        );
+        warn.mockRestore();
     });
 
     it('keeps one instance, and its queue, across a cloud switch', () => {
