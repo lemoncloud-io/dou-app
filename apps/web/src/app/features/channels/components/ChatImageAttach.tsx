@@ -50,7 +50,7 @@ import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
 import { editsDiffer, usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
 import { usePhotoSendGrouping } from '../hooks/usePhotoSendGrouping';
 import { type HeldFileDraft, useComposerDraftStore } from '../stores/useComposerDraftStore';
-import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from '../utils/attachSources';
+import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey, sendsFromMobile } from '../utils/attachSources';
 
 const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
 
@@ -320,7 +320,7 @@ export const useChatImageAttach = ({
                           ),
                       };
                   })()
-                : judgeChatAttachments(items, max);
+                : judgeChatAttachments(items, max, sendsFromMobile);
             // One notice per pick, for the first reason met — a list of every refused file is noise. A
             // photo whose edit could not be drawn comes first: it was picked and worked on, and now it
             // is the one thing missing from what was sent.

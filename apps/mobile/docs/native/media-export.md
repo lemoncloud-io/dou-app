@@ -110,8 +110,10 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
   can be minutes. Messages are handled concurrently, so they hold up nothing else; the handler has no
   timeout of its own, and the web gives each of these requests a long one.
 - **`SaveFile` checks the name once more.** Path separators are removed, and an extension that is not
-  one of the server's twelve formats (`png jpg jpeg gif webp mp4 pdf docx xlsx pptx hwp hwpx txt`) is
-  `INVALID` — the name comes from the page, and it decides what the OS thinks the file is.
+  one of the twelve the shell saves (`png jpg jpeg gif webp mp4 pdf docx xlsx pptx hwp hwpx txt`) is
+  `INVALID` — the name comes from the page, and it decides what the OS thinks the file is. The server
+  also takes a ZIP archive, which desktop sends; `zip` is not in this list, so a received archive
+  cannot be saved from the phone.
 
 ## iOS
 

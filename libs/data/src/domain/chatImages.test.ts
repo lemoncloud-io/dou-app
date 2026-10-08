@@ -91,7 +91,7 @@ const shell = (name: string, type: string, size = 1024, extra: Partial<ShellFile
 });
 
 describe('judgeChatAttachments', () => {
-    it('accepts the twelve server formats in pick order', () => {
+    it('accepts the thirteen server formats in pick order', () => {
         const picked = [
             file('a.png', 'image/png'),
             file('b.jpg'),
@@ -106,9 +106,10 @@ describe('judgeChatAttachments', () => {
             file('j.hwp', ''),
             file('k.hwpx', 'application/hwp+zip'),
             file('l.txt', 'text/plain'),
+            file('m.zip', 'application/zip'),
         ];
 
-        const { accepted, rejected } = judgeChatAttachments(picked, 12);
+        const { accepted, rejected } = judgeChatAttachments(picked, 13);
 
         expect(accepted.map(f => f.name)).toEqual(picked.map(f => f.name));
         expect(rejected).toEqual([]);
@@ -116,11 +117,21 @@ describe('judgeChatAttachments', () => {
 
     it('refuses a format the server does not take, such as a QuickTime page file', () => {
         const { rejected } = judgeChatAttachments(
-            [file('clip.mov', 'video/quicktime'), file('a.zip', 'application/zip')],
+            [file('clip.mov', 'video/quicktime'), file('a.7z', 'application/x-7z-compressed')],
             10
         );
 
         expect(rejected.map(r => r.reason)).toEqual(['unsupported', 'unsupported']);
+    });
+
+    // The phone sends no ZIP archive, though the server takes one and desktop sends it.
+    it('refuses a format the app does not send, and takes it when nothing says so', () => {
+        const picked = [file('a.zip', 'application/zip'), file('a.pdf', 'application/pdf')];
+        const noArchive = judgeChatAttachments(picked, 10, format => format.type !== 'application/zip');
+
+        expect(noArchive.accepted.map(f => f.name)).toEqual(['a.pdf']);
+        expect(noArchive.rejected).toEqual([{ item: picked[0], reason: 'unsupported' }]);
+        expect(judgeChatAttachments(picked, 10).accepted).toEqual(picked);
     });
 
     it.each([

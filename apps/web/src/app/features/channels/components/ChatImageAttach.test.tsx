@@ -589,8 +589,14 @@ describe('useChatImageAttach — videos and documents', () => {
         const sendImages = jest.fn().mockResolvedValue(undefined);
         render(<Harness sendImages={sendImages} />);
 
-        // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits a zip too.
-        pick('chat-attach-files', [photo('a.zip', 'application/zip'), photo('보고서.hwp', ''), photo('b.hwpx', '')]);
+        // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits a zip too,
+        // typed as one or — the way Android hands over a file it does not know — generically.
+        pick('chat-attach-files', [
+            photo('a.zip', 'application/zip'),
+            photo('b.zip', 'application/octet-stream'),
+            photo('보고서.hwp', ''),
+            photo('b.hwpx', ''),
+        ]);
         fireEvent.click(screen.getByTestId('composer-send'));
         await flush();
 

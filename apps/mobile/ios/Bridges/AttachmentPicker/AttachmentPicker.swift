@@ -98,12 +98,12 @@ final class AttachmentPicker: NSObject {
         }
     }
 
-    /// Every format the server takes — its four photo formats, MP4 and its seven document formats — so
-    /// a photo or a video kept in Files can be sent from here too. Nothing beyond them: a file the
-    /// server would refuse is not offered. The pick still reports every item as a file; the web tells a
-    /// photo or a video by its format. HWP and HWPX have no system type, so they are named by their
-    /// extension; that type matches any file with it, and is the installed Hancom app's own type when
-    /// there is one.
+    /// Twelve of the formats the server takes — its four photo formats, MP4 and its seven document
+    /// formats — so a photo or a video kept in Files can be sent from here too. Nothing beyond them: a
+    /// file the server would refuse is not offered, and neither is a ZIP archive, which it takes. The
+    /// pick still reports every item as a file; the web tells a photo or a video by its format. HWP
+    /// and HWPX have no system type, so they are named by their extension; that type matches any file
+    /// with it, and is the installed Hancom app's own type when there is one.
     private static var documentTypes: [UTType] {
         [.png, .jpeg, .gif, .webP, .mpeg4Movie, .pdf, .plainText]
             + ["docx", "xlsx", "pptx", "hwp", "hwpx"].compactMap { UTType(filenameExtension: $0, conformingTo: .data) }

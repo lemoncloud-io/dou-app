@@ -30,16 +30,28 @@ describe('page input accept lists', () => {
         expect(documentAccept(true)).not.toContain('image/');
     });
 
+    // Only desktop sends an archive: the phone cannot save one it receives.
+    it('offers no ZIP archive from files, on either system', () => {
+        for (const accept of [documentAccept(true), documentAccept(false)]) {
+            expect(accept.split(',')).not.toContain('application/zip');
+            expect(accept.split(',')).not.toContain('.zip');
+        }
+    });
+
     it('also takes the generic type from files, the only one iOS WebKit lets HWP and HWPX through under', () => {
         expect(documentAccept(true).split(',')).toContain('application/octet-stream');
     });
 
-    it('offers every server format from files outside iOS WebKit, and nothing past them but the generic type', () => {
+    it('offers every format the phone sends from files outside iOS WebKit, and nothing past them but the generic type', () => {
         const accept = documentAccept(false).split(',');
         expect(accept).toEqual(
             expect.arrayContaining(['image/png', '.webp', 'video/mp4', '.mp4', 'application/pdf', '.hwpx'])
         );
-        expect(accept).toEqual([...CHAT_ATTACHMENT_ACCEPT.split(','), 'application/octet-stream']);
+        const archive = ['application/zip', '.zip'];
+        expect(accept).toEqual([
+            ...CHAT_ATTACHMENT_ACCEPT.split(',').filter(type => !archive.includes(type)),
+            'application/octet-stream',
+        ]);
         expect(accept.some(type => type.includes('*'))).toBe(false);
     });
 
