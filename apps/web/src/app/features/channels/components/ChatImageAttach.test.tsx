@@ -10,6 +10,7 @@ import { IDENTITY_PHOTO_EDIT, SLIDE_MS, type PhotoEdit } from '@chatic/web-ui-ki
 import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
 import { ATTACH_INSET_VAR, KEYBOARD_COVER_MS, KEYBOARD_WAIT_MS } from '../hooks/useAttachPanelSlot';
 import type { PhotoPicker } from '../hooks/usePhotoPicker';
+import { useComposerDraftStore } from '../stores/useComposerDraftStore';
 import { INPUT_CLICK_WINDOW_MS, useChatImageAttach } from './ChatImageAttach';
 
 const toast = jest.fn();
@@ -96,6 +97,7 @@ const Harness = ({
     now,
     caption = '',
     onUnsentText,
+    scope,
 }: {
     sendImages: (files: ChatAttachmentSource[], options?: { separately?: boolean; content?: string }) => Promise<void>;
     disabled?: boolean;
@@ -104,6 +106,7 @@ const Harness = ({
     now?: () => number;
     caption?: string;
     onUnsentText?: (text: string) => void;
+    scope?: string;
 }) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const composerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +120,7 @@ const Harness = ({
         shellPicker,
         now,
         onUnsentText,
+        scope,
     });
     return (
         <div style={{ position: 'relative' }}>
@@ -154,6 +158,7 @@ const pick = (testId: string, files: File[]) => {
 };
 
 beforeEach(() => {
+    useComposerDraftStore.setState({ texts: {}, held: {} });
     toast.mockClear();
     openSettings.mockClear();
     mockOwnPicker = unsupportedPicker();
@@ -424,6 +429,7 @@ describe('useChatImageAttach — videos and documents', () => {
     };
     const shellPicker = (answer: () => Promise<AttachmentPick | null>, unsupported = false): AttachmentPicker => ({
         pick: jest.fn(answer),
+        readPhotos: jest.fn(async items => ({ items, refused: [] })),
         prepareVideo: jest.fn(),
         isUnsupported: () => unsupported,
         reset: jest.fn(),
@@ -550,12 +556,23 @@ describe('useChatImageAttach — videos and documents', () => {
         expect(click).toHaveBeenCalledTimes(1);
     });
 
-    it('lets the album input take an mp4 and the files input a document, outside iOS', () => {
+    it('lets the album input take an mp4, and the files input a document and a photo kept among files, outside iOS', () => {
         render(<Harness sendImages={jest.fn()} />);
 
         expect((screen.getByTestId('chat-attach-album') as HTMLInputElement).accept).toContain('video/mp4');
         expect((screen.getByTestId('chat-attach-files') as HTMLInputElement).accept).toContain('application/pdf');
-        expect((screen.getByTestId('chat-attach-files') as HTMLInputElement).accept).not.toContain('image/');
+        expect((screen.getByTestId('chat-attach-files') as HTMLInputElement).accept).toContain('image/');
+    });
+
+    // An image type in `accept` makes iOS offer the photo library and the camera before the files.
+    it('keeps image types out of the files input on iOS WebKit', () => {
+        mockAppleTouch = true;
+        try {
+            render(<Harness sendImages={jest.fn()} />);
+            expect((screen.getByTestId('chat-attach-files') as HTMLInputElement).accept).not.toContain('image/');
+        } finally {
+            mockAppleTouch = false;
+        }
     });
 
     it('sends a page video and document through the full judgement, and refuses a QuickTime video by name', () => {
@@ -568,12 +585,14 @@ describe('useChatImageAttach — videos and documents', () => {
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupportedVideo');
     });
 
-    it('sends an untyped HWP from the files input by its extension, and refuses any other file it lets through', () => {
+    it('takes an untyped HWP from the files input by its extension, and refuses any other file it lets through', async () => {
         const sendImages = jest.fn().mockResolvedValue(undefined);
         render(<Harness sendImages={sendImages} />);
 
         // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits a zip too.
         pick('chat-attach-files', [photo('a.zip', 'application/zip'), photo('보고서.hwp', ''), photo('b.hwpx', '')]);
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['보고서.hwp', 'b.hwpx']);
         expect(toast).toHaveBeenCalledTimes(1);
@@ -821,6 +840,7 @@ describe('useChatImageAttach — editing and grouping in the grid', () => {
                 items: [photo('s1.jpg', 'image/jpeg', 3), photo('s2.jpg', 'image/jpeg', 4)],
                 refused: [],
             })),
+            readPhotos: jest.fn(async items => ({ items, refused: [] })),
             prepareVideo: jest.fn(),
             isUnsupported: () => false,
             reset: jest.fn(),
@@ -1567,5 +1587,451 @@ describe('useChatImageAttach — the pick above the composer', () => {
         fireEvent.click(thumb(1));
 
         expect(queryEditor()).not.toBeInTheDocument();
+    });
+});
+
+describe('useChatImageAttach — files waiting above the composer', () => {
+    const recent = [
+        { id: 'r1', src: 'data:r1' },
+        { id: 'r2', src: 'data:r2' },
+    ];
+    const gridPicker = (over: Partial<PhotoPicker> = {}): PhotoPicker => ({
+        ...unsupportedPicker(),
+        supported: true,
+        access: 'granted',
+        recent,
+        ...over,
+    });
+    const shellPicker = (answer: () => Promise<AttachmentPick | null>): AttachmentPicker => ({
+        pick: jest.fn(answer),
+        readPhotos: jest.fn(async items => ({ items, refused: [] })),
+        prepareVideo: jest.fn(),
+        isUnsupported: () => false,
+        reset: jest.fn(),
+    });
+    const shellDoc = {
+        uri: 'file:///c/attach-pick/a/plan.pdf',
+        name: 'plan.pdf',
+        type: 'application/pdf',
+        size: 2048,
+        kind: 'file' as const,
+    };
+    const openSource = (name: 'chat.attach.source.album' | 'chat.attach.source.files') => {
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
+        fireEvent.click(screen.getByRole('button', { name }));
+    };
+    const files = () => screen.queryByRole('group', { name: 'chat.attach.pickedFiles' });
+    const chips = () => within(files() as HTMLElement).getAllByRole('listitem');
+    const ready = () => screen.getByTestId('composer-send').getAttribute('data-ready');
+    const shellPhoto = {
+        uri: 'file:///c/attach-pick/b/shot.png',
+        name: 'shot.png',
+        type: 'image/png',
+        size: 4096,
+        kind: 'file' as const,
+    };
+    const doc = (name: string, lastModified = 1) => photo(name, 'application/pdf', lastModified);
+    const flush = () => act(async () => undefined);
+
+    it('keeps a pick from the files input above the field instead of sending it, and readies the send', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+        expect(screen.getByTestId('strip-slot')).toBeEmptyDOMElement();
+
+        pick('chat-attach-files', [doc('a.pdf', 1), doc('b.pdf', 2)]);
+
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(chips().map(chip => chip.textContent)).toEqual([
+            expect.stringContaining('a.pdf'),
+            expect.stringContaining('b.pdf'),
+        ]);
+        expect(ready()).toBe('true');
+    });
+
+    it('sends the waiting files with the typed text as one message, and clears the row', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} caption=" the plan " />);
+        pick('chat-attach-files', [doc('a.pdf', 1), doc('b.pdf', 2)]);
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sentPicked).toBe(true);
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf', 'b.pdf']);
+        expect(sendImages.mock.calls[0][1]).toEqual({ content: 'the plan' });
+        expect(files()).not.toBeInTheDocument();
+        expect(ready()).toBe('false');
+    });
+
+    it('keeps what the app’s files picker gives above the field, and still sends the album’s at once', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell = shellPicker(async () => ({ items: [shellDoc], refused: [] }));
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+
+        openSource('chat.attach.source.files');
+        await flush();
+
+        expect(shell.pick).toHaveBeenCalledWith({ source: 'document', selectionLimit: 10 });
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(chips()).toHaveLength(1);
+
+        openSource('chat.attach.source.album');
+        await flush();
+
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0]).toEqual([shellDoc]);
+        // The album's pick went alone; the waiting file is still the send button's.
+        expect(chips()).toHaveLength(1);
+    });
+
+    it('removes a file with its ×, and leaves the send to the text once the last one has gone', () => {
+        render(<Harness sendImages={jest.fn()} />);
+        pick('chat-attach-files', [doc('a.pdf', 1), doc('b.pdf', 2)]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.removeFile:{"name":"a.pdf"}' }));
+        expect(chips()).toHaveLength(1);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.removeFile:{"name":"b.pdf"}' }));
+        expect(files()).not.toBeInTheDocument();
+        expect(ready()).toBe('false');
+    });
+
+    it('keeps the waiting files when the panel is dismissed, while the pick goes', () => {
+        const picker = gridPicker({ picked: [recent[0]] });
+        render(<Harness sendImages={jest.fn()} picker={picker} />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.close' }));
+
+        expect(picker.clearPicked).toHaveBeenCalledTimes(1);
+        expect(chips()).toHaveLength(1);
+    });
+
+    it('sends the in-app pick and the waiting files as one message with the caption, whatever the grouping', async () => {
+        mockGrouped = false;
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({
+            picked: recent,
+            takePicked: jest.fn().mockResolvedValue({ items: [photo('r1.jpg', 'image/jpeg', 7)], refused: [] }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} caption="look" />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(picker.takePicked).toHaveBeenCalledTimes(1);
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['r1.jpg', 'a.pdf']);
+        expect(sendImages.mock.calls[0][1]).toEqual({ content: 'look' });
+        expect(files()).not.toBeInTheDocument();
+    });
+
+    it('keeps the files and hands the caption back when the in-app pick cannot be read', async () => {
+        const sendImages = jest.fn();
+        const onUnsentText = jest.fn();
+        const picker = gridPicker({ picked: recent, takePicked: jest.fn().mockRejectedValue(new Error('read')) });
+        render(<Harness sendImages={sendImages} picker={picker} caption="look" onUnsentText={onUnsentText} />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.sendFailed', variant: 'destructive' });
+        expect(onUnsentText).toHaveBeenCalledWith('look');
+        expect(chips()).toHaveLength(1);
+    });
+
+    it('counts the in-app pick against the per-message limit, and names it for what is over', () => {
+        const picked = Array.from({ length: 9 }, (_, i) => ({ id: `g${i}`, src: `data:g${i}` }));
+        render(<Harness sendImages={jest.fn()} picker={gridPicker({ picked })} />);
+
+        pick('chat-attach-files', [doc('a.pdf', 1), doc('b.pdf', 2)]);
+
+        expect(chips()).toHaveLength(1);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toBe('chat.attach.rejected.limit:{"max":10}');
+    });
+
+    it('counts the files already waiting against the limit, across picks', () => {
+        render(<Harness sendImages={jest.fn()} />);
+        pick(
+            'chat-attach-files',
+            Array.from({ length: 8 }, (_, i) => doc(`d${i}.pdf`, i))
+        );
+
+        pick('chat-attach-files', [doc('x.pdf', 100), doc('y.pdf', 101), doc('z.pdf', 102)]);
+
+        expect(chips()).toHaveLength(10);
+        expect(toast.mock.calls[0][0].title).toBe('chat.attach.rejected.limit:{"max":10}');
+    });
+
+    it('refuses a file already waiting as the same item picked twice', () => {
+        render(<Harness sendImages={jest.fn()} />);
+        pick('chat-attach-files', [doc('a.pdf', 1)]);
+
+        pick('chat-attach-files', [doc('a.pdf', 1)]);
+
+        expect(chips()).toHaveLength(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.duplicate');
+    });
+
+    it('asks the app’s files picker for the room left, and not at all once there is none', async () => {
+        const shell = shellPicker(async () => ({ items: [], refused: [] }));
+        const picked = Array.from({ length: 7 }, (_, i) => ({ id: `g${i}`, src: `data:g${i}` }));
+        const { rerender } = render(
+            <Harness sendImages={jest.fn()} picker={gridPicker({ picked })} shellPicker={shell} />
+        );
+
+        openSource('chat.attach.source.files');
+        await flush();
+        expect(shell.pick).toHaveBeenCalledWith({ source: 'document', selectionLimit: 3 });
+
+        const full = Array.from({ length: 10 }, (_, i) => ({ id: `g${i}`, src: `data:g${i}` }));
+        rerender(<Harness sendImages={jest.fn()} picker={gridPicker({ picked: full })} shellPicker={shell} />);
+        openSource('chat.attach.source.files');
+        await flush();
+
+        expect(shell.pick).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.rejected.limit:{"max":10}' });
+    });
+
+    it('locks the recent row once the waiting files and the pick together reach the limit', () => {
+        const picked = Array.from({ length: 8 }, (_, i) => ({ id: i === 0 ? 'r1' : `g${i}`, src: `data:g${i}` }));
+        render(<Harness sendImages={jest.fn()} picker={gridPicker({ picked })} />);
+        pick('chat-attach-files', [doc('a.pdf', 1), doc('b.pdf', 2)]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+
+        expect(screen.getByRole('button', { name: 'chat.attach.recentPhoto:{"position":2}' })).toBeDisabled();
+    });
+
+    it('hides the waiting files and holds the send while the composer is locked', () => {
+        const { rerender } = render(<Harness sendImages={jest.fn()} />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+
+        rerender(<Harness sendImages={jest.fn()} disabled />);
+
+        expect(files()).not.toBeInTheDocument();
+        expect(ready()).toBe('false');
+
+        rerender(<Harness sendImages={jest.fn()} />);
+        expect(chips()).toHaveLength(1);
+    });
+
+    it('keeps a photo from the app’s files picker in the shell while it waits, and reads it at the send', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const read = photo('shot.png', 'image/png', 9);
+        const shell = shellPicker(async () => ({ items: [shellPhoto, shellDoc], refused: [] }));
+        shell.readPhotos = jest.fn(async items => ({
+            items: items.map(item => (item === shellPhoto ? read : item)),
+            refused: [],
+        }));
+        render(<Harness sendImages={sendImages} shellPicker={shell} caption="both" />);
+
+        openSource('chat.attach.source.files');
+        await flush();
+        expect(chips()).toHaveLength(2);
+        expect(shell.readPhotos).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(shell.readPhotos).toHaveBeenCalledWith([shellPhoto, shellDoc]);
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0]).toEqual([read, shellDoc]);
+        expect(sendImages.mock.calls[0][1]).toEqual({ content: 'both' });
+        expect(files()).not.toBeInTheDocument();
+    });
+
+    it('names a waiting photo that cannot be read at the send, and sends the rest', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell = shellPicker(async () => ({ items: [shellPhoto, shellDoc], refused: [] }));
+        shell.readPhotos = jest.fn(async () => ({
+            items: [shellDoc],
+            refused: [{ name: 'shot.png', kind: 'image' as const, reason: 'unreadable' as const }],
+        }));
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+        openSource('chat.attach.source.files');
+        await flush();
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages.mock.calls[0][0]).toEqual([shellDoc]);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unreadable');
+        expect(files()).not.toBeInTheDocument();
+    });
+
+    it('reads the waiting photos before the in-app pick, and sends them together after it', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const order: string[] = [];
+        const read = photo('shot.png', 'image/png', 9);
+        const shell = shellPicker(async () => ({ items: [shellPhoto], refused: [] }));
+        shell.readPhotos = jest.fn(async () => {
+            order.push('held');
+            return { items: [read], refused: [] };
+        });
+        const picker = gridPicker({
+            picked: recent,
+            takePicked: jest.fn(async () => {
+                order.push('pick');
+                return { items: [photo('r1.jpg', 'image/jpeg', 7)], refused: [] };
+            }),
+        });
+        render(<Harness sendImages={sendImages} picker={picker} shellPicker={shell} />);
+        openSource('chat.attach.source.files');
+        await flush();
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(order).toEqual(['held', 'pick']);
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['r1.jpg', 'shot.png']);
+    });
+
+    it('keeps the files, the in-app pick and the caption when the waiting photos cannot be read at all', async () => {
+        const sendImages = jest.fn();
+        const onUnsentText = jest.fn();
+        const shell = shellPicker(async () => ({ items: [shellPhoto], refused: [] }));
+        shell.readPhotos = jest.fn().mockRejectedValue(new Error('bridge'));
+        const picker = gridPicker({ picked: recent });
+        render(
+            <Harness
+                sendImages={sendImages}
+                picker={picker}
+                shellPicker={shell}
+                caption="look"
+                onUnsentText={onUnsentText}
+            />
+        );
+        openSource('chat.attach.source.files');
+        await flush();
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(picker.takePicked).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.sendFailed', variant: 'destructive' });
+        expect(onUnsentText).toHaveBeenCalledWith('look');
+        expect(chips()).toHaveLength(1);
+        expect(ready()).toBe('true');
+    });
+
+    it('holds the send while the waiting photos are read, so they cannot go twice', async () => {
+        let finish: (pick: AttachmentPick) => void = () => undefined;
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell = shellPicker(async () => ({ items: [shellPhoto], refused: [] }));
+        shell.readPhotos = jest.fn(() => new Promise<AttachmentPick>(resolve => (finish = resolve)));
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+        openSource('chat.attach.source.files');
+        await flush();
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+        expect(ready()).toBe('false');
+        expect((files() as HTMLElement).closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
+        fireEvent.click(screen.getByTestId('composer-send'));
+        expect(sentPicked).toBe(false);
+
+        await act(async () => finish({ items: [photo('shot.png', 'image/png')], refused: [] }));
+        expect(sendImages).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the waiting files with their room: another room shows its own, and coming back finds them', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const picker = gridPicker({ picked: [recent[0]] });
+        const { rerender } = render(<Harness sendImages={sendImages} picker={picker} scope="room-a" />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
+        expect(state()).toHaveAttribute('data-panel-open', 'true');
+
+        rerender(<Harness sendImages={sendImages} picker={picker} scope="room-a" />);
+        expect(chips()).toHaveLength(1);
+        expect(picker.clearPicked).not.toHaveBeenCalled();
+
+        // The picker's own state is mocked, so the cleared pick is handed in as the next render's.
+        const cleared = gridPicker();
+        rerender(<Harness sendImages={sendImages} picker={cleared} scope="room-b" />);
+
+        expect(files()).not.toBeInTheDocument();
+        expect(cleared.clearPicked).toHaveBeenCalledTimes(1);
+        expect(state()).toHaveAttribute('data-panel-open', 'false');
+        expect(ready()).toBe('false');
+
+        pick('chat-attach-files', [doc('b.pdf')]);
+        expect(chips().map(chip => chip.textContent)).toEqual([expect.stringContaining('b.pdf')]);
+
+        rerender(<Harness sendImages={sendImages} picker={cleared} scope="room-a" />);
+        expect(chips().map(chip => chip.textContent)).toEqual([expect.stringContaining('a.pdf')]);
+        expect(ready()).toBe('true');
+
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf']);
+    });
+
+    it('finds a room’s waiting files again after the composer left the page and came back', () => {
+        const { unmount } = render(<Harness sendImages={jest.fn()} scope="room-a" />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+        unmount();
+
+        render(<Harness sendImages={jest.fn()} scope="room-a" />);
+
+        expect(chips()).toHaveLength(1);
+    });
+
+    it('keeps nothing for a composer with no scope', () => {
+        const { unmount } = render(<Harness sendImages={jest.fn()} />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+        unmount();
+
+        render(<Harness sendImages={jest.fn()} />);
+
+        expect(files()).not.toBeInTheDocument();
+    });
+
+    it('lets sent files leave the room they waited in, even when the composer moved on during the read', async () => {
+        let finish: (pick: AttachmentPick) => void = () => undefined;
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell = shellPicker(async () => ({ items: [shellPhoto], refused: [] }));
+        shell.readPhotos = jest.fn(() => new Promise<AttachmentPick>(resolve => (finish = resolve)));
+        const { rerender } = render(<Harness sendImages={sendImages} shellPicker={shell} scope="room-a" />);
+        openSource('chat.attach.source.files');
+        await flush();
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        rerender(<Harness sendImages={sendImages} shellPicker={shell} scope="room-b" />);
+        await act(async () => finish({ items: [photo('shot.png', 'image/png')], refused: [] }));
+        expect(sendImages).toHaveBeenCalledTimes(1);
+
+        rerender(<Harness sendImages={sendImages} shellPicker={shell} scope="room-a" />);
+        expect(files()).not.toBeInTheDocument();
+    });
+
+    it('clears the in-app pick when the composer moves to another thread', () => {
+        const picker = gridPicker({ picked: [recent[0]] });
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} scope="c1/5" />);
+
+        rerender(<Harness sendImages={jest.fn()} picker={picker} scope="c1/6" />);
+
+        expect(picker.clearPicked).toHaveBeenCalledTimes(1);
+        expect(picker.closeGrid).toHaveBeenCalledTimes(1);
+    });
+
+    it('holds the send while a send reads the in-app pick, so the files cannot go twice', () => {
+        render(<Harness sendImages={jest.fn()} picker={gridPicker({ picked: recent, preparing: true })} />);
+        pick('chat-attach-files', [doc('a.pdf')]);
+
+        expect(ready()).toBe('false');
+        expect((files() as HTMLElement).closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
     });
 });

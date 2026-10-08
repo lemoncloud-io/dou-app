@@ -22,6 +22,21 @@ describe('ListRow', () => {
         expect(row.querySelector('.text-destructive')).toBeTruthy();
     });
 
+    it('leads the subtitle with its glyph, in the subtitle tone, on the same line', () => {
+        render(<ListRow title="Room" subtitle="half a thought" subtitleIcon={<svg role="img" aria-label="Draft" />} />);
+
+        const icon = screen.getByRole('img', { name: 'Draft' });
+        // In the subtitle's own tone, ahead of its text — no colour of its own.
+        expect(icon.closest('[data-slot="subtitle-icon"]')?.parentElement).toHaveTextContent('half a thought');
+        expect(icon.closest('[data-slot="subtitle-icon"]')?.parentElement).toHaveClass('text-description');
+    });
+
+    it('shows the glyph alone when there is no subtitle', () => {
+        render(<ListRow title="Room" subtitleIcon={<svg role="img" aria-label="Draft" />} />);
+
+        expect(screen.getByRole('img', { name: 'Draft' })).toBeInTheDocument();
+    });
+
     it('is not a button without onClick', () => {
         render(<ListRow title="대화방 알림" trailing={<input type="checkbox" />} />);
         expect(screen.queryByRole('button')).not.toBeInTheDocument();

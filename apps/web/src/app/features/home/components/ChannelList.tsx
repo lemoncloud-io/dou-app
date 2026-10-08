@@ -26,6 +26,7 @@ import {
     DefaultAvatar,
     IconBell,
     IconBellOff,
+    IconEdit,
     IconChatAdd,
     IconLeave,
     IconPin,
@@ -64,6 +65,7 @@ import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { ChannelEmptyState } from './ChannelEmptyState';
 import { useChannelRowActions } from '../hooks/useChannelRowActions';
+import { useComposerDraftStore } from '../../channels/stores/useComposerDraftStore';
 
 /**
  * One placeholder row. The pulse lives on the ROW (not each bar) and is offset per row, so three
@@ -188,6 +190,22 @@ const ChannelItem = ({
           : textPreview;
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
+    // What was left unsent in this room's composer takes the line instead, behind a pencil, so a
+    // half-written message is not forgotten in a room further down — the typed text on one line, or,
+    // with only files waiting, the file (or how many). The room's own scope only: a thread's draft
+    // stays with the thread. The time and the badge still speak for the last message.
+    const draftText = useComposerDraftStore(state => state.texts[channel.id]);
+    const draftFiles = useComposerDraftStore(state => state.held[channel.id]);
+    const draftLine = toPlainPreview(draftText ?? '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const draftPreview =
+        draftLine ||
+        (draftFiles && draftFiles.length > 1
+            ? t('chat.attach.previewFileCount', { count: draftFiles.length })
+            : (draftFiles?.[0]?.source.name ?? ''));
+    const line = draftPreview || preview;
+
     // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with
     // the room header / settings / manage list, which also decides the placeholder glyph (a group
     // room gets the two-person glyph, not the one-person default).
@@ -242,12 +260,25 @@ const ChannelItem = ({
                     )}
                 </>
             }
+            subtitleIcon={
+                draftPreview ? (
+                    <IconEdit
+                        size={14}
+                        role="img"
+                        aria-label={t('channelList.draft')}
+                        // The kit's glyphs are decorative by default; this one says what the line is.
+                        aria-hidden={false}
+                        className="shrink-0"
+                    />
+                ) : undefined
+            }
             subtitle={
-                preview ? (
+                line ? (
                     blurLastMessage ? (
-                        <span className="select-none blur-[5px]">{preview}</span>
+                        // The pencil stays readable: that a draft exists is not what the blur hides.
+                        <span className="select-none blur-[5px]">{line}</span>
                     ) : (
-                        preview
+                        line
                     )
                 ) : undefined
             }

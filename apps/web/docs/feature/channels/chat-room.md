@@ -40,6 +40,14 @@ the name used as alt text still falls back to the member's user row. The count b
 Self and DM headers stay single-line: no `meta`. Neither reads `channel.thumbnail`, because neither
 room has a photo of its own and the row stands for a person.
 
+**Tapping the header.** In a 1:1 the avatar and title are one button that opens the peer's profile
+(see **Opening a person** below). In a group only the participant stack is a button, and it opens
+settings, the screen that lists the members, the same way the Settings menu item does
+(`state: { roomDistance: 1 }`). It uses plain `navigate`, because there is no menu to wait for. The
+title stays inert there, because a group's name and photo stand for the room, not a person. A self
+chat gets neither. `ChatRoomHeader` takes these as `onIdentityClick` and `onMetaClick`. The identity
+button wins when both are set, because a button cannot contain another button.
+
 `loading` renders placeholders while the channel is unresolved. Without it the title falls back to
 the "unnamed channel" label for a beat, which reads as having opened the wrong room.
 
@@ -170,6 +178,34 @@ edit, so it opens only once persisted, when a reaction, a thread and delete appl
 sheet are all withheld; the sheet especially, since Copy would hand the deleted text back.
 `apps/web` can render a tombstone and cannot create one.
 
+## Opening a person
+
+A sender's avatar and the name above it open that person's profile full-screen. This is
+`MemberProfileDialog`, the same sheet the settings member list opens
+([channel-settings.md](./channel-settings.md)). In a 1:1 the header opens the peer the same way.
+In the room the sheet can only **view and report**: `canKick` is always false, because removing
+someone belongs on the settings screen, where you can see the member list it changes. The owner
+badge reads `channel.ownerId`, as it does in settings.
+
+The sheet shows the person exactly as the tapped element showed them. `ChannelMessageRow`'s
+`onOpenProfile` receives the `{ id, name, avatar }` the row drew (`ownerDisplayName`,
+`ownerAvatar`), so the row and the sheet cannot disagree about who someone is. The header hands
+over the peer through `resolveUserName` and the peer's place-profile photo. The page keeps the last
+person opened after the sheet closes, so the name stays on screen while the sheet slides away.
+
+Only a row that shows its sender is tappable. My own rows, system notices and grouped follow-up rows
+(which draw a spacer instead of an avatar) are inert, and so is a row with no owner id. The avatar is
+a real `<button>` labelled `chat.room.openProfile`, in the row's avatar slot, outside the bubble's
+long-press target. A tap on it can't open the action sheet or the image viewer. The name is a second
+target for the same action. It is left out of the tab order, so keyboard users reach the action
+only once.
+
+My own profile is never opened from the room. Its only action, "profile settings", needs
+`PlaceProfileEditDialog` and `usePlaceProfileAbsent` (a `profile.get-mine` round trip), and the room
+does not mount either. None of the room's tap targets can name me anyway, so `openMemberProfile`
+just refuses my id. The thread page follows the same rules for its subject's author and its reply
+rows.
+
 ## System notices
 
 Joining and leaving leave one `stereo: 'system'` row in the channel, with `subType: 'join' | 'leave'`
@@ -275,6 +311,30 @@ primary pointer is not `(hover: hover) and (pointer: fine)`.
 The composer is disabled outright when the DM peer is gone — see
 [dm-and-self-chat.md](./dm-and-self-chat.md).
 
+### The composer's draft
+
+Each conversation keeps what was left unsent in its composer (ADR-0183). The key is the room's channel
+id, or `channelId#rootNo` for a thread, so a thread's draft is its own and not the room's.
+
+- **The text** lives in `useComposerDraftStore` (`stores/useComposerDraftStore.ts`), persisted on the
+  device as `chatic.composer.drafts`, so it outlives a restart. The room and the thread read and write
+  it through `useComposerDraft(scope)` in place of `useState('')`: opening a conversation shows its
+  draft, and a route that moves to another room or thread without remounting the page (a push banner
+  tapped mid-sentence) shows that one's. An empty draft is not kept, so clearing the field after a send
+  — text or a caption — clears the draft. At most 50 conversations keep one, the oldest write dropped
+  first; storage that fails costs the draft, never the composer.
+- **The files waiting above the field** (the files entry, [image-send.md](./image-send.md)) are kept in
+  the same store, per conversation, in memory only: a page `File` cannot be stored, and a file from the
+  app is a copy it sweeps from its pick folder after a day — one kept that long can be gone at the send,
+  which then fails as any gone shell file does. They come back with the conversation while the app runs.
+- **The in-app photo pick is not drafted.** It goes, with the attach panel, when the conversation
+  changes.
+- **Editing a sent message is not drafted.** It has its own field, and the composer is locked meanwhile.
+- **Sign-out clears every draft** (`clearComposerDrafts`, registered in `main.tsx`), so the next account
+  on the device never opens a room onto another person's unsent words.
+- **The chat list shows a room's draft** in place of its last message — see
+  [home/last-chat.md](../home/last-chat.md#a-rooms-draft).
+
 ## Scrolling
 
 [`useChatScroll`](../../../src/app/features/channels/hooks/useChatScroll.ts) owns the container ref
@@ -365,6 +425,11 @@ pin always won.
 - The send entrance is pinned by `useStackIn.test.ts` (the keyframes, mount-only decision, reduced
   motion, clip release) and by the stacking cases in `ChannelRoomPage.test.tsx` (only my pending row
   asks for it, and the optimistic-to-server id swap does not remount the row).
+- Opening a person is pinned by the `opening the sender profile` cases in
+  `ChannelMessageRow.test.tsx` (what the row hands over, which rows are inert),
+  `ChannelRoomPage.profile.test.tsx` (the sheet's props, the 1:1 header, the group stack's navigation,
+  never my own profile) and `ThreadPage.profile.test.tsx`. The header hooks themselves are covered in
+  the kit's `ChatRoomHeader.test.tsx`.
 - A webhook message is indistinguishable from a user message for unread and push purposes, so the
   client does nothing special for it; `isSystem` is `stereo === 'system'` alone, which is why it
   draws as an ordinary bubble.

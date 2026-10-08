@@ -843,3 +843,90 @@ describe('ChannelMessageRow — image messages', () => {
         });
     });
 });
+
+describe('ChannelMessageRow — opening the sender profile', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const avatarButton = () => screen.queryByRole('button', { name: 'chat.room.openProfile' });
+
+    // The profile opened from a row must introduce the person exactly as the row did.
+    it('hands the profile the name and photo the row drew, from the avatar', () => {
+        const onOpenProfile = jest.fn();
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                ownerDisplayName="프로필 닉"
+                ownerAvatar="https://example.com/a.png"
+                onOpenProfile={onOpenProfile}
+            />
+        );
+
+        fireEvent.click(avatarButton() as HTMLElement);
+
+        expect(onOpenProfile).toHaveBeenCalledWith({
+            id: 'u2',
+            name: '프로필 닉',
+            avatar: 'https://example.com/a.png',
+        });
+    });
+
+    it('opens the same profile from the sender name', () => {
+        const onOpenProfile = jest.fn();
+        render(<ChannelMessageRow {...baseProps} onOpenProfile={onOpenProfile} />);
+
+        fireEvent.click(screen.getByText('친구'));
+
+        expect(onOpenProfile).toHaveBeenCalledWith({ id: 'u2', name: '친구', avatar: undefined });
+    });
+
+    // The avatar sits outside the bubble's press target, so a tap on it is not a hold.
+    it('does not open the action sheet from the avatar', () => {
+        render(<ChannelMessageRow {...baseProps} onOpenProfile={jest.fn()} />);
+
+        fireEvent.contextMenu(avatarButton() as HTMLElement);
+
+        expect(baseProps.onLongPress).not.toHaveBeenCalled();
+    });
+
+    it('is inert on my own row', () => {
+        const onOpenProfile = jest.fn();
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                message={{ ...message, isOwner: true } as unknown as ClientChatView}
+                onOpenProfile={onOpenProfile}
+            />
+        );
+
+        expect(avatarButton()).not.toBeInTheDocument();
+    });
+
+    // A grouped follow-up draws a spacer where the avatar would be — nothing to press.
+    it('is inert on a grouped follow-up row', () => {
+        render(<ChannelMessageRow {...baseProps} showProfileAndName={false} onOpenProfile={jest.fn()} />);
+
+        expect(avatarButton()).not.toBeInTheDocument();
+        expect(screen.queryByText('친구')).not.toBeInTheDocument();
+    });
+
+    it('is inert for a row with no owner id', () => {
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                message={{ ...message, ownerId: undefined } as unknown as ClientChatView}
+                onOpenProfile={jest.fn()}
+            />
+        );
+
+        expect(avatarButton()).not.toBeInTheDocument();
+    });
+
+    it('stays a plain avatar and name without a handler', () => {
+        render(<ChannelMessageRow {...baseProps} />);
+
+        expect(avatarButton()).not.toBeInTheDocument();
+        expect(screen.getByText('친구').tagName).toBe('SPAN');
+    });
+});

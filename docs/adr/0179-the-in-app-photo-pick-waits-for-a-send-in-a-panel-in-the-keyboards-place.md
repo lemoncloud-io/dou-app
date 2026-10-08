@@ -1,6 +1,6 @@
 # ADR-0179: The in-app photo pick waits for a send in a panel in the keyboard's place, and can be edited, captioned and sent one message each
 
-> Status: Accepted · Decided: 2026-10-07 (the editor, one message each), 2026-10-08 (the attach
+> Status: Accepted (decision 1 is narrowed for the "choose from files" entry by [ADR-0182](./0182-files-from-the-files-entry-wait-above-the-composer-and-take-the-typed-text.md): its files wait above the composer) · Decided: 2026-10-07 (the editor, one message each), 2026-10-08 (the attach
 > panel, the caption, the pick waiting above the composer, the keyboard handover, one frame loop for
 > the panel's slides) · Implemented: `feat/photo-edit-before-send` · Scope:
 > `apps/web/src/app/features/channels/` (`ChatImageAttach`, `usePhotoPicker`, `usePhotoSendGrouping`,

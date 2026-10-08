@@ -108,6 +108,18 @@ attachments, taken from each slot of `upload$$` (or from `uploadIds` on a row th
   Changing a noun or counter here means changing the push copy with it.
 - `apps/desktop-web` previews its rows with the same `chatAttachmentSummary`, so the two lists agree.
 
+### A room's draft
+
+A room whose composer holds a draft (ADR-0183,
+[chat-room.md](../channels/chat-room.md#the-composers-draft)) prints the draft instead of the last
+chat, behind a pencil glyph (`IconEdit`, named `channelList.draft` for screen readers) through the kit's
+`ListRow.subtitleIcon`. No colour of its own: the row keeps red for the unread badge. The typed text prints on one line, code markup flattened as above; with no
+text but a waiting file, the file's name, or `chat.attach.previewFileCount` for several. A blank draft
+prints nothing of its own. Only the room's own draft counts — a thread's stays with the thread. The
+time and the unread badge still come from the last chat, and so does the order. The row subscribes to
+`useComposerDraftStore`, so it changes as the draft does. `blurLastMessage` blurs the draft's text and
+leaves the pencil readable.
+
 ## Unread is a separate calculation
 
 Changing the preview source changed nothing about unread. `useChannelUnreads` works from the

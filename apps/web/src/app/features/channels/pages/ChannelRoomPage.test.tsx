@@ -9,6 +9,7 @@ import type { ClientChatView, DomainChannel } from '../types';
 let mockChannel: Partial<DomainChannel> | null = null;
 let mockMessages: Partial<ClientChatView>[] = [];
 let mockSelectedCloudId = 'cloud-a';
+let mockChannelId = 'ch1';
 const mockSendMessage = jest.fn();
 const mockRetryMessage = jest.fn();
 const mockDeleteMessage = jest.fn();
@@ -18,7 +19,7 @@ const mockUseJoinPositions = jest.fn();
 const mockUidInCloud: Record<string, string> = { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
 
 jest.mock('react-router-dom', () => ({
-    useParams: () => ({ channelId: 'ch1' }),
+    useParams: () => ({ channelId: mockChannelId }),
     useSearchParams: () => [new URLSearchParams(), jest.fn()],
     useLocation: () => ({ state: null }),
 }));
@@ -206,6 +207,7 @@ jest.mock('../hooks', () => ({
 }));
 
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { useComposerDraftStore } from '../stores/useComposerDraftStore';
 import { ChannelRoomPage } from './ChannelRoomPage';
 
 /** The arguments of the latest `useJoinPositions` call: (cid, channelId, active, all, cursors, isMember). */
@@ -229,6 +231,9 @@ beforeEach(() => {
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
     mockSelectedCloudId = 'cloud-a';
+    mockChannelId = 'ch1';
+    // The composer's draft store is the real one: each case starts with no draft anywhere.
+    useComposerDraftStore.setState({ texts: {}, held: {} });
     mockSendMessage.mockReset().mockResolvedValue({ chatNo: 3 });
     mockRetryMessage.mockReset().mockResolvedValue({ chatNo: 4 });
     mockDeleteMessage.mockReset().mockResolvedValue(undefined);
@@ -502,10 +507,7 @@ describe('ChannelRoomPage — a sent message stacking onto the list', () => {
         failedRow({ id: 'optimistic-1', tempId: 'optimistic-1', isFailed: false, isPending: true, ...over });
 
     it('plays the entrance for my pending row only', () => {
-        mockMessages = [
-            failedRow({ id: 'c0', isFailed: false, isOwner: false, timestamp: new Date(0) }),
-            pendingRow(),
-        ];
+        mockMessages = [failedRow({ id: 'c0', isFailed: false, isOwner: false, timestamp: new Date(0) }), pendingRow()];
         render(<ChannelRoomPage />);
 
         expect([...mockStackInMounts].sort()).toEqual([false, true]);
@@ -520,5 +522,67 @@ describe('ChannelRoomPage — a sent message stacking onto the list', () => {
 
         expect(screen.getByTestId('retry-c1')).toBeInTheDocument();
         expect(mockStackInMounts).toEqual([true]);
+    });
+});
+
+describe('ChannelRoomPage — the composer draft', () => {
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+    const drafts = () => useComposerDraftStore.getState().texts;
+
+    beforeEach(() => {
+        mockAttachReady = false;
+        mockSendPicked.mockReset().mockReturnValue(true);
+    });
+
+    it('opens the room on the text left in its composer, and keeps what is typed as its draft', () => {
+        useComposerDraftStore.getState().setText('ch1', 'half a thought');
+        render(<ChannelRoomPage />);
+
+        expect(field().value).toBe('half a thought');
+        fireEvent.change(field(), { target: { value: 'a whole thought' } });
+        expect(drafts()).toEqual({ ch1: 'a whole thought' });
+    });
+
+    it('hands the attach flow the room as its scope', () => {
+        render(<ChannelRoomPage />);
+
+        expect((mockAttachInput as { scope?: string }).scope).toBe('ch1');
+    });
+
+    it('swaps to the next room’s draft when the route moves without remounting, and back again', () => {
+        useComposerDraftStore.getState().setText('ch2', 'for the other room');
+        const { rerender } = render(<ChannelRoomPage />);
+        fireEvent.change(field(), { target: { value: 'for this room' } });
+
+        mockChannelId = 'ch2';
+        rerender(<ChannelRoomPage />);
+        expect(field().value).toBe('for the other room');
+        expect((mockAttachInput as { scope?: string }).scope).toBe('ch2');
+
+        mockChannelId = 'ch1';
+        rerender(<ChannelRoomPage />);
+        expect(field().value).toBe('for this room');
+    });
+
+    it('lets the draft go once the text is sent', () => {
+        useComposerDraftStore.getState().setText('ch1', 'hello');
+        render(<ChannelRoomPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).toHaveBeenCalledTimes(1);
+        expect(field().value).toBe('');
+        expect(drafts()).toEqual({});
+    });
+
+    it('lets the draft go once it is sent as the caption of what the attach flow had waiting', () => {
+        mockAttachReady = true;
+        useComposerDraftStore.getState().setText('ch1', 'hello');
+        render(<ChannelRoomPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(drafts()).toEqual({});
     });
 });
