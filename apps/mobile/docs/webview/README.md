@@ -8,14 +8,15 @@ typed message, and a handler hook answers it through a service.
 
 ## Key files
 
-| File                                           | Role                                                                          |
-| ---------------------------------------------- | ----------------------------------------------------------------------------- |
-| `src/app/webview/AppWebView.tsx`               | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
-| `src/app/webview/hooks/useBaseBridge.ts`       | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
-| `src/app/webview/hooks/useAppBridge.ts`        | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | Central message router; dispatches to 30 handler hooks                        |
-| `src/app/webview/hooks/*Handler.ts`            | 30 domain handlers, one per capability group                                  |
-| `src/app/webview/utils/injectionScripts.ts`    | Builds the scripts injected before the WebView loads                          |
+| File                                                         | Role                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
+| `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
+| `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 30 handler hooks                        |
+| `src/app/webview/hooks/*Handler.ts`                          | 30 domain handlers, one per capability group                                  |
+| `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported  |
+| `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                          |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
 anywhere in `apps/mobile/src` — the bridge actually in use is `AppBridgeHost` from `@chatic/bridges`,
@@ -95,6 +96,42 @@ same holds for `PickAttachments`, `PrepareVideo` and `ReadAttachment` (the nativ
 each registered only when the installed `MediaExport` module has that method
 ([../native/media-export.md](../native/media-export.md)). A handler that exists but fails would take
 that fallback away.
+
+## The bridge contract
+
+`useWebMessageRouter.contract.test.ts` pins this shell to the vocabulary in `@chatic/app-messages`.
+It mounts the router and `useWebViewNavigation` (which registers `SetCanGoBack`) on a real
+`AppBridgeHost`, with every domain hook stubbed and every native module reported present, and reads
+what got registered — `WebAppReady` included, since the host registers that one itself. Then:
+
+- **Every request in `WEB_MESSAGE_RESPONSE_TYPE` is decided.** Each has a handler or a line in
+  `MOBILE_UNSUPPORTED`, with a one-line reason. A message added to `@chatic/app-messages` fails the
+  suite until this shell makes that call.
+- **Nothing stale survives.** A handler for a request no longer in the map fails it, and so does an
+  unsupported line for a request that has since gained a handler or left the map. The list's
+  `satisfies` type also catches a line whose request left the map, but only to `tsc`, and CI does
+  not type check this project — the runtime check is the one that runs.
+- **The round trip behaves as the web expects.** A real `WebBridgeClient` over `InMemoryAdapter`
+  (`@chatic/bridges`) talks to that host and router in one process: a request resolves with its
+  handler's reply, a fire-and-forget `SendLog` reaches its handler, a throwing handler rejects as a
+  `BridgeError`, a reply of the wrong type rejects as `RESPONSE_TYPE_MISMATCH`, and every
+  unsupported request gets `NOT_FOUND`.
+
+The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
+file calls `registerHandler` — a handler there would be invisible to the checks above. Register
+through the router.
+
+The handlers registered only where a native module exists (photo library, attachment picker,
+`OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and
+`useWebMessageRouter.test.ts` holds the rule for a build that does not. The desktop shell has its
+own contract suite beside its handlers, `apps/desktop/src/main/bridgeHandlers.contract.test.ts`,
+with the same exhaustiveness checks; instead of a loopback it runs each desktop handler and checks
+its reply against the type the map pairs with it.
+
+```bash
+npx jest --config apps/mobile/jest.config.js useWebMessageRouter
+npx jest --config apps/desktop/jest.config.js bridgeHandlers
+```
 
 ## The WebAppReady handshake
 
@@ -176,8 +213,9 @@ on the wire.
 
 ## Change checklist
 
-- Is a new WebView message type reflected in `@chatic/app-messages` and in both a handler and the
-  router?
+- Is a new WebView message type reflected in `@chatic/app-messages`, and does this shell either
+  answer it (a handler wired into the router) or list it in `MOBILE_UNSUPPORTED` with its reason?
+  The contract suite fails until it does — and the desktop one does the same for that shell.
 - Does a handler only call a service, without carrying its own domain logic?
 - Is it safe to call before and after WebView ready?
 - Do the bridge response/event names match the web contract?
