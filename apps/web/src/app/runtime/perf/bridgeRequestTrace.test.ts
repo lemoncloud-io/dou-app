@@ -2,6 +2,7 @@ import { isSampledRun } from '@chatic/perf';
 
 import {
     BRIDGE_REQUEST_SAMPLES_PER_MINUTE,
+    BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE,
     BRIDGE_REQUEST_SAMPLES_WHILE_HELD,
     observeBridgeRequests,
     toPerfSample,
@@ -42,6 +43,9 @@ const setup = (runId: string | undefined, options: { hidden?: boolean; held?: ()
         record,
         stop,
         emit: (value: BridgeRequestSample = sample()) => observer?.(value),
+        /** The `i`th of a run of requests, each of its own type, so the per-type cap stays out of the way. */
+        // Distinct names, not real message types: only their difference matters here.
+        emitNth: (i: number) => observer?.(sample({ type: `Type${i}` as BridgeRequestSample['type'] })),
         advance: (ms: number) => (clock += ms),
     };
 };
@@ -66,29 +70,48 @@ describe('observeBridgeRequests', () => {
     });
 
     it('keeps to the per-minute budget and starts a fresh one a minute later', () => {
-        const { record, emit, advance } = setup(SAMPLED_RUN);
+        const { record, emitNth, advance } = setup(SAMPLED_RUN);
 
-        for (let i = 0; i < BRIDGE_REQUEST_SAMPLES_PER_MINUTE + 5; i += 1) emit();
+        for (let i = 0; i < BRIDGE_REQUEST_SAMPLES_PER_MINUTE + 5; i += 1) emitNth(i);
         expect(record).toHaveBeenCalledTimes(BRIDGE_REQUEST_SAMPLES_PER_MINUTE);
 
         advance(59_999);
-        emit();
+        emitNth(100);
         expect(record).toHaveBeenCalledTimes(BRIDGE_REQUEST_SAMPLES_PER_MINUTE);
 
         advance(1);
-        emit();
+        emitNth(101);
         expect(record).toHaveBeenCalledTimes(BRIDGE_REQUEST_SAMPLES_PER_MINUTE + 1);
+    });
+
+    it('keeps a few of each type a minute, so one frequent type cannot use the whole budget', () => {
+        const { record, emit, advance } = setup(SAMPLED_RUN);
+
+        for (let i = 0; i < BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE + 4; i += 1) {
+            emit(sample({ type: 'FetchAllCacheData' }));
+        }
+        emit(sample({ type: 'SaveAllCacheData' }));
+
+        const types = () => record.mock.calls.map(([, recorded]) => recorded.attributes.type);
+        expect(types()).toEqual([
+            ...Array(BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE).fill('FetchAllCacheData'),
+            'SaveAllCacheData',
+        ]);
+
+        advance(60_000);
+        emit(sample({ type: 'FetchAllCacheData' }));
+        expect(types().at(-1)).toBe('FetchAllCacheData');
     });
 
     it('keeps only a few samples while traces are held for the report, then the minute budget', () => {
         let held = true;
-        const { record, emit } = setup(SAMPLED_RUN, { held: () => held });
+        const { record, emitNth } = setup(SAMPLED_RUN, { held: () => held });
 
-        for (let i = 0; i < BRIDGE_REQUEST_SAMPLES_WHILE_HELD + 3; i += 1) emit();
+        for (let i = 0; i < BRIDGE_REQUEST_SAMPLES_WHILE_HELD + 3; i += 1) emitNth(i);
         expect(record).toHaveBeenCalledTimes(BRIDGE_REQUEST_SAMPLES_WHILE_HELD);
 
         held = false;
-        emit();
+        emitNth(50);
         expect(record).toHaveBeenCalledTimes(BRIDGE_REQUEST_SAMPLES_WHILE_HELD + 1);
     });
 
