@@ -19,7 +19,7 @@ The steps, in order:
 4. **The hand-off page** receives the code and the nonce and puts both on the deeplink.
 5. **The app takes the deeplink** and exchanges the code only if the start record agrees (next section).
 
-The deeplink carries a one-time relay code and the nonce — never a Google token and never a session,
+The deeplink carries a relay code and the nonce — never a Google token and never a session,
 and the app holds no Google client secret. The Desktop-type loopback route that would put the token
 in the app was tried and Google refuses its token exchange without a secret, which a shipped binary
 cannot keep (ADR-0178).
@@ -72,7 +72,8 @@ The same check guards the hand-off page when the relay's return lands inside the
 - **The nonce on the link** stops a link someone opened on the machine with a code of their own. It
   does not stop a party that can read the real link.
 - **A record used up by the first link** stops the same link being used twice here. Whether the relay
-  accepts a replayed code is not shown in this repository; its code is meant to be used once.
+  accepts a code that was already exchanged is not shown in this repository, so nothing here relies
+  on it refusing one.
 - **A record that lives only where the login started** means a link arriving on another device or
   installation finds none, and the exchange is sent from the device that started it.
   That is as far as it goes: this repository does not show that the server refuses a different
@@ -86,8 +87,8 @@ The same check guards the hand-off page when the relay's return lands inside the
   `chatic://`) to one app. If a different app on the machine is the one that gets the link, it
   receives the code, and nothing in this repository keeps it from exchanging that code itself: the
   nonce is checked only inside this app and never reaches the server, so it proves nothing to a party
-  that does not need it. The code being meant for one use bounds what that costs, and closing it
-  needs the relay to bind the code to a challenge sent when the login starts. It is accepted for now
+  that does not need it. Nothing here bounds what that costs. Closing it needs the relay to use a code up on its first
+  exchange and to bind it to a challenge sent when the login starts. It is accepted for now
   because Google sign-in is on only in the dev channel.
 - **A link that lands mid-sign-in.** Someone opening a link while the person is in the browser uses up
   the record. The real link then finds none and is refused; the person starts again. It costs that
