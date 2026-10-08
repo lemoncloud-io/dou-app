@@ -43,6 +43,21 @@ export const useCloudSessionCatalog = () => {
         if (!isFetching) setLastReadFailed(isFetchError);
     }, [isFetching, isFetchError]);
 
+    // The read goes out as soon as a stored session exists, which can be before the relay socket has
+    // verified. A signing credential that lapsed while the app was closed or asleep is renewed only
+    // through that socket, so such a read fails on a session that is healthy seconds later — and
+    // nothing else reads the catalog again. Both values are in the deps so a read that was still in
+    // flight when the socket verified is covered too. The re-read failing changes neither, so a
+    // failure gets one re-read per relay verification and the reload tile after that, never a loop.
+    // (A component that mounts while the failure stands adds one more: its own copy of this state
+    // starts clean, so its mount read failing is a new failure to it.)
+    // Several components mount this hook and each runs this effect; `cancelRefetch: false` makes
+    // the later ones join the read already in flight instead of restarting it.
+    const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
+    useEffect(() => {
+        if (isAuthenticated && isRelayVerified && lastReadFailed) void refetch({ cancelRefetch: false });
+    }, [isAuthenticated, isRelayVerified, lastReadFailed, refetch]);
+
     return {
         clouds: data?.list ?? [],
         isCloudsError: lastReadFailed,
