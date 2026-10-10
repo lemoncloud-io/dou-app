@@ -148,14 +148,23 @@ describe('useRefreshOnPush', () => {
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
-    it('ignores non-chat socket frames and unparseable push links', () => {
+    it('ignores non-chat socket frames', () => {
         renderHook(() => useRefreshOnPush());
 
         emitSocketFrame({ type: 'system.ping', data: {} });
-        emitPush('chatic-ui:settings');
         advanceDebounce();
 
         expect(channelMocks.refreshOne).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the whole list for a push link that names no channel', () => {
+        renderHook(() => useRefreshOnPush());
+
+        emitPush('chatic-ui:settings');
+        advanceDebounce();
+
+        expect(channelMocks.refreshOne).not.toHaveBeenCalled();
+        expect(channelMocks.refreshList).toHaveBeenCalledTimes(1);
     });
 });

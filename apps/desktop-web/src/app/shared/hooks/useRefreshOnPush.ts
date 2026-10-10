@@ -82,9 +82,13 @@ export const useRefreshOnPush = (): void => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;
             const target = parsePushDeeplink(deeplink);
-            // Unparseable links (menu-bar `chatic-ui:` actions are filtered by the router's own
-            // listener) name no channel — nothing attributable to refresh.
-            if (!target) return;
+            // Unparseable links name no channel, but the push itself still says something
+            // arrived — fall back to the whole-list refresh rather than ignore the signal.
+            // (Menu-bar `chatic-ui:` actions reach the router's own listener, not this one.)
+            if (!target) {
+                schedule();
+                return;
+            }
             // Cross-cloud pushes name another cloud's channel: `channel.get` would ask the active
             // cloud's session about a foreign id, so they are skipped — that cloud's background
             // receive loop owns them.
