@@ -4,25 +4,29 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../../i18n';
 
 const search = vi.hoisted(() => ({ isSearching: false, empty: false, scannedCount: 2 as number | null }));
+const seenChannels = vi.hoisted(() => ({ list: [] as unknown[][] }));
 const channel = { id: 'c1', name: 'general' };
 const chat = (id: string, ownerId: string, content: string) => ({ id, chatNo: 1, ownerId, content, createdAt: 1 });
 
 vi.mock('../hooks', () => ({
     SEARCH_MAX_CHANNELS: 30,
-    useMessageSearch: () => ({
-        results: search.empty
-            ? []
-            : [
-                  {
-                      channel,
-                      matches: [chat('m1', 'ada', 'the deploy plan'), chat('m2', 'bob', 'deploy plan v2')],
-                      matchCount: 2,
-                  },
-              ],
-        isSearching: search.isSearching,
-        isTruncated: false,
-        scannedCount: search.scannedCount,
-    }),
+    useMessageSearch: (_query: string, channels: unknown[]) => {
+        seenChannels.list.push(channels);
+        return {
+            results: search.empty
+                ? []
+                : [
+                      {
+                          channel,
+                          matches: [chat('m1', 'ada', 'the deploy plan'), chat('m2', 'bob', 'deploy plan v2')],
+                          matchCount: 2,
+                      },
+                  ],
+            isSearching: search.isSearching,
+            isTruncated: false,
+            scannedCount: search.scannedCount,
+        };
+    },
 }));
 vi.mock('../../../shared', async importOriginal => ({
     ...(await importOriginal<object>()),
@@ -33,11 +37,19 @@ vi.mock('../../../shared', async importOriginal => ({
 import { useSearchDialogStore } from '../stores';
 import { SearchDialog } from './SearchDialog';
 
-const openWith = async (query: string) => {
-    render(<SearchDialog channels={[channel] as never} onSelect={vi.fn()} />);
+const openWith = async (query: string, props?: { channels?: object[]; currentChannelId?: string }) => {
+    render(
+        <SearchDialog
+            channels={(props?.channels ?? [channel]) as never}
+            onSelect={vi.fn()}
+            currentChannelId={props?.currentChannelId}
+        />
+    );
     act(() => useSearchDialogStore.getState().setOpen(true));
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: query } });
 };
+
+const lastSearchedChannels = () => seenChannels.list[seenChannels.list.length - 1] as { id: string }[];
 
 describe('SearchDialog rows', () => {
     afterEach(() => {
@@ -46,6 +58,7 @@ describe('SearchDialog rows', () => {
         search.isSearching = false;
         search.empty = false;
         search.scannedCount = 2;
+        seenChannels.list = [];
     });
 
     // Two hits from different people read as the same line twice.
@@ -62,6 +75,55 @@ describe('SearchDialog rows', () => {
         search.isSearching = true;
         await openWith('deploy');
         expect(screen.getAllByRole('option')[0].textContent).not.toContain('2 matches');
+    });
+
+    // Without an open channel there is nothing to narrow to.
+    it('offers no scope toggle without a current channel', async () => {
+        await openWith('deploy');
+        expect(screen.queryByRole('group', { name: 'Search scope' })).toBeNull();
+        expect(lastSearchedChannels().map(c => c.id)).toEqual(['c1']);
+    });
+});
+
+describe('SearchDialog scope', () => {
+    const random = { id: 'c2', name: 'random' };
+
+    afterEach(() => {
+        cleanup();
+        act(() => useSearchDialogStore.getState().setOpen(false));
+        seenChannels.list = [];
+    });
+
+    // The reader usually wants the room they are looking at, not the whole place.
+    it('narrows the search to the open channel', async () => {
+        await openWith('deploy', { channels: [channel, random], currentChannelId: 'c1' });
+        fireEvent.click(screen.getByRole('button', { name: 'This channel' }));
+
+        expect(lastSearchedChannels().map(c => c.id)).toEqual(['c1']);
+        expect(screen.getByText(/Searching only this channel/)).toBeTruthy();
+    });
+
+    it('stays place-wide when the open channel is not one of the searched ones', async () => {
+        await openWith('deploy', { channels: [channel, random], currentChannelId: 'elsewhere' });
+
+        expect(screen.queryByRole('group', { name: 'Search scope' })).toBeNull();
+        expect(lastSearchedChannels().map(c => c.id)).toEqual(['c1', 'c2']);
+    });
+
+    // The channel behind the dialog may be a different one by the next opening.
+    it('resets the scope when the dialog reopens', async () => {
+        const rendered = render(
+            <SearchDialog channels={[channel, random] as never} onSelect={vi.fn()} currentChannelId="c1" />
+        );
+        act(() => useSearchDialogStore.getState().setOpen(true));
+        fireEvent.click(screen.getByRole('button', { name: 'This channel' }));
+        expect(lastSearchedChannels().map(c => c.id)).toEqual(['c1']);
+
+        act(() => useSearchDialogStore.getState().setOpen(false));
+        act(() => useSearchDialogStore.getState().setOpen(true));
+
+        expect(lastSearchedChannels().map(c => c.id)).toEqual(['c1', 'c2']);
+        rendered.unmount();
     });
 });
 
