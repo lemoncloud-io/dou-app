@@ -59,6 +59,13 @@ export interface IChannelRepository extends DisposableRepository {
     /** `channel.get-self` — `siteId` tags the returned row; the response carries no site (ADR-0085). */
     getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel>;
 
+    /**
+     * `channel.get` — refreshes ONE channel's cached row. `siteId` tags the returned row; the
+     * response carries no site (ADR-0085). A push names its channel, so this is what a push-driven
+     * badge refresh pulls instead of the whole `channel.mine` list.
+     */
+    refreshOne(channelId: string, siteId: string): Promise<DomainChannel>;
+
     cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null>;
     cacheWrite(item: Partial<DomainChannel>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
@@ -440,6 +447,24 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
         const domain = await this.channelSocketDataSource.getSelfChannel(payload ?? {}, normalizedContext);
         if (this.acceptsAnswer(requestContext, 'channel-self')) {
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
+        }
+        return domain;
+    }
+
+    // Refreshes one channel's cached row from its authoritative snapshot. Same context split as
+    // getSelfChannel: the response carries no site, so the caller's site tags the mapping and the
+    // captured request context owns the write.
+    public async refreshOne(channelId: string, siteId: string): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const id = this.assertRequiredString(channelId, 'channelId');
+        const sid = this.assertRequiredString(siteId, 'siteId');
+        const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
+        const domain = await this.channelSocketDataSource.getChannel({ id }, normalizedContext);
+        // A just-left channel re-entering through a stale push must not come back — the same guard
+        // refreshList and syncChannels filter against.
+        if (this.isGuardedAfterLeave(id)) return domain;
+        if (this.acceptsAnswer(requestContext, 'channel-one')) {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;

@@ -70,6 +70,11 @@ describe('ChannelSocketDataSource', () => {
             await dataSource.getSelfChannel(payload, context);
             expect(mockGateways.channel.getSelf).toHaveBeenCalledWith(payload);
         });
+
+        it('getChannel sends the request as the channel.get action', async () => {
+            await dataSource.getChannel({ id: 'ch-1' }, context);
+            expect(mockGateways.channel.get).toHaveBeenCalledWith({ id: 'ch-1' });
+        });
     });
 
     describe('inbound mapping (View → Domain)', () => {
@@ -93,6 +98,14 @@ describe('ChannelSocketDataSource', () => {
 
             expect(domain).toMatchObject({ id: 'ch-9', cid: 'cloud-a', sid: 'site-1' });
             expect(domain.isNotificationEnabled).toBe(true);
+        });
+
+        it('maps the getChannel response to a single domain channel', async () => {
+            (mockGateways.channel.get as jest.Mock).mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
+
+            const domain = await dataSource.getChannel({ id: 'ch-1' }, context);
+
+            expect(domain).toMatchObject({ id: 'ch-1', cid: 'cloud-a', sid: 'site-1' });
         });
 
         it('preserves the domain list and the ids/syncedAt metadata from the syncChannel response', async () => {

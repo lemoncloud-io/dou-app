@@ -25,6 +25,7 @@ describe('ChannelRepository', () => {
             leaveChannel: jest.fn(),
             deleteChannel: jest.fn(),
             getSelfChannel: jest.fn(),
+            getChannel: jest.fn(),
             startDm: jest.fn(),
         };
         const channelLocalDataSource = {
@@ -440,6 +441,34 @@ describe('ChannelRepository', () => {
             { id: 'self-channel', sid: 'site-1' },
             expect.anything()
         );
+    });
+
+    it('refreshOne: pulls one channel snapshot and writes it to the local cache', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
+
+        await expect(repository.refreshOne('ch-1', 'site-1')).resolves.toEqual({
+            id: 'ch-1',
+            sid: 'site-1',
+        });
+        // The response carries no site of its own, so the caller's site tags the mapping.
+        expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
+            { id: 'ch-1' },
+            expect.objectContaining({ sid: 'site-1' })
+        );
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            { id: 'ch-1', sid: 'site-1' },
+            expect.anything()
+        );
+    });
+
+    it('refreshOne: rejects a blank channelId or siteId without touching the socket', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+
+        await expect(repository.refreshOne('', 'site-1')).rejects.toThrow(/channelId/);
+        await expect(repository.refreshOne('ch-1', '')).rejects.toThrow(/siteId/);
+        expect(channelSocketDataSource.getChannel).not.toHaveBeenCalled();
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 });
 
