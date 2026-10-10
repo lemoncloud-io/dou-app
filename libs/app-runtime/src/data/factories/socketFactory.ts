@@ -86,6 +86,9 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
     const inviteGateway = createInviteGateway(relayClient as any);
 
     const channelGateway = createChannelGateway(socketClient as any);
+    // `channel.get` has no typed SDK wrapper (its sync plans call the raw packet), so it is bound
+    // here through the channel domain gateway — the single-channel snapshot `refreshOne` pulls.
+    const channelDomainGateway = createDomainGateway('channel', socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);
     const cloudGateway = createCloudGateway(socketClient as any);
     const deviceGateway = routed(createDeviceGateway);
@@ -105,7 +108,11 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
             // (see AuthSocketDomainGateway · socket/authUpdateAbsence.test.ts).
             linkAccount: relayAuthGateway.linkAccount,
         },
-        channel: channelGateway,
+        channel: {
+            ...channelGateway,
+            get: <T = unknown>(data: unknown, options?: { as?: string }): Promise<T> =>
+                channelDomainGateway.request<T>('get', data, options),
+        },
         chat: chatGateway,
         join: {
             // First-class join domain: the update goes through JoinGateway (join.update);

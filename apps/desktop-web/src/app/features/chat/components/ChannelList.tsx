@@ -500,7 +500,12 @@ export const ChannelList = ({
                 elsewhere={elsewhereChannels}
                 onSelectElsewhere={onSelectElsewhere}
             />
-            <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
+            <SearchDialog
+                channels={channels}
+                onSelect={onSelect}
+                onJumpToMessage={onJumpToMessage}
+                currentChannelId={selectedChannelId}
+            />
         </>
     );
 

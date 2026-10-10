@@ -61,14 +61,14 @@ the outgoing cloud; `isForeignContext` recognises that from `socketCid`. `accept
 the snapshot, never of the live context after the await — once answers go to the captured partition,
 the live question is backwards both ways (ADR-0112). A site asks it before the request when nothing
 is owed to the caller (`refreshList`, `syncChannels`, the place snapshot: skip the round trip), and
-after it when the caller is owed the value (`startDm`, `getSelfChannel`: return it, don't cache it).
+after it when the caller is owed the value (`startDm`, `getSelfChannel`, `refreshOne`: return it, caching only what the captured context accepts).
 Chat, profile, join and user reads and every optimistic mutation are not guarded yet.
 
 `sid` is **not** ambient (ADR-0085). The field exists on `DataContext`, but nothing seeds it: a
 repository that needs a place takes it as an argument (`setMyProfile(body, siteId)`,
 `syncProfiles(since, siteId)`, `createChannel(payload, siteId)`, `getSelfChannel(payload, siteId)`,
-`refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
-`profile.sync`, `channel.mine` and `channel.get-self` return rows carrying no place of their own —
+`refreshOne(channelId, siteId)`, `refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
+`profile.sync`, `channel.mine`, `channel.get-self` and `channel.get` return rows carrying no place of their own —
 the caller's value is the only thing that can tag them. For `profile.set` the argument tags the
 optimistic row and checks the answer, but it does not choose the site: the server writes to its
 session's site regardless (see [domains](./domains.md#profile)).

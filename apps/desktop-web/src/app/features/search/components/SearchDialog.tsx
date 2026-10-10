@@ -61,22 +61,36 @@ interface SearchDialogProps {
      * message instead of the one they searched for.
      */
     onJumpToMessage?: (channelId: string, chatNo: number, threadRootId?: string) => void;
+    /**
+     * The channel the reader has open behind the dialog, when it is one of
+     * `channels`. Offers a "this channel" scope; absent (or not listed) keeps
+     * the dialog on the whole place with no toggle.
+     */
+    currentChannelId?: string | null;
 }
+
+/** Search breadth. `current` narrows to the channel open behind the dialog. */
+type SearchScope = 'all' | 'current';
 
 /**
  * Mod+Shift+F message search over the local chat cache (see useMessageSearch
  * for scope/limits). Hosted by ChannelList alongside the QuickSwitcher for the
  * same reason: the channel list + select handler already live there. A channel
- * header opens the channel; a match row jumps to that message.
+ * header opens the channel; a match row jumps to that message. When the open
+ * channel is one of the searched ones, a scope toggle narrows the search to it.
  */
-export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDialogProps) => {
+export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChannelId }: SearchDialogProps) => {
     const { t } = useTranslation();
     const open = useSearchDialogStore(s => s.isOpen);
     const setOpen = useSearchDialogStore(s => s.setOpen);
     const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
-    const { results, isSearching, isTruncated, scannedCount } = useMessageSearch(open ? query : '', channels);
-    const labelOf = useChannelLabels(channels);
+    const [scope, setScope] = useState<SearchScope>('all');
+    // The scope toggle only exists when the open channel is one of the searched ones.
+    const currentChannel = currentChannelId ? channels.find(channel => channel.id === currentChannelId) : undefined;
+    const scopedChannels = scope === 'current' && currentChannel ? [currentChannel] : channels;
+    const { results, isSearching, isTruncated, scannedCount } = useMessageSearch(open ? query : '', scopedChannels);
+    const labelOf = useChannelLabels(scopedChannels);
     // Rows were the snippet and a date only, so two hits from different people read
     // as the same line twice.
     const ownerIds = useMemo(() => results.flatMap(result => result.matches.map(chat => chat.ownerId)), [results]);
@@ -94,7 +108,12 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     }, [toggleOpen]);
 
     useEffect(() => {
-        if (open) setQuery('');
+        if (open) {
+            setQuery('');
+            // A narrowed scope must not survive into the next opening: the channel
+            // behind the dialog may be a different one by then.
+            setScope('all');
+        }
     }, [open]);
 
     const trimmed = query.trim();
@@ -104,7 +123,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
     const nothingLoaded = showEmpty && scannedCount === 0;
     // With no message to show, a channel whose name has the words may be what the reader wanted.
     const channelOffers = showEmpty
-        ? channels
+        ? scopedChannels
               .filter(channel => channel.id && labelOf(channel).toLowerCase().includes(trimmed.toLowerCase()))
               .slice(0, MAX_CHANNEL_OFFERS)
         : [];
@@ -141,7 +160,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
         }
         setOpen(false);
     };
-    const nav = useListboxNav(options.length, index => pick(options[index]), `${open}:${trimmed}`);
+    const nav = useListboxNav(options.length, index => pick(options[index]), `${open}:${trimmed}:${scope}`);
     const indexOf = (key: string) => options.findIndex(o => o.key === key);
 
     return (
@@ -173,6 +192,29 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                         />
                     )}
                 </div>
+                {/* Narrow to the channel open behind the dialog. Rendered only when
+                    that channel is one of the searched ones; otherwise there is
+                    nothing to narrow to and the dialog stays place-wide. */}
+                {currentChannel && (
+                    <div role="group" aria-label={t('search.scopeLabel')} className="flex gap-1 px-2 pt-2">
+                        {(['all', 'current'] as const).map(value => (
+                            <button
+                                key={value}
+                                type="button"
+                                aria-pressed={scope === value}
+                                onClick={() => setScope(value)}
+                                className={cn(
+                                    'tactile rounded-md px-2.5 py-1 text-caption transition-colors ease-tactile',
+                                    scope === value
+                                        ? 'bg-accent font-semibold text-foreground'
+                                        : 'text-muted-foreground hover:bg-accent/60'
+                                )}
+                            >
+                                {t(value === 'all' ? 'search.scopeAll' : 'search.scopeCurrent')}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 {trimmed.length < 2 ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.hint')}</p>
                 ) : showEmpty ? (
@@ -321,8 +363,8 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage }: SearchDial
                 {trimmed.length >= 2 && (!showEmpty || isTruncated) && (
                     <p className="border-t border-hairline px-3 pt-2 text-micro text-muted-foreground">
                         {isTruncated
-                            ? t('search.scopeLimited', { limit: SEARCH_MAX_CHANNELS, total: channels.length })
-                            : t('search.scope')}
+                            ? t('search.scopeLimited', { limit: SEARCH_MAX_CHANNELS, total: scopedChannels.length })
+                            : t(scope === 'current' ? 'search.scopeOne' : 'search.scope')}
                     </p>
                 )}
             </DialogContent>
