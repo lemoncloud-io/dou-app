@@ -470,6 +470,17 @@ describe('ChannelRepository', () => {
         expect(channelSocketDataSource.getChannel).not.toHaveBeenCalled();
         expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
+
+    it('refreshOne: leaves a just-left channel out of the cache but still returns it', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
+        await repository.leaveChannel({ channelId: 'ch-1' } as any);
+
+        await expect(repository.refreshOne('ch-1', 'site-1')).resolves.toMatchObject({ id: 'ch-1' });
+        // A stale push must not resurrect the row the leave just removed.
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
 });
 
 /**
