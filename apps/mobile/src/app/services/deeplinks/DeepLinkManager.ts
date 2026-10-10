@@ -16,6 +16,12 @@ export class DeepLinkManager {
     private coldStartResolve: (() => void) | null = null;
     private coldStartPromise: Promise<void> | null = null;
     private lateUrlTimeout: ReturnType<typeof setTimeout> | null = null;
+    /**
+     * Resolver for the late-url wait inside getInitialUrl. A url event that lands first hands its
+     * url here instead of only clearing the timeout — clearing alone would strand getInitialUrl
+     * (and whoever awaits the initial URL) on a promise that never settles.
+     */
+    private lateUrlResolve: ((url: string | null) => void) | null = null;
     private routerListener: ((url: string) => void) | null = null;
 
     constructor(private readonly logger?: ILogService) {}
@@ -55,6 +61,10 @@ export class DeepLinkManager {
             clearTimeout(this.lateUrlTimeout);
             this.lateUrlTimeout = null;
         }
+        // A wait abandoned without its event or timeout (unsubscribe mid-capture) must still
+        // settle: a pending getInitialUrl would hang its caller forever.
+        this.lateUrlResolve?.(null);
+        this.lateUrlResolve = null;
         this.coldStartResolve?.();
         this.coldStartResolve = null;
     }
@@ -94,14 +104,25 @@ export class DeepLinkManager {
                 return nativeUrl;
             }
 
-            // 3. Fallback: wait briefly for late addEventListener 'url' event delivery
-            await new Promise<void>(resolve => {
+            // 3. Fallback: wait briefly for late addEventListener 'url' event delivery. A url event
+            // that lands first resolves this wait with its url through lateUrlResolve (see
+            // subscribe) — waiting on the timeout alone would strand getInitialUrl forever once
+            // finishColdStart clears it.
+            const lateUrl = await new Promise<string | null>(resolve => {
+                this.lateUrlResolve = resolve;
                 this.lateUrlTimeout = setTimeout(() => {
                     this.trace('Late URL wait expired without URL');
+                    this.lateUrlResolve = null;
                     this.finishColdStart();
-                    resolve();
+                    resolve(null);
                 }, LATE_URL_WAIT_MS);
             });
+            this.lateUrlResolve = null;
+            if (lateUrl) {
+                this.trace('Cold start URL captured from late url event', { url: lateUrl });
+                this.finishColdStart();
+                return lateUrl;
+            }
 
             this.trace('getInitialUrl completed without URL');
             return null;
@@ -122,7 +143,14 @@ export class DeepLinkManager {
 
         const sub = Linking.addEventListener('url', ({ url }) => {
             this.trace('Hot/warm URL event received from OS', { url, hasRouterListener: !!this.routerListener });
-            if (this.coldStartResolve) {
+            if (this.lateUrlResolve) {
+                // Cold start still inside the late-url wait: hand the url to getInitialUrl
+                // directly. finishColdStart alone only clears the timeout, which would leave
+                // the wait (and the initial-URL caller) pending forever.
+                const resolve = this.lateUrlResolve;
+                this.lateUrlResolve = null;
+                resolve(url);
+            } else if (this.coldStartResolve) {
                 this.trace('Forwarding late cold start URL to router listener', { url });
                 this.finishColdStart();
             }
@@ -138,7 +166,12 @@ export class DeepLinkManager {
             this.routerListener = null;
             if (this.lateUrlTimeout) {
                 clearTimeout(this.lateUrlTimeout);
+                this.lateUrlTimeout = null;
             }
+            // An abandoned late-url wait must settle so a concurrent getInitialUrl
+            // does not hang its caller.
+            this.lateUrlResolve?.(null);
+            this.lateUrlResolve = null;
         };
     }
 }
