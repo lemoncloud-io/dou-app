@@ -56,7 +56,9 @@ export class PermissionService implements IPermissionService {
 
             const result = await check(permission);
             this.logger.info('PERMISSION', `Check ${type}: ${result}`);
-            return result === RESULTS.GRANTED;
+            // LIMITED (iOS photo library) is usable access: the request path already treats it
+            // as granted, and reporting it denied here turns a Limited grant into a dead end.
+            return result === RESULTS.GRANTED || result === RESULTS.LIMITED;
         } catch (error) {
             this.logger.error('PERMISSION', `Check failed: ${type}`, error);
             return false;
