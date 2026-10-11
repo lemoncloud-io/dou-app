@@ -4,8 +4,7 @@ import { usePermissionHandler } from './usePermissionHandler';
 
 const permissionService = {
     check: jest.fn(async () => false),
-    request: jest.fn(async () => false),
-    isBlocked: jest.fn(async () => false),
+    request: jest.fn(async () => 'DENIED'),
 };
 const logService = { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() };
 
@@ -23,7 +22,7 @@ describe('usePermissionHandler', () => {
     beforeEach(() => jest.clearAllMocks());
 
     it('reports GRANTED when the request is granted', async () => {
-        permissionService.request.mockResolvedValueOnce(true);
+        permissionService.request.mockResolvedValueOnce('GRANTED');
 
         const res: any = await ask();
 
@@ -44,7 +43,7 @@ describe('usePermissionHandler', () => {
     // A denial the OS will never prompt for again can only be fixed in Settings —
     // reporting it DENIED sends the reader back to a prompt that never comes.
     it('reports BLOCKED when the OS will no longer prompt', async () => {
-        permissionService.isBlocked.mockResolvedValueOnce(true);
+        permissionService.request.mockResolvedValueOnce('BLOCKED');
 
         const res: any = await ask();
 

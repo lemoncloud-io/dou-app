@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { PermissionStatus, WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/app-messages';
 
 export const usePermissionHandler = () => {
     const { permissionService, logService: logger } = useServices();
@@ -10,15 +10,7 @@ export const usePermissionHandler = () => {
             const { permission } = message.data;
 
             try {
-                const isGranted = await permissionService.request(permission);
-                // A denial the OS will never prompt for again is not a "try again"
-                // denial: BLOCKED lets the web point the reader to Settings instead.
-                let status: PermissionStatus = isGranted ? 'GRANTED' : 'DENIED';
-
-                if (!isGranted) {
-                    const blocked = await permissionService.isBlocked(permission);
-                    status = blocked ? 'BLOCKED' : 'DENIED';
-                }
+                const status = await permissionService.request(permission);
 
                 return {
                     type: 'OnRequestPermission' as const,
