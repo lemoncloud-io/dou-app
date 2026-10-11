@@ -27,6 +27,11 @@ export const ko = {
         errorMessage: '링크가 만료되었거나 유효하지 않습니다.',
         goHome: '홈으로 이동',
     },
+    webview: {
+        loadTitle: 'DoU를 불러오지 못했어요',
+        loadMessage: '네트워크 연결을 확인하고 다시 시도해 주세요.',
+        retry: '다시 시도',
+    },
     notification: {
         channel: {
             chat: '새 메시지',
