@@ -9,14 +9,12 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
 import {
-    channelNotifyMode,
     displayName,
     isDmChannel,
     isSelfChannel,
     ResizablePanel,
+    useChannelNotifyChange,
     useCopyToClipboard,
-    useDesktopChannelMutations,
-    useNotificationPrefsStore,
     useSelectedChannelStore,
     type ChannelNotifyMode,
     PANE_HEADER,
@@ -71,8 +69,6 @@ export const ChannelSettingsPanel = ({
     const focus = useChannelSettingsStore(s => s.focus);
     const membersHeadingRef = useRef<HTMLHeadingElement>(null);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
-    const setChannelNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
-    const { setChannelNotify } = useDesktopChannelMutations();
     const [idCopied, copyId] = useCopyToClipboard();
 
     const channelId = channel?.id ?? null;
@@ -106,23 +102,15 @@ export const ChannelSettingsPanel = ({
     });
     const { openDialog, openKick, kickTarget } = actions;
 
-    // Resolution lives in channelNotifyMode (local pref → join.notify → mute map).
-    // Read above the early return: hooks must run in the same order on every
-    // render, including the ones where the channel has not resolved yet.
-    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, channelId ?? '', channel?.$join?.notify));
+    // Shared writer (local pref + announced server sync) — read above the early
+    // return: hooks must run in the same order on every render, including the
+    // ones where the channel has not resolved yet.
+    const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     if (!channel || !channelId) return null;
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
 
-    const onNotifyChange = (mode: ChannelNotifyMode) => {
-        if (mode === notifyMode) return;
-        setChannelNotifyPref(channelId, mode);
-        const joinUserId = channel.$join?.userId ?? myUid ?? '';
-        // Best-effort server sync (keeps other clients aligned) — the local
-        // pref stands even if this fails.
-        if (joinUserId) void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch(() => undefined);
-    };
     const notifyProps = radioGroupOptions(NOTIFY_MODES, notifyMode, onNotifyChange);
     // A service posts into a group channel by its id, and the desktop app has no address bar to
     // read one from. A 1:1 or my notes-to-self is not somewhere a service posts to.

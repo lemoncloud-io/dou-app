@@ -8,6 +8,7 @@ export * from './useChannelChatFeeds';
 export * from './useChatMutations';
 export * from './useChatOutbox';
 export * from './useChannelMutations';
+export * from './useChannelNotifyChange';
 export * from './useReadReceipts';
 export * from './liveReadRegistry';
 export * from './useDesktopNotifications';

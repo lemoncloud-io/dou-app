@@ -401,6 +401,7 @@ export const en = {
     'channels.settings.notify.all': 'All messages',
     'channels.settings.notify.mention': 'Mentions only',
     'channels.settings.notify.none': 'Off',
+    'channels.settings.notify.syncFailed': 'Could not sync to your other devices.',
     'settings.title': 'Settings',
     'settings.appearance': 'Appearance',
     'settings.theme': 'Theme',

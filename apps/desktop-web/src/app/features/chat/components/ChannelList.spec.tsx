@@ -33,7 +33,7 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
         },
         data: {
-            useRuntimeRepositories: () => ({ join: { readChat: menu.readChat } }),
+            useRuntimeRepositories: () => ({ join: { readChat: menu.readChat, updateJoin: menu.serverSync } }),
         },
     },
 }));

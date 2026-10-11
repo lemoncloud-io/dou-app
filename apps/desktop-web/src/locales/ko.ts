@@ -404,6 +404,7 @@ export const ko: EnTranslation = {
     'channels.settings.notify.all': '모든 메시지',
     'channels.settings.notify.mention': '멘션만',
     'channels.settings.notify.none': '끔',
+    'channels.settings.notify.syncFailed': '다른 기기에 동기화하지 못했어요.',
     'settings.title': '설정',
     'settings.appearance': '화면',
     'settings.theme': '테마',

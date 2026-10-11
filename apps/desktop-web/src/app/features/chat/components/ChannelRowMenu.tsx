@@ -19,14 +19,7 @@ import {
 
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore } from '../../channels';
 import { isDmBucket } from '../utils';
-import {
-    channelNotifyMode,
-    lastChatNoOf,
-    useDesktopChannelMutations,
-    useNotificationPrefsStore,
-    useReadCursorStore,
-    type ChannelNotifyMode,
-} from '../../../shared';
+import { lastChatNoOf, useChannelNotifyChange, useReadCursorStore, type ChannelNotifyMode } from '../../../shared';
 
 const NOTIFY_MODES: ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
@@ -69,10 +62,8 @@ export const ChannelRowMenu = ({
 
     const openSettings = useChannelSettingsStore(s => s.open);
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
-    const { setChannelNotify: syncNotifyToServer } = useDesktopChannelMutations();
-    // Same resolution as ChannelSettingsPanel — now one helper (channelNotifyMode).
-    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, id, channel.$join?.notify));
-    const setNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
+    // Same writer as the settings panel (local pref + announced server sync).
+    const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     // Same write as the read-receipt flush: optimistic local cursor first, the
     // server read-chat best-effort behind it.
@@ -80,16 +71,6 @@ export const ChannelRowMenu = ({
         if (lastChatNo <= 0) return;
         useReadCursorStore.getState().markRead(id, lastChatNo);
         void joinRepository.readChat({ channelId: id, chatNo: lastChatNo }).catch(() => undefined);
-    };
-
-    // Local pref stands even if the server sync fails (see ChannelSettingsPanel).
-    const onNotifyChange = (mode: ChannelNotifyMode) => {
-        if (mode === notifyMode) return;
-        setNotifyPref(id, mode);
-        const joinUserId = channel.$join?.userId ?? myUid ?? '';
-        if (joinUserId) {
-            void syncNotifyToServer({ channelId: id, userId: joinUserId, notify: mode }).catch(() => undefined);
-        }
     };
 
     return (
