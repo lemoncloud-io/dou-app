@@ -70,6 +70,7 @@ const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.Ho
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
 const PlaceSettingsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceSettingsPage })));
 const PlaceChannelsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceChannelsPage })));
+const AccountHubPage = lazy(() => import('./features/account').then(m => ({ default: m.AccountHubPage })));
 const SettingsPage = lazy(() => import('./features/settings').then(m => ({ default: m.SettingsPage })));
 const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m.WelcomePage })));
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
@@ -107,6 +108,7 @@ export const AppRouter = () => {
                             <Route path="/settings" element={<SettingsPage />} />
                             <Route path="/places/:placeId/settings" element={<PlaceSettingsPage />} />
                             <Route path="/places/:placeId/channels" element={<PlaceChannelsPage />} />
+                            <Route path="/account" element={<AccountHubPage />} />
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}
