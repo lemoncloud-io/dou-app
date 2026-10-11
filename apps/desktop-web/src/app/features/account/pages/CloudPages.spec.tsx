@@ -157,4 +157,12 @@ describe('CloudHubPage', () => {
         expect(resetAccount).toHaveBeenCalledTimes(1);
         expect(logout).toHaveBeenCalledTimes(1);
     });
+
+    it('opens the cloud places from its entry', () => {
+        renderAt('/account/clouds/c2');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+
+        expect(navProbe.path).toBe('/account/clouds/c2/places');
+    });
 });
