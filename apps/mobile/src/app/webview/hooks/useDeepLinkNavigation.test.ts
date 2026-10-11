@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 
 import { useDeepLinkNavigation } from './useDeepLinkNavigation';
-import { deeplinkService } from '../../services';
+import { deeplinkService, logger, notificationService } from '../../services';
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
@@ -213,5 +213,82 @@ describe('useDeepLinkNavigation', () => {
         expect(mockCapturedSubscribe).toBeUndefined();
         expect(mockCapturedOnOpened).toBeUndefined();
         expect(deeplinkService.getInitialUrl).not.toHaveBeenCalled();
+    });
+
+    describe('cold-start capture hardening', () => {
+        it('drops a rejected deep link lookup without navigating', async () => {
+            (deeplinkService.getInitialUrl as jest.Mock).mockRejectedValueOnce(new Error('no bridge'));
+
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(bridge.pushEvent).not.toHaveBeenCalled();
+            expect(logger.warn).toHaveBeenCalledWith(
+                'DEEPLINK',
+                expect.stringContaining('Cold-start link lookup failed'),
+                expect.anything()
+            );
+        });
+
+        it('drops a rejected notification lookup without navigating', async () => {
+            (notificationService.getInitialNotification as jest.Mock).mockRejectedValueOnce(new Error('no fcm'));
+
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(bridge.pushEvent).not.toHaveBeenCalled();
+            expect(logger.warn).toHaveBeenCalledWith(
+                'DEEPLINK',
+                expect.stringContaining('Cold-start notification lookup failed'),
+                expect.anything()
+            );
+        });
+
+        it('emits only one navigation when a cold-start link and tap both arrive', async () => {
+            mockGetInitialUrl = 'chatic://channels/1/room';
+            mockGetInitialResult = { data: { link: '/channels/1/room' } };
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1/room' });
+            (deeplinkService.resolvePushTap as jest.Mock).mockReturnValue('/channels/1/room?cid=cloud_1');
+
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(bridge.pushEvent).toHaveBeenCalledTimes(1);
+        });
+
+        it('retries a cold-start native route until the navigator is ready', async () => {
+            jest.useFakeTimers();
+            try {
+                const state = { routes: [{ name: 'Debug' }] };
+                mockGetInitialUrl = 'chatic://debug/test?target=native';
+                (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'native', state });
+                (navigationRef.isReady as jest.Mock).mockReturnValue(false);
+
+                renderHook(() => useDeepLinkNavigation(bridge as any));
+
+                await act(async () => {
+                    await Promise.resolve();
+                });
+                expect(navigationRef.reset).not.toHaveBeenCalled();
+
+                (navigationRef.isReady as jest.Mock).mockReturnValue(true);
+                act(() => {
+                    jest.advanceTimersByTime(1000);
+                });
+                expect(navigationRef.reset).toHaveBeenCalledWith(state);
+            } finally {
+                jest.useRealTimers();
+                (navigationRef.isReady as jest.Mock).mockReturnValue(true);
+            }
+        });
     });
 });

@@ -10,6 +10,8 @@ import { foregroundAPNsCopy, NotificationService } from './NotificationService';
 const mockPermissionCheck = jest.fn();
 const mockPermissionRequest = jest.fn();
 const mockMessagingRequest = jest.fn();
+const mockGetInitialNotification = jest.fn(async () => null);
+const mockApnsGetInitial = jest.fn(async () => null);
 jest.mock('react-native', () => ({
     PermissionsAndroid: {
         PERMISSIONS: { POST_NOTIFICATIONS: 'post' },
@@ -24,6 +26,7 @@ jest.mock('@react-native-firebase/messaging', () => ({
     default: jest.fn(() => ({
         onMessage: jest.fn(() => jest.fn()),
         requestPermission: () => mockMessagingRequest(),
+        getInitialNotification: (...args: unknown[]) => mockGetInitialNotification(...args),
     })),
     AuthorizationStatus: { AUTHORIZED: 1, PROVISIONAL: 2, NOT_DETERMINED: -1 },
 }));
@@ -34,7 +37,12 @@ jest.mock('@notifee/react-native', () => ({
 }));
 jest.mock('@react-native-community/push-notification-ios', () => ({
     __esModule: true,
-    default: { addEventListener: jest.fn(), removeEventListener: jest.fn(), FetchResult: { NoData: 'NoData' } },
+    default: {
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        FetchResult: { NoData: 'NoData' },
+        getInitialNotification: (...args: unknown[]) => mockApnsGetInitial(...args),
+    },
 }));
 jest.mock('../../bridge', () => ({ BadgeSyncBridge: { setBase: jest.fn().mockResolvedValue(undefined) } }));
 // The real formatter (it only reads the locale tables); the utils entry point itself pulls in
@@ -199,5 +207,49 @@ describe('NotificationService permission prompt', () => {
 
         await expect(service.requestPermission()).resolves.toBe(true);
         expect(beforePrompt).not.toHaveBeenCalled();
+    });
+});
+
+describe('NotificationService cold-start capture', () => {
+    // Minimal ILogService stand-in; only error() is touched on failure paths.
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+    let service: NotificationService;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetInitialNotification.mockResolvedValue(null);
+        mockApnsGetInitial.mockResolvedValue(null);
+        service = new NotificationService(logger);
+    });
+
+    it('returns null and logs when the FCM cold-start lookup rejects', async () => {
+        mockGetInitialNotification.mockRejectedValueOnce(new Error('fcm not ready'));
+
+        await expect(service.getInitialNotification()).resolves.toBeNull();
+        expect(logger.error).toHaveBeenCalledWith('NOTIFICATION', 'Get initial notification error.', expect.anything());
+    });
+
+    it('returns null and logs when the iOS cold-start lookup throws', async () => {
+        (Platform as unknown as { OS: string }).OS = 'ios';
+        try {
+            mockApnsGetInitial.mockRejectedValueOnce(new Error('no bridge'));
+
+            await expect(service.getInitialNotification()).resolves.toBeNull();
+            expect(logger.error).toHaveBeenCalledWith(
+                'NOTIFICATION',
+                'Get initial notification error.',
+                expect.anything()
+            );
+        } finally {
+            (Platform as unknown as { OS: string }).OS = 'android';
+        }
+    });
+
+    it('logs and resolves when creating notification channels fails', async () => {
+        const notifeeModule = jest.requireMock('@notifee/react-native').default;
+        notifeeModule.createChannel = jest.fn().mockRejectedValue(new Error('oem'));
+
+        await expect(service.createNotificationChannel()).resolves.toBeUndefined();
+        expect(logger.error).toHaveBeenCalledWith('NOTIFICATION', 'Create channel error.', expect.anything());
     });
 });
