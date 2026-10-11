@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, MailPlus, Pencil, Plus, Trash2, User } from 'lucide-react';
+import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -84,6 +84,7 @@ const PlaceTileMenu = ({
     onDeletePlace?: () => void;
 }) => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const openPlaceInvite = useSendInviteStore(s => s.openPlace);
     return (
         <>
@@ -93,6 +94,10 @@ const PlaceTileMenu = ({
                     {t('place.edit.action')}
                 </ContextMenuItem>
             )}
+            <ContextMenuItem disabled={disabled} onSelect={() => navigate(`/places/${place.id}/settings`)}>
+                <SlidersHorizontal size={14} aria-hidden />
+                {t('place.settings.open')}
+            </ContextMenuItem>
             <ContextMenuItem disabled={disabled} onSelect={() => openPlaceInvite(place.id, place.name ?? place.id)}>
                 <MailPlus size={14} aria-hidden />
                 {t('invite.send.open')}

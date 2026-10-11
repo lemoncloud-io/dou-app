@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18next from 'i18next';
 
 import type { DomainPlace } from '@chatic/data';
@@ -52,6 +52,14 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </MemoryRouter>
 );
 
+// Where the rail navigated last (MemoryRouter keeps history in memory, so
+// window.location never moves — the probe reads it instead).
+const navProbe = vi.hoisted(() => ({ path: '/' }));
+const NavProbe = () => {
+    navProbe.path = useLocation().pathname;
+    return null;
+};
+
 const places = [{ id: 'place-1', name: 'Design', cid: 'mine' }] as DomainPlace[];
 
 const renderRail = (props: Partial<ComponentProps<typeof PlaceRail>> = {}) => {
@@ -59,18 +67,21 @@ const renderRail = (props: Partial<ComponentProps<typeof PlaceRail>> = {}) => {
     const onEditPlace = vi.fn();
     const onDeletePlace = vi.fn().mockResolvedValue(undefined);
     render(
-        <PlaceRail
-            places={places}
-            selectedPlaceId="place-1"
-            unreadByPlace={{}}
-            isDefaultMode={false}
-            onSelectPlace={vi.fn()}
-            canManagePlaces
-            onCreatePlace={onCreatePlace}
-            onEditPlace={onEditPlace}
-            onDeletePlace={onDeletePlace}
-            {...props}
-        />,
+        <>
+            <PlaceRail
+                places={places}
+                selectedPlaceId="place-1"
+                unreadByPlace={{}}
+                isDefaultMode={false}
+                onSelectPlace={vi.fn()}
+                canManagePlaces
+                onCreatePlace={onCreatePlace}
+                onEditPlace={onEditPlace}
+                onDeletePlace={onDeletePlace}
+                {...props}
+            />
+            <NavProbe />
+        </>,
         { wrapper }
     );
     return { onCreatePlace, onEditPlace, onDeletePlace };
@@ -172,6 +183,15 @@ describe('PlaceRail place menu', () => {
 
         expect(useSendInviteStore.getState().target).toEqual({ kind: 'place', id: 'place-1', name: 'Design' });
         act(() => useSendInviteStore.getState().close());
+    });
+
+    it('opens the place settings page for the right-clicked place', () => {
+        navProbe.path = '/';
+        renderRail();
+        openMenu('Design');
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('place.settings.open') }));
+
+        expect(navProbe.path).toBe('/places/place-1/settings');
     });
 });
 
