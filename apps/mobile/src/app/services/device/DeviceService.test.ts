@@ -174,3 +174,33 @@ describe('DeviceService.getContacts — permission travels with the list (Androi
         expect(getAll).not.toHaveBeenCalled();
     });
 });
+
+describe('DeviceService.openPhotoLibrary — cancel stays empty, denial rejects', () => {
+    const { launchImageLibrary } = jest.requireMock('react-native-image-picker') as {
+        launchImageLibrary: jest.Mock;
+    };
+    const logger = { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() };
+    let service: DeviceService;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        service = new DeviceService(logger as never);
+    });
+
+    it('resolves an empty pick when the reader dismisses the picker', async () => {
+        launchImageLibrary.mockImplementation((_opts: unknown, cb: (r: unknown) => void) => cb({ didCancel: true }));
+
+        await expect(service.openPhotoLibrary()).resolves.toEqual([]);
+    });
+
+    // A denial used to resolve [] too, which the web reads as "chose nothing" — no
+    // Settings nudge, no error. The camera path already rejects here; match it so the
+    // handler answers LIBRARY_ERROR instead of a hollow success.
+    it('rejects when the OS reports a permission denial', async () => {
+        launchImageLibrary.mockImplementation((_opts: unknown, cb: (r: unknown) => void) =>
+            cb({ errorCode: 'permission', errorMessage: 'Photo library permission denied' })
+        );
+
+        await expect(service.openPhotoLibrary()).rejects.toThrow('Photo library permission denied');
+    });
+});
