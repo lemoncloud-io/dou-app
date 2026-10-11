@@ -164,6 +164,14 @@ describe('InviteWaitingDialog', () => {
         expect(useInviteWaitingStore.getState()).toMatchObject({ inviteId: 'inv-2', channelId: 'C1' });
     });
 
+    it('drops the time left once the invite is declined', async () => {
+        listInvites.mockResolvedValue([{ ...pendingRow(), state: 'rejected' } as MyInviteView]);
+        openWaiting('C1');
+
+        await screen.findByRole('button', { name: 'Send a new invite' });
+        expect(screen.queryByText(/left/)).toBeNull();
+    });
+
     it('offers no cancel before the invite row has loaded', async () => {
         listInvites.mockImplementation(() => new Promise(() => undefined));
         openWaiting();

@@ -236,7 +236,8 @@ export const InviteWaitingDialog = () => {
                 <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                     <DialogTitle>{t('invite.waiting.title')}</DialogTitle>
                     <DialogDescription>{statusText}</DialogDescription>
-                    {countdown && !countdown.isExpired && timeParts.length > 0 && (
+                    {/* Pending only: a declined invite cannot be accepted, so its clock means nothing. */}
+                    {invite?.state === 'pending' && !isExpired && timeParts.length > 0 && (
                         <p role="status" className="text-caption text-muted-foreground">
                             {t('invite.waiting.timeLeft', { time: timeParts.join(' ') })}
                         </p>
