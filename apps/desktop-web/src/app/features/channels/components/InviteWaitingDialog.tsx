@@ -37,6 +37,7 @@ export const InviteWaitingDialog = () => {
     const phone = useInviteWaitingStore(s => s.phone);
     const name = useInviteWaitingStore(s => s.name);
     const deeplink = useInviteWaitingStore(s => s.deeplink);
+    const channelId = useInviteWaitingStore(s => s.channelId);
     const closeWaiting = useInviteWaitingStore(s => s.close);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const { listInvites, cancelInvite, createInvite } = useDesktopInviteMutations();
@@ -186,7 +187,9 @@ export const InviteWaitingDialog = () => {
                 }
             }
 
-            const next = await createInvite({ phone, name });
+            // Carry the channel over: a reissue without it issues an unbound invite, and
+            // accepting that no longer lands the recipient in the room.
+            const next = await createInvite({ phone, name, channelId });
             if (!next.id) throw new Error('invite.create response is missing an id');
             if (next.deeplink) copyLink(next.deeplink);
             toast({ title: t('invite.waiting.reissued') });
@@ -195,7 +198,13 @@ export const InviteWaitingDialog = () => {
             // as "gone" and close the dialog it just opened.
             setInvites([]);
             setIsLoading(true);
-            useInviteWaitingStore.getState().open({ inviteId: next.id, phone, name, deeplink: next.deeplink ?? '' });
+            useInviteWaitingStore.getState().open({
+                inviteId: next.id,
+                phone,
+                name,
+                deeplink: next.deeplink ?? '',
+                channelId,
+            });
         } catch {
             toast({ title: t('invite.waiting.reissueFailed'), variant: 'destructive' });
         } finally {
@@ -243,7 +252,7 @@ export const InviteWaitingDialog = () => {
                                 {isReissuing ? t('invite.send.sending') : t('invite.waiting.reissue')}
                             </Button>
                         )}
-                        {(!invite || invite.state === 'pending') && (
+                        {invite?.state === 'pending' && (
                             <Button
                                 type="button"
                                 variant="outline"

@@ -49,7 +49,7 @@ export const useRefreshOnPush = (): void => {
     // Through a ref, not a dep: the site is needed when the debounce FIRES, and putting it in the
     // effect deps would tear down and rebind the push/message listeners on every site switch.
     // `channel.mine` answers for whichever site the socket session is on — naming the site we
-    // believe that is what tags the rows and gates the prune inside refreshList (ADR-0085).
+    // believe that is what tags the rows and gates the prune inside refreshList.
     const sidRef = useRef(selectedSiteId);
     sidRef.current = selectedSiteId;
     // Channels named since the last fire, each with the place its signal named (a push deeplink
@@ -61,11 +61,11 @@ export const useRefreshOnPush = (): void => {
     useEffect(() => {
         const fire = () => {
             const sid = sidRef.current ?? '';
-            const ids = [...pendingRef.current.entries()].slice(0, MAX_TARGETED_PER_FIRE);
+            const ids = [...pendingRef.current.entries()];
             pendingRef.current.clear();
             const fallback = fallbackRef.current;
             fallbackRef.current = false;
-            if (fallback || ids.length === 0) {
+            if (fallback || ids.length === 0 || ids.length > MAX_TARGETED_PER_FIRE) {
                 void channel.refreshList({ sid }).catch(() => undefined);
                 return;
             }

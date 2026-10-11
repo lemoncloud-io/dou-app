@@ -50,8 +50,10 @@ const pendingRow = (): MyInviteView =>
         channelId: 'C1',
     }) as MyInviteView;
 
-const openWaiting = () => {
-    act(() => useInviteWaitingStore.getState().open({ inviteId: 'inv-1', phone: '+821012345678', name: 'Ada' }));
+const openWaiting = (channelId?: string) => {
+    act(() =>
+        useInviteWaitingStore.getState().open({ inviteId: 'inv-1', phone: '+821012345678', name: 'Ada', channelId })
+    );
     render(<InviteWaitingDialog />);
 };
 
@@ -140,6 +142,34 @@ describe('InviteWaitingDialog', () => {
         expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: 'Ada', expiresDays: 1 });
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'New invite sent.' }));
         expect(useInviteWaitingStore.getState().inviteId).toBe('inv-2');
+    });
+
+    it('reissues a channel invite bound to the same channel', async () => {
+        listInvites.mockResolvedValue([{ ...pendingRow(), state: 'expired' } as MyInviteView]);
+        openWaiting('C1');
+        await screen.findByText('This invite has expired.');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Send a new invite' }));
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        // Without the channel the new invite is unbound, and accepting it no longer enters the room.
+        expect(createInvite).toHaveBeenCalledWith({
+            phone: '+821012345678',
+            name: 'Ada',
+            channelId: 'C1',
+            expiresDays: 1,
+        });
+        expect(useInviteWaitingStore.getState()).toMatchObject({ inviteId: 'inv-2', channelId: 'C1' });
+    });
+
+    it('offers no cancel before the invite row has loaded', async () => {
+        listInvites.mockImplementation(() => new Promise(() => undefined));
+        openWaiting();
+
+        await screen.findByText('Checking the invite…');
+        expect(screen.queryByRole('button', { name: 'Cancel invite' })).toBeNull();
     });
 
     it('sends cancel once on a double confirm', async () => {

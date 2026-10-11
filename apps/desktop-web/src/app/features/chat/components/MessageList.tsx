@@ -262,18 +262,9 @@ export const MessageList = ({
         for (let i = 0; i < heights.length; i++) out[i + 1] = out[i] + heights[i] + FEED_GAP_PX;
         return out;
     }, [heights]);
-    const keyToIndex = useMemo(() => {
-        const map = new Map<string, number>();
-        rowKeys.forEach((key, i) => {
-            if (!map.has(key)) map.set(key, i);
-        });
-        return map;
-    }, [rowKeys]);
-    // Live viewport, mirrored into a ref for the measure callback. `known` flips on
-    // the first real layout; tests (no layout) stay on the anchor window.
+    // Live viewport. `known` flips on the first real layout; tests (no layout) stay
+    // on the anchor window.
     const [viewport, setViewport] = useState({ top: 0, height: 0, known: false });
-    const viewportRef = useRef(viewport);
-    viewportRef.current = viewport;
     const syncViewport = useCallback(() => {
         const el = scrollRef.current;
         if (!el || el.clientHeight <= 0) return;
@@ -299,8 +290,9 @@ export const MessageList = ({
     const topSpacer = win.start > 0 ? Math.max(0, offsets[win.start]) : 0;
     const bottomSpacer = win.end < rows.length ? Math.max(0, offsets[rows.length] - offsets[win.end]) : 0;
 
-    // Mounted rows report their heights; a correction when a row ABOVE the viewport
-    // remeasures keeps the reader's position pinned instead of drifting.
+    // Mounted rows report their heights. No manual scrollTop correction here: Chromium's
+    // scroll anchoring already pins the reader's position when a row or the top spacer
+    // above the viewport changes size, and adding the delta on top would move it twice.
     useEffect(() => {
         const el = scrollRef.current;
         if (!el || typeof ResizeObserver === 'undefined') return;
@@ -313,12 +305,6 @@ export const MessageList = ({
                 const h = Math.max(8, Math.round(size));
                 const prev = measuredRef.current.get(key);
                 if (prev !== undefined && Math.abs(prev - h) < 1) continue;
-                const idx = keyToIndex.get(key);
-                if (idx !== undefined && prev !== undefined) {
-                    const delta = h - prev;
-                    const sc = scrollRef.current;
-                    if (delta !== 0 && sc && offsets[idx] < viewportRef.current.top) sc.scrollTop += delta;
-                }
                 measuredRef.current.set(key, h);
                 dirty = true;
             }
@@ -326,7 +312,7 @@ export const MessageList = ({
         });
         el.querySelectorAll('[data-row-key]').forEach(node => ro.observe(node));
         return () => ro.disconnect();
-    }, [win, rows, keyToIndex, offsets]);
+    }, [win, rows]);
 
     // Name a reactor the same way an author is named: the place nickname over the account name,
     // my own id resolving to me and others through the roster. Memoised because MessageRow is

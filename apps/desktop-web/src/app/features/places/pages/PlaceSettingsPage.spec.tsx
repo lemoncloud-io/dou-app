@@ -46,6 +46,14 @@ vi.mock('../../../shared/hooks/useAuthorNames', () => ({
     useAuthorNames: () => new Map([['u9', 'June']]),
 }));
 
+// The dialogs bring their own runtime wiring; here only whether this route mounts them matters.
+vi.mock('../../chat/components/EditPlaceDialog', () => ({
+    EditPlaceDialog: () => <div data-testid="edit-place-dialog" />,
+}));
+vi.mock('../../profile/components/EditPlaceProfileDialog', () => ({
+    EditPlaceProfileDialog: () => <div data-testid="edit-place-profile-dialog" />,
+}));
+
 import '../../../../i18n';
 
 import { useEditPlaceProfileDialogStore } from '../../profile/stores/useEditPlaceProfileDialogStore';
@@ -100,6 +108,7 @@ describe('PlaceSettingsPage', () => {
         expect(screen.getByText('My profile in this place')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
         expect(useEditPlaceProfileDialogStore.getState().isOpen).toBe(true);
+        expect(screen.getByTestId('edit-place-profile-dialog')).toBeTruthy();
         act(() => useEditPlaceProfileDialogStore.getState().close());
     });
 
@@ -117,6 +126,8 @@ describe('PlaceSettingsPage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Edit this place' }));
 
         expect(useEditPlaceDialogStore.getState().placeId).toBe('p1');
+        // The flag alone opens nothing unless this route mounts the dialog it drives.
+        expect(screen.getByTestId('edit-place-dialog')).toBeTruthy();
         act(() => useEditPlaceDialogStore.getState().close());
     });
 

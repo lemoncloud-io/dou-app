@@ -51,15 +51,24 @@ export const PlaceChannelsPage = () => {
     };
 
     const markSelectedRead = () => {
+        const writes: Promise<unknown>[] = [];
         for (const channel of selectedRows) {
             const id = channel.id ?? '';
             const chatNo = lastChatNoOf(channel);
             if (!id || chatNo <= 0) continue;
             // Same write as the row menu's mark-as-read: optimistic local
-            // cursor first, the server read-chat best-effort behind it.
+            // cursor first, the server read-chat behind it.
             useReadCursorStore.getState().markRead(id, chatNo);
-            void joinRepository.readChat({ channelId: id, chatNo }).catch(() => undefined);
+            writes.push(joinRepository.readChat({ channelId: id, chatNo }));
         }
+        // One toast for the whole batch, not one per failed row. Announced rather than
+        // swallowed: the badges clear locally either way, so silence reads as done while
+        // the next roster sync resurrects the unread with no explanation.
+        void Promise.allSettled(writes).then(results => {
+            if (results.some(result => result.status === 'rejected')) {
+                toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
+            }
+        });
     };
 
     const runRemove = async () => {

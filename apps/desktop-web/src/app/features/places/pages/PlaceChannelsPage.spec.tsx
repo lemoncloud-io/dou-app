@@ -130,6 +130,23 @@ describe('PlaceChannelsPage', () => {
         expect(useReadCursorStore.getState().cursors).toEqual({ C1: 7, C2: 3 });
         expect(readChat).toHaveBeenCalledWith({ channelId: 'C1', chatNo: 7 });
         expect(readChat).toHaveBeenCalledWith({ channelId: 'C2', chatNo: 3 });
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('announces a failed bulk mark-read once, not once per row', async () => {
+        readChat.mockRejectedValue(new Error('offline'));
+        renderAt();
+        toggleRow('general');
+        toggleRow('random');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Mark selected read' }));
+
+        await vi.waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'Could not mark as read.', variant: 'destructive' })
+        );
+        readChat.mockReset();
+        readChat.mockImplementation(async () => ({}));
     });
 
     it('deletes an owned channel only after confirming', async () => {

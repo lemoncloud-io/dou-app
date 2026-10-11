@@ -132,6 +132,18 @@ describe('useRefreshOnPush', () => {
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
+    it('pulls the whole list once when a burst names more rooms than the targeted cap', () => {
+        renderHook(() => useRefreshOnPush());
+
+        for (let i = 1; i <= 11; i++) emitSocketFrame({ type: 'chat.sync', data: { channelId: `ch-${i}` } });
+        advanceDebounce();
+
+        // No room is dropped: past the cap, one list pull covers every row instead of 11 gets.
+        expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
+        expect(channelMocks.refreshList).toHaveBeenCalledTimes(1);
+        expect(channelMocks.refreshList).toHaveBeenCalledWith({ sid: 'site-1' });
+    });
+
     it('refreshes one channel for a same-cloud push deeplink, tagged with its place', () => {
         renderHook(() => useRefreshOnPush());
 

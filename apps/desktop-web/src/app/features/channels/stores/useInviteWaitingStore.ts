@@ -24,6 +24,7 @@ export const useInviteWaitingStore = create<InviteWaitingState>(set => ({
     name: '',
     deeplink: '',
     channelId: undefined,
-    open: invite => set({ ...invite }),
+    // Reset channelId explicitly: `set` merges, so an invite opened without one would inherit the last.
+    open: invite => set({ channelId: undefined, ...invite }),
     close: () => set({ inviteId: null, phone: '', name: '', deeplink: '', channelId: undefined }),
 }));

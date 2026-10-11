@@ -11,9 +11,10 @@ import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
 
 /**
- * The account hub: relay identity card plus the entries that act on the
- * account. Cloud, notification and policy entries arrive with the slices that
- * own their pages (08a, 09) — this slice ships identity + profile edit.
+ * The account hub: the relay identity card (with profile edit) and the
+ * entries that lead out of it — owned clouds, notifications (the Settings
+ * page) and the terms and privacy policy. A guest has no relay identity, so
+ * the card becomes a join prompt and the clouds entry is hidden.
  */
 export const AccountHubPage = () => {
     const { t } = useTranslation();

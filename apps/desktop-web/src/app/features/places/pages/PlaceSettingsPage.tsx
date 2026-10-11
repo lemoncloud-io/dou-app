@@ -7,7 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 
 import { formatLongDate, useAuthorNames, usePlaces } from '../../../shared';
 import { runtime } from '@chatic/app-runtime';
+import { EditPlaceDialog } from '../../chat/components/EditPlaceDialog';
 import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
+import { EditPlaceProfileDialog } from '../../profile/components/EditPlaceProfileDialog';
 import { useEditPlaceProfileDialogStore } from '../../profile/stores/useEditPlaceProfileDialogStore';
 
 /**
@@ -160,6 +162,11 @@ export const PlaceSettingsPage = () => {
                     </div>
                 </section>
             </div>
+            {/* The two entries above only flip their dialog stores; HomePage, which mounts
+                these dialogs on the home route, is not rendered here, so this page mounts
+                its own (as ProfilePage does). */}
+            <EditPlaceDialog places={places} />
+            <EditPlaceProfileDialog />
         </div>
     );
 };

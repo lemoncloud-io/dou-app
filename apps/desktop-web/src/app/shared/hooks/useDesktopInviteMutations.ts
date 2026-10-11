@@ -31,9 +31,9 @@ export const useDesktopInviteMutations = () => {
         ({ phone, name, channelId }: { phone: string; name: string; channelId?: string }): Promise<MyInviteView> => {
             if (!phone) return Promise.reject(new Error('phone is required'));
             if (!name.trim()) return Promise.reject(new Error('name is required'));
-            // Every link this client issues lives 24 hours (web ADR-0068
-            // decision 4) — defaulted here, not at the call sites, so a new
-            // invite and a re-invite cannot drift apart.
+            // Every link this client issues lives 24 hours, the same lifetime
+            // the web app gives its invites — defaulted here, not at the call
+            // sites, so a new invite and a re-invite cannot drift apart.
             return run(() =>
                 inviteRepository.create(
                     channelId ? { phone, name, channelId, expiresDays: 1 } : { phone, name, expiresDays: 1 }
