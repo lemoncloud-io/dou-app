@@ -30,11 +30,18 @@ import { EditPlaceDialog } from './EditPlaceDialog';
 
 const OLD_PHOTO = 'https://cdn.example.com/design.jpg';
 const NEW_PHOTO = 'data:image/jpeg;base64,AAAA';
-const design = { id: 'place-1', name: 'Design', thumbnail: OLD_PHOTO, cid: 'mine' } as DomainPlace;
+const design = {
+    id: 'place-1',
+    name: 'Design',
+    desc: 'Crits and mockups',
+    thumbnail: OLD_PHOTO,
+    cid: 'mine',
+} as DomainPlace;
 const plain = { id: 'place-2', name: 'Plain', cid: 'mine' } as DomainPlace;
 const places = [design, plain];
 
 const nameField = () => screen.getByLabelText(i18next.t('place.create.nameLabel')) as HTMLInputElement;
+const descField = () => screen.getByLabelText(i18next.t('place.edit.descLabel')) as HTMLInputElement;
 const saveButton = () => screen.getByRole('button', { name: i18next.t('place.edit.submit') }) as HTMLButtonElement;
 const typeName = (value: string) => fireEvent.change(nameField(), { target: { value } });
 const openOn = (placeId: string) => act(() => useEditPlaceDialogStore.getState().open(placeId));
@@ -213,5 +220,27 @@ describe('EditPlaceDialog', () => {
         expect(nameField().value).toBe('Plain');
         expect(screen.queryByRole('alert')).toBeNull();
         expect(saveButton().disabled).toBe(true);
+    });
+
+    it('seeds the description and sends only it when nothing else changed', async () => {
+        render(<EditPlaceDialog places={places} />);
+
+        expect(descField().value).toBe('Crits and mockups');
+        expect(descField().maxLength).toBe(100);
+        fireEvent.change(descField(), { target: { value: 'Crits, mockups and motion' } });
+        fireEvent.click(saveButton());
+
+        await waitFor(() => expect(updatePlace).toHaveBeenCalledTimes(1));
+        expect(updatePlace).toHaveBeenCalledWith({ id: 'place-1', desc: 'Crits, mockups and motion' });
+    });
+
+    it('clears the description with an empty string', async () => {
+        render(<EditPlaceDialog places={places} />);
+
+        fireEvent.change(descField(), { target: { value: '   ' } });
+        fireEvent.click(saveButton());
+
+        await waitFor(() => expect(updatePlace).toHaveBeenCalledTimes(1));
+        expect(updatePlace).toHaveBeenCalledWith({ id: 'place-1', desc: '' });
     });
 });

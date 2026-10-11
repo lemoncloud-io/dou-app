@@ -21,7 +21,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useUpdatePlace } from '../../../shared';
 import { useEditPlaceDialogStore } from '../stores';
-import { PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
+import { PLACE_DESC_MAX, PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
 /** The two `image` ones are about the photo just picked, before anything was sent. */
 type Failure = PlaceFailure | 'imageTooLarge' | 'imageFailed';
@@ -58,6 +58,7 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     const [name, setName] = useState('');
     // The photo as the form shows it: the place's own URL until one is picked, `undefined` once removed.
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
+    const [desc, setDesc] = useState('');
     const fileRef = useRef<HTMLInputElement>(null);
     // A photo is being read. The save waits for it, or it would go out without the photo shown next.
     const [encoding, setEncoding] = useState(false);
@@ -79,6 +80,7 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     useEffect(() => {
         session.current += 1;
         setName(place?.name ?? '');
+        setDesc(place?.desc ?? '');
         setThumbnail(place?.thumbnail || undefined);
         setEncoding(false);
         setSubmitting(false);
@@ -89,7 +91,9 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     // Against the trimmed stored name: one saved with spaces around it is not a change to send back.
     const nameChanged = !!place && trimmed !== (place.name ?? '').trim();
     const photoChanged = !!place && thumbnail !== (place.thumbnail || undefined);
-    const canSave = !!trimmed && (nameChanged || photoChanged) && !submitting && !encoding;
+    // An emptied description clears the stored one — the empty string goes out, not the absence.
+    const descChanged = !!place && desc.trim() !== (place.desc ?? '').trim();
+    const canSave = !!trimmed && (nameChanged || photoChanged || descChanged) && !submitting && !encoding;
 
     const handleOpenChange = (next: boolean) => {
         // Escape, the X and the backdrop are ignored while the save runs, as in the create dialog:
@@ -135,6 +139,8 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
                 ...(nameChanged && { name: trimmed }),
                 // An empty string for a removed photo, the value the web app sends for the same edit.
                 ...(photoChanged && { thumbnail: thumbnail ?? '' }),
+                // An emptied description clears the stored one.
+                ...(descChanged && { desc: desc.trim() }),
             });
         } catch (error) {
             // Classified before the check: that is where the failure is logged.
@@ -207,6 +213,22 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
                         />
                         <p id="edit-place-name-hint" className="text-micro text-muted-foreground">
                             {t('place.create.nameHint', { max: PLACE_NAME_MAX })}
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="edit-place-desc">{t('place.edit.descLabel')}</Label>
+                        <Input
+                            id="edit-place-desc"
+                            value={desc}
+                            maxLength={PLACE_DESC_MAX}
+                            onChange={e => setDesc(e.target.value)}
+                            placeholder={t('place.edit.descPlaceholder')}
+                            disabled={submitting}
+                            aria-describedby="edit-place-desc-hint"
+                        />
+                        <p id="edit-place-desc-hint" className="text-micro text-muted-foreground">
+                            {t('place.edit.descHint', { max: PLACE_DESC_MAX })}
                         </p>
                     </div>
 

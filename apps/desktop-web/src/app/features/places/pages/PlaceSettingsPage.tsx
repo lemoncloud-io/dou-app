@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 
 import { formatLongDate, useAuthorNames, usePlaces } from '../../../shared';
 import { runtime } from '@chatic/app-runtime';
+import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
 import { useEditPlaceProfileDialogStore } from '../../profile/stores/useEditPlaceProfileDialogStore';
 
 /**
@@ -22,6 +23,7 @@ export const PlaceSettingsPage = () => {
     const { places, isLoading } = usePlaces();
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const openMyProfile = useEditPlaceProfileDialogStore(s => s.open);
+    const openEditPlace = useEditPlaceDialogStore(s => s.open);
 
     const place = places.find(row => row.id === placeId);
     const ownerNames = useAuthorNames(place?.ownerId ? [place.ownerId] : []);
@@ -115,6 +117,28 @@ export const PlaceSettingsPage = () => {
                                 </span>
                             </div>
                             <Button variant="outline" size="sm" onClick={openMyProfile}>
+                                {t('place.settings.edit')}
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Owners alone rename the place itself; everyone else reads it above. */}
+                    {place.isOwner && (
+                        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                                <span className="text-callout font-medium text-foreground">
+                                    {t('place.settings.editPlace')}
+                                </span>
+                                <span className="text-caption text-muted-foreground">
+                                    {t('place.settings.editPlaceHint')}
+                                </span>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                aria-label={t('place.settings.editPlace')}
+                                onClick={() => place.id && openEditPlace(place.id)}
+                            >
                                 {t('place.settings.edit')}
                             </Button>
                         </div>

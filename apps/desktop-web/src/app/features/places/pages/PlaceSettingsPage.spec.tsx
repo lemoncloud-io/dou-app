@@ -14,6 +14,7 @@ const places: DomainPlace[] = [
         ownerId: 'u9',
         createdAt: 1_700_000_000_000,
         cid: 'c1',
+        isOwner: true,
     } as DomainPlace,
     { id: 'p2', name: 'Lab', cid: 'c1' } as DomainPlace,
 ];
@@ -48,6 +49,7 @@ vi.mock('../../../shared/hooks/useAuthorNames', () => ({
 import '../../../../i18n';
 
 import { useEditPlaceProfileDialogStore } from '../../profile/stores/useEditPlaceProfileDialogStore';
+import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
 import { PlaceSettingsPage } from './PlaceSettingsPage';
 
 const renderAt = (placeId: string) =>
@@ -97,5 +99,20 @@ describe('PlaceSettingsPage', () => {
 
         // The dialog edits the ACTIVE place — offering it here would edit the wrong one.
         expect(screen.queryByText('My profile in this place')).toBeNull();
+    });
+
+    it('offers the place edit to its owner and opens it', () => {
+        renderAt('p1');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit this place' }));
+
+        expect(useEditPlaceDialogStore.getState().placeId).toBe('p1');
+        act(() => useEditPlaceDialogStore.getState().close());
+    });
+
+    it('hides the place edit from non-owners', () => {
+        renderAt('p2');
+
+        expect(screen.queryByText('Edit this place')).toBeNull();
     });
 });
