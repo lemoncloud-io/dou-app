@@ -115,9 +115,12 @@ export const InviteWaitingDialog = () => {
     if (!inviteId) return null;
 
     const refetchRows = async (): Promise<MyInviteView[]> => {
-        const rows = await listInvites().catch(() => [] as MyInviteView[]);
-        setInvites(rows);
-        return rows;
+        // A failed re-ask keeps the last list: an empty one would read as
+        // "gone" to the terminal-state effect and close the dialog without
+        // telling the sender, and the caller falls back to its error toast.
+        const rows = await listInvites().catch(() => undefined);
+        if (rows) setInvites(rows);
+        return rows ?? invites;
     };
 
     const handleCancelConfirm = async () => {
