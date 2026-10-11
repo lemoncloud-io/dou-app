@@ -69,6 +69,7 @@ vi.mock('./Composer', () => ({
 import '../../../../i18n';
 
 import { ThreadPanel } from './ThreadPanel';
+import { useThreadStore } from '../stores';
 import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -404,5 +405,44 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
         expect(screen.getByText('1 reply')).toBeTruthy();
+    });
+});
+
+describe('ThreadPanel keyboard dismissal', () => {
+    const openPanel = () => {
+        messages = [chat(1, { content: 'root' })];
+        useThreadStore.setState({ openRootId: 'C1:1', openChannelId: 'C1' });
+        return render(
+            <ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />,
+            { wrapper }
+        );
+    };
+
+    it('closes on Escape', () => {
+        openPanel();
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+
+        expect(useThreadStore.getState().openRootId).toBeNull();
+    });
+
+    it('returns focus to the opener on unmount', () => {
+        const opener = document.createElement('button');
+        document.body.appendChild(opener);
+        try {
+            opener.focus();
+            const { unmount } = openPanel();
+            // Assert the call, not the resulting activeElement: jsdom restores focus
+            // on subtree removal by itself, so a state assertion passes either way.
+            const focusSpy = vi.spyOn(opener, 'focus');
+            try {
+                unmount();
+                expect(focusSpy).toHaveBeenCalled();
+            } finally {
+                focusSpy.mockRestore();
+            }
+        } finally {
+            opener.remove();
+        }
     });
 });
