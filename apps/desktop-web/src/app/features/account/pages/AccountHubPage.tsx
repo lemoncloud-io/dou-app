@@ -60,6 +60,20 @@ export const AccountHubPage = () => {
                             </Button>
                         </div>
                     )}
+
+                    {account && (
+                        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                                <span className="text-callout font-medium text-foreground">
+                                    {t('cloud.list.title')}
+                                </span>
+                                <span className="text-caption text-muted-foreground">{t('cloud.list.openHint')}</span>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => navigate('/account/clouds')}>
+                                {t('account.open')}
+                            </Button>
+                        </div>
+                    )}
                 </section>
             </div>
 

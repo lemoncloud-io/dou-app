@@ -52,6 +52,7 @@ const renderAt = () =>
         <MemoryRouter initialEntries={['/account']}>
             <Routes>
                 <Route path="/account" element={<AccountHubPage />} />
+                <Route path="*" element={<div data-testid="away" />} />
             </Routes>
         </MemoryRouter>
     );
@@ -77,6 +78,15 @@ describe('AccountHubPage', () => {
 
         expect(screen.getByText('Guest account')).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    });
+
+    it('opens the cloud list from its entry', () => {
+        tokenUser.value = { name: 'Ada' };
+        renderAt();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+
+        expect(screen.getByTestId('away')).toBeTruthy();
     });
 
     it('saves a new name through the relay gateway', async () => {
