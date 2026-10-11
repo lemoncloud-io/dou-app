@@ -84,7 +84,7 @@ describe('AccountHubPage', () => {
         tokenUser.value = { name: 'Ada' };
         renderAt();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[0]);
 
         expect(screen.getByTestId('away')).toBeTruthy();
     });

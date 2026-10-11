@@ -74,6 +74,30 @@ export const AccountHubPage = () => {
                             </Button>
                         </div>
                     )}
+
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-callout font-medium text-foreground">
+                                {t('settings.notificationsTitle')}
+                            </span>
+                            <span className="text-caption text-muted-foreground">
+                                {t('settings.notificationsHint')}
+                            </span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
+                            {t('account.open')}
+                        </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-callout font-medium text-foreground">{t('policy.list.title')}</span>
+                            <span className="text-caption text-muted-foreground">{t('policy.list.openHint')}</span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/account/policies')}>
+                            {t('account.open')}
+                        </Button>
+                    </div>
                 </section>
             </div>
 

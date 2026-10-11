@@ -74,6 +74,9 @@ const AccountHubPage = lazy(() => import('./features/account').then(m => ({ defa
 const CloudListPage = lazy(() => import('./features/account').then(m => ({ default: m.CloudListPage })));
 const CloudHubPage = lazy(() => import('./features/account').then(m => ({ default: m.CloudHubPage })));
 const CloudPlacesPage = lazy(() => import('./features/account').then(m => ({ default: m.CloudPlacesPage })));
+const PolicyListPage = lazy(() => import('./features/account').then(m => ({ default: m.PolicyListPage })));
+const PrivacyPage = lazy(() => import('./features/account').then(m => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./features/account').then(m => ({ default: m.TermsPage })));
 const SettingsPage = lazy(() => import('./features/settings').then(m => ({ default: m.SettingsPage })));
 const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m.WelcomePage })));
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
@@ -115,6 +118,9 @@ export const AppRouter = () => {
                             <Route path="/account/clouds" element={<CloudListPage />} />
                             <Route path="/account/clouds/:cloudId" element={<CloudHubPage />} />
                             <Route path="/account/clouds/:cloudId/places" element={<CloudPlacesPage />} />
+                            <Route path="/account/policies" element={<PolicyListPage />} />
+                            <Route path="/account/policies/terms" element={<TermsPage />} />
+                            <Route path="/account/policies/privacy" element={<PrivacyPage />} />
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}
