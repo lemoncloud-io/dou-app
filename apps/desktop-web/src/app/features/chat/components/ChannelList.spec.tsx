@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
+import { useSendInviteStore } from '../../channels';
 import type * as Shared from '@chatic/shared';
 import type * as Channels from '../../channels';
 import type * as ReadCursorStore from '../../../shared/stores/useReadCursorStore';
@@ -14,6 +15,9 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 // Row context menu seams (slice 05): the sidebar owns ONE actions instance; the
 // spies here are the boundaries the menu writes through.
+// The invite entry is relay-scoped: the invite repository only serves the
+// default cloud, so the entry hides everywhere else.
+const session = vi.hoisted(() => ({ cloudId: 'cloud-1' }));
 const menu = vi.hoisted(() => ({
     openDialog: vi.fn(),
     openSettings: vi.fn(),
@@ -30,7 +34,7 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
-            useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
+            useSessionSelection: () => ({ selectedCloudId: session.cloudId, selectedSiteId: 'place-1' }),
         },
         data: {
             useRuntimeRepositories: () => ({ join: { readChat: menu.readChat, updateJoin: menu.serverSync } }),
@@ -531,6 +535,7 @@ describe('ChannelList row context menu (slice 05)', () => {
         // next test's DOM (the folded test then sees two "Channels" headers).
         cleanup();
         for (const fn of Object.values(menu)) if (typeof fn === 'function') fn.mockClear();
+        session.cloudId = 'cloud-1';
         toast.mockClear();
         menu.useRealActions = false;
         act(() => {
@@ -623,6 +628,26 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+    });
+
+    // Invite rows are relay-scoped: the repository only serves the default cloud.
+    it('offers the invite sender on default-cloud rows and opens it', () => {
+        session.cloudId = 'default';
+        const unread = { id: 'C2', name: 'busy', unreadCount: 0, chatNo: 7 } as DomainChannel;
+        renderList([general, unread]);
+
+        openRowMenu(/busy/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Invite by phone' }));
+
+        expect(useSendInviteStore.getState().channelId).toBe('C2');
+        act(() => useSendInviteStore.getState().close());
+    });
+
+    it('hides the invite sender off the default cloud', () => {
+        renderList([general]);
+
+        openRowMenu(/general/);
+        expect(screen.queryByRole('menuitem', { name: 'Invite by phone' })).toBeNull();
     });
 
     it('gates rename and delete to the owner', () => {

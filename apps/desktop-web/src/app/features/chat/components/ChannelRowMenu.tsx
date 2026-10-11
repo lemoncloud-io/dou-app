@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, CheckCheck, LogOut, Pencil, SlidersHorizontal, Star, Trash2, UserPlus } from 'lucide-react';
+import { Bell, CheckCheck, LogOut, MailPlus, Pencil, SlidersHorizontal, Star, Trash2, UserPlus } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
@@ -18,7 +18,7 @@ import {
 } from '@chatic/ui-kit/components/ui/context-menu';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore } from '../../channels';
+import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSendInviteStore } from '../../channels';
 import { isDmBucket } from '../utils';
 import { lastChatNoOf, useChannelNotifyChange, useReadCursorStore, type ChannelNotifyMode } from '../../../shared';
 
@@ -62,6 +62,12 @@ export const ChannelRowMenu = ({
     const lastChatNo = lastChatNoOf(channel);
 
     const openSettings = useChannelSettingsStore(s => s.open);
+    const openSendInvite = useSendInviteStore(s => s.open);
+    // Invite rows are relay-scoped (the invite repository is cid-gated to the
+    // default cloud), so the entry hides everywhere else instead of opening a
+    // dialog whose create can only fail.
+    const { selectedCloudId } = runtime.session.useSessionSelection();
+    const canInvite = !isDm && selectedCloudId === 'default';
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     // Same writer as the settings panel (local pref + announced server sync).
     const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
@@ -132,6 +138,12 @@ export const ChannelRowMenu = ({
                     <ContextMenuItem onSelect={() => openDialog('add-members')}>
                         <UserPlus size={14} aria-hidden />
                         {t('channels.addMembers.open')}
+                    </ContextMenuItem>
+                )}
+                {canInvite && (
+                    <ContextMenuItem onSelect={() => openSendInvite(id, channel.name ?? id)}>
+                        <MailPlus size={14} aria-hidden />
+                        {t('invite.send.open')}
                     </ContextMenuItem>
                 )}
                 <ContextMenuSeparator />

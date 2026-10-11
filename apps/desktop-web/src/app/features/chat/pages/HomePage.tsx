@@ -7,6 +7,7 @@ import {
     ChannelSettingsPanel,
     CreateChannelDialog,
     NewDmDialog,
+    SendInviteDialog,
     useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
@@ -867,6 +868,7 @@ export const HomePage = () => {
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />
+            <SendInviteDialog />
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}
