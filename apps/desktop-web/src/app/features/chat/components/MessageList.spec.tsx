@@ -684,6 +684,53 @@ describe('MessageList', () => {
             expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
         });
     });
+
+    describe('a hung send', () => {
+        it('flips to Not delivered exactly once, without polling meanwhile', () => {
+            vi.useFakeTimers();
+            try {
+                const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+                try {
+                    vi.setSystemTime(1_700_000_100_000);
+                    const hung = {
+                        id: 'C1:9',
+                        channelId: 'C1',
+                        chatNo: 9,
+                        ownerId: 'me',
+                        content: 'hello?',
+                        isPending: true,
+                        createdAt: 1_700_000_100_000 - 59_000,
+                    } as DomainChat;
+                    render(
+                        <MessageList
+                            messages={[hung]}
+                            isLoading={false}
+                            viewer={VIEWER}
+                            names={new Map()}
+                            onRetry={vi.fn()}
+                            onDiscard={vi.fn()}
+                            canRetry={() => true}
+                        />,
+                        { wrapper }
+                    );
+
+                    // Still sending: the deadline is a second out.
+                    expect(screen.queryByText('Not delivered')).toBeNull();
+                    // One shot, not a poll — nothing ticks while it waits.
+                    expect(setIntervalSpy).not.toHaveBeenCalled();
+
+                    act(() => {
+                        vi.advanceTimersByTime(2_000);
+                    });
+                    expect(screen.getByText('Not delivered')).toBeDefined();
+                } finally {
+                    setIntervalSpy.mockRestore();
+                }
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
 });
 
 describe('MessageList jumps', () => {
