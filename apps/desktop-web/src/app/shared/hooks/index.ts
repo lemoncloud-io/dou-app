@@ -11,6 +11,7 @@ export * from './useChannelMutations';
 export * from './useChannelNotifyChange';
 export * from './useDesktopInviteMutations';
 export * from './useInviteCountdown';
+export * from './useRelayAccount';
 export * from './useReadReceipts';
 export * from './liveReadRegistry';
 export * from './useDesktopNotifications';
