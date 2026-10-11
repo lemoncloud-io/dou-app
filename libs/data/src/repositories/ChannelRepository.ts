@@ -66,6 +66,13 @@ export interface IChannelRepository extends DisposableRepository {
      */
     refreshOne(channelId: string, siteId: string): Promise<DomainChannel>;
 
+    /**
+     * `refreshOne` for a channel whose place the caller does not know (a socket frame names only
+     * the channel). The cached row's own sid tags the answer; `fallbackSiteId` covers a channel
+     * never listed yet, whose row the next sync re-tags correctly.
+     */
+    refreshOneInCloud(channelId: string, fallbackSiteId: string): Promise<DomainChannel>;
+
     cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null>;
     cacheWrite(item: Partial<DomainChannel>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
@@ -468,5 +475,17 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
+    }
+
+    // Refreshes one channel without knowing its place first. Tagging the answer with the wrong
+    // site would move the row to another place's list (and strand its own badge), so the sid is
+    // read off the cached row rather than borrowed from the caller — the same reason every other
+    // method here takes it as an argument instead of the ambient context (ADR-0085).
+    public async refreshOneInCloud(channelId: string, fallbackSiteId: string): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const id = this.assertRequiredString(channelId, 'channelId');
+        const cached = await this.channelLocalDataSource.cacheRead(id, requestContext).catch(() => null);
+        const sid = cached?.sid || this.assertRequiredString(fallbackSiteId, 'siteId');
+        return this.refreshOne(id, sid);
     }
 }

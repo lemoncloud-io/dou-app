@@ -35,11 +35,12 @@ const MAX_TARGETED_PER_FIRE = 10;
  *    `onMessage`; it's the reliable "something in this cloud got a message" signal.
  *
  * A signal that names its channel refreshes just that row (`channel.get`); anything unattributed
- * falls back to re-pulling `channel.mine`. Debounced so a burst is one fire. Note the reach: both
- * refreshes answer for the site the socket session is on, so this covers the ACTIVE place only — a
- * background place's badge still waits for the cloud-wide `channel.sync` in useBackgroundSync, and
- * a cross-cloud push names another cloud, so it is skipped here (that cloud's BackgroundReceiver
- * loop owns it).
+ * falls back to re-pulling `channel.mine`. Debounced so a burst is one fire. A push deeplink also
+ * names its place, so a background place's row is tagged correctly; a socket frame names only the
+ * channel, whose place resolves off the cached row. Either way the badge advances at message time
+ * instead of waiting for the 60s cloud-wide `channel.sync` — which stays as the backstop for
+ * signals that never arrive here. A cross-cloud push names another cloud, so it is skipped here
+ * (that cloud's BackgroundReceiver loop owns it).
  */
 export const useRefreshOnPush = (): void => {
     const { channel } = runtime.data.useRuntimeRepositories();
@@ -51,15 +52,16 @@ export const useRefreshOnPush = (): void => {
     // believe that is what tags the rows and gates the prune inside refreshList (ADR-0085).
     const sidRef = useRef(selectedSiteId);
     sidRef.current = selectedSiteId;
-    // Channels named since the last fire, and whether anything unattributed arrived. Refs for the
-    // same reason as sidRef: the listeners must stay bound while the pending set accumulates.
-    const pendingRef = useRef<Set<string>>(new Set());
+    // Channels named since the last fire, each with the place its signal named (a push deeplink
+    // carries one; a socket frame does not) — and whether anything unattributed arrived. Refs for
+    // the same reason as sidRef: the listeners must stay bound while the pending set accumulates.
+    const pendingRef = useRef<Map<string, string | undefined>>(new Map());
     const fallbackRef = useRef(false);
 
     useEffect(() => {
         const fire = () => {
             const sid = sidRef.current ?? '';
-            const ids = [...pendingRef.current].slice(0, MAX_TARGETED_PER_FIRE);
+            const ids = [...pendingRef.current.entries()].slice(0, MAX_TARGETED_PER_FIRE);
             pendingRef.current.clear();
             const fallback = fallbackRef.current;
             fallbackRef.current = false;
@@ -68,11 +70,17 @@ export const useRefreshOnPush = (): void => {
                 return;
             }
             // One row each: a burst across rooms is N small `channel.get` pulls instead of one
-            // full `channel.mine` list. allSettled — a gone channel must not cancel the rest.
-            void Promise.allSettled(ids.map(id => channel.refreshOne(id, sid))).then(() => undefined);
+            // full `channel.mine` list. allSettled — a gone channel must not cancel the rest. A
+            // signal that named no place resolves it off the cached row, so a background place's
+            // badge advances here too instead of waiting for the 60s cloud-wide sync.
+            void Promise.allSettled(
+                ids.map(([id, placeId]) =>
+                    placeId ? channel.refreshOne(id, placeId) : channel.refreshOneInCloud(id, sid)
+                )
+            ).then(() => undefined);
         };
-        const schedule = (channelId?: string) => {
-            if (channelId) pendingRef.current.add(channelId);
+        const schedule = (channelId?: string, placeId?: string) => {
+            if (channelId) pendingRef.current.set(channelId, placeId);
             else fallbackRef.current = true;
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(fire, 300);
@@ -93,7 +101,7 @@ export const useRefreshOnPush = (): void => {
             // cloud's session about a foreign id, so they are skipped — that cloud's background
             // receive loop owns them.
             if (target.cloudId) return;
-            schedule(target.channelId);
+            schedule(target.channelId, target.placeId || undefined);
         });
 
         // onMessage needs a live client (and isn't rebind-safe), so bind it through subscribeClient.

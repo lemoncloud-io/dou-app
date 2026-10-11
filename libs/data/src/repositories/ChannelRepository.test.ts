@@ -481,6 +481,38 @@ describe('ChannelRepository', () => {
         // A stale push must not resurrect the row the leave just removed.
         expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
+
+    it('refreshOneInCloud: tags the answer with the cached row place, not the caller belief', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockResolvedValue({ id: 'ch-1', sid: 'site-b' });
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-b' });
+
+        await expect(repository.refreshOneInCloud('ch-1', 'site-a')).resolves.toMatchObject({ id: 'ch-1' });
+        expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
+            { id: 'ch-1' },
+            expect.objectContaining({ sid: 'site-b' })
+        );
+    });
+
+    it('refreshOneInCloud: falls back to the given site for a channel never listed yet', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockResolvedValue(null);
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-9', sid: 'site-a' });
+
+        await expect(repository.refreshOneInCloud('ch-9', 'site-a')).resolves.toMatchObject({ id: 'ch-9' });
+        expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
+            { id: 'ch-9' },
+            expect.objectContaining({ sid: 'site-a' })
+        );
+    });
+
+    it('refreshOneInCloud: rejects a blank channelId without touching the socket or cache', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+
+        await expect(repository.refreshOneInCloud('', 'site-a')).rejects.toThrow(/channelId/);
+        expect(channelSocketDataSource.getChannel).not.toHaveBeenCalled();
+        expect(channelLocalDataSource.cacheRead).not.toHaveBeenCalled();
+    });
 });
 
 /**

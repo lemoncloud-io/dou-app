@@ -11,6 +11,7 @@ vi.mock('@chatic/bridges', () => ({
 const channelMocks = {
     refreshList: vi.fn(() => Promise.resolve()),
     refreshOne: vi.fn(() => Promise.resolve({})),
+    refreshOneInCloud: vi.fn(() => Promise.resolve({})),
 };
 
 type PushHandler = (message: any) => void;
@@ -98,8 +99,10 @@ describe('useRefreshOnPush', () => {
         emitSocketFrame({ type: 'chat.sync', data: { channelId: 'ch-1', chatNo: 7 } });
         advanceDebounce();
 
-        expect(channelMocks.refreshOne).toHaveBeenCalledTimes(1);
-        expect(channelMocks.refreshOne).toHaveBeenCalledWith('ch-1', 'site-1');
+        // A socket frame names no place, so the row's own place resolves the tag.
+        expect(channelMocks.refreshOneInCloud).toHaveBeenCalledTimes(1);
+        expect(channelMocks.refreshOneInCloud).toHaveBeenCalledWith('ch-1', 'site-1');
+        expect(channelMocks.refreshOne).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
@@ -110,6 +113,7 @@ describe('useRefreshOnPush', () => {
         advanceDebounce();
 
         expect(channelMocks.refreshOne).not.toHaveBeenCalled();
+        expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).toHaveBeenCalledTimes(1);
         expect(channelMocks.refreshList).toHaveBeenCalledWith({ sid: 'site-1' });
     });
@@ -122,19 +126,31 @@ describe('useRefreshOnPush', () => {
         emitSocketFrame({ type: 'chat.sync', data: { channelId: 'ch-2' } });
         advanceDebounce();
 
-        expect(channelMocks.refreshOne).toHaveBeenCalledTimes(2);
-        expect(channelMocks.refreshOne).toHaveBeenCalledWith('ch-1', 'site-1');
-        expect(channelMocks.refreshOne).toHaveBeenCalledWith('ch-2', 'site-1');
+        expect(channelMocks.refreshOneInCloud).toHaveBeenCalledTimes(2);
+        expect(channelMocks.refreshOneInCloud).toHaveBeenCalledWith('ch-1', 'site-1');
+        expect(channelMocks.refreshOneInCloud).toHaveBeenCalledWith('ch-2', 'site-1');
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
-    it('refreshes one channel for a same-cloud push deeplink', () => {
+    it('refreshes one channel for a same-cloud push deeplink, tagged with its place', () => {
         renderHook(() => useRefreshOnPush());
 
         emitPush('chatic-open:place-a|ch-9');
         advanceDebounce();
 
-        expect(channelMocks.refreshOne).toHaveBeenCalledWith('ch-9', 'site-1');
+        expect(channelMocks.refreshOne).toHaveBeenCalledWith('ch-9', 'place-a');
+        expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
+        expect(channelMocks.refreshList).not.toHaveBeenCalled();
+    });
+
+    it('resolves the place off the cached row for a placeless push link', () => {
+        renderHook(() => useRefreshOnPush());
+
+        emitPush('channel?channelId=ch-9');
+        advanceDebounce();
+
+        expect(channelMocks.refreshOneInCloud).toHaveBeenCalledWith('ch-9', 'site-1');
+        expect(channelMocks.refreshOne).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
@@ -145,6 +161,7 @@ describe('useRefreshOnPush', () => {
         advanceDebounce();
 
         expect(channelMocks.refreshOne).not.toHaveBeenCalled();
+        expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
@@ -155,6 +172,7 @@ describe('useRefreshOnPush', () => {
         advanceDebounce();
 
         expect(channelMocks.refreshOne).not.toHaveBeenCalled();
+        expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).not.toHaveBeenCalled();
     });
 
@@ -165,6 +183,7 @@ describe('useRefreshOnPush', () => {
         advanceDebounce();
 
         expect(channelMocks.refreshOne).not.toHaveBeenCalled();
+        expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).toHaveBeenCalledTimes(1);
     });
 });

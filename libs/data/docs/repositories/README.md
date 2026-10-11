@@ -67,7 +67,8 @@ Chat, profile, join and user reads and every optimistic mutation are not guarded
 `sid` is **not** ambient (ADR-0085). The field exists on `DataContext`, but nothing seeds it: a
 repository that needs a place takes it as an argument (`setMyProfile(body, siteId)`,
 `syncProfiles(since, siteId)`, `createChannel(payload, siteId)`, `getSelfChannel(payload, siteId)`,
-`refreshOne(channelId, siteId)`, `refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
+`refreshOne(channelId, siteId)`, `refreshOneInCloud(channelId, fallbackSiteId)`,
+`refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
 `profile.sync`, `channel.mine`, `channel.get-self` and `channel.get` return rows carrying no place of their own —
 the caller's value is the only thing that can tag them. For `profile.set` the argument tags the
 optimistic row and checks the answer, but it does not choose the site: the server writes to its
