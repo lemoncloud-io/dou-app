@@ -45,4 +45,22 @@ describe('useMessageSearch', () => {
 
         await waitFor(() => expect(result.current.scannedCount).toBe(0));
     });
+
+    // A channel whose cache read throws is missing rows, not a verified no-match.
+    it('counts failed channels apart from scanned rows', async () => {
+        repositories.chat.cacheReadList.mockRejectedValueOnce(new Error('locked'));
+        const { result } = renderHook(() => useMessageSearch('nothing like this', channels));
+
+        await waitFor(() => expect(result.current.isSearching).toBe(false));
+        expect(result.current.results).toEqual([]);
+        expect(result.current.scannedCount).toBe(0);
+        expect(result.current.failedCount).toBe(1);
+    });
+
+    it('reports no failures when every channel reads', async () => {
+        const { result } = renderHook(() => useMessageSearch('nothing like this', channels));
+
+        await waitFor(() => expect(result.current.isSearching).toBe(false));
+        expect(result.current.failedCount).toBe(0);
+    });
 });

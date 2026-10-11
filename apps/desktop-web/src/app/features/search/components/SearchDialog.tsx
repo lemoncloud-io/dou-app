@@ -89,7 +89,10 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
     // The scope toggle only exists when the open channel is one of the searched ones.
     const currentChannel = currentChannelId ? channels.find(channel => channel.id === currentChannelId) : undefined;
     const scopedChannels = scope === 'current' && currentChannel ? [currentChannel] : channels;
-    const { results, isSearching, isTruncated, scannedCount } = useMessageSearch(open ? query : '', scopedChannels);
+    const { results, isSearching, isTruncated, scannedCount, failedCount } = useMessageSearch(
+        open ? query : '',
+        scopedChannels
+    );
     const labelOf = useChannelLabels(scopedChannels);
     // Rows were the snippet and a date only, so two hits from different people read
     // as the same line twice.
@@ -224,6 +227,12 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                         <p className="px-3 py-4 text-center text-caption text-foreground">
                             {t(nothingLoaded ? 'search.nothingLoaded' : 'search.noResults')}
                         </p>
+                        {/* A failed cache read is missing rows, not a verified no-match. */}
+                        {failedCount > 0 && (
+                            <p role="status" className="px-3 pb-2 text-center text-micro text-muted-foreground">
+                                {t('search.partialFailed')}
+                            </p>
+                        )}
                         {channelOffers.length > 0 && (
                             <>
                                 <p
@@ -365,6 +374,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                         {isTruncated
                             ? t('search.scopeLimited', { limit: SEARCH_MAX_CHANNELS, total: scopedChannels.length })
                             : t(scope === 'current' ? 'search.scopeOne' : 'search.scope')}
+                        {failedCount > 0 && ` ${t('search.partialFailed')}`}
                     </p>
                 )}
             </DialogContent>
