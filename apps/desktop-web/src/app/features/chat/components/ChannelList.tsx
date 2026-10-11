@@ -587,7 +587,15 @@ export const ChannelList = ({
         .sort((a, b) => a.display.name.localeCompare(b.display.name));
 
     if (visibleRegular.length + visibleDms.length + memberRows.length === 0) {
-        return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
+        // The dialogs mount on every other branch (see above): a filter matching nothing
+        // must not take ⌘K / message search down with it — that is exactly when the
+        // reader reaches for them.
+        return (
+            <>
+                {dialogs}
+                <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>
+            </>
+        );
     }
 
     // A filtered view is a subset — dragging it would write a partial order, so rows lock.

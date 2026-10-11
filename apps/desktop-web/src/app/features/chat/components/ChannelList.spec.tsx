@@ -396,6 +396,28 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         }
     });
 
+    it('keeps the dialogs mounted when the filter matches nothing, so ⌘K still opens', () => {
+        dialogStub.portal = true;
+        try {
+            render(
+                <ChannelList
+                    channels={[CHANNEL]}
+                    isLoading={false}
+                    selectedChannelId={null}
+                    query="zzz-no-such-channel"
+                    onSelect={vi.fn()}
+                    isDefaultMode={false}
+                />,
+                { wrapper }
+            );
+
+            expect(screen.getByText(i18next.t('sidebar.noMatches'))).toBeTruthy();
+            expect(screen.getByTestId('dialog-input')).toBeTruthy();
+        } finally {
+            dialogStub.portal = false;
+        }
+    });
+
     it('Alt+Shift while filtering does nothing — a subset would write a partial order', () => {
         const onSelect = vi.fn();
         storedOrder.ids = ['C1', 'C2'];
