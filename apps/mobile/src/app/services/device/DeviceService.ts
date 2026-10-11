@@ -176,8 +176,8 @@ export class DeviceService implements IDeviceService {
                         this.logger.info('DEVICE', 'Photo library cancelled');
                         resolve([]);
                     } else if (response.errorCode === 'permission') {
-                        // Cancel stays an empty pick, but a denial must not: the web
-                        // reads [] as "chose nothing" and offers no Settings nudge.
+                        // Cancel stays an empty pick, but a denial must not: [] is
+                        // indistinguishable from "chose nothing", so the web cannot react to it.
                         // The camera path already rejects here; match it.
                         this.logger.error('DEVICE', 'Photo library permission denied');
                         reject(new Error(response.errorMessage ?? 'Photo library permission denied'));

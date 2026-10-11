@@ -12,8 +12,8 @@ export const useDeviceHandler = () => {
 
     const handleOpenSettings = useCallback(
         async (_message: WebMessageData<'OpenSettings'>) => {
-            // A "go to Settings" button that silently does nothing strands the
-            // reader the BLOCKED status just sent to Settings.
+            // A "go to Settings" button that silently does nothing strands a reader
+            // whose permission is BLOCKED, since Settings is the only way back.
             const opened = await deviceService.openSettings();
             if (!opened) {
                 return {
@@ -52,10 +52,10 @@ export const useDeviceHandler = () => {
     const handleOpenDocument = useCallback(
         async (message: WebMessageData<'OpenDocument'>) => {
             const data = message.data;
-            const readError = (name: string) => ({
+            const readError = (name: string | null) => ({
                 type: 'OnOpenDocument' as const,
                 success: false as const,
-                error: { code: 'DOC_READ_ERROR', message: `Could not read the file: ${name}` },
+                error: { code: 'DOC_READ_ERROR', message: `Could not read the file: ${name ?? 'unnamed'}` },
             });
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);

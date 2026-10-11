@@ -14,7 +14,7 @@ export interface IPermissionService {
      * Whether the OS will no longer show a prompt for this permission (the reader
      * chose "don't ask again" or the system policy blocks it). A denied request
      * that is not blocked can be asked again; a blocked one can only be fixed in
-     * Settings — the web tells those two apart.
+     * Settings — reporting it lets the web tell those two apart.
      */
     isBlocked(type: AppPermissionType): Promise<boolean>;
 }

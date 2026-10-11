@@ -12,7 +12,7 @@ export const usePermissionHandler = () => {
             try {
                 const isGranted = await permissionService.request(permission);
                 // A denial the OS will never prompt for again is not a "try again"
-                // denial: the web sends the reader to Settings only for BLOCKED.
+                // denial: BLOCKED lets the web point the reader to Settings instead.
                 let status: PermissionStatus = isGranted ? 'GRANTED' : 'DENIED';
 
                 if (!isGranted) {

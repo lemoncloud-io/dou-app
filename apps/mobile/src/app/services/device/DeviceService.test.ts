@@ -193,8 +193,8 @@ describe('DeviceService.openPhotoLibrary — cancel stays empty, denial rejects'
         await expect(service.openPhotoLibrary()).resolves.toEqual([]);
     });
 
-    // A denial used to resolve [] too, which the web reads as "chose nothing" — no
-    // Settings nudge, no error. The camera path already rejects here; match it so the
+    // A denial used to resolve [] too, indistinguishable from "chose nothing" — the
+    // web had no error to react to. The camera path already rejects here; match it so the
     // handler answers LIBRARY_ERROR instead of a hollow success.
     it('rejects when the OS reports a permission denial', async () => {
         launchImageLibrary.mockImplementation((_opts: unknown, cb: (r: unknown) => void) =>
