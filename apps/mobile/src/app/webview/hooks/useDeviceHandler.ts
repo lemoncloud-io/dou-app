@@ -43,6 +43,11 @@ export const useDeviceHandler = () => {
     const handleOpenDocument = useCallback(
         async (message: WebMessageData<'OpenDocument'>) => {
             const data = message.data;
+            const readError = (name: string) => ({
+                type: 'OnOpenDocument' as const,
+                success: false as const,
+                error: { code: 'DOC_READ_ERROR', message: `Could not read the file: ${name}` },
+            });
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);
 
@@ -59,6 +64,12 @@ export const useDeviceHandler = () => {
                         return { uri: doc.uri, name: doc.name, type: doc.type, size: doc.size, base64 };
                     })
                 );
+                // A failed read used to ride along as success with base64 undefined —
+                // the upload then had nothing to send and no message to show.
+                if (data.includeBase64) {
+                    const unread = documents.find(doc => doc.base64 === undefined);
+                    if (unread) return readError(unread.name);
+                }
                 return { type: 'OnOpenDocument' as const, success: true, data: { documents } };
             } catch (e: any) {
                 logger.error('DEVICE', 'OpenDocument error', e);
