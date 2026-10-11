@@ -4,6 +4,14 @@ on:
         branches:
             - develop
 
+# Serial runs: every run commits a version bump and pushes it, so two runs
+# overlapping on a merge burst push from the same base and the loser is
+# rejected (`fetch first`), skipping its deploy. Queued runs check out after
+# the previous bump landed and compute the next one — no replay, no conflict.
+concurrency:
+    group: deploy-dev-develop
+    cancel-in-progress: false
+
 jobs:
     changes:
         name: Check changed projects
@@ -250,6 +258,9 @@ jobs:
                   set -e
                   git add .
                   git commit -m "chore(release): bump root version to ${ROOT_VERSION} [skip ci]" || echo "No changes to commit"
+                  # Residual cover for a push that lands between checkout and this
+                  # step (e.g. a direct push): rebase onto it instead of failing.
+                  git pull --rebase
                   git push
 
     create-draft-release:
