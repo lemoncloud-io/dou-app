@@ -7,8 +7,14 @@ import { runtime } from '@chatic/app-runtime';
 import { channelsByPlace, cloudDmPlaces, placeUnreadCounts } from '../utils';
 import { useKnownChannelsStore, useReadCursorStore } from '../stores';
 import { usePlaces } from './usePlaces';
+import { chatFrameChannelIdOf } from './useRefreshOnPush';
+import { isChannelReadLive } from './liveReadRegistry';
 
 const REFETCH_DEBOUNCE_MS = 300;
+
+// Focused + visible: the read-receipt driver only advances cursors live then.
+const isWindowActive = (): boolean =>
+    typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
 
 /**
  * Per-place unread counts for the active cloud, keyed by place id, and their total. A 1:1 counts
@@ -87,7 +93,14 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
             if (!client) return;
             offMessage = manager.onMessage(({ message }) => {
                 const type = (message as { type?: string })?.type ?? '';
-                if (type.startsWith('chat')) schedule();
+                if (!type.startsWith('chat')) return;
+                // The channel on screen reads live while the window is focused: its cursor
+                // advances on arrival (useReadReceipts), so its badge contribution stays 0
+                // without re-pulling the whole cloud directory. Everything else still
+                // refetches — background channels, a blurred window, an unnamed frame.
+                const channelId = chatFrameChannelIdOf(message);
+                if (channelId && isWindowActive() && isChannelReadLive(channelId)) return;
+                schedule();
             });
         });
         return () => {
