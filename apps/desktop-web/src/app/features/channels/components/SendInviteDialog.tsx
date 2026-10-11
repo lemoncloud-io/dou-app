@@ -16,6 +16,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { parseInvitePhone, useCopyToClipboard, useDesktopInviteMutations } from '../../../shared';
 import { useSendInviteStore } from '../stores/useSendInviteStore';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
+import { useInviteLinkStore } from '../stores/useInviteLinkStore';
 
 /**
  * Invite sender dialog: name + phone number into the channel it was opened
@@ -25,10 +26,9 @@ import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
  */
 export const SendInviteDialog = () => {
     const { t } = useTranslation();
-    const channelId = useSendInviteStore(s => s.channelId);
-    const channelName = useSendInviteStore(s => s.channelName);
+    const target = useSendInviteStore(s => s.target);
     const close = useSendInviteStore(s => s.close);
-    const { createInvite, isMutating: isSubmitting } = useDesktopInviteMutations();
+    const { createInvite, requestPlaceInvite, isMutating: isSubmitting } = useDesktopInviteMutations();
     const [, copyLink] = useCopyToClipboard();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -51,7 +51,7 @@ export const SendInviteDialog = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isSubmitting || !channelId) return;
+        if (isSubmitting || !target) return;
         const parsed = parseInvitePhone(phone);
         if (!name.trim() || 'error' in parsed) {
             setError(t('invite.send.invalidPhone'));
@@ -59,7 +59,12 @@ export const SendInviteDialog = () => {
         }
         setError(null);
         try {
-            const view = await createInvite({ phone: parsed.e164, name: name.trim(), channelId });
+            // A place invite names no room (the server reads the missing key
+            // as "the place alone"); a channel invite enters its room.
+            const view =
+                target.kind === 'channel'
+                    ? await createInvite({ phone: parsed.e164, name: name.trim(), channelId: target.id })
+                    : await requestPlaceInvite({ phone: parsed.e164, name: name.trim() });
             if (!view.id || !view.deeplink) {
                 setError(t('invite.send.missingLink'));
                 return;
@@ -67,17 +72,22 @@ export const SendInviteDialog = () => {
             const recipient = name.trim();
             copyLink(view.deeplink);
             toast({ title: t('invite.send.sent', { name: recipient }) });
+            const sent = { phone: parsed.e164, name: recipient, deeplink: view.deeplink };
             reset();
             close();
-            // The send lands on the waiting dialog, as the web flow does: the
-            // invite's status (and its cancel/reissue) lives there.
-            useInviteWaitingStore.getState().open({
-                inviteId: view.id,
-                phone: parsed.e164,
-                name: recipient,
-                deeplink: view.deeplink,
-                channelId,
-            });
+            if (target.kind === 'channel') {
+                // The send lands on the waiting dialog, as the web flow does: the
+                // invite's status (and its cancel/reissue) lives there.
+                useInviteWaitingStore.getState().open({
+                    inviteId: view.id,
+                    ...sent,
+                    channelId: target.id,
+                });
+            } else {
+                // A place invite has no waiting screen — its link screen shows
+                // the link for sharing, as the web flow does.
+                useInviteLinkStore.getState().open(view.deeplink);
+            }
         } catch {
             toast({ title: t('invite.send.failed'), variant: 'destructive' });
             setError(t('invite.send.failedBody'));
@@ -85,9 +95,9 @@ export const SendInviteDialog = () => {
     };
 
     return (
-        <Dialog open={channelId !== null} onOpenChange={handleOpenChange}>
+        <Dialog open={target !== null} onOpenChange={handleOpenChange}>
             <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
-                <DialogTitle>{t('invite.send.title', { channel: channelName })}</DialogTitle>
+                <DialogTitle>{t('invite.send.title', { channel: target?.name ?? '' })}</DialogTitle>
                 <DialogDescription>{t('invite.send.subtitle')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
                     <div className="flex flex-col gap-1.5">

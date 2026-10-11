@@ -63,11 +63,10 @@ export const ChannelRowMenu = ({
 
     const openSettings = useChannelSettingsStore(s => s.open);
     const openSendInvite = useSendInviteStore(s => s.open);
-    // Invite rows are relay-scoped (the invite repository is cid-gated to the
-    // default cloud), so the entry hides everywhere else instead of opening a
-    // dialog whose create can only fail.
-    const { selectedCloudId } = runtime.session.useSessionSelection();
-    const canInvite = !isDm && selectedCloudId === 'default';
+    // Sending rides the relay slot (`invite.*` is relay-pinned), so it works
+    // from any cloud — no cloud gate. DMs alone are out: a 1:1 invite is the
+    // room the recipient is already in.
+    const canInvite = !isDm;
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     // Same writer as the settings panel (local pref + announced server sync).
     const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
@@ -145,7 +144,7 @@ export const ChannelRowMenu = ({
                         <MailPlus size={14} aria-hidden />
                         {t('invite.send.open')}
                     </ContextMenuItem>
-                )}
+                )}{' '}
                 <ContextMenuSeparator />
                 <ContextMenuItem onSelect={() => openDialog('leave')}>
                     <LogOut size={14} aria-hidden />

@@ -1,6 +1,7 @@
 export * from './ChannelActionDialogs';
 export * from './SendInviteDialog';
 export * from './InviteWaitingDialog';
+export * from './PlaceInviteLinkDialog';
 export * from './CreateChannelDialog';
 export * from './ConfirmDialog';
 export * from './RenameChannelDialog';

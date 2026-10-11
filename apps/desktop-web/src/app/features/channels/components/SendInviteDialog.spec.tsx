@@ -3,13 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const createInvite = vi.fn(async () => ({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' }));
+const requestPlaceInvite = vi.fn(async () => ({ id: 'inv-p', deeplink: 'https://dou.example/p/xyz' }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({
                 invite: { create: (...args: unknown[]) => createInvite(...args), cancel: vi.fn(), list: vi.fn() },
-                user: { requestInvite: vi.fn(), requestInviteBatch: vi.fn() },
+                user: {
+                    requestInvite: (...args: unknown[]) => requestPlaceInvite(...args),
+                    requestInviteBatch: vi.fn(),
+                },
             }),
         },
         session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },
@@ -32,10 +36,16 @@ import '../../../../i18n';
 
 import { useSendInviteStore } from '../stores/useSendInviteStore';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
+import { useInviteLinkStore } from '../stores/useInviteLinkStore';
 import { SendInviteDialog } from './SendInviteDialog';
 
 const openDialog = (channelId = 'C1', channelName = 'general') => {
     act(() => useSendInviteStore.getState().open(channelId, channelName));
+    render(<SendInviteDialog />);
+};
+
+const openPlaceDialog = (placeId = 'P1', placeName = 'Studio') => {
+    act(() => useSendInviteStore.getState().openPlace(placeId, placeName));
     render(<SendInviteDialog />);
 };
 
@@ -44,8 +54,10 @@ describe('SendInviteDialog', () => {
         cleanup();
         vi.clearAllMocks();
         createInvite.mockResolvedValue({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' });
-        useSendInviteStore.setState({ channelId: null, channelName: '' });
+        requestPlaceInvite.mockResolvedValue({ id: 'inv-p', deeplink: 'https://dou.example/p/xyz' });
+        useSendInviteStore.getState().close();
         useInviteWaitingStore.getState().close();
+        useInviteLinkStore.getState().close();
     });
 
     it('blocks an invalid phone with an inline error and sends nothing', () => {
@@ -87,12 +99,33 @@ describe('SendInviteDialog', () => {
             phone: '+821012345678',
             name: 'Ada',
             channelId: 'C1',
+            expiresDays: 1,
         });
         expect(copy).toHaveBeenCalledWith('https://dou.example/i/abc');
-        expect(useSendInviteStore.getState().channelId).toBeNull();
+        expect(useSendInviteStore.getState().target).toBeNull();
         // The send lands on the waiting dialog with the recipient's memory.
         expect(useInviteWaitingStore.getState().inviteId).toBe('inv-1');
         act(() => useInviteWaitingStore.getState().close());
+    });
+
+    // A place invite names no room — and lands on the link dialog, not the waiting one.
+    it('sends a place-bound invite and opens its link', async () => {
+        openPlaceDialog();
+
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ada' } });
+        fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+821012345678' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(requestPlaceInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: 'Ada' });
+        expect(createInvite).not.toHaveBeenCalled();
+        expect(copy).toHaveBeenCalledWith('https://dou.example/p/xyz');
+        expect(useInviteLinkStore.getState().link).toBe('https://dou.example/p/xyz');
+        expect(useInviteWaitingStore.getState().inviteId).toBeNull();
+        act(() => useInviteLinkStore.getState().close());
     });
 
     it('says when the server answers without a link', async () => {

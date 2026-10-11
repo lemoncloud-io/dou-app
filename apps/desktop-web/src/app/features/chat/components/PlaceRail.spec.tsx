@@ -10,6 +10,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type * as SharedModule from '../../../shared';
 import type * as ConfirmDialogModule from '../../channels/components/ConfirmDialog';
+import type * as SendInviteStoreModule from '../../channels/stores/useSendInviteStore';
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -30,14 +31,19 @@ vi.mock('../../../shared', async () => ({
 }));
 vi.mock('../../auth', () => ({ useJoinDialogStore: () => vi.fn() }));
 // The real confirmation, taken from its own file: the barrel beside it pulls in the channel screens.
+// The real invite store likewise: the menu opens the sender through it.
 vi.mock('../../channels', async () => ({
     ConfirmDialog: (await vi.importActual<typeof ConfirmDialogModule>('../../channels/components/ConfirmDialog'))
         .ConfirmDialog,
+    useSendInviteStore: (
+        await vi.importActual<typeof SendInviteStoreModule>('../../channels/stores/useSendInviteStore')
+    ).useSendInviteStore,
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
 import '../../../../i18n';
 import { PLACE_MAX } from '../utils';
+import { useSendInviteStore } from '../../channels/stores/useSendInviteStore';
 import { PlaceRail } from './PlaceRail';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -156,6 +162,16 @@ describe('PlaceRail place menu', () => {
         openMenu(i18next.t('place.home'));
         expect(editItem()).toBeNull();
         expect(deleteItem()).toBeNull();
+    });
+
+    // Sending rides the relay slot: the entry shows on every managed place.
+    it('opens the place invite sender for the right-clicked place', () => {
+        renderRail();
+        openMenu('Design');
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('invite.send.open') }));
+
+        expect(useSendInviteStore.getState().target).toEqual({ kind: 'place', id: 'place-1', name: 'Design' });
+        act(() => useSendInviteStore.getState().close());
     });
 });
 

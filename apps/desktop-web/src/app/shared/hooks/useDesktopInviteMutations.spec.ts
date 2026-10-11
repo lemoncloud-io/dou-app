@@ -45,6 +45,7 @@ describe('useDesktopInviteMutations', () => {
             phone: '+821012345678',
             name: 'Ada',
             channelId: 'C1',
+            expiresDays: 1,
         });
         expect(view).toEqual({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' });
     });

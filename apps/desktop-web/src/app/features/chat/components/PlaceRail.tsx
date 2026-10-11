@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, Pencil, Plus, Trash2, User } from 'lucide-react';
+import { Home, MailPlus, Pencil, Plus, Trash2, User } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
 
-import { ConfirmDialog } from '../../channels';
+import { ConfirmDialog, useSendInviteStore } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
 import { isAtPlaceLimit, isManagedPlace, PLACE_MAX, placeFailure, type PlaceFailure } from '../utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -67,6 +67,51 @@ const DELETE_FAILURE_KEY: Record<PlaceFailure, string> = {
 };
 
 const tileInitial = (name: string): string => name.trim().charAt(0).toUpperCase() || '#';
+
+/**
+ * One managed place's context-menu items. Sending rides the relay slot, so the
+ * invite entry needs no cloud gate — only a managed place to invite into.
+ */
+const PlaceTileMenu = ({
+    place,
+    disabled,
+    onEditPlace,
+    onDeletePlace,
+}: {
+    place: DomainPlace;
+    disabled?: boolean;
+    onEditPlace?: (placeId: string) => void;
+    onDeletePlace?: () => void;
+}) => {
+    const { t } = useTranslation();
+    const openPlaceInvite = useSendInviteStore(s => s.openPlace);
+    return (
+        <>
+            {onEditPlace && (
+                <ContextMenuItem disabled={disabled} onSelect={() => onEditPlace(place.id)}>
+                    <Pencil size={14} aria-hidden />
+                    {t('place.edit.action')}
+                </ContextMenuItem>
+            )}
+            <ContextMenuItem disabled={disabled} onSelect={() => openPlaceInvite(place.id, place.name ?? place.id)}>
+                <MailPlus size={14} aria-hidden />
+                {t('invite.send.open')}
+            </ContextMenuItem>
+            {/* Locked during a switch as well: deleting the place
+                the session is in starts a switch of its own. */}
+            {onDeletePlace && (
+                <ContextMenuItem
+                    disabled={disabled}
+                    onSelect={onDeletePlace}
+                    className="text-destructive focus:text-destructive"
+                >
+                    <Trash2 size={14} aria-hidden />
+                    {t('place.delete.action')}
+                </ContextMenuItem>
+            )}
+        </>
+    );
+};
 
 interface PlaceTileProps {
     id: string;
@@ -306,29 +351,12 @@ export const PlaceRail = ({
                                         // The relay subscription row shares the list and is nobody's
                                         // to edit or delete, so it gets no menu.
                                         canManagePlaces && isManagedPlace(place) && (onEditPlace || onDeletePlace) ? (
-                                            <>
-                                                {onEditPlace && (
-                                                    <ContextMenuItem
-                                                        disabled={isSwitching}
-                                                        onSelect={() => onEditPlace(place.id)}
-                                                    >
-                                                        <Pencil size={14} aria-hidden />
-                                                        {t('place.edit.action')}
-                                                    </ContextMenuItem>
-                                                )}
-                                                {/* Locked during a switch as well: deleting the place
-                                                    the session is in starts a switch of its own. */}
-                                                {onDeletePlace && (
-                                                    <ContextMenuItem
-                                                        disabled={isSwitching}
-                                                        onSelect={() => askToDelete(place)}
-                                                        className="text-destructive focus:text-destructive"
-                                                    >
-                                                        <Trash2 size={14} aria-hidden />
-                                                        {t('place.delete.action')}
-                                                    </ContextMenuItem>
-                                                )}
-                                            </>
+                                            <PlaceTileMenu
+                                                place={place}
+                                                disabled={isSwitching}
+                                                onEditPlace={onEditPlace}
+                                                onDeletePlace={onDeletePlace ? () => askToDelete(place) : undefined}
+                                            />
                                         ) : undefined
                                     }
                                 />
