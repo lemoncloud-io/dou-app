@@ -15,11 +15,13 @@ import type { ContactsReadResult, IDeviceService } from './types';
 export class DeviceService implements IDeviceService {
     constructor(private readonly logger: ILogService) {}
 
-    async openSettings(): Promise<void> {
+    async openSettings(): Promise<boolean> {
         try {
             await Linking.openSettings();
+            return true;
         } catch (error) {
             this.logger.error('DEVICE', 'Failed to open settings', error);
+            return false;
         }
     }
 

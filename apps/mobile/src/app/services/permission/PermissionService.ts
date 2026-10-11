@@ -93,4 +93,23 @@ export class PermissionService implements IPermissionService {
             return false;
         }
     }
+
+    async isBlocked(type: AppPermissionType): Promise<boolean> {
+        try {
+            if (type === 'NOTIFICATIONS') {
+                const { status } = await checkNotifications();
+                return status === RESULTS.BLOCKED;
+            }
+
+            const permission: Permission | null = PERMISSION_MAP[type];
+            if (!permission) return false;
+
+            const result = await check(permission);
+            this.logger.info('PERMISSION', `Block check ${type}: ${result}`);
+            return result === RESULTS.BLOCKED;
+        } catch (error) {
+            this.logger.error('PERMISSION', `Block check failed: ${type}`, error);
+            return false;
+        }
+    }
 }

@@ -10,7 +10,7 @@ export interface ContactsReadResult {
 }
 
 export interface IDeviceService {
-    openSettings(): Promise<void>;
+    openSettings(): Promise<boolean>;
     openShareSheet(data: { title?: string; message?: string; url?: string }): Promise<ShareAction>;
     openDocument(allowMultiSelection?: boolean): Promise<DocumentPickerResponse[]>;
     getContacts(): Promise<ContactsReadResult>;

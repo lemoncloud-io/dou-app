@@ -12,7 +12,16 @@ export const useDeviceHandler = () => {
 
     const handleOpenSettings = useCallback(
         async (_message: WebMessageData<'OpenSettings'>) => {
-            await deviceService.openSettings();
+            // A "go to Settings" button that silently does nothing strands the
+            // reader the BLOCKED status just sent to Settings.
+            const opened = await deviceService.openSettings();
+            if (!opened) {
+                return {
+                    type: 'OnOpenSettings' as const,
+                    success: false,
+                    error: { code: 'SETTINGS_ERROR', message: 'Could not open the system settings.' },
+                };
+            }
             return { type: 'OnOpenSettings' as const, success: true };
         },
         [deviceService]

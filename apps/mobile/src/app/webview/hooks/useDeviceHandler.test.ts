@@ -6,6 +6,7 @@ const deviceService = {
     openDocument: jest.fn(async () => [
         { uri: 'file:///doc/report.pdf', name: 'report.pdf', type: 'application/pdf', size: 42 },
     ]),
+    openSettings: jest.fn(async () => true),
 };
 const logService = { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() };
 
@@ -63,5 +64,28 @@ describe('useDeviceHandler handleOpenDocument', () => {
 
         expect(res.success).toBe(true);
         expect(readFile).not.toHaveBeenCalled();
+    });
+
+    it('reports opening the system settings', async () => {
+        const res: any = await renderHook(() => useDeviceHandler()).result.current.handleOpenSettings({
+            type: 'OpenSettings',
+            data: {},
+        } as any);
+
+        expect(res).toEqual({ type: 'OnOpenSettings', success: true });
+    });
+
+    // The BLOCKED permission status sends the reader to Settings; a button that
+    // silently does nothing strands them there.
+    it('reports when the system settings cannot be opened', async () => {
+        deviceService.openSettings.mockResolvedValueOnce(false);
+
+        const res: any = await renderHook(() => useDeviceHandler()).result.current.handleOpenSettings({
+            type: 'OpenSettings',
+            data: {},
+        } as any);
+
+        expect(res.success).toBe(false);
+        expect(res.error.code).toBe('SETTINGS_ERROR');
     });
 });
