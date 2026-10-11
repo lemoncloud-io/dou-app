@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 const listInvites = vi.fn(async (): Promise<MyInviteView[]> => []);
@@ -178,6 +178,20 @@ describe('InviteWaitingDialog', () => {
 
         await screen.findByText('Checking the invite…');
         expect(screen.queryByRole('button', { name: 'Cancel invite' })).toBeNull();
+    });
+
+    it('keeps the dialog open with an error when cancel and the re-list both fail', async () => {
+        cancelInvite.mockRejectedValueOnce(new Error('network down'));
+        listInvites.mockResolvedValueOnce([pendingRow()]).mockRejectedValueOnce(new Error('network down'));
+        openWaiting();
+        await screen.findByText('Waiting for Ada');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel invite' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Yes, cancel' }));
+
+        // The failed re-ask is not "gone": the dialog stays for a retry.
+        await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
+        expect(useInviteWaitingStore.getState().inviteId).toBe('inv-1');
     });
 
     it('sends cancel once on a double confirm', async () => {
