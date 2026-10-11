@@ -786,7 +786,11 @@ export const MessageList = ({
                 {!hasMore && !isLoadingOlder && intro}
                 {/* Windowed rows: only the viewport window mounts, spacers hold the rest.
                     Sticky date pills are flat siblings and hand over by stacking. */}
-                {topSpacer > 0 && <div aria-hidden data-feed-spacer="top" style={{ height: topSpacer }} />}
+                {/* shrink-0: the feed is a flex column, and an empty div there shrinks to 0 px once the
+                    content overflows — the spacer would hold no height at all. */}
+                {topSpacer > 0 && (
+                    <div aria-hidden data-feed-spacer="top" className="shrink-0" style={{ height: topSpacer }} />
+                )}
                 {rows.slice(win.start, win.end).map(row => {
                     if (row.kind === 'date') {
                         return <DateSeparator key={row.key} rowKey={row.key} timestamp={row.timestamp} />;
@@ -863,7 +867,9 @@ export const MessageList = ({
                         />
                     );
                 })}
-                {bottomSpacer > 0 && <div aria-hidden data-feed-spacer="bottom" style={{ height: bottomSpacer }} />}
+                {bottomSpacer > 0 && (
+                    <div aria-hidden data-feed-spacer="bottom" className="shrink-0" style={{ height: bottomSpacer }} />
+                )}
                 {/* No reply is showing yet, so there is no divider to hold the row: it stands under the root. */}
                 {olderReplies && !rows.some(row => row.kind === 'replies') && olderReplies}
                 <div ref={bottomRef} />

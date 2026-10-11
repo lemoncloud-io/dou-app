@@ -9,7 +9,13 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { lastChatNoOf, useChannels, useDesktopChannelMutations, useReadCursorStore } from '../../../shared';
+import {
+    lastChatNoOf,
+    useChannelLabels,
+    useChannels,
+    useDesktopChannelMutations,
+    useReadCursorStore,
+} from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { isChannelOwner } from '../../channels/utils/isChannelOwner';
 
@@ -30,6 +36,8 @@ export const PlaceChannelsPage = () => {
     const { placeId } = useParams<{ placeId: string }>();
     const { channels, isLoading } = useChannels(placeId ?? undefined);
     const myUid = runtime.session.useSessionIdentity().userId;
+    // The sidebar's naming: a 1:1 reads as its person, not as its raw `uid@uid` room name.
+    const labelOf = useChannelLabels(channels);
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScopeKey(selectedCloudId, placeId));
     const { deleteChannel, leaveChannel } = useDesktopChannelMutations();
@@ -126,6 +134,7 @@ export const PlaceChannelsPage = () => {
                         <ul className="flex flex-col gap-1">
                             {channels.map(channel => {
                                 const id = channel.id ?? '';
+                                const label = labelOf(channel);
                                 const owned = isChannelOwner(channel, myUid);
                                 const remove = owned
                                     ? { action: 'delete' as const, label: t('place.manage.deleteChannel') }
@@ -139,11 +148,11 @@ export const PlaceChannelsPage = () => {
                                             type="checkbox"
                                             checked={selectedIds.includes(id)}
                                             onChange={() => toggleSelected(id)}
-                                            aria-label={t('place.manage.select', { name: channel.name ?? id })}
+                                            aria-label={t('place.manage.select', { name: label })}
                                             className="h-4 w-4 shrink-0 accent-primary"
                                         />
                                         <span className="min-w-0 flex-1 truncate text-callout text-foreground">
-                                            {channel.name ?? id}
+                                            {label}
                                         </span>
                                         {(channel.unreadCount ?? 0) > 0 && (
                                             <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
@@ -153,7 +162,7 @@ export const PlaceChannelsPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => togglePinned(id)}
-                                            aria-label={t('place.manage.pinOne', { name: channel.name ?? id })}
+                                            aria-label={t('place.manage.pinOne', { name: label })}
                                             aria-pressed={pinnedIds.includes(id)}
                                             className="focus-ring tactile shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                                         >
@@ -170,7 +179,7 @@ export const PlaceChannelsPage = () => {
                                             onClick={() =>
                                                 setConfirmTarget({
                                                     id,
-                                                    name: channel.name ?? id,
+                                                    name: label,
                                                     action: remove.action,
                                                 })
                                             }

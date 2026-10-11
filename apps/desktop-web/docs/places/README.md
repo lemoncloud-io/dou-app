@@ -39,7 +39,7 @@ route, and without its own copies the buttons would open nothing until the perso
 ## Managing channels
 
 `PlaceChannelsPage` lists the channels of the place in the URL (`useChannels`), each row with a
-checkbox, its name, an unread count when there is one, a pin star and a remove button. The back
+checkbox, its name (named as the sidebar names it, so a 1:1 reads as the other person), an unread count when there is one, a pin star and a remove button. The back
 button returns to wherever the person came from.
 
 ### Bulk actions

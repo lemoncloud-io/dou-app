@@ -103,6 +103,17 @@ describe('SearchDialog scope', () => {
         expect(screen.getByText(/Searching only this channel/)).toBeTruthy();
     });
 
+    it('hands the search the same narrowed channel list on every render', async () => {
+        await openWith('deploy', { channels: [channel, random], currentChannelId: 'c1' });
+        fireEvent.click(screen.getByRole('button', { name: 'This channel' }));
+        const narrowed = lastSearchedChannels();
+        fireEvent.change(screen.getByRole('combobox'), { target: { value: 'deploy plan' } });
+
+        // A fresh array per render reads as a new channel set, and the real search hook's
+        // effect then sets state on every render until React aborts the tree.
+        expect(lastSearchedChannels()).toBe(narrowed);
+    });
+
     it('stays place-wide when the open channel is not one of the searched ones', async () => {
         await openWith('deploy', { channels: [channel, random], currentChannelId: 'elsewhere' });
 

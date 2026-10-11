@@ -88,7 +88,12 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
     const [scope, setScope] = useState<SearchScope>('all');
     // The scope toggle only exists when the open channel is one of the searched ones.
     const currentChannel = currentChannelId ? channels.find(channel => channel.id === currentChannelId) : undefined;
-    const scopedChannels = scope === 'current' && currentChannel ? [currentChannel] : channels;
+    // Memoised: a fresh one-element array per render reads as a new channel set to the search
+    // and label hooks below, whose effects then set state — an endless render loop.
+    const scopedChannels = useMemo(
+        () => (scope === 'current' && currentChannel ? [currentChannel] : channels),
+        [scope, currentChannel, channels]
+    );
     const { results, isSearching, isTruncated, scannedCount, failedCount } = useMessageSearch(
         open ? query : '',
         scopedChannels

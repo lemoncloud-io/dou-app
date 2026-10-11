@@ -113,6 +113,9 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         const bottom = spacerHeight(container, 'bottom');
         expect(bottom).toBeTruthy();
         expect(parseFloat(bottom ?? '')).toBeGreaterThan(0);
+        // The feed is a flex column: a spacer that may shrink collapses to 0 px in a real
+        // layout (jsdom has none to show it), and the scrollbar loses the unmounted rows.
+        expect(container.querySelector('[data-feed-spacer="bottom"]')?.classList.contains('shrink-0')).toBe(true);
     });
 
     it('slides the window on scroll, spacing both ends', async () => {

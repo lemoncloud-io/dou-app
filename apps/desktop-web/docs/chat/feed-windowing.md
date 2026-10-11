@@ -14,6 +14,8 @@ overlaps the viewport plus 800 px of overscan above and below, so a fast scroll 
   uses the running average of the measured ones (120 px before anything is measured).
 - Spacer heights are prefix sums over those heights, with the 8 px inter-row gap folded in. The gap is
   rem-based, so the sum can be off by a pixel under zoom; the overscan absorbs it.
+- The spacers are `shrink-0`. The feed is a flex column, and an empty div in it shrinks to 0 px as soon
+  as the content overflows, which would drop every unmounted row from the scroll height.
 - Before the first real layout — first paint, a hidden tab, or a test, where jsdom has no layout — the
   whole feed is mounted, exactly as before windowing. Landing refs and existing tests see every row.
 
