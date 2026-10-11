@@ -102,6 +102,12 @@ interface MessageListProps {
     loadFailed?: boolean;
     /** Try the first page again, offered beside `loadFailed`. */
     onRetryLoad?: () => void;
+    /**
+     * The last older-history page failed. The next scroll retries it, but a
+     * failure nothing shows reads as a room that simply ends — the pane shows a
+     * retry row at the top instead. Retry reuses `onLoadOlder`.
+     */
+    loadOlderFailed?: boolean;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -150,6 +156,7 @@ export const MessageList = ({
     intro,
     loadFailed,
     onRetryLoad,
+    loadOlderFailed,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -772,6 +779,22 @@ export const MessageList = ({
                 {isLoadingOlder && (
                     <div className="flex justify-center py-2" role="status" aria-label={t('chat.loading')}>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
+                    </div>
+                )}
+                {/* A failed older page stays retried by scrolls, but nothing may show it:
+                    without this row the history reads as simply ended. */}
+                {loadOlderFailed && !isLoadingOlder && onLoadOlder && (
+                    <div className="flex items-center justify-center gap-2 py-2">
+                        <p role="status" className="text-caption text-muted-foreground">
+                            {t('chat.loadOlderFailed')}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={onLoadOlder}
+                            className="focus-ring tactile rounded-lg bg-muted px-3 py-1.5 text-caption font-medium text-foreground transition-colors hover:bg-accent"
+                        >
+                            {t('chat.retry')}
+                        </button>
                     </div>
                 )}
                 {!hasMore && !isLoadingOlder && intro}

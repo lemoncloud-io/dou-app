@@ -228,6 +228,7 @@ export const en = {
     'chat.failed': 'Not delivered',
     'chat.loadFailed': 'Could not load messages.',
     'chat.retry': 'Retry',
+    'chat.loadOlderFailed': "Couldn't load older messages.",
     'chat.reaction.add': 'Add reaction',
     'chat.reaction.who': '{{emoji}} · {{names}}',
     'chat.reaction.quick': 'React with {{emoji}}',
@@ -356,6 +357,7 @@ export const en = {
     'sidebar.draft': 'Draft',
     'sidebar.muted': 'Notifications off',
     'sidebar.markRead': 'Mark as read',
+    'sidebar.markReadFailed': 'Could not mark as read.',
     'sidebar.notifications': 'Notifications',
     'sidebar.noMatches': 'No channels match your search',
     // Screen-reader text for the sidebar unread markers. The channel dot
@@ -428,6 +430,7 @@ export const en = {
     'settings.startup': 'Startup',
     'settings.launchAtLogin': 'Launch at login',
     'settings.launchAtLoginHint': 'Start DoU automatically when you sign in to this computer.',
+    'settings.launchAtLoginFailed': 'Could not change this setting.',
     // 'offline' now means the browser itself reports no network, so reconnecting is the one
     // thing that cannot be happening. A down socket on a working network says 'reconnecting'.
     'connection.offline': 'No network connection',
@@ -629,6 +632,7 @@ export const en = {
     'search.hint': 'Type at least 2 characters.',
     'search.searching': 'Searching…',
     'search.noResults': 'No match in the messages this device has loaded.',
+    'search.partialFailed': 'Some channels could not be searched.',
     'search.nothingLoaded':
         "This device hasn't loaded any messages yet. Open a channel to load its messages, then search again.",
     'search.channelOffers': 'Channels with that name',

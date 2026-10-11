@@ -853,6 +853,51 @@ describe('MessageList failed send', () => {
     });
 });
 
+describe('MessageList older page failed', () => {
+    afterEach(cleanup);
+
+    // A failed older page is retried by the next scroll, but nothing showed it — the
+    // history read as simply ended. The row says so and retries on demand.
+    it('says older messages did not load and retries through onLoadOlder', () => {
+        const onLoadOlder = vi.fn();
+        render(
+            <MessageList
+                messages={[message(60, 'ada', 'newest')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                onLoadOlder={onLoadOlder}
+                hasMore
+                loadOlderFailed
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByRole('status').textContent).toContain("Couldn't load older messages.");
+        // Mounting with no layout fires the auto-fill load once; the retry is the next call.
+        onLoadOlder.mockClear();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows no retry row while the retry is in flight', () => {
+        render(
+            <MessageList
+                messages={[message(60, 'ada', 'newest')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                onLoadOlder={vi.fn()}
+                hasMore
+                isLoadingOlder
+                loadOlderFailed
+            />,
+            { wrapper }
+        );
+
+        expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
+});
 describe('MessageList first page failed', () => {
     afterEach(cleanup);
 

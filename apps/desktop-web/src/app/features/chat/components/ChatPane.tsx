@@ -95,10 +95,8 @@ export const ChatPane = ({
     const viewer = useMessageViewer(channel);
     const placeProfiles = useSiteProfileMap();
     // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
-    const { messages, isLoading, loadFailed, retryLoad, loadOlder, hasMore, isLoadingOlder } = useChats(
-        channelId,
-        channel ? lastChatNoOf(channel) : undefined
-    );
+    const { messages, isLoading, loadFailed, retryLoad, loadOlder, loadOlderFailed, hasMore, isLoadingOlder } =
+        useChats(channelId, channel ? lastChatNoOf(channel) : undefined);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const clearChannel = useSelectedChannelStore(s => s.clearChannel);
@@ -404,6 +402,7 @@ export const ChatPane = ({
                     onLoadOlder={handleLoadOlder}
                     hasMore={hasMore}
                     isLoadingOlder={isLoadingOlder}
+                    loadOlderFailed={loadOlderFailed}
                     scrollSignal={sendTick}
                     openAtBottom={openAtBottom}
                     threadMeta={threadIndex}
