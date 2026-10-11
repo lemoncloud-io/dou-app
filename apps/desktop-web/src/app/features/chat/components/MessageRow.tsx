@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -57,7 +57,6 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
-import { MessageEditor } from './MessageEditor';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
@@ -194,6 +193,16 @@ const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
 
 /** Structural equality for one small map entry (a reaction tally, a thread meta). */
 const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
+
+// The inline edit box shares the composer's Lexical chunk (LazyComposer's import), so opening
+// a room never pays for the editor — it loads on the first edit instead.
+const MessageEditor = lazy(() => import('./MessageEditor').then(module => ({ default: module.MessageEditor })));
+
+const MessageEditorFallback = () => (
+    <div className="rounded-xl border border-control-border bg-background p-3" aria-hidden>
+        <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+    </div>
+);
 
 const formatTime = formatClockTime;
 
@@ -559,15 +568,17 @@ export const MessageRow = memo(
                                         // typo, and it takes the whole message column: a text
                                         // field narrower than the message it replaces reads as a
                                         // different thing.
-                                        <MessageEditor
-                                            initialContent={content}
-                                            mentionables={mentionables}
-                                            onSave={next => {
-                                                closeEditor();
-                                                if (message.id) editMessage(message.id, next);
-                                            }}
-                                            onCancel={closeEditor}
-                                        />
+                                        <Suspense fallback={<MessageEditorFallback />}>
+                                            <MessageEditor
+                                                initialContent={content}
+                                                mentionables={mentionables}
+                                                onSave={next => {
+                                                    closeEditor();
+                                                    if (message.id) editMessage(message.id, next);
+                                                }}
+                                                onCancel={closeEditor}
+                                            />
+                                        </Suspense>
                                     ) : blocks ? (
                                         // Block Kit owns its own layout, so it replaces the <p>
                                         // rather than sitting inside one: a header or a divider

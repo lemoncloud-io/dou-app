@@ -454,8 +454,10 @@ describe('MessageList', () => {
         const editorBody = () =>
             screen.getByRole('textbox', { name: 'Edit message' }) as HTMLElement & { __lexicalEditor?: LexicalEditor };
         // The editor loads its document in a microtask; typing before that would land in an empty box.
+        // It also arrives as a lazy chunk, so wait for the textbox rather than a single flush.
         const openEditor = async () => {
             clickRowMenuItem('Edit message');
+            await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Edit message' })).not.toBeNull());
             await act(async () => {
                 await Promise.resolve();
             });

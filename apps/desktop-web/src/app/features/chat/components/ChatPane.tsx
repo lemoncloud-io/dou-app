@@ -50,12 +50,12 @@ import {
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
-import { Composer } from './Composer';
 import { useShellSidebar } from './DesktopLayout';
 import { JumpReturnBar } from './JumpReturnBar';
 import { MessageList } from './MessageList';
 import { HEADER_ICON_BUTTON } from './headerStyles';
 import { AttachmentDropOverlay } from './images';
+import { LazyComposer } from './LazyComposer';
 
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
@@ -416,7 +416,7 @@ export const ChatPane = ({
                     loadFailed={loadFailed}
                     onRetryLoad={retryLoad}
                 />
-                <Composer
+                <LazyComposer
                     onSend={handleSend}
                     channelId={channelId}
                     placeholder={composerPlaceholder}

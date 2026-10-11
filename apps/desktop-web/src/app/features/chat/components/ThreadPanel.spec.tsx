@@ -109,6 +109,7 @@ describe('ThreadPanel', () => {
         loadOlder.mockReset().mockResolvedValue(true);
         hasMore = false;
         useComposerSend.mockClear();
+        composerOnSend = undefined;
     });
 
     describe('a root older than the loaded window', () => {
@@ -370,13 +371,15 @@ describe('ThreadPanel', () => {
 
     // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the
     // reply is in flight cannot send it through the next cloud's socket.
-    it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", () => {
+    it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", async () => {
         messages = [chat(1, { content: 'root' })];
         const files = [new File(['a'], 'a.png', { type: 'image/png' })];
 
         render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
             wrapper,
         });
+        // The composer arrives a tick after the thread (lazy chunk) — wait for it.
+        await waitFor(() => expect(composerOnSend).toBeDefined());
         composerOnSend?.('reply', files);
 
         expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: 'C1', parentId: 'C1:1' });
