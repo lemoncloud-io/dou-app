@@ -380,6 +380,7 @@ export const MessageRow = memo(
             // list hover.
             <div
                 data-roving-group=""
+                data-row-key={group.key}
                 className={cn(
                     'group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70',
                     // The pointer is in the editor, not over the band: keep the band so the row reads as open.
