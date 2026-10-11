@@ -16,6 +16,7 @@ import {
     ContextMenuSubTrigger,
     ContextMenuTrigger,
 } from '@chatic/ui-kit/components/ui/context-menu';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore } from '../../channels';
 import { isDmBucket } from '../utils';
@@ -66,11 +67,15 @@ export const ChannelRowMenu = ({
     const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     // Same write as the read-receipt flush: optimistic local cursor first, the
-    // server read-chat best-effort behind it.
+    // server read-chat best-effort behind it. A failure is announced instead of
+    // swallowed: the badge clears locally either way, so silence reads as done
+    // while the next roster sync resurrects the unread with no explanation.
     const markRowRead = () => {
         if (lastChatNo <= 0) return;
         useReadCursorStore.getState().markRead(id, lastChatNo);
-        void joinRepository.readChat({ channelId: id, chatNo: lastChatNo }).catch(() => undefined);
+        void joinRepository.readChat({ channelId: id, chatNo: lastChatNo }).catch(() => {
+            toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
+        });
     };
 
     return (

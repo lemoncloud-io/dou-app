@@ -107,6 +107,13 @@ vi.mock('./QuickSwitcher', async () => {
 });
 vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
+// The menu toasts a failed mark-as-read instead of swallowing it; the spy is how a test sees it.
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    toast,
+}));
+
 import '../../../../i18n';
 import i18next from 'i18next';
 
@@ -524,6 +531,7 @@ describe('ChannelList row context menu (slice 05)', () => {
         // next test's DOM (the folded test then sees two "Channels" headers).
         cleanup();
         for (const fn of Object.values(menu)) if (typeof fn === 'function') fn.mockClear();
+        toast.mockClear();
         menu.useRealActions = false;
         act(() => {
             pinned.ids = [];
@@ -601,6 +609,20 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         expect(menu.markRead).toHaveBeenCalledWith('C2', 7);
         expect(menu.readChat).toHaveBeenCalledWith({ channelId: 'C2', chatNo: 7 });
+    });
+
+    // The badge clears locally either way, so a silent failure reads as done until the
+    // next roster sync resurrects the unread. The toast is what explains it.
+    it('announces a mark-as-read whose server sync fails', async () => {
+        menu.readChat.mockRejectedValueOnce(new Error('offline'));
+        const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7 } as DomainChannel;
+        renderList([general, unread]);
+
+        openRowMenu(/busy/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }));
+
+        await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+        expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
     });
 
     it('gates rename and delete to the owner', () => {
