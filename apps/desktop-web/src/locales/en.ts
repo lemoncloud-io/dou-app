@@ -536,6 +536,7 @@ export const en = {
     'channels.members.loading': 'Loading members…',
     'channels.members.empty': 'No members yet',
     'channels.members.failed': 'Could not load members.',
+    'channels.members.stale': 'Could not refresh members — showing an older list.',
     'channels.members.search': 'Search members',
     'channels.members.noMatches': 'No members match your search',
     'channels.members.owner': 'Owner',

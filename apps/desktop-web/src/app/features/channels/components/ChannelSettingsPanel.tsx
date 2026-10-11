@@ -43,6 +43,10 @@ interface ChannelSettingsPanelProps {
     members: ChannelMember[];
     membersLoading: boolean;
     membersError: Error | null;
+    /** A failed incremental sync behind an otherwise shown roster; never hides it. */
+    membersSyncError?: Error | null;
+    /** Re-runs the member loads behind both roster error states. */
+    onRetryMembers?: () => void;
 }
 
 /**
@@ -59,6 +63,8 @@ export const ChannelSettingsPanel = ({
     members,
     membersLoading,
     membersError,
+    membersSyncError = null,
+    onRetryMembers,
 }: ChannelSettingsPanelProps) => {
     const { t } = useTranslation();
     const close = useChannelSettingsStore(s => s.close);
@@ -198,6 +204,8 @@ export const ChannelSettingsPanel = ({
                             members={filteredMembers}
                             isLoading={membersLoading}
                             error={membersError}
+                            syncError={membersSyncError}
+                            onRetry={onRetryMembers}
                             myUid={myUid}
                             canKick={isOwner}
                             onKick={openKick}

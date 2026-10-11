@@ -531,6 +531,7 @@ export const ko: EnTranslation = {
     'channels.members.loading': '멤버 불러오는 중…',
     'channels.members.empty': '아직 멤버가 없어요',
     'channels.members.failed': '멤버를 불러오지 못했어요.',
+    'channels.members.stale': '멤버를 새로고침하지 못했어요 — 이전 목록을 보여줍니다.',
     'channels.members.search': '멤버 검색',
     'channels.members.noMatches': '검색과 일치하는 멤버가 없어요',
     'channels.members.owner': '소유자',
