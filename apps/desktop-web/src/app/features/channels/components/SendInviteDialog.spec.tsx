@@ -31,6 +31,7 @@ vi.mock('../../../shared/hooks/useCopyToClipboard', () => ({
 import '../../../../i18n';
 
 import { useSendInviteStore } from '../stores/useSendInviteStore';
+import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
 import { SendInviteDialog } from './SendInviteDialog';
 
 const openDialog = (channelId = 'C1', channelName = 'general') => {
@@ -44,6 +45,7 @@ describe('SendInviteDialog', () => {
         vi.clearAllMocks();
         createInvite.mockResolvedValue({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' });
         useSendInviteStore.setState({ channelId: null, channelName: '' });
+        useInviteWaitingStore.getState().close();
     });
 
     it('blocks an invalid phone with an inline error and sends nothing', () => {
@@ -88,6 +90,9 @@ describe('SendInviteDialog', () => {
         });
         expect(copy).toHaveBeenCalledWith('https://dou.example/i/abc');
         expect(useSendInviteStore.getState().channelId).toBeNull();
+        // The send lands on the waiting dialog with the recipient's memory.
+        expect(useInviteWaitingStore.getState().inviteId).toBe('inv-1');
+        act(() => useInviteWaitingStore.getState().close());
     });
 
     it('says when the server answers without a link', async () => {

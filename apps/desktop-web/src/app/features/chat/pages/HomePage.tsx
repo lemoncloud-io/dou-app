@@ -8,6 +8,7 @@ import {
     CreateChannelDialog,
     NewDmDialog,
     SendInviteDialog,
+    InviteWaitingDialog,
     useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
@@ -869,6 +870,7 @@ export const HomePage = () => {
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />
             <SendInviteDialog />
+            <InviteWaitingDialog />
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}

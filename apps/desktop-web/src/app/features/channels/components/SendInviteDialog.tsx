@@ -15,6 +15,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { parseInvitePhone, useCopyToClipboard, useDesktopInviteMutations } from '../../../shared';
 import { useSendInviteStore } from '../stores/useSendInviteStore';
+import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
 
 /**
  * Invite sender dialog: name + phone number into the channel it was opened
@@ -59,14 +60,24 @@ export const SendInviteDialog = () => {
         setError(null);
         try {
             const view = await createInvite({ phone: parsed.e164, name: name.trim(), channelId });
-            if (!view.deeplink) {
+            if (!view.id || !view.deeplink) {
                 setError(t('invite.send.missingLink'));
                 return;
             }
+            const recipient = name.trim();
             copyLink(view.deeplink);
-            toast({ title: t('invite.send.sent', { name: name.trim() }) });
+            toast({ title: t('invite.send.sent', { name: recipient }) });
             reset();
             close();
+            // The send lands on the waiting dialog, as the web flow does: the
+            // invite's status (and its cancel/reissue) lives there.
+            useInviteWaitingStore.getState().open({
+                inviteId: view.id,
+                phone: parsed.e164,
+                name: recipient,
+                deeplink: view.deeplink,
+                channelId,
+            });
         } catch {
             toast({ title: t('invite.send.failed'), variant: 'destructive' });
             setError(t('invite.send.failedBody'));
