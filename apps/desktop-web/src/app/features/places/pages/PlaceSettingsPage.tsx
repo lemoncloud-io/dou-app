@@ -143,6 +143,21 @@ export const PlaceSettingsPage = () => {
                             </Button>
                         </div>
                     )}
+
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-callout font-medium text-foreground">{t('place.manage.open')}</span>
+                            <span className="text-caption text-muted-foreground">{t('place.manage.openHint')}</span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={t('place.manage.open')}
+                            onClick={() => navigate(`/places/${place.id}/channels`)}
+                        >
+                            {t('place.settings.edit')}
+                        </Button>
+                    </div>
                 </section>
             </div>
         </div>

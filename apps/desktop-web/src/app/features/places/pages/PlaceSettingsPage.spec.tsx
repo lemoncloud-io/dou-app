@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import type { DomainPlace } from '@chatic/data';
 
@@ -52,11 +52,21 @@ import { useEditPlaceProfileDialogStore } from '../../profile/stores/useEditPlac
 import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
 import { PlaceSettingsPage } from './PlaceSettingsPage';
 
+const navProbe = vi.hoisted(() => ({ path: '' }));
+
+// MemoryRouter keeps history in memory, so navigation is read here instead of window.location.
+const NavProbe = () => {
+    navProbe.path = useLocation().pathname;
+    return null;
+};
+
 const renderAt = (placeId: string) =>
     render(
         <MemoryRouter initialEntries={[`/places/${placeId}/settings`]}>
+            <NavProbe />
             <Routes>
                 <Route path="/places/:placeId/settings" element={<PlaceSettingsPage />} />
+                <Route path="*" element={<div data-testid="away" />} />
             </Routes>
         </MemoryRouter>
     );
@@ -114,5 +124,14 @@ describe('PlaceSettingsPage', () => {
         renderAt('p2');
 
         expect(screen.queryByText('Edit this place')).toBeNull();
+    });
+
+    it('opens the channel manager from its entry', () => {
+        navProbe.path = '';
+        renderAt('p1');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Manage channels' }));
+
+        expect(navProbe.path).toBe('/places/p1/channels');
     });
 });
