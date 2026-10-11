@@ -24,6 +24,12 @@ const emitUrl = (url: string) => {
     for (const handler of [...urlHandlers]) handler({ url });
 };
 
+// Lets the capture pass both initial-URL reads so the late wait is armed before
+// the test moves the clock or emits — acting earlier would hit nothing.
+const armLateWait = async () => {
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+};
+
 describe('DeepLinkManager cold start capture', () => {
     beforeEach(() => {
         jest.useFakeTimers();
@@ -40,12 +46,7 @@ describe('DeepLinkManager cold start capture', () => {
     it('returns null when no url arrives before the late wait expires', async () => {
         const manager = new DeepLinkManager();
         const pending = manager.getInitialUrl();
-        // Let the capture pass both initial-URL reads so the late wait is armed
-        // before the clock moves — advancing first would fire nothing.
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
+        await armLateWait();
 
         jest.advanceTimersByTime(500);
 
@@ -59,11 +60,7 @@ describe('DeepLinkManager cold start capture', () => {
         const manager = new DeepLinkManager();
         manager.subscribe(() => undefined);
         const pending = manager.getInitialUrl();
-        // Let the capture reach the late-url wait (past both initial-URL reads).
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
+        await armLateWait();
 
         emitUrl('chatic://chats/c1');
         jest.advanceTimersByTime(500);
@@ -71,27 +68,41 @@ describe('DeepLinkManager cold start capture', () => {
         await expect(pending).resolves.toBe('chatic://chats/c1');
     });
 
-    it('still forwards the late url to the router listener', async () => {
+    // The late url already reaches the cold-start dispatch through getInitialUrl;
+    // forwarding it to the router listener too navigated to it a second time.
+    it('does not forward a url claimed by the late wait to the router listener', async () => {
         const manager = new DeepLinkManager();
         const listener = jest.fn();
         manager.subscribe(listener);
         const pending = manager.getInitialUrl();
-        await Promise.resolve();
-        await Promise.resolve();
+        await armLateWait();
 
         emitUrl('chatic://chats/c1');
         jest.advanceTimersByTime(500);
 
         await expect(pending).resolves.toBe('chatic://chats/c1');
-        expect(listener).toHaveBeenCalledWith('chatic://chats/c1');
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('forwards a url event that arrives after the cold start settled', async () => {
+        const manager = new DeepLinkManager();
+        const listener = jest.fn();
+        manager.subscribe(listener);
+        const pending = manager.getInitialUrl();
+        await armLateWait();
+        jest.advanceTimersByTime(500);
+        await expect(pending).resolves.toBeNull();
+
+        emitUrl('chatic://chats/c2');
+
+        expect(listener).toHaveBeenCalledWith('chatic://chats/c2');
     });
 
     it('settles the wait when unsubscribed mid-capture', async () => {
         const manager = new DeepLinkManager();
         const unsubscribe = manager.subscribe(() => undefined);
         const pending = manager.getInitialUrl();
-        await Promise.resolve();
-        await Promise.resolve();
+        await armLateWait();
 
         unsubscribe();
         jest.advanceTimersByTime(500);

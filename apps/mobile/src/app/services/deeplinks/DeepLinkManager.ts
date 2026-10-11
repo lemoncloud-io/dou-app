@@ -146,11 +146,15 @@ export class DeepLinkManager {
             if (this.lateUrlResolve) {
                 // Cold start still inside the late-url wait: hand the url to getInitialUrl
                 // directly. finishColdStart alone only clears the timeout, which would leave
-                // the wait (and the initial-URL caller) pending forever.
+                // the wait (and the initial-URL caller) pending forever. The url then
+                // travels the cold-start path only; forwarding it to the router listener
+                // as well would navigate to it a second time as a warm start.
                 const resolve = this.lateUrlResolve;
                 this.lateUrlResolve = null;
                 resolve(url);
-            } else if (this.coldStartResolve) {
+                return;
+            }
+            if (this.coldStartResolve) {
                 this.trace('Forwarding late cold start URL to router listener', { url });
                 this.finishColdStart();
             }
