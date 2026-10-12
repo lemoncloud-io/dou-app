@@ -14,7 +14,6 @@ import { useWebViewNavigation } from './useWebViewNavigation';
  * line here.
  */
 const MOBILE_UNSUPPORTED = {
-    Ping: "Debug overlay's round-trip probe; the NOT_FOUND reply already proves the channel",
     ShowNotification: "Desktop's OS banner; the phone raises notifications from push, not on request",
     StartUpdateDownload: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)',
     RestartToUpdate: 'Desktop self-update; the phone updates through the store (OpenStore)',
@@ -76,17 +75,17 @@ const mountShell = (host: AppBridgeHost) =>
         useWebViewNavigation(host);
     });
 
-describe('mobile bridge contract', () => {
-    // Read off a real host, so `WebAppReady` — answered inside `AppBridgeHost` — counts too.
-    const registeredTypes = (): string[] => {
-        const register = jest.spyOn(AppBridgeHost.prototype, 'registerHandler');
-        const { unmount } = mountShell(new AppBridgeHost({ sendToWeb: jest.fn() }));
-        const types = register.mock.calls.map(call => call[0] as string);
-        unmount();
-        register.mockRestore();
-        return types;
-    };
+// Read off a real host, so `WebAppReady` and `Ping` — answered inside `AppBridgeHost` — count too.
+const registeredTypes = (): string[] => {
+    const register = jest.spyOn(AppBridgeHost.prototype, 'registerHandler');
+    const { unmount } = mountShell(new AppBridgeHost({ sendToWeb: jest.fn() }));
+    const types = register.mock.calls.map(call => call[0] as string);
+    unmount();
+    register.mockRestore();
+    return types;
+};
 
+describe('mobile bridge contract', () => {
     it('answers every request in the vocabulary, or lists it as unsupported', () => {
         const registered = new Set(registeredTypes());
 
@@ -209,6 +208,25 @@ describe('mobile bridge loopback', () => {
                 actualResponseType: 'OnFetchBadgeCount',
             })
         );
+    });
+
+    // What a web build reads to decide which controls to offer (photo save and share, perf traces):
+    // exactly the requests decided as handled above, each with its paired reply.
+    it('advertises in the handshake exactly the requests it answers', async () => {
+        const report = (await bridge.client.request({ type: 'WebAppReady', data: {} })).data;
+
+        const handled = VOCABULARY.filter(type => !UNSUPPORTED.includes(type));
+        expect([...report.supportedWebMessages].sort()).toEqual([...new Set(registeredTypes())].sort());
+        expect([...report.supportedWebMessages].sort()).toEqual([...handled].sort());
+        expect([...report.supportedAppMessages].sort()).toEqual(
+            [...new Set(handled.map(type => WEB_MESSAGE_RESPONSE_TYPE[type]))].sort()
+        );
+    });
+
+    it('answers Ping with Pong', async () => {
+        const reply = await bridge.client.request({ type: 'Ping', data: { payload: 'probe' } });
+
+        expect(reply).toEqual(expect.objectContaining({ type: 'Pong', success: true, data: { payload: 'probe' } }));
     });
 
     // What the list above promises the web: an answer, and the one it knows to fall back on.

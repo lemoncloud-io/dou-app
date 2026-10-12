@@ -23,6 +23,13 @@ export interface IAppBridgeHost {
      * no one is waiting on a response for — that response would otherwise just be discarded on
      * the web side, consuming bridge bandwidth and UI-thread time for nothing. See
      * `AppBridgeHost.processRequest`.
+     *
+     * The registered types are also what the `WebAppReady` reply advertises, read when the web asks.
+     * Register before the page can send it: a handler added later is answered, but a web build
+     * that decides from the handshake will not know it is there until the next one.
+     *
+     * `WebAppReady` and `Ping` are registered by the host itself; a shell that registers either
+     * replaces the host's, and unregistering it later leaves the request unanswered.
      */
     registerHandler<K extends WebMessageType>(
         type: K,

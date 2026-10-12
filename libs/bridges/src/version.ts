@@ -12,9 +12,11 @@
 //        takes MP4 and ShareFile the server's document formats.
 // 2.5.0: added KeepLibraryVideo and ReadVideoFrame (web -> app); ListPhotos and ListPhotoAlbums take
 //        `mediaTypes`, and a library item carries `mediaType` and `durationMs`.
-// 2.6.0: removed OpenModal, CloseModal, ShowLoader, HideLoader, SyncCredential and PopWebView, which
-//        no shell handled, so the handshake no longer advertises them.
-export const BRIDGE_VERSION = '2.6.0' as const;
+// 2.6.0: the WebAppReady reply lists the requests this host has handlers for, not the whole map; the
+//        host answers Ping itself.
+// 2.7.0: removed OpenModal, CloseModal, ShowLoader, HideLoader, SyncCredential and PopWebView from the
+//        vocabulary (web -> app), because no web build sent them and no shell handled them.
+export const BRIDGE_VERSION = '2.7.0' as const;
 
 /**
  * Protocol version currently spoken by this bridge runtime.

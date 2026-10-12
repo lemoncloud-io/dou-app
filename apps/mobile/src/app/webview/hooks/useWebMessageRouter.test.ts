@@ -70,8 +70,7 @@ describe('useWebMessageRouter', () => {
     const registered = (bridge: jest.Mocked<IAppBridgeHost>) => bridge.registerHandler.mock.calls.map(call => call[0]);
 
     // The web shows save and share only when the handshake lists both message names, and the
-    // handshake is built from the compiled message map rather than from this router. A type in the
-    // map with no handler here would be advertised to the web and then answer NOT_FOUND.
+    // handshake lists what this router registers. Without these two the buttons never appear.
     it('registers SaveToPhotoLibrary and ShareFile', () => {
         const bridge = createBridgeMock();
 

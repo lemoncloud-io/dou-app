@@ -23,9 +23,9 @@ import type { LogStoreReader } from '@chatic/bridges';
  * is enough to stop trying for the rest of the session.
  *
  * The handshake's `supportedWebMessages` is deliberately NOT used. It arrives
- * asynchronously and would race the first flush, and it is derived from the
- * installed build's compiled message map rather than from handlers actually
- * registered — so it can claim support that is not there. Learning from a real
+ * asynchronously and would race the first flush, and on a build whose bridge
+ * predates 2.6.0 it is derived from the compiled message map rather than from
+ * handlers actually registered — so it can claim support that is not there. Learning from a real
  * rejection has neither problem. Same reasoning as `NativeDBAdapter`'s
  * `batchReadUnsupported`.
  *
