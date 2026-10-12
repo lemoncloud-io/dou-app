@@ -42,12 +42,16 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
     // Cached rows the last search read, matching or not. Zero means the device has nothing loaded
     // for these channels yet (a cold start), which is a different empty result from "no match".
     const [scannedCount, setScannedCount] = useState<number | null>(null);
+    // Channels whose cache read failed. Their rows are missing from both results
+    // and scannedCount, so a "no match" over them is unreliable — callers say so.
+    const [failedCount, setFailedCount] = useState(0);
 
     useEffect(() => {
         const q = query.trim().toLowerCase();
         if (q.length < MIN_QUERY_LENGTH) {
             setResults([]);
             setScannedCount(null);
+            setFailedCount(0);
             setIsSearching(false);
             return;
         }
@@ -56,17 +60,25 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
         const timer = setTimeout(() => {
             void Promise.all(
                 channels.slice(0, SEARCH_MAX_CHANNELS).map(async channel => {
-                    if (!channel.id) return { scanned: 0, result: null };
-                    const page = await chatRepository
-                        .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
-                        .catch(() => null);
+                    if (!channel.id) return { scanned: 0, result: null, failed: false };
+                    let page: { list: DomainChat[] } | null;
+                    try {
+                        page = await chatRepository.cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT });
+                    } catch {
+                        // A channel that cannot be read is not a channel with no match.
+                        return { scanned: 0, result: null, failed: true };
+                    }
                     const rows = page?.list ?? [];
                     const all = rows.filter(isSearchable(q));
-                    if (all.length === 0) return { scanned: rows.length, result: null };
+                    if (all.length === 0) return { scanned: rows.length, result: null, failed: false };
                     const matches = [...all]
                         .sort((a, b) => (b.chatNo ?? 0) - (a.chatNo ?? 0))
                         .slice(0, MAX_MATCHES_PER_CHANNEL);
-                    return { scanned: rows.length, result: { channel, matches, matchCount: all.length } };
+                    return {
+                        scanned: rows.length,
+                        result: { channel, matches, matchCount: all.length },
+                        failed: false,
+                    };
                 })
             ).then(found => {
                 if (!active) return;
@@ -77,6 +89,7 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
                         .sort((a, b) => b.matchCount - a.matchCount)
                 );
                 setScannedCount(found.reduce((sum, entry) => sum + entry.scanned, 0));
+                setFailedCount(found.filter(entry => entry.failed).length);
                 setIsSearching(false);
             });
         }, DEBOUNCE_MS);
@@ -90,5 +103,5 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
     // the empty state never said so. Callers state the scope when it binds.
     const isTruncated = channels.length > SEARCH_MAX_CHANNELS;
 
-    return { results, isSearching, isTruncated, scannedCount };
+    return { results, isSearching, isTruncated, scannedCount, failedCount };
 };

@@ -65,6 +65,8 @@ export const createChatSendTracer = ({
         const trace = start('chat_send');
         // A thread reply resolves its root on the server first, so it is kept apart from a top-level send.
         trace.putAttribute('thread', context.reply ? 'reply' : 'root');
+        // The same `kind` attribute as `chat_send_media`, which carries the other kinds.
+        trace.putAttribute('kind', 'text');
         return {
             end: outcome => {
                 if (isHidden() || hideCount() !== hidesAtStart) return;

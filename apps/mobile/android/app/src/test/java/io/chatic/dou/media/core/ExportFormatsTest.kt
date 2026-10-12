@@ -20,6 +20,7 @@ class ExportFormatsTest {
         assertEquals(Family.MP4, ExportFormats.family(MP4, "clip.mp4"))
         assertEquals(Family.PDF, ExportFormats.family("%PDF-1.7\n%".toByteArray(), "a.pdf"))
         assertEquals(Family.ZIP, ExportFormats.family(bytes(0x50, 0x4B, 0x03, 0x04, 0x14, 0, 6, 0), "a.docx"))
+        assertEquals(Family.ZIP, ExportFormats.family(bytes(0x50, 0x4B, 0x03, 0x04, 0x0A, 0, 0, 0), "photos.zip"))
         assertEquals(Family.OLE2, ExportFormats.family(bytes(0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0), "a.hwp"))
         assertEquals(Family.TEXT, ExportFormats.family("hello, world\n".toByteArray(), "notes.TXT"))
         assertEquals("an empty text file", Family.TEXT, ExportFormats.family(ByteArray(0), "empty.txt"))
@@ -57,6 +58,8 @@ class ExportFormatsTest {
         assertEquals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ExportFormats.mimeType("a.XLSX", zip))
         assertEquals("application/vnd.openxmlformats-officedocument.presentationml.presentation", ExportFormats.mimeType("a.pptx", zip))
         assertEquals("application/hwp+zip", ExportFormats.mimeType("a.hwpx", zip))
+        assertEquals("application/zip", ExportFormats.mimeType("photos.ZIP", zip))
+        assertEquals("application/zip", ExportFormats.mimeTypeForName("photos.zip"))
         assertEquals("application/x-hwp", ExportFormats.mimeType("a.hwp", Family.OLE2))
         assertEquals("text/plain", ExportFormats.mimeType("a.txt", Family.TEXT))
         assertEquals("image/jpeg", ExportFormats.mimeType("a.jpeg", Family.JPEG))
@@ -81,9 +84,9 @@ class ExportFormatsTest {
     // --- SaveFile names ---
 
     @Test
-    fun saveKeepsTheThirteenServerExtensions() {
+    fun saveKeepsTheFourteenServerExtensions() {
         assertEquals(
-            setOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "hwp", "hwpx", "txt"),
+            setOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "hwp", "hwpx", "txt", "zip"),
             ExportFormats.SAVE_EXTENSIONS,
         )
     }
@@ -98,11 +101,12 @@ class ExportFormatsTest {
         assertEquals("a_b_c_____.xlsx", ExportFormats.saveName("a:b*c?\"<>|.xlsx"))
         assertEquals("hidden.pptx", ExportFormats.saveName("  .hidden.pptx. "))
         assertEquals("보고서.hwpx", ExportFormats.saveName("보고서.hwpx"))
+        assertEquals("Photos 2026.zip", ExportFormats.saveName("Photos 2026.ZIP"))
     }
 
     @Test
     fun saveRefusesANameWithoutAServerExtension() {
-        for (name in listOf(null, "", "report", "setup.exe", "app.apk", "page.html", "archive.zip", ".pdf", "...pdf", "/.pdf", " .txt")) {
+        for (name in listOf(null, "", "report", "setup.exe", "app.apk", "page.html", "archive.7z", ".pdf", "...pdf", "/.pdf", " .txt")) {
             assertNull(name.toString(), ExportFormats.saveName(name))
         }
     }

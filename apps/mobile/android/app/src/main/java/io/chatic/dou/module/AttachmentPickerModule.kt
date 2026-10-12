@@ -321,7 +321,11 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         items: WritableArray,
         refused: WritableArray,
     ) {
-        val limit = limits.of(kind)
+        // A documents pick is reported as a file, but held to the limit its format implies — the web
+        // sends a PNG or an MP4 from Files as a photo or a video — and refused under that kind, so
+        // the web names the limit that applied.
+        val limitKind = if (kind == Kind.FILE) AttachPickRules.limitKindForDocument(mimeType, name) else kind
+        val limit = limits.of(limitKind)
         val export = if (kind == Kind.IMAGE) PhotoLibraryCore.export(mimeType) else null
         // What is sent as stored is held to its limit before a byte is copied. A photo written as
         // JPEG is judged by what the conversion makes instead.
@@ -330,7 +334,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         val copy = when (val copied = copies.copy(uri, folder, name, described.size, copyLimit)) {
             is PickedCopies.Copied.Kept -> copied
             PickedCopies.Copied.TooLarge -> {
-                refused.pushMap(refusal(name, kind, "too-large"))
+                refused.pushMap(refusal(name, limitKind, "too-large"))
                 return
             }
             PickedCopies.Copied.Unreadable -> {

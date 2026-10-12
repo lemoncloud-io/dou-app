@@ -23,7 +23,16 @@ const ALBUMS = [
 const COUNT = 2000;
 const PAGE = 60;
 
-const Demo = ({ initialPicked = 0, firstPageMs = 0 }: { initialPicked?: number; firstPageMs?: number }) => {
+const Demo = ({
+    initialPicked = 0,
+    firstPageMs = 0,
+    editing = false,
+}: {
+    initialPicked?: number;
+    firstPageMs?: number;
+    /** Offer the edit button and the "one message" checkbox, as the app does. */
+    editing?: boolean;
+}) => {
     const [open, setOpen] = useState(true);
     // The first page's round trip: skeleton tiles until it lands.
     const [ready, setReady] = useState(firstPageMs === 0);
@@ -44,6 +53,8 @@ const Demo = ({ initialPicked = 0, firstPageMs = 0 }: { initialPicked?: number; 
     const [picked, setPicked] = useState<PhotoItem[]>(Array.from({ length: initialPicked }, (_, i) => photo(i)));
     const toggle = (item: PhotoItem) =>
         setPicked(prev => (prev.some(p => p.id === item.id) ? prev.filter(p => p.id !== item.id) : [...prev, item]));
+    const [grouped, setGrouped] = useState(true);
+    const [lastEdit, setLastEdit] = useState<string | null>(null);
     return (
         <>
             <button
@@ -76,8 +87,13 @@ const Demo = ({ initialPicked = 0, firstPageMs = 0 }: { initialPicked?: number; 
                 onCamera={() => undefined}
                 sendLabel={`${picked.length}장 보내기`}
                 onSend={() => setOpen(false)}
-                labels={{ camera: '카메라', close: '닫기' }}
+                onEdit={editing ? id => setLastEdit(id ?? 'first') : undefined}
+                grouped={grouped}
+                onGroupedChange={editing ? setGrouped : undefined}
+                labels={{ camera: '카메라', close: '닫기', edit: '편집', grouped: '묶어 보내기' }}
             />
+            {/* The app opens its editor here; the story only says which photo it would open on. */}
+            {lastEdit && <p className="mt-2 text-[13px]">Edit asked for: {lastEdit}</p>}
         </>
     );
 };
@@ -86,3 +102,5 @@ export const Empty: Story = { render: () => <Demo /> };
 export const Picked: Story = { render: () => <Demo initialPicked={3} /> };
 export const AtTheCap: Story = { render: () => <Demo initialPicked={10} /> };
 export const FirstPageLoading: Story = { render: () => <Demo firstPageMs={2500} /> };
+/** The edit button and, from two picked photos, the "one message" checkbox above the send button. */
+export const WithEditAndGrouping: Story = { render: () => <Demo initialPicked={3} editing /> };

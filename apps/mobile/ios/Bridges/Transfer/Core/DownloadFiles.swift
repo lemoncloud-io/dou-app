@@ -158,14 +158,15 @@ enum DownloadFiles {
     /// How many leading bytes `exportFamily` reads: enough to look for a NUL in a text file.
     static let familySniffBytes = 4096
 
-    /// The byte families a downloaded file may leave the app as. A family only gates: DOCX, XLSX, PPTX
-    /// and HWPX are all ZIP files, so which of them a file is comes from its name (`serverFormats`).
+    /// The byte families a downloaded file may leave the app as. A family only gates: DOCX, XLSX, PPTX,
+    /// HWPX and a plain ZIP archive are all ZIP files, so which of them a file is comes from its name
+    /// (`serverFormats`).
     enum ExportFamily: Equatable {
         case image(ImageType)
         /// MP4 and the rest of its family: bytes 4 to 7 are `ftyp`.
         case isoBmff
         case pdf
-        /// DOCX, XLSX, PPTX, HWPX.
+        /// DOCX, XLSX, PPTX, HWPX, and a plain ZIP archive.
         case zip
         /// HWP, a Compound File Binary.
         case ole2
@@ -189,9 +190,10 @@ enum DownloadFiles {
         return nil
     }
 
-    /// The server's formats by file extension, with the content type each stands for — the same table
-    /// the web judges a picked file by. On iOS the share sheet, QuickLook and the export sheet type a
-    /// file by its URL's extension, so the name is what makes a ZIP a DOCX.
+    /// The formats the shell saves, by file extension, with the content type each stands for — the
+    /// table the web judges a picked file by, its ZIP archive included. On iOS the share sheet,
+    /// QuickLook and the export sheet type a file by its URL's extension, so the name is what makes a
+    /// ZIP a DOCX — and what keeps a DOCX from being saved as an archive.
     static let serverFormats: [String: String] = [
         "png": "image/png",
         "jpg": "image/jpeg",
@@ -206,6 +208,7 @@ enum DownloadFiles {
         "hwp": "application/x-hwp",
         "hwpx": "application/hwp+zip",
         "txt": "text/plain",
+        "zip": "application/zip",
     ]
 
     /// The lower-case text after the last dot, unless that dot is the first or last character — the
@@ -221,8 +224,8 @@ enum DownloadFiles {
     /// The name `SaveFile` keeps a document under, or `nil` when it may not be saved. The name comes
     /// from the web, so it is checked once more: path separators and control characters are removed,
     /// characters some storage refuses replaced with `_`, spaces and dots trimmed at either end, the
-    /// extension lowered and the base cut to fit. A name whose extension is not a server format — none,
-    /// `.exe`, `.html` — is refused rather than renamed: the person would not recognise what it became.
+    /// extension lowered and the base cut to fit. A name whose extension is not one the shell saves —
+    /// none, `.exe`, `.html` — is refused rather than renamed: the person would not recognise what it became.
     /// Android applies the same steps.
     static func saveFileName(_ name: String) -> String? {
         var scalars = String.UnicodeScalarView()

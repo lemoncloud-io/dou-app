@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Measures overlay chrome (a floating header and/or bottom bar) so the scrollable body can
@@ -14,6 +14,9 @@ export const useChromeInsets = () => {
     const footerRef = useRef<HTMLDivElement>(null);
     const [headerHeight, setHeaderHeight] = useState(0);
     const [footerHeight, setFooterHeight] = useState(0);
+
+    // While set, the footer's resizes go here, in the frame they happen, instead of into a render.
+    const footerFollower = useRef<((height: number) => void) | null>(null);
 
     // Elements already measured synchronously. A WeakSet rather than a boolean because the chrome
     // is conditionally rendered (see KeyboardAwareLayout): a footer can attach on a later render,
@@ -53,7 +56,10 @@ export const useChromeInsets = () => {
             for (const entry of entries) {
                 const height = measure(entry);
                 if (entry.target === headerEl) setHeaderHeight(height);
-                if (entry.target === footerEl) setFooterHeight(height);
+                if (entry.target !== footerEl) continue;
+                const follow = footerFollower.current;
+                if (follow) follow(height);
+                else setFooterHeight(height);
             }
         });
         // `box: 'border-box'` is required, not just cosmetic: ResizeObserver defaults to the
@@ -64,5 +70,27 @@ export const useChromeInsets = () => {
         return () => observer.disconnect();
     });
 
-    return { headerRef, footerRef, headerHeight, footerHeight };
+    /**
+     * Hands the footer's size changes to `follow` instead of a render, until called again with `null`.
+     * For a footer that something moves on every frame for a while — the attach panel's slide carries the
+     * room's composer — where a render of the whole screen per frame is the cost, and what follows the
+     * footer (a list's bottom padding) can be written directly. `follow` runs in the observer's callback,
+     * which comes after layout and before paint, so a write there lands in the frame that moved the footer.
+     *
+     * Letting go measures the footer once, there and then, hands that to the last `follow` and renders
+     * it: the page catches up in one render, and what was following lands on the same final height in
+     * the same frame.
+     */
+    const followFooter = useCallback((follow: ((height: number) => void) | null) => {
+        const was = footerFollower.current;
+        footerFollower.current = follow;
+        if (follow || !was) return;
+        const footer = footerRef.current;
+        if (!footer) return;
+        const height = footer.getBoundingClientRect().height;
+        was(height);
+        setFooterHeight(height);
+    }, []);
+
+    return { headerRef, footerRef, headerHeight, footerHeight, followFooter };
 };

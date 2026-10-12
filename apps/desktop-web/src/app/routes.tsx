@@ -68,6 +68,15 @@ const NotificationOpenListener = () => {
 const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutsDialog })));
 const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
+const PlaceSettingsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceSettingsPage })));
+const PlaceChannelsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceChannelsPage })));
+const AccountHubPage = lazy(() => import('./features/account').then(m => ({ default: m.AccountHubPage })));
+const CloudListPage = lazy(() => import('./features/account').then(m => ({ default: m.CloudListPage })));
+const CloudHubPage = lazy(() => import('./features/account').then(m => ({ default: m.CloudHubPage })));
+const CloudPlacesPage = lazy(() => import('./features/account').then(m => ({ default: m.CloudPlacesPage })));
+const PolicyListPage = lazy(() => import('./features/account').then(m => ({ default: m.PolicyListPage })));
+const PrivacyPage = lazy(() => import('./features/account').then(m => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./features/account').then(m => ({ default: m.TermsPage })));
 const SettingsPage = lazy(() => import('./features/settings').then(m => ({ default: m.SettingsPage })));
 const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m.WelcomePage })));
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
@@ -103,6 +112,15 @@ export const AppRouter = () => {
                             <Route path="/" element={<HomePage />} />
                             <Route path="/profile" element={<ProfilePage />} />
                             <Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/places/:placeId/settings" element={<PlaceSettingsPage />} />
+                            <Route path="/places/:placeId/channels" element={<PlaceChannelsPage />} />
+                            <Route path="/account" element={<AccountHubPage />} />
+                            <Route path="/account/clouds" element={<CloudListPage />} />
+                            <Route path="/account/clouds/:cloudId" element={<CloudHubPage />} />
+                            <Route path="/account/clouds/:cloudId/places" element={<CloudPlacesPage />} />
+                            <Route path="/account/policies" element={<PolicyListPage />} />
+                            <Route path="/account/policies/terms" element={<TermsPage />} />
+                            <Route path="/account/policies/privacy" element={<PrivacyPage />} />
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}

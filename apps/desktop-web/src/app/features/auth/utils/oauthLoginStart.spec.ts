@@ -13,7 +13,8 @@ import {
 
 const NOW = 1_000_000;
 const start: OAuthLoginStart = { provider: 'google', startedAt: NOW, nonce: 'n1' };
-const deeplink = { provider: 'google', code: 'abc' };
+const deeplink = { provider: 'google', code: 'abc', nonce: 'n1' };
+const withoutNonce = { provider: 'google', code: 'abc' };
 
 describe('evaluateOAuthDeeplink', () => {
     it('accepts a deeplink for a fresh start of the same provider', () => {
@@ -43,10 +44,6 @@ describe('evaluateOAuthDeeplink', () => {
         });
     });
 
-    it('accepts a deeplink whose nonce matches the record', () => {
-        expect(evaluateOAuthDeeplink(start, { ...deeplink, nonce: 'n1' }, NOW)).toEqual({ ok: true });
-    });
-
     it('rejects a deeplink whose nonce differs from the record', () => {
         expect(evaluateOAuthDeeplink(start, { ...deeplink, nonce: 'other' }, NOW)).toEqual({
             ok: false,
@@ -54,8 +51,19 @@ describe('evaluateOAuthDeeplink', () => {
         });
     });
 
-    it('does not require a nonce while the relay is not known to return one', () => {
-        expect(evaluateOAuthDeeplink(start, deeplink, NOW)).toEqual({ ok: true });
+    it('rejects a deeplink that carries no nonce', () => {
+        expect(evaluateOAuthDeeplink(start, withoutNonce, NOW)).toEqual({ ok: false, reason: 'nonce-missing' });
+    });
+
+    it('names an expired start before a missing nonce, and a provider mismatch before it too', () => {
+        expect(evaluateOAuthDeeplink(start, withoutNonce, NOW + OAUTH_LOGIN_START_TTL_MS)).toEqual({
+            ok: false,
+            reason: 'expired',
+        });
+        expect(evaluateOAuthDeeplink({ ...start, provider: 'kakao' }, withoutNonce, NOW)).toEqual({
+            ok: false,
+            reason: 'provider-mismatch',
+        });
     });
 });
 

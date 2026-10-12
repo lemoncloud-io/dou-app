@@ -160,6 +160,73 @@ own repaint animation after a resume has finished, and is what actually hides `R
 | `SavePreference` with `theme`    | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md)                                    |
 | `SavePreference` with `language` | Routed handler (`usePreferenceCacheHandler`); validates `system`/`ko`/`en` and updates the language store — see [../system/language.md](../system/language.md) |
 
+## Events the shell pushes
+
+The other direction has no request behind it. A hook calls `bridge.pushEvent(...)` when something
+happens on the device, `AppBridgeHost` holds the event until the `WebAppReady` handshake and then
+sends it, and the web reads it through `webClient.onEvent`. Nothing answers an event, so nothing on
+the web side notices one that never comes or arrives in the wrong shape — which is why this
+direction has its own contract tests.
+
+| Event                                   | Pushed by                   | When                                                                                                                                   |
+| --------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history; otherwise the press goes to the OS |
+| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`. Also the reply to `FetchBackgroundStatus`                |
+| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                  |
+| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                              |
+| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                              |
+| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                  |
+| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                  |
+
+`OnUpdateStatus` is the one push-only message this shell never sends: the desktop updates itself,
+the phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the
+web's `OpenURL` request.
+
+### Its contract tests
+
+`appEvents.contract.test.ts` is the inventory. `MOBILE_APP_EVENTS` decides every push-only message
+in `@chatic/app-messages` — every type `AppMessageDataMap` declares that no request in
+`WEB_MESSAGE_RESPONSE_TYPE` is answered with — as either pushed (by which file, triggered by which
+test) or never pushed, with a reason. The suite fails when:
+
+- a push-only message is added to the vocabulary and nobody decided it here;
+- a line names a message the vocabulary no longer declares;
+- the `pushEvent` calls in `src/` disagree with the list — a new call site, a listed file that
+  stopped pushing, a reply type pushed unprompted without a line (as `OnBackgroundStatusChanged` has),
+  or a call whose `type` is not a string literal and so cannot be read;
+- a listed test does not exist, or never names its event and `pushedEventErrors` — a pointer, not
+  proof; that the test triggers the event is its own assertion.
+
+Each pushing hook's own test then drives the native trigger — a mocked `BackHandler`, `AppState`,
+deep-link and notification services, the store callbacks — and hands what the shell pushed to
+`pushedEventErrors` (`appEventContract.ts`). That runs the TypeScript compiler over each message as a
+literal assigned to `AppMessageData<its type>`, after the JSON round trip the bridge puts it through:
+the envelope and the payload together, with excess-property checks, against the vocabulary itself.
+A renamed type, a dropped required field and an unknown extra field each come back as a compiler
+message, and the test fails on it; so does an empty list, so a trigger that stopped pushing cannot
+pass on nothing. A payload declared as an empty object (`OnBackPressed`) has only its envelope to
+check. The helper also refuses to run when the vocabulary itself has type errors — an unresolved
+import there would turn a payload type into `any` and let everything through.
+
+A compiler rather than `satisfies` because jest transpiles each file alone (`isolatedModules`), so
+no type annotation in a test is ever checked, and CI does not type check this project. The first
+compile in a file takes about 300 ms; later ones reuse the parsed vocabulary and take a few.
+
+`OnUpdateDeviceInfo` is pushed without the envelope's `success` and without the payload's required
+`webVersion`. Its test pins that gap rather than fixing it, and asserts everything else conforms;
+when the hook is fixed the pinned test fails and is replaced by a plain check.
+
+What these tests cannot see: the native side of `OnFileTransferState` (its payload comes from the
+Kotlin and Swift transfer managers, and the hook only relays it), and what the web does with an
+event — that is for the web E2E suite in a fake native shell. The desktop shell has the same inventory and helper in
+`apps/desktop/src/main/` (`appEvents.contract.test.ts`, `appEventContract.ts`).
+
+```bash
+npx jest --config apps/mobile/jest.config.js appEvents.contract useAndroidBack useAppStateHandler \
+  useDeepLinkNavigation useFcmHandler useVersionCheckHandler fileTransferHandlers useSubscriptionIapHandler
+npx jest --config apps/desktop/jest.config.js appEvents.contract shellEvents updater
+```
+
 ## Injection
 
 Before the WebView loads, `injectionScripts.ts` assembles one script (`getSyncInjectionScript`) that
@@ -191,6 +258,16 @@ All string values are `JSON.stringify`-interpolated rather than quoted directly:
 or backslash from native data (a localized app name, an odd Android device-model string) would
 otherwise break out of the literal and throw inside a script with no `<script src>` to attribute the
 error to.
+
+**The web's E2E suite runs this file too.** [`apps/web-e2e`](../../../web-e2e/README.md) loads
+`injectionScripts.ts` by path at run time and injects `getSyncInjectionScript`'s output into the page,
+so the page under test boots with the globals the app sets. Three things are therefore a contract with
+it: the file's path, the export's name, and the file having **type-only imports** — a value import
+would pull the app's runtime into a Node test process. There is deliberately no dependency edge from
+that project to this app, whose typecheck is excluded; instead the `e2e` job in `verify.yml` names
+this file by path and runs when it changes. Moving or renaming it breaks both the suite and that
+trigger, so a move updates the two paths (`apps/web-e2e/src/support/fake-shell/appInjection.ts` and
+the workflow) in the same change.
 
 ## Device contacts
 
@@ -224,3 +301,5 @@ on the wire.
 - Does a handler only call a service, without carrying its own domain logic?
 - Is it safe to call before and after WebView ready?
 - Do the bridge response/event names match the web contract?
+- Does a new `pushEvent` call have a line in `MOBILE_APP_EVENTS` and a test that triggers it and
+  checks the result with `pushedEventErrors`?

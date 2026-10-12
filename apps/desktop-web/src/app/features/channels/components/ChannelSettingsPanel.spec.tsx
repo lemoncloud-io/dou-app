@@ -5,6 +5,11 @@ import type { DomainChannel } from '@chatic/data';
 
 vi.mock('../../../shared', async importOriginal => ({
     ...(await importOriginal<object>()),
+}));
+
+// The notify writer reaches the mutations through its own leaf import, not the
+// barrel above — mock the leaf so the panel renders without a runtime.
+vi.mock('../../../shared/hooks/useChannelMutations', () => ({
     useDesktopChannelMutations: () => ({ setChannelNotify: vi.fn(), updateChannel: vi.fn(), isMutating: false }),
 }));
 

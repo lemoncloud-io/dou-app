@@ -10,6 +10,10 @@ const GUEST_UUID = 'de54529d-1c2b-4f3e-9a8b-7c6d5e4f3a2b';
 
 const session = vi.hoisted(() => ({
     profile: { userName: '', photo: null as string | null, isGuest: false },
+    // The account (relay) token's user, and the user of the cloud the person is connected to.
+    relayUser: null as { uid?: string; email?: string; name?: string; userRole?: string } | null,
+    activeUser: null as { uid?: string; email?: string } | null,
+    socialLogin: false,
 }));
 // My place profile read (`useMyProfile().load`). Each test decides when, and with what, it settles.
 // Home has no place; every test here but the section's own runs inside one.
@@ -22,14 +26,15 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionIdentity: () => ({ userId: 'u1' }),
             useRuntimeProfile: () => session.profile,
-            getActiveSessionUser: () => null,
+            getActiveSessionUser: () => session.activeUser,
+            getRelaySessionUser: () => session.relayUser,
         },
     },
 }));
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
-    isSocialLoginEnabled: () => false,
-    useSocialLogin: () => ({ start: vi.fn() }),
+    isSocialLoginEnabled: () => session.socialLogin,
+    useSocialLogin: () => ({ start: vi.fn(), isStarting: false }),
 }));
 // The dialog has its own spec; this file is about what the page draws.
 vi.mock('../components', () => ({
@@ -54,10 +59,14 @@ describe('ProfilePage account name', () => {
         useSiteProfilesStore.setState({ profiles: {} });
         placeRead.load.mockResolvedValue(null);
     });
-    afterEach(cleanup);
+    afterEach(() => {
+        cleanup();
+        session.relayUser = null;
+    });
 
     it('names a guest "Guest" everywhere the account name shows, never by the UUID', async () => {
         session.profile = { userName: GUEST_UUID, photo: null, isGuest: true };
+        session.relayUser = { name: GUEST_UUID, userRole: 'guest' };
         render(<ProfilePage />, { wrapper });
         await screen.findByRole('button', { name: 'Set up' });
 
@@ -68,10 +77,59 @@ describe('ProfilePage account name', () => {
 
     it('shows a real account name as it is', async () => {
         session.profile = { userName: 'Kim', photo: null, isGuest: false };
+        session.relayUser = { name: 'Kim' };
         render(<ProfilePage />, { wrapper });
         await screen.findByRole('button', { name: 'Set up' });
 
         expect(screen.getAllByText('Kim')).toHaveLength(2);
+    });
+});
+
+// Inside a cloud the active session is the cloud's, whose user has its own uid and no email. The
+// Account card is about the account, so a signed-in person must not read as a guest there.
+describe('ProfilePage account card inside a cloud', () => {
+    beforeEach(() => {
+        session.profile = { userName: 'Kim', photo: null, isGuest: false };
+        session.socialLogin = true;
+        session.activeUser = { uid: 'cloud-uid' };
+        useSiteProfilesStore.setState({ profiles: {} });
+        placeRead.load.mockResolvedValue(null);
+    });
+    afterEach(() => {
+        cleanup();
+        session.relayUser = null;
+        session.activeUser = null;
+        session.socialLogin = false;
+    });
+
+    it('shows the account email and id, and no Google sign-in, for a signed-in account', async () => {
+        session.relayUser = { uid: 'account-uid', email: 'kim@example.com' };
+        render(<ProfilePage />, { wrapper });
+        await screen.findByRole('button', { name: 'Set up' });
+
+        expect(screen.getByText('kim@example.com')).toBeTruthy();
+        expect(screen.getByText('account-uid')).toBeTruthy();
+        expect(screen.queryByText('cloud-uid')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+    });
+
+    // The cloud's user can carry another name than the account does.
+    it('names the account by its own name, and "This place" by the name the cloud knows', async () => {
+        session.relayUser = { uid: 'account-uid', email: 'kim@example.com', name: 'Account Kim' };
+        render(<ProfilePage />, { wrapper });
+        await screen.findByRole('button', { name: 'Set up' });
+
+        // `session.profile` is the connected session's profile: 'Kim' is the cloud user's name.
+        expect(screen.getAllByText('Account Kim')).toHaveLength(1);
+        expect(screen.getAllByText('Kim')).toHaveLength(1);
+    });
+
+    it('offers Google sign-in when the account itself has no email', async () => {
+        session.relayUser = { uid: 'account-uid' };
+        render(<ProfilePage />, { wrapper });
+        await screen.findByRole('button', { name: 'Set up' });
+
+        expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
     });
 });
 

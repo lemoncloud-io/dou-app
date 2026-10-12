@@ -65,6 +65,7 @@ describe('savesWithoutAsking', () => {
     it('asks for anything that is not an image', () => {
         expect(savesWithoutAsking('run.command', 'application/octet-stream')).toBe(false);
         expect(savesWithoutAsking('notes.pdf', 'application/pdf')).toBe(false);
+        expect(savesWithoutAsking('logs.zip', 'application/zip')).toBe(false);
     });
 
     it('asks when the name and the type disagree', () => {

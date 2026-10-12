@@ -135,6 +135,65 @@ describe('attachmentPicker.pick', () => {
         expect(pick?.refused).toEqual([{ name: 'b.jpg', kind: 'image', reason: 'unreadable' }]);
     });
 
+    it('keeps a photo picked as a document in the shell, read at the send rather than at the pick', async () => {
+        mockRequest.mockResolvedValueOnce({
+            data: {
+                items: [
+                    {
+                        kind: 'file',
+                        uri: 'file:///c/attach-pick/a/shot.png',
+                        name: 'shot.png',
+                        contentType: 'image/png',
+                        size: 3,
+                    },
+                    {
+                        kind: 'file',
+                        uri: 'file:///c/attach-pick/b/clip.mp4',
+                        name: 'clip.mp4',
+                        contentType: 'video/mp4',
+                        size: 7,
+                    },
+                ],
+                refused: [{ name: 'big.pdf', kind: 'file', reason: 'too-large' }],
+            },
+        });
+
+        const pick = await attachmentPicker.pick({ source: 'document', selectionLimit: 10 });
+
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(pick?.items).toEqual([
+            { uri: 'file:///c/attach-pick/a/shot.png', name: 'shot.png', type: 'image/png', size: 3, kind: 'file' },
+            { uri: 'file:///c/attach-pick/b/clip.mp4', name: 'clip.mp4', type: 'video/mp4', size: 7, kind: 'file' },
+        ]);
+        expect(pick?.refused).toEqual([{ name: 'big.pdf', kind: 'file', reason: 'too-large' }]);
+    });
+
+    it('reads a photo the album answered as a file at the pick, as an album pick goes out at once', async () => {
+        // Android's documents picker stands in for the Photo Picker on devices without one.
+        mockRequest.mockResolvedValueOnce({
+            data: {
+                items: [
+                    {
+                        kind: 'file',
+                        uri: 'file:///c/attach-pick/a/p.png',
+                        name: 'p.png',
+                        contentType: 'image/png',
+                        size: 3,
+                    },
+                ],
+                refused: [],
+            },
+        });
+        mockRequest.mockResolvedValueOnce({
+            data: { base64: btoa('png'), mimeType: 'image/png', fileName: 'p.png', width: 1, height: 1 },
+        });
+
+        const pick = await attachmentPicker.pick({ source: 'media', selectionLimit: 10 });
+
+        expect(mockRequest).toHaveBeenCalledTimes(2);
+        expect(pick?.items[0]).toBeInstanceOf(File);
+    });
+
     it('learns from NOT_FOUND for the page, and only from NOT_FOUND', async () => {
         mockRequest.mockRejectedValueOnce(timeout);
         await expect(attachmentPicker.pick({ source: 'media', selectionLimit: 10 })).rejects.toBe(timeout);
@@ -215,5 +274,79 @@ describe('attachmentPicker.prepareVideo', () => {
         const tooLarge = Object.assign(new Error('x'), { code: 'TOO_LARGE' });
         mockRequest.mockRejectedValueOnce(tooLarge);
         await expect(attachmentPicker.prepareVideo(video)).rejects.toBe(tooLarge);
+    });
+});
+
+describe('attachmentPicker.readPhotos', () => {
+    const shellPhoto = {
+        uri: 'file:///c/attach-pick/a/shot.png',
+        name: 'shot.png',
+        type: 'image/png',
+        size: 3,
+        kind: 'file' as const,
+    };
+    const shellDoc = {
+        uri: 'file:///c/attach-pick/b/plan.pdf',
+        name: 'plan.pdf',
+        type: 'application/pdf',
+        size: 5,
+        kind: 'file' as const,
+    };
+    const shellVideo = {
+        uri: 'file:///c/attach-pick/c/clip.mp4',
+        name: 'clip.mp4',
+        type: 'video/mp4',
+        size: 7,
+        kind: 'file' as const,
+    };
+
+    it('reads a shell photo into a page file in place, and leaves documents, videos and page files as they were', async () => {
+        const pageFile = new File(['x'], 'a.pdf', { type: 'application/pdf' });
+        mockRequest.mockResolvedValueOnce({
+            data: { base64: btoa('png'), mimeType: 'image/png', fileName: 'shot.png', width: 4, height: 3 },
+        });
+
+        const read = await attachmentPicker.readPhotos([shellDoc, shellPhoto, pageFile, shellVideo]);
+
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(mockRequest).toHaveBeenCalledWith(
+            { type: 'ReadAttachment', data: { uri: shellPhoto.uri } },
+            { timeoutMs: 2 * 60_000 }
+        );
+        expect(read.items[0]).toBe(shellDoc);
+        expect(read.items[1]).toBeInstanceOf(File);
+        expect(read.items[1]).toMatchObject({ name: 'shot.png', type: 'image/png', size: 3 });
+        expect(read.items[2]).toBe(pageFile);
+        expect(read.items[3]).toBe(shellVideo);
+        expect(read.refused).toEqual([]);
+    });
+
+    it('asks the shell nothing when nothing is a shell photo', async () => {
+        const read = await attachmentPicker.readPhotos([shellDoc, new File(['x'], 'p.jpg', { type: 'image/jpeg' })]);
+
+        expect(mockRequest).not.toHaveBeenCalled();
+        expect(read.items).toHaveLength(2);
+    });
+
+    it("takes the pick's photo type when the shell can only name the read file generically", async () => {
+        mockRequest.mockResolvedValueOnce({
+            data: { base64: btoa('jpg'), mimeType: 'application/octet-stream', fileName: 'scan', width: 1, height: 1 },
+        });
+
+        const read = await attachmentPicker.readPhotos([{ ...shellPhoto, name: 'scan', type: 'image/jpeg' }]);
+
+        expect(read.items[0]).toMatchObject({ name: 'scan', type: 'image/jpeg' });
+    });
+
+    it('refuses a shell photo it cannot read as an unreadable image, and keeps the rest', async () => {
+        mockRequest.mockRejectedValueOnce(Object.assign(new Error('not a picked photo'), { code: 'INTERNAL' }));
+
+        const read = await attachmentPicker.readPhotos([
+            { ...shellPhoto, name: 'old.gif', type: 'image/gif' },
+            shellDoc,
+        ]);
+
+        expect(read.items).toEqual([shellDoc]);
+        expect(read.refused).toEqual([{ name: 'old.gif', kind: 'image', reason: 'unreadable' }]);
     });
 });

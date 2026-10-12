@@ -15,6 +15,7 @@ import { migrateLegacyPreferences, syncThemeFromSharedKey } from './app/config/l
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
+import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
@@ -23,7 +24,7 @@ import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
-import { configureWebPerfTraces, observeBridgeRequests } from './app/runtime/perf';
+import { configureWebPerfTraces, observeBridgeRequests, observeSocketRequests } from './app/runtime/perf';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
@@ -99,6 +100,10 @@ runtime.boot.initAppRuntime({
     },
 });
 
+// A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
+// next account on this device never opens a room onto them.
+runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
+
 // Read the previous session's fate — a session that died without a clean
 // pagehide is logged as page-crash (ADR-0097 S7). It carries no buffer: the dead
 // run's entries reach the collector through the batch uploader on their own.
@@ -136,6 +141,14 @@ const webPerfTraces = configureWebPerfTraces({ logger, runId: readInjectedRunId(
 // handshake included — is in it. Samples are held with the other traces until the report says
 // where they go, and only a few of them, so they cannot crowd the boot traces out of that hold.
 observeBridgeRequests({ client: webClient, runId: readInjectedRunId(), isHeld: webPerfTraces.isHeld });
+
+// Times every socket request of a sampled run (a different tenth of runs from the bridge's), per
+// request type, so the server's answer time can be read apart from what the screens add to it.
+observeSocketRequests({
+    manager: runtime.connection.getSocketManager(),
+    runId: readInjectedRunId(),
+    isHeld: webPerfTraces.isHeld,
+});
 
 // Initialize Web Vitals monitoring
 initWebVitals();

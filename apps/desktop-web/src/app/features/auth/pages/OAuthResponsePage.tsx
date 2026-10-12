@@ -10,12 +10,14 @@ import { useSocialLogin } from '../hooks';
 import { buildOAuthDeeplink } from '../utils';
 
 /**
- * OAuth Relay hand-off page (ADR 0009). The relay redirects here with
- * `?code=&provider=` after the provider consent screen.
+ * OAuth Relay hand-off page. The relay redirects here with `?code=&provider=` after the provider
+ * consent screen, and with the `nonce` the app put on the `redirect` address when it started the
+ * login. A return that has no nonce is not one this app asked for, so the page stops with the
+ * failure screen instead of opening the app.
  *
  * - Inside the Desktop Shell (capability-detected): exchange the code directly —
  *   covers the degenerate case where the relay return landed in the app window.
- * - In a plain browser (the normal system-browser flow): forward the code into
+ * - In a plain browser (the normal system-browser flow): forward the code and the nonce into
  *   the app via the `chatic://oauth` deeplink, with a manual button as fallback
  *   for when the auto-jump is blocked.
  */
@@ -29,25 +31,26 @@ export const OAuthResponsePage = () => {
 
     const code = params.get('code') ?? '';
     const provider = params.get('provider') || 'google';
-    const hasCode = code.length > 0;
+    const nonce = params.get('nonce') ?? '';
+    const isComplete = code.length > 0 && nonce.length > 0;
 
     useEffect(() => {
         if (ranRef.current) return;
         ranRef.current = true;
-        if (!hasCode) return;
+        if (!isComplete) return;
 
         if (isNative()) {
             // Pre-auth: success flips isAuthenticated → router leaves this branch.
             // In-app (already signed in): the exchange swaps the session and reloads.
-            void completeFromHandoff({ provider, code });
+            void completeFromHandoff({ provider, code, nonce });
             return;
         }
-        const url = buildOAuthDeeplink(provider, code);
+        const url = buildOAuthDeeplink(provider, code, nonce);
         setDeeplink(url);
         window.location.replace(url);
-    }, [hasCode, provider, code, completeFromHandoff]);
+    }, [isComplete, provider, code, nonce, completeFromHandoff]);
 
-    const failed = !hasCode || isError;
+    const failed = !isComplete || isError;
 
     return (
         <AuthCard

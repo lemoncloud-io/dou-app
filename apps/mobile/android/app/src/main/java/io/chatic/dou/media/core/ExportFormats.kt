@@ -7,9 +7,9 @@ import io.chatic.dou.transfer.core.DownloadFiles
  * file goes out under, and the name `SaveFile` keeps it under. Plain Kotlin, unit-tested; the media
  * store, the share sheet and the viewer live in [io.chatic.dou.module.MediaExportModule].
  *
- * The bytes gate, the name types. A DOCX, an XLSX and an HWPX are all ZIP files, and only the name
- * tells them apart — so a file is let through by what its first bytes are, and then typed by its
- * name's extension. The download already named an image after its bytes, so the two agree there.
+ * The bytes gate, the name types. A DOCX, an XLSX, an HWPX and a plain ZIP archive are all ZIP files,
+ * and only the name tells them apart — so a file is let through by what its first bytes are, and then
+ * typed by its name's extension. The download already named an image after its bytes, so the two agree there.
  */
 object ExportFormats {
 
@@ -27,7 +27,7 @@ object ExportFormats {
         MP4("video/mp4"),
         PDF("application/pdf"),
 
-        /** `PK\x03\x04`: DOCX, XLSX, PPTX and HWPX. */
+        /** `PK\x03\x04`: DOCX, XLSX, PPTX and HWPX, and a plain ZIP archive. */
         ZIP("application/zip"),
 
         /** The OLE2 compound file header: HWP. */
@@ -69,7 +69,7 @@ object ExportFormats {
     fun photoLibraryType(head: ByteArray): String? =
         DownloadFiles.sniffImage(head)?.mimeType ?: if (isMp4(head)) Family.MP4.fallbackMimeType else null
 
-    /** The type of each name extension the server stores, as the web declares it on upload. */
+    /** The type of each name extension the shell saves, as the web declares it on upload. */
     private val MIME_BY_EXTENSION = mapOf(
         "png" to "image/png",
         "jpg" to "image/jpeg",
@@ -84,15 +84,16 @@ object ExportFormats {
         "hwp" to "application/x-hwp",
         "hwpx" to "application/hwp+zip",
         "txt" to "text/plain",
+        "zip" to "application/zip",
     )
 
-    /** The extensions `SaveFile` keeps a file under: the server's formats, nothing else. */
+    /** The extensions `SaveFile` keeps a file under: the formats the shell saves, nothing else. */
     val SAVE_EXTENSIONS: Set<String> = MIME_BY_EXTENSION.keys
 
     /** The type a file goes out under: by its name's extension, else by its [family]. */
     fun mimeType(name: String, family: Family): String = MIME_BY_EXTENSION[extensionOf(name)] ?: family.fallbackMimeType
 
-    /** The type a name's extension stands for, or null for one the server does not store. */
+    /** The type a name's extension stands for, or null for one the shell does not save. */
     fun mimeTypeForName(name: String): String? = MIME_BY_EXTENSION[extensionOf(name)]
 
     /** The lower-case text after the last dot, unless that dot is the first or last character. */

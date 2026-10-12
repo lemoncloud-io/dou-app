@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bell, CheckCheck, LogOut, Pencil, SlidersHorizontal, Star, Trash2, UserPlus } from 'lucide-react';
+import { Bell, CheckCheck, LogOut, MailPlus, Pencil, SlidersHorizontal, Star, Trash2, UserPlus } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
@@ -16,17 +16,11 @@ import {
     ContextMenuSubTrigger,
     ContextMenuTrigger,
 } from '@chatic/ui-kit/components/ui/context-menu';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore } from '../../channels';
+import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSendInviteStore } from '../../channels';
 import { isDmBucket } from '../utils';
-import {
-    channelNotifyMode,
-    lastChatNoOf,
-    useDesktopChannelMutations,
-    useNotificationPrefsStore,
-    useReadCursorStore,
-    type ChannelNotifyMode,
-} from '../../../shared';
+import { lastChatNoOf, useChannelNotifyChange, useReadCursorStore, type ChannelNotifyMode } from '../../../shared';
 
 const NOTIFY_MODES: ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
@@ -68,28 +62,25 @@ export const ChannelRowMenu = ({
     const lastChatNo = lastChatNoOf(channel);
 
     const openSettings = useChannelSettingsStore(s => s.open);
+    const openSendInvite = useSendInviteStore(s => s.open);
+    // Sending rides the relay slot (`invite.*` is relay-pinned), so it works
+    // from any cloud — no cloud gate. DMs alone are out: a 1:1 invite is the
+    // room the recipient is already in.
+    const canInvite = !isDm;
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
-    const { setChannelNotify: syncNotifyToServer } = useDesktopChannelMutations();
-    // Same resolution as ChannelSettingsPanel — now one helper (channelNotifyMode).
-    const notifyMode = useNotificationPrefsStore(s => channelNotifyMode(s, id, channel.$join?.notify));
-    const setNotifyPref = useNotificationPrefsStore(s => s.setChannelNotify);
+    // Same writer as the settings panel (local pref + announced server sync).
+    const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     // Same write as the read-receipt flush: optimistic local cursor first, the
-    // server read-chat best-effort behind it.
+    // server read-chat best-effort behind it. A failure is announced instead of
+    // swallowed: the badge clears locally either way, so silence reads as done
+    // while the next roster sync resurrects the unread with no explanation.
     const markRowRead = () => {
         if (lastChatNo <= 0) return;
         useReadCursorStore.getState().markRead(id, lastChatNo);
-        void joinRepository.readChat({ channelId: id, chatNo: lastChatNo }).catch(() => undefined);
-    };
-
-    // Local pref stands even if the server sync fails (see ChannelSettingsPanel).
-    const onNotifyChange = (mode: ChannelNotifyMode) => {
-        if (mode === notifyMode) return;
-        setNotifyPref(id, mode);
-        const joinUserId = channel.$join?.userId ?? myUid ?? '';
-        if (joinUserId) {
-            void syncNotifyToServer({ channelId: id, userId: joinUserId, notify: mode }).catch(() => undefined);
-        }
+        void joinRepository.readChat({ channelId: id, chatNo: lastChatNo }).catch(() => {
+            toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
+        });
     };
 
     return (
@@ -148,6 +139,12 @@ export const ChannelRowMenu = ({
                         {t('channels.addMembers.open')}
                     </ContextMenuItem>
                 )}
+                {canInvite && (
+                    <ContextMenuItem onSelect={() => openSendInvite(id, channel.name ?? id)}>
+                        <MailPlus size={14} aria-hidden />
+                        {t('invite.send.open')}
+                    </ContextMenuItem>
+                )}{' '}
                 <ContextMenuSeparator />
                 <ContextMenuItem onSelect={() => openDialog('leave')}>
                     <LogOut size={14} aria-hidden />

@@ -36,7 +36,7 @@ export interface IChannelRepository extends DisposableRepository {
     /**
      * `channel.mine` — refreshes ONE site's list. `query.sid` is required: the answer describes
      * whichever site the socket session is on, so the caller's belief about that site is what tags
-     * the rows and gates the prune below (ADR-0085).
+     * the rows and gates the prune below.
      */
     refreshList(query: DomainChannelListPayload & { sid: string }): Promise<void>;
     // Fetch the channel list (with detail) straight from the server WITHOUT touching the cache.
@@ -47,7 +47,7 @@ export interface IChannelRepository extends DisposableRepository {
     // Cloud-wide delta sync (channel.sync) — pulls channels changed since the cursor across all
     // places and advances syncedAt. Named like profile.syncProfiles for consistency.
     syncChannels(since: number): Promise<SyncChannelsResult>;
-    /** `channel.create` — `siteId` is the site the optimistic row is tagged with (ADR-0085). */
+    /** `channel.create` — `siteId` is the site the optimistic row is tagged with. */
     createChannel(payload: ChannelCreateInput, siteId: string): Promise<DomainChannel>;
     /** Opens the 1:1 with one peer. Takes NO site: the room belongs to the cloud, not to a place. */
     startDm(payload: ChannelStartDmInput): Promise<DomainChannel>;
@@ -56,8 +56,22 @@ export interface IChannelRepository extends DisposableRepository {
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
     deleteChannel(payload: ChannelDeleteInput): Promise<DomainChannel>;
 
-    /** `channel.get-self` — `siteId` tags the returned row; the response carries no site (ADR-0085). */
+    /** `channel.get-self` — `siteId` tags the returned row; the response carries no site. */
     getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel>;
+
+    /**
+     * `channel.get` — refreshes ONE channel's cached row. `siteId` tags the returned row; the
+     * response carries no site. A push names its channel, so this is what a push-driven
+     * badge refresh pulls instead of the whole `channel.mine` list.
+     */
+    refreshOne(channelId: string, siteId: string): Promise<DomainChannel>;
+
+    /**
+     * `refreshOne` for a channel whose place the caller does not know (a socket frame names only
+     * the channel). The cached row's own sid tags the answer; `fallbackSiteId` covers a channel
+     * never listed yet, whose row the next sync re-tags correctly.
+     */
+    refreshOneInCloud(channelId: string, fallbackSiteId: string): Promise<DomainChannel>;
 
     cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null>;
     cacheWrite(item: Partial<DomainChannel>): Promise<void>;
@@ -262,7 +276,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // The optimistic row needs a site of its own: it is what routes the row to the site-filtered
         // list observers, and `cacheWrite` refuses a channel whose sid cannot be resolved. The caller
         // names it — the server creates the channel in its session's site, and the ambient sid used
-        // to stand in for that (ADR-0085).
+        // to stand in for that.
         const sid = this.assertRequiredString(siteId, 'siteId');
         // Optimistic rows are domain partials; cacheWrite normalizes the missing fields.
         const optimistic: Partial<DomainChannel> = {
@@ -443,5 +457,35 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
+    }
+
+    // Refreshes one channel's cached row from its authoritative snapshot. Same context split as
+    // getSelfChannel: the response carries no site, so the caller's site tags the mapping and the
+    // captured request context owns the write.
+    public async refreshOne(channelId: string, siteId: string): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const id = this.assertRequiredString(channelId, 'channelId');
+        const sid = this.assertRequiredString(siteId, 'siteId');
+        const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
+        const domain = await this.channelSocketDataSource.getChannel({ id }, normalizedContext);
+        // A just-left channel re-entering through a stale push must not come back — the same guard
+        // refreshList and syncChannels filter against.
+        if (this.isGuardedAfterLeave(id)) return domain;
+        if (this.acceptsAnswer(requestContext, 'channel-one')) {
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
+        }
+        return domain;
+    }
+
+    // Refreshes one channel without knowing its place first. Tagging the answer with the wrong
+    // site would move the row to another place's list (and strand its own badge), so the sid is
+    // read off the cached row rather than borrowed from the caller — the same reason every other
+    // method here takes it as an argument instead of the ambient context.
+    public async refreshOneInCloud(channelId: string, fallbackSiteId: string): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const id = this.assertRequiredString(channelId, 'channelId');
+        const cached = await this.channelLocalDataSource.cacheRead(id, requestContext).catch(() => null);
+        const sid = cached?.sid || this.assertRequiredString(fallbackSiteId, 'siteId');
+        return this.refreshOne(id, sid);
     }
 }

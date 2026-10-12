@@ -34,3 +34,6 @@ export * from './hoverReveal';
 export * from './composerFocus';
 export * from './radioGroup';
 export * from './viewer';
+export * from './placeAccess';
+export * from './phoneNumber';
+export * from './inviteCode';

@@ -4,6 +4,8 @@ import { formatLongDate } from '../../../shared';
 
 interface DateSeparatorProps {
     timestamp: number;
+    /** Feed-window measurement key (see MessageList); rendered as data-row-key on the pill. */
+    rowKey?: string;
 }
 
 const isSameDay = (a: Date, b: Date): boolean =>
@@ -12,7 +14,7 @@ const isSameDay = (a: Date, b: Date): boolean =>
 /** Fixed pill height; the rule behind it is positioned from the same number. */
 const PILL_HEIGHT_PX = 22;
 
-export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
+export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
     const { t } = useTranslation();
 
     const formatLabel = (): string => {
@@ -27,15 +29,16 @@ export const DateSeparator = ({ timestamp }: DateSeparatorProps) => {
         return formatLongDate(timestamp);
     };
 
-    // The pill sticks to the top of the feed while its day scrolls by (MessageList wraps
-    // each day in its own block, so the next day's pill takes over at the boundary). The
-    // rule is a separate, non-sticky line pulled up behind the pill, so it scrolls away
-    // with the day instead of striking through the messages under a stuck pill.
+    // The pill sticks to the top of the feed while its day scrolls by. The feed is one
+    // flat list, so pills hand over by standard sticky stacking: the next day's pill
+    // pushes the stuck one out at the boundary. The rule is a separate, non-sticky
+    // line pulled up behind the pill, so it scrolls away with the day instead of
+    // striking through the messages under a stuck pill.
     return (
         <>
             {/* -top-5 cancels the feed's own top padding (py-5), so a stuck pill sits 8px
                 under the header instead of floating over the first line of text. */}
-            <div className="pointer-events-none sticky -top-5 z-raised flex justify-center pt-2">
+            <div data-row-key={rowKey} className="pointer-events-none sticky -top-5 z-raised flex justify-center pt-2">
                 <span
                     style={{ height: PILL_HEIGHT_PX }}
                     className="pointer-events-auto flex items-center rounded-full border border-hairline bg-background px-3 text-micro font-medium tabular-nums text-label shadow-raised"

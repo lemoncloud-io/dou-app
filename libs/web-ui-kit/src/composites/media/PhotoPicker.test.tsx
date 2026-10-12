@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
+import { SLIDE_FALLBACK_MS, SLIDE_MS } from '../overlay/slidePresence';
 import { AlbumList } from './AlbumList';
+import { GridScrubber } from './GridScrubber';
 import { PhotoGridSheet, type PhotoGridSheetProps } from './PhotoGridSheet';
 import { PhotoGridTile } from './PhotoGridTile';
 import { PreviewImage } from './PreviewImage';
-import { RecentPhotoStrip } from './RecentPhotoStrip';
+import { RecentPhotoStrip, type RecentPhotoStripProps } from './RecentPhotoStrip';
 import { SelectedPhotoStrip } from './SelectedPhotoStrip';
 import type { PhotoItem } from './types';
 import { formatVideoDuration } from './VideoMark';
@@ -61,6 +63,300 @@ describe('RecentPhotoStrip', () => {
         );
         expect(container).toBeEmptyDOMElement();
     });
+
+    describe('picking in place', () => {
+        const strip = (overrides: Partial<RecentPhotoStripProps> = {}) => (
+            <RecentPhotoStrip
+                title="최근 사진"
+                seeAllLabel="전체 보기"
+                onSeeAll={jest.fn()}
+                photos={photos(4)}
+                photoLabel={p => `최근 ${p}`}
+                onToggle={jest.fn()}
+                {...overrides}
+            />
+        );
+
+        it('toggles the tapped photo instead of handing it over', () => {
+            const onToggle = jest.fn();
+            const onSelect = jest.fn();
+            render(strip({ onToggle, onSelect, picked: ['p1'] }));
+
+            fireEvent.click(screen.getByRole('button', { name: '최근 1' }));
+            fireEvent.click(screen.getByRole('button', { name: '최근 2' }));
+
+            expect(onToggle.mock.calls).toEqual([['p0'], ['p1']]);
+            expect(onSelect).not.toHaveBeenCalled();
+        });
+
+        it('numbers picked tiles in pick order and reports each tile’s state', () => {
+            render(strip({ picked: ['p3', 'p0'] }));
+
+            expect(screen.getByRole('button', { name: '최근 4' })).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.getByRole('button', { name: '최근 4' })).toHaveTextContent('1');
+            expect(screen.getByRole('button', { name: '최근 1' })).toHaveTextContent('2');
+            expect(screen.getByRole('button', { name: '최근 2' })).toHaveAttribute('aria-pressed', 'false');
+            expect(screen.getByRole('button', { name: '최근 2' })).toHaveTextContent('');
+        });
+
+        it('locks unpicked tiles at the cap but never a picked one', () => {
+            render(strip({ picked: ['p0', 'p1'], max: 2 }));
+
+            expect(screen.getByRole('button', { name: '최근 3' })).toBeDisabled();
+            expect(screen.getByRole('button', { name: '최근 1' })).toBeEnabled();
+        });
+
+        it('has no cap unless one is given', () => {
+            render(strip({ picked: ['p0', 'p1', 'p2'] }));
+
+            expect(screen.getByRole('button', { name: '최근 4' })).toBeEnabled();
+        });
+
+        // Without onToggle the row is the old shortcut into the grid, with no pick state to report.
+        it('carries no pressed state when it only opens the grid', () => {
+            render(strip({ onToggle: undefined, onSelect: jest.fn(), picked: ['p0'] }));
+
+            expect(screen.getByRole('button', { name: '최근 1' })).not.toHaveAttribute('aria-pressed');
+            expect(screen.getByRole('button', { name: '최근 1' })).toHaveTextContent('');
+        });
+
+        it('keeps a picked video’s play mark', () => {
+            const clip: PhotoItem = { id: 'v1', src: 'data:image/jpeg;base64,v1', kind: 'video', durationMs: 5000 };
+            const { container } = render(strip({ photos: [clip], picked: ['v1'] }));
+
+            expect(container.querySelector('[data-video-mark]')).toBeInTheDocument();
+        });
+    });
+
+    // The panel's tiles under the row must be where they will stay from the panel's first frame, before
+    // the shell has said whether it can read the library at all.
+    describe('while the library has not answered', () => {
+        const strip = (overrides: Partial<RecentPhotoStripProps> = {}) => (
+            <RecentPhotoStrip
+                title="최근 사진"
+                seeAllLabel="전체 보기"
+                onSeeAll={jest.fn()}
+                photos={[]}
+                loading
+                photoLabel={p => `최근 ${p}`}
+                onToggle={jest.fn()}
+                {...overrides}
+            />
+        );
+        const placeholders = () => Array.from(document.querySelectorAll<HTMLElement>('[data-recent-placeholder]'));
+        /** The row itself: inside the part that opens and closes, and the one that says it is busy. */
+        const row = () => document.querySelector('[data-recent-strip]')?.firstElementChild?.firstElementChild;
+
+        it('draws its title over skeleton tiles the size of the photos to come', () => {
+            render(strip());
+
+            expect(screen.getByText('최근 사진')).toBeInTheDocument();
+            expect(placeholders()).toHaveLength(6);
+            for (const tile of placeholders()) {
+                expect(tile).toHaveClass('size-[90px]', 'rounded-[12px]', 'bg-muted', 'motion-safe:animate-pulse');
+                expect(tile).toHaveAttribute('aria-hidden', 'true');
+            }
+            expect(row()).toHaveAttribute('aria-busy', 'true');
+            // Nothing to pick yet.
+            expect(screen.queryAllByRole('button', { name: /최근/ })).toHaveLength(0);
+        });
+
+        it('draws as many skeleton tiles as asked', () => {
+            render(strip({ placeholderCount: 3 }));
+
+            expect(placeholders()).toHaveLength(3);
+        });
+
+        // What "see all" would open may not exist: the shell may have no library to read.
+        it('holds "see all" until the first photo is in', () => {
+            const onSeeAll = jest.fn();
+            const { rerender } = render(strip({ onSeeAll }));
+            fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+            expect(screen.getByRole('button', { name: '전체 보기' })).toBeDisabled();
+            expect(onSeeAll).not.toHaveBeenCalled();
+
+            rerender(strip({ onSeeAll, photos: photos(1) }));
+            fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+            expect(onSeeAll).toHaveBeenCalledTimes(1);
+        });
+
+        it('puts each photo in its own place’s tile as it arrives, leaving the tiles after it be', () => {
+            const { rerender } = render(strip({ placeholderCount: 4 }));
+            const [, second, third, fourth] = placeholders();
+
+            rerender(strip({ placeholderCount: 4, photos: photos(1) }));
+
+            expect(screen.getAllByRole('button', { name: /최근/ })).toHaveLength(1);
+            // The same elements, not equal ones: every skeleton tile looks alike.
+            const left = placeholders();
+            expect(left).toHaveLength(3);
+            [second, third, fourth].forEach((tile, i) => expect(left[i]).toBe(tile));
+            // The first real tile stands where the first skeleton stood.
+            const scroller = second.parentElement as HTMLElement;
+            expect(scroller.firstElementChild).toBe(screen.getByRole('button', { name: '최근 1' }));
+        });
+
+        it('draws only photos once the library has answered', () => {
+            const { rerender } = render(strip());
+
+            rerender(strip({ loading: false, photos: photos(2) }));
+
+            expect(placeholders()).toHaveLength(0);
+            expect(screen.getAllByRole('button', { name: /최근/ })).toHaveLength(2);
+            expect(row()).not.toHaveAttribute('aria-busy');
+        });
+
+        // Each photo fades in over the muted square its tile starts as, as PreviewImage does everywhere.
+        it('fades each arriving photo in over its tile', () => {
+            const { rerender } = render(strip());
+
+            rerender(strip({ loading: false, photos: photos(1) }));
+
+            const tile = screen.getByRole('button', { name: '최근 1' });
+            expect(tile).toHaveClass('bg-muted');
+            expect(tile.querySelector('img')).toHaveClass('opacity-0', 'transition-opacity');
+            expect(within(tile).getByTestId('preview-skeleton')).toBeInTheDocument();
+        });
+
+        it('draws nothing when asked for no skeleton tiles and nothing has arrived', () => {
+            const { container } = render(strip({ placeholderCount: 0 }));
+
+            expect(container).toBeEmptyDOMElement();
+        });
+    });
+
+    describe('opening and closing', () => {
+        /** The row's natural height in these tests: the title row and a row of tiles. */
+        const NATURAL = 144;
+        const originalMatchMedia = window.matchMedia;
+        const strip = () => document.querySelector('[data-recent-strip]') as HTMLElement | null;
+        const content = () => strip()?.firstElementChild as HTMLElement;
+        const placeholders = () => document.querySelectorAll('[data-recent-placeholder]');
+        const recent = (overrides: Partial<RecentPhotoStripProps> = {}) => (
+            <RecentPhotoStrip
+                title="최근 사진"
+                seeAllLabel="전체 보기"
+                onSeeAll={jest.fn()}
+                photos={[]}
+                photoLabel={p => `최근 ${p}`}
+                onToggle={jest.fn()}
+                {...overrides}
+            />
+        );
+        const recordLayoutReads = () => {
+            const reads: (string | null)[] = [];
+            jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+                reads.push(strip()?.getAttribute('data-shown') ?? null);
+                return new DOMRect();
+            });
+            return reads;
+        };
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(NATURAL);
+        });
+        afterEach(() => {
+            jest.useRealTimers();
+            window.matchMedia = originalMatchMedia;
+        });
+
+        it('is simply there, at its own height, when it first draws with something', () => {
+            const reads = recordLayoutReads();
+            render(recent({ loading: true }));
+
+            expect(reads).toEqual([]);
+            expect(strip()).toHaveAttribute('data-shown', 'true');
+            expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+        });
+
+        it('keeps its place when its skeleton tiles give way to photos', () => {
+            const reads = recordLayoutReads();
+            const { rerender } = render(recent({ loading: true }));
+            const before = strip();
+
+            rerender(recent({ photos: photos(3) }));
+
+            expect(strip()).toBe(before);
+            expect(reads).toEqual([]);
+            expect(strip()).toHaveAttribute('data-shown', 'true');
+            expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+        });
+
+        // The shell turned out to have no library to read: the tiles under the row rise as it goes.
+        it('folds away from its height when nothing comes, still showing its skeletons, then draws nothing', () => {
+            const { rerender, container } = render(recent({ loading: true, placeholderCount: 4 }));
+
+            rerender(recent({ loading: false }));
+
+            expect(strip()).toHaveAttribute('data-shown', 'false');
+            expect(strip()).toHaveStyle({ height: '0px' });
+            expect(strip()).toHaveClass('overflow-hidden', 'transition-[height]', 'duration-300');
+            expect(content()).toHaveClass('translate-y-2', 'opacity-0', 'transition-[transform,opacity]');
+            expect(placeholders()).toHaveLength(4);
+            expect(strip()).toHaveAttribute('inert');
+            expect(strip()).toHaveAttribute('aria-hidden', 'true');
+
+            // Only its own height ends the fold.
+            transitionEnd(content(), 'transform');
+            expect(strip()).toBeInTheDocument();
+            transitionEnd(strip() as HTMLElement, 'height');
+            expect(container).toBeEmptyDOMElement();
+        });
+
+        it('keeps showing the photos it had while it folds away', () => {
+            const { rerender } = render(recent({ photos: photos(2) }));
+
+            rerender(recent({ photos: [] }));
+
+            expect(strip()?.querySelectorAll('img')).toHaveLength(2);
+            expect(screen.queryByRole('button', { name: '최근 1' })).not.toBeInTheDocument();
+        });
+
+        it('folds away after the slide’s length when the end of the move is never reported', () => {
+            const { rerender } = render(recent({ loading: true }));
+
+            rerender(recent({ loading: false }));
+            act(() => jest.advanceTimersByTime(SLIDE_MS));
+            expect(strip()).toBeInTheDocument();
+
+            act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS - SLIDE_MS));
+            expect(strip()).not.toBeInTheDocument();
+        });
+
+        it('opens from no height when photos come to a row that had none', () => {
+            const reads = recordLayoutReads();
+            const { rerender } = render(recent());
+            expect(strip()).not.toBeInTheDocument();
+
+            rerender(recent({ photos: photos(3) }));
+
+            // Laid out closed first, so the height has somewhere to move from.
+            expect(reads).toEqual(['false']);
+            expect(strip()).toHaveAttribute('data-shown', 'true');
+            expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+            expect(content()).toHaveClass('translate-y-0', 'opacity-100');
+            expect(strip()).not.toHaveAttribute('inert');
+        });
+
+        it('folds away at once for a reader who asked for less motion', () => {
+            window.matchMedia = jest.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+            const { rerender, container } = render(recent({ loading: true }));
+            expect(strip()).toHaveClass('transition-none');
+
+            rerender(recent({ loading: false }));
+
+            expect(container).toBeEmptyDOMElement();
+        });
+
+        // Space the host wants around the row opens and closes with it.
+        it('puts the host’s class on the row, inside the part that opens and closes', () => {
+            render(recent({ photos: photos(1), className: 'mb-2' }));
+
+            expect(strip()).not.toHaveClass('mb-2');
+            expect(content().firstElementChild).toHaveClass('mb-2');
+        });
+    });
 });
 
 describe('PhotoGridTile', () => {
@@ -86,8 +382,18 @@ describe('PhotoGridTile', () => {
     });
 });
 
+/** jsdom has no `TransitionEvent`; React reads `propertyName` off whatever event arrives. */
+const transitionEnd = (element: Element, propertyName: string) => {
+    const event = new Event('transitionend', { bubbles: true });
+    Object.defineProperty(event, 'propertyName', { value: propertyName });
+    act(() => {
+        element.dispatchEvent(event);
+    });
+};
+
 describe('SelectedPhotoStrip', () => {
-    it('removes by id and draws nothing when empty', () => {
+    it('removes by id and draws nothing once it has closed empty', () => {
+        jest.useFakeTimers();
         const onRemove = jest.fn();
         const { rerender, container } = render(
             <SelectedPhotoStrip photos={photos(2)} onRemove={onRemove} removeLabel={p => `빼기 ${p}`} />
@@ -96,7 +402,416 @@ describe('SelectedPhotoStrip', () => {
         expect(onRemove).toHaveBeenCalledWith('p1');
 
         rerender(<SelectedPhotoStrip photos={[]} onRemove={onRemove} />);
+        act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS));
         expect(container).toBeEmptyDOMElement();
+        jest.useRealTimers();
+    });
+
+    it('draws nothing when it starts with nothing picked', () => {
+        const { container } = render(<SelectedPhotoStrip photos={[]} onRemove={jest.fn()} />);
+
+        expect(container).toBeEmptyDOMElement();
+    });
+
+    it('opens a tapped thumbnail, with the remove chip still a button of its own', () => {
+        const onSelect = jest.fn();
+        const onRemove = jest.fn();
+        render(
+            <SelectedPhotoStrip
+                photos={photos(2)}
+                onRemove={onRemove}
+                onSelect={onSelect}
+                selectLabel={p => `Open ${p}`}
+                removeLabel={p => `Remove ${p}`}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open 2' }));
+        expect(onSelect).toHaveBeenCalledWith('p1');
+        expect(onRemove).not.toHaveBeenCalled();
+
+        // Siblings, not nested: a button inside a button is invalid and swallows the inner one's taps.
+        const remove = screen.getByRole('button', { name: 'Remove 2' });
+        expect(screen.getByRole('button', { name: 'Open 2' })).not.toContainElement(remove);
+        fireEvent.click(remove);
+        expect(onRemove).toHaveBeenCalledWith('p1');
+        expect(onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the thumbnails untappable without a select handler', () => {
+        render(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+
+        expect(screen.getAllByRole('button')).toHaveLength(2);
+        expect(screen.queryByRole('button', { name: /Open photo/ })).not.toBeInTheDocument();
+    });
+
+    it('draws an edited photo with its edit and a mark that names it', () => {
+        jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(64);
+        jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(64);
+        const [first, second] = photos(2);
+        const edited: PhotoItem = {
+            ...first,
+            edited: {
+                src: 'blob:rendition',
+                width: 4000,
+                height: 3000,
+                edit: { rotation: 90, flipH: false, crop: { x: 0, y: 0, width: 1, height: 1 }, aspect: 'free' },
+            },
+        };
+        render(
+            <SelectedPhotoStrip
+                photos={[edited, second]}
+                onRemove={jest.fn()}
+                onSelect={jest.fn()}
+                editedLabel="Edited"
+            />
+        );
+
+        const thumb = screen.getByRole('button', { name: 'Open photo 1' });
+        expect(thumb.querySelector('[data-edited-photo] img')).toHaveAttribute('src', 'blob:rendition');
+        expect(thumb).toHaveAccessibleDescription('Edited');
+        expect(screen.getByRole('button', { name: 'Open photo 2' }).querySelector('img')).toHaveAttribute(
+            'src',
+            second.src
+        );
+        expect(screen.getAllByText('Edited')).toHaveLength(1);
+    });
+
+    it('draws the compact row a composer keeps, with smaller tiles and both buttons still working', () => {
+        const onSelect = jest.fn();
+        const onRemove = jest.fn();
+        const { container, rerender } = render(
+            <SelectedPhotoStrip photos={photos(2)} onRemove={onRemove} onSelect={onSelect} size="compact" />
+        );
+
+        const tiles = container.querySelectorAll('[data-picked-tile]');
+        const surface = () => container.querySelector('[data-size]');
+        expect(surface()).toHaveAttribute('data-size', 'compact');
+        expect(tiles).toHaveLength(2);
+        expect(tiles[0]).toHaveClass('size-12');
+        // Hugging its tiles, rather than spanning its host as the grid's strip does.
+        expect(surface()).toHaveClass('w-fit');
+        expect(surface()).not.toHaveClass('w-full');
+        fireEvent.click(screen.getByRole('button', { name: 'Open photo 2' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Remove photo 1' }));
+        expect(onSelect).toHaveBeenCalledWith('p1');
+        expect(onRemove).toHaveBeenCalledWith('p0');
+
+        // The grid's size is what it always was.
+        rerender(<SelectedPhotoStrip photos={photos(2)} onRemove={onRemove} />);
+        expect(surface()).toHaveAttribute('data-size', 'regular');
+        expect(surface()).toHaveClass('w-full', 'p-3');
+        expect(container.querySelector('[data-picked-tile]')).toHaveClass('size-16');
+    });
+
+    it('reads as a named group when given a label, and as a plain row without one', () => {
+        const { rerender } = render(
+            <SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} label="Photos to send" size="compact" />
+        );
+        expect(screen.getByRole('group', { name: 'Photos to send' })).toBeInTheDocument();
+
+        rerender(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} />);
+        expect(screen.queryByRole('group')).not.toBeInTheDocument();
+    });
+
+    // A margin the host gives the row has to open and close with it, so it goes on the row's surface,
+    // inside the box whose height moves.
+    it('puts the host’s class on the row’s surface, inside the part that opens and closes', () => {
+        const { container } = render(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} className="mb-2" />);
+
+        const strip = container.querySelector('[data-picked-strip]') as HTMLElement;
+        expect(container.querySelector('[data-size]')).toHaveClass('mb-2');
+        expect(strip).not.toHaveClass('mb-2');
+        expect(strip).toContainElement(container.querySelector('[data-size]') as HTMLElement);
+    });
+
+    describe('motion', () => {
+        /** The strip's natural height in these tests: the regular strip's 112px. */
+        const NATURAL = 112;
+        const originalMatchMedia = window.matchMedia;
+
+        const strip = () => document.querySelector('[data-picked-strip]') as HTMLElement | null;
+        const content = () => strip()?.firstElementChild as HTMLElement;
+        const slots = () => Array.from(document.querySelectorAll<HTMLElement>('[data-picked-item]'));
+        const slot = (id: string) =>
+            slots().find(element => element.querySelector('img')?.getAttribute('src')?.endsWith(id)) as HTMLElement;
+        const row = () => slots()[0].parentElement as HTMLElement;
+
+        /** Records every layout read: what the strip and its tiles looked like when one was taken. */
+        const recordLayoutReads = () => {
+            const reads: { shown: string | null; phases: (string | null)[] }[] = [];
+            jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+                reads.push({
+                    shown: strip()?.getAttribute('data-shown') ?? null,
+                    phases: slots().map(element => element.getAttribute('data-phase')),
+                });
+                return new DOMRect();
+            });
+            return reads;
+        };
+
+        const reduceMotion = () => {
+            window.matchMedia = jest.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+        };
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(NATURAL);
+        });
+        afterEach(() => {
+            jest.useRealTimers();
+            window.matchMedia = originalMatchMedia;
+        });
+
+        describe('opening and closing', () => {
+            it('opens from no height to its own when the first photo is picked, its content rising in', () => {
+                const reads = recordLayoutReads();
+                const { rerender } = render(<SelectedPhotoStrip photos={[]} onRemove={jest.fn()} />);
+                expect(strip()).not.toBeInTheDocument();
+
+                rerender(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} />);
+
+                // Laid out closed first, so the height has somewhere to move from.
+                expect(reads.map(read => read.shown)).toEqual(['false']);
+                expect(strip()).toHaveAttribute('data-shown', 'true');
+                expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+                expect(strip()).toHaveClass('overflow-hidden', 'transition-[height]', 'duration-300');
+                expect(content()).toHaveClass('translate-y-0', 'opacity-100', 'transition-[transform,opacity]');
+                expect(strip()).not.toHaveAttribute('inert');
+            });
+
+            // The grid opened on picks made in the attach panel: the strip is part of the sheet's rise.
+            it('is simply there at its own height when it mounts with photos', () => {
+                const reads = recordLayoutReads();
+                render(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+
+                expect(reads).toEqual([]);
+                expect(strip()).toHaveAttribute('data-shown', 'true');
+                expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+            });
+
+            it('closes to no height when the last photo goes, still showing it, then draws nothing', () => {
+                const onExited = jest.fn();
+                const { rerender, container } = render(
+                    <SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} onExited={onExited} />
+                );
+
+                rerender(<SelectedPhotoStrip photos={[]} onRemove={jest.fn()} onExited={onExited} />);
+
+                expect(strip()).toHaveAttribute('data-shown', 'false');
+                expect(strip()).toHaveStyle({ height: '0px' });
+                expect(content()).toHaveClass('translate-y-2', 'opacity-0');
+                // The whole row closes; its last tile is drawn as it was rather than leaving on its own.
+                expect(strip()?.querySelector('img')).toHaveAttribute('src', photos(1)[0].src);
+                expect(slots().map(element => element.dataset.phase)).toEqual(['in']);
+                // Untouchable and unread on the way out.
+                expect(strip()).toHaveAttribute('inert');
+                expect(screen.queryByRole('button', { name: 'Remove photo 1' })).not.toBeInTheDocument();
+
+                // Only its own height ends the close, not the content's motion inside it.
+                transitionEnd(content(), 'transform');
+                expect(strip()).toBeInTheDocument();
+                expect(onExited).not.toHaveBeenCalled();
+
+                transitionEnd(strip() as HTMLElement, 'height');
+                expect(container).toBeEmptyDOMElement();
+                expect(onExited).toHaveBeenCalledTimes(1);
+            });
+
+            it('closes after the slide’s length when the end of the move is never reported', () => {
+                const onExited = jest.fn();
+                const { rerender } = render(
+                    <SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} onExited={onExited} />
+                );
+
+                rerender(<SelectedPhotoStrip photos={[]} onRemove={jest.fn()} onExited={onExited} />);
+                act(() => jest.advanceTimersByTime(SLIDE_MS));
+                expect(strip()).toBeInTheDocument();
+
+                act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS - SLIDE_MS));
+                expect(strip()).not.toBeInTheDocument();
+                expect(onExited).toHaveBeenCalledTimes(1);
+            });
+
+            it('opens again, with the new pick, when one is made while it closes', () => {
+                const [first, second] = photos(2);
+                const { rerender } = render(<SelectedPhotoStrip photos={[first]} onRemove={jest.fn()} />);
+                rerender(<SelectedPhotoStrip photos={[]} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={[second]} onRemove={jest.fn()} />);
+
+                expect(strip()).toHaveAttribute('data-shown', 'true');
+                expect(slots()).toHaveLength(1);
+                expect(slots()[0].querySelector('img')).toHaveAttribute('src', second.src);
+                act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS));
+                expect(strip()).toBeInTheDocument();
+            });
+
+            it('opens and closes at once for a reader who asked for less motion', () => {
+                reduceMotion();
+                const onExited = jest.fn();
+                const { rerender } = render(
+                    <SelectedPhotoStrip photos={[]} onRemove={jest.fn()} onExited={onExited} />
+                );
+
+                rerender(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} onExited={onExited} />);
+                expect(strip()).toHaveClass('transition-none');
+                expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
+
+                rerender(<SelectedPhotoStrip photos={[]} onRemove={jest.fn()} onExited={onExited} />);
+                expect(strip()).not.toBeInTheDocument();
+                expect(onExited).toHaveBeenCalledTimes(1);
+            });
+        });
+
+        describe('photos coming and going', () => {
+            it('widens a new pick into the row from nothing while the others stay where they are', () => {
+                const reads = recordLayoutReads();
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
+
+                // Laid out at no width first, so the widening is a transition.
+                expect(reads.map(read => read.phases)).toEqual([['in', 'in', 'enter']]);
+                expect(slots().map(element => element.dataset.phase)).toEqual(['in', 'in', 'in']);
+                expect(slots().map(element => [element.style.width, element.style.marginLeft])).toEqual([
+                    ['64px', '0px'],
+                    ['64px', '14px'],
+                    ['64px', '14px'],
+                ]);
+                expect(slots()[2]).toHaveClass('transition-[width,margin-left]', 'duration-300');
+                expect(slots()[2].querySelector('[data-picked-tile]')).toHaveClass('scale-100', 'opacity-100');
+            });
+
+            it('narrows a removed photo to nothing where it stood while the next one slides over, then drops it', () => {
+                const [first, second, third] = photos(3);
+                const onRemove = jest.fn();
+                const { rerender } = render(<SelectedPhotoStrip photos={[first, second, third]} onRemove={onRemove} />);
+
+                rerender(<SelectedPhotoStrip photos={[first, third]} onRemove={onRemove} />);
+
+                // Kept in its place, so the order on screen never shuffles.
+                expect(slots().map(element => element.dataset.phase)).toEqual(['in', 'leave', 'in']);
+                const leaving = slot(second.id);
+                expect(leaving).toHaveStyle({ width: '0px', marginLeft: '0px' });
+                expect(leaving.querySelector('[data-picked-tile]')).toHaveClass('scale-75', 'opacity-0');
+                expect(leaving).toHaveAttribute('inert');
+                expect(slot(third.id)).toHaveStyle({ width: '64px', marginLeft: '14px' });
+                // Positions count only what stays.
+                fireEvent.click(screen.getByRole('button', { name: 'Remove photo 2' }));
+                expect(onRemove).toHaveBeenCalledWith(third.id);
+                expect(screen.queryByRole('button', { name: 'Remove photo 3' })).not.toBeInTheDocument();
+
+                transitionEnd(leaving.querySelector('[data-picked-tile]') as HTMLElement, 'transform');
+                expect(slots()).toHaveLength(3);
+                transitionEnd(leaving, 'width');
+                expect(slots()).toHaveLength(2);
+            });
+
+            // The space before the first tile is nothing; the space after it has to close with it.
+            it('closes the space after a removed first photo too', () => {
+                const [first, second] = photos(2);
+                const { rerender } = render(<SelectedPhotoStrip photos={[first, second]} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={[second]} onRemove={jest.fn()} />);
+
+                expect(slot(second.id)).toHaveStyle({ width: '64px', marginLeft: '0px' });
+            });
+
+            it('drops a removed photo after the slide’s length when the end is never reported', () => {
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+                act(() => jest.advanceTimersByTime(SLIDE_MS));
+                expect(slots()).toHaveLength(3);
+
+                act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS - SLIDE_MS));
+                expect(slots()).toHaveLength(2);
+            });
+
+            it('brings a photo back where the host now puts it when it is picked again on its way out', () => {
+                const [first, second, third] = photos(3);
+                const { rerender } = render(
+                    <SelectedPhotoStrip photos={[first, second, third]} onRemove={jest.fn()} />
+                );
+                rerender(<SelectedPhotoStrip photos={[first, third]} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={[first, third, second]} onRemove={jest.fn()} />);
+
+                expect(slots().map(element => element.querySelector('img')?.getAttribute('src'))).toEqual([
+                    first.src,
+                    third.src,
+                    second.src,
+                ]);
+                expect(slots().map(element => element.dataset.phase)).toEqual(['in', 'in', 'in']);
+            });
+
+            it('drops a removed photo at once for a reader who asked for less motion', () => {
+                reduceMotion();
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+
+                expect(slots()).toHaveLength(2);
+                expect(slots()[0]).toHaveClass('transition-none');
+            });
+        });
+
+        describe('keeping a new pick in view', () => {
+            /** Wide enough for two and a bit 64px tiles. */
+            const VIEW = 200;
+            beforeEach(() => {
+                jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(VIEW);
+            });
+
+            // Four tiles and three gaps, then the 8px the remove chip hangs into, less what is on screen.
+            const toFourth = 4 * 64 + 3 * 14 + 8 - VIEW;
+
+            it('scrolls the row along with the new tile’s widening until the tile is in view', () => {
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
+                expect(row().scrollLeft).toBe(0);
+
+                rerender(<SelectedPhotoStrip photos={photos(4)} onRemove={jest.fn()} />);
+                act(() => jest.advanceTimersByTime(SLIDE_MS / 2));
+                // On the slide's curve: most of the way at half time, not there yet.
+                expect(row().scrollLeft).toBeGreaterThan(toFourth * 0.8);
+                expect(row().scrollLeft).toBeLessThan(toFourth);
+
+                act(() => jest.advanceTimersByTime(SLIDE_MS));
+                expect(row().scrollLeft).toBe(toFourth);
+            });
+
+            it('leaves the row where it is when the new tile fits in view', () => {
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
+                act(() => jest.advanceTimersByTime(SLIDE_MS * 2));
+
+                expect(row().scrollLeft).toBe(0);
+            });
+
+            it('stops following once the person touches the row', () => {
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
+                rerender(<SelectedPhotoStrip photos={photos(4)} onRemove={jest.fn()} />);
+                act(() => jest.advanceTimersByTime(SLIDE_MS / 3));
+                const reached = row().scrollLeft;
+
+                fireEvent.pointerDown(row());
+                act(() => jest.advanceTimersByTime(SLIDE_MS));
+
+                expect(reached).toBeGreaterThan(0);
+                expect(row().scrollLeft).toBe(reached);
+            });
+
+            it('jumps straight there for a reader who asked for less motion', () => {
+                reduceMotion();
+                const { rerender } = render(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
+
+                rerender(<SelectedPhotoStrip photos={photos(4)} onRemove={jest.fn()} />);
+
+                expect(row().scrollLeft).toBe(toFourth);
+            });
+        });
     });
 });
 
@@ -193,6 +908,250 @@ describe('PhotoGridSheet', () => {
 
         fireEvent.click(screen.getByRole('button', { name: '카메라' }));
         expect(onCamera).toHaveBeenCalledTimes(1);
+    });
+
+    describe('edit and grouping row', () => {
+        const footer = () => screen.queryByTestId('photo-grid-footer');
+        const checkbox = () => screen.queryByRole('checkbox', { name: 'One message' });
+        const labels = { edit: 'Edit', grouped: 'One message', select: (p: number) => `Open ${p}` };
+
+        it('opens the editor from the edit button with no id, and from a strip tap with that one', () => {
+            const all = photos(3);
+            const onEdit = jest.fn();
+            render(<PhotoGridSheet {...base({ photos: all, picked: [all[2], all[0]], onEdit, labels })} />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Open 2' }));
+
+            expect(onEdit.mock.calls).toEqual([[], ['p0']]);
+        });
+
+        it('greys the edit button when nothing picked can be edited', () => {
+            const all = photos(1);
+            const onEdit = jest.fn();
+            render(<PhotoGridSheet {...base({ photos: all, picked: all, onEdit, editDisabled: true, labels })} />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+            expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
+            expect(onEdit).not.toHaveBeenCalled();
+        });
+
+        it('offers one message or several only from two picked items', () => {
+            const all = photos(3);
+            const onGroupedChange = jest.fn();
+            const { rerender } = render(
+                <PhotoGridSheet {...base({ photos: all, picked: [all[0]], grouped: true, onGroupedChange, labels })} />
+            );
+            expect(checkbox()).not.toBeInTheDocument();
+            // Nothing else for the row to hold: the footer is the send button alone.
+            expect(footer()).not.toBeInTheDocument();
+
+            rerender(
+                <PhotoGridSheet
+                    {...base({ photos: all, picked: [all[0], all[1]], grouped: true, onGroupedChange, labels })}
+                />
+            );
+            expect(checkbox()).toHaveAttribute('aria-checked', 'true');
+            fireEvent.click(checkbox() as HTMLElement);
+            expect(onGroupedChange).toHaveBeenCalledWith(false);
+
+            rerender(
+                <PhotoGridSheet
+                    {...base({ photos: all, picked: [all[0], all[1]], grouped: false, onGroupedChange, labels })}
+                />
+            );
+            fireEvent.click(checkbox() as HTMLElement);
+            expect(onGroupedChange).toHaveBeenLastCalledWith(true);
+        });
+
+        it('draws neither control when the host offers neither', () => {
+            const all = photos(2);
+            render(<PhotoGridSheet {...base({ photos: all, picked: all, grouped: true, labels })} />);
+
+            expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+            expect(checkbox()).not.toBeInTheDocument();
+            expect(footer()).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: '보내기' })).toBeInTheDocument();
+        });
+
+        it('keeps the row out of the album list, as it does the send button', () => {
+            const all = photos(2);
+            render(
+                <PhotoGridSheet
+                    {...base({
+                        photos: all,
+                        picked: all,
+                        albumsOpen: true,
+                        onEdit: jest.fn(),
+                        onGroupedChange: jest.fn(),
+                        labels,
+                    })}
+                />
+            );
+
+            expect(footer()).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+        });
+
+        it('holds the row and the send button in one panel', () => {
+            const all = photos(2);
+            const onSend = jest.fn();
+            render(
+                <PhotoGridSheet
+                    {...base({
+                        photos: all,
+                        picked: all,
+                        onSend,
+                        onEdit: jest.fn(),
+                        onGroupedChange: jest.fn(),
+                        labels,
+                    })}
+                />
+            );
+
+            const panel = footer() as HTMLElement;
+            expect(within(panel).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+            expect(within(panel).getByRole('checkbox', { name: 'One message' })).toBeInTheDocument();
+            fireEvent.click(within(panel).getByRole('button', { name: '보내기' }));
+            expect(onSend).toHaveBeenCalledTimes(1);
+        });
+
+        it('takes no tap on the row while the pick is being read', () => {
+            const all = photos(2);
+            const onEdit = jest.fn();
+            const onGroupedChange = jest.fn();
+            render(
+                <PhotoGridSheet
+                    {...base({ photos: all, picked: all, sending: true, onEdit, onGroupedChange, labels })}
+                />
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+            fireEvent.click(checkbox() as HTMLElement);
+
+            expect(onEdit).not.toHaveBeenCalled();
+            expect(onGroupedChange).not.toHaveBeenCalled();
+        });
+
+        it('lifts the snackbar by the whole panel, row included', () => {
+            const all = photos(2);
+            render(<PhotoGridSheet {...base({ photos: all, picked: all, onEdit: jest.fn(), labels })} />);
+
+            // Every box measures 600 tall here; the button's own panel reads 0 from jsdom's rect.
+            expect(document.documentElement.style.getPropertyValue('--toast-lift')).toBe(`${VIEW_HEIGHT}px`);
+        });
+    });
+
+    describe('footer slide', () => {
+        const slide = () => screen.queryByTestId('photo-grid-footer-slide');
+        const spacer = () => screen.queryByTestId('photo-grid-footer-spacer');
+        const lift = () => document.documentElement.style.getPropertyValue('--toast-lift');
+
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        it('slides the send button up from below when the first item is picked', () => {
+            const all = photos(2);
+            // Which position the footer had been laid out at when it was moved: the slide's start.
+            const laidOutAt: (string | null)[] = [];
+            const rect = HTMLElement.prototype.getBoundingClientRect;
+            jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+                if (this.dataset.testid === 'photo-grid-footer-slide') laidOutAt.push(this.dataset.shown ?? null);
+                return rect.call(this);
+            });
+            const { rerender } = render(<PhotoGridSheet {...base({ photos: all })} />);
+            expect(slide()).not.toBeInTheDocument();
+
+            rerender(<PhotoGridSheet {...base({ photos: all, picked: [all[0]], sendLabel: '1장 보내기' })} />);
+
+            expect(laidOutAt).toEqual(['false']);
+            expect(slide()).toHaveAttribute('data-shown', 'true');
+            expect(within(slide() as HTMLElement).getByRole('button', { name: '1장 보내기' })).toBeInTheDocument();
+        });
+
+        // Opened on a pick made elsewhere (the attach panel's row), the footer rises with the sheet.
+        it('is simply there when the sheet opens with something already picked', () => {
+            const all = photos(2);
+            render(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
+
+            expect(slide()).toHaveAttribute('data-shown', 'true');
+        });
+
+        it('slides it back down when the last pick is undone, still showing what it showed, untouchable', () => {
+            const all = photos(2);
+            const { rerender } = render(
+                <PhotoGridSheet {...base({ photos: all, picked: [all[0]], sendLabel: '1장 보내기' })} />
+            );
+
+            rerender(<PhotoGridSheet {...base({ photos: all, picked: [], sendLabel: '0장 보내기' })} />);
+
+            const leaving = slide() as HTMLElement;
+            expect(leaving).toHaveAttribute('data-shown', 'false');
+            expect(leaving).toHaveAttribute('inert');
+            expect(within(leaving).getByRole('button', { name: '1장 보내기' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: '0장 보내기' })).not.toBeInTheDocument();
+
+            act(() => jest.advanceTimersByTime(SLIDE_MS + 100));
+            expect(slide()).not.toBeInTheDocument();
+        });
+
+        it('slides it down when the album list takes the grid’s place', () => {
+            const all = photos(2);
+            const { rerender } = render(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
+
+            rerender(<PhotoGridSheet {...base({ photos: all, picked: [all[0]], albumsOpen: true })} />);
+
+            expect(slide()).toHaveAttribute('data-shown', 'false');
+        });
+
+        // The footer lies over the grid rather than shortening it; the last row has to scroll clear.
+        it('lets the grid scroll its last row clear of the footer while the footer is up', () => {
+            const all = photos(2);
+            const { rerender } = render(<PhotoGridSheet {...base({ photos: all })} />);
+            expect(spacer()).not.toBeInTheDocument();
+
+            rerender(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
+            // Every box measures 600 tall here, the footer included.
+            expect(spacer()).toHaveStyle({ height: `${VIEW_HEIGHT}px` });
+            expect(screen.getByTestId('photo-grid-scroller')).toContainElement(spacer());
+
+            rerender(<PhotoGridSheet {...base({ photos: all, picked: [] })} />);
+            expect(spacer()).not.toBeInTheDocument();
+        });
+
+        it('keeps the snackbar lifted until the footer is gone', () => {
+            const all = photos(2);
+            const { rerender } = render(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
+            expect(lift()).toBe(`${VIEW_HEIGHT}px`);
+
+            rerender(<PhotoGridSheet {...base({ photos: all, picked: [] })} />);
+            expect(lift()).toBe(`${VIEW_HEIGHT}px`);
+
+            act(() => jest.advanceTimersByTime(SLIDE_MS + 100));
+            expect(lift()).toBe('');
+        });
+
+        it('moves for someone who asked for less motion only by appearing and disappearing', () => {
+            const all = photos(2);
+            render(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
+
+            expect(slide()).toHaveClass('motion-reduce:transition-none');
+        });
+    });
+
+    // The strip closes rather than vanishing, which it can only do while the sheet still draws it.
+    it('keeps the picked strip through the last un-pick so it can close', () => {
+        jest.useFakeTimers();
+        const all = photos(2);
+        const { rerender } = render(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
+
+        rerender(<PhotoGridSheet {...base({ photos: all, picked: [] })} />);
+
+        expect(document.querySelector('[data-picked-strip]')).toHaveAttribute('data-shown', 'false');
+        act(() => jest.advanceTimersByTime(SLIDE_FALLBACK_MS));
+        expect(document.querySelector('[data-picked-strip]')).not.toBeInTheDocument();
+        jest.useRealTimers();
     });
 
     it('un-picks from the strip through the same toggle', () => {
@@ -450,6 +1409,44 @@ describe('PhotoGridSheet', () => {
                 expect(top).not.toBeCloseTo(ROW * 10, 0);
             });
         });
+    });
+});
+
+describe('GridScrubber', () => {
+    // The photo grid's footer lies over the scroller's bottom; a handle dragged under it is lost.
+    it('runs its track above what covers the scroller’s bottom, and still reaches the end', () => {
+        scrollHeight = VIEW_HEIGHT * 20;
+        const scroller = document.createElement('div');
+        let top = 0;
+        Object.defineProperty(scroller, 'scrollTop', {
+            configurable: true,
+            get: () => top,
+            set: (value: number) => (top = value),
+        });
+        render(
+            <div>
+                <GridScrubber scroller={scroller} contentHeight={scrollHeight} insetBottom={100} />
+            </div>
+        );
+        act(() => {
+            scroller.dispatchEvent(new Event('scroll'));
+        });
+
+        const track = screen.getByTestId('photo-grid-scrubber');
+        expect(track).toHaveStyle({ bottom: '108px' });
+
+        const handle = track.firstElementChild as HTMLElement;
+        const pointer = (type: string, clientY: number) => {
+            const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientY });
+            Object.defineProperty(event, 'pointerId', { value: 3 });
+            fireEvent(handle, event);
+        };
+        // The track is 600 - 100 - 16 tall and the handle 48: its full travel is the end of the content.
+        pointer('pointerdown', 0);
+        pointer('pointermove', 600 - 100 - 16 - 48);
+        pointer('pointerup', 600 - 100 - 16 - 48);
+
+        expect(top).toBe(VIEW_HEIGHT * 20 - VIEW_HEIGHT);
     });
 });
 

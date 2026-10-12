@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
@@ -76,12 +76,14 @@ beforeEach(() => {
 const room = (id: string) => ({ id, name: id, cid: 'cloud-a' }) as DomainChannel;
 
 describe('ChatPane', () => {
-    it("sends the composer's text and pictures to the channel in its own cloud, and empties the tray", () => {
+    it("sends the composer's text and pictures to the channel in its own cloud, and empties the tray", async () => {
         const files = [new File(['a'], 'a.png', { type: 'image/png' })];
 
         render(<ChatPane channel={{ id: 'C1', name: 'general', cid: 'cloud-a' } as DomainChannel} members={[]} />, {
             wrapper,
         });
+        // The composer arrives a tick after the feed (lazy chunk) — wait for it.
+        await waitFor(() => expect(composerOnSend).toBeDefined());
         composerOnSend?.('caption', files);
 
         expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: 'C1' });
@@ -99,40 +101,43 @@ describe('ChatPane', () => {
 // Deleting or leaving the open room takes the focused header with it; the room shown next
 // has to pick focus up, and only that one.
 describe('ChatPane focus after a channel was removed', () => {
-    it('does not focus the composer on a plain open', () => {
+    it('does not focus the composer on a plain open', async () => {
         render(<ChatPane channel={room('C2')} members={[]} />, { wrapper });
 
+        await waitFor(() => expect(composerAutoFocus.length).toBeGreaterThan(0));
         expect(composerAutoFocus).not.toContain(true);
     });
 
-    it('waits while the removed room is still the one shown', () => {
+    it('waits while the removed room is still the one shown', async () => {
         useComposerFocusStore.getState().request('C1');
         render(<ChatPane channel={room('C1')} members={[]} />, { wrapper });
 
+        await waitFor(() => expect(composerAutoFocus.length).toBeGreaterThan(0));
         expect(composerAutoFocus).not.toContain(true);
         expect(useComposerFocusStore.getState().removedId).toBe('C1');
     });
 
-    it('focuses the composer of the room the pane switches to, once', () => {
+    it('focuses the composer of the room the pane switches to, once', async () => {
         useComposerFocusStore.getState().request('C1');
         const { rerender } = render(<ChatPane channel={undefined} members={[]} />, { wrapper });
         // Channels are still listed, so the pane is between rooms, not out of them.
         expect(useComposerFocusStore.getState().removedId).toBe('C1');
 
         rerender(<ChatPane channel={room('C2')} members={[]} />);
-        expect(composerAutoFocus).toContain(true);
+        await waitFor(() => expect(composerAutoFocus).toContain(true));
         expect(useComposerFocusStore.getState().removedId).toBeNull();
 
         composerAutoFocus.length = 0;
         rerender(<ChatPane channel={room('C3')} members={[]} />);
+        await waitFor(() => expect(composerAutoFocus.length).toBeGreaterThan(0));
         expect(composerAutoFocus).not.toContain(true);
     });
 
-    it('focuses the open room when the removed channel was another one', () => {
+    it('focuses the open room when the removed channel was another one', async () => {
         useComposerFocusStore.getState().request('C1');
         render(<ChatPane channel={room('C2')} members={[]} />, { wrapper });
 
-        expect(composerAutoFocus).toContain(true);
+        await waitFor(() => expect(composerAutoFocus).toContain(true));
         expect(useComposerFocusStore.getState().removedId).toBeNull();
     });
 

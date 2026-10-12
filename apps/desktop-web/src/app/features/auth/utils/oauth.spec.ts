@@ -69,10 +69,14 @@ describe('parseOAuthDeeplink', () => {
 
 describe('buildOAuthDeeplink', () => {
     it('round-trips through parseOAuthDeeplink on the configured channel scheme', () => {
-        const url = buildOAuthDeeplink('google', 'a b&c');
+        const url = buildOAuthDeeplink('google', 'a b&c', 'n1');
 
         expect(url.startsWith('chatic-dev://oauth?')).toBe(true);
-        expect(parseOAuthDeeplink(url)).toEqual({ provider: 'google', code: 'a b&c' });
+        expect(parseOAuthDeeplink(url)).toEqual({ provider: 'google', code: 'a b&c', nonce: 'n1' });
+    });
+
+    it('carries the nonce it was given', () => {
+        expect(new URL(buildOAuthDeeplink('google', 'abc', 'n1')).searchParams.get('nonce')).toBe('n1');
     });
 });
 
@@ -84,16 +88,15 @@ describe('buildAuthorizeUrl', () => {
     const redirectOf = (url: string): string => new URL(url).searchParams.get('redirect') ?? '';
 
     it('returns to this origin hand-off page', () => {
-        const url = buildAuthorizeUrl('google');
+        const url = buildAuthorizeUrl('google', 'n1');
 
         expect(url.startsWith('https://relay.example/oauth/google/authorize?redirect=')).toBe(true);
-        expect(redirectOf(url)).toBe(`${window.location.origin}/auth/oauth-response`);
+        expect(new URL(redirectOf(url)).pathname).toBe('/auth/oauth-response');
     });
 
-    it('adds the nonce to the redirect address only when given one', () => {
+    it('always carries the nonce on the redirect address', () => {
         expect(redirectOf(buildAuthorizeUrl('google', 'n1'))).toBe(
             `${window.location.origin}/auth/oauth-response?nonce=n1`
         );
-        expect(redirectOf(buildAuthorizeUrl('google'))).not.toContain('nonce');
     });
 });

@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (not wired to a screen yet) · Last updated: 2026-10-01 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (both apps send through `useSendImages` in `@chatic/app-runtime`) · Last updated: 2026-10-08 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -16,6 +16,9 @@ operations, what to retry, and what a failure means. It does **not** know how by
 4. complete         upload.complete({ list: [{ id, failure? }] }) failed slots included
 5. send             port send({ uploadIds })                      only if ≥ 1 slot is stored
 ```
+
+The sequence never sees the message's text. A caption rides on the pending row and goes out with
+the send (§ Pending image rows), so the `send` port carries the upload ids alone.
 
 - **The pending row comes first.** The optimistic message has to be on screen while the photos are
   prepared and uploaded, which takes seconds. `sendChat` makes its optimistic row at request time,
@@ -83,9 +86,11 @@ native sender would first copy it to the shell as base64 in one bridge message, 
 survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
 from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
 
-The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the twelve server
-formats, each kind's own limit, the same item twice (a page file by name, size and time, a shell file
-by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
+The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the thirteen server
+formats (less the ones the calling app says it does not send, through the optional filter argument;
+no app passes one today — it is there for the day the server opens a format one app follows later),
+each kind's own limit, the same item twice (a page file by name, size and time, a
+shell file by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
 because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
 size-checked by its source: the shell's estimate and the check of its result decide that.
 
@@ -138,13 +143,13 @@ quote the request it failed on.
 
 `ChatRepository` owns the row. The sequence only reports its outcome.
 
-| Method                                                                          | What it does                                                                                                                                                                                                                            |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createPendingImageChat({ channelId, parentId?, localThumbUrls, localFiles? })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per file; a video or document's slot also keeps `localName` / `localContentType` / `localSize`. A rewrite without `localFiles` keeps what the row holds |
-| `createPendingImageChat({ …, pendingId })`                                      | re-arms that same row for a retry: `sending` again, not a second row                                                                                                                                                                    |
-| `sendPendingImageChat(pendingId, { uploadIds })`                                | sends the message, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails                                                                         |
-| `failPendingImageChat(pendingId)`                                               | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                                                                                        |
-| `listPendingImageChats(channelId)`                                              | the channel's unsent rows that hold pending slots                                                                                                                                                                                       |
+| Method                                                                                    | What it does                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createPendingImageChat({ channelId, parentId?, localThumbUrls, localFiles?, content? })` | writes the optimistic row, one `{ localStatus: 'sending', localThumbUrl }` slot per file; a video or document's slot also keeps `localName` / `localContentType` / `localSize`. `content` is the message's text, trimmed onto the row (`''` when absent or blank). A rewrite without `localFiles` or `content` keeps what the row holds |
+| `createPendingImageChat({ …, pendingId })`                                                | re-arms that same row for a retry: `sending` again, not a second row                                                                                                                                                                                                                                                                    |
+| `sendPendingImageChat(pendingId, { uploadIds })`                                          | sends the row's own text with the upload ids, swaps the server's row in the way `sendChat` does, then reads it back once with `chat.get` for the image addresses. Throws if the send fails                                                                                                                                              |
+| `failPendingImageChat(pendingId)`                                                         | marks the row and each slot failed. Leaves a deleted row deleted                                                                                                                                                                                                                                                                        |
+| `listPendingImageChats(channelId)`                                                        | the channel's unsent rows that hold pending slots                                                                                                                                                                                                                                                                                       |
 
 - **A pending row keeps the scope it was written in.** A send takes long enough for a cloud switch,
   so the repository remembers each row's scope and reads, fails and sends it there. On a graph that
@@ -160,6 +165,12 @@ quote the request it failed on.
   A failed read-back leaves the send's answer in place, since the message went out regardless, and
   the images appear the next time the room reads its feed. Note that `chat.get` omits an empty
   `content` instead of answering `''`.
+- **The text is the row's.** An image message can carry text too (a caption), sent in the same
+  `chat.send` as the upload ids, which is one message with both. `createPendingImageChat` puts it on
+  the optimistic row at once, so the pending message shows its text while the files go up, and
+  `sendPendingImageChat` sends whatever the row holds rather than a copy the caller passes. A retry
+  re-arms the row with previews only, so it sends the text the row was written with; a row written
+  without text sends `''`, exactly the message of images alone it always was.
 - **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }` (plus
   `localName` / `localContentType` / `localSize` for a video or document), never
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a

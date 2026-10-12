@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
+import { useComposerDraftStore } from '../../channels/stores/useComposerDraftStore';
 import { ChannelList } from './ChannelList';
 import { roomOpenTrace } from '../../../runtime/perf';
 
@@ -99,16 +100,18 @@ jest.mock('@chatic/web-ui-kit', () => ({
     DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     IconBell: () => <i />,
     IconBellOff: ({ role, 'aria-label': label }: any) => <i role={role} aria-label={label} />,
+    IconEdit: ({ role, 'aria-label': label }: any) => <i role={role} aria-label={label} />,
     IconChatAdd: () => <i />,
     IconLeave: () => <i />,
     IconTrash: () => <i />,
     IconPin: ({ role, 'aria-label': label }: any) => <i role={role} aria-label={label} />,
     IconPlus: () => <i />,
     ImageAvatar: ({ src }: any) => <img alt="" src={src} data-testid="image-avatar" />,
-    ListRow: ({ leading, title, subtitle, trailing, onClick }: any) => (
+    ListRow: ({ leading, title, subtitle, subtitleIcon, trailing, onClick }: any) => (
         <div onClick={onClick}>
             <div data-testid="row-leading">{leading}</div>
             <div data-testid="row-title">{title}</div>
+            {subtitleIcon && <span data-testid="row-subtitle-icon">{subtitleIcon}</span>}
             <div>{subtitle}</div>
             <div data-testid="row-trailing">{trailing}</div>
         </div>
@@ -1081,5 +1084,77 @@ describe('ChannelList unread divergence report', () => {
             expect.objectContaining({ channelId: 'g9', cursorChatNo: 12, drawn: 0, hasReadMetaNo: true })
         );
         readMarkRegistry.reset();
+    });
+});
+
+// What was left unsent in a room's composer leads that room's line, so it is not forgotten further down.
+describe('ChannelList — a room with a draft', () => {
+    const renderRoom = () =>
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'd1', stereo: 'group', name: 'Drafts' })]}
+                sid="s1"
+                joinByChannel={new Map()}
+                isLoading={false}
+            />
+        );
+    const label = () => screen.queryByRole('img', { name: 'channelList.draft' });
+    const pdf = (name: string) => ({ id: name, source: new File(['x'], name, { type: 'application/pdf' }) });
+
+    beforeEach(() => {
+        mockLastChat = { content: 'the last message', createdAtMs: 1 };
+        useComposerDraftStore.setState({ texts: {}, held: {} });
+    });
+    afterEach(() => {
+        mockLastChat = null;
+        useComposerDraftStore.setState({ texts: {}, held: {} });
+    });
+
+    it('shows the last message while the room has no draft', () => {
+        renderRoom();
+
+        expect(screen.getByText('the last message')).toBeInTheDocument();
+        expect(label()).not.toBeInTheDocument();
+    });
+
+    it('shows the draft on one line behind the draft pencil instead of the last message', () => {
+        useComposerDraftStore.getState().setText('d1', 'half\n  a thought');
+        renderRoom();
+
+        expect(label()).toBeInTheDocument();
+        expect(screen.getByText('half a thought')).toBeInTheDocument();
+        expect(screen.queryByText('the last message')).not.toBeInTheDocument();
+    });
+
+    it('names the waiting file when only a file was left, and counts several', () => {
+        useComposerDraftStore.getState().setHeld('d1', [pdf('plan.pdf')]);
+        const { unmount } = renderRoom();
+        expect(label()).toBeInTheDocument();
+        expect(screen.getByText('plan.pdf')).toBeInTheDocument();
+        unmount();
+
+        useComposerDraftStore.getState().setHeld('d1', [pdf('a.pdf'), pdf('b.pdf')]);
+        renderRoom();
+        expect(screen.getByText('chat.attach.previewFileCount')).toBeInTheDocument();
+    });
+
+    it('ignores a blank draft and a thread’s draft in the same room', () => {
+        useComposerDraftStore.getState().setText('d1', '   ');
+        useComposerDraftStore.getState().setText('d1#7', 'a reply');
+        renderRoom();
+
+        expect(label()).not.toBeInTheDocument();
+        expect(screen.getByText('the last message')).toBeInTheDocument();
+    });
+
+    it('goes back to the last message once the draft is cleared', () => {
+        useComposerDraftStore.getState().setText('d1', 'half a thought');
+        renderRoom();
+        expect(label()).toBeInTheDocument();
+
+        act(() => useComposerDraftStore.getState().clear('d1'));
+
+        expect(label()).not.toBeInTheDocument();
+        expect(screen.getByText('the last message')).toBeInTheDocument();
     });
 });

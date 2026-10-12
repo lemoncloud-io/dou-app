@@ -12,7 +12,7 @@ export interface AttachActionTileProps {
 }
 
 /**
- * One entry point in the chat attach menu (Figma `3749:28533`): a 54px circle on the light control
+ * One entry point in the chat attach panel (Figma `3749:28533`): a 54px circle on the light control
  * surface holding a 32px glyph, with the label below.
  */
 export const AttachActionTile = ({ icon, label, onClick, disabled = false, className }: AttachActionTileProps) => (

@@ -15,6 +15,15 @@ import type { BridgeRequestSample, IWebBridgeClient } from '@chatic/bridges';
 export const BRIDGE_REQUEST_SAMPLES_PER_MINUTE = 10;
 
 /**
+ * At most this many samples per minute of any one message type.
+ *
+ * The cap above alone is spent on the most frequent types — the cache reads a room entry fires in a
+ * burst — and a rare type would hardly ever be kept. Capping each type keeps every type visible in
+ * the console's per-`type` breakdown, within the same total.
+ */
+export const BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE = 3;
+
+/**
  * At most this many samples before the WebAppReady report says where traces go.
  *
  * Until then every trace waits in one shared hold of 100 entries, and each sample takes two (its
@@ -45,8 +54,9 @@ interface ObserveBridgeRequestsOptions {
  * measuring every run would add traffic to exactly what is being measured.
  *
  * Within a run the first {@link BRIDGE_REQUEST_SAMPLES_PER_MINUTE} requests of each minute are
- * kept. That leans towards the start of a burst — which is the room-entry burst this trace exists
- * to look at. Nothing is recorded while the page is hidden, where the budget is a tenth, and only
+ * kept, no more than {@link BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE} of one type. That leans
+ * towards the start of a burst — which is the room-entry burst this trace exists to look at — while
+ * leaving room for the types the burst does not repeat. Nothing is recorded while the page is hidden, where the budget is a tenth, and only
  * {@link BRIDGE_REQUEST_SAMPLES_WHILE_HELD} while traces are still held for the report.
  *
  * @returns Stops observing.
@@ -63,21 +73,26 @@ export const observeBridgeRequests = ({
 
     let windowStart = Number.NEGATIVE_INFINITY;
     let recordedInWindow = 0;
+    let recordedByType = new Map<string, number>();
     let recordedWhileHeld = 0;
 
     client.setRequestObserver((sample: BridgeRequestSample) => {
         if (isHidden()) return;
-        if (isHeld()) {
-            if (recordedWhileHeld >= BRIDGE_REQUEST_SAMPLES_WHILE_HELD) return;
-            recordedWhileHeld += 1;
-        }
         const at = now();
         if (at - windowStart >= MINUTE_MS) {
             windowStart = at;
             recordedInWindow = 0;
+            recordedByType = new Map();
         }
+        const ofType = recordedByType.get(sample.type) ?? 0;
         if (recordedInWindow >= BRIDGE_REQUEST_SAMPLES_PER_MINUTE) return;
+        if (ofType >= BRIDGE_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE) return;
+        if (isHeld()) {
+            if (recordedWhileHeld >= BRIDGE_REQUEST_SAMPLES_WHILE_HELD) return;
+            recordedWhileHeld += 1;
+        }
         recordedInWindow += 1;
+        recordedByType.set(sample.type, ofType + 1);
         record('bridge_request', toPerfSample(sample));
     });
 

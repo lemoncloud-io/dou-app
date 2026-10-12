@@ -9,8 +9,17 @@ export interface MessageInputProps {
     value: string;
     /** Controlled change handler — receives the raw string. */
     onChange: (value: string) => void;
-    /** Fired when the send button is pressed with a non-empty, trimmed value. */
+    /**
+     * Fired when the send button is pressed with the trimmed value — non-empty, unless `sendReady`
+     * let it go with nothing typed.
+     */
     onSend?: (value: string) => void;
+    /**
+     * The host has something to send besides the text — photos picked in the attach panel — so the
+     * send button is live even with the field empty, and `onSend` then receives the trimmed value,
+     * empty or not. A host wiring Enter-to-send can rely on the same rule.
+     */
+    sendReady?: boolean;
     placeholder?: string;
     /** Disables typing and sending. */
     disabled?: boolean;
@@ -49,7 +58,8 @@ const PILL_MAX_HEIGHT = 48;
  * Chat message composer — the Figma "Text Area" component. Auto-grows with its
  * content from a single-line pill up to `maxHeight`, then scrolls internally and
  * switches to a rounded rectangle. The send button is idle while empty/disabled
- * and becomes active (brand ink) once there is trimmed text to send.
+ * and becomes active (brand ink) once there is trimmed text to send — or, with
+ * `sendReady`, something else the host will send with it.
  *
  * Stateless: `value` is fully controlled by the host and the component holds no
  * React state. Auto-sizing is a layout effect that sizes the textarea and flags
@@ -66,6 +76,7 @@ export const MessageInput = ({
     onKeyDown,
     inputRef,
     leadingSlot,
+    sendReady = false,
     className,
 }: MessageInputProps) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -93,7 +104,8 @@ export const MessageInput = ({
         box.dataset.multiline = String(next > PILL_MAX_HEIGHT);
     }, [value, maxHeight]);
 
-    const canSend = !disabled && value.trim().length > 0;
+    const hasText = !disabled && value.trim().length > 0;
+    const canSend = hasText || (!disabled && sendReady);
 
     // Keep the mobile keyboard open when the composer chrome — the pill padding, the gap next to
     // the textarea, or the send button — is tapped instead of the textarea. Only the textarea
@@ -111,7 +123,7 @@ export const MessageInput = ({
 
     const handleSend = () => {
         if (!canSend) return;
-        // Emit the trimmed value to match the onSend contract (non-empty, trimmed).
+        // Emit the trimmed value to match the onSend contract (trimmed; empty only with `sendReady`).
         onSend?.(value.trim());
     };
 
@@ -129,7 +141,9 @@ export const MessageInput = ({
                 'touch-manipulation',
                 'flex w-full items-center gap-1.5 rounded-[100px] border bg-white/[0.92] px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color] dark:bg-black/[0.92]',
                 'data-[multiline=true]:items-end data-[multiline=true]:rounded-2xl data-[multiline=true]:py-3',
-                canSend ? 'border-focus-border' : 'border-input-border',
+                // The border speaks for the field, the button for the message: picked photos with
+                // nothing typed light the button and leave the field looking empty, which it is.
+                hasText ? 'border-focus-border' : 'border-input-border',
                 className
             )}
         >

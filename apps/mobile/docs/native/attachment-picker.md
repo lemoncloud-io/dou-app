@@ -43,7 +43,8 @@ it on, or anything native did not name).
 with `TOO_LARGE`, `UNSUPPORTED`, `SOURCE`, `SYSTEM` or `INVALID`; anything else reaches the web as
 `SYSTEM`, a failed conversion.
 
-`ReadAttachment` takes `{ uri }`, a picked photo's URI, and answers
+`ReadAttachment` takes `{ uri }`, a picked photo's URI — one from `media`, or a photo picked through
+the documents picker — and answers
 `{ base64, mimeType, fileName, width, height }`. A missing or empty one is `INVALID`. Native fails with
 `INVALID` (not a picked file), `SOURCE` (the copy is gone) or `INTERNAL` (anything else — on iOS also
 a photo that cannot be decoded). The web asks for one photo at a time, in pick order, waits up to two
@@ -96,13 +97,22 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `selectionLimit` below 1 is raised to 1, since 0 means "no limit" to PHPicker. An item that offers
   both an image and a video — a Live Photo — goes as its still. `document` is
   `UIDocumentPickerViewController(forOpeningContentTypes:asCopy: true)` with the UTTypes of the
-  server's seven document formats; it cannot cap a selection, so a pick past the limit is cut by the
-  web's own count.
+  thirteen formats the server takes — PNG, JPEG, GIF, WebP, MP4, the seven document formats and ZIP
+  (`AttachmentPickerCore.documentTypes`) — so a photo or video kept in Files can be sent too; it
+  cannot cap a selection, so a pick past the limit is cut by the web's own count. ZIP is `UTType.zip`
+  (`public.zip-archive`), whose MIME type is `application/zip`; its parent, `UTType.archive`, is not
+  used, since it would also offer 7z, RAR and tar, which the server refuses. An office file does not
+  conform to `UTType.zip`, so it keeps its own type; the few system types declared as a kind of ZIP (a
+  JAR, for one) are offered with it, and the web refuses them by their type.
 - **Android.** `media` is the Photo Picker (`PickMultipleVisualMedia`, images and videos), which needs
   no permission. A device without the system picker (API 30 without the SDK extension) falls back to
   `ACTION_OPEN_DOCUMENT` through androidx, and the result is read by the same code. `document` is
-  `ACTION_OPEN_DOCUMENT` with the seven document MIME types plus `application/octet-stream`, which is
-  how an HWP usually arrives, and the four labels Hancom's own apps declare for HWP and HWPX. A media
+  `ACTION_OPEN_DOCUMENT` with the MIME types of the thirteen formats the server takes (`image/png`,
+  `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, the seven document types and
+  `application/zip`) plus `application/octet-stream`, which is how an HWP usually arrives, the four
+  labels Hancom's own apps declare for HWP and HWPX, and the two older names a ZIP still arrives under
+  from some storage providers (`application/x-zip-compressed`, `application/x-zip`). Device storage
+  types a `.zip` as `application/zip`. A media
   pick of one item uses `PickVisualMedia`; more uses `PickMultipleVisualMedia`, capped on API 33+ at
   what the system picker allows. Results past the limit are dropped.
 - **Everything picked is copied before the reply,** into `<cache>/attach-pick/<uuid>/<name>`, one
@@ -126,6 +136,28 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `too-large`. On Android a photo that cannot be converted is `unsupported` and one whose copy fails is
   `unreadable`; its width and height are read from the prepared bytes, swapped for a 90° or 270°
   rotation.
+- **A `document` pick is a `file`, whatever it is.** Neither shell looks inside it: a PNG from Files
+  is copied as it is, not prepared, and answered as `{ kind: 'file', contentType: 'image/png', … }`
+  under the type the OS gave it. The documents picker offers the server's thirteen formats and, on
+  Android, the other names a file of them arrives under (`application/octet-stream`, the Hancom labels
+  and the two ZIP aliases) — no wildcard, and no photo, video or archive type the server would refuse
+  (HEIC, QuickTime, 7z). An item typed by an alias is normalised by the web (`chatAttachmentFormat`),
+  which also adds `.zip` to an archive's name that lacks it. A ZIP is held to the file limit, 50 MiB.
+  On iOS an app built before the phone sent archives greys a `.zip` out; on Android one typed
+  generically can still be picked there, and the web now takes it. The web tells a photo among them by its format,
+  reads it with `ReadAttachment` and prepares it as it prepares any photo; an `.mp4` goes to `PrepareVideo` by its format (below). That
+  works with builds that shipped before the picker offered photos: `ReadAttachment` reads any picked
+  file named as one of the four photo formats on both platforms. So iOS names the copy of a photo
+  whose name lacks its extension (`scan`, typed `image/png`) with one appended (`scan.png`), the
+  base cut so the name still fits 255 bytes.
+- **A `document` pick is held to the limit its format implies.** It is reported as a `file`, but the
+  web sends a photo or an `.mp4` from it as a photo or a video, and the server caps those at their own
+  limits. So the shell checks it against `maxBytes.image` when it is PNG, JPEG, GIF or WebP,
+  `maxBytes.video` when it is MP4, and `maxBytes.file` otherwise — a 120 MB `.mp4` from Files passes,
+  a 30 MB PNG does not — and refuses it under that kind. The OS's type decides; only when there is
+  none, or it is `application/octet-stream`, does the name's extension. The rule is
+  `limitKindForDocument` in `AttachmentPickerCore` and `AttachPickRules`. Nothing from here is
+  converted, so a video is checked at its own size.
 - **The shell refuses before it copies.** A video or document over its ceiling is listed in `refused`
   as `too-large` and not copied; one that cannot be read is `unreadable`. Every `refused` entry carries
   the item's `kind` (`image`, `video` or `file`), so the web names the limit that was passed — 20 MB for a
@@ -242,7 +274,8 @@ fails with `SOURCE`, and that pending message can then only be deleted.
   [file-transfer.md](./file-transfer.md) § Verifying; a new file in `AttachmentPicker/Core/` has to be
   added to that target by hand.
 - On a simulator or emulator: open a chat room's attach menu, choose the file entry and pick from the
-  album and from files. The copies are under `Library/Caches/attach-pick/` in the app's container on
+  album and from files; from files, a PNG or JPEG should arrive as a photo with a thumbnail, and an
+  `.mp4` as a video with a poster. The copies are under `Library/Caches/attach-pick/` in the app's container on
   iOS and `cache/attach-pick/` on Android (`adb shell run-as <package> ls cache/attach-pick`). Pick a
   4K HEVC video on iOS to see `needsExport` and the 1080p conversion; on Android, a video picked
   through the Photo Picker should arrive renamed `video-<date>.mp4`.

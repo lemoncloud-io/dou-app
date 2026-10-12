@@ -1,8 +1,10 @@
 import CoreGraphics
 import Foundation
+import UniformTypeIdentifiers
 
 /// The rules of the attachment picker that need neither UIKit nor AVFoundation: where picked copies
-/// live and when they go, which file a later call may name, what is refused at pick time, which
+/// live and when they go, which file a later call may name, which formats the documents picker offers
+/// and what is refused at pick time, which
 /// resource of a library video is kept and under what name, when a video is converted and at what
 /// size, the poster's shape, and which remote frame reads are accepted. Kept apart so the
 /// ChaticTransferCoreTests bundle can compile and test them without an app host.
@@ -131,6 +133,42 @@ enum AttachmentPickerCore {
         }
     }
 
+    /// The longest name, in UTF-8 bytes, a file system holds.
+    static let maxNameBytes = 255
+
+    /// The name a documents-picker copy is written under: `name` (already through `diskName`), with
+    /// the photo extension its type implies appended when the type is one of the four photo formats
+    /// and the name does not already end in a matching extension. `readAttachment` decides a picked
+    /// photo's type from its extension alone, so a PNG named `scan` in Files could otherwise be sent
+    /// but never read back. The base is cut, on a character boundary, so the result still fits
+    /// `maxNameBytes`. Any other item keeps its name.
+    static func documentName(_ name: String, mimeType: String?) -> String {
+        guard let type = normalizedMimeType(mimeType), let ext = photoExtension(mimeType: type) else { return name }
+        if photoMimeType(fileExtension: (name as NSString).pathExtension) == type { return name }
+        let suffix = ".\(ext)"
+        var base = name
+        while !base.isEmpty, base.utf8.count + suffix.utf8.count > maxNameBytes { base.removeLast() }
+        return "\(base.isEmpty ? "photo" : base)\(suffix)"
+    }
+
+    /// The extension a photo of one of the server's four types is written with.
+    static func photoExtension(mimeType: String) -> String? {
+        switch mimeType {
+        case "image/jpeg": return "jpg"
+        case "image/png": return "png"
+        case "image/gif": return "gif"
+        case "image/webp": return "webp"
+        default: return nil
+        }
+    }
+
+    /// A MIME type without parameters, lower-cased; `nil` when there is none.
+    private static func normalizedMimeType(_ raw: String?) -> String? {
+        let type = (raw ?? "").split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+        return type.isEmpty ? nil : type
+    }
+
     // MARK: - Pick-time refusal
 
     enum Kind: String {
@@ -158,6 +196,35 @@ enum AttachmentPickerCore {
         case .file: limit = max.file
         }
         return limit > 0 && size > limit
+    }
+
+    /// Which kind's limit a documents-picker item is held to, and refused under. The item is still
+    /// reported as a file, but the web sends a photo or an MP4 from Files as a photo or a video and the
+    /// server caps those at their own limits — so a 120 MB MP4 must not be refused at the file limit,
+    /// and a 30 MB PNG must not pass under it. The system's type decides; only when there is none, or
+    /// it is `application/octet-stream`, does the name's extension. Anything else is a file. The copy
+    /// is sent as it is, never converted, so the caller checks it with `needsExport: false`.
+    static func limitKindForDocument(mimeType: String?, fileName: String?) -> Kind {
+        if let type = normalizedMimeType(mimeType), type != "application/octet-stream" {
+            if photoExtension(mimeType: type) != nil { return .image }
+            return type == "video/mp4" ? .video : .file
+        }
+        let ext = ((fileName ?? "") as NSString).pathExtension
+        if photoMimeType(fileExtension: ext) != nil { return .image }
+        return ext.lowercased() == "mp4" ? .video : .file
+    }
+
+    /// The thirteen formats the server takes — its four photo formats, MP4, its seven document formats
+    /// and a ZIP archive — so a photo or a video kept in Files can be sent from here too, and nothing the
+    /// server would refuse but the few system types declared as a kind of ZIP (a JAR, for one), which
+    /// the web refuses by their type. The pick still reports every item as a file; the web tells a photo
+    /// or a video by its format. A ZIP is `.zip` itself, not `.archive`, its parent, which would offer
+    /// 7z, RAR and tar too; an office file does not conform to `.zip`, so it keeps its own type. HWP and
+    /// HWPX have no system type, so they are named by their extension; that type matches any file with
+    /// it, and is the installed Hancom app's own type when there is one.
+    static var documentTypes: [UTType] {
+        [.png, .jpeg, .gif, .webP, .mpeg4Movie, .pdf, .plainText, .zip]
+            + ["docx", "xlsx", "pptx", "hwp", "hwpx"].compactMap { UTType(filenameExtension: $0, conformingTo: .data) }
     }
 
     /// What `pick` opens for: at least one item, so a picker is never opened without a limit.

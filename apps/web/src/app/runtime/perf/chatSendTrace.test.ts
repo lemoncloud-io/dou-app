@@ -20,7 +20,7 @@ describe('createChatSendTracer', () => {
 
         expect(backend.stop).toHaveBeenCalledTimes(1);
         expect(backend.stop).toHaveBeenCalledWith(
-            expect.objectContaining({ name: 'chat_send', attributes: { thread: 'reply', outcome: 'ok' } })
+            expect.objectContaining({ name: 'chat_send', attributes: { thread: 'reply', kind: 'text', outcome: 'ok' } })
         );
     });
 

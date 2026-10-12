@@ -28,7 +28,7 @@ import {
     type ReadCountOf,
 } from '../hooks';
 import { useThreadStore } from '../stores';
-import { Composer } from './Composer';
+import { LazyComposer } from './LazyComposer';
 import { MessageList } from './MessageList';
 import { AttachmentDropOverlay } from './images';
 
@@ -229,7 +229,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                 {/* No root → nothing to reply to: don't show a composer at all (the editor
                 is always editable, so a disabled-looking one would be typeable-but-dead). */}
                 {root && (
-                    <Composer
+                    <LazyComposer
                         onSend={handleReply}
                         channelId={`${channelId}::thread::${rootId}`}
                         placeholder={t('chat.thread.composerPlaceholder')}

@@ -16,16 +16,16 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              41 source files, 33 tests
-├── SocketManager.ts   853 lines   the class. Nothing else is exported from this file
-├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · ISocketManager
+socket/                              42 source files, 34 tests
+├── SocketManager.ts   884 lines   the class. Nothing else is exported from this file
+├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
 ├── auth/          21 files        → docs/auth/
-└── sync/          10 files        → docs/sync/
+└── sync/          11 files        → docs/sync/
 
 connection/                          19 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
@@ -202,6 +202,17 @@ slot — `(key, client)` on bind or rebuild, `(key, null)` just before a teardow
 currently bound slots on subscribe. For any one mutation **the slot notification comes first**, so a
 per-slot attachment exists before active-facade consumers react. `SyncManager` subscribes to the
 slot notification alone: its runtimes, and the targets on them, follow slots, not the active pointer.
+
+### How long a request takes: `setRequestObserver`
+
+`setRequestObserver(observer)` hands every request made through the manager — the active facade's
+and every scoped client's — to `observer` as it settles: its `type`, the slot's `kind`, its `outcome`
+(`ok`, or the leading status it was rejected with, else `error`) and its round trip on the page's
+monotonic clock. With no observer, a request reads no clock. The web sets one to record
+`socket_request` samples; the sampling and the caps are the web's (`observeSocketRequests`).
+
+Requests the SDK sends on its own — `device.save`, `auth.update`, `auth.switch`, a sync plan's
+catch-up — do not pass through the manager and are not seen.
 
 ### How long a slot takes to verify: `socket_verify`
 

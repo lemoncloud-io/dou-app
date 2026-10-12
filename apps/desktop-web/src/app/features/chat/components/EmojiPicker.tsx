@@ -47,6 +47,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                             type="button"
                             role="tab"
                             aria-selected={isRecent}
+                            aria-label={t('emoji.recent')}
                             onClick={() => setCategoryKey('recent')}
                             className={cn(
                                 'focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-lead transition-colors ease-tactile hover:bg-accent',
@@ -63,6 +64,7 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
                             type="button"
                             role="tab"
                             aria-selected={categoryKey === cat.key}
+                            aria-label={t(`emoji.cat.${cat.key}`)}
                             onClick={() => setCategoryKey(cat.key)}
                             className={cn(
                                 'focus-ring tactile flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-lead transition-colors ease-tactile hover:bg-accent',

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -57,7 +57,6 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
-import { MessageEditor } from './MessageEditor';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
@@ -195,6 +194,16 @@ const sameGroup = (a: MessageGroup, b: MessageGroup): boolean =>
 /** Structural equality for one small map entry (a reaction tally, a thread meta). */
 const sameEntry = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
 
+// The inline edit box shares the composer's Lexical chunk (LazyComposer's import), so opening
+// a room never pays for the editor — it loads on the first edit instead.
+const MessageEditor = lazy(() => import('./MessageEditor').then(module => ({ default: module.MessageEditor })));
+
+const MessageEditorFallback = () => (
+    <div className="rounded-xl border border-control-border bg-background p-3" aria-hidden>
+        <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+    </div>
+);
+
 const formatTime = formatClockTime;
 
 const isSameCalendarDay = (a: Date, b: Date): boolean =>
@@ -246,8 +255,23 @@ export const MessageRow = memo(
         // `isStuck` below compares Date.now() during render, which only moves when
         // something else re-renders the row: a send that hung sat at 50% opacity
         // indefinitely, then flipped to "Not delivered" on an unrelated update.
-        // This ticks the block on its own schedule while anything in it is pending.
+        // One shot, not a poll: wake the block once when its oldest pending message
+        // crosses the stuck deadline, instead of ticking every pending block every 5s.
         const [, setStuckTick] = useState(0);
+        const pendingSince = group.messages.reduce<number | null>((oldest, m) => {
+            if (!m.isPending) return oldest;
+            // A missing timestamp reads as stuck on this render (see isStuck), so no timer.
+            const at = m.createdAt ?? m.createdAtMs ?? null;
+            if (at == null) return 0;
+            return oldest == null ? at : Math.min(oldest, at);
+        }, null);
+        useEffect(() => {
+            if (pendingSince == null) return;
+            const delay = pendingSince + STUCK_PENDING_MS - Date.now();
+            if (delay <= 0) return;
+            const timer = setTimeout(() => setStuckTick(tick => tick + 1), delay);
+            return () => clearTimeout(timer);
+        }, [pendingSince]);
         // Which message in this block the pointer or keyboard is on. The hover
         // toolbar is hidden by opacity, not removed, so without this all seven of
         // its buttons stayed in the tab order for every message — tabbing from the
@@ -256,12 +280,6 @@ export const MessageRow = memo(
         // is the one tab stop, and focusing it lets Tab continue into its toolbar.
         const [hoverKey, setHoverKey] = useState<string | null>(null);
         const [focusKey, setFocusKey] = useState<string | null>(null);
-        const hasPending = group.messages.some(message => !!message.isPending);
-        useEffect(() => {
-            if (!hasPending) return;
-            const timer = setInterval(() => setStuckTick(tick => tick + 1), 5_000);
-            return () => clearInterval(timer);
-        }, [hasPending]);
         // Which message in this block is open in the inline editor. Local to the row: one
         // message is edited at a time, and the editor owns its text.
         const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -371,6 +389,7 @@ export const MessageRow = memo(
             // list hover.
             <div
                 data-roving-group=""
+                data-row-key={group.key}
                 className={cn(
                     'group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70',
                     // The pointer is in the editor, not over the band: keep the band so the row reads as open.
@@ -559,15 +578,17 @@ export const MessageRow = memo(
                                         // typo, and it takes the whole message column: a text
                                         // field narrower than the message it replaces reads as a
                                         // different thing.
-                                        <MessageEditor
-                                            initialContent={content}
-                                            mentionables={mentionables}
-                                            onSave={next => {
-                                                closeEditor();
-                                                if (message.id) editMessage(message.id, next);
-                                            }}
-                                            onCancel={closeEditor}
-                                        />
+                                        <Suspense fallback={<MessageEditorFallback />}>
+                                            <MessageEditor
+                                                initialContent={content}
+                                                mentionables={mentionables}
+                                                onSave={next => {
+                                                    closeEditor();
+                                                    if (message.id) editMessage(message.id, next);
+                                                }}
+                                                onCancel={closeEditor}
+                                            />
+                                        </Suspense>
                                     ) : blocks ? (
                                         // Block Kit owns its own layout, so it replaces the <p>
                                         // rather than sitting inside one: a header or a divider

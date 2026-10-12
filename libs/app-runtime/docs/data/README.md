@@ -11,7 +11,7 @@ is [docs/sync/](../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              21 source files, 13 tests
+data/                              22 source files, 15 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -22,6 +22,7 @@ data/                              21 source files, 13 tests
 ├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
+├── mediaSendTrace.ts             beginMediaSendTiming · createMediaSendTracer — the chat_send_media sample
 ├── index.ts                      the `data` facade group
 ├── factories/                    socketFactory · localFactory · httpFactory
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·

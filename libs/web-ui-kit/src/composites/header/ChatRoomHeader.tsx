@@ -61,10 +61,26 @@ export interface ChatRoomHeaderProps {
      * a beat later, and reads as the wrong room having opened.
      */
     loading?: boolean;
+    /**
+     * Makes the avatar + title zone one button (e.g. a 1:1 room opening the peer's profile). Omit to
+     * keep it inert. While set, `meta` renders inside that button and `onMetaClick` is ignored — a
+     * button cannot hold another one.
+     */
+    onIdentityClick?: () => void;
+    /** Accessible name for the identity button. Without it the title is read as the name. */
+    identityLabel?: string;
+    /**
+     * Makes the `meta` row a button of its own (e.g. a group's participant stack opening the member
+     * list), leaving the avatar and title inert. Ignored without `meta` or with `onIdentityClick`.
+     */
+    onMetaClick?: () => void;
+    /** Accessible name for the meta button — the stack is avatars, which have no text of their own. */
+    metaLabel?: string;
     className?: string;
 }
 
 const SLOT = 'flex size-11 shrink-0 items-center justify-center';
+const IDENTITY = 'flex min-w-0 flex-1 items-center gap-2 px-1';
 
 /**
  * Chat room header — the Figma chat "top bar": a leading avatar + left-aligned
@@ -86,6 +102,10 @@ export const ChatRoomHeader = ({
     moreLabel = 'More',
     safeArea = true,
     loading = false,
+    onIdentityClick,
+    identityLabel,
+    onMetaClick,
+    metaLabel,
     className,
 }: ChatRoomHeaderProps) => {
     // The avatar has two images, so `direct` and `self` share the single-person one — only a group
@@ -96,6 +116,49 @@ export const ChatRoomHeader = ({
         <button type="button" onClick={moreMenu ? undefined : onMore} aria-label={moreLabel} className={SLOT}>
             <IconMore className="size-[26px] text-foreground" />
         </button>
+    );
+
+    const metaNode =
+        !loading && meta ? (
+            onMetaClick && !onIdentityClick ? (
+                // `self-start` so the hit area is the stack itself, not the whole row under the title.
+                <button
+                    type="button"
+                    onClick={onMetaClick}
+                    aria-label={metaLabel}
+                    className="min-w-0 self-start text-left"
+                >
+                    {meta}
+                </button>
+            ) : (
+                <span className="block min-w-0">{meta}</span>
+            )
+        ) : null;
+
+    // Spans, not divs and a paragraph: with `onIdentityClick` all of this sits inside a <button>, which
+    // may hold phrasing content only. `block` and `flex` keep the boxes they had.
+    const identity = (
+        <>
+            {hideAvatar ? null : loading ? (
+                <span className="block size-[42px] shrink-0 animate-pulse rounded-full bg-muted" />
+            ) : (
+                (avatar ?? <DefaultAvatar size={42} variant={fallbackVariant} />)
+            )}
+            <span className="flex min-w-0 flex-1 flex-col">
+                {loading ? (
+                    // Sized to the title's own line box so settling on the real name does
+                    // not change the header's height — and with it the list's top inset.
+                    <span className="flex h-[26px] items-center">
+                        <span className="block h-4 w-32 animate-pulse rounded bg-muted" />
+                    </span>
+                ) : (
+                    <span className="block min-w-0 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
+                        {title}
+                    </span>
+                )}
+                {metaNode}
+            </span>
+        </>
     );
 
     return (
@@ -123,27 +186,19 @@ export const ChatRoomHeader = ({
                     )}
                 </div>
 
-                <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
-                    {hideAvatar ? null : loading ? (
-                        <div className="size-[42px] shrink-0 animate-pulse rounded-full bg-muted" />
-                    ) : (
-                        (avatar ?? <DefaultAvatar size={42} variant={fallbackVariant} />)
-                    )}
-                    <div className="flex min-w-0 flex-1 flex-col">
-                        {loading ? (
-                            // Sized to the title's own line box so settling on the real name does
-                            // not change the header's height — and with it the list's top inset.
-                            <div className="flex h-[26px] items-center">
-                                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-                            </div>
-                        ) : (
-                            <p className="min-w-0 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
-                                {title}
-                            </p>
-                        )}
-                        {!loading && meta && <div className="min-w-0">{meta}</div>}
-                    </div>
-                </div>
+                {/* While loading there is no identity to open yet, so the zone stays inert. */}
+                {onIdentityClick && !loading ? (
+                    <button
+                        type="button"
+                        onClick={onIdentityClick}
+                        aria-label={identityLabel}
+                        className={cn(IDENTITY, 'text-left')}
+                    >
+                        {identity}
+                    </button>
+                ) : (
+                    <div className={IDENTITY}>{identity}</div>
+                )}
 
                 <div className={SLOT}>
                     {moreMenu ? (
