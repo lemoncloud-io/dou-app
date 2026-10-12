@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const start = vi.hoisted(() => vi.fn());
+const startLink = vi.hoisted(() => vi.fn());
 const socialEnabled = vi.hoisted(() => ({ value: true }));
 const phoneEnabled = vi.hoisted(() => ({ value: true }));
 const navigate = vi.hoisted(() => vi.fn());
@@ -14,12 +15,12 @@ vi.mock('../../auth', () => ({
     isSocialLoginEnabled: () => socialEnabled.value,
     isPhoneLoginEnabled: () => phoneEnabled.value,
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
-    useSocialLogin: () => ({ start, isStarting: false }),
+    useSocialLogin: () => ({ start, startLink, isStarting: false }),
 }));
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 
-// The card must never link an account: these would be the calls if it did.
+// The card never links by itself — it starts the browser round trip: these would be the calls if it did.
 vi.mock('@chatic/app-runtime', () => ({
     runtime: { data: { useRuntimeRepositories: () => ({ auth: { verifySocialAccount, confirmSocialAccount } }) } },
 }));
@@ -90,6 +91,38 @@ describe('AccountSignInCard', () => {
     it('shows the phone ending when only a number is linked', () => {
         render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
         expect(screen.getByText(i18n.t('account.signIn.phoneHint', { last4: '1234' }))).toBeTruthy();
+    });
+
+    it('offers a number-only account a Google link', () => {
+        render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
+
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('account.signIn.link.google') }));
+
+        expect(startLink).toHaveBeenCalledWith('google');
+        expect(start).not.toHaveBeenCalled();
+        expect(verifySocialAccount).not.toHaveBeenCalled();
+    });
+
+    it('offers no Google link when the build turns Google off', () => {
+        socialEnabled.value = false;
+        render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
+
+        expect(screen.queryByRole('button')).toBeNull();
+    });
+
+    it('lists the linked Google and the number together, with nothing to press', () => {
+        render(
+            <AccountSignInCard
+                account={{
+                    userRole: 'user',
+                    link$: { phone: { hint: '1234' }, social: { provider: 'google', hint: 'a***@gmail.com' } },
+                }}
+            />
+        );
+
+        expect(screen.getByText('Google · a***@gmail.com')).toBeTruthy();
+        expect(screen.getByText(i18n.t('account.signIn.phoneHint', { last4: '1234' }))).toBeTruthy();
+        expect(screen.queryByRole('button')).toBeNull();
     });
 
     it('renders nothing without a relay user', () => {

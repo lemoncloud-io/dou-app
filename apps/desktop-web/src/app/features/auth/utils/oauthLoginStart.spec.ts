@@ -12,7 +12,7 @@ import {
 } from './oauthLoginStart';
 
 const NOW = 1_000_000;
-const start: OAuthLoginStart = { provider: 'google', startedAt: NOW, nonce: 'n1' };
+const start: OAuthLoginStart = { provider: 'google', intent: 'login', startedAt: NOW, nonce: 'n1' };
 const deeplink = { provider: 'google', code: 'abc', nonce: 'n1' };
 const withoutNonce = { provider: 'google', code: 'abc' };
 
@@ -72,7 +72,7 @@ describe('createOAuthLoginStart', () => {
         const a = createOAuthLoginStart('google', NOW);
         const b = createOAuthLoginStart('google', NOW);
 
-        expect(a).toMatchObject({ provider: 'google', startedAt: NOW });
+        expect(a).toMatchObject({ provider: 'google', intent: 'login', startedAt: NOW });
         expect(a.nonce).toMatch(/^[0-9a-f]{32}$/);
         expect(a.nonce).not.toBe(b.nonce);
     });
@@ -86,6 +86,21 @@ describe('start record storage', () => {
 
         expect(takeOAuthLoginStart()).toEqual(start);
         expect(takeOAuthLoginStart()).toBeNull();
+    });
+
+    it('keeps a link start a link', () => {
+        saveOAuthLoginStart({ ...start, intent: 'link' });
+
+        expect(takeOAuthLoginStart()?.intent).toBe('link');
+    });
+
+    it.each([
+        ['no intent (a record from before intents)', '{"provider":"google","startedAt":1,"nonce":"n"}'],
+        ['an unknown intent', '{"provider":"google","startedAt":1,"nonce":"n","intent":"merge"}'],
+    ])('reads a record with %s as a login', (_name, raw) => {
+        storage.set('chatic-oauth-login-start', raw);
+
+        expect(takeOAuthLoginStart()?.intent).toBe('login');
     });
 
     it('answers null when nothing was saved', () => {

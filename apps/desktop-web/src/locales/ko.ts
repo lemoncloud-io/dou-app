@@ -67,7 +67,7 @@ export const ko: EnTranslation = {
     'auth.social.phoneSignupNote':
         '모바일에서 전화번호로 가입했다면 먼저 모바일 앱의 계정 설정에서 Google 을 연결하세요. 그러지 않으면 새 계정이 만들어져요.',
     'auth.social.phoneSignupNotePhone':
-        '모바일에서 전화번호로 가입했다면 그 번호로 로그인하세요. 모바일 앱에서 Google 을 연결하지 않았다면 Google 로그인은 새 계정을 만들어요.',
+        '모바일에서 전화번호로 가입했다면 그 번호로 로그인한 뒤 계정 화면에서 Google 을 연동하세요. 연동하기 전에는 Google 로그인이 새 계정을 만들어요.',
     'auth.phone.start': '전화번호로 로그인',
     'auth.phone.title': '전화번호로 로그인',
     'auth.phone.subtitle': 'DoU 모바일 앱에서 전화번호로 만든 계정으로 들어와요. 문자로 인증번호를 보내드려요.',
@@ -506,6 +506,12 @@ export const ko: EnTranslation = {
     'account.signIn.email': '이메일',
     'account.signIn.none': '이 계정에 연결된 로그인 수단이 없어요.',
     'account.signIn.guestTitle': '계정으로 로그인',
+    'account.signIn.link.google': 'Google 연동',
+    'account.signIn.link.hint': 'Google을 연동하면 다른 컴퓨터에서도 Google로 로그인할 수 있어요.',
+    'account.signIn.link.done': '이 계정에 Google을 연동했어요.',
+    'account.signIn.link.occupied': '이 Google 계정은 이미 다른 DoU 계정에서 쓰고 있어요.',
+    'account.signIn.link.typeLinked': '이 계정에는 이미 소셜 계정이 연동돼 있어요.',
+    'account.signIn.link.failed': 'Google을 연동하지 못했어요. 다시 시도해 주세요.',
     'account.profile.title': '프로필 편집',
     'account.profile.subtitle': '다른 사람들에게 보이는 이름과 사진이에요.',
     'account.profile.nameLabel': '표시 이름',

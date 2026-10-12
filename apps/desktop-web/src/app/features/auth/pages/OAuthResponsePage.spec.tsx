@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let isError = false;
@@ -28,7 +28,7 @@ describe('OAuthResponsePage', () => {
     beforeEach(() => {
         isError = false;
         native = true;
-        completeFromHandoff.mockReset();
+        completeFromHandoff.mockReset().mockResolvedValue(false);
     });
 
     it('announces the move from signing in to failed through a live region', () => {
@@ -47,6 +47,20 @@ describe('OAuthResponsePage', () => {
         render(page());
 
         expect(completeFromHandoff).toHaveBeenCalledWith({ provider: 'google', code: 'abc', nonce: 'n1' });
+    });
+
+    it('returns to the account hub after a link, which leaves the session as it was', async () => {
+        completeFromHandoff.mockResolvedValue('link');
+        render(
+            <MemoryRouter initialEntries={['/oauth-response?code=abc&provider=google&nonce=n1']}>
+                <Routes>
+                    <Route path="/oauth-response" element={<OAuthResponsePage />} />
+                    <Route path="/account" element={<div data-testid="account-hub" />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByTestId('account-hub')).toBeTruthy();
     });
 
     it('shows the failure screen and exchanges nothing when it arrives without a nonce inside the shell', () => {

@@ -19,10 +19,12 @@ The Account card's name, email and user id come from the relay session for the s
 "This place" card still falls back to the name the cloud knows, which is the one people there see.
 
 Every place that offers the button says, under it, that someone who signed up on mobile with a phone
-number gets a new account from it unless they linked Google in the mobile app. Where phone-number
-sign-in is on, the note sends them there instead; where it is off, it sends them to the mobile app.
-Sign-in is not linking: nothing here attaches Google to an existing phone account, and recovering
-someone who already landed in a new account is out of scope.
+number gets a new account from it unless Google is linked to that account. Where phone-number
+sign-in is on, the note sends them to sign in with the number and link Google from the account hub;
+where it is off, it sends them to the mobile app. Sign-in is not linking: signing in with Google while
+signed in to another account opens a session as the Google account's owner (the server keeps it that
+way, as on mobile). Linking is its own button ([Linking Google](#linking-google)). Recovering someone
+who already landed in a new account is out of scope.
 
 The steps, in order:
 
@@ -54,6 +56,43 @@ guest session. A code that comes back and fails to exchange is shown as a messag
 dropped. The start record is used up by then, so the same link arriving again is refused as not
 started; the way to retry is to tap Google again, which after a Welcome start is on the Profile
 page, because the device is already registered.
+
+## Linking Google
+
+A signed-in account (not a guest) with no social account linked gets **Link Google** on the account
+hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
+as a sign-in, with two differences:
+
+- **No device registration.** There is a session already, and the button is only offered with one.
+- **The start record says `intent: link`.** When the deeplink (or the hand-off page inside the app)
+  comes back and the record agrees, the code is not exchanged for a session. It goes to
+  `auth.link-account` as `{ type: 'social', mode: 'link', provider, code }`, first with
+  `step: 'verify'`, then with `step: 'confirm'`. The relay code is good for repeated checks for 30
+  minutes from the start, so both steps carry the same code. Verify is the step that says why a
+  link is refused (`linkable: false` with a `reason`); confirm answers the same cases with a status.
+
+The session does not change, so nothing reloads. The server's answer (provider and hint) is patched
+into the relay user's `link$`, so the hub shows Google straight away; the next relay verification
+reads the profile again. When the code lands in the app window instead (the hand-off page inside
+the shell), the page goes back to the account hub once the link has run, whatever its outcome.
+
+What the person is told:
+
+| Answer                                    | Toast                                                      |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| linked                                    | Google is now linked                                       |
+| verify `reason: occupied`, or confirm 409 | that Google account already belongs to another DoU account |
+| verify `reason: type-linked`              | this account already has a social account linked           |
+| anything else                             | the link failed, try again                                 |
+
+The intent is read off the record, never off the link, so a link cannot turn a login into a link or
+the other way round. A record written before intents existed, or one whose intent cannot be read, is
+a login. If the account is no longer signed in (or has become a guest) by the time the code comes
+back, or another account is signed in than the one that pressed the button (the record keeps its
+relay user id), nothing is sent and the link is reported as failed. A 403 from confirm is reported
+as a plain failure: it can also mean the session is not a main user, and only verify names the
+`type-linked` case. The button is behind the same switch as
+Google sign-in (`feature.auth.socialLogin`).
 
 ## A deeplink is taken only for a login this app started
 

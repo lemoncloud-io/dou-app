@@ -8,13 +8,27 @@ const session = vi.hoisted(() => ({
     createCredentialsByProvider: vi.fn(),
     toast: vi.fn(),
     warn: vi.fn(),
+    user: null as Record<string, unknown> | null,
+    verifySocialAccount: vi.fn(),
+    confirmSocialAccount: vi.fn(),
+    patchRelaySessionUser: vi.fn(),
 }));
 
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: vi.fn(), warn: session.warn } }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         boot: { startWebTransportInit: session.startWebTransportInit },
+        data: {
+            useRuntimeRepositories: () => ({
+                auth: {
+                    verifySocialAccount: session.verifySocialAccount,
+                    confirmSocialAccount: session.confirmSocialAccount,
+                },
+            }),
+        },
         session: {
+            getRelaySessionUser: () => session.user,
+            patchRelaySessionUser: session.patchRelaySessionUser,
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),
             createCredentialsByProvider: session.createCredentialsByProvider,
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
@@ -42,6 +56,12 @@ describe('useSocialLogin.start', () => {
         localStorage.clear();
         open.mockReset();
         session.isAuthenticated = false;
+        session.user = null;
+        session.verifySocialAccount.mockReset().mockResolvedValue({ step: 'verify', linkable: true });
+        session.confirmSocialAccount
+            .mockReset()
+            .mockResolvedValue({ step: 'confirm', linked: true, provider: 'google', hint: 'a***@gmail.com' });
+        session.patchRelaySessionUser.mockReset();
         session.startWebTransportInit.mockReset().mockResolvedValue(undefined);
         session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.createCredentialsByProvider.mockReset().mockRejectedValue(new Error('relay rejected'));
@@ -182,7 +202,8 @@ describe('useSocialLogin.start', () => {
     });
 
     describe('a failed exchange', () => {
-        const startRecord = () => saveOAuthLoginStart({ provider: 'google', startedAt: Date.now(), nonce: 'n1' });
+        const startRecord = () =>
+            saveOAuthLoginStart({ provider: 'google', intent: 'login', startedAt: Date.now(), nonce: 'n1' });
 
         it('is toasted for a caller that has no screen of its own', async () => {
             startRecord();
@@ -211,7 +232,8 @@ describe('useSocialLogin.start', () => {
     });
 
     describe('a link that comes back', () => {
-        const startRecord = () => saveOAuthLoginStart({ provider: 'google', startedAt: Date.now(), nonce: 'n1' });
+        const startRecord = () =>
+            saveOAuthLoginStart({ provider: 'google', intent: 'login', startedAt: Date.now(), nonce: 'n1' });
 
         it('is exchanged once when it carries the nonce of the start', async () => {
             startRecord();
@@ -244,6 +266,152 @@ describe('useSocialLogin.start', () => {
             expect(session.warn).toHaveBeenCalledWith('AUTH', expect.any(String), {
                 reason: nonce ? 'nonce-mismatch' : 'nonce-missing',
             });
+        });
+    });
+
+    describe('linking a provider account to the signed-in account', () => {
+        const signedIn = () => {
+            session.isAuthenticated = true;
+            session.user = { id: 'u-1', userRole: 'user', link$: { phone: { hint: '1234' } } };
+        };
+        const startedLink = async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(async () => void result.current.startLink('google'));
+            const nonce = new URL(
+                new URL(String(open.mock.calls[0][0])).searchParams.get('redirect') ?? ''
+            ).searchParams.get('nonce');
+            return { result, nonce: nonce ?? undefined };
+        };
+
+        it('opens the browser without registering the device, recording a link start', async () => {
+            signedIn();
+            const { result } = renderHook(() => useSocialLogin());
+
+            let started = false;
+            act(() => void (started = result.current.startLink('google')));
+
+            expect(started).toBe(true);
+            expect(session.loginGuest).not.toHaveBeenCalled();
+            expect(open).toHaveBeenCalledWith(expect.stringContaining('/oauth/google/authorize?redirect='), '_blank');
+            expect(takeOAuthLoginStart()).toMatchObject({ provider: 'google', intent: 'link', account: 'u-1' });
+        });
+
+        it('does not start for a guest session', () => {
+            session.isAuthenticated = true;
+            session.user = { userRole: 'guest' };
+            const { result } = renderHook(() => useSocialLogin());
+
+            expect(result.current.startLink('google')).toBe(false);
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it('verifies then confirms with the same code, keeps the session and records the link', async () => {
+            signedIn();
+            const { result, nonce } = await startedLink();
+
+            let done: unknown;
+            await act(async () => {
+                done = await result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce });
+            });
+
+            expect(done).toBe('link');
+            expect(session.verifySocialAccount).toHaveBeenCalledWith({ provider: 'google', code: 'auth2:x' });
+            expect(session.confirmSocialAccount).toHaveBeenCalledWith({ provider: 'google', code: 'auth2:x' });
+            expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+            expect(session.patchRelaySessionUser).toHaveBeenCalledWith({
+                link$: {
+                    phone: { hint: '1234' },
+                    social: expect.objectContaining({ provider: 'google', hint: 'a***@gmail.com' }),
+                },
+            });
+            expect(session.toast).toHaveBeenCalledWith({ description: i18n.t('account.signIn.link.done') });
+        });
+
+        it.each([
+            ['occupied', 'account.signIn.link.occupied'],
+            ['type-linked', 'account.signIn.link.typeLinked'],
+        ])('stops at verify when the server says %s', async (reason, key) => {
+            signedIn();
+            session.verifySocialAccount.mockResolvedValue({ step: 'verify', linkable: false, reason });
+            const { result, nonce } = await startedLink();
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce }));
+
+            expect(session.confirmSocialAccount).not.toHaveBeenCalled();
+            expect(session.patchRelaySessionUser).not.toHaveBeenCalled();
+            expect(session.toast).toHaveBeenCalledWith(
+                expect.objectContaining({ variant: 'destructive', description: i18n.t(key) })
+            );
+        });
+
+        it.each([
+            ['409 CONFLICT', 'account.signIn.link.occupied'],
+            // 403 from confirm can also be a session that is not a main user: only verify names type-linked.
+            ['403 FORBIDDEN', 'account.signIn.link.failed'],
+            ['500 ERROR', 'account.signIn.link.failed'],
+        ])('reads a confirm refused with %s', async (message, key) => {
+            signedIn();
+            session.confirmSocialAccount.mockRejectedValue(new Error(message));
+            const { result, nonce } = await startedLink();
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce }));
+
+            expect(result.current.isError).toBe(true);
+            expect(session.toast).toHaveBeenCalledWith(
+                expect.objectContaining({ variant: 'destructive', description: i18n.t(key) })
+            );
+        });
+
+        it('links nothing to another account that signed in while the browser was open', async () => {
+            signedIn();
+            const { result, nonce } = await startedLink();
+            session.user = { id: 'u-2', userRole: 'user', link$: {} };
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce }));
+
+            expect(session.verifySocialAccount).not.toHaveBeenCalled();
+            expect(session.confirmSocialAccount).not.toHaveBeenCalled();
+        });
+
+        it('answers link even when the link failed, so a screen can leave for the hub', async () => {
+            signedIn();
+            session.verifySocialAccount.mockRejectedValue(new Error('500 ERROR'));
+            const { result, nonce } = await startedLink();
+
+            let done: unknown;
+            await act(async () => {
+                done = await result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce });
+            });
+
+            expect(done).toBe('link');
+            expect(session.toast).toHaveBeenCalledTimes(1);
+        });
+
+        it('signs in, never links, for a login start while an account is signed in', async () => {
+            signedIn();
+            session.createCredentialsByProvider.mockResolvedValue(undefined);
+            saveOAuthLoginStart({ provider: 'google', intent: 'login', startedAt: Date.now(), nonce: 'n1' });
+            vi.stubGlobal('location', { ...window.location, replace: vi.fn() });
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce: 'n1' }));
+
+            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'auth2:x');
+            expect(session.verifySocialAccount).not.toHaveBeenCalled();
+            vi.unstubAllGlobals();
+        });
+
+        it('links nothing when the account signed out while the browser was open', async () => {
+            signedIn();
+            const { result, nonce } = await startedLink();
+            session.user = { userRole: 'guest' };
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce }));
+
+            expect(session.verifySocialAccount).not.toHaveBeenCalled();
+            expect(session.toast).toHaveBeenCalledWith(
+                expect.objectContaining({ description: i18n.t('account.signIn.link.failed') })
+            );
         });
     });
 });

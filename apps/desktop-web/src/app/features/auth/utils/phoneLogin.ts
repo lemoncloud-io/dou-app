@@ -9,8 +9,8 @@ export const isPhoneLoginEnabled = (): boolean => config.get<boolean>('feature.a
 
 /**
  * The note beside a Google button for people who signed up on mobile with a phone number: Google
- * makes them a new account unless they linked it there. Where phone sign-in is on, the note points
- * at it instead of at the mobile app.
+ * makes them a new account unless Google is linked to theirs. Where phone sign-in is on, the note
+ * points at it, and at linking Google from the account hub once in; otherwise at the mobile app.
  */
 export const phoneSignupNoteKey = (): 'auth.social.phoneSignupNote' | 'auth.social.phoneSignupNotePhone' =>
     isPhoneLoginEnabled() ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote';

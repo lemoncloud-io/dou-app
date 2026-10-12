@@ -42,13 +42,16 @@ export const OAuthResponsePage = () => {
         if (isNative()) {
             // Pre-auth: success flips isAuthenticated → router leaves this branch.
             // In-app (already signed in): the exchange swaps the session and reloads.
-            void completeFromHandoff({ provider, code, nonce });
+            // A link leaves the session as it was, so nothing moves the page: go back to the account hub.
+            void completeFromHandoff({ provider, code, nonce }).then(done => {
+                if (done === 'link') navigate('/account', { replace: true });
+            });
             return;
         }
         const url = buildOAuthDeeplink(provider, code, nonce);
         setDeeplink(url);
         window.location.replace(url);
-    }, [isComplete, provider, code, nonce, completeFromHandoff]);
+    }, [isComplete, provider, code, nonce, completeFromHandoff, navigate]);
 
     const failed = !isComplete || isError;
 

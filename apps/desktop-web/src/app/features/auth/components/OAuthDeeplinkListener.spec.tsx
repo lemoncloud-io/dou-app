@@ -24,6 +24,7 @@ vi.mock('@chatic/bridges', () => ({
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         boot: { startWebTransportInit: vi.fn().mockResolvedValue(undefined) },
+        data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),
             createCredentialsByProvider: session.createCredentialsByProvider,
@@ -84,7 +85,7 @@ describe('OAuthDeeplinkListener', () => {
     });
 
     const started = (over: Partial<{ provider: string; startedAt: number; nonce: string }> = {}) =>
-        saveOAuthLoginStart({ provider: 'google', startedAt: NOW, nonce: 'n1', ...over });
+        saveOAuthLoginStart({ provider: 'google', intent: 'login', startedAt: NOW, nonce: 'n1', ...over });
 
     it('does not exchange a deeplink when no login was started, and says so', async () => {
         await deliver('chatic://oauth?provider=google&code=attacker');

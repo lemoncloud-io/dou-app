@@ -3,6 +3,12 @@ import { storage } from '@chatic/shared';
 import type { OAuthDeeplinkPayload } from './oauth';
 
 /**
+ * What the code that comes back is for. `login` signs the device in as the provider account's owner;
+ * `link` hangs the provider account on the account already signed in, and the session stays as it is.
+ */
+export type OAuthStartIntent = 'login' | 'link';
+
+/**
  * The record that a social login was started from this app. A `chatic://oauth` deeplink can be opened
  * by anything on the machine — a web page, a document, another app — so the deeplink alone proves
  * nothing about who began the login; an unprompted one would sign the person in as whoever owns the
@@ -11,6 +17,12 @@ import type { OAuthDeeplinkPayload } from './oauth';
  */
 export interface OAuthLoginStart {
     provider: string;
+    intent: OAuthStartIntent;
+    /**
+     * For a link, the relay user id of the account that pressed the button. The code is linked only to
+     * that account: someone else signed in by the time it comes back must not receive the Google.
+     */
+    account?: string;
     startedAt: number;
     /**
      * Random per start. It rides the relay's `redirect` address and has to come back on the deeplink;
@@ -37,8 +49,15 @@ const createNonce = (): string => {
     return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 };
 
-export const createOAuthLoginStart = (provider: string, now: number): OAuthLoginStart => ({
+export const createOAuthLoginStart = (
+    provider: string,
+    now: number,
+    intent: OAuthStartIntent = 'login',
+    account?: string
+): OAuthLoginStart => ({
     provider,
+    intent,
+    ...(account ? { account } : {}),
     startedAt: now,
     nonce: createNonce(),
 });
@@ -71,7 +90,9 @@ export const saveOAuthLoginStart = (start: OAuthLoginStart): void => {
     storage.set(OAUTH_LOGIN_START_KEY, JSON.stringify(start));
 };
 
-const isLoginStart = (value: unknown): value is OAuthLoginStart => {
+const isLoginStart = (
+    value: unknown
+): value is Omit<OAuthLoginStart, 'intent' | 'account'> & { intent?: unknown; account?: unknown } => {
     if (typeof value !== 'object' || value === null) return false;
     const { provider, startedAt, nonce } = value as Record<string, unknown>;
     return (
@@ -92,7 +113,15 @@ export const takeOAuthLoginStart = (): OAuthLoginStart | null => {
     if (!raw) return null;
     try {
         const parsed: unknown = JSON.parse(raw);
-        return isLoginStart(parsed) ? parsed : null;
+        if (!isLoginStart(parsed)) return null;
+        const { intent, account, ...rest } = parsed;
+        // Only `link` is read as a link. A record written before the intent existed was a login, and an
+        // unreadable intent must never turn a login into something that writes to the account.
+        return {
+            ...rest,
+            intent: intent === 'link' ? 'link' : 'login',
+            ...(typeof account === 'string' ? { account } : {}),
+        };
     } catch {
         return null;
     }

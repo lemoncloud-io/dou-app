@@ -17,26 +17,30 @@ describe('linkedSignInOf', () => {
         expect(linkedSignInOf({ userRole: 'user' })).toEqual({ kind: 'unknown' });
     });
 
-    it('names the social provider and its hint first', () => {
+    it('lists every linked method, social first, then phone, then email', () => {
         expect(
             linkedSignInOf({
                 userRole: 'user',
-                link$: { social: { provider: 'google', hint: 'a***@example.com' }, phone: { hint: '1234' } },
+                link$: {
+                    email: { hint: 'a***@example.com' },
+                    phone: { hint: '1234' },
+                    social: { provider: 'google', hint: 'a***@gmail.com' },
+                },
             })
-        ).toEqual({ kind: 'social', provider: 'google', hint: 'a***@example.com' });
-    });
-
-    it('falls back to the phone when no social account is linked', () => {
-        expect(linkedSignInOf({ userRole: 'user', link$: { phone: { hint: '1234' } } })).toEqual({
-            kind: 'phone',
-            hint: '1234',
+        ).toEqual({
+            kind: 'linked',
+            methods: [
+                { kind: 'social', provider: 'google', hint: 'a***@gmail.com' },
+                { kind: 'phone', hint: '1234' },
+                { kind: 'email', hint: 'a***@example.com' },
+            ],
         });
     });
 
-    it('falls back to the email when neither a social account nor a phone is linked', () => {
-        expect(linkedSignInOf({ userRole: 'user', link$: { email: { hint: 'a***@example.com' } } })).toEqual({
-            kind: 'email',
-            hint: 'a***@example.com',
+    it('lists the phone alone when only a number is linked', () => {
+        expect(linkedSignInOf({ userRole: 'user', link$: { phone: { hint: '1234' } } })).toEqual({
+            kind: 'linked',
+            methods: [{ kind: 'phone', hint: '1234' }],
         });
     });
 

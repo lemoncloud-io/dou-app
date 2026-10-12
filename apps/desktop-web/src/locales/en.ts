@@ -55,7 +55,7 @@ export const en = {
     'auth.social.phoneSignupNote':
         'Signed up on mobile with a phone number? Link Google in the mobile app’s account settings first, or this makes a new account.',
     'auth.social.phoneSignupNotePhone':
-        'Signed up on mobile with a phone number? Sign in with that number instead — Google makes a new account unless you linked it in the mobile app.',
+        'Signed up on mobile with a phone number? Sign in with that number, then link Google from Account. Until it is linked, Google makes a new account.',
     'auth.phone.start': 'Sign in with phone number',
     'auth.phone.title': 'Sign in with phone number',
     'auth.phone.subtitle': 'For an account made in the DoU mobile app with a phone number. We text you a code.',
@@ -503,6 +503,12 @@ export const en = {
     'account.signIn.email': 'Email',
     'account.signIn.none': 'No sign-in method is linked to this account.',
     'account.signIn.guestTitle': 'Sign in to an account',
+    'account.signIn.link.google': 'Link Google',
+    'account.signIn.link.hint': 'Link Google to sign in with it on another computer, too.',
+    'account.signIn.link.done': 'Google is now linked to this account.',
+    'account.signIn.link.occupied': 'That Google account already belongs to another DoU account.',
+    'account.signIn.link.typeLinked': 'This account already has a social account linked.',
+    'account.signIn.link.failed': "We couldn't link Google. Please try again.",
     'account.profile.title': 'Edit profile',
     'account.profile.subtitle': 'The name and photo other people see.',
     'account.profile.nameLabel': 'Display name',
