@@ -1,0 +1,66 @@
+# Signs the guest in through the dev backend's test path — no SMS is sent and no code is typed:
+# the fixture's fictional number, "Skip delivery (dryRun)" (the server sends nothing) and "Receive via
+# Slack" (the request carries `sms: false` as a second guard), "Send code", then "Skip the code (#)",
+# which proves with the code development backends accept. Starts from any screen of a guest; ends
+# signed in. The dev switches exist only in dev builds, which is all the harness builds.
+#
+# The login screen is opened by deep link, not through the MY tab: a dev build's LogBox banner sits
+# over the tab bar and takes the tap.
+#
+# The country is not chosen here: the phone field starts at +1 on the harness devices (en-US), which
+# matches the fixture's number.
+appId: ${APP_ID}
+---
+- openLink: ${APP_SCHEME}://mypage/login
+# The first link opened from outside the app can raise the OS "Open in …?" alert.
+- tapOn:
+      text: 'Open'
+      optional: true
+- extendedWaitUntil:
+      visible: 'Continue with phone number'
+      timeout: 30000
+- tapOn: 'Continue with phone number'
+- extendedWaitUntil:
+      visible: 'Verify phone number'
+      timeout: 15000
+# iOS exposes the field's placeholder; Android exposes its label and hint instead.
+- tapOn: 'Enter your phone number|Phone number Digits only.*'
+- inputText: ${DOU_TEST_PHONE}
+# Typing into a WebView field can drop a character; the number must be whole before a code is asked for.
+- assertVisible: ${DOU_TEST_PHONE}
+# With the keyboard up, the next tap only dismisses it. `hideKeyboard` cannot close a WebView's
+# keyboard on iOS, so tap the sheet's static description instead.
+- tapOn: 'Enter your phone number and the code.*'
+- tapOn: 'Skip delivery \(dryRun\)'
+- tapOn: 'Receive via Slack'
+# Both switches must read as checked before anything is requested, so a tap that did not land fails
+# the scenario instead of requesting a real delivery. That holds on iOS only: Android's WebView reports
+# a web checkbox as unchecked to Maestro whatever its state (both hierarchy modes were tried). There
+# the checkpoint below is the check, and a tap that missed both switches would at worst send one SMS
+# attempt to the fixture's fictional, unassigned number.
+- runFlow:
+      when:
+          platform: iOS
+      commands:
+          - extendedWaitUntil:
+                visible:
+                    text: 'Skip delivery \(dryRun\)'
+                    checked: true
+                timeout: 10000
+          - extendedWaitUntil:
+                visible:
+                    text: 'Receive via Slack'
+                    checked: true
+                timeout: 10000
+# Look for: both dev switches checked, the fixture's number in the phone field.
+- takeScreenshot: checkpoint-dev-switches
+- tapOn: 'Send code'
+# The "code sent" toast is gone before it can be read reliably; the countdown's "Extend time"
+# appears only once a code has been requested, and stays.
+- extendedWaitUntil:
+      visible: 'Extend time'
+      timeout: 15000
+- tapOn: 'Skip the code \(#\)'
+- extendedWaitUntil:
+      notVisible: 'Verify phone number'
+      timeout: 30000

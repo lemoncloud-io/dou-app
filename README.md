@@ -268,6 +268,9 @@ yarn mobile:start
 # Mobile — Run against the deployed web (dev/prod)
 yarn mobile:ios:dev           # iOS Simulator
 yarn mobile:android:dev       # Android Emulator
+
+# Mobile — A feature's device scenario in one command (opt-in; see apps/mobile/docs/release/device-verify.md)
+yarn mobile:verify home/open-room --platform ios
 ```
 
 > [!NOTE]

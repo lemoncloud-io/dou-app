@@ -176,6 +176,8 @@ absorbs all three spellings on the read side.
 
 ## Further reading
 
+- [device-verify.md](./device-verify.md) — the same shell, built and driven by a scenario in one
+  command, on ports and devices that do not collide with this doc's 5003/8081 setup.
 - [../webview/webview-debugging.md](../webview/webview-debugging.md) — attaching a remote inspector once the app is
   running, local or otherwise.
 - [deploy.md](./deploy.md) — the dev/prod builds this doc's local override sits next to.

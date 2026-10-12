@@ -120,6 +120,11 @@ Then tell them in one line what to look at: which screen, which path, what chang
 
 Check the box only for what they actually confirmed. Do not check it on their behalf.
 
+**On a simulator or emulator, follow [`dou-device-verify`](../dou-device-verify/SKILL.md).**
+When the changed feature has a device scenario, one command builds the app, boots the device and
+runs it; that procedure says when to offer it, how to read the result, and how to check by hand
+when no scenario exists. It is optional in the same way as everything in this section.
+
 **Say up front that mobile is simulators and emulators only.**
 [`apps/mobile/docs/release/local-run.md`](../../../../apps/mobile/docs/release/local-run.md)
 puts physical devices explicitly out of scope — no LAN IP, no iOS ATS exception, no
