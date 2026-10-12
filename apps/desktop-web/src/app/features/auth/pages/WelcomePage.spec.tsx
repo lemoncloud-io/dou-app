@@ -56,4 +56,12 @@ describe('WelcomePage', () => {
 
         expect(state.social.start).toHaveBeenCalledWith('google');
     });
+
+    it('tells people who signed up with a phone number before they tap Google', () => {
+        render(<WelcomePage />);
+
+        const google = screen.getByText(i18n.t('auth.social.google')).closest('button');
+        const note = document.getElementById(google?.getAttribute('aria-describedby') ?? '');
+        expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNote'));
+    });
 });

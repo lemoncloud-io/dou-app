@@ -5,7 +5,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import type * as ChaticSharedModule from '@chatic/shared';
 
-const tokenUser = vi.hoisted(() => ({ value: null as { name?: string; photo?: string } | null }));
+const tokenUser = vi.hoisted(() => ({
+    value: null as { name?: string; photo?: string; userRole?: string } | null,
+}));
 const patchRelaySessionUser = vi.hoisted(() => vi.fn());
 const gatewayUpdate = vi.fn(async (data: unknown) => data);
 
@@ -43,6 +45,13 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
+const startSocialLogin = vi.hoisted(() => vi.fn());
+vi.mock('../../auth', () => ({
+    GoogleIcon: () => null,
+    isSocialLoginEnabled: () => true,
+    useSocialLogin: () => ({ start: startSocialLogin, isStarting: false }),
+}));
+
 import '../../../../i18n';
 
 import { AccountHubPage } from './AccountHubPage';
@@ -78,6 +87,17 @@ describe('AccountHubPage', () => {
 
         expect(screen.getByText('Guest account')).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    });
+
+    // A guest has a relay user too — its role is what says it is a guest.
+    it('treats a relay user whose role is guest as a guest, and offers Google sign-in', () => {
+        tokenUser.value = { name: 'Guest', userRole: 'guest' } as typeof tokenUser.value;
+        renderAt();
+
+        expect(screen.getByText('Guest account')).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Edit profile' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+        expect(startSocialLogin).toHaveBeenCalledWith('google');
     });
 
     it('opens the cloud list from its entry', () => {

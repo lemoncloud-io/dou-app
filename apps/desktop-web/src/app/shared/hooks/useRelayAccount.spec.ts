@@ -60,6 +60,23 @@ describe('useRelayAccount', () => {
         expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Ada', photo: 'p' });
     });
 
+    it('carries the linked sign-in slot and the email into the token on refresh', async () => {
+        relayVerified.value = true;
+        gatewayProfile.mockResolvedValueOnce({
+            $user: { name: 'Ada', email: 'ada@example.com', link$: { social: { provider: 'google', hint: 'a***' } } },
+        } as never);
+        renderHook(() => useRelayAccount());
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(patchRelaySessionUser).toHaveBeenCalledWith({
+            name: 'Ada',
+            email: 'ada@example.com',
+            link$: { social: { provider: 'google', hint: 'a***' } },
+        });
+    });
+
     it('updates through the gateway and patches the echo', async () => {
         relayVerified.value = true;
         gatewayUpdate.mockResolvedValueOnce({ name: 'Ada II', photo: 'p2' });

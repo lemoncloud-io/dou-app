@@ -9,17 +9,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import { useRelayAccount } from '../../../shared';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
+import { AccountSignInCard } from '../components/AccountSignInCard';
 
 /**
- * The account hub: the relay identity card (with profile edit) and the
- * entries that lead out of it — owned clouds, notifications (the Settings
- * page) and the terms and privacy policy. A guest has no relay identity, so
- * the card becomes a join prompt and the clouds entry is hidden.
+ * The account hub: the relay identity card (with profile edit), how the
+ * account signs in, and the entries that lead out of it — owned clouds,
+ * notifications (the Settings page) and the terms and privacy policy. A guest
+ * (no relay user, or one whose role is `guest`) gets a join prompt instead of
+ * the card, and the clouds entry is hidden.
  */
 export const AccountHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { account } = useRelayAccount();
+    const isGuest = !account || account.userRole === 'guest';
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const [editingProfile, setEditingProfile] = useState(false);
 
@@ -35,7 +38,7 @@ export const AccountHubPage = () => {
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
                 <section className="flex flex-col gap-4">
-                    {account ? (
+                    {account && !isGuest ? (
                         <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
                             <Avatar className="h-14 w-14">
                                 <AvatarImage src={account.photo || undefined} alt="" />
@@ -62,7 +65,9 @@ export const AccountHubPage = () => {
                         </div>
                     )}
 
-                    {account && (
+                    <AccountSignInCard account={account} />
+
+                    {!isGuest && (
                         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                             <div className="flex min-w-0 flex-col gap-0.5">
                                 <span className="text-callout font-medium text-foreground">
@@ -102,7 +107,7 @@ export const AccountHubPage = () => {
                 </section>
             </div>
 
-            {account && (
+            {account && !isGuest && (
                 <AccountProfileDialog open={editingProfile} onOpenChange={setEditingProfile} initial={account} />
             )}
         </div>

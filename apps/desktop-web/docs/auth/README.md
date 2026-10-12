@@ -5,17 +5,23 @@ How a person gets signed in on desktop, and what the app refuses to take as a si
 
 ## Social login
 
-"Continue with Google" (the Welcome page, or the Profile page for a Guest Session linking an
-account) opens the OAuth Relay's authorize URL in the system browser, because Google refuses an
+"Continue with Google" (the Welcome page, or the Profile page and the account hub for a Guest Session
+signing in to an account) opens the OAuth Relay's authorize URL in the system browser, because Google refuses an
 embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-response`, which
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
-The Profile page offers the button to an account with no email, and it judges that from the relay
-session, which is the account's. Inside a cloud the active session is that cloud's, whose user has
-a uid and a name of its own and no email, so reading it there drew a signed-in account as a guest.
+The Profile page offers the button only when the relay user's `userRole` is `guest`, and it judges
+that from the relay session, which is the account's. Inside a cloud the active session is that
+cloud's, whose user has a uid and a name of its own, so reading it there drew a signed-in account as
+a guest. An account with no email is not a guest: one that signed up with a phone number has none.
 The Account card's name, email and user id come from the relay session for the same reason. The
 "This place" card still falls back to the name the cloud knows, which is the one people there see.
+
+Every place that offers the button says, under it, that someone who signed up on mobile with a phone
+number should link Google in the mobile app first, or this makes a new account. Sign-in is not
+linking: nothing here attaches Google to an existing phone account, and recovering someone who
+already landed in a new account is out of scope.
 
 The steps, in order:
 

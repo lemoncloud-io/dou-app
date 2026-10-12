@@ -48,7 +48,7 @@ vi.mock('../../../shared', async () => ({
     useCurrentPlace: () => currentPlace.value,
 }));
 
-import '../../../../i18n';
+import i18n from '../../../../i18n';
 import { useSiteProfilesStore } from '../../../shared';
 import { ProfilePage } from './ProfilePage';
 
@@ -124,12 +124,23 @@ describe('ProfilePage account card inside a cloud', () => {
         expect(screen.getAllByText('Kim')).toHaveLength(1);
     });
 
-    it('offers Google sign-in when the account itself has no email', async () => {
-        session.relayUser = { uid: 'account-uid' };
+    it('offers a guest Google sign-in, with the note for phone sign-ups', async () => {
+        session.relayUser = { uid: 'account-uid', userRole: 'guest' };
         render(<ProfilePage />, { wrapper });
         await screen.findByRole('button', { name: 'Set up' });
 
-        expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
+        const google = screen.getByRole('button', { name: 'Continue with Google' });
+        const note = document.getElementById(google.getAttribute('aria-describedby') ?? '');
+        expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNote'));
+    });
+
+    // A phone sign-up has no email and is not a guest: Google sign-in would make it a new account.
+    it('offers no Google sign-in to a signed-in account without an email', async () => {
+        session.relayUser = { uid: 'account-uid', userRole: 'user' };
+        render(<ProfilePage />, { wrapper });
+        await screen.findByRole('button', { name: 'Set up' });
+
+        expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
     });
 });
 

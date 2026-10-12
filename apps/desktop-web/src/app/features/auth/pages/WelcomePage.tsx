@@ -40,15 +40,26 @@ export const WelcomePage = () => {
                     {t('welcome.guestNote')}
                 </p>
                 {isSocialLoginEnabled() && (
-                    <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={() => void startSocialLogin('google')}
-                        disabled={isBusy}
-                    >
-                        <GoogleIcon />
-                        {isStarting ? t('welcome.starting') : t('auth.social.google')}
-                    </Button>
+                    <>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => void startSocialLogin('google')}
+                            disabled={isBusy}
+                            aria-describedby="welcome-phone-signup-note"
+                        >
+                            <GoogleIcon />
+                            {isStarting ? t('welcome.starting') : t('auth.social.google')}
+                        </Button>
+                        {/* Said before the tap: someone who signed up on mobile with a phone number
+                            and never linked Google there gets a new, empty account from this button. */}
+                        <p
+                            id="welcome-phone-signup-note"
+                            className="-mt-0.5 text-center text-caption text-muted-foreground"
+                        >
+                            {t('auth.social.phoneSignupNote')}
+                        </p>
+                    </>
                 )}
                 <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
                     {t('welcome.haveInvite')}
