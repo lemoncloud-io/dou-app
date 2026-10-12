@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +17,7 @@ import { isSocialLoginEnabled } from '../utils';
 export const WelcomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const noteId = useId();
     const { submit, isSubmitting, isError } = useGuestLogin();
     const { start: startSocialLogin, isStarting, isError: isSocialError } = useSocialLogin();
     const isBusy = isSubmitting || isStarting;
@@ -46,17 +48,14 @@ export const WelcomePage = () => {
                             size="lg"
                             onClick={() => void startSocialLogin('google')}
                             disabled={isBusy}
-                            aria-describedby="welcome-phone-signup-note"
+                            aria-describedby={noteId}
                         >
                             <GoogleIcon />
                             {isStarting ? t('welcome.starting') : t('auth.social.google')}
                         </Button>
                         {/* Said before the tap: someone who signed up on mobile with a phone number
                             and never linked Google there gets a new, empty account from this button. */}
-                        <p
-                            id="welcome-phone-signup-note"
-                            className="-mt-0.5 text-center text-caption text-muted-foreground"
-                        >
+                        <p id={noteId} className="-mt-0.5 text-center text-caption text-muted-foreground">
                             {t('auth.social.phoneSignupNote')}
                         </p>
                     </>
