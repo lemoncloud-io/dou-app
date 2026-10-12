@@ -221,7 +221,9 @@ describe('useSocialLogin.start', () => {
             await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
 
             expect(session.createCredentialsByProvider).toHaveBeenCalledTimes(1);
-            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'c');
+            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'c', {
+                linkCurrentSession: true,
+            });
             expect(session.toast).not.toHaveBeenCalled();
         });
 

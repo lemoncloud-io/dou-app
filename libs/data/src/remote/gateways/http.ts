@@ -33,6 +33,7 @@ export type AuthHttpDomainGateway = Pick<
     | 'login'
     | 'verifyNativeToken'
     | 'exchangeCode'
+    | 'verifyOAuthCode'
     | 'delegateCloud'
     | 'exchangeToken'
 >;

@@ -30,6 +30,13 @@ export interface VerifyAliasBody {
 }
 export type VerifyAliasView = Record<string, never>;
 
+/** Body of `POST /users/0/verify-oauth-code`. The backend's `VerifyOAuthCodeBody` is not in a
+ * published package yet, so the two fields are declared here. */
+export interface VerifyOAuthCodeBody {
+    provider: string;
+    code: string;
+}
+
 export const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value);
 
 /**
@@ -61,6 +68,11 @@ export interface OAuthHttpGateway {
      * it can't mint a token that doesn't exist yet), so it's deliberately excluded from `data`'s
      * Pick and reachable only from `session/auth`. It's the oauth host, not relay. */
     exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView>;
+    /** `POST {relay}/users/0/verify-oauth-code?token=1` — exchanges the same OAuth code, but signed
+     * with the caller's session: the backend records that (guest) user as the new session's link and
+     * picks the user the way `verifyNativeToken` does. Without a session it answers 403. Session
+     * material, so reachable only from `session/auth`. */
+    verifyOAuthCode(body: VerifyOAuthCodeBody): Promise<UserTokenView>;
     inviteInfo(input: { code: string; backend: string }): Promise<MyInviteView>;
 }
 
@@ -144,6 +156,14 @@ export const createOAuthHttpGateway = (exec: HttpGatewayExecutor): OAuthHttpGate
                 method: 'POST',
                 baseURL: `${oauthHost()}/oauth/${provider}/token`,
                 body: { code },
+            }),
+
+        verifyOAuthCode: body =>
+            exec.executeSignedRelayRequest<UserTokenView, VerifyOAuthCodeBody, { token: 1 }>({
+                method: 'POST',
+                baseURL: `${relay()}/users/0/verify-oauth-code`,
+                params: { token: 1 },
+                body,
             }),
 
         verifyNativeToken: body =>

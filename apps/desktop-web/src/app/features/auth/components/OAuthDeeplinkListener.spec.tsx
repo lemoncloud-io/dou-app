@@ -100,7 +100,7 @@ describe('OAuthDeeplinkListener', () => {
 
         await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc', { linkCurrentSession: true });
         expect(session.toast).not.toHaveBeenCalled();
     });
 
@@ -129,7 +129,9 @@ describe('OAuthDeeplinkListener', () => {
         started();
         await deliver('chatic://oauth?provider=google&code=good&nonce=n1');
 
-        expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good');
+        expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good', {
+            linkCurrentSession: true,
+        });
         expect(session.toast).toHaveBeenCalledTimes(1);
     });
 
@@ -148,7 +150,9 @@ describe('OAuthDeeplinkListener', () => {
         await deliver('chatic://oauth?provider=google&code=second&nonce=n1');
 
         expect(session.createCredentialsByProvider).toHaveBeenCalledTimes(1);
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'first');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'first', {
+            linkCurrentSession: true,
+        });
     });
 
     it('consumes the start even when the deeplink is refused', async () => {
@@ -185,7 +189,7 @@ describe('OAuthDeeplinkListener', () => {
 
         await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc', { linkCurrentSession: true });
     });
 
     it('ignores deeplinks that are not OAuth ones without touching the start', async () => {
@@ -210,7 +214,7 @@ describe('OAuthDeeplinkListener', () => {
 
         await deliver(`chatic://oauth?provider=google&code=abc&nonce=${nonce}`);
 
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc', { linkCurrentSession: true });
         expect(replace).toHaveBeenCalledWith('/');
         vi.unstubAllGlobals();
     });

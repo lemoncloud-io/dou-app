@@ -19,6 +19,7 @@ describe('AuthHttpDataSource', () => {
             login: jest.fn(),
             verifyNativeToken: jest.fn(),
             exchangeCode: jest.fn(),
+            verifyOAuthCode: jest.fn(),
             delegateCloud: jest.fn(),
             exchangeToken: jest.fn(),
         };

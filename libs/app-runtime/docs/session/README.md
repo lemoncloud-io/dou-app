@@ -196,6 +196,15 @@ Each is a class with a single exported singleton; the class itself stays private
 | `credentialFreshness`  | `timeToExpiry(cid, now?)` · `isStale(cid, now?)`                                                                                                                                   |
 | `logoutStorageSweeper` | `sweep()`                                                                                                                                                                          |
 
+`loginByOAuthCode` (app-facing as `createCredentialsByProvider`) has two endpoints behind it. By default
+it sends the code to `POST {oauth}/oauth/{provider}/token`, which web and admin reach with no session. With
+`linkCurrentSession` it sends `{ provider, code }` to `POST {relay}/users/0/verify-oauth-code?token=1`,
+signed with the session already on the device: the backend records that user (a Guest Session) as the
+new session's link, the same record the native social login leaves, and that link is what later lets
+the account into a cloud the guest was invited to. That endpoint answers 403 when there is no session,
+so only a caller that is sure one exists passes the option — desktop does, because it registers the
+device before it opens the browser. Web and admin call without a session and stay on the default.
+
 Two more are plain functions because they are shared by two callers with different policies:
 `issueCloudTokens(cloudId, { allowCache })` and `reissueCloudTokens(cloudId)` in
 [`cloudTokens.ts`](../../src/session/auth/cloudTokens.ts). **The cache flag is the whole point.**

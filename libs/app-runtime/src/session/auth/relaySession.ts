@@ -54,8 +54,12 @@ export interface IRelaySession {
     loginGuestByDevice(deviceId: string): Promise<UserTokenView>;
     /** Logs in with a credential payload. */
     loginUser(params: { body: Parameters<IAuthRepository['login']>[0]; email?: boolean }): Promise<UserTokenView>;
-    /** Exchanges an OAuth authorization code for a session. */
-    loginByOAuthCode(provider: string, code: string): Promise<UserTokenView>;
+    /**
+     * Exchanges an OAuth authorization code for a session. With `linkCurrentSession` the exchange is
+     * signed with the session already on the device and the backend links that (guest) user to the
+     * account; it refuses the call when there is no session.
+     */
+    loginByOAuthCode(provider: string, code: string, options?: OAuthCodeLoginOptions): Promise<UserTokenView>;
     /** Promotes the active session with a verified native social token. */
     loginBySocialToken(params: {
         body: VerifyNativeTokenBody;
@@ -67,6 +71,12 @@ export interface IRelaySession {
     clearAndRedirect(options?: LogoutOptions): Promise<void>;
     /** Registers a callback invoked once during teardown. Returns the unregister. */
     registerLogoutCallback(callback: () => void): () => void;
+}
+
+export interface OAuthCodeLoginOptions {
+    /** Sign the exchange with the current session so the backend links it to the account. Only for a
+     * caller that is sure a session exists — desktop registers the device before the browser opens. */
+    linkCurrentSession?: boolean;
 }
 
 class RelaySession implements IRelaySession {
@@ -188,8 +198,14 @@ class RelaySession implements IRelaySession {
      * away, and left the caller to recover the discarded fields by calling the REFRESH endpoint a
      * moment later. That was the last HTTP refresh in the codebase (ADR-0070 invariant 1·2).
      */
-    async loginByOAuthCode(provider = 'google', code: string): Promise<UserTokenView> {
-        const tokenView = await this.repository.exchangeCode({ provider, code });
+    async loginByOAuthCode(
+        provider = 'google',
+        code: string,
+        { linkCurrentSession = false }: OAuthCodeLoginOptions = {}
+    ): Promise<UserTokenView> {
+        const tokenView = linkCurrentSession
+            ? await this.repository.verifyOAuthCode({ provider, code })
+            : await this.repository.exchangeCode({ provider, code });
 
         // The relay socket registers with `$auth.id` (signServerAuth) and it is not obtainable from
         // the profile endpoint — if a login response ever stops carrying it the failure surfaces
@@ -343,7 +359,10 @@ export const relaySession: IRelaySession = new RelaySession();
  * exchange runs in a redirect page's effect and the logout-callback registry is wired at a log
  * uploader's module init — neither is React, so neither can go through a hook (decision 6).
  */
-export const createCredentialsByProvider = (provider = 'google', code: string): Promise<UserTokenView> =>
-    relaySession.loginByOAuthCode(provider, code);
+export const createCredentialsByProvider = (
+    provider = 'google',
+    code: string,
+    options?: OAuthCodeLoginOptions
+): Promise<UserTokenView> => relaySession.loginByOAuthCode(provider, code, options);
 export const registerSessionLogoutCallback = (callback: () => void): (() => void) =>
     relaySession.registerLogoutCallback(callback);

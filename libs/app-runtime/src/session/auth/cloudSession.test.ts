@@ -53,6 +53,7 @@ jest.mock('../../data/runtime', () => ({
             registerDevice: jest.fn(),
             verifyNativeToken: jest.fn(),
             exchangeCode: jest.fn(),
+            verifyOAuthCode: jest.fn(),
         },
     }),
 }));
