@@ -188,8 +188,13 @@ narrowed by ADR-0173).
 has exactly one listener. `confirm` shows current against new, when it applies and the amount, and
 only then opens the sheet — an upgrade charges now and a downgrade waits for renewal, and that has to
 be read before paying, not on a receipt. `purchaseTier` resolves to the membership the relay just
-validated, and the completion dialog draws from it instead of waiting on the refetch. Leaving the
-dialog replaces the flow in history, so back from the detail never returns to a confirm button.
+validated, and the completion dialog draws from it instead of waiting on the refetch. That refetch
+still lands before `purchaseTier` resolves, and it turns the tier into the account's own — no longer
+one to buy, with nothing to replace and no trial left. So `confirm` freezes the terms it showed when
+the buy is tapped and keeps them until the purchase fails or is cancelled: its "not a tier you can
+pick" redirect to `plans` applies to someone who opens the screen, not to a purchase it already
+started, and the dialog describes the change that was bought. Leaving the dialog replaces the flow in
+history, so back from the detail never returns to a confirm button.
 
 **The status banner is one judgement.** `deriveBanner` (`lib/scene.ts`) picks a single banner by
 priority — block, expiry, scheduled ending, restored, renewal reminder — and the info table's rows

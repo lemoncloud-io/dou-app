@@ -107,32 +107,35 @@ test('a purchase the store completes is checked with the relay, then finished, a
     expect(shell.received('FinishPurchaseTransaction').map(message => message.data.purchase.id)).toEqual([purchase.id]);
 
     // The work is over, and the subscription screen reads the account's plan back from the relay as
-    // the tier, active. Opened afresh rather than read off wherever the purchase left the page — that
-    // is the screen the fixme below is about.
+    // the tier, active. Opened afresh rather than read off wherever the purchase left the page — the
+    // confirmation the purchase leaves on screen is the next scenario's.
     await expect(processing(page)).toHaveCount(0);
     await page.goto('/subscription');
     await expect(page.getByRole('button', { name: `PRO ${PLAN.name} Active`, exact: true })).toBeVisible();
     await expect(page.getByText('You have no active subscription.')).toHaveCount(0);
 });
 
-// A product bug, left for its own fix: the purchase above succeeds, but the confirmation never
-// appears. `purchaseAndValidate` waits for the membership to be read again before it returns, and
-// with the tier now the account's own the confirm screen no longer counts it as one to buy — it sends
-// the person back to the plan list before the confirmation it was about to show is set.
-test.fixme(
-    'a completed purchase is confirmed with "You are subscribed."',
-    async ({ page, shell, backend, shellPlatform }) => {
-        setUp(backend, shell, shellPlatform);
-        await buyAndComplete(page, shell, shellPlatform);
+// The purchase resolves only after the membership has been read again, and by then the tier is the
+// account's own: the confirm screen has to keep showing the purchase it made rather than judge the
+// tier afresh, which would send the person to the plan list before the confirmation shows.
+test('a completed purchase is confirmed with "You are subscribed."', async ({
+    page,
+    shell,
+    backend,
+    shellPlatform,
+}) => {
+    setUp(backend, shell, shellPlatform);
+    await buyAndComplete(page, shell, shellPlatform);
 
-        const done = page.getByRole('dialog').filter({ hasText: 'You are subscribed.' });
-        await expect(done).toBeVisible();
-        await expect(done).toContainText('Active');
-        await expect(done).toContainText(shellPlatform === 'ios' ? 'App Store' : 'Google Play');
-        await done.getByRole('button', { name: 'OK', exact: true }).click();
-        await expect(page.getByText('You have no active subscription.')).toHaveCount(0);
-    }
-);
+    const done = page.getByRole('dialog').filter({ hasText: 'You are subscribed.' });
+    // The page holds the confirmation until the purchase has been checked, finished, given the store
+    // 1.5s to settle and read back from the relay, so the default 5s leaves little room on a busy run.
+    await expect(done).toBeVisible({ timeout: 15_000 });
+    await expect(done).toContainText('Active');
+    await expect(done).toContainText(shellPlatform === 'ios' ? 'App Store' : 'Google Play');
+    await done.getByRole('button', { name: 'OK', exact: true }).click();
+    await expect(page.getByText('You have no active subscription.')).toHaveCount(0);
+});
 
 test('a purchase cancelled in the store says nothing, checks nothing, and can be started again', async ({
     page,
