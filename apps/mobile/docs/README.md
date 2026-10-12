@@ -22,7 +22,7 @@ before, around, and underneath the web client. Product behaviour inside the WebV
 | [push/](./push/README.md)       | Notification delivery, click routing, and the app icon badge                                  |
 | [storage/](./storage/README.md) | What the shell persists for the web client — SQLite, MMKV, and resumable uploads              |
 | [system/](./system/README.md)   | OS-level state both sides must agree on — theme, language and deep links                      |
-| [release/](./release/README.md) | Building, shipping, updating, and running against a local web server                          |
+| [release/](./release/README.md) | Building, shipping, updating, running against a local web server, and device scenarios        |
 
 Shared libraries the shell depends on are documented in their own packages: `libs/app-messages`,
 `libs/bridges`, `libs/logger`, `libs/device-utils`, `libs/shared`.

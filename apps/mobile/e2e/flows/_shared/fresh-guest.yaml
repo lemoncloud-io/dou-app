@@ -1,0 +1,28 @@
+# A fresh install, past the first-launch screens: cleared state, the OS notification prompt allowed,
+# onboarding skipped. The guest lands on home with no sign-in. Scenarios that start from a fresh
+# install run this first.
+appId: ${APP_ID}
+---
+- launchApp:
+      clearState: true
+      permissions:
+          all: allow
+# `permissions` usually pre-grants notifications too, and then this optional tap finds nothing and
+# is marked WARNED in the report — that is normal. It is here for the launches where the OS asks anyway.
+- tapOn:
+      text: 'Allow'
+      optional: true
+# Onboarding shows on a fresh install only, and not steadily: it can mount, blink out while the boot
+# route settles, and mount again. A single "if SKIP is visible" check lands in the blink and leaves
+# onboarding up, so tap SKIP until home's list header shows. Onboarding's illustration is an image,
+# so its sample chat list never matches a text selector.
+- repeat:
+      while:
+          notVisible: 'Chat Rooms.*'
+      times: 8
+      commands:
+          - tapOn:
+                text: 'SKIP'
+                optional: true
+          - waitForAnimationToEnd:
+                timeout: 10000

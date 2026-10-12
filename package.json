@@ -60,6 +60,7 @@
     "mobile:android:release:build": "./scripts/build-android.sh",
     "mobile:android:release:install": "./scripts/install-android.sh",
     "!mobile-deploy": "------------- Mobile deploy scripts -------------",
+    "mobile:verify": "node scripts/mobile-verify/index.js",
     "mobile:version": "node scripts/version-mobile.js",
     "mobile:version:test": "npx jest --config scripts/jest.config.js --runInBand",
     "mobile:deploy:ios:dev": "./scripts/deploy-mobile.sh ios dev",

@@ -1,0 +1,37 @@
+# Cold boot to a room: the launch splash lifts onto home, home lists the guest's rooms, and the
+# guest's Self Chat opens with its composer.
+#
+# What it guards that the web's own tests cannot: the real splash handoff
+# (apps/mobile/docs/boot/boot-splash.md), the real WebView loading this checkout's web, the shell
+# answering the cache and handshake messages, and navigation inside the WebView.
+appId: ${APP_ID}
+name: Cold boot, home, open a room
+tags:
+    - smoke
+---
+- runFlow: ../_shared/fresh-guest.yaml
+
+# The splash stays up until the web reports its first screen; the room list header means it lifted.
+- extendedWaitUntil:
+      visible: 'Chat Rooms'
+      timeout: 90000
+# The header draws before the list: the rows are skeletons until the shell's cache answers. The
+# row reads "MY Self Chat" (badge + title) to the accessibility tree.
+- extendedWaitUntil:
+      visible: '.*Self Chat'
+      timeout: 60000
+# Look for: home drawn under the status bar, "Chat Rooms" with the Self Chat row, the tab bar at
+# the bottom — not a blank page, skeleton rows, or a spinner left over from the splash. A banner under
+# the header ("You have no profile…" on iOS, "Create places in your own cloud" on Android) is the
+# guest's normal state. Dev-build overlays are not findings: a LogBox banner may cover the tab bar,
+# and a "debug" pill sits bottom right.
+- takeScreenshot: checkpoint-home
+
+- tapOn: '.*Self Chat'
+- extendedWaitUntil:
+      visible: 'Enter a message'
+      timeout: 30000
+# Look for: the "Self Chat" header with a back arrow, and the composer at the bottom above the home
+# indicator, not under it. The dev-build "debug" pill overlapping the composer's right edge is not a
+# finding.
+- takeScreenshot: checkpoint-room

@@ -194,10 +194,15 @@ yarn mobile:android:dev      # mode devDebug, appId io.chatic.dou.dev
 # After changing native dependencies
 yarn mobile:pod
 yarn mobile:sync             # nx sync-deps mobile
+
+# A feature's device scenario, built, booted and run in one command (opt-in, never a gate)
+yarn mobile:verify home/open-room --platform ios
 ```
 
 `yarn mobile:local:check` is the guard the local-run scripts call first: it fails with a copy-paste
 fix when `apps/mobile/.env` is missing. See [docs/release/local-run.md](./docs/release/local-run.md).
+`yarn mobile:verify` and its scenarios under `e2e/` are
+[docs/release/device-verify.md](./docs/release/device-verify.md).
 
 ### Wiring
 

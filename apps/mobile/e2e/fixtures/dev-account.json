@@ -1,0 +1,4 @@
+{
+    "//": "Fictional number for the dev backend's test sign-in (dry-run delivery, skipped code). 555-01xx is reserved for fiction in the North American plan, and libphonenumber still accepts it as valid. It is a US number because the harness devices run in en-US, which presets the country code to +1. Never put a real number here; override per run with DOU_VERIFY_PHONE.",
+    "phone": "4155550123"
+}

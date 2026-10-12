@@ -1,0 +1,25 @@
+# A fresh guest signs in with the dev backend's test path and lands on MY as a signed-in user.
+#
+# What it guards: the phone verification sheet inside the real WebView (keyboard, the dev switches,
+# the socket round trip that turns a guest into an account), and the shared sign-in sub-flow other
+# scenarios include before they need an account.
+appId: ${APP_ID}
+name: Dev sign-in from a fresh guest
+---
+- runFlow: ../_shared/fresh-guest.yaml
+- extendedWaitUntil:
+      visible: '.*Self Chat'
+      timeout: 90000
+- runFlow: ../_shared/dev-sign-in.yaml
+# A signed-in MY shows the account's entries instead of "Sign in required".
+- openLink: ${APP_SCHEME}://mypage
+- tapOn:
+      text: 'Open'
+      optional: true
+- extendedWaitUntil:
+      visible: 'Cloud management'
+      timeout: 30000
+- assertNotVisible: 'Sign in required.*'
+# Look for: MY with the new account's generated name (User_…) and its entries, no sheet left open,
+# no error toast.
+- takeScreenshot: checkpoint-signed-in
