@@ -7,6 +7,9 @@ import {
     ChannelSettingsPanel,
     CreateChannelDialog,
     NewDmDialog,
+    SendInviteDialog,
+    InviteWaitingDialog,
+    PlaceInviteLinkDialog,
     useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
@@ -700,6 +703,8 @@ export const HomePage = () => {
         members,
         isLoading: membersLoading,
         error: membersError,
+        syncError: membersSyncError,
+        retry: retryMembers,
         // Key off the RESOLVED channel (present in the loaded list), not the raw
         // store id: after a cloud switch the store can briefly hold the previous
         // cloud's channel, and fetching members for it fires a cross-cloud
@@ -839,6 +844,8 @@ export const HomePage = () => {
                             members={members}
                             membersLoading={membersLoading}
                             membersError={membersError}
+                            membersSyncError={membersSyncError}
+                            onRetryMembers={retryMembers}
                         />
                     ) : savedOpen ? (
                         <SavedPanel
@@ -863,6 +870,9 @@ export const HomePage = () => {
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
             <JoinWithInviteDialog />
+            <SendInviteDialog />
+            <InviteWaitingDialog />
+            <PlaceInviteLinkDialog />
             <EditPlaceProfileDialog />
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}

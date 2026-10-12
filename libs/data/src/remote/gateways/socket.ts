@@ -5,6 +5,7 @@ import type {
     CloudGateway,
     DeviceGateway,
     DomainGateway,
+    DomainGatewayCallOptions,
     InviteGateway,
     JoinGateway,
     PlaceGateway,
@@ -12,6 +13,7 @@ import type {
     UploadGateway,
     UserGateway,
 } from '@lemoncloud/chatic-sockets-lib';
+import type { ChannelGetRequestData } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 
 /**
  * `update` authenticates whichever slot is active. `linkAccount` is the unified account-proof packet
@@ -34,7 +36,14 @@ export type ChatSocketDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' 
 export type ChannelSocketDomainGateway = Pick<
     ChannelGateway,
     'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'startDm'
->;
+> & {
+    /**
+     * `channel.get` — the single-channel authoritative snapshot. The SDK's `ChannelGateway` offers
+     * no typed wrapper for it (its sync plans call the raw packet), so the composition root binds
+     * it through `createDomainGateway('channel').request('get', …)` instead — see socketFactory.
+     */
+    get<T = unknown>(data: ChannelGetRequestData, options?: DomainGatewayCallOptions): Promise<T>;
+};
 export type JoinSocketDomainGateway = Pick<JoinGateway, 'update'> & Pick<ChatGateway, 'read'>;
 export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update' | 'delete'> & Pick<UserGateway, 'mySite'>;
 export type DeviceSocketDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync' | 'updateRemote'>;

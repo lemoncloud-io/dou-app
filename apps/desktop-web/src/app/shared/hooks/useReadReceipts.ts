@@ -4,6 +4,7 @@ import type { DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { useReadCursorStore } from '../stores';
+import { registerLiveRead } from './liveReadRegistry';
 
 const DEBOUNCE_MS = 500;
 
@@ -52,6 +53,10 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
     useEffect(() => {
         if (!channelId) return;
 
+        // This pane advances the channel's cursor live (see the tail effect below),
+        // so badge hooks can skip re-pulling it while the reader is on it.
+        const unregisterLiveRead = registerLiveRead(channelId);
+
         const clearTimer = () => {
             if (timerRef.current) {
                 clearTimeout(timerRef.current);
@@ -88,6 +93,7 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
         window.addEventListener('focus', onActivity);
 
         return () => {
+            unregisterLiveRead();
             clearTimer();
             scheduleRef.current = null;
             document.removeEventListener('visibilitychange', onActivity);

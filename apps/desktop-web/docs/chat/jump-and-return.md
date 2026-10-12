@@ -63,6 +63,9 @@ A `restore` jump is the second half of a round trip, and the feed treats it diff
   found" toast and no paging back through history. The latest is where a channel opens anyway.
 - The thread that was open reopens; otherwise the thread panel closes.
 
+A loaded target that sits outside the feed's mounted window is first scrolled into it and retried; see
+[feed-windowing.md](./feed-windowing.md).
+
 The feed sets its "at the bottom" state from the real scroll metrics after a jump lands. Before that
 fix, a page that arrived just after a landing tailed the reader down to the latest, away from the
 target.

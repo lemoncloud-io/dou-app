@@ -121,6 +121,16 @@ describe('createSocketDataSources — bound to one slot', () => {
         expect(activeRequest).not.toHaveBeenCalled();
     });
 
+    it('sends the single-channel snapshot through the client it was given', async () => {
+        slotRequest.mockResolvedValueOnce({ id: 'ch-1' });
+        const { socketDataSources } = createSocketDataSources(slotClient);
+
+        await socketDataSources.channel.getChannel({ id: 'ch-1' }, { cid: 'cloud-a', sid: 'site-1', uid: 'me' });
+
+        expect(slotRequest).toHaveBeenCalledWith('channel.get', { id: 'ch-1' }, undefined);
+        expect(activeRequest).not.toHaveBeenCalled();
+    });
+
     it('still pins the relay-owned domains to the relay slot', async () => {
         const { socketDataSources } = createSocketDataSources(slotClient);
 

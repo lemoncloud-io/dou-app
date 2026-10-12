@@ -16,7 +16,7 @@ import { runtime } from '@chatic/app-runtime';
  *
  * A rejected toggle has to be said out loud. The repository rolls its optimistic write
  * back, so the chip appears and vanishes on its own; without `failedId` the reader sees
- * a flicker and no reason for it. That is not hypothetical — the dev stage answers
+ * a flicker and no reason for it. That is not hypothetical — the dev stage once answered
  * `@action[reaction] is not supported`, and the feature looked simply broken until a
  * temporary probe surfaced it.
  *
