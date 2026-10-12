@@ -2,6 +2,13 @@
 
 ## [2026-10-12] - No version updates
 
+### Bug Fixes
+
+- (web/home) re-read a failed cloud catalog when the relay verifies, not only when the sheet opens
+- (app-runtime) refresh relay credentials once the socket verifies, not from a handshake-era memo
+
+## [2026-10-12] - No version updates
+
 ### Features
 
 - (web,data,app-runtime,web-ui-kit) show how far a sending attachment has gone, not a spinner
