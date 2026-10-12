@@ -40,13 +40,13 @@ messages the shell answered `NOT_FOUND`). Both are also attached to the test's r
 
 ## What is in it
 
-| Path                      | Holds                                                                                               |
-| ------------------------- | --------------------------------------------------------------------------------------------------- |
-| `src/support/fake-shell/` | The shell: transport, handler table, in-memory cache, the app's boot script                         |
-| `src/fixtures/`           | The relay: the guest every scenario signs in as, HTTP routes, socket frames, rooms, invites, clouds |
-| `src/support/test.ts`     | `test` with `shell` and `backend` in place before the page loads                                    |
-| `src/support/app.ts`      | Steps scenarios share: the back button, background and foreground, the history index                |
-| `src/specs/`              | The scenarios                                                                                       |
+| Path                      | Holds                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/support/fake-shell/` | The shell: transport, handler table, in-memory cache, the app's boot script                                                                |
+| `src/fixtures/`           | The relay: the guest every scenario signs in as, HTTP routes, socket frames, rooms, invites, clouds, subscriptions (and the shell's store) |
+| `src/support/test.ts`     | `test` with `shell` and `backend` in place before the page loads                                                                           |
+| `src/support/app.ts`      | Steps scenarios share: the back button, background and foreground, the history index                                                       |
+| `src/specs/`              | The scenarios                                                                                                                              |
 
 **Two browser projects, one per platform.** `webkit-ios` emulates an iPhone and the shell delivers
 replies on `window`, as react-native-webview does on iOS; `chromium-android` emulates a Pixel and
@@ -126,8 +126,10 @@ A request with no fixture is refused (an aborted request, a `:error` frame) and 
 the app adds reads in ordinary feature work, and a scenario should break on what it is about. Read
 the list when a scenario fails, and when it is not empty. `NO_REPLY` leaves a socket request
 unanswered on purpose — the attachment scenarios hold `upload.start`, so what follows the pick is not
-decided by accident. A handler that throws answers an `:error` frame carrying its message, which is
-how the relay refuses: `throw new SocketRefusal('403 FORBIDDEN - not a member of channel')`.
+decided by accident. A handler that returns a promise answers when it settles (a rejection answers
+`:error`): the relay slow on one request while the page goes on, which is how the paging scenario
+holds an older page and then lets it land. A handler that throws answers an `:error` frame carrying
+its message, which is how the relay refuses: `throw new SocketRefusal('403 FORBIDDEN - not a member of channel')`.
 `dropSockets()` closes the relay socket from the server's side, and `connections` counts how often
 the page has opened it; every frame records which opening it went out on (`connection`), so a
 scenario can tell a read on the new socket from one on the old. `gateHttp(route, gate)` holds one
@@ -136,10 +138,19 @@ reached the page.
 
 Fixtures beyond a first launch are opt-in, so a scenario says which world it starts in:
 `backend.useSocket(roomsSocket(backend, [dmRoom()]))` adds a relay 1:1 with history, and
-`leftDmRoom()` one the guest has left, which the relay still serves (`fixtures/rooms.ts`);
-`installCloud(backend, …)` installs a cloud with its own backend and socket (`fixtures/cloud.ts`);
-`fixtures/invites.ts` holds the relay invite and the link that carries it. Another host is keyed by
-its full address (`'GET https://c1.e2e.test/api/hello/invite-code'`) and another socket by its
+`leftDmRoom()` one the guest has left, which the relay still serves, and `longDmRoom(200)` one with a
+long history (`fixtures/rooms.ts`). `chat.feed` there pages as the relay does — newest first, below an
+exclusive `cursorNo`, `limit` rows (20 when the request names none), and `cursorNo: 0` on the last page
+(`feedPage`). `installCloud(backend, …)` installs a cloud with its own backend and socket, with a
+second place and its room when asked (`secondPlace`); setting `refuseSwitchInto` on the state it
+returns makes `auth.switch` refuse to move into that place. `ownCloud(backend)` lists that cloud in
+the relay's catalog as the guest's own and answers the owner's way in — `delegate-cloud`, then the
+cloud's `exchange-token` — or refuses it (`issue: false`) (`fixtures/cloud.ts`). `fixtures/invites.ts`
+holds the relay invite and the link that carries it. `fixtures/subscription.ts` holds the purchase:
+`signedInMember` (a purchase is refused to a guest), `installSubscriptions` (the relay's plans, a
+membership that turns active once a purchase is checked, and the check), and `storeHandlers` for the
+shell's store, whose `Purchase` answers nothing the page reads — the scenario pushes the outcome
+(`OnPurchaseSuccess`, `OnPurchaseError`) as the app does. Another host is keyed by its full address (`'GET https://c1.e2e.test/api/hello/invite-code'`) and another socket by its
 endpoint (`useSocketAt`; `sentAt` reads one socket's frames, `allFrames` all of them in order). Every socket the page opens is answered here
 whatever its host, except the dev server's own; one with no fixture is closed and listed. The fake
 cloud keeps the server rule its scenarios are about: a session sits on one place at a time — the one
@@ -148,15 +159,18 @@ written there.
 
 ## The scenarios
 
-| Spec                         | What it pins                                                                                                                                                                                                                                                                                                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `boot-splash.spec.ts`        | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted only once the home route's frame is drawn, read in the page as it is posted; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                          |
-| `attachment-picker.spec.ts`  | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent; an app without the picker gets the page's file input, and is not asked again.              |
-| `back-navigation.spec.ts`    | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                      |
-| `push-navigation.spec.ts`    | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home (and a `fixme` for the second home entry it leaves). |
-| `cloud-invite-entry.spec.ts` | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                   |
-| `oauth-login.spec.ts`        | Each of the shell's three answers to `OAuthLogin` ends the wait: a credential promotes the guest and returns to MY, a cancel and a failure each say so and leave the buttons usable.                                                                                                                                      |
-| `app-resume.spec.ts`         | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up. The wake kick for a half-open socket is not reached.                             |
+| Spec                            | What it pins                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boot-splash.spec.ts`           | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted only once the home route's frame is drawn, read in the page as it is posted; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                                                                        |
+| `attachment-picker.spec.ts`     | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent; an app without the picker gets the page's file input, and is not asked again.                                                            |
+| `back-navigation.spec.ts`       | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                                                                    |
+| `push-navigation.spec.ts`       | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home (and a `fixme` for the second home entry it leaves).                                               |
+| `cloud-invite-entry.spec.ts`    | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                                                                 |
+| `oauth-login.spec.ts`           | Each of the shell's three answers to `OAuthLogin` ends the wait: a credential promotes the guest and returns to MY, a cancel and a failure each say so and leave the buttons usable.                                                                                                                                                                                    |
+| `app-resume.spec.ts`            | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up. The wake kick for a half-open socket is not reached.                                                                           |
+| `chat-paging.spec.ts`           | A room opens on its newest messages; each scroll to the top asks for 50 more below the oldest one shown (`chat.feed`, `cursorNo`), until the room's first, with every message once and the row being read kept in place. An older page refused is asked for again after 2s, then 4s, with the room intact; one held is asked for once however often the reader scrolls. |
+| `cloud-switch.spec.ts`          | Into an owned cloud and between its two places, home shows only the selected place's room and none of the relay's, the shell's cache keeps each side in its own partition, and DoU Home brings the relay back; a refused cloud entry and a refused place switch are rolled back (and a `fixme`: after the refused entry, home often lists no rooms).                    |
+| `subscription-purchase.spec.ts` | A completed store purchase is checked with the relay, finished only after that, and the membership reads active; a cancel says nothing and can be retried; a store error and a pending purchase (the page's own 60s wait) say "Payment failed", and nothing is checked or finished (and a `fixme`: the "You are subscribed." confirmation never shows).                 |
 
 ## Limits
 

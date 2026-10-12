@@ -146,10 +146,45 @@ export const roomsSocket = (backend: FakeBackend, rooms: FixtureRoom[]): Record<
             const { chatNo = 0 } = (data ?? {}) as { chatNo?: number };
             return joinOf(room?.channel.id ?? SELF_CHANNEL.id, GUEST.uid, chatNo);
         },
-        'chat.feed': data => {
-            const list = [...(roomOf(data)?.chats ?? [])].reverse();
-            const lastNo = list[0]?.chatNo ?? 0;
-            return { list, cursorNo: lastNo, readNo: lastNo, total: list.length };
-        },
+        'chat.feed': data => feedPage(roomOf(data)?.chats ?? [], data),
     };
 };
+
+/** The page size the relay answers `chat.feed` with when the request names none — a room's first page. */
+export const FEED_DEFAULT_LIMIT = 20;
+
+/**
+ * One `chat.feed` page as the relay pages a room: newest first, below `cursorNo` when the request
+ * names one (exclusive), at most `limit` rows. Its `cursorNo` is where the next older page starts —
+ * the oldest row it carries — and `0` once nothing older is left, which is the relay's "last page".
+ */
+export const feedPage = (chats: FixtureRoom['chats'], data: unknown) => {
+    const { cursorNo, limit = FEED_DEFAULT_LIMIT } = (data ?? {}) as { cursorNo?: number; limit?: number };
+    const newestFirst = [...chats].sort((a, b) => b.chatNo - a.chatNo);
+    const below = cursorNo ? newestFirst.filter(chat => chat.chatNo < cursorNo) : newestFirst;
+    const list = below.slice(0, limit);
+    const oldest = list[list.length - 1]?.chatNo ?? 0;
+    return {
+        list,
+        limit,
+        cursorNo: below.length > list.length ? oldest : 0,
+        readNo: newestFirst[0]?.chatNo ?? 0,
+        total: chats.length,
+    };
+};
+
+/**
+ * The 1:1 with Mina with a long history: `count` messages, numbered from 1, each its own line of text
+ * (`historyLine`) so a row on screen says which message it is.
+ */
+export const longDmRoom = (count: number): FixtureRoom => {
+    const room = dmRoom();
+    room.chats = Array.from({ length: count }, (_, index) =>
+        chatView(DM_CHANNEL.id, index + 1, historyLine(index + 1))
+    );
+    room.channel.chatNo = count;
+    return room;
+};
+
+/** The text of message `chatNo` in `longDmRoom`. */
+export const historyLine = (chatNo: number): string => `History line ${chatNo}`;
