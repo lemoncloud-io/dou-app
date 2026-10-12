@@ -19,12 +19,28 @@ export interface SocketFrame {
  */
 export const NO_REPLY = Symbol('no reply');
 
-/** One socket request's answer: the data of its `:ok` frame. */
+/** One socket request's answer: the data of its `:ok` frame. Throwing answers an `:error` frame instead. */
 export type SocketHandler = (data: unknown, frame: SocketFrame) => unknown;
 
 /**
+ * A socket request the relay refuses. Thrown from a handler, its message becomes the `:error` frame's
+ * `error` — status first, as the relay writes it (`403 FORBIDDEN - not a member of channel`), because
+ * that leading status is what the page reads a refusal by.
+ */
+export class SocketRefusal extends Error {}
+
+/** A frame the page sent, with the socket it went out on. */
+export interface SentFrame extends SocketFrame {
+    /** The endpoint the socket was opened to — `E2E_ENDPOINTS.socket` for the relay. */
+    endpoint: string;
+    /** Which opening of that socket it went out on, from 1: a frame after a reconnect says 2. */
+    connection: number;
+}
+
+/**
  * The relay — its HTTP API and its socket — answered from fixtures, so no scenario depends on a
- * server being up or on what it holds.
+ * server being up or on what it holds. A scenario that enters a cloud adds the cloud's own host and
+ * socket beside it (`useHttp` with a full address, `useSocketAt`); every host is under `.test`.
  *
  * Anything the page asks that no fixture answers is refused and recorded in `unexpected`: an HTTP
  * request is aborted the way an unreachable host fails, and a socket request gets a `:error` frame.
@@ -35,10 +51,13 @@ export type SocketHandler = (data: unknown, frame: SocketFrame) => unknown;
  */
 export class FakeBackend {
     readonly unexpected: string[] = [];
-    /** Every frame the page sent on the socket, oldest first. */
-    readonly frames: SocketFrame[] = [];
+    /** Every frame the page sent on any socket, oldest first. */
+    readonly allFrames: SentFrame[] = [];
     private readonly http = new Map<string, HttpHandler>();
-    private readonly socket = new Map<string, SocketHandler>();
+    /** Per socket endpoint, its handlers by frame type. */
+    private readonly socketTables = new Map<string, Map<string, SocketHandler>>();
+    private readonly openSockets = new Map<WebSocketRoute, string>();
+    private readonly connectionCounts = new Map<string, number>();
     /** The device id the page registered with — the guest's name everywhere the relay echoes it. */
     deviceId = '';
 
@@ -53,23 +72,81 @@ export class FakeBackend {
         // hand a serializable pattern to the browser, and with a function it intercepts every request
         // and asks this process about each — every one of the thousand modules Vite serves the app as.
         await page.route(new RegExp(`^(?!${escapeRegExp(E2E_BASE_URL)}/)`), route => backend.answerHttp(route));
-        await page.routeWebSocket(new RegExp(`^${escapeRegExp(E2E_ENDPOINTS.socket)}`), ws => backend.attach(ws));
+        // Every socket but the dev server's own (Vite's hot reload) is answered here, whatever its host,
+        // so a cloud's socket can never reach anything real either.
+        const devHost = escapeRegExp(new URL(E2E_BASE_URL).host);
+        await page.routeWebSocket(new RegExp(`^wss?://(?!${devHost}/)`), ws => backend.attach(ws));
         return backend;
     }
 
-    /** `'POST /oauth/register-device'` — a path on the relay host; the query string is ignored. */
+    /**
+     * `'POST /oauth/register-device'` — a path on the relay host; or, for another host such as a
+     * cloud's backend, the full address: `'GET https://c1.e2e.test/api/hello/invite-code'`. The query
+     * string is ignored either way.
+     */
     useHttp(handlers: Record<string, HttpHandler>): void {
         for (const [key, handler] of Object.entries(handlers)) this.http.set(key, handler);
     }
 
-    /** The frames of one type the page sent. */
-    sent(type: string): SocketFrame[] {
-        return this.frames.filter(frame => frame.type === type);
+    /**
+     * Holds the answer to one HTTP route until `gate` settles, then answers it as before. For a
+     * scenario that needs the page to have something before it can get further — the guest login
+     * held until a cold-start tap has reached the page, say. It wraps the handler registered when it
+     * is called, so a later `useHttp` for the same route replaces the gate along with it.
+     */
+    gateHttp(key: string, gate: () => Promise<unknown>): void {
+        const handler = this.http.get(key);
+        if (!handler) throw new Error(`gateHttp: no handler for ${key}`);
+        this.http.set(key, async request => {
+            await gate();
+            return handler(request);
+        });
+    }
+
+    /** Every frame the page sent on the relay socket, oldest first. */
+    get frames(): SentFrame[] {
+        return this.allFrames.filter(frame => frame.endpoint === E2E_ENDPOINTS.socket);
+    }
+
+    /** The frames of one type the page sent on the relay socket. */
+    sent(type: string): SentFrame[] {
+        return this.sentAt(E2E_ENDPOINTS.socket, type);
+    }
+
+    /** The frames of one type the page sent on the socket opened to `endpoint`. */
+    sentAt(endpoint: string, type: string): SentFrame[] {
+        return this.allFrames.filter(frame => frame.endpoint === endpoint && frame.type === type);
     }
 
     /** By frame type, `'chat.feed'`. Registering over a default changes the relay's answer. */
     useSocket(handlers: Record<string, SocketHandler>): void {
-        for (const [type, handler] of Object.entries(handlers)) this.socket.set(type, handler);
+        this.useSocketAt(E2E_ENDPOINTS.socket, handlers);
+    }
+
+    /** Handlers for another socket — a cloud's, opened to the `wss` address its invite or token names. */
+    useSocketAt(endpoint: string, handlers: Record<string, SocketHandler>): void {
+        let table = this.socketTables.get(endpoint);
+        if (!table) {
+            table = new Map();
+            this.socketTables.set(endpoint, table);
+        }
+        for (const [type, handler] of Object.entries(handlers)) table.set(type, handler);
+    }
+
+    /** How many times the page has opened the relay socket. A reconnect is the second. */
+    get connections(): number {
+        return this.connectionCounts.get(E2E_ENDPOINTS.socket) ?? 0;
+    }
+
+    /**
+     * Closes every open relay socket from the relay's side — what the page finds when the server or the
+     * network dropped the connection while the app was suspended. The page's own reconnect is what a
+     * scenario then watches for (`connections`).
+     */
+    async dropSockets(): Promise<void> {
+        const relay = [...this.openSockets].filter(([, endpoint]) => endpoint === E2E_ENDPOINTS.socket);
+        for (const [ws] of relay) this.openSockets.delete(ws);
+        await Promise.all(relay.map(([ws]) => ws.close({ code: 1001, reason: 'e2e: dropped by the relay' })));
     }
 
     private async answerHttp(route: Route): Promise<void> {
@@ -81,10 +158,10 @@ export class FakeBackend {
             return route.fulfill({ contentType: 'text/css', body: '' });
         }
         const relay = new URL(E2E_ENDPOINTS.relay);
+        const onRelay = url.origin === relay.origin && url.pathname.startsWith(relay.pathname);
         const handler =
-            url.origin === relay.origin && url.pathname.startsWith(relay.pathname)
-                ? this.http.get(`${request.method()} ${url.pathname.slice(relay.pathname.length)}`)
-                : undefined;
+            this.http.get(`${request.method()} ${url.origin}${url.pathname}`) ??
+            (onRelay ? this.http.get(`${request.method()} ${url.pathname.slice(relay.pathname.length)}`) : undefined);
         if (!handler) {
             this.unexpected.push(`${request.method()} ${url.origin}${url.pathname}`);
             return route.abort();
@@ -97,6 +174,20 @@ export class FakeBackend {
     }
 
     private attach(ws: WebSocketRoute): void {
+        // The longest registered endpoint the address starts with, so one endpoint can sit under another.
+        const endpoint = [...this.socketTables.keys()]
+            .filter(candidate => ws.url().startsWith(candidate))
+            .sort((a, b) => b.length - a.length)[0];
+        if (!endpoint) {
+            this.unexpected.push(`socket connect ${ws.url().split('?')[0]}`);
+            void ws.close({ code: 1008, reason: 'e2e: no fixture for this socket' });
+            return;
+        }
+        const table = this.socketTables.get(endpoint) as Map<string, SocketHandler>;
+        const connection = (this.connectionCounts.get(endpoint) ?? 0) + 1;
+        this.connectionCounts.set(endpoint, connection);
+        this.openSockets.set(ws, endpoint);
+        ws.onClose(() => this.openSockets.delete(ws));
         ws.onMessage(raw => {
             let frame: SocketFrame;
             try {
@@ -104,29 +195,32 @@ export class FakeBackend {
             } catch {
                 return;
             }
-            this.frames.push(frame);
+            this.allFrames.push({ ...frame, endpoint, connection });
             const meta = { ts: Date.now() };
-            const handler = this.socket.get(frame.type);
+            const reply = (body: Record<string, unknown>) => ws.send(JSON.stringify({ mid: frame.mid, meta, ...body }));
+            const handler = table.get(frame.type);
             if (!handler) {
-                this.unexpected.push(`socket ${frame.type}`);
-                if (frame.mid) {
-                    ws.send(
-                        JSON.stringify({
-                            type: `${frame.type}:error`,
-                            data: null,
-                            mid: frame.mid,
-                            meta,
-                            error: 'no fixture',
-                        })
-                    );
-                }
+                this.unexpected.push(
+                    endpoint === E2E_ENDPOINTS.socket ? `socket ${frame.type}` : `socket ${frame.type} @ ${endpoint}`
+                );
+                if (frame.mid) reply({ type: `${frame.type}:error`, data: null, error: 'no fixture' });
                 return;
             }
-            const data = handler(frame.data, frame);
+            let data: unknown;
+            try {
+                data = handler(frame.data, frame);
+            } catch (error) {
+                reply({
+                    type: `${frame.type}:error`,
+                    data: null,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                return;
+            }
             if (data === NO_REPLY) return;
             // A frame without a `mid` expects no reply when its handler has nothing to say (`device.sync`).
             if (data === undefined && !frame.mid) return;
-            ws.send(JSON.stringify({ type: `${frame.type}:ok`, data: data ?? null, mid: frame.mid, meta }));
+            reply({ type: `${frame.type}:ok`, data: data ?? null });
         });
     }
 }

@@ -40,12 +40,13 @@ messages the shell answered `NOT_FOUND`). Both are also attached to the test's r
 
 ## What is in it
 
-| Path                      | Holds                                                                       |
-| ------------------------- | --------------------------------------------------------------------------- |
-| `src/support/fake-shell/` | The shell: transport, handler table, in-memory cache, the app's boot script |
-| `src/fixtures/`           | The relay: the guest every scenario signs in as, HTTP routes, socket frames |
-| `src/support/test.ts`     | `test` with `shell` and `backend` in place before the page loads            |
-| `src/specs/`              | The scenarios                                                               |
+| Path                      | Holds                                                                                               |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `src/support/fake-shell/` | The shell: transport, handler table, in-memory cache, the app's boot script                         |
+| `src/fixtures/`           | The relay: the guest every scenario signs in as, HTTP routes, socket frames, rooms, invites, clouds |
+| `src/support/test.ts`     | `test` with `shell` and `backend` in place before the page loads                                    |
+| `src/support/app.ts`      | Steps scenarios share: the back button, background and foreground, the history index                |
+| `src/specs/`              | The scenarios                                                                                       |
 
 **Two browser projects, one per platform.** `webkit-ios` emulates an iPhone and the shell delivers
 replies on `window`, as react-native-webview does on iOS; `chromium-android` emulates a Pixel and
@@ -76,6 +77,13 @@ shell.handle('PickAttachments', () => ({ items: [report], refused: [] }));
 shell.handle('PickAttachments', () => new ShellFailure('BUSY'));
 const request = await shell.waitFor('PickAttachments'); // rejects after 15s, naming what was sent
 ```
+
+`shell.push(type, data)` sends an app → web event (a tap, a resume, the back button); before the
+handshake it is held, as the app holds it. `shell.delivered(type)` resolves once such an event has
+actually been dispatched in the page, which can be well after it was pushed: the shell's delivery is
+a round trip through the test process, and on a loaded machine that can fall behind a page booting,
+where on a device a held event lands within milliseconds of the handshake. A scenario that depends on
+that ordering holds something else back until then (`backend.gateHttp`, below).
 
 A reply the shell could not dispatch into the page — for any reason but the page navigating or
 closing, which the real shell also drops — fails the test, as does a failure the injection script
@@ -116,14 +124,37 @@ A request with no fixture is refused (an aborted request, a `:error` frame) and 
 the app adds reads in ordinary feature work, and a scenario should break on what it is about. Read
 the list when a scenario fails, and when it is not empty. `NO_REPLY` leaves a socket request
 unanswered on purpose — the attachment scenarios hold `upload.start`, so what follows the pick is not
-decided by accident.
+decided by accident. A handler that throws answers an `:error` frame carrying its message, which is
+how the relay refuses: `throw new SocketRefusal('403 FORBIDDEN - not a member of channel')`.
+`dropSockets()` closes the relay socket from the server's side, and `connections` counts how often
+the page has opened it; every frame records which opening it went out on (`connection`), so a
+scenario can tell a read on the new socket from one on the old. `gateHttp(route, gate)` holds one
+route's answer until `gate` settles — the cold-start tap holds the guest login until the tap has
+reached the page.
+
+Fixtures beyond a first launch are opt-in, so a scenario says which world it starts in:
+`backend.useSocket(roomsSocket(backend, [dmRoom()]))` adds a relay 1:1 with history, and
+`leftDmRoom()` one the guest has left, which the relay still serves (`fixtures/rooms.ts`);
+`installCloud(backend, …)` installs a cloud with its own backend and socket (`fixtures/cloud.ts`);
+`fixtures/invites.ts` holds the relay invite and the link that carries it. Another host is keyed by
+its full address (`'GET https://c1.e2e.test/api/hello/invite-code'`) and another socket by its
+endpoint (`useSocketAt`; `sentAt` reads one socket's frames, `allFrames` all of them in order). Every socket the page opens is answered here
+whatever its host, except the dev server's own; one with no fixture is closed and listed. The fake
+cloud keeps the server rule its scenarios are about: a session sits on one place at a time — the one
+its token names when it signs in, or the one it last switched to — and a place profile is read and
+written there.
 
 ## The scenarios
 
-| Spec                        | What it pins                                                                                                                                                                                                                                         |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `boot-splash.spec.ts`       | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted once, after the cover is gone and home is on screen; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                             |
-| `attachment-picker.spec.ts` | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10) and the answer becomes a file message; a file the shell refused is reported and not sent; an app without the picker gets the page's file input, and is not asked again. |
+| Spec                         | What it pins                                                                                                                                                                                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boot-splash.spec.ts`        | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted once, after the cover is gone and home is on screen; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                                                  |
+| `attachment-picker.spec.ts`  | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10) and the answer becomes a file message; a file the shell refused is reported and not sent; an app without the picker gets the page's file input, and is not asked again.                                                                      |
+| `back-navigation.spec.ts`    | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                      |
+| `push-navigation.spec.ts`    | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home (and a `fixme` for the second home entry it leaves). |
+| `cloud-invite-entry.spec.ts` | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                   |
+| `oauth-login.spec.ts`        | Each of the shell's three answers to `OAuthLogin` ends the wait: a credential promotes the guest and returns to MY, a cancel and a failure each say so and leave the buttons usable.                                                                                                                                      |
+| `app-resume.spec.ts`         | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up. The wake kick for a half-open socket is not reached.                             |
 
 ## Limits
 
@@ -141,6 +172,9 @@ What a passing run does **not** say:
   simulator and an emulator are deferred (ADR-0180).
 - **The relay is fixtures.** A server change the fixtures were not updated for passes here and fails
   in the field.
+- **The paths the app hands over are copies.** An invite link's expanded path and a push tap's path
+  are written into the fixtures as the mobile converters produce them (`convertShortUrlWithEnvsSync`,
+  `resolvePushTapPath`), not produced by them, so a change there is not seen here.
 - **The dev server, not a production build.** Minification and the production-only module aliases in
   `apps/web/vite.config.mts` are not exercised.
 - **CI runs the suite only when `web-e2e` is affected** — the web app, the libs it builds from, or this
