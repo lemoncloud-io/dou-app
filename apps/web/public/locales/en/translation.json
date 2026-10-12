@@ -995,7 +995,7 @@
             "limitedNotice": "Only the photos you chose are shown",
             "limitedMore": "Choose more",
             "rejected": {
-                "unsupported": "This file type can't be sent. You can send photos (JPG, PNG, GIF, WEBP), MP4 videos, and PDF, Word, Excel, PowerPoint, Hangul (HWP) and TXT files",
+                "unsupported": "This file type can't be sent. You can send photos (JPG, PNG, GIF, WEBP), MP4 videos, PDF, Word, Excel, PowerPoint, Hangul (HWP) and TXT files, and ZIP archives",
                 "unsupportedImage": "Only PNG, JPEG, GIF and WEBP photos can be sent",
                 "unsupportedVideo": "This video format can't be sent",
                 "too-large": {
@@ -1053,7 +1053,8 @@
                 "openAction": "Open",
                 "storagePermission": "Allow storage access to save",
                 "share": "Share file",
-                "shareUpdateRequired": "Update the app to share files"
+                "shareUpdateRequired": "Update the app to share files",
+                "archiveNeedsUpdate": "Update the app to save ZIP files"
             },
             "export": {
                 "save": "Save photo",

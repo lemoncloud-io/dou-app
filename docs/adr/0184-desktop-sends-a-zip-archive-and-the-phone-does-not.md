@@ -1,6 +1,8 @@
 # ADR-0184: A ZIP archive is a chat attachment that desktop sends and the phone does not
 
-> Status: Accepted · Decided: 2026-10-08 · Implemented: `feat/desktop-zip-attachment`
+> Status: Accepted (the phone's part is Superseded by [ADR-0187](./0187-the-phone-sends-and-saves-a-zip-archive.md) —
+> the phone sends and saves an archive; the format table, the aliases and desktop's save dialog stand)
+> · Decided: 2026-10-08 · Implemented: `feat/desktop-zip-attachment`
 > · Scope: `libs/data/src/domain/chatAttachments.ts` · `libs/data/src/domain/chatImages.ts`
 > (`judgeChatAttachments`) · `apps/desktop-web/src/app/features/chat/` (composer tray, refusal toast)
 > · `apps/desktop/src/main/downloads.ts` (unchanged: the save dialog)

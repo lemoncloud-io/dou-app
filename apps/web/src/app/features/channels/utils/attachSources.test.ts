@@ -30,11 +30,10 @@ describe('page input accept lists', () => {
         expect(documentAccept(true)).not.toContain('image/');
     });
 
-    // Only desktop sends an archive: the phone cannot save one it receives.
-    it('offers no ZIP archive from files, on either system', () => {
+    // The shell saves a received archive too, so the phone sends one like desktop does.
+    it('offers a ZIP archive from files, by type and extension, on either system', () => {
         for (const accept of [documentAccept(true), documentAccept(false)]) {
-            expect(accept.split(',')).not.toContain('application/zip');
-            expect(accept.split(',')).not.toContain('.zip');
+            expect(accept.split(',')).toEqual(expect.arrayContaining(['application/zip', '.zip']));
         }
     });
 
@@ -42,16 +41,12 @@ describe('page input accept lists', () => {
         expect(documentAccept(true).split(',')).toContain('application/octet-stream');
     });
 
-    it('offers every format the phone sends from files outside iOS WebKit, and nothing past them but the generic type', () => {
+    it('offers every format the server takes from files outside iOS WebKit, and nothing past them but the generic type', () => {
         const accept = documentAccept(false).split(',');
         expect(accept).toEqual(
             expect.arrayContaining(['image/png', '.webp', 'video/mp4', '.mp4', 'application/pdf', '.hwpx'])
         );
-        const archive = ['application/zip', '.zip'];
-        expect(accept).toEqual([
-            ...CHAT_ATTACHMENT_ACCEPT.split(',').filter(type => !archive.includes(type)),
-            'application/octet-stream',
-        ]);
+        expect(accept).toEqual([...CHAT_ATTACHMENT_ACCEPT.split(','), 'application/octet-stream']);
         expect(accept.some(type => type.includes('*'))).toBe(false);
     });
 
@@ -76,7 +71,7 @@ describe('rejectionKey', () => {
         expect(rejectionKey({ reason: 'unsupported' }, named('a.mov', 'video/quicktime'))).toBe(
             'chat.attach.rejected.unsupportedVideo'
         );
-        expect(rejectionKey({ reason: 'unsupported' }, named('a.zip', 'application/zip'))).toBe(
+        expect(rejectionKey({ reason: 'unsupported' }, named('a.7z', 'application/x-7z-compressed'))).toBe(
             'chat.attach.rejected.unsupported'
         );
     });

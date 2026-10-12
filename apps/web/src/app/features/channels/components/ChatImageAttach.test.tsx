@@ -589,11 +589,11 @@ describe('useChatImageAttach — videos and documents', () => {
         const sendImages = jest.fn().mockResolvedValue(undefined);
         render(<Harness sendImages={sendImages} />);
 
-        // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits a zip too,
-        // typed as one or — the way Android hands over a file it does not know — generically.
+        // iOS WebKit hands HWP and HWPX over with no type; the generic type in `accept` admits any other
+        // file too, typed as itself or — the way Android hands over a file it does not know — generically.
         pick('chat-attach-files', [
-            photo('a.zip', 'application/zip'),
-            photo('b.zip', 'application/octet-stream'),
+            photo('a.7z', 'application/x-7z-compressed'),
+            photo('b.rar', 'application/octet-stream'),
             photo('보고서.hwp', ''),
             photo('b.hwpx', ''),
         ]);
@@ -603,6 +603,34 @@ describe('useChatImageAttach — videos and documents', () => {
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['보고서.hwp', 'b.hwpx']);
         expect(toast).toHaveBeenCalledTimes(1);
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+
+    it('sends a ZIP archive from the files input, typed as one, under an alias or generically', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        pick('chat-attach-files', [
+            photo('a.zip', 'application/zip'),
+            photo('b.zip', 'application/x-zip-compressed'),
+            photo('c.zip', 'application/octet-stream'),
+        ]);
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.zip', 'b.zip', 'c.zip']);
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it("refuses a ZIP archive past a file's size limit", () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        const big = photo('big.zip', 'application/zip');
+        Object.defineProperty(big, 'size', { value: 60 * 1024 * 1024 });
+        pick('chat-attach-files', [big]);
+
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.too-large.file');
     });
 
     it('keeps the photos entry to photos, whatever the system picker let through', () => {

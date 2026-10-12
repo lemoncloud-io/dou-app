@@ -83,13 +83,13 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
     | Image    | PNG, JPEG, GIF (87a/89a), WebP             | all four                            |
     | ISO BMFF | `ftyp` at offset 4 — an MP4                | all four                            |
     | PDF      | `%PDF`                                     | `ShareFile`, `OpenFile`, `SaveFile` |
-    | ZIP      | `PK\x03\x04` — DOCX, XLSX, PPTX and HWPX   | `ShareFile`, `OpenFile`, `SaveFile` |
+    | ZIP      | `PK\x03\x04` — DOCX, XLSX, PPTX, HWPX, ZIP | `ShareFile`, `OpenFile`, `SaveFile` |
     | OLE2     | `D0 CF 11 E0 A1 B1 1A E1` — HWP            | `ShareFile`, `OpenFile`, `SaveFile` |
     | Text     | a `.txt` name and no NUL in the first 4 KB | `ShareFile`, `OpenFile`, `SaveFile` |
 
     Anything else, or a shorter file, is `UNSUPPORTED_TYPE`. A 200 that delivered an HTML page is kept
-    as a file by the transfer and refused here. The family only gates: four formats are one ZIP and
-    nothing in their first bytes tells them apart, so the MIME type (UTType on iOS) a shared document
+    as a file by the transfer and refused here, and so is an empty ZIP, which has no local file header.
+    The family only gates: five formats are one ZIP and nothing in their first bytes tells them apart, so the MIME type (UTType on iOS) a shared document
     carries comes from its name's extension — a ZIP named `.docx` is shared as a Word document. The
     name is the one the transfer gave the download ([file-transfer.md](./file-transfer.md) § Downloads).
     `OpenFile` and `SaveFile` gate on the family too, so a page of HTML that a failed download left under a
@@ -110,10 +110,12 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
   can be minutes. Messages are handled concurrently, so they hold up nothing else; the handler has no
   timeout of its own, and the web gives each of these requests a long one.
 - **`SaveFile` checks the name once more.** Path separators are removed, and an extension that is not
-  one of the twelve the shell saves (`png jpg jpeg gif webp mp4 pdf docx xlsx pptx hwp hwpx txt`) is
-  `INVALID` — the name comes from the page, and it decides what the OS thinks the file is. The server
-  also takes a ZIP archive, which desktop sends; `zip` is not in this list, so a received archive
-  cannot be saved from the phone.
+  one the shell saves — the fourteen extensions of the server's thirteen formats,
+  `png jpg jpeg gif webp mp4 pdf docx xlsx pptx hwp hwpx txt zip` — is `INVALID`: the name comes from
+  the page, and it decides what the OS thinks the file is. The name is also what keeps an office file
+  from being saved as an archive: a DOCX is a ZIP by its bytes, and saved as `.docx`. An app built
+  before `zip` joined the list answers a `.zip` with `INVALID`; the web reads that combination as an
+  app to update, not as a failure.
 
 ## iOS
 
@@ -130,6 +132,9 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
   HWP it is `false`, yet the preview would still open and draw an empty page with the name, "data"
   and a size. So `false` answers `NO_HANDLER` without presenting, and the web offers the share sheet,
   which lists "Save to Files" and any installed viewer. The reply arrives when the preview closes.
+  `canPreview` is `true` for a ZIP, so a ZIP opens in the preview rather than going to the share
+  sheet; it is `true` for a 7z or an empty ZIP too, so it says nothing about the format. Whatever the
+  preview shows for an archive, its share button can still hand it on.
 - **Save a file** copies the download under the checked name into a temporary folder and presents
   `UIDocumentPickerViewController(forExporting:asCopy: true)`, where the person picks the place; the
   sheet opens in the folder chosen last, even after a relaunch. It has no cancel button — swiping it
@@ -156,7 +161,9 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
   Wrapped in a chooser, a format nothing opens raises no error and shows a dead-end "no app can
   perform this action" sheet; started directly it throws `ActivityNotFoundException`, which answers
   `NO_HANDLER`. Asking the package manager first would need a `<queries>` declaration from API 30 on,
-  which the manifest does not carry. The reply is sent once the viewer is started.
+  which the manifest does not carry. The reply is sent once the viewer is started. A ZIP opens in
+  whatever file manager the device has; a bare emulator has none, and that is the `NO_HANDLER` path,
+  which offers the share sheet (Drive, Gmail, Bluetooth, Quick Share).
 - **Save a file, API 29+**: a `MediaStore.Downloads` row with `RELATIVE_PATH` `Download/DoU/`, written
   with the same `IS_PENDING` steps, and no permission. When the name is taken the OS numbers it
   (`name (1).pdf`), and only after `IS_PENDING` is cleared, so the row's `DISPLAY_NAME` is read back
