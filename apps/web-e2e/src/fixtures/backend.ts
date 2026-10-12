@@ -19,7 +19,11 @@ export interface SocketFrame {
  */
 export const NO_REPLY = Symbol('no reply');
 
-/** One socket request's answer: the data of its `:ok` frame. Throwing answers an `:error` frame instead. */
+/**
+ * One socket request's answer: the data of its `:ok` frame. Throwing answers an `:error` frame instead.
+ * A promise holds the answer until it settles — the relay slow on one request while the page goes on —
+ * and a rejection answers the `:error` frame then.
+ */
 export type SocketHandler = (data: unknown, frame: SocketFrame) => unknown;
 
 /**
@@ -206,21 +210,32 @@ export class FakeBackend {
                 if (frame.mid) reply({ type: `${frame.type}:error`, data: null, error: 'no fixture' });
                 return;
             }
-            let data: unknown;
-            try {
-                data = handler(frame.data, frame);
-            } catch (error) {
+            const refuse = (error: unknown) =>
                 reply({
                     type: `${frame.type}:error`,
                     data: null,
                     error: error instanceof Error ? error.message : String(error),
                 });
+            const answer = (data: unknown) => {
+                if (data === NO_REPLY) return;
+                // A frame without a `mid` expects no reply when its handler has nothing to say (`device.sync`).
+                if (data === undefined && !frame.mid) return;
+                reply({ type: `${frame.type}:ok`, data: data ?? null });
+            };
+            let data: unknown;
+            try {
+                data = handler(frame.data, frame);
+            } catch (error) {
+                refuse(error);
                 return;
             }
-            if (data === NO_REPLY) return;
-            // A frame without a `mid` expects no reply when its handler has nothing to say (`device.sync`).
-            if (data === undefined && !frame.mid) return;
-            reply({ type: `${frame.type}:ok`, data: data ?? null });
+            if (!(data instanceof Promise)) {
+                answer(data);
+                return;
+            }
+            // A held answer can outlive the socket it was asked on; Playwright drops a send on a closed
+            // socket, as the relay's own connection would.
+            void data.then(answer, refuse);
         });
     }
 }

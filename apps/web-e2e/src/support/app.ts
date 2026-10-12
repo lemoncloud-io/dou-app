@@ -50,5 +50,13 @@ export const bringToForeground = (shell: FakeShell): void =>
 /** The MY tab in the bottom bar. (The Chat tab's name turns into its unread count, so it is not one to find.) */
 export const myTab = (page: Page) => page.getByRole('navigation').getByRole('button', { name: 'MY' });
 
+/**
+ * A room row on home, by its title — the start of the row's name, which goes on with its preview, time
+ * or member count. The self chat's row starts with "MY". Anchored, so a title never matches inside
+ * another row's preview.
+ */
+export const roomRow = (page: Page, title: string) =>
+    page.getByRole('button', { name: new RegExp(`^(MY )?${title}(\\s|$)`) });
+
 /** Home, drawn: its room list is there. */
 export const home = (page: Page) => page.getByText(/^Chat Rooms\b/);
