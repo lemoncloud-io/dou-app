@@ -246,6 +246,11 @@ unless `canRefreshThroughSocket(status)`, and otherwise awaits `auth.refresh()`.
 `SocketKind` — relay is in the name. **There is no HTTP fallback**; `false` means "get a socket
 back", and the caller's answer is `recoverUnverifiedSockets`. A `Coalescer` shares an attempt in
 flight and memoizes a settled answer for 3 seconds; the SDK's own single-flight covers the rest.
+One memoized answer is dropped early: a "the socket is still handshaking" `false` stops answering once
+the relay slot reports verified. That is the moment the staleness guard asks, and a returning
+user's first relay-signed requests fail and ask just before it — so honouring the memo there
+swallowed the guard's refresh and left the expired credential in place past the handshake. A refresh
+the socket actually ran and lost keeps its full 3 seconds.
 
 **Relay `onTerminalExpiry()`** is the only automatic path in this runtime that can end a session, so
 it does not act on the first `expired`. That state means two different things at once: a signature
