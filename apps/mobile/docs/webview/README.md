@@ -102,7 +102,8 @@ that fallback away.
 `useWebMessageRouter.contract.test.ts` pins this shell to the vocabulary in `@chatic/app-messages`.
 It mounts the router and `useWebViewNavigation` (which registers `SetCanGoBack`) on a real
 `AppBridgeHost`, with every domain hook stubbed and every native module reported present, and reads
-what got registered — `WebAppReady` included, since the host registers that one itself. Then:
+what got registered — `WebAppReady` and `Ping` included, since the host registers those itself.
+Then:
 
 - **Every request in `WEB_MESSAGE_RESPONSE_TYPE` is decided.** Each has a handler or a line in
   `MOBILE_UNSUPPORTED`, with a one-line reason. A message added to `@chatic/app-messages` fails the
@@ -116,6 +117,9 @@ what got registered — `WebAppReady` included, since the host registers that on
   handler's reply, a fire-and-forget `SendLog` reaches its handler, a throwing handler rejects as a
   `BridgeError`, a reply of the wrong type rejects as `RESPONSE_TYPE_MISMATCH`, and every
   unsupported request gets `NOT_FOUND`.
+- **The handshake says the same thing.** The `WebAppReady` reply over that loopback lists exactly the
+  registered requests — the vocabulary minus `MOBILE_UNSUPPORTED` — and their paired replies, since
+  the web decides photo save and share and where performance traces go from that list.
 
 The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
 file calls `registerHandler` — a handler there would be invisible to the checks above. Register
@@ -125,8 +129,8 @@ The handlers registered only where a native module exists (photo library, attach
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and
 `useWebMessageRouter.test.ts` holds the rule for a build that does not. The desktop shell has its
 own contract suite beside its handlers, `apps/desktop/src/main/bridgeHandlers.contract.test.ts`,
-with the same exhaustiveness checks; instead of a loopback it runs each desktop handler and checks
-its reply against the type the map pairs with it.
+with the same exhaustiveness and handshake checks; it also runs each desktop handler and checks its
+reply against the type the map pairs with it.
 
 ```bash
 npx jest --config apps/mobile/jest.config.js useWebMessageRouter
@@ -150,6 +154,7 @@ own repaint animation after a resume has finished, and is what actually hides `R
 | Message                          | What it does                                                                                                                                                   |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `WebAppReady`                    | Handshake, answered inside `@chatic/bridges`; buffers and flushes any push events queued before it                                                             |
+| `Ping`                           | Liveness probe, answered inside `@chatic/bridges` with a `Pong` carrying the payload back                                                                      |
 | `DismissResumeOverlay`           | Routed handler (`useAppStateHandler`); clears the resume overlay after the web's repaint                                                                       |
 | `FirstScreenReady`               | Routed handler (`useBootSplashHandler`); lifts the launch splash and the crash-reload cover — see [../boot/boot-splash.md](../boot/boot-splash.md)             |
 | `SavePreference` with `theme`    | Routed handler (`usePreferenceCacheHandler`); updates the native theme store — see [../system/theme.md](../system/theme.md)                                    |

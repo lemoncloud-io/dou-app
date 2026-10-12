@@ -20,9 +20,9 @@ import { appBridge } from './appBridge';
  * session: there is one installed app, so there is one answer. Only `NOT_FOUND` is learned from — a
  * timeout or a transport error is transient, and treating one as a permanent verdict would take the
  * picker away for a whole session over one slow round trip. The handshake's `supportedWebMessages`
- * is not consulted: it arrives asynchronously, and it is built from the app's compiled message map
- * rather than from the handlers actually registered. Same reasoning as `nativeUploadSource` and
- * `nativeBadgeReader`.
+ * is not consulted: it arrives asynchronously, and an app whose bridge predates 2.6.0 lists its
+ * compiled message map rather than the handlers it registered. Same reasoning as `nativeUploadSource`
+ * and `nativeBadgeReader`.
  *
  * Videos are asked for on every list, and one `NOT_FOUND` from `KeepLibraryVideo` stops that for the
  * session the same way. An app from before videos ignores the request and lists photos only, so asking

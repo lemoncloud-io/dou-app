@@ -51,9 +51,9 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
 
 - A shell that predates `SaveToPhotoLibrary` and `ShareFile` answers `NOT_FOUND`; the web shows its
   photo save and share controls only when the handshake's `supportedWebMessages` lists both names.
-  That list is built from the compiled message map, not from the router, so the router registers both
-  handlers in the same change as their types and `useWebMessageRouter.test.ts` holds it there — a type
-  without a handler would be advertised and then fail.
+  That list is what the router registered, so `useWebMessageRouter.test.ts` holds both handlers
+  there. (An app whose bridge predates `2.6.0` lists the whole compiled message map instead, which is
+  why the router has always registered both in the same change as their types.)
 - `OpenFile` and `SaveFile` came later, and JS can run over a native `MediaExport` built before them.
   The router registers each only when the native module has its method
   (`MediaExportBridge.canOpenFile`, `canSaveFile`); otherwise the bridge answers `NOT_FOUND`, which is

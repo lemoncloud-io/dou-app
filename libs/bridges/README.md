@@ -363,7 +363,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.5.0')
+       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.6.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -378,9 +378,12 @@ native runtime
                 registerHandlers(host, deps) · startUpdater(host, …)
 ```
 
-`AppBridgeHost` registers one handler in its own constructor — `WebAppReady` — because that message
-is not a readiness ping but a capability handshake, and the answer has to come from the host's
-config rather than from a shell that might forget to wire it. The mobile host passes three
+`AppBridgeHost` registers two handlers in its own constructor. `WebAppReady` is not a readiness
+ping but a capability handshake, and the answer has to come from the host's config and handler
+table rather than from a shell that might forget to wire it. `Ping` is the liveness probe the web's
+debug overlay sends; it is answered with a `Pong` carrying the payload back, the same in every shell,
+so a round trip that reaches any host comes back as an answer rather than as `NOT_FOUND`. A shell does
+not register either itself: its own cleanup would unregister the host's. The mobile host passes three
 cache-capability fields into it; the desktop host passes none, has no local cache DB, and is read by
 the web as legacy. The negotiation those fields feed is
 [`app-runtime`'s](../app-runtime/docs/data/README.md).
@@ -399,10 +402,21 @@ poll sees a channel, `flushBuffer` walks the queue and splits it: a message whos
 `apps/web` calls `request({ type: 'WebAppReady', data: { holdsBootSplash: true } })` — a request, not
 a post, so the capability report resolves to the caller. The host hands the request's `data` to its
 `onAppReady(payload)` callback; that declaration is how the mobile shell tells a web build that will
-later post `FirstScreenReady` from an older one that never will. The host answers with its protocol version and the full
-`supportedWebMessages` / `supportedAppMessages` lists taken from the keys and values of
-`WEB_MESSAGE_RESPONSE_TYPE`, plus whichever cache-capability fields it declares. This is also the
-message that most often flips the host's readiness flag and flushes its event buffer.
+later post `FirstScreenReady` from an older one that never will. The host answers with its protocol
+version, the requests it has a handler for as `supportedWebMessages` and their paired replies from
+`WEB_MESSAGE_RESPONSE_TYPE` as `supportedAppMessages`, plus whichever cache-capability fields it
+declares. This is also the message that most often flips the host's readiness flag and flushes its
+event buffer.
+
+The two lists are read off the handler table when the reply is built, so they say what this host
+answers, not what it compiled against. That makes registration order part of the contract: a shell
+registers its handlers before the page can send `WebAppReady` — mobile in the router's mount
+effect, desktop while it creates the window, both long before the page has loaded far enough to
+send anything — and a handler added after a handshake is answered but not advertised until the next
+one. A host from before `2.6.0` names the whole map instead, and a web build has to keep working
+against one: anything it decides from these lists
+still needs its `NOT_FOUND` fallback. `supportedAppMessages` covers replies only; the pushed events
+(`OnNavigate`, `OnUpdateStatus`, …) are not listed, as they never were.
 
 ### 3. An event that arrives before anyone is listening
 
@@ -422,8 +436,8 @@ gracefully.
 Which messages a shell leaves to this answer is a decision, not an accident. Each shell has a
 contract suite beside its handlers — `apps/mobile`'s `useWebMessageRouter.contract.test.ts` and
 `apps/desktop`'s `bridgeHandlers.contract.test.ts` — that fails until every request in
-`WEB_MESSAGE_RESPONSE_TYPE` is either registered or listed as unsupported there, with a reason. The
-handshake does not consult those lists: `supportedWebMessages` still names the whole map.
+`WEB_MESSAGE_RESPONSE_TYPE` is either registered or listed as unsupported there, with a reason, and
+that its handshake advertises exactly the registered ones — the vocabulary minus that list.
 
 ### 5. A plain browser
 
@@ -451,7 +465,7 @@ request on the very thread the cache path needs.
 
 ```bash
 npx tsc -b libs/bridges/tsconfig.json --force   # lib + specs, via the two project references
-npx jest --config libs/bridges/jest.config.js   # 6 suites, 80 cases
+npx jest --config libs/bridges/jest.config.js   # 6 suites, 86 cases
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
@@ -484,7 +498,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.5.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.6.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. `BRIDGE_PROTOCOL_VERSION` is an alias of it today, kept separate so a future
 compatibility layer can run a newer bridge that still speaks an older protocol.
@@ -502,4 +516,5 @@ opened `StartFileTransfer` to downloads and added `SaveToPhotoLibrary` and `Shar
 that needs those asks whether the handshake's `supportedWebMessages` lists the message names, which
 says what the installed shell actually handles. `2.5.0` added `KeepLibraryVideo` and `ReadVideoFrame`
 and the opt-in `mediaTypes` on the photo-library lists; the web learns a shell without them from
-`NOT_FOUND`, and a shell that predates the field simply ignores it.
+`NOT_FOUND`, and a shell that predates the field simply ignores it. `2.6.0` made the handshake's
+lists truthful — a shell lists only what it has handlers for — and answers `Ping`.

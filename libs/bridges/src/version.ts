@@ -12,7 +12,9 @@
 //        takes MP4 and ShareFile the server's document formats.
 // 2.5.0: added KeepLibraryVideo and ReadVideoFrame (web -> app); ListPhotos and ListPhotoAlbums take
 //        `mediaTypes`, and a library item carries `mediaType` and `durationMs`.
-export const BRIDGE_VERSION = '2.5.0' as const;
+// 2.6.0: the WebAppReady reply lists the requests this host has handlers for, not the whole map; the
+//        host answers Ping itself.
+export const BRIDGE_VERSION = '2.6.0' as const;
 
 /**
  * Protocol version currently spoken by this bridge runtime.

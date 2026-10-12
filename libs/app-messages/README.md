@@ -120,7 +120,8 @@ flowchart TD
 Every arrow crossing this package's boundary is dashed, and every one of them points **in** — the
 solid arrows are internal. `@chatic/bridges` is the one
 consumer that reads `WEB_MESSAGE_RESPONSE_TYPE` as a **value** — twice, in `WebBridgeClient` to know
-what reply to wait for and in `AppBridgeHost` to build the handshake's supported-message lists.
+what reply to wait for and in `AppBridgeHost` to pair the handshake's handled requests with their
+replies.
 Everyone else takes types.
 
 ### What governs each hop of a round trip
@@ -164,14 +165,14 @@ libs/app-messages/src/
     └── model/                    22 files — 21 payload files, grouped by domain, and their barrel
 ```
 
-28 files, 3,738 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+28 files, 3,746 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
 
 | File                   | Lines | What it declares                                                                                                                                                                   |
 | ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `system.ts`            | 580   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                             |
+| `system.ts`            | 584   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                             |
 | `cache.ts`             | 472   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                           |
 | `common.ts`            | 225   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                                                                                                 |
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                          |

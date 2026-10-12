@@ -334,9 +334,9 @@ An app from before offsets ignores the field and answers the first page with no 
 first request is always offset 0, so that answer is still the right page; `bridge/photoLibrary.ts`
 learns from the missing echo once per page load, and the grid pages by cursor from then on, growing as it
 scrolls the way it always did. The handshake's `supportedWebMessages` is not used for this: it arrives
-asynchronously, it lists messages rather than the fields a handler reads, and it is built from the app's
-compiled message map rather than the handlers it registered — the answer itself is the only reliable
-witness.
+asynchronously, it lists messages rather than the fields a handler reads, and an app whose bridge
+predates `2.6.0` builds it from the compiled message map rather than the handlers it registered — the
+answer itself is the only reliable witness.
 
 **Preview size.** Every list asks for previews at the size the tiles are drawn: the tile's CSS width ×
 `devicePixelRatio`, rounded up to 16 (`thumbSize`; a 390pt phone at three columns asks about 400px). The

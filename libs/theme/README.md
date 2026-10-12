@@ -59,9 +59,9 @@ settings with lanes and shell hydration are `@chatic/config`'s.
    private preference — it desynchronises you from your own `index.html`, which still reads the
    default key before React runs.
 4. **Native sync is one-way and unconfirmed.** The provider does `webClient.post`, not `request`, so
-   nothing waits for the shell and nothing retries. An app build whose bridge allowlist does not
-   include `SavePreference` drops the message silently. Treat the native copy as a convenience for the
-   shell, never as the source of truth.
+   nothing waits for the shell and nothing retries. A shell without a `SavePreference` handler answers
+   `NOT_FOUND`, which a post never sees. Treat the native copy as a convenience for the shell, never
+   as the source of truth.
 5. **The DOM effect and the bridge effect are separate, and only the second is gated.** `isNative()`
    guards the `SavePreference` post; the class write runs everywhere. Keep it that way — the class is
    what the page looks like and it must not depend on which shell is hosting it.
@@ -231,6 +231,13 @@ query once on subscribe, so a change the OS made while `light` or `dark` was cho
 message handler. The second effect then posts `SavePreference { key: 'theme', value: theme }`. That
 effect has **no "the user chose this" guard**: it runs on mount as well as on change, so simply
 opening the app inside a shell writes the current — possibly defaulted — theme into native storage.
+
+In the desktop shell that mount-time post does a second job. `apps/desktop-web` sends no
+`WebAppReady`, so this is the first non-log message a fresh window sends, and the desktop bridge host
+releases the events it buffered before the page could hear them — an update prompt, a re-minted FCM
+token — when it arrives. The desktop shell answers it without storing anything (the theme lives in
+the renderer's `localStorage` there), and the post is not gated on whether the shell keeps a copy:
+dropping it on desktop would leave a signed-out window holding those events until its first request.
 `apps/web` takes the opposite approach for the same message, using `savePreferenceConfirmed` with a
 retry, because its `ui.theme` is a `persist: 'shell'` config key whose write actually has to land.
 
