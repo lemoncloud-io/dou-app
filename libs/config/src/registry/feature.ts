@@ -39,6 +39,16 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
+    'feature.auth.phoneLogin': {
+        title: 'Phone sign-in',
+        description: 'Shows sign-in with a phone number and a texted code on desktop.',
+        type: 'boolean',
+        defaultValue: true,
+        byStage: { PROD: false },
+        surface: 'dev',
+        writableBy: ['local', 'server'],
+        persist: 'session',
+    },
     'feature.subscription.dryRun': {
         title: 'Subscription payment dry run',
         description: 'Exercises the subscription flow without an actual charge.',

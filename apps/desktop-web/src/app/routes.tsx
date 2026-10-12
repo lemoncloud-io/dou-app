@@ -6,6 +6,7 @@ import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
@@ -81,6 +82,7 @@ const SettingsPage = lazy(() => import('./features/settings').then(m => ({ defau
 const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m.WelcomePage })));
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
 const DebugLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.DebugLoginPage })));
+const PhoneLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.PhoneLoginPage })));
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
 
@@ -129,6 +131,9 @@ export const AppRouter = () => {
                                 exchanged, so the session flips mid-attempt. Keep its page until
                                 it succeeds or is left, or a rejected code is never shown. */}
                             {inviteAttemptHeld && <Route path="/auth/login" element={<InviteLoginPage />} />}
+                            {/* Sending the first code registers the device, which lands here mid-flow;
+                                the page also turns away an account that is already signed in. */}
+                            {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
                             {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
@@ -137,6 +142,7 @@ export const AppRouter = () => {
                         <>
                             <Route path="/auth/welcome" element={<WelcomePage />} />
                             <Route path="/auth/login" element={<InviteLoginPage />} />
+                            {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
                             {import.meta.env.DEV && <Route path="/auth/debug" element={<DebugLoginPage />} />}
                             <Route path="*" element={<Navigate to="/auth/welcome" replace />} />

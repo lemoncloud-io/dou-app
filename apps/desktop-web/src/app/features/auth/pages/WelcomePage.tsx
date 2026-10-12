@@ -2,12 +2,14 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { Smartphone } from 'lucide-react';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
 import { useSocialLogin } from '../hooks/useSocialLogin';
-import { isSocialLoginEnabled } from '../utils';
+import { isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
 
 /**
  * First-run landing. Offers a one-tap guest start (device-register into the
@@ -56,9 +58,17 @@ export const WelcomePage = () => {
                         {/* Said before the tap: someone who signed up on mobile with a phone number
                             and never linked Google there gets a new, empty account from this button. */}
                         <p id={noteId} className="-mt-0.5 text-center text-caption text-muted-foreground">
-                            {t('auth.social.phoneSignupNote')}
+                            {t(phoneSignupNoteKey())}
                         </p>
                     </>
+                )}
+                {/* For the account someone made on mobile with a phone number — the one way into it
+                    from here until Google can be linked on desktop. */}
+                {isPhoneLoginEnabled() && (
+                    <Button variant="outline" size="lg" onClick={() => navigate('/auth/phone')} disabled={isBusy}>
+                        <Smartphone className="h-4 w-4" />
+                        {t('auth.phone.start')}
+                    </Button>
                 )}
                 <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
                     {t('welcome.haveInvite')}

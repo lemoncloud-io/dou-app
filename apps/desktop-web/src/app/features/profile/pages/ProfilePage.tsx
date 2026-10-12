@@ -21,7 +21,7 @@ import {
     useSiteProfileMap,
     useSiteProfiles,
 } from '../../../shared';
-import { GoogleIcon, isSocialLoginEnabled, useSocialLogin } from '../../auth';
+import { GoogleIcon, isSocialLoginEnabled, phoneSignupNoteKey, useSocialLogin } from '../../auth';
 import { EditPlaceProfileDialog, PlaceChip } from '../components';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
@@ -230,7 +230,7 @@ export const ProfilePage = () => {
                                     {t('profile.signInGoogleHint')}
                                 </span>
                                 <span id={phoneNoteId} className="text-caption text-muted-foreground">
-                                    {t('auth.social.phoneSignupNote')}
+                                    {t(phoneSignupNoteKey())}
                                 </span>
                             </div>
                             <Button

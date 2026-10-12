@@ -34,6 +34,7 @@ vi.mock('@chatic/app-runtime', () => ({
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
     isSocialLoginEnabled: () => session.socialLogin,
+    phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
     useSocialLogin: () => ({ start: vi.fn(), isStarting: false }),
 }));
 // The dialog has its own spec; this file is about what the page draws.

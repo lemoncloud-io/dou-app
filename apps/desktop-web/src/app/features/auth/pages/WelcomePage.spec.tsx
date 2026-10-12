@@ -4,12 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
     guest: { submit: vi.fn(), isSubmitting: false, isError: false },
     social: { start: vi.fn(), isStarting: false, isError: false },
+    phoneLogin: true,
+    navigate: vi.fn(),
 }));
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
 vi.mock('../hooks/useGuestLogin', () => ({ useGuestLogin: () => state.guest }));
 vi.mock('../hooks/useSocialLogin', () => ({ useSocialLogin: () => state.social }));
-vi.mock('../utils', () => ({ isSocialLoginEnabled: () => true }));
+vi.mock('../utils', () => ({
+    isSocialLoginEnabled: () => true,
+    isPhoneLoginEnabled: () => state.phoneLogin,
+    phoneSignupNoteKey: () => (state.phoneLogin ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote'),
+}));
 vi.mock('../components', () => ({
     AuthCard: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     GoogleIcon: () => null,
@@ -22,6 +28,8 @@ describe('WelcomePage', () => {
     beforeEach(() => {
         state.guest = { submit: vi.fn(), isSubmitting: false, isError: false };
         state.social = { start: vi.fn(), isStarting: false, isError: false };
+        state.phoneLogin = true;
+        state.navigate = vi.fn();
     });
 
     afterEach(cleanup);
@@ -58,10 +66,34 @@ describe('WelcomePage', () => {
     });
 
     it('tells people who signed up with a phone number before they tap Google', () => {
+        state.phoneLogin = false;
         render(<WelcomePage />);
 
         const google = screen.getByText(i18n.t('auth.social.google')).closest('button');
         const note = document.getElementById(google?.getAttribute('aria-describedby') ?? '');
         expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNote'));
+    });
+
+    it('points people who signed up with a phone number at phone sign-in when it is on', () => {
+        render(<WelcomePage />);
+
+        const google = screen.getByText(i18n.t('auth.social.google')).closest('button');
+        const note = document.getElementById(google?.getAttribute('aria-describedby') ?? '');
+        expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNotePhone'));
+    });
+
+    it('opens phone sign-in from its button', () => {
+        render(<WelcomePage />);
+
+        screen.getByText(i18n.t('auth.phone.start')).click();
+
+        expect(state.navigate).toHaveBeenCalledWith('/auth/phone');
+    });
+
+    it('offers no phone sign-in when the build turns it off', () => {
+        state.phoneLogin = false;
+        render(<WelcomePage />);
+
+        expect(screen.queryByText(i18n.t('auth.phone.start'))).toBeNull();
     });
 });

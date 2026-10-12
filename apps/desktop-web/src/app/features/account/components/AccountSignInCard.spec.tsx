@@ -4,14 +4,20 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const start = vi.hoisted(() => vi.fn());
 const socialEnabled = vi.hoisted(() => ({ value: true }));
+const phoneEnabled = vi.hoisted(() => ({ value: true }));
+const navigate = vi.hoisted(() => vi.fn());
 const verifySocialAccount = vi.hoisted(() => vi.fn());
 const confirmSocialAccount = vi.hoisted(() => vi.fn());
 
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
     isSocialLoginEnabled: () => socialEnabled.value,
+    isPhoneLoginEnabled: () => phoneEnabled.value,
+    phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
     useSocialLogin: () => ({ start, isStarting: false }),
 }));
+
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 
 // The card must never link an account: these would be the calls if it did.
 vi.mock('@chatic/app-runtime', () => ({
@@ -27,6 +33,7 @@ describe('AccountSignInCard', () => {
         cleanup();
         vi.clearAllMocks();
         socialEnabled.value = true;
+        phoneEnabled.value = true;
     });
 
     it('renders nothing while the link$ slot is unknown', () => {
@@ -42,8 +49,25 @@ describe('AccountSignInCard', () => {
         expect(start).toHaveBeenCalledWith('google');
     });
 
-    it('offers a guest nothing when the build turns social login off', () => {
+    it('offers a guest phone sign-in beside Google', () => {
+        render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.phone.start') }));
+        expect(navigate).toHaveBeenCalledWith('/auth/phone');
+    });
+
+    it('offers a guest phone sign-in alone, without the Google note, when social login is off', () => {
         socialEnabled.value = false;
+        render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+        expect(screen.getByRole('button', { name: i18n.t('auth.phone.start') })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: i18n.t('auth.social.google') })).toBeNull();
+        expect(screen.queryByText(i18n.t('auth.social.phoneSignupNote'))).toBeNull();
+    });
+
+    it('offers a guest nothing when the build turns both sign-ins off', () => {
+        socialEnabled.value = false;
+        phoneEnabled.value = false;
         const { container } = render(<AccountSignInCard account={{ userRole: 'guest' }} />);
         expect(container.innerHTML).toBe('');
     });

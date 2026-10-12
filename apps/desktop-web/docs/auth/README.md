@@ -19,9 +19,10 @@ The Account card's name, email and user id come from the relay session for the s
 "This place" card still falls back to the name the cloud knows, which is the one people there see.
 
 Every place that offers the button says, under it, that someone who signed up on mobile with a phone
-number should link Google in the mobile app first, or this makes a new account. Sign-in is not
-linking: nothing here attaches Google to an existing phone account, and recovering someone who
-already landed in a new account is out of scope.
+number gets a new account from it unless they linked Google in the mobile app. Where phone-number
+sign-in is on, the note sends them there instead; where it is off, it sends them to the mobile app.
+Sign-in is not linking: nothing here attaches Google to an existing phone account, and recovering
+someone who already landed in a new account is out of scope.
 
 The steps, in order:
 
@@ -111,7 +112,43 @@ The same check guards the hand-off page when the relay's return lands inside the
   not, the hand-off page shows the failure screen on every sign-in — visibly, rather than letting the
   link through. A real sign-in on the packaged dev app (macOS) showed the relay returning it.
 
+## Phone-number sign-in
+
+"Sign in with phone number" (the Welcome page, and the account hub for a Guest Session) opens
+`/auth/phone`. It is the way into an account someone made on mobile with a phone number. The page
+runs `usePhoneLogin` over the `auth.link-account` packet in `login` mode, the same packet the mobile
+app's phone sign-in uses:
+
+1. **Send** — the number goes out in E.164 with its country. Sending registers the device first when
+   there is no session, because the server takes a login only from a device session.
+2. **Confirm** — typing the sixth digit confirms. There is no separate verify step: it would only say
+   the code is valid, which the confirm proves anyway.
+3. **Switch** — the confirm's `$token` becomes the session, and the app reloads at `/` so the socket,
+   caches and cloud rail start over as that account (the same as a Google sign-in that replaces a
+   session).
+
+What it refuses and what it says:
+
+- **An account that is already signed in** is sent home: the server refuses `login` from anything but
+  a device session. The page judges that once, on arrival, since the sign-in itself turns the session
+  into an account.
+- **A number with no account** gets one: the server answers that only on the confirm (`isNew`), after
+  it has made the account. The page says so before the app opens, so someone expecting their mobile
+  account notices.
+- **Errors** are read off the socket status, never the wording: on a first send 429 is the daily cap;
+  on a resend 429 is the one-minute cooldown; on the confirm 403 is a wrong code, 429 too many wrong
+  codes and 400 an expired code.
+- **A switch that fails after the confirm** keeps the token and offers to finish; the retry re-applies
+  it and never spends the code again.
+
+The route is registered on both sides of the router's signed-in switch, because the registration in
+step 1 flips it while the form is open. There is no development bypass code on desktop; a code
+always arrives by text. The number and the code stay in the request body and are never logged.
+
 ## Not on in production
+
+`feature.auth.phoneLogin` is off in production for the first of the reasons below — the clouds a
+person was invited into do not follow the account yet.
 
 `feature.auth.socialLogin` is off in production. Turning it on waits for three things: invited cloud
 memberships following the account (the backend restores only the clouds a person owns), a real

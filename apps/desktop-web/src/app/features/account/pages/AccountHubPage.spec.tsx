@@ -49,6 +49,8 @@ const startSocialLogin = vi.hoisted(() => vi.fn());
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
     isSocialLoginEnabled: () => true,
+    isPhoneLoginEnabled: () => true,
+    phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
     useSocialLogin: () => ({ start: startSocialLogin, isStarting: false }),
 }));
 
