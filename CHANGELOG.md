@@ -1,5 +1,56 @@
 # Changelog
 
+## [2026-10-12] - root@0.90.0, @chatic/desktop-web@0.23.0
+
+### Features
+
+- (desktop-web) read the terms and privacy policy in the account hub
+- (desktop-web) list a cloud places behind an explicit switch
+- (desktop-web) manage owned clouds from the account hub
+- (desktop-web) open an account hub with profile edit
+- (desktop-web) read the relay account through its own gateway
+- (desktop-web) manage a place channels in bulk
+- (desktop-web) edit a place description from its dialog and settings
+- (desktop-web) open a settings page for each place
+- (desktop-web) send place-bound invites with a link dialog
+- (desktop-web) watch a sent invite with cancel and reissue
+- (desktop-web) send contact invites from the channel row menu
+- (data,desktop-web) refresh background-place channels on push too
+- (desktop-web) scope message search to the open channel
+- (data,app-runtime,desktop-web) refresh one channel on push, not the whole list
+
+### Bug Fixes
+
+- (desktop-web) give the emoji picker tabs accessible names, not just hover hints
+- (desktop-web) keep a failed invite cancel on screen instead of closing silently
+- (desktop-web) hide the invite countdown once it is declined
+- (desktop-web) fix crashes and layout bugs found in manual testing
+- (desktop-web) address PR review findings across push, invites, feed
+- (desktop-web) say when channels could not be searched instead of a false no-match
+- (desktop-web) name a failed launch-at-login write instead of a silent flicker
+- (desktop-web) announce mark-as-read sync failures instead of swallowing them
+- (desktop-web) surface a failed older-history page with a retry row
+- (desktop-web) fail the onboarding retry at once when its sync fails
+- (desktop-web) announce notify-pref sync failures instead of swallowing them
+- (desktop-web) surface a stale member roster with retry instead of hiding it
+- (desktop-web) keep panel Escape working where :has() selectors throw
+- (desktop-web) keep the dialogs mounted when the sidebar filter matches nothing
+- (desktop-web) serve shared favicons and manifest like web does
+- (desktop-web) keep the list fallback for pushes that name no channel
+
+### Documentation
+
+- (desktop-web) note the reaction rejection as past dev behavior
+
+### Other
+
+- test: (desktop-web) pin owner gating for rename/delete/kick visibility
+- perf: (desktop-web) wake a pending message row once at its stuck deadline, not every 5s
+- perf: (desktop-web) skip the unread re-pull for the channel reading live
+- perf: (desktop-web) window the message feed so long channels mount a viewport, not a history
+- perf: (desktop-web) load the message editor chunk after the feed paints, not before it
+- test: (data) cover refreshOne against a just-left channel
+
 ## [2026-10-08] - root@0.89.0, @chatic/desktop-web@0.22.0
 
 ### Features
