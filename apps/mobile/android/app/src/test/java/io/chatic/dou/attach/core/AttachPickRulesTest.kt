@@ -50,7 +50,7 @@ class AttachPickRulesTest {
     }
 
     @Test
-    fun documentsPickerOffersEveryServerFormatTheirHancomLabelsAndOctetStream() {
+    fun documentsPickerOffersEveryServerFormatTheirOtherNamesAndOctetStream() {
         val types = AttachPickRules.DOCUMENT_MIME_TYPES
         for (type in listOf(
             "image/png",
@@ -65,14 +65,19 @@ class AttachPickRulesTest {
             "application/x-hwp",
             "application/hwp+zip",
             "text/plain",
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/x-zip",
             "application/octet-stream",
         )) {
             assertTrue(type, type in types)
         }
-        // Only the server's own formats: no wildcard, and no photo or video type it would refuse.
+        // Only the server's own formats: no wildcard, and no photo, video or archive type it would refuse.
         assertFalse("no wildcard type", types.any { it.contains('*') })
         assertFalse("no HEIC", "image/heic" in types)
         assertFalse("no QuickTime", "video/quicktime" in types)
+        assertFalse("no 7z", "application/x-7z-compressed" in types)
+        assertFalse("no RAR", "application/vnd.rar" in types)
     }
 
     @Test
@@ -104,6 +109,8 @@ class AttachPickRulesTest {
         assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("application/pdf", "minutes.pdf"))
         assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("text/plain", "notes.txt"))
         assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("application/x-hwp", "report.hwp"))
+        assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("application/zip", "photos.zip"))
+        assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("application/x-zip-compressed", "photos.zip"))
         // A declared type wins over the name: the provider knows the bytes, the name is only a label.
         assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("application/pdf", "looks-like.png"))
         assertEquals(Kind.IMAGE, AttachPickRules.limitKindForDocument("image/png", "named.mp4"))
@@ -122,6 +129,7 @@ class AttachPickRulesTest {
             assertEquals(Kind.IMAGE, AttachPickRules.limitKindForDocument(type, "sticker.webp"))
             assertEquals(Kind.VIDEO, AttachPickRules.limitKindForDocument(type, "clip.MP4"))
             assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument(type, "report.hwp"))
+            assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument(type, "photos.zip"))
             assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument(type, "noextension"))
             assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument(type, ".png"))
             assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument(type, null))

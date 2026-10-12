@@ -15,6 +15,7 @@ final class MediaExportRulesTests: XCTestCase {
         XCTAssertEqual(DownloadFiles.exportFamily(Data("%PDF-1.7\n".utf8), fileName: "report"), .pdf)
         XCTAssertEqual(DownloadFiles.exportFamily(Data([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00]), fileName: "a.docx"), .zip)
         XCTAssertEqual(DownloadFiles.exportFamily(Data([0x50, 0x4B, 0x03, 0x04]), fileName: "a.hwpx"), .zip)
+        XCTAssertEqual(DownloadFiles.exportFamily(Data([0x50, 0x4B, 0x03, 0x04, 0x0A, 0x00]), fileName: "photos.zip"), .zip)
         XCTAssertEqual(DownloadFiles.exportFamily(Data([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0x00]), fileName: "a.hwp"), .ole2)
         XCTAssertEqual(DownloadFiles.exportFamily(Data("회의록\nline two".utf8), fileName: "notes.TXT"), .text)
         XCTAssertEqual(DownloadFiles.exportFamily(Data(), fileName: "empty.txt"), .text, "an empty text file is still text")
@@ -34,10 +35,11 @@ final class MediaExportRulesTests: XCTestCase {
 
     // MARK: - Server formats
 
-    func testServerFormats_coverTheTwelveFormats_withTheWebsTypes() {
+    func testServerFormats_coverTheThirteenFormats_withTheWebsTypes() {
         XCTAssertEqual(Set(DownloadFiles.serverFormats.keys), [
-            "png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "hwp", "hwpx", "txt",
+            "png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "hwp", "hwpx", "txt", "zip",
         ])
+        XCTAssertEqual(DownloadFiles.serverFormats["zip"], "application/zip")
         XCTAssertEqual(DownloadFiles.serverFormats["docx"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
         XCTAssertEqual(DownloadFiles.serverFormats["hwp"], "application/x-hwp")
         XCTAssertEqual(DownloadFiles.serverFormats["hwpx"], "application/hwp+zip")
@@ -52,7 +54,7 @@ final class MediaExportRulesTests: XCTestCase {
     /// that the system reads each format the server stores as that format — a ZIP named `.docx` is a
     /// Word document to them — and that HWP and HWPX at least become a data type the picker can match.
     func testTheSystemTypesEachServerExtension_asTheServerDoes() throws {
-        for ext in ["png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "txt"] {
+        for ext in ["png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "txt", "zip"] {
             let type = try XCTUnwrap(UTType(filenameExtension: ext), ext)
             XCTAssertFalse(type.isDynamic, "\(ext) is a type the system knows")
             XCTAssertEqual(type.preferredMIMEType, DownloadFiles.serverFormats[ext], ext)
@@ -81,11 +83,12 @@ final class MediaExportRulesTests: XCTestCase {
             ("a.png", "a.png"),
             ("a.gif", "a.gif"),
             ("a.webp", "a.webp"),
+            ("Photos 2026.ZIP", "Photos 2026.zip"),
         ]
         for (name, expected) in kept {
             XCTAssertEqual(DownloadFiles.saveFileName(name), expected, name)
         }
-        for refused in ["", "report", "setup.exe", "page.html", "archive.zip", ".pdf", "  .pdf", "notes.", "x.part"] {
+        for refused in ["", "report", "setup.exe", "page.html", "archive.7z", ".pdf", "  .pdf", "notes.", "x.part"] {
             XCTAssertNil(DownloadFiles.saveFileName(refused), refused)
         }
     }

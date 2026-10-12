@@ -337,6 +337,41 @@ describe('useFileDownloads inside the app', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.shareUpdateRequired' });
     });
 
+    it('asks for an app update when an old app refuses to save a ZIP archive, and leaves every other card alone', async () => {
+        const archive: ChatFileSlot = { ...doc, key: 'c/u-3', uploadId: 'u-3', name: 'photos.zip' };
+        answer({
+            SaveFile: async () => {
+                const saving = sent('SaveFile').at(-1) as { data: { name: string } };
+                return saving.data.name.endsWith('.zip')
+                    ? Promise.reject(failure('INVALID'))
+                    : { data: { saved: true, location: 'Download/DoU/report.pdf' } };
+            },
+        });
+        const { result } = render();
+
+        await act(() => result.current.download(archive));
+
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.archiveNeedsUpdate' });
+        // Downloaded all the same, so pressing the card opens it — or offers the share sheet.
+        expect(result.current.stateOf(archive)).toBe('done');
+        expect(result.current.stateOf(other)).toBe('idle');
+
+        await act(() => result.current.download(other));
+        expect(result.current.stateOf(other)).toBe('done');
+        expect(toast).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'chat.attach.fileCard.saved' }));
+    });
+
+    it('still says the download failed when the shell refuses to save a document', async () => {
+        answer({ SaveFile: async () => Promise.reject(failure('INVALID')) });
+        const { result } = render();
+
+        await act(() => result.current.download(doc));
+
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.downloadFailed', variant: 'destructive' });
+        expect(result.current.stateOf(other)).toBe('idle');
+    });
+
     it('cancels a download in flight and goes back to idle, silently', async () => {
         autoResult = null;
         cancel.mockImplementation((finish: (result: DownloadResult) => void) => finish({ kind: 'cancelled' }));

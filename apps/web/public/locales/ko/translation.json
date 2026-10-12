@@ -995,7 +995,7 @@
             "limitedNotice": "선택한 사진만 보여요",
             "limitedMore": "더 선택",
             "rejected": {
-                "unsupported": "보낼 수 없는 파일 형식이에요. 사진(JPG·PNG·GIF·WEBP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·TXT 파일을 보낼 수 있어요",
+                "unsupported": "보낼 수 없는 파일 형식이에요. 사진(JPG·PNG·GIF·WEBP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·TXT 파일, ZIP 압축 파일을 보낼 수 있어요",
                 "unsupportedImage": "PNG, JPEG, GIF, WEBP 사진만 보낼 수 있어요",
                 "unsupportedVideo": "이 동영상 형식은 보낼 수 없어요",
                 "too-large": {
@@ -1053,7 +1053,8 @@
                 "openAction": "열기",
                 "storagePermission": "저장 공간 접근을 허용해야 저장할 수 있어요",
                 "share": "파일 공유",
-                "shareUpdateRequired": "앱을 업데이트하면 파일을 공유할 수 있어요"
+                "shareUpdateRequired": "앱을 업데이트하면 파일을 공유할 수 있어요",
+                "archiveNeedsUpdate": "앱을 업데이트하면 압축 파일을 저장할 수 있어요"
             },
             "export": {
                 "save": "사진 저장",

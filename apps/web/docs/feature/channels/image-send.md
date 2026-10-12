@@ -107,12 +107,12 @@ all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
 
-The files input asks for every format this app sends — the server's formats but a ZIP archive, which
-only desktop sends (`sendsFromMobile`); photos and `mp4` kept among files can go from there too — by
-type and by extension, and for the generic `application/octet-stream` as well
-(`documentAccept`). On iOS and iPadOS WebKit it names the seven document formats only, since an image
-or video type there makes the system offer the photo library and the camera first. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
-against the type the Files app gives such a file, so the seven alone grey HWP and HWPX out of its
+The files input asks for every format the server takes — a ZIP archive included; photos and `mp4`
+kept among files can go from there too — by type and by extension, and for the generic
+`application/octet-stream` as well (`documentAccept`). On iOS and iPadOS WebKit it names the eight file
+formats only (the seven documents and ZIP), since an image or video type there makes the system offer
+the photo library and the camera first. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
+against the type the Files app gives such a file, so the eight alone grey HWP and HWPX out of its
 document picker; the generic type admits them, and with them any other file. That is safe because the
 page judges every pick itself (`chatAttachmentFormat`, which reads an untyped file's extension) and
 refuses what the server would not take. Leaving `accept` out would admit everything too, but iOS then
@@ -390,8 +390,8 @@ thumbnails above the field stays, faded. A `NOT_FOUND` from
 for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the twelve formats this app sends (a ZIP archive, which the server also takes, is `unsupported` here: the phone cannot save one it receives), each kind's
-own limit (20MB a photo, 300MB a video, 50MB a document), the same item picked twice, and ten a message
+entry's file input and the camera use its image-only form, `judgeChatImages`): the server's thirteen formats, a ZIP archive included, each kind's
+own limit (20MB a photo, 300MB a video, 50MB a document or archive), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
 refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
 video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
@@ -612,6 +612,14 @@ recoveries:
   says saving needs it and offers the settings.
 - **`UNSUPPORTED_TYPE` from `ShareFile`.** An app that shares photos but predates documents: a toast
   asks for an update.
+- **`INVALID` from `SaveFile` for a `.zip`.** An app built before the phone kept a ZIP archive saves
+  only the other formats' extensions. Older apps already met this with archives sent from desktop,
+  where it was said as a failed download; now a toast says an update saves it
+  (`chat.attach.fileCard.archiveNeedsUpdate`); nothing is logged, and unlike `NOT_FOUND` nothing is
+  learned for the page — the same app still saves every other card. The file was downloaded all the
+  same, so the card turns `done`, and pressing it opens the archive, or offers the share sheet when
+  nothing on the device opens it. An `INVALID` for any other name is the shell refusing a file it
+  handed out itself, a bug: it is logged and said as a failure.
 - Anything else says the file could not be downloaded. A cancel, a timeout and a closed sheet say
   nothing.
 

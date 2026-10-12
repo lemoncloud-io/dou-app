@@ -96,17 +96,23 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   the picker would make while the person waits. It needs no photo library permission. A
   `selectionLimit` below 1 is raised to 1, since 0 means "no limit" to PHPicker. An item that offers
   both an image and a video — a Live Photo — goes as its still. `document` is
-  `UIDocumentPickerViewController(forOpeningContentTypes:asCopy: true)` with the UTTypes of twelve of
-  the formats the server takes — PNG, JPEG, GIF, WebP, MP4 and the seven document formats, not ZIP —
-  so a photo or video kept in Files can be sent too; it cannot cap a selection, so a pick past the
-  limit is cut by the web's own count.
+  `UIDocumentPickerViewController(forOpeningContentTypes:asCopy: true)` with the UTTypes of the
+  thirteen formats the server takes — PNG, JPEG, GIF, WebP, MP4, the seven document formats and ZIP
+  (`AttachmentPickerCore.documentTypes`) — so a photo or video kept in Files can be sent too; it
+  cannot cap a selection, so a pick past the limit is cut by the web's own count. ZIP is `UTType.zip`
+  (`public.zip-archive`), whose MIME type is `application/zip`; its parent, `UTType.archive`, is not
+  used, since it would also offer 7z, RAR and tar, which the server refuses. An office file does not
+  conform to `UTType.zip`, so it keeps its own type; the few system types declared as a kind of ZIP (a
+  JAR, for one) are offered with it, and the web refuses them by their type.
 - **Android.** `media` is the Photo Picker (`PickMultipleVisualMedia`, images and videos), which needs
   no permission. A device without the system picker (API 30 without the SDK extension) falls back to
   `ACTION_OPEN_DOCUMENT` through androidx, and the result is read by the same code. `document` is
-  `ACTION_OPEN_DOCUMENT` with the MIME types of twelve of the formats the server takes (`image/png`,
-  `image/jpeg`, `image/gif`, `image/webp`, `video/mp4` and the seven document types, not ZIP) plus
-  `application/octet-stream`, which is how an HWP usually arrives, and the four labels Hancom's own
-  apps declare for HWP and HWPX. A media
+  `ACTION_OPEN_DOCUMENT` with the MIME types of the thirteen formats the server takes (`image/png`,
+  `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, the seven document types and
+  `application/zip`) plus `application/octet-stream`, which is how an HWP usually arrives, the four
+  labels Hancom's own apps declare for HWP and HWPX, and the two older names a ZIP still arrives under
+  from some storage providers (`application/x-zip-compressed`, `application/x-zip`). Device storage
+  types a `.zip` as `application/zip`. A media
   pick of one item uses `PickVisualMedia`; more uses `PickMultipleVisualMedia`, capped on API 33+ at
   what the system picker allows. Results past the limit are dropped.
 - **Everything picked is copied before the reply,** into `<cache>/attach-pick/<uuid>/<name>`, one
@@ -132,12 +138,13 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   rotation.
 - **A `document` pick is a `file`, whatever it is.** Neither shell looks inside it: a PNG from Files
   is copied as it is, not prepared, and answered as `{ kind: 'file', contentType: 'image/png', … }`
-  under the type the OS gave it. The documents picker offers twelve of the server's formats and, on
-  Android, the generic types an HWP the system does not know arrives under (`application/octet-stream`
-  and the Hancom labels) — no wildcard, and no photo or video type the server would refuse (HEIC,
-  QuickTime). ZIP, the thirteenth, is not offered: a `.zip` the system types as `application/zip` is
-  greyed out. On Android one it types generically can still be picked; the web refuses it as
-  `unsupported`, since the phone sends no archive. The web tells a photo among them by its format,
+  under the type the OS gave it. The documents picker offers the server's thirteen formats and, on
+  Android, the other names a file of them arrives under (`application/octet-stream`, the Hancom labels
+  and the two ZIP aliases) — no wildcard, and no photo, video or archive type the server would refuse
+  (HEIC, QuickTime, 7z). An item typed by an alias is normalised by the web (`chatAttachmentFormat`),
+  which also adds `.zip` to an archive's name that lacks it. A ZIP is held to the file limit, 50 MiB.
+  On iOS an app built before the phone sent archives greys a `.zip` out; on Android one typed
+  generically can still be picked there, and the web now takes it. The web tells a photo among them by its format,
   reads it with `ReadAttachment` and prepares it as it prepares any photo; an `.mp4` goes to `PrepareVideo` by its format (below). That
   works with builds that shipped before the picker offered photos: `ReadAttachment` reads any picked
   file named as one of the four photo formats on both platforms. So iOS names the copy of a photo
