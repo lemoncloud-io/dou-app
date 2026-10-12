@@ -98,14 +98,16 @@ those adds its handler.
 
 **The page gets the app's own boot script** (`getSyncInjectionScript` from
 `apps/mobile/src/app/webview/utils/injectionScripts.ts`), not a copy: device info, the
-`ChaticMessageHandler` relay, the config bag (onboarding is done) and the safe-area variables. It is
-loaded at run time from a computed path rather than imported, so `@chatic/mobile` does not become a
-dependency of this project — a static import would make typechecking it build the mobile app,
-whose typecheck is red and left out of CI. That gives up the compile-time check of its arguments, and
-what replaces it is partial: the script reports a failure in itself through the bridge (tag
-`INJECTION`) and the test fixture fails the test on that report, which catches an argument whose
-absence makes the script throw — not one that is silently `undefined` in the text it produces. A
-change to the parameters in `injectionScripts.ts` therefore wants a look at `appInjection.ts`.
+`ChaticMessageHandler` relay, the config bag and the safe-area variables. The bag has onboarding
+done and the debug overlay off: the suite's `LOCAL` stage would otherwise float that overlay's
+button over the composer's Send. The script is loaded at run time from a computed path rather than
+imported, so `@chatic/mobile` does not become a dependency of this project — a static import would
+make typechecking it build the mobile app, whose typecheck is red and left out of CI. That gives up
+the compile-time check of its arguments, and what replaces it is partial: the script reports a
+failure in itself through the bridge (tag `INJECTION`) and the test fixture fails the test on that
+report, which catches an argument whose absence makes the script throw — not one that is silently
+`undefined` in the text it produces. A change to the parameters in `injectionScripts.ts` therefore
+wants a look at `appInjection.ts`.
 
 Its timing is moved by one step. A Playwright init script runs before the document has a root
 element — earlier than react-native-webview's "before content loaded" injection — and the app's script
@@ -148,8 +150,8 @@ written there.
 
 | Spec                         | What it pins                                                                                                                                                                                                                                                                                                              |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `boot-splash.spec.ts`        | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted once, after the cover is gone and home is on screen; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                                                  |
-| `attachment-picker.spec.ts`  | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10) and the answer becomes a file message; a file the shell refused is reported and not sent; an app without the picker gets the page's file input, and is not asked again.                                                                      |
+| `boot-splash.spec.ts`        | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted only once the home route's frame is drawn, read in the page as it is posted; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                          |
+| `attachment-picker.spec.ts`  | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent; an app without the picker gets the page's file input, and is not asked again.              |
 | `back-navigation.spec.ts`    | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                      |
 | `push-navigation.spec.ts`    | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home (and a `fixme` for the second home entry it leaves). |
 | `cloud-invite-entry.spec.ts` | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                   |
