@@ -29,6 +29,17 @@ export interface FakeShellOptions {
 
 type Listener = (message: WebMessage) => void;
 
+/**
+ * The shell lane a scenario starts from: onboarding already done, and the debug overlay off. The suite
+ * builds with `VITE_ENV=LOCAL`, whose stage rule turns that overlay on, and its floating button sits
+ * over the composer's Send button — a shell-lane value outranks the stage rule, exactly as the app's
+ * own debug toggle does, so the page under test looks like the one a user has.
+ */
+const DEFAULT_CONFIG_BAG: Record<string, string> = {
+    'ui.onboardingCompleted': 'true',
+    'debug.overlayEnabled': 'false',
+};
+
 const IPHONE_INSETS = { top: 59, bottom: 34, left: 0, right: 0 };
 const ANDROID_INSETS = { top: 24, bottom: 0, left: 0, right: 0 };
 
@@ -247,7 +258,7 @@ export class FakeShell {
             insets: this.options.insets ?? (ios ? IPHONE_INSETS : ANDROID_INSETS),
             keyboardHeight: 0,
             theme: 'light',
-            configBag: { 'ui.onboardingCompleted': 'true', ...this.options.configBag },
+            configBag: { ...DEFAULT_CONFIG_BAG, ...this.options.configBag },
             deviceInfo: {
                 runId: 'e2e-run',
                 platform: this.options.platform,
