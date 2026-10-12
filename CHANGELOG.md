@@ -14,6 +14,16 @@
 
 ## [2026-10-12] - No version updates
 
+### Refactor
+
+- (desktop) build the main process's own pushes in an electron-free module
+
+### Other
+
+- test: (mobile,desktop,app-messages) check what each shell pushes against the vocabulary
+
+## [2026-10-12] - No version updates
+
 ### Features
 
 - (web,mobile) let the phone send and save a zip archive, not only desktop (ADR-0187)
