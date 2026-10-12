@@ -7,16 +7,19 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import { isPlaceholderName, useRelayAccount } from '../../../shared';
+import { isPhoneLoginEnabled, isSocialLoginEnabled } from '../../auth';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
 import { AccountSignInCard } from '../components/AccountSignInCard';
+import { linkedSignInOf } from '../utils/linkedSignIn';
 
 /**
  * The account hub: the relay identity card (with profile edit), how the
  * account signs in, and the entries that lead out of it — owned clouds,
  * notifications (the Settings page) and the terms and privacy policy. A guest
  * (no relay user, or one whose role is `guest`) gets a join prompt instead of
- * the card, and the clouds entry is hidden.
+ * the card (or, where a sign-in is on, the sign-in card with the join link in it), and the clouds entry
+ * is hidden.
  */
 export const AccountHubPage = () => {
     const { t } = useTranslation();
@@ -30,6 +33,11 @@ export const AccountHubPage = () => {
     );
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const [editingProfile, setEditingProfile] = useState(false);
+    // A guest who can sign in gets one card: the sign-in card carries the invite link too, so the two
+    // ways out of being a guest are not two cards competing with no order between them.
+    // With no relay user yet the sign-in card draws nothing, so the plain guest card stays for that.
+    const guestCanSignIn =
+        linkedSignInOf(account).kind === 'guest' && (isSocialLoginEnabled() || isPhoneLoginEnabled());
 
     return (
         <div className="flex h-full flex-col bg-background">
@@ -60,7 +68,7 @@ export const AccountHubPage = () => {
                                 {t('account.editProfile')}
                             </Button>
                         </div>
-                    ) : (
+                    ) : guestCanSignIn ? null : (
                         <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-8 text-center">
                             <p className="text-heading text-foreground">{t('account.guestTitle')}</p>
                             <p className="max-w-xs text-caption text-muted-foreground">{t('account.guestBody')}</p>
@@ -70,7 +78,7 @@ export const AccountHubPage = () => {
                         </div>
                     )}
 
-                    <AccountSignInCard account={account} />
+                    <AccountSignInCard account={account} onJoin={openJoinDialog} />
 
                     {!isGuest && (
                         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">

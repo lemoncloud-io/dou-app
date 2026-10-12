@@ -226,10 +226,10 @@ export const ProfilePage = () => {
                                 <span className="text-callout font-medium text-foreground">
                                     {t('profile.signInGoogle')}
                                 </span>
-                                <span className="text-caption text-muted-foreground">
+                                <span className="break-keep text-caption text-muted-foreground">
                                     {t('profile.signInGoogleHint')}
                                 </span>
-                                <span id={phoneNoteId} className="text-caption text-muted-foreground">
+                                <span id={phoneNoteId} className="break-keep text-caption text-muted-foreground">
                                     {t(phoneSignupNoteKey())}
                                 </span>
                             </div>

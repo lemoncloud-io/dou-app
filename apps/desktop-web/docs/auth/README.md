@@ -194,8 +194,9 @@ The same check guards the hand-off page when the relay's return lands inside the
 
 "Sign in with phone number" (the Welcome page, and the account hub for a Guest Session) opens
 `/auth/phone`. It is the way into an account someone made on mobile with a phone number. On both
-screens it sits above "Continue with Google" and carries more weight (a filled secondary button against
-Google's outline): a phone sign-up who reaches for Google first gets a second, empty account. The order
+screens it comes before "Continue with Google" and carries more weight (a filled secondary button against
+Google's outline; in dark the secondary fill is near-black, heavier than the lime primary, so it takes
+the lifted grey there): a phone sign-up who reaches for Google first gets a second, empty account. The order
 only steers; nobody is stopped from using Google. The page
 runs `usePhoneLogin` over the `auth.link-account` packet in `login` mode, the same packet the mobile
 app's phone sign-in uses:

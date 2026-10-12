@@ -525,7 +525,6 @@ export const ko: EnTranslation = {
     'account.signIn.phoneHint': '끝자리 {{last4}} 전화번호',
     'account.signIn.email': '이메일',
     'account.signIn.none': '이 계정에 연결된 로그인 수단이 없어요.',
-    'account.signIn.guestTitle': '계정으로 로그인',
     'account.signIn.link.google': 'Google 연동',
     'account.signIn.link.hint': 'Google을 연동하면 다른 컴퓨터에서도 Google로 로그인할 수 있어요.',
     'account.signIn.link.done': '이 계정에 Google을 연동했어요.',

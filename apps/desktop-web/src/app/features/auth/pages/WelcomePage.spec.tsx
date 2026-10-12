@@ -19,6 +19,7 @@ vi.mock('../hooks/useGuestLogin', () => ({ useGuestLogin: () => state.guest }));
 vi.mock('../hooks/useSocialLogin', () => ({ useSocialLogin: () => state.social }));
 vi.mock('../utils', () => ({
     OAUTH_LOGIN_START_TTL_MS: 10 * 60 * 1000,
+    PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => true,
     isPhoneLoginEnabled: () => state.phoneLogin,
     phoneSignupNoteKey: () => (state.phoneLogin ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote'),

@@ -172,7 +172,7 @@ export const PhoneLoginPage = () => {
                         aria-describedby="phone-code-hint"
                         className={cn(fieldClass, 'tracking-[0.3em]')}
                     />
-                    <p id="phone-code-hint" className="text-caption text-muted-foreground">
+                    <p id="phone-code-hint" className="break-keep text-caption text-muted-foreground">
                         {login.countdown && !login.countdown.isExpired
                             ? `${t('auth.phone.codeHint')} ${t('auth.phone.expiresIn', { time: mmss(login.countdown.secondsLeft) })}`
                             : t('auth.phone.codeHint')}

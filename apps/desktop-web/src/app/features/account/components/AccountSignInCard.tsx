@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 
 import { Smartphone } from 'lucide-react';
 
+import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
     GoogleIcon,
     isPhoneLoginEnabled,
     isSocialLoginEnabled,
+    PHONE_BUTTON_CLASS,
     phoneSignupNoteKey,
     useAttemptExpired,
     useOAuthAttemptStore,
@@ -82,33 +84,29 @@ const LinkFailureNotice = () => {
 };
 
 /**
- * The guest's ways in, each replacing the guest session on this device: the phone number an account was
- * made with on mobile (when the build allows it), placed first so a phone sign-up does not reach for
- * Google and get a second account, and Google (when the build allows it).
+ * The guest's card: what a guest is, and the ways out of it. Signing in comes first — the phone number
+ * an account was made with on mobile (placed first so a phone sign-up does not reach for Google and get
+ * a second account), then Google — each replacing the guest session on this device. Joining a
+ * workspace by invite comes last, as a link: it keeps the guest and only adds a workspace.
  */
-const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => {
+const GuestSignIn = ({ google, phone, onJoin }: { google: boolean; phone: boolean; onJoin?: () => void }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { start, isStarting } = useSocialLogin();
     const pending = useOAuthAttemptStore(s => s.attempt !== null);
     const noteId = useId();
     return (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-callout font-medium text-foreground">{t('account.signIn.guestTitle')}</span>
-                <span className="text-caption text-muted-foreground">{t('profile.signInGoogleHint')}</span>
-                {google && (
-                    <span id={noteId} className="text-caption text-muted-foreground">
-                        {t(phoneSignupNoteKey())}
-                    </span>
-                )}
+        <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            <div className="flex flex-col gap-0.5">
+                <span className="text-heading text-foreground">{t('account.guestTitle')}</span>
+                <span className="break-keep text-caption text-muted-foreground">{t('profile.signInGoogleHint')}</span>
             </div>
-            <div className="flex shrink-0 flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
                 {phone && (
                     <Button
                         variant="secondary"
                         size="sm"
-                        className="gap-2"
+                        className={cn('gap-2', PHONE_BUTTON_CLASS)}
                         onClick={() => navigate('/auth/phone', { state: { from: '/account' } })}
                     >
                         <Smartphone className="h-4 w-4" />
@@ -129,9 +127,20 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
                     </Button>
                 )}
             </div>
-            <div className="basis-full empty:hidden">
-                <OAuthWaiting intent="login" label={t('auth.social.waitingInline')} />
-            </div>
+            {google && (
+                <span id={noteId} className="-mt-2 break-keep text-caption text-muted-foreground">
+                    {t(phoneSignupNoteKey())}
+                </span>
+            )}
+            <OAuthWaiting intent="login" label={t('auth.social.waitingInline')} />
+            {onJoin && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                    <span className="break-keep text-caption text-muted-foreground">{t('account.guestBody')}</span>
+                    <Button variant="link" size="sm" className="h-auto px-0" onClick={onJoin}>
+                        {t('account.join')}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };
@@ -175,7 +184,7 @@ const LinkGoogle = () => {
  * links Google. When the relay user carries no `link$` slot the card is left out rather than claiming
  * there is no method.
  */
-export const AccountSignInCard = ({ account }: { account: RelaySignInUser | null }) => {
+export const AccountSignInCard = ({ account, onJoin }: { account: RelaySignInUser | null; onJoin?: () => void }) => {
     const { t } = useTranslation();
     const signIn = linkedSignInOf(account);
 
@@ -183,7 +192,7 @@ export const AccountSignInCard = ({ account }: { account: RelaySignInUser | null
     if (signIn.kind === 'guest') {
         const google = isSocialLoginEnabled();
         const phone = isPhoneLoginEnabled();
-        return google || phone ? <GuestSignIn google={google} phone={phone} /> : null;
+        return google || phone ? <GuestSignIn google={google} phone={phone} onJoin={onJoin} /> : null;
     }
 
     const methods = signIn.kind === 'linked' ? signIn.methods : [];

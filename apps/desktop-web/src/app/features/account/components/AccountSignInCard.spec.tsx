@@ -20,6 +20,7 @@ const confirmSocialAccount = vi.hoisted(() => vi.fn());
 
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
+    PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => socialEnabled.value,
     isPhoneLoginEnabled: () => phoneEnabled.value,
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',

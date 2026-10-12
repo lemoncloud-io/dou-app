@@ -11,7 +11,7 @@ import { useGuestLogin } from '../hooks/useGuestLogin';
 import { useAttemptExpired } from '../hooks/useAttemptExpired';
 import { useSocialLogin } from '../hooks/useSocialLogin';
 import { useOAuthAttemptStore, type OAuthAttempt } from '../stores/useOAuthAttemptStore';
-import { isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
+import { PHONE_BUTTON_CLASS, isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
 
 /**
  * The Google sign-in is out in the system browser. Said here, with the ways out, rather than leaving
@@ -62,7 +62,13 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
                     </Button>
                 )}
                 {isPhoneLoginEnabled() && (
-                    <Button variant="secondary" size="lg" onClick={usePhone} disabled={leaving}>
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        className={PHONE_BUTTON_CLASS}
+                        onClick={usePhone}
+                        disabled={leaving}
+                    >
                         <Smartphone className="h-4 w-4" />
                         {t('auth.phone.start')}
                     </Button>
@@ -110,7 +116,10 @@ export const WelcomePage = () => {
                 </Button>
                 {/* The button mints a guest account. Saying so here, not only in the
                     logout confirmation, is the difference between a choice and a surprise. */}
-                <p id="welcome-guest-note" className="-mt-0.5 text-center text-caption text-muted-foreground">
+                <p
+                    id="welcome-guest-note"
+                    className="-mt-0.5 break-keep text-center text-caption text-muted-foreground"
+                >
                     {t('welcome.guestNote')}
                 </p>
                 {/* Phone before Google, and weighted above it: someone who signed up on mobile with a
@@ -120,6 +129,7 @@ export const WelcomePage = () => {
                     <Button
                         variant="secondary"
                         size="lg"
+                        className={PHONE_BUTTON_CLASS}
                         onClick={() => navigate('/auth/phone', { state: { from: '/auth/welcome' } })}
                         disabled={isBusy}
                     >
@@ -141,7 +151,7 @@ export const WelcomePage = () => {
                         </Button>
                         {/* Said before the tap: someone who signed up on mobile with a phone number
                             and never linked Google there gets a new, empty account from this button. */}
-                        <p id={noteId} className="-mt-0.5 text-center text-caption text-muted-foreground">
+                        <p id={noteId} className="-mt-0.5 break-keep text-center text-caption text-muted-foreground">
                             {t(phoneSignupNoteKey())}
                         </p>
                     </>

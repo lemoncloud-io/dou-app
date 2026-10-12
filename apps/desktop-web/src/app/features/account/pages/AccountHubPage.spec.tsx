@@ -48,6 +48,7 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 const startSocialLogin = vi.hoisted(() => vi.fn());
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
+    PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => true,
     isPhoneLoginEnabled: () => true,
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
@@ -113,6 +114,18 @@ describe('AccountHubPage', () => {
         expect(screen.queryByRole('button', { name: 'Edit profile' })).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
         expect(startSocialLogin).toHaveBeenCalledWith('google');
+    });
+
+    it('gives a guest who can sign in one card, signing in first and the invite last', () => {
+        tokenUser.value = { name: 'Guest', userRole: 'guest' } as typeof tokenUser.value;
+        renderAt();
+
+        expect(screen.getAllByText('Guest account')).toHaveLength(1);
+        const buttons = screen.getAllByRole('button').map(button => button.textContent ?? '');
+        const google = buttons.findIndex(text => text.includes('Continue with Google'));
+        const join = buttons.findIndex(text => text.includes('Join with invite'));
+        expect(google).toBeGreaterThanOrEqual(0);
+        expect(join).toBeGreaterThan(google);
     });
 
     it('opens the cloud list from its entry', () => {

@@ -14,3 +14,10 @@ export const isPhoneLoginEnabled = (): boolean => config.get<boolean>('feature.a
  */
 export const phoneSignupNoteKey = (): 'auth.social.phoneSignupNote' | 'auth.social.phoneSignupNotePhone' =>
     isPhoneLoginEnabled() ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote';
+
+/**
+ * The phone sign-in button's fill. It is a secondary button, weighted between the lime primary and
+ * Google's outline; in dark the secondary fill is near-black, heavier than both, so it takes the
+ * lifted grey there instead.
+ */
+export const PHONE_BUTTON_CLASS = 'dark:bg-accent dark:hover:bg-accent/80';

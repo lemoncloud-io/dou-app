@@ -523,7 +523,6 @@ export const en = {
     'account.signIn.phoneHint': 'Phone number ending in {{last4}}',
     'account.signIn.email': 'Email',
     'account.signIn.none': 'No sign-in method is linked to this account.',
-    'account.signIn.guestTitle': 'Sign in to an account',
     'account.signIn.link.google': 'Link Google',
     'account.signIn.link.hint': 'Link Google to sign in with it on another computer, too.',
     'account.signIn.link.done': 'Google is now linked to this account.',
