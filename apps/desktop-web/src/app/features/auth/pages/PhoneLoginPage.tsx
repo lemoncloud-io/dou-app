@@ -17,7 +17,11 @@ const fieldClass = cn(
 
 const mmss = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
-/** Only a device session may log in by number; a signed-in account would be refused (400). */
+/**
+ * Only a device session may log in by number; a signed-in account would be refused (400). A session whose
+ * relay user has not loaded yet is let through, as the account hub reads it: the server's 400 on the send
+ * is the backstop.
+ */
 const isGuestSession = (): boolean => {
     if (!runtime.session.getIdentityContext().isAuthenticated) return true;
     const user = runtime.session.getRelaySessionUser() as { userRole?: string } | null;
@@ -85,7 +89,8 @@ export const PhoneLoginPage = () => {
                         {!login.country && <option value="">{t('auth.phone.country')}</option>}
                         {countries.map(c => (
                             <option key={c.code} value={c.code}>
-                                {`${c.name} ${c.dialCode}`}
+                                {/* Dial code first: the closed field is narrow, and the code is what the number is read with. */}
+                                {`${c.dialCode} ${c.name}`}
                             </option>
                         ))}
                     </select>

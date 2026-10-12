@@ -194,8 +194,9 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
                 mode: 'login',
                 countryCode: sentWith.country,
             });
-            if (!('$token' in result) || !result.$token) {
-                // A login confirm always carries a token; one without it is a contract break, not a sign-in.
+            // A login confirm always carries a session token. Without one, applying it would quietly change
+            // nothing and the reload would land back in the guest session, so it is a contract break.
+            if (!('$token' in result) || !result.$token?.Token?.identityToken) {
                 logger.error('AUTH', '[usePhoneLogin] login confirm came back without a token');
                 setCodeError('verifyFailed');
                 setBusy('idle');
@@ -219,8 +220,12 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     };
 
     const changeOtp = (value: string) => {
-        setOtp(value.replace(/\D/g, '').slice(0, PHONE_CODE_LENGTH));
+        const next = value.replace(/\D/g, '').slice(0, PHONE_CODE_LENGTH);
+        setOtp(next);
         setCodeError(null);
+        // Editing the code re-arms it: after a failed check, deleting a digit and typing it back has to
+        // submit again, or the only way out would be spending a resend.
+        if (next.length < PHONE_CODE_LENGTH) submittedRef.current = null;
     };
 
     // Submit once every digit is in. Keyed on the value, so pasting a corrected code over a full one

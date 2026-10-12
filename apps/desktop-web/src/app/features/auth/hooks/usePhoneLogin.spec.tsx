@@ -175,6 +175,37 @@ describe('usePhoneLogin', () => {
         expect(onSignedIn).not.toHaveBeenCalled();
     });
 
+    it('submits the same code again after it is edited, once a check failed', async () => {
+        rt.confirmPhoneCode.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
+        const { result } = setup();
+        await sendCode(result);
+        await typeCode(result);
+        expect(result.current.codeError).toBe('verifyFailed');
+
+        await typeCode(result, CODE.slice(0, PHONE_CODE_LENGTH - 1));
+        await typeCode(result);
+
+        expect(rt.confirmPhoneCode).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuses a login confirm whose token carries no session', async () => {
+        rt.confirmPhoneCode.mockResolvedValue({
+            step: 'confirm',
+            mode: 'login',
+            loggedIn: true,
+            isNew: false,
+            $token: {},
+        });
+        const { result, onSignedIn } = setup();
+        await sendCode(result);
+
+        await typeCode(result);
+
+        expect(rt.applySessionToken).not.toHaveBeenCalled();
+        expect(onSignedIn).not.toHaveBeenCalled();
+        expect(result.current.codeError).toBe('verifyFailed');
+    });
+
     it('retries a failed session switch with the token it got, without checking the code again', async () => {
         rt.applySessionToken.mockRejectedValueOnce(new Error('socket did not re-verify'));
         const { result, onSignedIn } = setup();
