@@ -68,6 +68,11 @@ card instead of the buttons:
   signed out.
 - A hand-off that fails, or a start that runs past its ten minutes, turns the card into a retry.
 
+The hand-off page in the system browser does not offer a way "back to the start" when it fails: that
+would open a second copy of the app in the browser tab. It says to go back to DoU and links
+`chatic://open` (the stage's scheme), which only raises the app window, where the card offers the
+retry. Inside the shell the page still goes back to Welcome.
+
 The account hub's guest Google button and Link Google wait the same way, inline on the card, and stay
 disabled while an attempt is out: a second start would overwrite the first one's nonce and the open
 tab would come back refused.

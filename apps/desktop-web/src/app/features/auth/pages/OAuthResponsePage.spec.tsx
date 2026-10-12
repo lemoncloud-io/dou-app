@@ -63,6 +63,12 @@ describe('OAuthResponsePage', () => {
         expect(await screen.findByTestId('account-hub')).toBeTruthy();
     });
 
+    it('offers the way back to Welcome inside the shell', () => {
+        render(page('code=abc&provider=google'));
+
+        expect(screen.getByRole('button', { name: i18n.t('auth.social.backToWelcome') })).toBeTruthy();
+    });
+
     it('shows the failure screen and exchanges nothing when it arrives without a nonce inside the shell', () => {
         render(page('code=abc&provider=google'));
 
@@ -102,6 +108,15 @@ describe('OAuthResponsePage', () => {
 
             expect(replace).not.toHaveBeenCalled();
             expect(liveRegion()?.textContent).toContain(i18n.t('auth.social.failedTitle'));
+        });
+
+        it('points a failure back to the app instead of opening a copy of it in the browser', () => {
+            render(page('code=abc&provider=google'));
+
+            expect(liveRegion()?.textContent).toContain(i18n.t('auth.social.failedInBrowser'));
+            expect(screen.queryByRole('button', { name: i18n.t('auth.social.backToWelcome') })).toBeNull();
+            const open = screen.getByRole('link', { name: i18n.t('auth.social.openApp') });
+            expect(open.getAttribute('href')).toBe('chatic-dev://open');
         });
     });
 });

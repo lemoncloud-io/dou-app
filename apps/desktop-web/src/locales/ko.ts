@@ -59,6 +59,7 @@ export const ko: EnTranslation = {
     'auth.social.closeTab': '그다음에는 이 탭을 닫아도 돼요.',
     'auth.social.failedTitle': '로그인 실패',
     'auth.social.failed': '로그인을 끝내지 못했어요. 다시 시도해 주세요.',
+    'auth.social.failedInBrowser': '로그인을 끝내지 못했어요. DoU로 돌아가 다시 시도해 주세요. 이 탭은 닫아도 돼요.',
     'auth.social.backToWelcome': '처음으로 돌아가기',
     'auth.social.notStarted': '여기서 시작한 로그인이 아니어서 이 링크는 무시했어요. DoU에서 다시 시작해 주세요.',
     'auth.social.expired': '로그인 시간이 지나 만료됐어요. DoU에서 다시 시작해 주세요.',

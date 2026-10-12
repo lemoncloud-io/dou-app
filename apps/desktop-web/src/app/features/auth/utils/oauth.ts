@@ -53,6 +53,12 @@ export const buildAuthorizeUrl = (provider: string, nonce: string): string => {
     return `${socialOauthEndpoint()}/oauth/${provider}/authorize?redirect=${encodeURIComponent(handoff.toString())}`;
 };
 
+/**
+ * A deeplink that only brings the app forward: the shell raises its window for any link of its scheme,
+ * and nothing in the app acts on this one. Used where the next step is in the app, not in the browser.
+ */
+export const buildAppDeeplink = (): string => `${protocolScheme()}://open`;
+
 /** Hand-off deeplink carrying the relay code and the start's nonce back into the shell. */
 export const buildOAuthDeeplink = (provider: string, code: string, nonce: string): string =>
     `${protocolScheme()}://oauth?${new URLSearchParams({ provider, code, nonce }).toString()}`;

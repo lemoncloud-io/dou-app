@@ -46,6 +46,7 @@ export const en = {
     'auth.social.closeTab': 'You can close this tab afterwards.',
     'auth.social.failedTitle': 'Sign-in failed',
     'auth.social.failed': "We couldn't complete the sign-in. Please try again.",
+    'auth.social.failedInBrowser': "The sign-in didn't finish. Go back to DoU and try again; you can close this tab.",
     'auth.social.backToWelcome': 'Back to start',
     'auth.social.notStarted':
         "That sign-in link didn't come from a sign-in started here, so it was ignored. Start again from DoU.",
