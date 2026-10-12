@@ -46,7 +46,7 @@ vi.mock('@chatic/config', () => ({
 import i18n from '../../../../i18n';
 import { setStorageAdapter } from '@chatic/shared';
 
-import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart } from '../utils';
+import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart, takeSignInNotice } from '../utils';
 import { useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
 import { useSocialLogin } from './useSocialLogin';
 
@@ -420,6 +420,40 @@ describe('useSocialLogin.start', () => {
             expect(useOAuthAttemptStore.getState().linkFailure).toBe('failed');
         });
     });
+    describe('what the app says after a Google sign-in', () => {
+        const signIn = async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            const nonce =
+                new URL(new URL(String(open.mock.calls[0][0])).searchParams.get('redirect') ?? '').searchParams.get(
+                    'nonce'
+                ) ?? undefined;
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce }));
+        };
+
+        it('leaves word of a new account when the server made it during the sign-in', async () => {
+            session.createCredentialsByProvider.mockResolvedValue({ createdAt: Date.now() + 1000 });
+
+            await signIn();
+
+            expect(takeSignInNotice()).toEqual({ provider: 'google', isNew: true });
+        });
+
+        it('leaves word of an existing account otherwise', async () => {
+            session.createCredentialsByProvider.mockResolvedValue({ createdAt: 1 });
+
+            await signIn();
+
+            expect(takeSignInNotice()).toEqual({ provider: 'google', isNew: false });
+        });
+
+        it('leaves nothing when the exchange fails', async () => {
+            await signIn();
+
+            expect(takeSignInNotice()).toBeNull();
+        });
+    });
+
     describe('the attempt waiting on the browser', () => {
         const store = () => useOAuthAttemptStore.getState();
         const nonceOf = (call: number) =>

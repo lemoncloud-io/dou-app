@@ -61,6 +61,14 @@ export const en = {
     'auth.social.cancel': 'Cancel',
     'auth.social.dismiss': 'Dismiss',
     'auth.social.cancelFailed': "We couldn't clear the guest session. You can log out from the account menu.",
+    'auth.social.signedIn': 'Signed in with Google.',
+    'auth.social.signedInAs': 'Signed in as {{name}}.',
+    'auth.social.newAccountBody':
+        'This Google had no DoU account, so a new one was made. If you signed up on mobile with a phone number, this is not that account: log out and sign in with your number.',
+    'auth.social.notMine': 'Not my account (log out)',
+    'auth.newAccount.skip': 'Set it later',
+    'auth.newAccount.saveFailed': "We couldn't save the name. You can set it later on the account screen.",
+    'auth.newAccount.continueWithout': 'Continue without a name',
     'profile.signInGoogle': 'Sign in with Google',
     'profile.signInGoogleHint': 'Use your account across devices. Replaces this guest session.',
     'auth.social.phoneSignupNote':

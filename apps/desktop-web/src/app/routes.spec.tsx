@@ -39,6 +39,7 @@ vi.mock('./features/chat', () => ({
     ShortcutsDialog: () => null,
 }));
 vi.mock('./features/auth/components/OAuthDeeplinkListener', () => ({ OAuthDeeplinkListener: () => null }));
+vi.mock('./features/auth/components/SignInNotice', () => ({ SignInNotice: () => <p>sign-in notice</p> }));
 vi.mock('./features/auth/pages/WelcomePage', () => ({ WelcomePage: () => <p>welcome page</p> }));
 
 const login = vi.fn();
@@ -116,6 +117,19 @@ describe('AppRouter signed-out invite attempt', () => {
 
         expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
         expect(window.location.pathname).toBe('/');
+    });
+
+    // The notice is taken from storage when it mounts: signed out, it must wait for the account.
+    it('says what a sign-in landed as only once signed in', async () => {
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        await screen.findByRole('textbox', {}, WAIT);
+        expect(screen.queryByText('sign-in notice')).toBeNull();
+
+        await act(async () => session.set(true));
+
+        expect(await screen.findByText('sign-in notice', {}, WAIT)).toBeTruthy();
     });
 });
 

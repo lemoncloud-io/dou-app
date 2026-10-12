@@ -7,7 +7,7 @@ import { runtime } from '@chatic/app-runtime';
 import { listPhoneCountries } from '@chatic/shared/phone';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { AuthCard } from '../components';
+import { AuthCard, NewAccountName } from '../components';
 import { PHONE_CODE_LENGTH, usePhoneLogin } from '../hooks/usePhoneLogin';
 
 const fieldClass = cn(
@@ -55,9 +55,7 @@ export const PhoneLoginPage = () => {
     if (createdAccount) {
         return (
             <AuthCard title={t('auth.phone.newAccountTitle')} subtitle={t('auth.phone.newAccountBody')} live>
-                <Button size="lg" autoFocus onClick={enterApp}>
-                    {t('auth.phone.continue')}
-                </Button>
+                <NewAccountName onDone={enterApp} />
             </AuthCard>
         );
     }

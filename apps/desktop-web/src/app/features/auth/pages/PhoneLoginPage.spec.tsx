@@ -31,6 +31,12 @@ vi.mock('../components', () => ({
             {children}
         </div>
     ),
+    // The naming step has its own spec; here it only has to hand back.
+    NewAccountName: ({ onDone }: { onDone: () => void }) => (
+        <button type="button" onClick={onDone}>
+            name step
+        </button>
+    ),
 }));
 
 import i18n from '../../../../i18n';
@@ -141,7 +147,7 @@ describe('PhoneLoginPage', () => {
 
         expect(replace).not.toHaveBeenCalled();
         expect(screen.getByText(i18n.t('auth.phone.newAccountTitle'))).toBeTruthy();
-        fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.phone.continue') }));
+        fireEvent.click(screen.getByRole('button', { name: 'name step' }));
         expect(replace).toHaveBeenCalledWith('/');
     });
 });

@@ -86,6 +86,7 @@ const DebugLoginPage = lazy(() => import('./features/auth').then(m => ({ default
 const PhoneLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.PhoneLoginPage })));
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
+const SignInNotice = lazy(() => import('./features/auth').then(m => ({ default: m.SignInNotice })));
 
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
@@ -110,6 +111,8 @@ export const AppRouter = () => {
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}
                 <OAuthDeeplinkListener />
+                {/* Who a Google sign-in landed as, said once the app is up as that account. */}
+                {isAuthenticated && <SignInNotice />}
                 <Routes>
                     {isAuthenticated ? (
                         <>

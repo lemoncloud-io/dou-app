@@ -14,7 +14,9 @@ import {
     createOAuthLoginStart,
     ensureDeviceSession,
     evaluateOAuthDeeplink,
+    isAccountMadeSince,
     saveOAuthLoginStart,
+    saveSignInNotice,
     takeOAuthLoginStart,
     type OAuthDeeplinkPayload,
     type OAuthStartIntent,
@@ -239,7 +241,7 @@ export const useSocialLogin = () => {
     );
 
     const complete = useCallback(
-        async (provider: string, code: string, notifyFailure: boolean): Promise<boolean> => {
+        async (provider: string, code: string, startedAt: number, notifyFailure: boolean): Promise<boolean> => {
             if (completingRef.current) return false;
             completingRef.current = true;
             setIsSubmitting(true);
@@ -250,7 +252,10 @@ export const useSocialLogin = () => {
             const wasAuthenticated = runtime.session.getIdentityContext().isAuthenticated;
             try {
                 await runtime.boot.startWebTransportInit();
-                await runtime.session.createCredentialsByProvider(provider, code);
+                const account = await runtime.session.createCredentialsByProvider(provider, code);
+                // Said by the signed-in shell once the app is up as this account: who signed in, and
+                // whether the Google had no DoU account yet and got a new one.
+                saveSignInNotice({ provider, isNew: isAccountMadeSince(account, startedAt) });
                 // Credential exchange only builds transport credentials — refresh the
                 // relay session (syncProfile) to hydrate identity + auth state. Social
                 // Login replaces any prior (guest/cloud) session on this device.
@@ -303,7 +308,9 @@ export const useSocialLogin = () => {
                 attempts.clear();
                 return 'link';
             }
-            const done = await complete(payload.provider, payload.code, notifyFailure);
+            // `start` is the verified record here: the verdict above refuses a link without one.
+            const startedAt = start?.startedAt ?? Date.now();
+            const done = await complete(payload.provider, payload.code, startedAt, notifyFailure);
             if (done) attempts.clear();
             else attempts.fail();
             return done && 'login';

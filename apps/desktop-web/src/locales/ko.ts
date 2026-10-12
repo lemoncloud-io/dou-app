@@ -72,6 +72,14 @@ export const ko: EnTranslation = {
     'auth.social.cancel': '취소',
     'auth.social.dismiss': '닫기',
     'auth.social.cancelFailed': '게스트 세션을 정리하지 못했어요. 계정 메뉴에서 로그아웃할 수 있어요.',
+    'auth.social.signedIn': 'Google로 로그인했어요.',
+    'auth.social.signedInAs': '{{name}} 계정으로 로그인했어요.',
+    'auth.social.newAccountBody':
+        '이 Google 계정으로 된 DoU 계정이 없어서 새로 만들었어요. 모바일에서 전화번호로 가입했다면 이 계정이 아니에요. 로그아웃하고 전화번호로 로그인하세요.',
+    'auth.social.notMine': '내 계정이 아니에요 (로그아웃)',
+    'auth.newAccount.skip': '나중에 정할게요',
+    'auth.newAccount.saveFailed': '이름을 저장하지 못했어요. 나중에 계정 화면에서 정할 수 있어요.',
+    'auth.newAccount.continueWithout': '이름 없이 계속',
     'profile.signInGoogle': 'Google로 로그인',
     'profile.signInGoogleHint': '여러 기기에서 같은 계정을 쓸 수 있어요. 지금의 게스트 세션은 대체돼요.',
     'auth.social.phoneSignupNote':
