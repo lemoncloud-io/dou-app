@@ -25,7 +25,7 @@ ask what the person may do in the current cloud read the session's profile inste
 ## The hub
 
 - **Signed in** (the token names a relay user that is not a guest): an identity card with the photo (the name's initial
-  when there is none), the name (or "unnamed"), and **Edit profile**. Below it, an entry for the
+  when there is none), the name (or "unnamed" — also when the name is the bare UUID an account gets before it sets one, which the edit dialog does not prefill), and **Edit profile**. Below it, an entry for the
   owned clouds, then Notifications and Policies.
 - **Guest** (no relay user, or a relay user whose `userRole` is `guest` — a guest does have one): the card is replaced by a prompt with a **Join** button that opens the
   join dialog. There is no clouds entry, since a guest owns none. Notifications and Policies are

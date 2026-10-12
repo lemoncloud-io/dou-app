@@ -82,6 +82,16 @@ describe('AccountHubPage', () => {
         expect(screen.getByText('Ada')).toBeTruthy();
     });
 
+    it('shows an account whose name is a bare UUID as unnamed, and does not prefill the edit with it', () => {
+        tokenUser.value = { name: 'a0a260da-f3d9-45e9-86cb-a4f225c2861c' };
+        renderAt();
+
+        expect(screen.getByText('Unnamed account')).toBeTruthy();
+        expect(screen.queryByText('a0a260da-f3d9-45e9-86cb-a4f225c2861c')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+        expect((screen.getByLabelText('Display name') as HTMLInputElement).value).toBe('');
+    });
+
     it('invites a guest to join instead of showing an empty card', () => {
         renderAt();
 

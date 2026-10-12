@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
@@ -6,7 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { useRelayAccount } from '../../../shared';
+import { isPlaceholderName, useRelayAccount } from '../../../shared';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
 import { AccountSignInCard } from '../components/AccountSignInCard';
@@ -23,6 +23,11 @@ export const AccountHubPage = () => {
     const navigate = useNavigate();
     const { account } = useRelayAccount();
     const isGuest = !account || account.userRole === 'guest';
+    // An account that never set a name carries a bare UUID; show it, and prefill the edit, as unnamed.
+    const profile = useMemo(
+        () => (account && isPlaceholderName(account.name) ? { ...account, name: '' } : account),
+        [account]
+    );
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const [editingProfile, setEditingProfile] = useState(false);
 
@@ -38,17 +43,17 @@ export const AccountHubPage = () => {
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
                 <section className="flex flex-col gap-4">
-                    {account && !isGuest ? (
+                    {profile && !isGuest ? (
                         <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
                             <Avatar className="h-14 w-14">
-                                <AvatarImage src={account.photo || undefined} alt="" />
+                                <AvatarImage src={profile.photo || undefined} alt="" />
                                 <AvatarFallback>
-                                    {(account.name ?? '?').trim().charAt(0).toUpperCase() || '?'}
+                                    {(profile.name ?? '?').trim().charAt(0).toUpperCase() || '?'}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                 <span className="truncate text-heading text-foreground">
-                                    {account.name || t('account.unnamed')}
+                                    {profile.name || t('account.unnamed')}
                                 </span>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => setEditingProfile(true)}>
@@ -107,8 +112,8 @@ export const AccountHubPage = () => {
                 </section>
             </div>
 
-            {account && !isGuest && (
-                <AccountProfileDialog open={editingProfile} onOpenChange={setEditingProfile} initial={account} />
+            {profile && !isGuest && (
+                <AccountProfileDialog open={editingProfile} onOpenChange={setEditingProfile} initial={profile} />
             )}
         </div>
     );
