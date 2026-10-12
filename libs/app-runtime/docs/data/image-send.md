@@ -283,17 +283,38 @@ does not sweep.
 The sweep waits for `beforeSweep` first: a shell that finishes transfers while the page is away
 catches up there, so a row it finished is settled rather than failed as a leftover.
 
+## Progress — `useImageSendProgress`
+
+`data.useImageSendProgress(pendingId)` says how far an unsent message's slots have gone: one ratio
+per slot, in pick order (the row's `upload$$` positions), `undefined` for a slot not counting yet.
+It is `undefined` as a whole for a row with nothing moving on this page.
+
+- **Page memory, never the row.** A 300MB video reports several times a second for minutes, and every
+  cache write re-reads and re-renders the feed. A reload ends the upload anyway, and the sweep then
+  fails the row, so nothing is lost by keeping the count out of the cache.
+- **Per row, in whole percents.** Each row has its own subscribers, so a tick re-renders only the
+  message it belongs to, and a tick that moves less than a percent re-renders nothing.
+- **Slots by their place in the pick.** The sequence numbers its own list, which skips a video the
+  shell refused to convert; the hook maps each slot back before it records it.
+- **Forgotten when the send settles**, sent or failed, and when a retry starts, which counts from
+  zero again. A slot of unknown size (a shell that reported none) stays `undefined`, a spinner rather
+  than a ring that never moves.
+- **What counts the bytes** is the shell's PUT: `xhr.upload` in the page, the transfer module's
+  `running` states inside the app (one per transfer at most every 200 ms).
+
 ## Not done here
 
 - **Rendering.** The pending slots are `{ localStatus, localThumbUrl }`, plus `localName`,
   `localContentType` and `localSize` for a video or document. The tile that draws them,
-  the retry and delete buttons and the picker belong to each app's composer.
-- **Progress, cancel, a hash.** None are shown or sent.
+  the retry and delete buttons and the picker belong to each app's composer. `apps/desktop-web`
+  does not read the progress yet; its tiles still spin.
+- **Cancel, a hash.** Neither is offered or sent.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 
 ## How to verify
 
 ```bash
-npx jest --config libs/app-runtime/jest.config.js libs/app-runtime/src/data/hooks/useSendImages
+npx jest --config libs/app-runtime/jest.config.js libs/app-runtime/src/data/hooks/useSendImages \
+  libs/app-runtime/src/data/hooks/imageSendProgress
 ```

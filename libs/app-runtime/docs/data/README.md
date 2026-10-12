@@ -27,7 +27,7 @@ data/                              22 source files, 15 tests
 ├── factories/                    socketFactory · localFactory · httpFactory
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
                                   useInvitedCloudNameSync · useRegisterDeviceTokenMutation · useSendImages ·
-                                  queryKeys
+                                  imageSendProgress (useImageSendProgress) · queryKeys
 ```
 
 `factories/localFactoryFallback.test.ts` has no source file of its own: it covers the web-fallback
@@ -277,7 +277,7 @@ belongs to [`libs/data`](../../../data/README.md).
 ## Further reading
 
 - [cache-storage-routing.md](./cache-storage-routing.md) — where a cache type lands, and the version negotiation behind it
-- [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry and leftovers
+- [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry, leftovers and upload progress
 - [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
 - [docs/http/](../http/README.md) — the gateways `httpFactory` builds over
 - [docs/sync/](../sync/README.md) — what writes into these repositories without a screen asking

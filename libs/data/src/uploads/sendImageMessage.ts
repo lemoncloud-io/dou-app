@@ -4,6 +4,7 @@ import type {
     ChatAttachmentSource,
     PreparedImageMirror,
     PresignedUploadTicket,
+    PutProgress,
     PutResult,
     SendImagePorts,
     UploadPutTarget,
@@ -42,6 +43,15 @@ export interface SendImageOptions {
     log?: (message: string, data?: Record<string, unknown>) => void;
     /** Injected for tests; defaults to a timer. */
     wait?: (ms: number) => Promise<void>;
+    /**
+     * Told where a slot's bytes stand, by its position in the pick: what has gone of its original and
+     * thumbnail together, out of both sizes. First called as the slot's PUTs begin, with what is
+     * already there (an original the server had stored); a retried PUT starts its count again; the
+     * last call says everything went. A slot that fails ends with a total of 0 — unknown, since its
+     * row says it failed only once the whole message has settled. A throw here is ignored.
+     * Nothing is said of a slot `start` rejected, or of one still waiting for a free PUT.
+     */
+    onProgress?: (slot: number, sentBytes: number, totalBytes: number) => void;
 }
 
 interface Slot<S extends ChatAttachmentSource = ChatAttachmentSource> {
@@ -188,14 +198,17 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
         const putWithRetry = async (
             slot: Slot<S>,
             payload: 'original' | 'thumbnail',
-            file: S
+            file: S,
+            onSent: PutProgress
         ): Promise<PutResult | null> => {
             const label = `slot-${slot.index}/${payload}`;
             let networkRetries = 0;
             for (;;) {
                 const target = payload === 'original' ? slot.transfer : slot.thumbnailTransfer;
                 if (!target) return null;
-                const result = await safePut(ports, target, file, label);
+                // Every attempt sends the file from its first byte, so its count starts over too.
+                onSent(0);
+                const result = await safePut(ports, target, file, label, onSent);
                 if (isSuccess(result)) return result;
                 if (result.kind === 'responded' && result.httpStatus === 403 && (await reissue(slot))) continue;
                 if (
@@ -216,8 +229,37 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
             async slot => {
                 const { prepared } = slot;
                 if (!prepared) return;
+                const sizeOf = (file: S) => Math.max(0, file.size);
+                const originalSize = sizeOf(prepared.original.file);
+                const thumbnailSize =
+                    prepared.thumbnail && slot.thumbnailTransfer ? sizeOf(prepared.thumbnail.file) : 0;
+                let originalSent = slot.originalDone ? originalSize : 0;
+                let thumbnailSent = 0;
+                const tell = (sent: number, total: number) => {
+                    try {
+                        options.onProgress?.(slot.index, sent, total);
+                    } catch {
+                        // An observer only: a screen that fails to draw a count must not fail the send.
+                    }
+                };
+                const report = () => tell(originalSent + thumbnailSent, originalSize + thumbnailSize);
+                // A sender's count is clamped to its file: a shell can count framing it sent with it. One that
+                // is not a number at all is dropped rather than drawn.
+                const counter =
+                    (size: number, set: (sent: number) => void): PutProgress =>
+                    sent => {
+                        if (!Number.isFinite(sent)) return;
+                        set(Math.min(Math.max(0, sent), size));
+                        report();
+                    };
+                report();
                 if (!slot.originalDone) {
-                    const result = await putWithRetry(slot, 'original', prepared.original.file);
+                    const result = await putWithRetry(
+                        slot,
+                        'original',
+                        prepared.original.file,
+                        counter(originalSize, sent => (originalSent = sent))
+                    );
                     if (!result || !isSuccess(result)) {
                         slot.failure = result
                             ? toFailure(result)
@@ -228,13 +270,31 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
                         });
                     }
                 }
-                if (!slot.failure && prepared.thumbnail && slot.thumbnailTransfer) {
-                    const result = await putWithRetry(slot, 'thumbnail', prepared.thumbnail.file);
+                if (slot.failure) {
+                    // Unknown again, not frozen at the count it reached: the message may run on for minutes
+                    // behind a large video, and a ring that stopped would look like one still moving.
+                    tell(0, 0);
+                    slot.prepared = null;
+                    return;
+                }
+                // Stored, whatever the sender counted on the way: one that counts nothing ends full too.
+                originalSent = originalSize;
+                if (prepared.thumbnail && slot.thumbnailTransfer) {
+                    report();
+                    const result = await putWithRetry(
+                        slot,
+                        'thumbnail',
+                        prepared.thumbnail.file,
+                        counter(thumbnailSize, sent => (thumbnailSent = sent))
+                    );
                     log('image message: thumbnail', {
                         slot: slot.index,
                         ...(result ? describeResult(result) : { noTransfer: true }),
                     });
                 }
+                // A thumbnail that failed does not fail its slot, so the slot is done either way.
+                thumbnailSent = thumbnailSize;
+                report();
                 // Done with this slot's bytes; let them go before the others finish.
                 slot.prepared = null;
             }
@@ -289,10 +349,11 @@ const safePut = async <S extends ChatAttachmentSource>(
     ports: SendImagePorts<S>,
     target: UploadPutTarget,
     file: S,
-    label: string
+    label: string,
+    onProgress: PutProgress
 ) => {
     try {
-        return await ports.put(target, file, label);
+        return await ports.put(target, file, label, onProgress);
     } catch {
         return { kind: 'no-response', reason: 'system' } as const;
     }

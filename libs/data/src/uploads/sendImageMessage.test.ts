@@ -476,3 +476,117 @@ describe('sendImageMessage', () => {
         expect(text).not.toContain(SECRET_HEADER);
     });
 });
+
+describe('sendImageMessage progress', () => {
+    type Report = [slot: number, sent: number, total: number];
+    const track = () => {
+        const reports: Report[] = [];
+        return { reports, options: { ...noWait, onProgress: (...report: Report) => reports.push(report) } };
+    };
+
+    it("counts a slot's original and thumbnail together, ending full", async () => {
+        const { ports, files } = createPorts(1);
+        ports.put.mockImplementation(async (_target, _file, label, onProgress) => {
+            if (label === 'slot-0/original') {
+                onProgress?.(40);
+                onProgress?.(100);
+            } else {
+                onProgress?.(5);
+            }
+            return OK;
+        });
+        const { reports, options } = track();
+
+        await sendImageMessage(files, ports, options);
+
+        // 100-byte original + 10-byte thumbnail; each attempt opens with 0.
+        expect(reports).toEqual([
+            [0, 0, 110],
+            [0, 0, 110],
+            [0, 40, 110],
+            [0, 100, 110],
+            [0, 100, 110],
+            [0, 100, 110],
+            [0, 105, 110],
+            [0, 110, 110],
+        ]);
+    });
+
+    it('ends full even when the sender counts nothing, and counts only the original when there is no thumbnail', async () => {
+        const { ports, files } = createPorts(1);
+        ports.prepare.mockImplementation(async (source: File) => prepared(source, { thumbnail: false }));
+        const { reports, options } = track();
+
+        await sendImageMessage(files, ports, options);
+
+        expect(reports.at(-1)).toEqual([0, 100, 100]);
+        expect(reports.every(([, , total]) => total === 100)).toBe(true);
+    });
+
+    it('starts the count over on a retried PUT and clamps a count past the file', async () => {
+        const { ports, files } = createPorts(1);
+        let attempts = 0;
+        ports.put.mockImplementation(async (_target, _file, label, onProgress) => {
+            if (label !== 'slot-0/original') return OK;
+            attempts += 1;
+            onProgress?.(attempts === 1 ? 60 : 500);
+            return attempts === 1 ? { kind: 'no-response', reason: 'network' } : OK;
+        });
+        const { reports, options } = track();
+
+        await sendImageMessage(files, ports, options);
+
+        const sent = reports.map(([, value]) => value);
+        expect(sent.slice(0, 5)).toEqual([0, 0, 60, 0, 100]);
+    });
+
+    it('reports a slot whose original the server already stored as sent from the start', async () => {
+        const { ports, files } = createPorts(1);
+        ports.start.mockResolvedValueOnce({
+            list: [{ upload: { id: 'up-0', status: 'stored' }, thumbnailTransfer: target(0, 't') }],
+        });
+        const { reports, options } = track();
+
+        await sendImageMessage(files, ports, options);
+
+        expect(reports[0]).toEqual([0, 100, 110]);
+        expect(reports.at(-1)).toEqual([0, 110, 110]);
+    });
+
+    it('gives a failed slot no last call, and says nothing of a slot start rejected', async () => {
+        const { ports, files } = createPorts(2);
+        ports.start.mockResolvedValueOnce({
+            list: [ticket(0), { upload: { status: 'failed', error: 'unsupported' } }],
+        });
+        ports.put.mockResolvedValue({ kind: 'responded', httpStatus: 500 });
+        const { reports, options } = track();
+
+        await sendImageMessage(files, ports, options);
+
+        expect(reports.every(([slot]) => slot === 0)).toBe(true);
+        // Unknown at the end, not frozen at the count it reached and never full.
+        expect(reports.at(-1)).toEqual([0, 0, 0]);
+        expect(reports.some(([, sent, total]) => total > 0 && sent === total)).toBe(false);
+    });
+
+    it('drops a count that is not a number, and still sends when the observer throws', async () => {
+        const { ports, files } = createPorts(1);
+        ports.put.mockImplementation(async (_target, _file, label, onProgress) => {
+            if (label === 'slot-0/original') onProgress?.(Number.NaN);
+            return OK;
+        });
+        const seen: number[] = [];
+        const options = {
+            ...noWait,
+            onProgress: (_slot: number, sent: number) => {
+                seen.push(sent);
+                throw new Error('observer');
+            },
+        };
+
+        const result = await sendImageMessage(files, ports, options);
+
+        expect(result.status).toBe('sent');
+        expect(seen.every(Number.isFinite)).toBe(true);
+    });
+});

@@ -13,6 +13,7 @@ class FakeRequest {
     onerror: (() => void) | null = null;
     ontimeout: (() => void) | null = null;
     onabort: (() => void) | null = null;
+    upload: { onprogress: ((event: { loaded: number }) => void) | null } = { onprogress: null };
     open(method: string, url: string) {
         this.method = method;
         this.url = url;
@@ -101,5 +102,30 @@ describe('xhrPut', () => {
         request[handler]?.();
 
         await expect(result).resolves.toEqual({ kind: 'no-response', reason });
+    });
+
+    it('counts the bytes sent when asked to', async () => {
+        const { request, put } = setup();
+        const sent: number[] = [];
+
+        const result = put(target, file, 'slot-0/original', bytes => sent.push(bytes));
+        request.upload.onprogress?.({ loaded: 4 });
+        request.upload.onprogress?.({ loaded: 12 });
+        request.status = 200;
+        request.onload?.();
+
+        await expect(result).resolves.toEqual({ kind: 'responded', httpStatus: 200 });
+        expect(sent).toEqual([4, 12]);
+    });
+
+    it('sets no upload listener when nobody asks for progress', async () => {
+        const { request, put } = setup();
+
+        const result = put(target, file, 'slot-0/original');
+        request.status = 200;
+        request.onload?.();
+
+        await result;
+        expect(request.upload.onprogress).toBeNull();
     });
 });

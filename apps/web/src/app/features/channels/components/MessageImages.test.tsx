@@ -17,6 +17,20 @@ const mockDownload = jest.fn();
 jest.mock('../lib/fileDownload', () => ({ downloadInBrowser: (...args: unknown[]) => mockDownload(...args) }));
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
+const mockSendProgress = new Map<string, (number | undefined)[]>();
+jest.mock('@chatic/app-runtime', () => {
+    const actual = jest.requireActual('@chatic/app-runtime');
+    return {
+        ...actual,
+        runtime: {
+            ...actual.runtime,
+            data: {
+                ...actual.runtime.data,
+                useImageSendProgress: (pendingId?: string) => (pendingId ? mockSendProgress.get(pendingId) : undefined),
+            },
+        },
+    };
+});
 const refresh = jest.fn().mockResolvedValue(true);
 jest.mock('../hooks/useImageAddressRefresh', () => ({ useImageAddressRefresh: () => refresh }));
 
@@ -77,6 +91,7 @@ beforeEach(() => {
     leads.length = 0;
     frameAnswers.clear();
     frameCalls.length = 0;
+    mockSendProgress.clear();
 });
 
 describe('MessageImages', () => {
@@ -115,6 +130,37 @@ describe('MessageImages', () => {
         fireEvent.error(container.querySelector('img') as HTMLImageElement);
 
         expect(refresh).not.toHaveBeenCalled();
+    });
+
+    // Tiles and cards are numbered apart; the progress is by `upload$$` position, which interleaves them.
+    it('draws each pending slot its own progress, by its place in the message', () => {
+        const uploads = [
+            { localStatus: 'sending', localThumbUrl: 'blob:1' },
+            {
+                localStatus: 'sending',
+                localThumbUrl: '',
+                localName: 'plan.pdf',
+                localContentType: 'application/pdf',
+                localSize: 2 * 1024 * 1024,
+            },
+            { localStatus: 'sending', localThumbUrl: 'blob:3' },
+        ] as Uploads;
+        mockSendProgress.set('tmp-1', [0.3, 0.5, undefined]);
+        const { container } = render(<MessageImages uploads={uploads} chatId="tmp-1" cid="c" align="end" />);
+
+        const bars = screen.getAllByRole('progressbar');
+        expect(bars.map(bar => bar.getAttribute('aria-valuenow'))).toEqual(['30', '50']);
+        expect(bars[0]).toHaveAccessibleName('chat.attach.sending');
+        expect(screen.getByText('1 MB / 2 MB')).toBeInTheDocument();
+        // The second photo has not started counting, and spins.
+        expect(container.querySelectorAll('.animate-spin')).toHaveLength(1);
+    });
+
+    it('shows no upload progress on a message that is not pending', () => {
+        mockSendProgress.set('ch1:5', [0.5]);
+        render(<MessageImages uploads={[sent('u1', 'https://s3/u1-thumb')]} chatId="ch1:5" cid="c" align="start" />);
+
+        expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
 
     it('opens the original and re-reads when the open original fails', () => {

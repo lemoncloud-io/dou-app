@@ -12,6 +12,8 @@ export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
 export { getCloudRepositories, runInCloud, sendChatInCloud, waitForCloudSocket } from './cloudChat';
 // Image messages: one send sequence for every shell, addressed to the room's cloud like the chat send.
 export { useSendImages } from './hooks/useSendImages';
+// How far an unsent attachment message's slots have gone — page memory, never the cache row.
+export { useImageSendProgress } from './hooks/imageSendProgress';
 export type {
     PreparedShellVideo,
     PrepareVideoPort,

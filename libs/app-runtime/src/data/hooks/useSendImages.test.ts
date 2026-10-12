@@ -6,6 +6,7 @@ import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
 import { beginMediaSendTiming } from '../mediaSendTrace';
+import { useImageSendProgress } from './imageSendProgress';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
 jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
@@ -182,7 +183,7 @@ describe('useSendImages', () => {
         // A page file goes to the shell's own PUT, untouched.
         put.mockResolvedValueOnce({ kind: 'responded', httpStatus: 200 });
         await ports.put({ url: 'u', headers: {} }, picked[0], 'slot-0/original');
-        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, picked[0], 'slot-0/original');
+        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, picked[0], 'slot-0/original', undefined);
         await ports.send({ uploadIds: ['up-1'] });
         expect(chat.sendPendingImageChat).toHaveBeenCalledWith(await pendingId, { uploadIds: ['up-1'] });
         unmount();
@@ -1670,9 +1671,9 @@ describe('useSendImages — shell files', () => {
         await ports.put({ url: 'u', headers: {} }, doc, 'slot-0/original');
         await ports.put({ url: 'u', headers: {} }, page, 'slot-1/original');
 
-        expect(putShellFile).toHaveBeenCalledWith({ url: 'u', headers: {} }, doc, 'slot-0/original');
+        expect(putShellFile).toHaveBeenCalledWith({ url: 'u', headers: {} }, doc, 'slot-0/original', undefined);
         expect(put).toHaveBeenCalledTimes(1);
-        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, page, 'slot-1/original');
+        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, page, 'slot-1/original', undefined);
         unmount();
     });
 
@@ -1923,6 +1924,116 @@ describe('useSendImages — shell files', () => {
 
         expect(makeVideoPoster).not.toHaveBeenCalled();
         expect(prepared).toEqual([expect.objectContaining({ thumbnail: null })]);
+        unmount();
+    });
+});
+
+describe('useSendImages — progress', () => {
+    type Report = (slot: number, sent: number, total: number) => void;
+    /** A sequence that reports what the test tells it to, then settles when the test says so. */
+    const heldSequence = () => {
+        let report: Report = () => undefined;
+        let settle: (result: SendImageResult) => void = () => undefined;
+        mockSendImageMessage.mockImplementation(
+            (_files: unknown, _ports: unknown, options: { onProgress: Report }) =>
+                new Promise<SendImageResult>(resolve => {
+                    report = options.onProgress;
+                    settle = resolve;
+                })
+        );
+        return { report: (...args: Parameters<Report>) => report(...args), settle: (r: SendImageResult) => settle(r) };
+    };
+
+    it("keeps each slot's ratio by its place in the pick while the row sends, and forgets it once sent", async () => {
+        const sequence = heldSequence();
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(files());
+        });
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalled());
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        const progress = renderHook(() => useImageSendProgress(pendingId));
+
+        act(() => sequence.report(1, 50, 200));
+        expect(progress.result.current).toEqual([undefined, 0.25]);
+
+        await act(async () => {
+            sequence.settle(sent);
+            await sending;
+        });
+        expect(progress.result.current).toBeUndefined();
+        progress.unmount();
+        unmount();
+    });
+
+    it('forgets the progress of a send that failed, and a retry counts from nothing', async () => {
+        const sequence = heldSequence();
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(files());
+        });
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalled());
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        const progress = renderHook(() => useImageSendProgress(pendingId));
+        act(() => sequence.report(0, 90, 100));
+        expect(progress.result.current).toEqual([0.9, undefined]);
+
+        await act(async () => {
+            sequence.settle(failed);
+            await sending;
+        });
+        expect(progress.result.current).toBeUndefined();
+
+        let retrying: Promise<boolean> = Promise.resolve(false);
+        act(() => {
+            retrying = result.current.retry(pendingId);
+        });
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(2));
+        expect(progress.result.current).toBeUndefined();
+        act(() => sequence.report(0, 10, 100));
+        expect(progress.result.current).toEqual([0.1, undefined]);
+        await act(async () => {
+            sequence.settle(sent);
+            await retrying;
+        });
+        progress.unmount();
+        unmount();
+    });
+
+    it('maps a slot to its place in the pick when a refused video was left out before the sequence', async () => {
+        const prepareVideo = jest.fn<Promise<PreparedShellVideo>, [ShellFileRef]>();
+        prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'TOO_LARGE' }));
+        const sequence = heldSequence();
+        const { result, unmount } = renderHook(() =>
+            useSendImages({ cid: 'c', channelId: 'ch-1', put, beforeSweep, putShellFile: jest.fn(), prepareVideo })
+        );
+        const video: ShellFileRef = {
+            uri: 'file:///cache/attach-pick/clip.mov',
+            name: 'clip.mov',
+            type: 'video/quicktime',
+            size: 1000,
+            kind: 'video',
+            needsExport: true,
+        };
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages([video, new File(['a'], 'a.jpg', { type: 'image/jpeg' })]);
+        });
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalled());
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        const progress = renderHook(() => useImageSendProgress(pendingId));
+
+        // The sequence's slot 0 is the photo, the pick's second file.
+        act(() => sequence.report(0, 1, 2));
+        expect(progress.result.current).toEqual([undefined, 0.5]);
+
+        await act(async () => {
+            sequence.settle(sent);
+            await sending;
+        });
+        progress.unmount();
         unmount();
     });
 });
