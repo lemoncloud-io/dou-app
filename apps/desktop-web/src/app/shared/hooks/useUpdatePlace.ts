@@ -9,6 +9,12 @@ export interface UpdatePlaceInput {
     name?: string;
     /** A base64 data URL for a new photo, or an empty string for a removed one, as the web app sends. */
     thumbnail?: string;
+    /**
+     * Left out when the description is not being changed; an empty string
+     * clears it, as the web app sends. The engine's `PlaceUpdateInput` carries
+     * it — this wrapper was merely narrower.
+     */
+    desc?: string;
 }
 
 /**

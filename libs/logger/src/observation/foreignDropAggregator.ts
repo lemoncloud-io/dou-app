@@ -9,6 +9,7 @@ export type ForeignDropSource =
     | 'channel-refresh'
     | 'channel-sync'
     | 'channel-self'
+    | 'channel-one'
     | 'channel-start-dm'
     | 'place-refresh';
 

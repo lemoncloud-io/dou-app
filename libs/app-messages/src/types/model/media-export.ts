@@ -15,8 +15,9 @@
 //   `{ canAskAgain: boolean }` — `false` means only the system settings can change it.
 // - `UNSUPPORTED_TYPE`: the file's bytes are not a format the message takes. `SaveToPhotoLibrary`
 //   takes PNG, JPEG, GIF, WebP and MP4; `ShareFile` takes those and the server's documents (PDF, the
-//   ZIP family — DOCX, XLSX, PPTX, HWPX —, OLE2 for HWP, and text). An app built before videos and
-//   documents answers a video or document this way, which is how the web learns it cannot.
+//   ZIP family — DOCX, XLSX, PPTX, HWPX and a plain ZIP archive —, OLE2 for HWP, and text). An app
+//   built before videos and documents answers a video or document this way, which is how the web
+//   learns it cannot. An empty ZIP has no local file header and is refused this way too.
 // - `SOURCE`: the file does not exist or cannot be read (the OS may have cleared the cache).
 // - `INVALID`: a missing field, or a URI outside the shell's download folder.
 // - `INTERNAL`: anything else — the photo library or media store refused, or there is no screen to
@@ -123,8 +124,10 @@ export type OnOpenFilePayload = Record<string, never>;
  *   The sheet remembers the last one. Dismissing it is `saved: false`, not a failure.
  *
  * The shell checks the name once more: path separators are removed, and an extension that is not one
- * of the server's formats is `INVALID`. The downloaded file stays in the shell's folder, so the web can
- * open it afterwards with `OpenFile`.
+ * of the server's formats, `.zip` included, is `INVALID`. An app built before the phone kept a ZIP
+ * archive does not count `.zip` among them and answers it that way; the web tells the person to update
+ * rather than reporting a failure. The downloaded file stays in the shell's folder, so the web can open it afterwards with
+ * `OpenFile`.
  */
 export type SaveFilePayload = {
     /** A `file://` URI from a download's terminal event (`OnFileTransferStatePayload.file.uri`). */

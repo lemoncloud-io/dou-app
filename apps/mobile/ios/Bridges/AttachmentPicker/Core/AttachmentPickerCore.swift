@@ -1,8 +1,10 @@
 import CoreGraphics
 import Foundation
+import UniformTypeIdentifiers
 
 /// The rules of the attachment picker that need neither UIKit nor AVFoundation: where picked copies
-/// live and when they go, which file a later call may name, what is refused at pick time, which
+/// live and when they go, which file a later call may name, which formats the documents picker offers
+/// and what is refused at pick time, which
 /// resource of a library video is kept and under what name, when a video is converted and at what
 /// size, the poster's shape, and which remote frame reads are accepted. Kept apart so the
 /// ChaticTransferCoreTests bundle can compile and test them without an app host.
@@ -210,6 +212,19 @@ enum AttachmentPickerCore {
         let ext = ((fileName ?? "") as NSString).pathExtension
         if photoMimeType(fileExtension: ext) != nil { return .image }
         return ext.lowercased() == "mp4" ? .video : .file
+    }
+
+    /// The thirteen formats the server takes — its four photo formats, MP4, its seven document formats
+    /// and a ZIP archive — so a photo or a video kept in Files can be sent from here too, and nothing the
+    /// server would refuse but the few system types declared as a kind of ZIP (a JAR, for one), which
+    /// the web refuses by their type. The pick still reports every item as a file; the web tells a photo
+    /// or a video by its format. A ZIP is `.zip` itself, not `.archive`, its parent, which would offer
+    /// 7z, RAR and tar too; an office file does not conform to `.zip`, so it keeps its own type. HWP and
+    /// HWPX have no system type, so they are named by their extension; that type matches any file with
+    /// it, and is the installed Hancom app's own type when there is one.
+    static var documentTypes: [UTType] {
+        [.png, .jpeg, .gif, .webP, .mpeg4Movie, .pdf, .plainText, .zip]
+            + ["docx", "xlsx", "pptx", "hwp", "hwpx"].compactMap { UTType(filenameExtension: $0, conformingTo: .data) }
     }
 
     /// What `pick` opens for: at least one item, so a picker is never opened without a limit.

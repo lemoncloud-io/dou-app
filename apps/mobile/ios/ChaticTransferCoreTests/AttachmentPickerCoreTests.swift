@@ -1,4 +1,5 @@
 import CoreGraphics
+import UniformTypeIdentifiers
 import XCTest
 
 /// The attachment-picker rules that need no UIKit or AVFoundation.
@@ -134,6 +135,28 @@ final class AttachmentPickerCoreTests: XCTestCase {
         XCTAssertTrue(named.hasSuffix(".png"))
         XCTAssertLessThanOrEqual(named.utf8.count, Core.maxNameBytes)
         XCTAssertEqual(named, String(repeating: "가", count: 83) + ".png", "cut on a character boundary")
+    }
+
+    // MARK: - Documents picker
+
+    func testDocumentTypes_offerAZipArchive_butNotEveryArchive() throws {
+        let types = Core.documentTypes
+        XCTAssertTrue(types.contains(.zip))
+        XCTAssertEqual(UTType.zip.preferredMIMEType, "application/zip", "the type the web is handed")
+        XCTAssertFalse(types.contains(.archive), "the parent type would offer 7z, RAR and tar too")
+        let sevenZip = try XCTUnwrap(UTType(filenameExtension: "7z"))
+        XCTAssertFalse(types.contains { sevenZip.conforms(to: $0) }, "a 7z stays greyed out")
+        XCTAssertEqual(types.count, 13, "four photo formats, MP4, seven documents and a ZIP")
+    }
+
+    func testLimitKindForDocument_aZipIsHeldToTheFileLimit() {
+        let max = Core.MaxBytes(image: 20 * Self.mib, video: 300 * Self.mib, file: 50 * Self.mib)
+        for type in ["application/zip", "application/x-zip-compressed", nil] as [String?] {
+            let kind = Core.limitKindForDocument(mimeType: type, fileName: "photos.zip")
+            XCTAssertEqual(kind, .file)
+            XCTAssertTrue(Core.isTooLarge(kind: kind, size: 60 * Self.mib, needsExport: false, max: max))
+            XCTAssertFalse(Core.isTooLarge(kind: kind, size: 12 * Self.mib, needsExport: false, max: max))
+        }
     }
 
     // MARK: - Pick-time refusal

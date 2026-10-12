@@ -26,7 +26,16 @@ const RADIX_LAYER_SELECTOR = [
 ].join(',');
 
 /** True while a dialog, alert dialog, menu, or popper-positioned layer is open. */
-const hasOpenOverlay = (): boolean => document.querySelector(RADIX_LAYER_SELECTOR) != null;
+const hasOpenOverlay = (): boolean => {
+    try {
+        return document.querySelector(RADIX_LAYER_SELECTOR) != null;
+    } catch {
+        // Non-browser selector engines (jsdom) reject `:has()` — and a typo in the
+        // selector must never break every panel's Escape. Either way there is
+        // nothing real to yield to, so report none.
+        return false;
+    }
+};
 
 /** Pass `undefined` to install nothing — a panel with no dismiss action. */
 export const useEscapeClose = (close?: () => void): void => {

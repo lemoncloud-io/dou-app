@@ -69,6 +69,7 @@ vi.mock('./Composer', () => ({
 import '../../../../i18n';
 
 import { ThreadPanel } from './ThreadPanel';
+import { useThreadStore } from '../stores';
 import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -109,6 +110,7 @@ describe('ThreadPanel', () => {
         loadOlder.mockReset().mockResolvedValue(true);
         hasMore = false;
         useComposerSend.mockClear();
+        composerOnSend = undefined;
     });
 
     describe('a root older than the loaded window', () => {
@@ -370,13 +372,15 @@ describe('ThreadPanel', () => {
 
     // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the
     // reply is in flight cannot send it through the next cloud's socket.
-    it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", () => {
+    it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", async () => {
         messages = [chat(1, { content: 'root' })];
         const files = [new File(['a'], 'a.png', { type: 'image/png' })];
 
         render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
             wrapper,
         });
+        // The composer arrives a tick after the thread (lazy chunk) — wait for it.
+        await waitFor(() => expect(composerOnSend).toBeDefined());
         composerOnSend?.('reply', files);
 
         expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: 'C1', parentId: 'C1:1' });
@@ -401,5 +405,44 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
         expect(screen.getByText('1 reply')).toBeTruthy();
+    });
+});
+
+describe('ThreadPanel keyboard dismissal', () => {
+    const openPanel = () => {
+        messages = [chat(1, { content: 'root' })];
+        useThreadStore.setState({ openRootId: 'C1:1', openChannelId: 'C1' });
+        return render(
+            <ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />,
+            { wrapper }
+        );
+    };
+
+    it('closes on Escape', () => {
+        openPanel();
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+
+        expect(useThreadStore.getState().openRootId).toBeNull();
+    });
+
+    it('returns focus to the opener on unmount', () => {
+        const opener = document.createElement('button');
+        document.body.appendChild(opener);
+        try {
+            opener.focus();
+            const { unmount } = openPanel();
+            // Assert the call, not the resulting activeElement: jsdom restores focus
+            // on subtree removal by itself, so a state assertion passes either way.
+            const focusSpy = vi.spyOn(opener, 'focus');
+            try {
+                unmount();
+                expect(focusSpy).toHaveBeenCalled();
+            } finally {
+                focusSpy.mockRestore();
+            }
+        } finally {
+            opener.remove();
+        }
     });
 });

@@ -8,6 +8,8 @@ interface SystemNoticeProps {
     chat: DomainChat;
     /** Resolved author of the event; empty when the roster has not named them yet. */
     authorName: string;
+    /** Feed-window measurement key (see MessageList); rendered as data-row-key on the row. */
+    rowKey?: string;
 }
 
 /**
@@ -21,13 +23,13 @@ interface SystemNoticeProps {
  * Renders nothing when there is no printable text, which is what keeps a subtype this
  * build has never seen from leaving a blank row in the middle of a conversation.
  */
-export const SystemNotice = ({ chat, authorName }: SystemNoticeProps) => {
+export const SystemNotice = ({ chat, authorName, rowKey }: SystemNoticeProps) => {
     const { t } = useTranslation();
     const text = systemMessageText(chat, authorName);
     if (!text) return null;
 
     return (
-        <div className="flex justify-center px-2 py-1">
+        <div data-row-key={rowKey} className="flex justify-center px-2 py-1">
             <span className="text-caption text-muted-foreground">
                 {text.kind === 'i18n' ? t(text.key, { name: text.name }) : text.text}
             </span>

@@ -89,6 +89,7 @@ export const OnboardingDialog = ({
     // The row's wait: restarted by a retry, cleared the moment the channel shows up.
     const [attempt, setAttempt] = useState(0);
     const [timedOut, setTimedOut] = useState(false);
+    const [retrying, setRetrying] = useState(false);
     const isWaiting = open && showChannelStatus && !isChannelReady;
     useEffect(() => {
         setTimedOut(false);
@@ -98,9 +99,15 @@ export const OnboardingDialog = ({
     }, [isWaiting, attempt]);
     // A full channel sync, not a wait alone: the channel reaches the list through that sync, and a
     // retry that asked nothing again could only time out again. Its cursor is left as it was.
+    // A sync failure is known at once — showing it immediately instead of spinning another 15s.
     const retry = () => {
+        if (retrying) return;
+        setRetrying(true);
         setAttempt(n => n + 1);
-        void channelRepository.syncChannels(0).catch(() => undefined);
+        void channelRepository
+            .syncChannels(0)
+            .catch(() => setTimedOut(true))
+            .finally(() => setRetrying(false));
     };
 
     if (!enabled && !open) return null;

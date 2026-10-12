@@ -39,12 +39,13 @@ object AttachPickRules {
     const val SWEEP_AGE_MS = 24L * 60 * 60 * 1000
 
     /**
-     * What the documents picker offers: twelve of the server's formats — its four photo formats, MP4
-     * and its seven document formats, so a photo or video kept in Downloads can be sent too; a ZIP
-     * archive, which the server also takes and the phone does not send, is left out — plus the
-     * generic types an HWP the system does not know arrives under: the labels Hancom's own tools give
-     * HWP and HWPX, and `application/octet-stream`, without which such a file is not offered at all. No
-     * wildcard, and no photo or video type the server would refuse (HEIC, QuickTime). A pick from here
+     * What the documents picker offers: the server's thirteen formats — its four photo formats, MP4,
+     * its seven document formats and a ZIP archive, so a photo or video kept in Downloads can be sent
+     * too — plus the other names a file of them arrives under: the labels Hancom's own tools give HWP
+     * and HWPX, the two older names a ZIP still carries on some storage providers, and
+     * `application/octet-stream`, without which a file the system does not know is not offered at all.
+     * The web maps every alias to the server's type. No wildcard, and no photo, video or archive type
+     * the server would refuse (HEIC, QuickTime, 7z). A pick from here
      * is still reported as a [Kind.FILE]; the web tells a photo or a video by its type. Its size limit
      * is the one its format implies, see [limitKindForDocument].
      */
@@ -65,6 +66,9 @@ object AttachPickRules {
         "application/vnd.hancom.hwpx",
         "application/haansofthwpx",
         "text/plain",
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/x-zip",
         "application/octet-stream",
     )
 

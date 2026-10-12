@@ -312,6 +312,31 @@ describe('useChats loadOlder', () => {
         expect(ok).toBe(false);
         expect(result.current.hasMore).toBe(true);
         expect(result.current.isLoadingOlder).toBe(false);
+        // The pane's retry row reads this, not the boolean: a failure nothing
+        // shows reads as a room that simply ends.
+        expect(result.current.loadOlderFailed).toBe(true);
+    });
+
+    it('clears the older-page failure when the next page lands', async () => {
+        refreshList.mockRejectedValueOnce(new Error('network')).mockResolvedValue({ fetchedCount: 50 });
+        const { result } = renderHook(() => useChats('C-fail-then-ok'));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        expect(result.current.loadOlderFailed).toBe(true);
+
+        // The widened window has not been read back yet, so force the read-back
+        // the cache would deliver before asking for the next page.
+        state.rows = [
+            { id: 'C-fail-then-ok:10', channelId: 'C-fail-then-ok', chatNo: 10 },
+            { id: 'C-fail-then-ok:60', channelId: 'C-fail-then-ok', chatNo: 60 },
+        ];
+        act(() => state.emit(state.rows));
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        expect(result.current.loadOlderFailed).toBe(false);
     });
 });
 

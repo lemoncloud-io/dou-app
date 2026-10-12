@@ -27,7 +27,7 @@ import {
 } from './editor';
 import type { Mentionable } from './MentionAutocomplete';
 
-interface MessageEditorProps {
+export interface MessageEditorProps {
     /** The message's wire string. Read once, when the editor opens — later changes do not reload it. */
     initialContent: string;
     /** Roster for @-autocomplete, and for turning the message's existing `@name` back into chips. */

@@ -124,7 +124,7 @@ describe('judgeChatAttachments', () => {
         expect(rejected.map(r => r.reason)).toEqual(['unsupported', 'unsupported']);
     });
 
-    // The phone sends no ZIP archive, though the server takes one and desktop sends it.
+    // For an app that sends fewer formats than the server takes; no app passes a filter today.
     it('refuses a format the app does not send, and takes it when nothing says so', () => {
         const picked = [file('a.zip', 'application/zip'), file('a.pdf', 'application/pdf')];
         const noArchive = judgeChatAttachments(picked, 10, format => format.type !== 'application/zip');

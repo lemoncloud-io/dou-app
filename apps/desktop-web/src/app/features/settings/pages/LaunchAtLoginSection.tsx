@@ -34,16 +34,22 @@ export const LaunchAtLoginSection = () => {
             .catch((error: unknown) => console.error('[loginItem] read failed', error));
     }, [api]);
 
+    // A failed write flips the switch back, which on its own reads as a flicker.
+    // The notice below names it; the next toggle clears it.
+    const [writeFailed, setWriteFailed] = useState(false);
+
     if (!api || !state?.supported) return null;
 
     const toggle = (enabled: boolean) => {
         const previous = state;
+        setWriteFailed(false);
         setState({ ...state, enabled }); // optimistic; the reply below is the OS's answer
         api.set(enabled)
             .then(setState)
             .catch((error: unknown) => {
                 console.error('[loginItem] write failed', error);
                 setState(previous);
+                setWriteFailed(true);
             });
     };
 
@@ -53,14 +59,29 @@ export const LaunchAtLoginSection = () => {
         <section className="mt-8 flex flex-col gap-4">
             <h2 className="text-overline uppercase text-muted-foreground">{t('settings.startup', 'Startup')}</h2>
 
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-callout font-medium text-foreground">{label}</span>
-                    <span className="text-caption text-muted-foreground">
-                        {t('settings.launchAtLoginHint', 'Start DoU automatically when you sign in to this computer.')}
-                    </span>
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-callout font-medium text-foreground">{label}</span>
+                        <span className="text-caption text-muted-foreground">
+                            {t(
+                                'settings.launchAtLoginHint',
+                                'Start DoU automatically when you sign in to this computer.'
+                            )}
+                        </span>
+                    </div>
+                    <Switch
+                        className="hit-target"
+                        checked={state.enabled}
+                        onCheckedChange={toggle}
+                        aria-label={label}
+                    />
                 </div>
-                <Switch className="hit-target" checked={state.enabled} onCheckedChange={toggle} aria-label={label} />
+                {writeFailed && (
+                    <p role="alert" className="text-caption text-destructive">
+                        {t('settings.launchAtLoginFailed', 'Could not change this setting.')}
+                    </p>
+                )}
             </div>
         </section>
     );
