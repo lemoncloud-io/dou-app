@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
  * viewport deltas a browser reports for its own chrome (a collapsing URL bar, an iOS accessory
  * bar on its own) are not, and reacting to those would flicker the layout.
  */
-const KEYBOARD_MIN_PX = 120;
+export const KEYBOARD_MIN_PX = 120;
 
 /**
  * Whether the software keyboard is up.

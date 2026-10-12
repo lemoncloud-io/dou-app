@@ -7,6 +7,7 @@ import type {
 import type {
     ChannelCreateInput,
     ChannelDeleteInput,
+    ChannelGetRequestData,
     ChannelMineInput,
     ChannelStartDmInput,
     ChannelUpdateInput,
@@ -30,6 +31,12 @@ export interface IChannelSocketDataSource {
     fetchChannel(payload: ChannelMineInput, context: DataContext): Promise<DomainListResult<DomainChannel>>;
     /** Requests an edit to the channel's information (name, settings, …). */
     updateChannel(payload: ChannelUpdateInput, context: DataContext): Promise<DomainChannel>;
+    /**
+     * Requests one channel's authoritative snapshot (`channel.get`) and returns it as a domain
+     * model. The response carries no site, so the caller stamps it via `context` — same contract
+     * as `getSelfChannel`.
+     */
+    getChannel(payload: ChannelGetRequestData, context: DataContext): Promise<DomainChannel>;
     /** Requests deletion (or closure) of the channel. */
     deleteChannel(payload: ChannelDeleteInput, context: DataContext): Promise<DomainChannel>;
     /** Starts a new room, or requests its initial state. */
@@ -75,6 +82,11 @@ export class ChannelSocketDataSource implements IChannelSocketDataSource {
             ids: remote?.ids,
             syncedAt: remote?.syncedAt ?? 0,
         };
+    }
+
+    public async getChannel(payload: ChannelGetRequestData, context: DataContext): Promise<DomainChannel> {
+        const remote = await this.gateway.get<ChannelView>(payload);
+        return toDomainChannel((remote || {}) as ChannelView, context);
     }
 
     public async updateChannel(payload: ChannelUpdateInput, context: DataContext): Promise<DomainChannel> {

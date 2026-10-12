@@ -500,7 +500,12 @@ export const ChannelList = ({
                 elsewhere={elsewhereChannels}
                 onSelectElsewhere={onSelectElsewhere}
             />
-            <SearchDialog channels={channels} onSelect={onSelect} onJumpToMessage={onJumpToMessage} />
+            <SearchDialog
+                channels={channels}
+                onSelect={onSelect}
+                onJumpToMessage={onJumpToMessage}
+                currentChannelId={selectedChannelId}
+            />
         </>
     );
 
@@ -524,8 +529,8 @@ export const ChannelList = ({
                 <span className="text-caption text-muted-foreground">
                     {t(isDefaultMode ? 'chat.noChannelsHintDefault' : 'chat.noChannelsHint')}
                 </span>
-                {/* The Channels section (and its "+") only renders with channels in it, so the
-                    empty state carries the create action itself. */}
+                {/* No rows at all means no sections either, so the empty state carries the create
+                    action itself. */}
                 {!isDefaultMode && onCreateChannel && (
                     <button
                         type="button"
@@ -582,7 +587,15 @@ export const ChannelList = ({
         .sort((a, b) => a.display.name.localeCompare(b.display.name));
 
     if (visibleRegular.length + visibleDms.length + memberRows.length === 0) {
-        return <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>;
+        // The dialogs mount on every other branch (see above): a filter matching nothing
+        // must not take ⌘K / message search down with it — that is exactly when the
+        // reader reaches for them.
+        return (
+            <>
+                {dialogs}
+                <div className="px-4 py-8 text-center text-callout text-muted-foreground">{t('sidebar.noMatches')}</div>
+            </>
+        );
     }
 
     // A filtered view is a subset — dragging it would write a partial order, so rows lock.
@@ -591,6 +604,9 @@ export const ChannelList = ({
     // filter that matches no 1:1 hides it, like every other section.
     const showDmSection =
         visibleDms.length > 0 || memberRows.length > 0 || ((!!onCreateDm || isDefaultMode) && !isFiltering);
+    // Same for channels: a place whose only room is the notes-to-self one has rows, so the empty
+    // state above never shows, and its first channel would have nowhere to start from either.
+    const showChannelSection = visibleRegular.length > 0 || (!isDefaultMode && !!onCreateChannel && !isFiltering);
     // Home has no "+": a 1:1 there starts from a phone number, which only the mobile app does. An
     // empty section says so rather than leaving a heading with nothing under it and no way in.
     const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
@@ -815,7 +831,7 @@ export const ChannelList = ({
                     <Divider />
                 </>
             )}
-            {visibleRegular.length > 0 && (
+            {showChannelSection && (
                 <>
                     <SortableSection
                         id="ch"

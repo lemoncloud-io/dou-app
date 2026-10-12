@@ -10,14 +10,17 @@ import { canModifyMessage, isInJoinWindow } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
-import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
+import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { useComposerDraft } from '../hooks/useComposerDraft';
 import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
 import { MessageText } from '../components/MessageText';
 import { MessageImages } from '../components/MessageImages';
 import { MessageActionSheet } from '../components/MessageActionSheet';
+import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { MessageDetailDialog } from '../components/MessageDetailDialog';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
@@ -46,6 +49,20 @@ import { toCloudId } from '../../../hooks/useCloudScope';
 
 const MAX_INPUT_LENGTH = 5000;
 
+/** px the reply list keeps clear above the composer, on top of the composer's own height. */
+const LIST_COMPOSER_GAP = 16;
+
+/**
+ * The list's bottom padding for a composer `height` px tall, written straight onto the list, with the
+ * newest reply kept in view — for the frames the composer moves without the page rendering them
+ * (`followFooter`).
+ */
+const clearComposer = (list: HTMLElement | null, height: number) => {
+    if (!list) return;
+    list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
+    list.scrollTo({ top: list.scrollHeight });
+};
+
 /**
  * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
  *
@@ -67,8 +84,12 @@ export const ThreadPage = () => {
      */
     const seededRoot = (useLocation().state as { rootChat?: DomainChat } | null)?.rootChat;
     const stableChannelId = channelId || 'default';
+    // This thread's own conversation for the composer's draft and its waiting files — not the room's.
+    const draftScope = `${stableChannelId}#${rootNo ?? ''}`;
 
-    const [content, setContent] = useState('');
+    // The composer's text is this thread's draft: kept when the thread is left, and swapped when the
+    // route moves to another thread without remounting.
+    const [content, setContent] = useComposerDraft(draftScope);
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
     // A truncated reply's "view full" target (null = closed) — the room's dialog, same rule.
     const [expandedMessage, setExpandedMessage] = useState<{ content: string } | null>(null);
@@ -76,10 +97,19 @@ export const ThreadPage = () => {
     // The chip whose reactors are being inspected (message id + long-pressed fold key).
     const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopying, setIsCopying] = useState(false);
+    // The room's profile rule: the last person opened, kept while the dialog slides away.
+    const [profileTarget, setProfileTarget] = useState<MessageSender | null>(null);
+    const [profileOpen, setProfileOpen] = useState(false);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
-    const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
+    const {
+        headerRef,
+        footerRef: composerRef,
+        headerHeight,
+        footerHeight: composerHeight,
+        followFooter: followComposer,
+    } = useChromeInsets();
 
     // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
@@ -154,7 +184,16 @@ export const ThreadPage = () => {
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
         disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
+        // The route keeps this page mounted from one thread to the next; what waits is this thread's.
+        scope: draftScope,
         inputRef,
+        composerRef,
+        // The room's rule: through the attach panel's slide the list follows the composer frame by
+        // frame without a render — clearing it, and keeping the newest reply in view as the effect
+        // below does once the composer has settled.
+        onComposerSlide: sliding => followComposer(sliding ? height => clearComposer(listRef.current, height) : null),
+        // Same as the room: a caption whose photos all failed the check comes back to an empty field.
+        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
     });
     // Reactions fold from the UNFILTERED window — the events are hidden rows in it.
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
@@ -222,6 +261,12 @@ export const ThreadPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Photos picked in the attach panel take the press, with the text as their caption — see the
+        // room's handleSend. The panel only opens once the root is loaded, so they reply to it.
+        if (attach.sendReady && attach.sendPicked(trimmed)) {
+            setContent('');
+            return;
+        }
         // No root, no reply — the send needs the root's full id (bare chatNo 404s).
         if (!trimmed || !stableChannelId || !thread.root?.id) return;
 
@@ -311,6 +356,13 @@ export const ThreadPage = () => {
         setPickerOpen(true);
     };
 
+    // As in the room: never my own profile, whose "profile settings" editor this screen does not mount.
+    const openMemberProfile = (sender: MessageSender) => {
+        if (!sender.id || sender.id === userId) return;
+        setProfileTarget(sender);
+        setProfileOpen(true);
+    };
+
     /**
      * The root, rendered as the thread's SUBJECT rather than as another message (Figma
      * 4722:22934): a 36px avatar and name on one line, then the body as plain 16px text with
@@ -332,14 +384,36 @@ export const ThreadPage = () => {
             : undefined;
         const isDeleted = !!message.hidden;
         const tallies = !isDeleted && message.id ? reactions.get(message.id) : undefined;
+        const rootAuthor = (
+            <>
+                {avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={36} /> : <DefaultAvatar size={36} />}
+                <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-[18px] tracking-[-0.075px] text-foreground">
+                    {message.ownerName}
+                </span>
+            </>
+        );
         return (
             <div data-testid="thread-root" className="flex flex-col px-3">
-                <div className="flex items-center gap-2.5 px-1 py-1.5">
-                    {avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={36} /> : <DefaultAvatar size={36} />}
-                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-[18px] tracking-[-0.075px] text-foreground">
-                        {message.ownerName}
-                    </span>
-                </div>
+                {/* The subject's author opens their profile like a row's sender does; my own root
+                    stays inert, as my rows do. */}
+                {!message.isOwner && message.ownerId ? (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            openMemberProfile({
+                                id: message.ownerId as string,
+                                name: message.ownerName,
+                                avatar: avatarSrc,
+                            })
+                        }
+                        aria-label={t('chat.room.openProfile', { name: message.ownerName })}
+                        className="flex items-center gap-2.5 px-1 py-1.5 text-left"
+                    >
+                        {rootAuthor}
+                    </button>
+                ) : (
+                    <div className="flex items-center gap-2.5 px-1 py-1.5">{rootAuthor}</div>
+                )}
                 <div className="flex flex-col gap-3 px-1 py-1.5">
                     {isDeleted ? (
                         <p className="text-base italic leading-normal tracking-[-0.08px] text-muted-foreground">
@@ -396,6 +470,7 @@ export const ThreadPage = () => {
             onAddReaction={message.chatNo ? () => handleAddReaction(message) : undefined}
             onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
             edit={editing.editStateFor(message)}
+            onOpenProfile={openMemberProfile}
         />
     );
 
@@ -417,7 +492,7 @@ export const ThreadPage = () => {
             <div
                 ref={listRef}
                 className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
-                style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + 16 }}
+                style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + LIST_COMPOSER_GAP }}
             >
                 {isLoading && !root ? (
                     <div data-testid="thread-loading" className="flex min-h-full items-center justify-center">
@@ -471,15 +546,28 @@ export const ThreadPage = () => {
 
             <div
                 ref={composerRef}
+                // The keyboard takes the attach panel's place: focusing the field closes the panel.
+                onFocus={event => {
+                    // React types a bubbled focus target as the element listening, which it need not be.
+                    if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
+                }}
+                // The room's rule: no transition — the keyboard moves it at once, the attach panel's slide
+                // frame by frame.
                 className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
-                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(var(--keyboard-height, 0px) + 8px))`,
+                    // The room's rule: above the keyboard or the attach panel in its place — the larger,
+                    // while they trade places — else the home indicator. The list clears the composer
+                    // by its measured height.
+                    paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
+                {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
+                {attach.strip}
                 <MessageInput
                     value={content}
                     onChange={setContent}
                     onSend={handleSend}
+                    sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}
@@ -493,6 +581,17 @@ export const ThreadPage = () => {
             {attach.overlays}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
+
+            {/* The room's profile, on the room's terms: view and report, no kick. */}
+            {profileTarget && (
+                <MemberProfileDialog
+                    open={profileOpen}
+                    onOpenChange={setProfileOpen}
+                    member={profileTarget}
+                    memberIsOwner={profileTarget.id === channel?.ownerId}
+                    canKick={false}
+                />
+            )}
 
             <MessageActionSheet
                 open={!!actionMessage && !pickerOpen}

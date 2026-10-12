@@ -137,4 +137,96 @@ describe('ChatRoomHeader', () => {
 
         expect(container.querySelector('[class*="size-[42px]"]')).toBeNull();
     });
+
+    // A 1:1 room's avatar and name stand for the peer, so the host can make them open the profile.
+    describe('onIdentityClick', () => {
+        it('turns the avatar + title zone into one labelled button', () => {
+            const onIdentityClick = jest.fn();
+            render(
+                <ChatRoomHeader
+                    kind="direct"
+                    title="친구 이름"
+                    avatar={<span>PEER</span>}
+                    onIdentityClick={onIdentityClick}
+                    identityLabel="Open profile"
+                />
+            );
+
+            const button = screen.getByRole('button', { name: 'Open profile' });
+            expect(button).toContainElement(screen.getByText('PEER'));
+            expect(button).toContainElement(screen.getByText('친구 이름'));
+
+            fireEvent.click(button);
+            expect(onIdentityClick).toHaveBeenCalledTimes(1);
+        });
+
+        // A button may hold phrasing content only; a <div> or <p> inside it is invalid HTML.
+        it('holds no block elements of its own inside the button', () => {
+            render(
+                <ChatRoomHeader
+                    kind="direct"
+                    title="Peer"
+                    avatar={<span>PEER</span>}
+                    meta={<span>META</span>}
+                    onIdentityClick={jest.fn()}
+                    identityLabel="Open profile"
+                />
+            );
+
+            expect(screen.getByRole('button', { name: 'Open profile' }).querySelector('div, p')).toBeNull();
+        });
+
+        // Nothing is resolved yet, so there is nothing to open.
+        it('stays inert while loading', () => {
+            render(
+                <ChatRoomHeader loading title="친구 이름" onIdentityClick={jest.fn()} identityLabel="Open profile" />
+            );
+
+            expect(screen.queryByRole('button', { name: 'Open profile' })).not.toBeInTheDocument();
+        });
+
+        it('wins over onMetaClick, since a button cannot hold another one', () => {
+            const onMetaClick = jest.fn();
+            render(
+                <ChatRoomHeader
+                    title="친구 이름"
+                    meta={<span>MEMBERS</span>}
+                    onIdentityClick={jest.fn()}
+                    identityLabel="Open profile"
+                    onMetaClick={onMetaClick}
+                    metaLabel="Open members"
+                />
+            );
+
+            expect(screen.queryByRole('button', { name: 'Open members' })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Open profile' })).toContainElement(screen.getByText('MEMBERS'));
+        });
+    });
+
+    describe('onMetaClick', () => {
+        it('makes only the meta row a button, leaving the title inert', () => {
+            const onMetaClick = jest.fn();
+            render(
+                <ChatRoomHeader
+                    title="개발 모임방"
+                    meta={<span>MEMBERS</span>}
+                    onMetaClick={onMetaClick}
+                    metaLabel="Open members"
+                />
+            );
+
+            const button = screen.getByRole('button', { name: 'Open members' });
+            expect(button).toContainElement(screen.getByText('MEMBERS'));
+            expect(button).not.toContainElement(screen.getByText('개발 모임방'));
+
+            fireEvent.click(button);
+            expect(onMetaClick).toHaveBeenCalledTimes(1);
+        });
+
+        it('draws no button when there is no meta to press', () => {
+            render(<ChatRoomHeader title="개발 모임방" onMetaClick={jest.fn()} metaLabel="Open members" />);
+
+            expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        });
+    });
 });

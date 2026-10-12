@@ -454,8 +454,10 @@ describe('MessageList', () => {
         const editorBody = () =>
             screen.getByRole('textbox', { name: 'Edit message' }) as HTMLElement & { __lexicalEditor?: LexicalEditor };
         // The editor loads its document in a microtask; typing before that would land in an empty box.
+        // It also arrives as a lazy chunk, so wait for the textbox rather than a single flush.
         const openEditor = async () => {
             clickRowMenuItem('Edit message');
+            await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Edit message' })).not.toBeNull());
             await act(async () => {
                 await Promise.resolve();
             });
@@ -682,6 +684,53 @@ describe('MessageList', () => {
             expect(screen.getByRole('button', { name: 'Delete message' })).toBeDefined();
         });
     });
+
+    describe('a hung send', () => {
+        it('flips to Not delivered exactly once, without polling meanwhile', () => {
+            vi.useFakeTimers();
+            try {
+                const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+                try {
+                    vi.setSystemTime(1_700_000_100_000);
+                    const hung = {
+                        id: 'C1:9',
+                        channelId: 'C1',
+                        chatNo: 9,
+                        ownerId: 'me',
+                        content: 'hello?',
+                        isPending: true,
+                        createdAt: 1_700_000_100_000 - 59_000,
+                    } as DomainChat;
+                    render(
+                        <MessageList
+                            messages={[hung]}
+                            isLoading={false}
+                            viewer={VIEWER}
+                            names={new Map()}
+                            onRetry={vi.fn()}
+                            onDiscard={vi.fn()}
+                            canRetry={() => true}
+                        />,
+                        { wrapper }
+                    );
+
+                    // Still sending: the deadline is a second out.
+                    expect(screen.queryByText('Not delivered')).toBeNull();
+                    // One shot, not a poll — nothing ticks while it waits.
+                    expect(setIntervalSpy).not.toHaveBeenCalled();
+
+                    act(() => {
+                        vi.advanceTimersByTime(2_000);
+                    });
+                    expect(screen.getByText('Not delivered')).toBeDefined();
+                } finally {
+                    setIntervalSpy.mockRestore();
+                }
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
 });
 
 describe('MessageList jumps', () => {
@@ -804,6 +853,51 @@ describe('MessageList failed send', () => {
     });
 });
 
+describe('MessageList older page failed', () => {
+    afterEach(cleanup);
+
+    // A failed older page is retried by the next scroll, but nothing showed it — the
+    // history read as simply ended. The row says so and retries on demand.
+    it('says older messages did not load and retries through onLoadOlder', () => {
+        const onLoadOlder = vi.fn();
+        render(
+            <MessageList
+                messages={[message(60, 'ada', 'newest')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                onLoadOlder={onLoadOlder}
+                hasMore
+                loadOlderFailed
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByRole('status').textContent).toContain("Couldn't load older messages.");
+        // Mounting with no layout fires the auto-fill load once; the retry is the next call.
+        onLoadOlder.mockClear();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows no retry row while the retry is in flight', () => {
+        render(
+            <MessageList
+                messages={[message(60, 'ada', 'newest')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                onLoadOlder={vi.fn()}
+                hasMore
+                isLoadingOlder
+                loadOlderFailed
+            />,
+            { wrapper }
+        );
+
+        expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
+});
 describe('MessageList first page failed', () => {
     afterEach(cleanup);
 

@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 
 import { useChromeInsets } from './useChromeInsets';
 
@@ -89,5 +89,104 @@ describe('useChromeInsets', () => {
         rerender(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);
 
         expect(reads).toBe(0);
+    });
+});
+
+describe('useChromeInsets — following the footer without a render', () => {
+    // An observer the test fires, as a browser does after layout. The hook makes a new one on every
+    // commit and disconnects the last, so only the live ones are kept.
+    const live = new Set<{ callback: ResizeObserverCallback; targets: Element[] }>();
+    const fire = (target: Element, blockSize: number) => {
+        for (const observer of [...live]) {
+            if (!observer.targets.includes(target)) continue;
+            const entry = { target, borderBoxSize: [{ blockSize, inlineSize: 0 }] } as unknown as ResizeObserverEntry;
+            observer.callback([entry], {} as ResizeObserver);
+        }
+    };
+    let stub: unknown;
+    beforeAll(() => {
+        stub = (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver;
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+            private readonly record: { callback: ResizeObserverCallback; targets: Element[] };
+            constructor(callback: ResizeObserverCallback) {
+                this.record = { callback, targets: [] };
+                live.add(this.record);
+            }
+            observe(target: Element) {
+                this.record.targets.push(target);
+            }
+            unobserve() {
+                // Not used by the hook.
+            }
+            disconnect() {
+                live.delete(this.record);
+            }
+        };
+    });
+    afterAll(() => {
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = stub;
+    });
+
+    /** A page with a footer, reporting each render's footer height and handing out `followFooter`. */
+    const setup = () => {
+        const renders: number[] = [];
+        let follow: ReturnType<typeof useChromeInsets>['followFooter'] = () => undefined;
+        const Page = () => {
+            const insets = useChromeInsets();
+            follow = insets.followFooter;
+            renders.push(insets.footerHeight);
+            return (
+                <div
+                    ref={el => withHeight((insets.footerRef.current = el as HTMLDivElement), 80)}
+                    data-testid="footer"
+                />
+            );
+        };
+        const view = render(<Page />);
+        const footer = view.getByTestId('footer');
+        return { footer, renders, followFooter: (to: ((height: number) => void) | null) => act(() => follow(to)) };
+    };
+
+    it('hands the footer’s resizes to the follower in place of a render, until let go', () => {
+        const { footer, renders, followFooter } = setup();
+        const follower = jest.fn();
+        followFooter(follower);
+        const before = renders.length;
+
+        act(() => fire(footer, 120));
+        act(() => fire(footer, 140));
+
+        expect(follower.mock.calls).toEqual([[120], [140]]);
+        expect(renders).toHaveLength(before);
+    });
+
+    it('measures the footer once as it lets go, hands that to the follower and renders it', () => {
+        const { footer, renders, followFooter } = setup();
+        const follower = jest.fn();
+        followFooter(follower);
+        act(() => fire(footer, 140));
+        footer.getBoundingClientRect = () => ({ height: 150 }) as DOMRect;
+
+        followFooter(null);
+
+        // The last frame moved it on after the observer had last spoken: the follower and the page
+        // both land on where it ended, not on the last size reported.
+        expect(follower.mock.calls).toEqual([[140], [150]]);
+        expect(renders.at(-1)).toBe(150);
+        act(() => fire(footer, 160));
+        expect(renders.at(-1)).toBe(160);
+        expect(follower).toHaveBeenCalledTimes(2);
+    });
+
+    it('renders as before while nothing follows, and lets go of nothing without measuring', () => {
+        const { footer, renders, followFooter } = setup();
+        const measure = jest.fn(() => ({ height: 150 }) as DOMRect);
+        footer.getBoundingClientRect = measure;
+
+        followFooter(null);
+        act(() => fire(footer, 120));
+
+        expect(measure).not.toHaveBeenCalled();
+        expect(renders.at(-1)).toBe(120);
     });
 });

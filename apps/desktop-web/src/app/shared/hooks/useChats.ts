@@ -82,6 +82,10 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     const [pageLimit, setPageLimit] = useState(initial?.pageLimit ?? PAGE_SIZE);
     const [hasMore, setHasMore] = useState(initial?.hasMore ?? true);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+    // The last older-page fetch failed. The next scroll retries it (hasMore stays
+    // set), but a failure the feed cannot see reads as a room that simply ends —
+    // the pane surfaces this with a retry row instead.
+    const [loadOlderFailed, setLoadOlderFailed] = useState(false);
 
     // Tracks the channel the hook is bound to, so an in-flight loadOlder() that
     // resolves after a channel switch can bail instead of paging the wrong channel.
@@ -113,6 +117,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         setPageLimit(restored?.pageLimit ?? PAGE_SIZE);
         setHasMore(restored?.hasMore ?? true);
         setIsLoadingOlder(false);
+        setLoadOlderFailed(false);
     }
 
     useEffect(() => {
@@ -236,6 +241,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         const reqChannel = channelId;
         const reqScope = scopeKey;
         askingRef.current = reqScope;
+        setLoadOlderFailed(false);
         setIsLoadingOlder(true);
         try {
             const result = await chatRepository.refreshList({
@@ -249,7 +255,9 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
             else setPageLimit(prev => prev + LOAD_MORE_SIZE);
             return true;
         } catch {
-            // Leave hasMore set so a later scroll retries.
+            // Leave hasMore set so a later scroll retries. A failure that comes back
+            // after the pane moved on is not this room's to show.
+            if (reqChannel === channelIdRef.current) setLoadOlderFailed(true);
             return false;
         } finally {
             if (askingRef.current === reqScope) askingRef.current = null;
@@ -263,6 +271,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         loadFailed,
         retryLoad,
         loadOlder,
+        loadOlderFailed,
         hasMore,
         isLoadingOlder,
     };

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { IconChevronRight } from '@chatic/web-ui-kit';
+import { IconChevronRight, IconEdit } from '@chatic/web-ui-kit';
 import { ListRow } from '@chatic/web-ui-kit';
 import { ProfileAvatar } from '@chatic/web-ui-kit';
 import { StatusBadge } from '@chatic/web-ui-kit';
@@ -56,4 +56,15 @@ export const ToggleRow: Story = {
 
 export const Destructive: Story = {
     args: { title: '방 삭제', destructive: true, onClick: () => undefined },
+};
+
+/** A chat row whose composer holds an unsent draft: a pencil leads the line, the draft follows. */
+export const WithSubtitleIcon: Story = {
+    args: {
+        leading: <ProfileAvatar src={AVATAR} size={36} />,
+        title: '<채팅방 이름>',
+        subtitleIcon: <IconEdit size={14} role="img" aria-label="초안" aria-hidden={false} />,
+        subtitle: '내일 회의 자료는 오늘 저녁까지 올릴게요',
+        onClick: () => undefined,
+    },
 };

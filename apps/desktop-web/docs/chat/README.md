@@ -10,6 +10,8 @@ stores in `src/app/shared/`.
   and opened, and how the other person is named and pictured.
 - [composer-links.md](./composer-links.md) — a URL typed into the composer shows as a link, and
   why the composer and the message view cannot disagree about what a link is.
+- [feed-windowing.md](./feed-windowing.md): which feed rows are mounted, how the reading position
+  holds while rows are measured, and how a jump reaches a row outside the window.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
 - [room-names.md](./room-names.md): one name per room on every surface, and the profile cache behind it.

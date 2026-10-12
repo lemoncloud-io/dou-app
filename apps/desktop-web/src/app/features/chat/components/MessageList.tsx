@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, MessageSquare } from 'lucide-react';
@@ -29,6 +29,15 @@ import {
 import { DateSeparator } from './DateSeparator';
 import type { Mentionable } from './MentionAutocomplete';
 import { SystemNotice } from './SystemNotice';
+import {
+    FEED_DEFAULT_ESTIMATE_PX,
+    FEED_GAP_PX,
+    JUMP_WINDOW_RETRY_MS,
+    MAX_JUMP_WINDOW_RETRIES,
+    feedRowKeyOf,
+    indexOfChatNo,
+    windowForViewport,
+} from './feedWindow';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
 import type { MentionResolver } from './RichText';
 
@@ -93,6 +102,12 @@ interface MessageListProps {
     loadFailed?: boolean;
     /** Try the first page again, offered beside `loadFailed`. */
     onRetryLoad?: () => void;
+    /**
+     * The last older-history page failed. The next scroll retries it, but a
+     * failure nothing shows reads as a room that simply ends — the pane shows a
+     * retry row at the top instead. Retry reuses `onLoadOlder`.
+     */
+    loadOlderFailed?: boolean;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -141,6 +156,7 @@ export const MessageList = ({
     intro,
     loadFailed,
     onRetryLoad,
+    loadOlderFailed,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -194,8 +210,12 @@ export const MessageList = ({
     // Saved-item / search jump: chatNo currently flashing, plus the per-request
     // paging budget and the flash timer.
     const [highlightChatNo, setHighlightChatNo] = useState<number | null>(null);
-    const jumpRef = useRef<{ nonce: number; pages: number; done: boolean } | null>(null);
+    const jumpRef = useRef<{ nonce: number; pages: number; done: boolean; windowRetries: number } | null>(null);
     const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const jumpWindowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Bumped by the window-retry timer so the jump effect re-runs once the
+    // estimated scroll has mounted its target. Read only through the dep array.
+    const [jumpTick, setJumpTick] = useState(0);
 
     const placeProfiles = useSiteProfileMap();
     const rows = useMemo(
@@ -217,16 +237,82 @@ export const MessageList = ({
         }
     }
 
-    const dayChunks = useMemo(() => {
-        const chunks: { key: string; rows: typeof rows }[] = [];
-        for (const row of rows) {
-            if (row.kind === 'date' || chunks.length === 0) {
-                chunks.push({ key: `day:${row.kind === 'group' ? row.group.key : row.key}`, rows: [] });
+    // --- Feed windowing: mount the viewport window, hold the rest as spacers. ---
+    // A 500-message channel used to mount 500 RichText/BlockKit subtrees, and every
+    // tail tick reconciled all of them. Rows outside the window unmount; spacers
+    // keep the scrollbar honest. Sticky date pills are flat siblings now, so they
+    // hand over by standard sticky stacking (see DateSeparator).
+    const rowKeys = useMemo(() => rows.map(feedRowKeyOf), [rows]);
+    // Measured heights by row key; the running average estimates the rest. Read
+    // through a bump counter: refs don't trigger memos, the tick does.
+    const measuredRef = useRef(new Map<string, number>());
+    const [measuredTick, setMeasuredTick] = useState(0);
+    const heights = useMemo(() => {
+        void measuredTick;
+        const measured = measuredRef.current;
+        let sum = 0;
+        measured.forEach(h => (sum += h));
+        const avg = measured.size > 0 ? Math.max(24, sum / measured.size) : FEED_DEFAULT_ESTIMATE_PX;
+        return rowKeys.map(key => measured.get(key) ?? avg);
+    }, [rowKeys, measuredTick]);
+    // Prefix offsets with one inter-row gap folded per row; spacer math reads off these.
+    const offsets = useMemo(() => {
+        const out = new Array<number>(heights.length + 1);
+        out[0] = 0;
+        for (let i = 0; i < heights.length; i++) out[i + 1] = out[i] + heights[i] + FEED_GAP_PX;
+        return out;
+    }, [heights]);
+    // Live viewport. `known` flips on the first real layout; tests (no layout) stay
+    // on the anchor window.
+    const [viewport, setViewport] = useState({ top: 0, height: 0, known: false });
+    const syncViewport = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el || el.clientHeight <= 0) return;
+        const top = el.scrollTop;
+        const height = el.clientHeight;
+        setViewport(prev =>
+            prev.known && prev.top === top && prev.height === height ? prev : { top, height, known: true }
+        );
+    }, []);
+    const win = useMemo(() => {
+        // No layout yet (first paint, tests, hidden tab): mount whole, exactly like
+        // before windowing — landing refs and every existing test see every row.
+        // The mount effect below engages the window on the first measured frame.
+        if (!viewport.known) return { start: 0, end: rows.length };
+        return windowForViewport({
+            count: rows.length,
+            heightOf: i => heights[i] ?? FEED_DEFAULT_ESTIMATE_PX,
+            scrollTop: viewport.top,
+            viewportHeight: viewport.height,
+        });
+    }, [rows, heights, viewport]);
+    // Off by one flex gap per spacer at most — absorbed by the overscan either way.
+    const topSpacer = win.start > 0 ? Math.max(0, offsets[win.start]) : 0;
+    const bottomSpacer = win.end < rows.length ? Math.max(0, offsets[rows.length] - offsets[win.end]) : 0;
+
+    // Mounted rows report their heights. No manual scrollTop correction here: Chromium's
+    // scroll anchoring already pins the reader's position when a row or the top spacer
+    // above the viewport changes size, and adding the delta on top would move it twice.
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(entries => {
+            let dirty = false;
+            for (const entry of entries) {
+                const key = (entry.target as HTMLElement).dataset.rowKey;
+                if (!key) continue;
+                const size = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+                const h = Math.max(8, Math.round(size));
+                const prev = measuredRef.current.get(key);
+                if (prev !== undefined && Math.abs(prev - h) < 1) continue;
+                measuredRef.current.set(key, h);
+                dirty = true;
             }
-            chunks[chunks.length - 1].rows.push(row);
-        }
-        return chunks;
-    }, [rows]);
+            if (dirty) setMeasuredTick(t => t + 1);
+        });
+        el.querySelectorAll('[data-row-key]').forEach(node => ro.observe(node));
+        return () => ro.disconnect();
+    }, [win, rows]);
 
     // Name a reactor the same way an author is named: the place nickname over the account name,
     // my own id resolving to me and others through the roster. Memoised because MessageRow is
@@ -422,6 +508,7 @@ export const MessageList = ({
             // never raises a sticky divider.
             if (isWindowActive()) setSeenUpTo(prev => Math.max(prev, maxChatNo));
         }
+        syncViewport();
     }, [messages, atBottom, maxChatNo, viewer]);
 
     // After sending, snap to the latest even if the reader had scrolled up. A
@@ -454,7 +541,7 @@ export const MessageList = ({
         if (!el) return;
         // New request → reset the paging budget + done latch.
         if (jumpRef.current?.nonce !== jumpTarget.nonce) {
-            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: false };
+            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: false, windowRetries: 0 };
         }
         // Already handled (landed or abandoned) — don't re-scroll on live-tail ticks
         // that re-run this effect before the store clears the target.
@@ -463,7 +550,7 @@ export const MessageList = ({
         // latest, or to an anchor that is gone, both end at the bottom, where the feed
         // opens; paging back for it and reporting "not found" would strand the reader.
         const restoreToBottom = () => {
-            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: true };
+            jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: true, windowRetries: 0 };
             setAtBottom(true);
             wasNearBottomRef.current = true;
             pinToBottom();
@@ -475,6 +562,8 @@ export const MessageList = ({
         }
         const node = el.querySelector<HTMLElement>(`[data-chat-no="${jumpTarget.chatNo}"]`);
         if (node) {
+            jumpRef.current.windowRetries = 0;
+            if (jumpWindowTimer.current) clearTimeout(jumpWindowTimer.current);
             node.scrollIntoView({ block: jumpTarget.restore ? 'start' : 'center' });
             if (!jumpTarget.restore) {
                 setHighlightChatNo(jumpTarget.chatNo);
@@ -490,6 +579,20 @@ export const MessageList = ({
             jumpRef.current.done = true;
             onJumpConsumed?.();
             return;
+        }
+        // Loaded but outside the mounted window → estimate-scroll it into the window
+        // and retry (bounded): the next frames mount it and the branch above lands.
+        // Without layout (tests) everything is mounted, so this never fires there.
+        if (jumpTarget.chatNo != null) {
+            const targetIndex = indexOfChatNo(rows, jumpTarget.chatNo);
+            if (targetIndex >= 0 && jumpRef.current.windowRetries < MAX_JUMP_WINDOW_RETRIES) {
+                jumpRef.current.windowRetries += 1;
+                el.scrollTop = Math.max(0, (offsets[targetIndex] ?? 0) - el.clientHeight / 2);
+                syncViewport();
+                if (jumpWindowTimer.current) clearTimeout(jumpWindowTimer.current);
+                jumpWindowTimer.current = setTimeout(() => setJumpTick(t => t + 1), JUMP_WINDOW_RETRY_MS);
+                return;
+            }
         }
         // Not loaded yet → page older until found or the budget/history runs out.
         if (hasMore && !isLoadingOlder && jumpRef.current.pages < MAX_JUMP_PAGES) {
@@ -509,7 +612,19 @@ export const MessageList = ({
             toast({ variant: 'info', description: t('chat.jump.notFound') });
             onJumpConsumed?.();
         }
-    }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed, t]);
+    }, [
+        jumpTarget,
+        jumpTick,
+        messages,
+        rows,
+        offsets,
+        hasMore,
+        isLoadingOlder,
+        onLoadOlder,
+        onJumpConsumed,
+        t,
+        syncViewport,
+    ]);
 
     // Auto-fill the viewport: when the loaded page can't be scrolled (scrollHeight
     // fits the viewport) there's no scroll-up to trigger loadOlder, so older history
@@ -523,10 +638,16 @@ export const MessageList = ({
         if (el.scrollHeight <= el.clientHeight + LOAD_OLDER_PX) onLoadOlder();
     }, [rows, hasMore, isLoadingOlder, onLoadOlder]);
 
+    // Read the live viewport once mounted (the anchor window covers first paint).
+    useEffect(() => {
+        syncViewport();
+    }, [syncViewport]);
+
     // Clear pending flash / divider-dismiss timers on unmount.
     useEffect(
         () => () => {
             clearTimeout(highlightTimer.current ?? undefined);
+            clearTimeout(jumpWindowTimer.current ?? undefined);
             clearTimeout(dividerClearTimer.current ?? undefined);
             cancelAnimationFrame(pinRafRef.current);
         },
@@ -547,6 +668,7 @@ export const MessageList = ({
     const handleScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
+        syncViewport();
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
         setAtBottom(nearBottom);
         if (onReadingPosition) onReadingPosition(nearBottom ? null : firstVisibleChatNo(el));
@@ -645,90 +767,109 @@ export const MessageList = ({
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
                     </div>
                 )}
-                {!hasMore && !isLoadingOlder && intro}
-                {/* One block per day, so the day's pill can stick to the top while you read
-                    through it and hand over to the next day's pill at the boundary (a sticky
-                    element is held inside its parent). */}
-                {dayChunks.map(chunk => (
-                    <div key={chunk.key} className="flex flex-col gap-2">
-                        {chunk.rows.map(row => {
-                            if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
-                            if (row.kind === 'system') {
-                                return <SystemNotice key={row.key} chat={row.chat} authorName={row.authorName} />;
-                            }
-                            if (row.kind === 'unread') {
-                                return (
-                                    <div
-                                        key={row.key}
-                                        ref={unreadRef}
-                                        className={cn(
-                                            'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
-                                            dividerFading && 'opacity-0'
-                                        )}
-                                    >
-                                        <span className="h-px flex-1 bg-badge-unread/40" />
-                                        <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
-                                            {t('chat.newMessages')}
-                                        </span>
-                                        <span className="h-px flex-1 bg-badge-unread/40" />
-                                    </div>
-                                );
-                            }
-                            if (row.kind === 'replies') {
-                                // Slack-style thread divider: the reply count anchored left,
-                                // a hairline filling the rest of the row.
-                                return (
-                                    <div key={row.key} className="my-2 flex flex-col gap-2">
-                                        <div className="flex items-center gap-3 px-1">
-                                            <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
-                                                {t(
-                                                    repliesPartial
-                                                        ? 'chat.thread.replyCountLoaded'
-                                                        : 'chat.thread.replyCount',
-                                                    {
-                                                        count: row.count,
-                                                    }
-                                                )}
-                                            </span>
-                                            <span className="h-px flex-1 bg-hairline" />
-                                        </div>
-                                        {olderReplies}
-                                    </div>
-                                );
-                            }
-                            const last = row.group.messages[row.group.messages.length - 1];
-                            const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
-                            // Only the block holding the target gets it: handed to every row, a
-                            // jump re-rendered the whole feed twice (on the flash and on its clear).
-                            const highlight =
-                                highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
-                                    ? highlightChatNo
-                                    : undefined;
-                            return (
-                                <MessageRow
-                                    key={row.group.key}
-                                    group={row.group}
-                                    onRetry={onRetry}
-                                    canRetry={canRetry}
-                                    onDiscard={onDiscard}
-                                    threadMeta={threadMetaView}
-                                    onOpenThread={onOpenThread}
-                                    selfNames={selfNames}
-                                    resolveMention={resolveMention}
-                                    mentionables={mentionables}
-                                    highlightChatNo={highlight}
-                                    withDayInTime={threadReplyCount !== undefined}
-                                    reactions={reactions}
-                                    reactorName={reactorName}
-                                    receiptRead={receipt?.readCount}
-                                    receiptUnread={receipt?.unreadCount}
-                                    receiptOnReveal={row.group.key !== latestReceiptKey}
-                                    toolbarUnderHeader={threadReplyCount !== undefined}
-                                />
-                            );
-                        })}
+                {/* A failed older page stays retried by scrolls, but nothing may show it:
+                    without this row the history reads as simply ended. */}
+                {loadOlderFailed && !isLoadingOlder && onLoadOlder && (
+                    <div className="flex items-center justify-center gap-2 py-2">
+                        <p role="status" className="text-caption text-muted-foreground">
+                            {t('chat.loadOlderFailed')}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={onLoadOlder}
+                            className="focus-ring tactile rounded-lg bg-muted px-3 py-1.5 text-caption font-medium text-foreground transition-colors hover:bg-accent"
+                        >
+                            {t('chat.retry')}
+                        </button>
                     </div>
-                ))}
+                )}
+                {!hasMore && !isLoadingOlder && intro}
+                {/* Windowed rows: only the viewport window mounts, spacers hold the rest.
+                    Sticky date pills are flat siblings and hand over by stacking. */}
+                {/* shrink-0: the feed is a flex column, and an empty div there shrinks to 0 px once the
+                    content overflows — the spacer would hold no height at all. */}
+                {topSpacer > 0 && (
+                    <div aria-hidden data-feed-spacer="top" className="shrink-0" style={{ height: topSpacer }} />
+                )}
+                {rows.slice(win.start, win.end).map(row => {
+                    if (row.kind === 'date') {
+                        return <DateSeparator key={row.key} rowKey={row.key} timestamp={row.timestamp} />;
+                    }
+                    if (row.kind === 'system') {
+                        return (
+                            <SystemNotice key={row.key} rowKey={row.key} chat={row.chat} authorName={row.authorName} />
+                        );
+                    }
+                    if (row.kind === 'unread') {
+                        return (
+                            <div
+                                key={row.key}
+                                data-row-key={row.key}
+                                ref={unreadRef}
+                                className={cn(
+                                    'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
+                                    dividerFading && 'opacity-0'
+                                )}
+                            >
+                                <span className="h-px flex-1 bg-badge-unread/40" />
+                                <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
+                                    {t('chat.newMessages')}
+                                </span>
+                                <span className="h-px flex-1 bg-badge-unread/40" />
+                            </div>
+                        );
+                    }
+                    if (row.kind === 'replies') {
+                        // Slack-style thread divider: the reply count anchored left,
+                        // a hairline filling the rest of the row.
+                        return (
+                            <div key={row.key} data-row-key={row.key} className="my-2 flex flex-col gap-2">
+                                <div className="flex items-center gap-3 px-1">
+                                    <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
+                                        {t(repliesPartial ? 'chat.thread.replyCountLoaded' : 'chat.thread.replyCount', {
+                                            count: row.count,
+                                        })}
+                                    </span>
+                                    <span className="h-px flex-1 bg-hairline" />
+                                </div>
+                                {olderReplies}
+                            </div>
+                        );
+                    }
+                    const last = row.group.messages[row.group.messages.length - 1];
+                    const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
+                    // Only the block holding the target gets it: handed to every row, a
+                    // jump re-rendered the whole feed twice (on the flash and on its clear).
+                    const highlight =
+                        highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
+                            ? highlightChatNo
+                            : undefined;
+                    return (
+                        <MessageRow
+                            key={row.group.key}
+                            group={row.group}
+                            onRetry={onRetry}
+                            canRetry={canRetry}
+                            onDiscard={onDiscard}
+                            threadMeta={threadMetaView}
+                            onOpenThread={onOpenThread}
+                            selfNames={selfNames}
+                            resolveMention={resolveMention}
+                            mentionables={mentionables}
+                            highlightChatNo={highlight}
+                            withDayInTime={threadReplyCount !== undefined}
+                            reactions={reactions}
+                            reactorName={reactorName}
+                            receiptRead={receipt?.readCount}
+                            receiptUnread={receipt?.unreadCount}
+                            receiptOnReveal={row.group.key !== latestReceiptKey}
+                            toolbarUnderHeader={threadReplyCount !== undefined}
+                        />
+                    );
+                })}
+                {bottomSpacer > 0 && (
+                    <div aria-hidden data-feed-spacer="bottom" className="shrink-0" style={{ height: bottomSpacer }} />
+                )}
                 {/* No reply is showing yet, so there is no divider to hold the row: it stands under the root. */}
                 {olderReplies && !rows.some(row => row.kind === 'replies') && olderReplies}
                 <div ref={bottomRef} />

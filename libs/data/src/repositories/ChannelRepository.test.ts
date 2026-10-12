@@ -25,6 +25,7 @@ describe('ChannelRepository', () => {
             leaveChannel: jest.fn(),
             deleteChannel: jest.fn(),
             getSelfChannel: jest.fn(),
+            getChannel: jest.fn(),
             startDm: jest.fn(),
         };
         const channelLocalDataSource = {
@@ -440,6 +441,77 @@ describe('ChannelRepository', () => {
             { id: 'self-channel', sid: 'site-1' },
             expect.anything()
         );
+    });
+
+    it('refreshOne: pulls one channel snapshot and writes it to the local cache', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
+
+        await expect(repository.refreshOne('ch-1', 'site-1')).resolves.toEqual({
+            id: 'ch-1',
+            sid: 'site-1',
+        });
+        // The response carries no site of its own, so the caller's site tags the mapping.
+        expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
+            { id: 'ch-1' },
+            expect.objectContaining({ sid: 'site-1' })
+        );
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            { id: 'ch-1', sid: 'site-1' },
+            expect.anything()
+        );
+    });
+
+    it('refreshOne: rejects a blank channelId or siteId without touching the socket', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+
+        await expect(repository.refreshOne('', 'site-1')).rejects.toThrow(/channelId/);
+        await expect(repository.refreshOne('ch-1', '')).rejects.toThrow(/siteId/);
+        expect(channelSocketDataSource.getChannel).not.toHaveBeenCalled();
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
+    it('refreshOne: leaves a just-left channel out of the cache but still returns it', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
+        await repository.leaveChannel({ channelId: 'ch-1' } as any);
+
+        await expect(repository.refreshOne('ch-1', 'site-1')).resolves.toMatchObject({ id: 'ch-1' });
+        // A stale push must not resurrect the row the leave just removed.
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
+    it('refreshOneInCloud: tags the answer with the cached row place, not the caller belief', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockResolvedValue({ id: 'ch-1', sid: 'site-b' });
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-b' });
+
+        await expect(repository.refreshOneInCloud('ch-1', 'site-a')).resolves.toMatchObject({ id: 'ch-1' });
+        expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
+            { id: 'ch-1' },
+            expect.objectContaining({ sid: 'site-b' })
+        );
+    });
+
+    it('refreshOneInCloud: falls back to the given site for a channel never listed yet', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockResolvedValue(null);
+        channelSocketDataSource.getChannel.mockResolvedValue({ id: 'ch-9', sid: 'site-a' });
+
+        await expect(repository.refreshOneInCloud('ch-9', 'site-a')).resolves.toMatchObject({ id: 'ch-9' });
+        expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
+            { id: 'ch-9' },
+            expect.objectContaining({ sid: 'site-a' })
+        );
+    });
+
+    it('refreshOneInCloud: rejects a blank channelId without touching the socket or cache', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+
+        await expect(repository.refreshOneInCloud('', 'site-a')).rejects.toThrow(/channelId/);
+        expect(channelSocketDataSource.getChannel).not.toHaveBeenCalled();
+        expect(channelLocalDataSource.cacheRead).not.toHaveBeenCalled();
     });
 });
 

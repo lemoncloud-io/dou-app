@@ -201,6 +201,23 @@ describe('OnboardingDialog Self Channel row', () => {
         expect(screen.getByRole('status').textContent).toBe("Couldn't load your Self Channel.");
     });
 
+    // A retry whose sync fails is known at once — no point spinning another 15s.
+    it('shows the failure at once when the retry sync fails', async () => {
+        syncChannels.mockRejectedValueOnce(new Error('offline'));
+        render(mountHome(false));
+        act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+        expect(screen.getByRole('status').textContent).toBe('Setting up your Self Channel…');
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(screen.getByRole('status').textContent).toBe("Couldn't load your Self Channel.");
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    });
+
     it('turns ready when the channel arrives after the wait ran out', () => {
         const view = render(mountHome(false));
         act(() => vi.advanceTimersByTime(SELF_CHANNEL_WAIT_MS));

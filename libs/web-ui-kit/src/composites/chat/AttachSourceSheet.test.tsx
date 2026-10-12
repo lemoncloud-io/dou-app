@@ -72,8 +72,8 @@ describe('AttachSourceSheet', () => {
         expect(screen.getByRole('dialog', { name: '파일 첨부' })).toBeInTheDocument();
     });
 
-    // The second step has to read as the first one narrowing: the same sheet edge as the attach menu.
-    it('draws the sheet as the attach menu does', () => {
+    // The second step has to read as the first one narrowing: the same top edge as the attach panel.
+    it("draws the sheet with the attach panel's edge", () => {
         render(<AttachSourceSheet open onOpenChange={jest.fn()} onAlbum={jest.fn()} onFiles={jest.fn()} />);
 
         expect(screen.getByRole('dialog')).toHaveClass('rounded-t-[20px]', 'shadow-[0_-2px_6px_rgba(0,0,0,0.12)]');

@@ -270,7 +270,14 @@ bridge.registerHandler('FetchBadgeCount', async (_message: WebMessageData<'Fetch
 
 For an app→web push with no request behind it, do step 1 and step 3 only. Eight messages are in that
 shape: `OnUpdateDeviceInfo`, `OnBackPressed`, `OnNavigate`, `OnReceiveNotification`,
-`OnFileTransferState`, `OnPurchaseSuccess`, `OnPurchaseError`, `OnUpdateStatus`.
+`OnFileTransferState`, `OnPurchaseSuccess`, `OnPurchaseError`, `OnUpdateStatus`. Nothing here marks
+them as pushes: a push-only message is any `AppMessageDataMap` key that no
+`WEB_MESSAGE_RESPONSE_TYPE` row maps to, and each shell's event inventory computes the list that way
+— `MOBILE_APP_EVENTS` in `apps/mobile/src/app/webview/hooks/appEvents.contract.test.ts`,
+`DESKTOP_APP_EVENTS` in `apps/desktop/src/main/appEvents.contract.test.ts`. Adding one fails both
+suites until each shell names the file that pushes it and a test that triggers it, or says why it
+never does. A reply a shell also pushes unprompted (`OnBackgroundStatusChanged` on the phone,
+`OnFetchFcmToken` on the desktop) is listed in that shell's inventory too.
 
 The deploy order is part of the procedure, not a caveat: **the web ships before the app.** A web
 build that sends a message the installed shell has no handler for gets `NOT_FOUND` back, so a new
@@ -358,3 +365,11 @@ npx tsc -b libs/app-messages/tsconfig.json --force     # the whole gate
 ```bash
 npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
 ```
+
+The app → web direction has no compile-time check here at all: a shell pushing a payload that
+misses a required field compiles fine wherever the call site casts, and the mobile project is not
+type checked in CI. Each shell's event tests close that gap by handing what the shell actually
+pushed to the TypeScript compiler, read as `AppMessageData<its type>` against this package's
+sources (`pushedEventErrors` in each shell's `appEventContract.ts`). Changing a push-only payload
+here is therefore checked by `nx test @chatic/mobile` and `nx test @chatic/desktop`, not by this
+package's own gate.

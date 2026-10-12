@@ -192,6 +192,9 @@ profile map.
   original: not its text (which the row often still carries), not its images, not its chips. The
   thread stays open, because the replies are still a conversation.
 - A full-bleed 4px band separates the subject from the conversation about it.
+- **A person opens their profile here as in the room.** The subject's author (unless it is me) and a
+  reply's avatar and name open the same full-screen profile, view and report only — see
+  [chat-room.md](./chat-room.md#opening-a-person).
 - **Sending** posts `parentId: root.id` (the full id) and then advances the read cursor with the
   returned `chatNo`, because a reply consumes a channel chatNo like any other row.
 - **A root that has paged out** shows `chat.thread.unavailable` and, while `hasMore`, a "load older"

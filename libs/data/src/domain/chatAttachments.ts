@@ -18,6 +18,9 @@ interface Format {
     kind: ChatUploadKind;
 }
 
+/** The content type the server stores a ZIP archive under. */
+export const CHAT_ATTACHMENT_ZIP_TYPE = 'application/zip';
+
 const FORMATS: readonly Format[] = [
     { type: 'image/png', extensions: ['png'], kind: 'image' },
     { type: 'image/jpeg', extensions: ['jpg', 'jpeg'], kind: 'image' },
@@ -39,22 +42,36 @@ const FORMATS: readonly Format[] = [
     { type: 'application/x-hwp', extensions: ['hwp'], kind: 'file' },
     { type: 'application/hwp+zip', extensions: ['hwpx'], kind: 'file' },
     { type: 'text/plain', extensions: ['txt'], kind: 'file' },
+    { type: CHAT_ATTACHMENT_ZIP_TYPE, extensions: ['zip'], kind: 'file' },
 ];
 
-// HWP and HWPX have no registered MIME type, and Hancom's own tools label them in several ways.
+// HWP and HWPX have no registered MIME type, and Hancom's own tools label them in several ways. A ZIP
+// has one, but Chromium on Windows reports the registry's name for it instead.
 const ALIASES: Readonly<Record<string, string>> = {
     'application/haansofthwp': 'application/x-hwp',
     'application/vnd.hancom.hwp': 'application/x-hwp',
     'application/vnd.hancom.hwpx': 'application/hwp+zip',
     'application/haansofthwpx': 'application/hwp+zip',
+    'application/x-zip-compressed': CHAT_ATTACHMENT_ZIP_TYPE,
+    'application/x-zip': CHAT_ATTACHMENT_ZIP_TYPE,
 };
+
+/**
+ * Which of the server's formats an app sends, for one that sends fewer than the server takes. Given
+ * the format a file would go as.
+ */
+export type ChatAttachmentFilter = (format: { type: string; kind: ChatUploadKind }) => boolean;
 
 /**
  * The `accept` of a file input for chat attachments of these kinds: every type and every extension. A
  * picker that does not know a type (HWP, on most systems) only lets the file through by its extension.
+ * `sends` leaves out the formats the app does not send.
  */
-export const chatAttachmentAccept = (kinds: readonly ChatUploadKind[]): string => {
-    const formats = FORMATS.filter(format => kinds.includes(format.kind));
+export const chatAttachmentAccept = (
+    kinds: readonly ChatUploadKind[],
+    sends: ChatAttachmentFilter = () => true
+): string => {
+    const formats = FORMATS.filter(format => kinds.includes(format.kind) && sends(format));
     return [
         ...formats.map(format => format.type),
         ...formats.flatMap(format => format.extensions.map(extension => `.${extension}`)),
@@ -115,7 +132,9 @@ const UNTYPED: ReadonlySet<string> = new Set(['', 'application/octet-stream']);
  * The declared type decides. Only an empty or generic one is read from the extension: a browser hands a
  * file its system does not know (HWP, often) over with an empty type. A video or document must end in
  * its format's extension, because the receiver saves it under that name — another format's extension
- * is refused, anything else gets the right one added. An image name is left alone; the server does not check it.
+ * is refused, anything else gets the right one added. That refusal is also what keeps an office file
+ * (a ZIP container, and sometimes typed as one) from going up as an archive. An image name is left
+ * alone; the server does not check it.
  */
 export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAttachmentFormat | null => {
     const declared = ALIASES[file.type] ?? file.type;

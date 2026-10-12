@@ -7,10 +7,11 @@ import type { ConfigRegistryModule } from '../types';
  * of what its localStorage key stored, which needed a comment to warn readers. This key's name
  * matches what it holds.
  *
- * `channelSort`/`pinnedChannels`/`homeSectionsCollapsed`/`recentSearches`/`photoGridColumns` are
- * `'internal'` on purpose even though a person changes them — the place they change is a sort picker,
- * a pin gesture, a section header, a search box, a pinch on the photo grid, not a settings screen, so a
- * generic settings UI must not render a row for them.
+ * `channelSort`/`pinnedChannels`/`homeSectionsCollapsed`/`recentSearches`/`photoGridColumns`/
+ * `photoSendGrouped` are `'internal'` on purpose even though a person changes them — the place they
+ * change is a sort picker, a pin gesture, a section header, a search box, a pinch on the photo grid,
+ * the photo grid's "send as one message" box, not a settings screen, so a generic settings UI must not
+ * render a row for them.
  */
 export const uiModule: ConfigRegistryModule = {
     'ui.theme': {
@@ -95,6 +96,16 @@ export const uiModule: ConfigRegistryModule = {
         description: "The in-app photo picker's column count (2–5), changed by pinching the grid.",
         type: 'number',
         defaultValue: 3,
+        surface: 'internal',
+        writableBy: ['local'],
+        persist: 'local',
+    },
+    'ui.photoSendGrouped': {
+        title: 'Send picked photos as one message',
+        description:
+            "Whether the in-app photo picker sends several picked photos and videos as one message or one message each — the picker's own checkbox, remembered.",
+        type: 'boolean',
+        defaultValue: true,
         surface: 'internal',
         writableBy: ['local'],
         persist: 'local',

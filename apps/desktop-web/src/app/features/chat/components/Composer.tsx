@@ -32,7 +32,7 @@ import {
     SubmitPlugin,
 } from './editor';
 
-interface ComposerProps {
+export interface ComposerProps {
     /** The text as markdown (may be empty) and the tray's files (may be none) — never both empty. */
     onSend: (content: string, files: File[]) => void;
     /** Channel the draft belongs to — preserves unsent text across switches. */

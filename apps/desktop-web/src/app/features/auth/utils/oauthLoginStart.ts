@@ -6,12 +6,16 @@ import type { OAuthDeeplinkPayload } from './oauth';
  * The record that a social login was started from this app. A `chatic://oauth` deeplink can be opened
  * by anything on the machine — a web page, a document, another app — so the deeplink alone proves
  * nothing about who began the login; an unprompted one would sign the person in as whoever owns the
- * code it carries. The deeplink is only honoured when a start record is waiting for it.
+ * code it carries. The deeplink is only honoured when a start record is waiting for it and the link
+ * carries that record's nonce.
  */
 export interface OAuthLoginStart {
     provider: string;
     startedAt: number;
-    /** Random per start. Not sent to the relay yet — see `evaluateOAuthDeeplink`. */
+    /**
+     * Random per start. It rides the relay's `redirect` address and has to come back on the deeplink;
+     * it marks the link as belonging to this start and is not a secret.
+     */
     nonce: string;
 }
 
@@ -24,7 +28,7 @@ export const OAUTH_LOGIN_START_TTL_MS = 10 * 60 * 1000;
  */
 const OAUTH_LOGIN_START_KEY = 'chatic-oauth-login-start';
 
-export type OAuthDeeplinkRejection = 'no-start' | 'expired' | 'provider-mismatch' | 'nonce-mismatch';
+export type OAuthDeeplinkRejection = 'no-start' | 'expired' | 'provider-mismatch' | 'nonce-missing' | 'nonce-mismatch';
 
 export type OAuthDeeplinkVerdict = { ok: true } | { ok: false; reason: OAuthDeeplinkRejection };
 
@@ -42,12 +46,11 @@ export const createOAuthLoginStart = (provider: string, now: number): OAuthLogin
 /**
  * Whether a deeplink may be exchanged. Pure: the caller supplies the record and the clock.
  *
- * The nonce is checked when the deeplink carries one and ignored when it does not. The relay sits
- * outside this repository and nobody has confirmed it returns what rides the `redirect` address, so
- * requiring it today would break every login. Until that is confirmed this leaves one gap: a link
- * opened inside the ten-minute window of a login the person really started still passes.
- * Closing it means sending the nonce (`buildAuthorizeUrl`), having the hand-off page forward it,
- * and then making its absence a rejection here.
+ * The checks run in a fixed order so the reason names what is most useful to know: a start that is
+ * missing, then one that has expired, then the provider, then the nonce — absent before different.
+ * A deeplink without the nonce is refused even when a fresh start is waiting: the nonce is what
+ * separates a link that came back from this start from one that was merely opened on the machine
+ * inside the ten-minute window.
  */
 export const evaluateOAuthDeeplink = (
     start: OAuthLoginStart | null,
@@ -59,7 +62,8 @@ export const evaluateOAuthDeeplink = (
     // A negative age means the clock moved back since the start; treat it as stale, not as fresh.
     if (age < 0 || age >= OAUTH_LOGIN_START_TTL_MS) return { ok: false, reason: 'expired' };
     if (start.provider !== payload.provider) return { ok: false, reason: 'provider-mismatch' };
-    if (payload.nonce !== undefined && payload.nonce !== start.nonce) return { ok: false, reason: 'nonce-mismatch' };
+    if (payload.nonce === undefined) return { ok: false, reason: 'nonce-missing' };
+    if (payload.nonce !== start.nonce) return { ok: false, reason: 'nonce-mismatch' };
     return { ok: true };
 };
 

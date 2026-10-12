@@ -9,10 +9,9 @@
     "files": [],
     "include": [],
     // `tsc -b` (and so nx's `typecheck` target, which runs it with no argument) builds exactly what
-    // is listed here. The spec project is referenced so the 75 spec files are type checked; the
-    // storybook project is not, because `*.stories.tsx` carries a known error baseline that
-    // .github/workflows/verify.yml records. Storybook itself is Vite-driven and reads
-    // tsconfig.storybook.json directly, so it does not need a reference here.
+    // is listed here. The spec and storybook projects are referenced so the spec files and the
+    // stories are type checked along with the lib. Storybook itself is Vite-driven and reads
+    // tsconfig.storybook.json directly; the reference is for the type check, not for it.
     "references": [
         {
             "path": "./tsconfig.lib.json"

@@ -1,7 +1,7 @@
 /// <reference types='vitest' />
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import react from '@vitejs/plugin-react';
@@ -52,6 +52,40 @@ const pdfjsAssetsPlugin = (): Plugin => {
 };
 
 const removeVitePrefix = (envVar: string) => envVar.replace('VITE_', '');
+
+/**
+ * Shared root icons (favicon, touch icons, web manifest) from `assets/public`, served in dev and
+ * emitted into the build output — the same plugin `apps/web` carries. Without it every boot 404s
+ * on `/favicon.ico`, and the deployed app has no manifest or touch icons at all.
+ */
+const copySharedPublicPlugin = (): Plugin => {
+    const sharedPublicDir = join(import.meta.dirname, '../../assets/public');
+    return {
+        name: 'copy-shared-public',
+        configureServer(server: { middlewares: { use: (middleware: unknown) => void } }) {
+            server.middlewares.use((req: { url?: string }, res: { end: (data: Buffer) => void }, next: () => void) => {
+                if (!req.url) return next();
+                const filePath = join(sharedPublicDir, req.url.split('?')[0]);
+                // `join` normalizes `..` segments, so a crafted URL could name a file outside
+                // the shared folder; serve only what stays inside it.
+                if (relative(sharedPublicDir, filePath).startsWith('..')) return next();
+                if (existsSync(filePath) && statSync(filePath).isFile()) {
+                    res.end(readFileSync(filePath));
+                } else {
+                    next();
+                }
+            });
+        },
+        writeBundle() {
+            const outDir = join(import.meta.dirname, '../../dist/apps/desktop-web');
+            if (existsSync(sharedPublicDir)) {
+                readdirSync(sharedPublicDir).forEach(file => {
+                    copyFileSync(join(sharedPublicDir, file), join(outDir, file));
+                });
+            }
+        },
+    };
+};
 
 const htmlEnvInjectionPlugin = () => {
     return {
@@ -158,7 +192,14 @@ export default defineConfig({
         host: 'localhost',
     },
 
-    plugins: [htmlEnvInjectionPlugin(), pdfjsAssetsPlugin(), svgr(), react(), nxViteTsPaths()],
+    plugins: [
+        htmlEnvInjectionPlugin(),
+        copySharedPublicPlugin(),
+        pdfjsAssetsPlugin(),
+        svgr(),
+        react(),
+        nxViteTsPaths(),
+    ],
 
     build: {
         sourcemap: process.env.VITE_ENV !== 'PROD',

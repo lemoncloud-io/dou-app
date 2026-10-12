@@ -52,18 +52,20 @@ src/
 `PerfTraceName` is a closed union. A name becomes a row in the Firebase console and a console alert
 is set against that exact string, so a typo must not open a second row that nobody watches.
 
-| Trace            | Start                                     | Stop                                     | Target                         |
-| ---------------- | ----------------------------------------- | ---------------------------------------- | ------------------------------ |
-| `boot`           | native provider construction (≈ JS entry) | `WebAppReady` received                   | 1500ms at p95                  |
-| `cloud_switch`   | cloud selected (the mutation hook)        | switch mutation settles                  | 1000ms at p95                  |
-| `site_switch`    | place selected, past the same-place no-op | `auth.switch` settles                    | 1000ms at p95                  |
-| `web_vitals`     | — a sample (see below)                    | —                                        | FCP 1800ms / LCP 2500ms at p75 |
-| `chat_room_open` | the tap that opens a room                 | the room's first commit showing messages | none yet                       |
-| `chat_room_sync` | the same tap                              | the room showing its synced, latest page | none yet                       |
-| `bridge_request` | — a sample (see below)                    | —                                        | none yet                       |
-| `chat_send`      | the send of a text message                | the server's answer to it                | none yet                       |
-| `socket_verify`  | — a sample (see below)                    | —                                        | none yet                       |
-| `first_screen`   | — a sample (see below)                    | —                                        | none yet                       |
+| Trace             | Start                                     | Stop                                     | Target                         |
+| ----------------- | ----------------------------------------- | ---------------------------------------- | ------------------------------ |
+| `boot`            | native provider construction (≈ JS entry) | `WebAppReady` received                   | 1500ms at p95                  |
+| `cloud_switch`    | cloud selected (the mutation hook)        | switch mutation settles                  | 1000ms at p95                  |
+| `site_switch`     | place selected, past the same-place no-op | `auth.switch` settles                    | 1000ms at p95                  |
+| `web_vitals`      | — a sample (see below)                    | —                                        | FCP 1800ms / LCP 2500ms at p75 |
+| `chat_room_open`  | the tap that opens a room                 | the room's first commit showing messages | none yet                       |
+| `chat_room_sync`  | the same tap                              | the room showing its synced, latest page | none yet                       |
+| `bridge_request`  | — a sample (see below)                    | —                                        | none yet                       |
+| `chat_send`       | the send of a text message                | the server's answer to it                | none yet                       |
+| `socket_verify`   | — a sample (see below)                    | —                                        | none yet                       |
+| `first_screen`    | — a sample (see below)                    | —                                        | none yet                       |
+| `socket_request`  | — a sample (see below)                    | —                                        | none yet                       |
+| `chat_send_media` | — a sample (see below)                    | —                                        | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -132,6 +134,11 @@ console. The trace's own duration means nothing. The other samples:
 - `first_screen` — the launch from the boot baseline to the moment the launch splash lifts,
   measured by the native shell. The `boot` trace stops at WebAppReady, before the first screen has
   painted, and its target is defined on that stop, so the later moment is recorded beside it.
+- `socket_request` — one app-originated socket request's round trip, per request `type`, read from
+  `rtt_ms`. `SocketManager.setRequestObserver` hands it over; the web samples and records it.
+- `chat_send_media` — an attachment send (images, videos, documents), timed in
+  `libs/app-runtime`. A sample because the native backend forgets a trace open for two minutes, and
+  a large video's send can take longer.
 
 ### Traces several modules contribute to: the active trace
 

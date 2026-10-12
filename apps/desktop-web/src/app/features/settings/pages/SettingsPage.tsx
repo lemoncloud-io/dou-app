@@ -83,6 +83,18 @@ export const SettingsPage = () => {
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
                 <section className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-callout font-medium text-foreground">{t('account.title')}</span>
+                            <span className="text-caption text-muted-foreground">{t('account.openHint')}</span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/account')}>
+                            {t('account.open')}
+                        </Button>
+                    </div>
+                </section>
+
+                <section className="mt-8 flex flex-col gap-4">
                     <h2 className="text-overline uppercase text-muted-foreground">{t('settings.appearance')}</h2>
 
                     <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-5">

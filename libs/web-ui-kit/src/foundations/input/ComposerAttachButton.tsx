@@ -3,7 +3,7 @@ import { cn } from '@chatic/lib/utils';
 import { IconClose, IconPlus } from '../../resources/icons';
 
 export interface ComposerAttachButtonProps {
-    /** Whether the attach menu this button toggles is open — the glyph turns into a close mark. */
+    /** Whether the attach panel this button toggles is open — the glyph turns into a close mark. */
     open: boolean;
     onClick: () => void;
     disabled?: boolean;
@@ -13,11 +13,11 @@ export interface ComposerAttachButtonProps {
 }
 
 /**
- * The round button at the start of the chat composer that opens the attach menu (Figma "Text Area"
- * leading control, `3749:27998`): a 32px circle on the light control surface, `+` while the menu is
+ * The round button at the start of the chat composer that opens the attach panel (Figma "Text Area"
+ * leading control, `3749:27998`): a 32px circle on the light control surface, `+` while the panel is
  * closed and `×` while it is open, so the same spot closes what it opened.
  *
- * Stateless: `open` belongs to the host, which also owns the sheet.
+ * Stateless: `open` belongs to the host, which also owns the panel.
  */
 export const ComposerAttachButton = ({
     open,

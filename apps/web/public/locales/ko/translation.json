@@ -682,7 +682,8 @@
             "unmute": "알림 켜기",
             "leave": "나가기",
             "delete": "삭제"
-        }
+        },
+        "draft": "초안"
     },
     "channelManage": {
         "title": "채팅방 관리",
@@ -837,7 +838,9 @@
             "codeBlock": {
                 "expand": "자세히 보기 ({{count}}줄)",
                 "collapse": "간략히 보기"
-            }
+            },
+            "openProfile": "{{name}} 프로필 보기",
+            "openMembers": "대화 상대 보기"
         },
         "settings": {
             "title": "방 설정",
@@ -957,12 +960,42 @@
             "gridPhoto": "사진 {{position}}",
             "gridVideo": "동영상 {{position}}",
             "removePicked": "{{position}}번째 사진 빼기",
+            "pickedTitle": "보낼 사진·동영상",
             "send": "{{count}}장 보내기",
             "preparing": "준비 중…",
+            "grouped": "묶어 보내기",
+            "edit": {
+                "open": "편집",
+                "title": "사진 편집",
+                "close": "닫기",
+                "done": "완료",
+                "crop": "자르기·회전",
+                "rotateLeft": "왼쪽으로 회전",
+                "flip": "좌우 반전",
+                "reset": "원본으로",
+                "cancel": "취소",
+                "apply": "적용",
+                "aspectFree": "자유",
+                "aspectOriginal": "원본",
+                "notEditable": "이 항목은 편집할 수 없어요",
+                "loading": "사진 불러오는 중…",
+                "failed": "사진을 불러오지 못했어요",
+                "counter": "{{position}} / {{total}}",
+                "thumbnail": "{{position}}번째 항목 보기",
+                "select": "{{position}}번째 항목 편집",
+                "edited": "편집됨",
+                "bakeFailed": "편집한 사진을 만들지 못했어요",
+                "discard": {
+                    "title": "편집을 취소할까요?",
+                    "description": "이번에 편집한 내용이 사라져요",
+                    "keep": "계속 편집",
+                    "confirm": "편집 취소"
+                }
+            },
             "limitedNotice": "선택한 사진만 보여요",
             "limitedMore": "더 선택",
             "rejected": {
-                "unsupported": "보낼 수 없는 파일 형식이에요",
+                "unsupported": "보낼 수 없는 파일 형식이에요. 사진(JPG·PNG·GIF·WEBP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·TXT 파일, ZIP 압축 파일을 보낼 수 있어요",
                 "unsupportedImage": "PNG, JPEG, GIF, WEBP 사진만 보낼 수 있어요",
                 "unsupportedVideo": "이 동영상 형식은 보낼 수 없어요",
                 "too-large": {
@@ -1020,7 +1053,8 @@
                 "openAction": "열기",
                 "storagePermission": "저장 공간 접근을 허용해야 저장할 수 있어요",
                 "share": "파일 공유",
-                "shareUpdateRequired": "앱을 업데이트하면 파일을 공유할 수 있어요"
+                "shareUpdateRequired": "앱을 업데이트하면 파일을 공유할 수 있어요",
+                "archiveNeedsUpdate": "앱을 업데이트하면 압축 파일을 저장할 수 있어요"
             },
             "export": {
                 "save": "사진 저장",
@@ -1053,7 +1087,9 @@
                 "savedSomeItems": "{{saved}}개를 저장했어요 · {{failed}}개는 저장하지 못했어요",
                 "savedPhotosVideosNeedUpdate": "사진 {{n}}장을 저장했어요 · 동영상은 앱을 업데이트하면 저장할 수 있어요"
             },
-            "viewerPlay": "동영상 재생"
+            "viewerPlay": "동영상 재생",
+            "pickedFiles": "보낼 파일",
+            "removeFile": "{{name}} 빼기"
         }
     },
     "search": {

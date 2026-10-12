@@ -17,6 +17,14 @@ import {
     type Size,
     type Zoom,
 } from './imageZoom';
+import {
+    DRAG_SLOP_PX,
+    FLICK_MAX_MS,
+    isOwnEvent,
+    pagerDragOffset,
+    pagerReleaseStep,
+    VIEWER_MOTION,
+} from './viewerShell';
 
 /**
  * One page of the viewer.
@@ -177,22 +185,6 @@ export const MediaViewerActionButton = ({
 );
 
 /**
- * Whether an event happened in the viewer's own DOM. React events bubble through portals, so a sheet a
- * host opens from its buttons is inside the viewer for React though it is drawn elsewhere — a drag or
- * an arrow key on it must not turn the page behind it.
- */
-const isOwnEvent = (event: React.SyntheticEvent) => event.currentTarget.contains(event.target as Node);
-
-/** How far a drag has to travel before it is read as a swipe or a scroll rather than a tap. */
-const DRAG_SLOP_PX = 8;
-/** A release past this — or past a fifth of the width, whichever is more — turns the page. */
-const SWIPE_MIN_PX = 48;
-/** A quick flick turns the page with less travel. */
-const FLICK_MAX_MS = 300;
-const FLICK_MIN_PX = 24;
-/** Past the first or last item the strip gives only a little, to show there is nothing more. */
-const EDGE_RESISTANCE = 0.3;
-/**
  * Two taps closer together than this, in time and in place, are a double tap. On the generous side:
  * a single tap on the photo does nothing, so a longer window delays nothing.
  */
@@ -329,24 +321,6 @@ const ViewerVideo = ({ src, poster, playOnMount, playLabel, videoRef, onError }:
  * pins to the bottom; this one would otherwise sit right on the share and save buttons.
  */
 export const MEDIA_VIEWER_FOOTER_TOAST_LIFT = 76;
-
-/**
- * Timing of the slide in and out, the settle after a short pull and the backdrop fade. The curve is
- * the app's slide-up dialog's, so the viewer moves like every other sheet that rises from the bottom.
- *
- * The duration is set twice on purpose. `duration-300` times the settle (a transition), but it loses
- * to the 150ms `data-[state=…]:animate-in`/`animate-out` carry for the slide: an attribute selector
- * outranks a bare class. The `data-[state=…]:` copies match that and win; reduced motion is scoped
- * the same way for the same reason. A scale value, not an arbitrary one, because only the scale
- * utility reaches `animation-duration` at all.
- */
-const VIEWER_MOTION = [
-    'duration-300 data-[state=open]:duration-300 data-[state=closed]:duration-300',
-    // Spelled as properties: an arbitrary `ease` value is claimed by both Tailwind and
-    // tailwindcss-animate, and a class that matches two utilities emits no rule at all.
-    '[animation-timing-function:cubic-bezier(0.32,0.72,0,1)] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]',
-    'motion-reduce:data-[state=open]:animate-none motion-reduce:data-[state=closed]:animate-none motion-reduce:transition-none',
-].join(' ');
 
 /**
  * A chat message's photos and videos, full screen: the original on black, a close button, and a tap
@@ -619,8 +593,7 @@ export const MediaViewer = ({
             setDismissY(Math.max(0, dy));
             return;
         }
-        const pastEdge = (dx > 0 && !hasPrevious) || (dx < 0 && !hasNext);
-        setDragX(pastEdge ? dx * EDGE_RESISTANCE : dx);
+        setDragX(pagerDragOffset(dx, hasPrevious, hasNext));
     };
 
     /** A tap that did not move: the second of two close together zooms a photo. */
@@ -695,13 +668,14 @@ export const MediaViewer = ({
             return;
         }
         swipedRef.current = true;
-        const dx = event.clientX - press.x;
-        const width = stripRef.current?.clientWidth ?? 0;
-        const far = Math.abs(dx) >= Math.max(SWIPE_MIN_PX, width * 0.2);
-        const flick = Date.now() - press.at <= FLICK_MAX_MS && Math.abs(dx) >= FLICK_MIN_PX;
+        const step = pagerReleaseStep(
+            event.clientX - press.x,
+            Date.now() - press.at,
+            stripRef.current?.clientWidth ?? 0
+        );
         // Dropping the offset and moving the index in the same render lets the strip slide on from
         // wherever the finger left it.
-        if (far || flick) go(dx < 0 ? 1 : -1);
+        if (step !== 0) go(step);
         endDrag();
     };
 

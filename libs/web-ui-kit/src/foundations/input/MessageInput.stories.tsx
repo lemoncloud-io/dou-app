@@ -41,3 +41,8 @@ const WithAttachDemo = () => {
 };
 
 export const WithAttach: Story = { render: () => <WithAttachDemo /> };
+
+/** Photos picked in the attach panel: the send button is live with nothing typed. */
+export const SendReady: Story = {
+    render: () => <MessageInput value="" onChange={() => undefined} onSend={() => undefined} sendReady />,
+};

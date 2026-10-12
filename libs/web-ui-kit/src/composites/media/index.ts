@@ -6,5 +6,8 @@ export * from './RecentPhotoStrip';
 export * from './SelectedPhotoStrip';
 export * from './VideoMark';
 export * from './photoGridLayout';
+export * from './photoEdit';
 export * from './GridScrubber';
 export * from './PreviewImage';
+export * from './EditedPhotoImage';
+export * from './PhotoEditor';

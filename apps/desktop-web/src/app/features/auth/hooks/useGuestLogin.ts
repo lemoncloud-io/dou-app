@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { toError } from '../../../shared';
+import { ensureDeviceSession } from '../utils';
 
 /**
  * Guest-session bootstrap — mirrors apps/web's relay guest login: register the
@@ -21,8 +22,7 @@ export const useGuestLogin = () => {
     const submit = useCallback(async (): Promise<boolean> => {
         setIsError(false);
         try {
-            await runtime.boot.startWebTransportInit();
-            await loginGuest(deviceId);
+            await ensureDeviceSession(() => loginGuest(deviceId));
             return true;
         } catch (error) {
             const err = toError(error);

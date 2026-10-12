@@ -16,6 +16,7 @@ export interface IPlaceRepository extends DisposableRepository {
     refreshList(query?: UserMySiteInput): Promise<void>;
     createPlace(payload: PlaceCreateInput): Promise<DomainPlace>;
     updatePlace(payload: PlaceUpdateInput): Promise<DomainPlace>;
+    deletePlace(id: string): Promise<void>;
 
     cacheReadList(query?: UserMySiteInput): Promise<DomainListResult<DomainPlace> | null>;
     cacheWrite(item: Partial<DomainPlace>): Promise<void>;
@@ -141,9 +142,35 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
             return domain;
         } catch (error) {
             if (existing) {
-                await this.placeLocalDataSource.cacheWrite(existing, requestContext);
+                // The cache write merges into the stored row, so the old row alone would leave
+                // behind a field the patch added (a photo on a place that had none). Each patched
+                // field is cleared first, and the old row then puts back the ones it had.
+                const cleared = Object.fromEntries(Object.keys(normalized as object).map(key => [key, undefined]));
+                await this.placeLocalDataSource.cacheWrite({ ...cleared, ...existing }, requestContext);
             }
             throw error;
         }
+    }
+
+    /**
+     * Deletes a place on the server, then drops its row from the cache.
+     *
+     * Not optimistic, unlike the channel delete. A place the session is inside leaves the list the
+     * moment its row goes, and the app moves the session to another place when that happens; a
+     * refusal that then put the row back would not move the session back with it. So the row stays
+     * until the server has said yes.
+     *
+     * The row is dropped here rather than left to the next list snapshot: that snapshot does not
+     * touch the cache when it comes back empty, so the last place of a cloud would never go.
+     *
+     * Only the place row goes. The cached channels of the place are left for the channel sync to
+     * settle, as they are when a place disappears from a list snapshot.
+     */
+    public async deletePlace(id: string): Promise<void> {
+        const requestContext = this.getRequestContext();
+        await this.placeSocketDataSource.deletePlace({ id });
+        // The scope the request started in, so a cloud change while it ran cannot aim the delete
+        // at another cloud's partition.
+        await this.placeLocalDataSource.cacheDelete(id, requestContext);
     }
 }

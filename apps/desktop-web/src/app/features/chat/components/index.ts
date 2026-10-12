@@ -16,6 +16,8 @@ export * from './SystemNotice';
 export * from './Composer';
 export * from './OnboardingDialog';
 export * from './ShortcutsDialog';
+export * from './CreatePlaceDialog';
+export * from './EditPlaceDialog';
 export * from './EmojiPicker';
 export * from './MentionAutocomplete';
 export * from './QuickSwitcher';

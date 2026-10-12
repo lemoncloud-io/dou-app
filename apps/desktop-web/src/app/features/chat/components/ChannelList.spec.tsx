@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import type * as ReactDom from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
+import { useSendInviteStore } from '../../channels';
 import type * as Shared from '@chatic/shared';
 import type * as Channels from '../../channels';
 import type * as ReadCursorStore from '../../../shared/stores/useReadCursorStore';
@@ -33,7 +34,7 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
         },
         data: {
-            useRuntimeRepositories: () => ({ join: { readChat: menu.readChat } }),
+            useRuntimeRepositories: () => ({ join: { readChat: menu.readChat, updateJoin: menu.serverSync } }),
         },
     },
 }));
@@ -106,6 +107,13 @@ vi.mock('./QuickSwitcher', async () => {
     };
 });
 vi.mock('../../search', () => ({ SearchDialog: () => null }));
+
+// The menu toasts a failed mark-as-read instead of swallowing it; the spy is how a test sees it.
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    toast,
+}));
 
 import '../../../../i18n';
 import i18next from 'i18next';
@@ -186,6 +194,42 @@ describe('ChannelList preview line', () => {
         const preview = previewOnHover();
         expect(preview).toMatch(/Message deleted$/);
         expect(preview).not.toMatch(/regrettable/);
+    });
+});
+
+describe('ChannelList channel section "+"', () => {
+    const SELF = { id: 'S1', name: 'me', stereo: 'self' } as DomainChannel;
+    const addChannel = () => screen.queryByRole('button', { name: i18next.t('rail.addChannel') });
+    const renderWith = (props: Partial<ComponentProps<typeof ChannelList>>) =>
+        render(
+            <ChannelList
+                channels={[SELF]}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+                {...props}
+            />,
+            { wrapper }
+        );
+
+    it('keeps the "+" in a place whose only room is notes-to-self, so its first channel can be made', () => {
+        const onCreateChannel = vi.fn();
+        renderWith({ onCreateChannel });
+
+        fireEvent.click(addChannel() as HTMLElement);
+        expect(onCreateChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws no empty channel section on Home, where channels cannot be made', () => {
+        renderWith({ onCreateChannel: vi.fn(), isDefaultMode: true });
+        expect(addChannel()).toBeNull();
+    });
+
+    it('hides the empty channel section while a filter is on, like every other section', () => {
+        renderWith({ onCreateChannel: vi.fn(), query: 'me' });
+        expect(addChannel()).toBeNull();
     });
 });
 
@@ -360,6 +404,28 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         }
     });
 
+    it('keeps the dialogs mounted when the filter matches nothing, so ⌘K still opens', () => {
+        dialogStub.portal = true;
+        try {
+            render(
+                <ChannelList
+                    channels={[CHANNEL]}
+                    isLoading={false}
+                    selectedChannelId={null}
+                    query="zzz-no-such-channel"
+                    onSelect={vi.fn()}
+                    isDefaultMode={false}
+                />,
+                { wrapper }
+            );
+
+            expect(screen.getByText(i18next.t('sidebar.noMatches'))).toBeTruthy();
+            expect(screen.getByTestId('dialog-input')).toBeTruthy();
+        } finally {
+            dialogStub.portal = false;
+        }
+    });
+
     it('Alt+Shift while filtering does nothing — a subset would write a partial order', () => {
         const onSelect = vi.fn();
         storedOrder.ids = ['C1', 'C2'];
@@ -466,6 +532,7 @@ describe('ChannelList row context menu (slice 05)', () => {
         // next test's DOM (the folded test then sees two "Channels" headers).
         cleanup();
         for (const fn of Object.values(menu)) if (typeof fn === 'function') fn.mockClear();
+        toast.mockClear();
         menu.useRealActions = false;
         act(() => {
             pinned.ids = [];
@@ -543,6 +610,33 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         expect(menu.markRead).toHaveBeenCalledWith('C2', 7);
         expect(menu.readChat).toHaveBeenCalledWith({ channelId: 'C2', chatNo: 7 });
+    });
+
+    // The badge clears locally either way, so a silent failure reads as done until the
+    // next roster sync resurrects the unread. The toast is what explains it.
+    it('announces a mark-as-read whose server sync fails', async () => {
+        menu.readChat.mockRejectedValueOnce(new Error('offline'));
+        const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7 } as DomainChannel;
+        renderList([general, unread]);
+
+        openRowMenu(/busy/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }));
+
+        await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+        expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+    });
+
+    // Sending rides the relay slot, so the entry shows on every non-DM row
+    // regardless of cloud.
+    it('offers the invite sender on rows and opens it', () => {
+        const unread = { id: 'C2', name: 'busy', unreadCount: 0, chatNo: 7 } as DomainChannel;
+        renderList([general, unread]);
+
+        openRowMenu(/busy/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Invite by phone' }));
+
+        expect(useSendInviteStore.getState().target).toEqual({ kind: 'channel', id: 'C2', name: 'busy' });
+        act(() => useSendInviteStore.getState().close());
     });
 
     it('gates rename and delete to the owner', () => {

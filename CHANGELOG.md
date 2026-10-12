@@ -1,5 +1,167 @@
 # Changelog
 
+## [2026-10-12] - root@0.90.1, @chatic/web@0.67.1, @chatic/landing@0.5.5, @chatic/desktop-web@0.23.1
+
+### Documentation
+
+- (adr) test the web end to end inside a fake native shell (ADR-0180)
+
+### Other
+
+- build: (web-e2e) add install, ui and headed scripts that run from the repo root
+- ci: run the web e2e suite in verify when web-e2e or the mobile injection script changes
+- test: (web-e2e) run the web inside a fake native shell in a real browser, not only in jsdom
+
+## [2026-10-12] - No version updates
+
+### Refactor
+
+- (desktop) build the main process's own pushes in an electron-free module
+
+### Other
+
+- test: (mobile,desktop,app-messages) check what each shell pushes against the vocabulary
+
+## [2026-10-12] - No version updates
+
+### Features
+
+- (web,mobile) let the phone send and save a zip archive, not only desktop (ADR-0187)
+
+## [2026-10-12] - root@0.90.0, @chatic/desktop-web@0.23.0
+
+### Features
+
+- (desktop-web) read the terms and privacy policy in the account hub
+- (desktop-web) list a cloud places behind an explicit switch
+- (desktop-web) manage owned clouds from the account hub
+- (desktop-web) open an account hub with profile edit
+- (desktop-web) read the relay account through its own gateway
+- (desktop-web) manage a place channels in bulk
+- (desktop-web) edit a place description from its dialog and settings
+- (desktop-web) open a settings page for each place
+- (desktop-web) send place-bound invites with a link dialog
+- (desktop-web) watch a sent invite with cancel and reissue
+- (desktop-web) send contact invites from the channel row menu
+- (data,desktop-web) refresh background-place channels on push too
+- (desktop-web) scope message search to the open channel
+- (data,app-runtime,desktop-web) refresh one channel on push, not the whole list
+
+### Bug Fixes
+
+- (desktop-web) give the emoji picker tabs accessible names, not just hover hints
+- (desktop-web) keep a failed invite cancel on screen instead of closing silently
+- (desktop-web) hide the invite countdown once it is declined
+- (desktop-web) fix crashes and layout bugs found in manual testing
+- (desktop-web) address PR review findings across push, invites, feed
+- (desktop-web) say when channels could not be searched instead of a false no-match
+- (desktop-web) name a failed launch-at-login write instead of a silent flicker
+- (desktop-web) announce mark-as-read sync failures instead of swallowing them
+- (desktop-web) surface a failed older-history page with a retry row
+- (desktop-web) fail the onboarding retry at once when its sync fails
+- (desktop-web) announce notify-pref sync failures instead of swallowing them
+- (desktop-web) surface a stale member roster with retry instead of hiding it
+- (desktop-web) keep panel Escape working where :has() selectors throw
+- (desktop-web) keep the dialogs mounted when the sidebar filter matches nothing
+- (desktop-web) serve shared favicons and manifest like web does
+- (desktop-web) keep the list fallback for pushes that name no channel
+
+### Documentation
+
+- (desktop-web) note the reaction rejection as past dev behavior
+
+### Other
+
+- test: (desktop-web) pin owner gating for rename/delete/kick visibility
+- perf: (desktop-web) wake a pending message row once at its stuck deadline, not every 5s
+- perf: (desktop-web) skip the unread re-pull for the channel reading live
+- perf: (desktop-web) window the message feed so long channels mount a viewport, not a history
+- perf: (desktop-web) load the message editor chunk after the feed paints, not before it
+- test: (data) cover refreshOne against a just-left channel
+
+## [2026-10-08] - root@0.89.0, @chatic/desktop-web@0.22.0
+
+### Features
+
+- (desktop-web,data) delete a place from its rail tile, server first
+- (desktop-web) edit a place's name and photo from its rail tile
+- (desktop-web) offer a new place to admins, not to every owner
+
+### Bug Fixes
+
+- (desktop-web) keep the channel "+" in a place with no channel yet
+- (desktop-web) read the dev sign-in address from the token's loginId
+- (desktop-web) keep the dev sign-in list shut without a build stage
+- (data,desktop-web) take back a field a refused place update added
+
+## [2026-10-08] - root@0.88.0, @chatic/desktop-web@0.21.0
+
+### Features
+
+- (desktop-web) give a new place a photo and open my profile in it
+- (desktop-web) make a place from the place rail, not only the phone
+
+## [2026-10-08] - No version updates
+
+### Features
+
+- (web,web-ui-kit) send files with a caption, keep each room's draft, open a sender's profile
+- (mobile) offer every server format in the files picker, limited by its own kind
+
+## [2026-10-08] - No version updates
+
+### Bug Fixes
+
+- (desktop-web/profile) read the account card from the relay session
+
+## [2026-10-08] - root@0.87.2, @chatic/desktop-web@0.20.4
+
+### Bug Fixes
+
+- (desktop-web) take a sign-in link only with the nonce this app sent
+
+### Documentation
+
+- (desktop-web/auth) stop claiming the relay code is single-use
+
+## [2026-10-08] - root@0.87.1, @chatic/desktop-web@0.20.3
+
+### Bug Fixes
+
+- (desktop-web) register the device before social login starts
+
+## [2026-10-08] - root@0.87.0, @chatic/web@0.67.0
+
+### Features
+
+- (web-ui-kit) let a host drive the attach panel's slide, and hold the recent row's place
+- (web) attach from a panel under the composer, with picks and a caption (ADR-0179)
+- (web-ui-kit) put the attach menu under the composer and make the picker's rows slide
+- (data,app-runtime) carry a caption on a photo message
+- (web,config) edit picked photos before sending, and send them as one or one each (ADR-0179)
+- (web-ui-kit) add a photo editor and an edit row on the photo grid
+- (app-runtime) send picked files as one message each when asked, in pick order
+
+### Bug Fixes
+
+- (web) slide the attach panel and the composer in the same frame, and keep picks in sight
+
+### Documentation
+
+- (ui-kit) name the photo grid footer and the photo editor among the toast-lift bars
+
+## [2026-10-08] - No version updates
+
+### Features
+
+- (web/channels) stack a sent message onto the room list instead of popping it in
+
+## [2026-10-08] - No version updates
+
+### Features
+
+- (perf,app-runtime,web) measure socket requests and attachment sends by type (ADR-0181)
+
 ## [2026-10-08] - root@0.86.3, @chatic/desktop-web@0.20.2
 
 ### Bug Fixes

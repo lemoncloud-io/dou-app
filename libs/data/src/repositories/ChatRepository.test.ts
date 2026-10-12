@@ -471,6 +471,103 @@ describe('ChatRepository', () => {
             expect(await chatLocalDataSource.cacheRead('ch-1:7')).toMatchObject({ chatNo: 7 });
         });
 
+        describe('with text', () => {
+            it('shows the text, trimmed, on the pending row from the moment it is written', async () => {
+                const { repository, chatLocalDataSource } = createPendingRepository();
+
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    content: '  look at this \n',
+                });
+
+                expect(await chatLocalDataSource.cacheRead(id)).toMatchObject({
+                    content: 'look at this',
+                    isPending: true,
+                    upload$$: [{ localStatus: 'sending', localThumbUrl: 'blob:a' }],
+                });
+            });
+
+            it('writes blank text as a row of images alone', async () => {
+                const { repository, chatLocalDataSource } = createPendingRepository();
+
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    content: ' \n ',
+                });
+
+                expect((await chatLocalDataSource.cacheRead(id))?.content).toBe('');
+            });
+
+            it('sends the text in the same message as the upload ids', async () => {
+                const { repository, chatSocketDataSource } = createPendingRepository();
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    parentId: 'root-1',
+                    localThumbUrls: ['blob:a', 'blob:b'],
+                    content: 'look at this',
+                });
+                chatSocketDataSource.sendChat.mockResolvedValue({ id: 'ch-1:7', channelId: 'ch-1', chatNo: 7 });
+
+                await repository.sendPendingImageChat(id, { uploadIds: ['up-1', 'up-2'] });
+
+                expect(chatSocketDataSource.sendChat).toHaveBeenCalledTimes(1);
+                expect(chatSocketDataSource.sendChat).toHaveBeenCalledWith(
+                    { channelId: 'ch-1', parentId: 'root-1', content: 'look at this', uploadIds: ['up-1', 'up-2'] },
+                    expect.anything()
+                );
+            });
+
+            it('keeps the text through a failure and a retry, and sends it again', async () => {
+                const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    content: 'look at this',
+                });
+                chatSocketDataSource.sendChat.mockRejectedValueOnce(new Error('socket down'));
+                await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).rejects.toThrow();
+                await repository.failPendingImageChat(id);
+
+                // A retry re-arms the row with its previews only, as the image send does.
+                await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    pendingId: id,
+                });
+                expect(await chatLocalDataSource.cacheRead(id)).toMatchObject({
+                    content: 'look at this',
+                    isPending: true,
+                });
+                chatSocketDataSource.sendChat.mockResolvedValueOnce({ id: 'ch-1:9', channelId: 'ch-1', chatNo: 9 });
+                await repository.sendPendingImageChat(id, { uploadIds: ['up-2'] });
+
+                expect(chatSocketDataSource.sendChat.mock.calls.map(call => call[0].content)).toEqual([
+                    'look at this',
+                    'look at this',
+                ]);
+            });
+
+            it('replaces the text when a rewrite of the row names one', async () => {
+                const { repository, chatLocalDataSource } = createPendingRepository();
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    content: 'look at this',
+                });
+
+                await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    pendingId: id,
+                    content: ' and this ',
+                });
+
+                expect((await chatLocalDataSource.cacheRead(id))?.content).toBe('and this');
+            });
+        });
+
         it('reads the sent message back once, because the send answer carries no image address', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createPendingRepository();
             const id = await repository.createPendingImageChat({ channelId: 'ch-1', localThumbUrls: ['blob:a'] });
