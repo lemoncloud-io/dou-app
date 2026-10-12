@@ -15,7 +15,7 @@ import { useInviteCountdown } from '../hooks/useInviteCountdown';
 import { ConfirmDialog } from '../../channels/components';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode } from '../../../utils/errors';
-import { readInternationalInput } from '../../../utils/phoneNumber';
+import { readInternationalInput } from '@chatic/shared/phone';
 import { useAcceptedChannelSync } from '../hooks/useAcceptedChannelSync';
 import { useInviteWaitingStatus } from '../hooks/useInviteWaitingStatus';
 import { useLocallyCanceledInvites } from '../hooks/useLocallyCanceledInvites';

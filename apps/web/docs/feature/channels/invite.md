@@ -23,7 +23,7 @@ with a channel id. What is described here is only the group case.
 Two pages (the tab shell and the link page), five components (the place tab, the contact tab
 `ContactInviteTab`, the add-friend sheet, the link view `InviteLinkView`, the permission banner), and
 one pure module — `deviceContact.ts` for the name and phone chains, the second line, the sort order
-and the search text. Numbers are read with the shared `utils/phoneNumber.ts`, the same module the
+and the search text. Numbers are read with `@chatic/shared/phone`, the same module the
 relay invite's field uses ([auth/international-phone-input.md](../auth/international-phone-input.md)).
 The pickers, the search input and the link card are `@chatic/web-ui-kit`.
 

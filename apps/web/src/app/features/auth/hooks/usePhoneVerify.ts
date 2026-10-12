@@ -3,20 +3,21 @@ import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-
-import { useLinkAccount, type AccountLinkMode } from '../../../hooks/useLinkAccount';
-import { getSocketErrorCode, VERIFICATION_CODE_LENGTH } from '../../../utils';
-import { isDevBuild } from '../../../utils/buildEnv';
 import {
     isValidMobileNumber,
     readInternationalInput,
     rememberCountry,
     resolveDefaultCountry,
     toE164,
+    useOtpExpiryCountdown,
+    type OtpExpiryCountdown,
     type PhoneCountry,
-} from '../../../utils/phoneNumber';
-import { useOtpExpiryCountdown, type OtpExpiryCountdown } from './useOtpExpiryCountdown';
+} from '@chatic/shared/phone';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { useLinkAccount, type AccountLinkMode } from '../../../hooks/useLinkAccount';
+import { getSocketErrorCode, VERIFICATION_CODE_LENGTH } from '../../../utils';
+import { isDevBuild } from '../../../utils/buildEnv';
 
 /**
  * Resend/extend cap enforced client-side BEFORE the server is asked; a server 429 (60s cooldown,

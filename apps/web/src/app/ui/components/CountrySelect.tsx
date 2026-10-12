@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { IconChevronDown } from '@chatic/web-ui-kit';
 
-import { phoneCountryDialCode, type PhoneCountry } from '../../utils/phoneNumber';
+import { phoneCountryDialCode, type PhoneCountry } from '@chatic/shared/phone';
 import { CountrySelectSheet } from './CountrySelectSheet';
 
 interface CountrySelectProps {
