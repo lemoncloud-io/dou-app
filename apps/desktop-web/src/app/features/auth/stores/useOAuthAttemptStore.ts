@@ -26,11 +26,14 @@ interface OAuthAttemptState {
     failed: boolean;
     /** The last link that did not go through, until the person dismisses it. */
     linkFailure: LinkFailure | null;
+    /** A code that came back is being exchanged or linked; giving up now would race its outcome. */
+    completing: boolean;
     begin: (attempt: OAuthAttempt) => void;
     opened: (startedAt: number, nonce: string) => void;
     fail: () => void;
     clear: () => void;
     setLinkFailure: (failure: LinkFailure | null) => void;
+    setCompleting: (completing: boolean) => void;
 }
 
 /**
@@ -44,13 +47,23 @@ export const useOAuthAttemptStore = create<OAuthAttemptState>(set => ({
     attempt: null,
     failed: false,
     linkFailure: null,
+    completing: false,
     begin: attempt => set({ attempt, failed: false, linkFailure: null }),
     opened: (startedAt, nonce) => set(s => (s.attempt ? { attempt: { ...s.attempt, startedAt, nonce } } : s)),
     fail: () => set(s => (s.attempt ? { failed: true } : s)),
     clear: () => set({ attempt: null, failed: false }),
     setLinkFailure: linkFailure => set({ linkFailure }),
+    setCompleting: completing => set({ completing }),
 }));
 
 /** A login begun signed out is still waiting: the router keeps the Welcome page for it. */
 export const selectHeldLogin = (s: OAuthAttemptState): boolean =>
     s.attempt?.intent === 'login' && s.attempt.signedOutAtStart;
+
+/**
+ * The attempt is between steps no button may interrupt: the device is still being registered (the
+ * browser has not been sent yet), or the code that came back is being exchanged. Cancelling then would
+ * sign out a session the next step is about to use, or replace.
+ */
+export const selectAttemptBusy = (s: OAuthAttemptState): boolean =>
+    s.completing || (s.attempt !== null && s.attempt.startedAt === undefined && !s.failed);

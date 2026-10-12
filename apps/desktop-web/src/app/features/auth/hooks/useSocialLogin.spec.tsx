@@ -47,11 +47,11 @@ import i18n from '../../../../i18n';
 import { setStorageAdapter } from '@chatic/shared';
 
 import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart, takeSignInNotice } from '../utils';
-import { useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
+import { selectAttemptBusy, useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
 import { useSocialLogin } from './useSocialLogin';
 
 beforeEach(() => {
-    useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null });
+    useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null, completing: false });
     session.signOutGuest.mockReset().mockResolvedValue(undefined);
 });
 
@@ -542,6 +542,47 @@ describe('useSocialLogin.start', () => {
             expect(session.toast).toHaveBeenCalledWith(
                 expect.objectContaining({ variant: 'destructive', description: i18n.t('auth.social.cancelFailed') })
             );
+        });
+
+        it('does not send the browser for an attempt given up while the device registered', async () => {
+            let finish: () => void = () => undefined;
+            session.loginGuest.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
+            const { result } = renderHook(() => useSocialLogin());
+            let started: Promise<boolean> = Promise.resolve(false);
+            act(() => {
+                started = result.current.start('google');
+            });
+            expect(selectAttemptBusy(store())).toBe(true);
+
+            act(() => store().clear());
+            await act(async () => {
+                finish();
+                await started;
+            });
+
+            expect(open).not.toHaveBeenCalled();
+            expect(takeOAuthLoginStart()).toBeNull();
+        });
+
+        it('is busy while the code that came back is exchanged, and cannot be cancelled then', async () => {
+            let busyDuringExchange: unknown = 'unset';
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            expect(selectAttemptBusy(store())).toBe(false);
+            session.isAuthenticated = true;
+            session.createCredentialsByProvider.mockImplementation(async () => {
+                busyDuringExchange = selectAttemptBusy(store());
+                await result.current.cancel();
+                return { createdAt: 1 };
+            });
+
+            await act(() =>
+                result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: nonceOf(0) ?? undefined })
+            );
+
+            expect(busyDuringExchange).toBe(true);
+            expect(session.signOutGuest).not.toHaveBeenCalled();
+            expect(store().completing).toBe(false);
         });
 
         it('keeps the guest when the cancel moves on to phone sign-in', async () => {

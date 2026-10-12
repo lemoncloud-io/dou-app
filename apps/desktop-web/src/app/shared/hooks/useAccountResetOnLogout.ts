@@ -19,6 +19,9 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     'chatic-selected-channel',
     'chatic-known-channels',
     'chatic-last-channel',
+    // What the app says after a Google sign-in, left for the reload. Not yet said when the person logs
+    // out, it would greet the next account with the previous one's news.
+    'chatic-signin-notice',
 ] as const;
 
 /**

@@ -14,7 +14,9 @@ const SIGN_IN_NOTICE_KEY = 'chatic-signin-notice';
 
 /**
  * Slack for a server clock that runs behind this one. A Google account that already owned a DoU account
- * was made long before any sign-in, so a minute of slack cannot mistake one for new.
+ * was made long before any sign-in, so a minute of slack cannot mistake one for new. A clock here that
+ * runs ahead by more than the slack plus the time spent in the browser errs the other way: a new account
+ * reads as existing, and gets the toast instead of the stop.
  */
 export const NEW_ACCOUNT_CLOCK_SLACK_MS = 60 * 1000;
 

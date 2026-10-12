@@ -116,6 +116,7 @@ export const useSocialLogin = () => {
                     !runtime.session.getIdentityContext().isAuthenticated ||
                     (previous?.intent === 'login' && previous.signedOutAtStart),
             });
+            const begun = useOAuthAttemptStore.getState().attempt;
             try {
                 await ensureDeviceSession(() => loginGuest(deviceId));
             } catch (error) {
@@ -128,6 +129,8 @@ export const useSocialLogin = () => {
                 startingRef.current = false;
                 if (mountedRef.current) setIsStarting(false);
             }
+            // Given up on while the device was registering: the browser is not sent for an attempt that is gone.
+            if (useOAuthAttemptStore.getState().attempt !== begun) return false;
             // Written after the registration, so the ten-minute window is not spent on it.
             openAuthorize(provider, 'login');
             return true;
@@ -162,7 +165,9 @@ export const useSocialLogin = () => {
      */
     const cancel = useCallback(
         async ({ keepSession = false }: { keepSession?: boolean } = {}): Promise<void> => {
-            const { attempt, clear } = useOAuthAttemptStore.getState();
+            const { attempt, clear, completing } = useOAuthAttemptStore.getState();
+            // The code is already being exchanged: its outcome (a reload, or the failure) ends the attempt.
+            if (completing) return;
             takeOAuthLoginStart();
             const mintedGuest = attempt?.intent === 'login' && attempt.signedOutAtStart;
             if (keepSession || !mintedGuest || !runtime.session.getIdentityContext().isAuthenticated) {
@@ -187,6 +192,7 @@ export const useSocialLogin = () => {
         async (provider: string, code: string, account: string | undefined): Promise<boolean> => {
             if (completingRef.current) return false;
             completingRef.current = true;
+            useOAuthAttemptStore.getState().setCompleting(true);
             setIsSubmitting(true);
             setIsError(false);
             const fail = (failure: LinkFailure) => {
@@ -234,6 +240,7 @@ export const useSocialLogin = () => {
                 // user, so it is not read as "a social account is already linked" — only verify says that.
                 return fail(status === 409 ? 'occupied' : 'failed');
             } finally {
+                useOAuthAttemptStore.getState().setCompleting(false);
                 setIsSubmitting(false);
             }
         },
@@ -244,6 +251,7 @@ export const useSocialLogin = () => {
         async (provider: string, code: string, startedAt: number, notifyFailure: boolean): Promise<boolean> => {
             if (completingRef.current) return false;
             completingRef.current = true;
+            useOAuthAttemptStore.getState().setCompleting(true);
             setIsSubmitting(true);
             setIsError(false);
             // Starting registers the device first, so a login begun from Welcome or Profile alike usually
@@ -270,6 +278,7 @@ export const useSocialLogin = () => {
                 completingRef.current = false; // allow a retry with a fresh code
                 return false;
             } finally {
+                useOAuthAttemptStore.getState().setCompleting(false);
                 setIsSubmitting(false);
             }
         },

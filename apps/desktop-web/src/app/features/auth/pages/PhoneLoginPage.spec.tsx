@@ -192,6 +192,16 @@ describe('PhoneLoginPage', () => {
         expect(state.signOutGuest).toHaveBeenCalled();
     });
 
+    it('does not sign out an account the sign-in on this page already made', () => {
+        renderPage({ from: '/auth/welcome' });
+        state.isAuthenticated = true;
+        state.user = { userRole: 'user' };
+
+        fireEvent.click(screen.getByRole('button', { name: 'back' }));
+
+        expect(state.signOutGuest).not.toHaveBeenCalled();
+    });
+
     it('counts down to the next resend', () => {
         state.login = { ...baseLogin(), codeSent: true, resendIn: 42 };
         renderPage();

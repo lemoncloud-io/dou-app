@@ -5,8 +5,8 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isPlaceholderName, useRelayAccount, useAccountResetOnLogout } from '../../../shared';
-import { runtime } from '@chatic/app-runtime';
+import { isPlaceholderName, useRelayAccount } from '../../../shared';
+import { useSignOutGuest } from '../hooks/useSignOutGuest';
 import { takeSignInNotice, type SignInNoticeRecord as Notice } from '../utils/signInNotice';
 import { NewAccountName } from './NewAccountName';
 
@@ -18,9 +18,9 @@ import { NewAccountName } from './NewAccountName';
  */
 export const SignInNotice = () => {
     const { t } = useTranslation();
-    const { account } = useRelayAccount();
-    const logout = runtime.session.useSessionLogout();
-    const { resetAccount } = useAccountResetOnLogout();
+    const { account, isRelayVerified } = useRelayAccount();
+    // Leaving an account made seconds ago: nothing in it to confirm, the same sign-out as a guest's.
+    const signOut = useSignOutGuest();
     const [notice, setNotice] = useState<Notice | null>(null);
 
     useEffect(() => {
@@ -28,15 +28,16 @@ export const SignInNotice = () => {
     }, []);
 
     const name = account?.name && !isPlaceholderName(account.name) ? account.name : null;
+    // Said once the relay connection is verified as the signed-in account, so the name is its own.
     useEffect(() => {
-        if (!notice || notice.isNew) return;
+        if (!notice || notice.isNew || !isRelayVerified) return;
         toast({ description: name ? t('auth.social.signedInAs', { name }) : t('auth.social.signedIn') });
         setNotice(null);
-    }, [notice, name, t]);
+    }, [notice, name, isRelayVerified, t]);
 
     if (!notice?.isNew) return null;
     const close = () => setNotice(null);
-    const notMine = () => void resetAccount().finally(() => logout());
+    const notMine = () => void signOut();
 
     return (
         <Dialog open>

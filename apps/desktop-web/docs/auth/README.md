@@ -68,6 +68,13 @@ card instead of the buttons:
   signed out.
 - A hand-off that fails, or a start that runs past its ten minutes, turns the card into a retry.
 
+Two moments have no way out on the card. While the device is still being registered the browser has
+not been sent, and a cancel then would leave the guest the registration is about to make. While the
+code that came back is being exchanged, a cancel would race the exchange: the sign-out and the
+sign-in would both replace the session. Both are seconds long, and both end the card by themselves.
+The hub's inline card holds back its cancel at the same moments. A start dropped while registering
+regardless does not send the browser once the registration finishes.
+
 The hand-off page in the system browser does not offer a way "back to the start" when it fails: that
 would open a second copy of the app in the browser tab. It says to go back to DoU and links
 `chatic://open` (the stage's scheme), which only raises the app window, where the card offers the
@@ -82,7 +89,8 @@ tab would come back refused.
 The app says who the person signed in as. The sign-in leaves a one-shot notice in storage (it
 reloads when it replaces a session) and the signed-in shell takes it once:
 
-- **An existing account** gets a toast with its name.
+- **An existing account** gets a toast with its name, once the relay connection is verified as that
+  account.
 - **A new account** gets a stop that cannot be dismissed by Escape or a stray click: the Google had no
   DoU account, so someone who signed up on mobile with a phone number has just made a second one. It
   asks for a display name (skippable) and offers to log out of it.
@@ -90,7 +98,10 @@ reloads when it replaces a session) and the signed-in shell takes it once:
 The server does not say whether the sign-in made the account. The app reads it off the account's
 `createdAt`: an account created at or after the moment the sign-in started, less a minute of slack for
 a server clock that runs behind, was made by it. A Google that already owned a DoU account was made
-long before. Without a `createdAt` nothing is claimed and the toast is shown.
+long before. Without a `createdAt` nothing is claimed and the toast is shown. The reading leans on this
+machine's clock: one running ahead of the server by more than the slack plus the time spent in the
+browser reads a new account as an existing one, which loses the stop but never invents one. A notice
+not yet said when the person logs out is dropped with the rest of the account's storage.
 
 ## Linking Google
 

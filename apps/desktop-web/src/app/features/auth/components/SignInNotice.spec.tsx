@@ -4,18 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
     notice: null as { provider: string; isNew: boolean } | null,
     name: 'Tak' as string | undefined,
+    verified: true,
     toast: vi.fn(),
-    logout: vi.fn(),
-    resetAccount: vi.fn(),
+    signOut: vi.fn(),
 }));
 
 vi.mock('../utils/signInNotice', () => ({ takeSignInNotice: () => state.notice }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: state.toast }));
-vi.mock('@chatic/app-runtime', () => ({ runtime: { session: { useSessionLogout: () => state.logout } } }));
+vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => state.signOut }));
 vi.mock('../../../shared', () => ({
     isPlaceholderName: (name?: string) => !name,
-    useRelayAccount: () => ({ account: { name: state.name } }),
-    useAccountResetOnLogout: () => ({ resetAccount: state.resetAccount }),
+    useRelayAccount: () => ({ account: { name: state.name }, isRelayVerified: state.verified }),
 }));
 vi.mock('./NewAccountName', () => ({
     NewAccountName: ({ onDone, secondary }: { onDone: () => void; secondary: React.ReactNode }) => (
@@ -35,9 +34,9 @@ describe('SignInNotice', () => {
     beforeEach(() => {
         state.notice = null;
         state.name = 'Tak';
+        state.verified = true;
         state.toast.mockReset();
-        state.logout.mockReset();
-        state.resetAccount.mockReset().mockResolvedValue(undefined);
+        state.signOut.mockReset().mockResolvedValue(undefined);
     });
     afterEach(cleanup);
 
@@ -53,6 +52,18 @@ describe('SignInNotice', () => {
         render(<SignInNotice />);
 
         expect(state.toast).toHaveBeenCalledWith({ description: i18n.t('auth.social.signedInAs', { name: 'Tak' }) });
+    });
+
+    it('waits for the relay before naming the account', () => {
+        state.notice = { provider: 'google', isNew: false };
+        state.verified = false;
+        const { rerender } = render(<SignInNotice />);
+        expect(state.toast).not.toHaveBeenCalled();
+
+        state.verified = true;
+        rerender(<SignInNotice />);
+
+        expect(state.toast).toHaveBeenCalledTimes(1);
     });
 
     it('stops on a new account, asking its name, and closes when that is done', () => {
@@ -81,7 +92,6 @@ describe('SignInNotice', () => {
             fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.notMine') }));
         });
 
-        expect(state.resetAccount).toHaveBeenCalled();
-        expect(state.logout).toHaveBeenCalled();
+        expect(state.signOut).toHaveBeenCalled();
     });
 });

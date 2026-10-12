@@ -13,6 +13,7 @@ import {
     isSocialLoginEnabled,
     PHONE_BUTTON_CLASS,
     phoneSignupNoteKey,
+    selectAttemptBusy,
     useAttemptExpired,
     useOAuthAttemptStore,
     useSocialLogin,
@@ -35,6 +36,7 @@ const OAuthWaiting = ({ intent, label }: { intent: OAuthStartIntent; label: stri
     const attempt = useOAuthAttemptStore(s => (s.attempt?.intent === intent ? s.attempt : null));
     const expired = useAttemptExpired(attempt);
     const failed = useOAuthAttemptStore(s => s.failed) || expired;
+    const busy = useOAuthAttemptStore(selectAttemptBusy);
     if (!attempt) return null;
     return (
         <div className="flex flex-wrap items-center justify-between gap-3" role="status">
@@ -47,7 +49,7 @@ const OAuthWaiting = ({ intent, label }: { intent: OAuthStartIntent; label: stri
                         {t('auth.social.reopen')}
                     </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => void cancel()}>
+                <Button variant="ghost" size="sm" onClick={() => void cancel()} disabled={busy}>
                     {t(failed ? 'auth.social.dismiss' : 'auth.social.cancel')}
                 </Button>
             </div>

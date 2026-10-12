@@ -78,10 +78,11 @@ export const PhoneLoginPage = () => {
     const isConfirming = login.busy === 'confirming';
     // Back goes where the page was opened from. A guest this visit registered (sending the first code, or
     // the Google start that led here) is signed out on the way, which reloads to Welcome: backing out
-    // is not choosing to be a guest.
+    // is not choosing to be a guest. Asked again at the press: a sign-in that went through on this page
+    // (the confirm answered, the app not yet reloaded) is an account now, and is not signed out.
     const onBack = () => {
         const signedIn = runtime.session.getIdentityContext().isAuthenticated;
-        if (signedIn && (arrivedSignedOut || entry.signOutOnBack)) {
+        if (signedIn && (arrivedSignedOut || entry.signOutOnBack) && isGuestSession()) {
             setLeaving(true);
             void signOutGuest().catch(() => {
                 setLeaving(false);

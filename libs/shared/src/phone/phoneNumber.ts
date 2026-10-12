@@ -7,15 +7,15 @@ import {
 } from 'libphonenumber-js/mobile';
 // Type-only, so it is erased at build and pulls no metadata of its own. This is the LIBRARY's
 // country union, not `@lemoncloud/chatic-backend-api`'s — the app never binds its own types to the
-// backend package (relay-server-invite 02-design.md D4), which is why `PhoneCountry` below is a
+// backend package, so a backend type change cannot silently retype the app, which is why `PhoneCountry` below is a
 // plain string and the final verdict on a value is the server's 400.
 import type { CountryCode } from 'libphonenumber-js';
 
 /**
  * ISO alpha-2 country of a phone number, as `libphonenumber-js` and the server both spell it.
  *
- * Deliberately `string` rather than a union: the backend's `CountryCode` LUT stays out of the app
- * (ADR-0044 §1), and the library's own union would drift against it just as silently.
+ * Deliberately `string` rather than a union: the backend's `CountryCode` LUT stays out of the app,
+ * and the library's own union would drift against it just as silently.
  */
 export type PhoneCountry = string;
 
@@ -38,7 +38,7 @@ const digitsOf = (value: string): string => value.replace(/\D/g, '');
  *
  * `Intl.DisplayNames` exists in every modern browser and WebView, but the fallback is real rather
  * than defensive noise: the picker rows also carry the flag and dial code, so ISO codes alone still
- * identify a country (ADR-0044 outcome).
+ * identify a country.
  */
 const createRegionNamer = (lang: string): ((code: string) => string) => {
     let names: Intl.DisplayNames;
@@ -127,8 +127,8 @@ const parse = (input: string, country: PhoneCountry | null) => {
  *
  * `chatic-backend-api`'s phone hasher (`asE164Phone`) only reads `countryCode` on a local (`0…`)
  * number and silently ignores it once the string already starts with `+`, so this is the one form
- * that is correct regardless of whether `countryCode` is trustworthy (ADR-0044 §5 correction — the
- * original design sent the local form instead, matching the client guide's literal wording). The log
+ * that is correct regardless of whether `countryCode` is trustworthy (the
+ * local form, which the first version sent, depended on that country being right). The log
  * needs the same property for a different reason: a representation that cannot collide across
  * countries, since local forms can (`09012345678` is a JP number and a plausible KR-shaped string).
  *
@@ -225,7 +225,7 @@ export const readLocaleCountry = (): PhoneCountry | null => {
  * then nothing.
  *
  * The stored pick wins over the locale because it is the stronger signal — someone abroad on a
- * Korean-language device corrects it once and keeps it (ADR-0044 §4). `null` is a legitimate
+ * Korean-language device corrects it once and keeps it. `null` is a legitimate
  * answer, not a failure: `navigator.language` is often region-less (`en`), and an empty picker with
  * a disabled CTA says "pick one" without accusing the user of a mistake.
  */

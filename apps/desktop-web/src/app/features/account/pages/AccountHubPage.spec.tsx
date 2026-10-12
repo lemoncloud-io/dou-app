@@ -56,6 +56,7 @@ vi.mock('../../auth', () => ({
     useAttemptExpired: () => false,
     useOAuthAttemptStore: <T,>(select: (s: { attempt: null; failed: boolean; linkFailure: null }) => T) =>
         select({ attempt: null, failed: false, linkFailure: null }),
+    selectAttemptBusy: () => false,
 }));
 
 import '../../../../i18n';

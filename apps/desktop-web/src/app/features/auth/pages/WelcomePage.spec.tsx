@@ -43,7 +43,7 @@ describe('WelcomePage', () => {
     beforeEach(() => {
         state.guest = { submit: vi.fn(), isSubmitting: false, isError: false };
         state.social = { start: vi.fn(), reopen: vi.fn(), cancel: vi.fn(), isStarting: false, isError: false };
-        useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null });
+        useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null, completing: false });
         state.phoneLogin = true;
         state.navigate = vi.fn();
     });
@@ -160,6 +160,28 @@ describe('WelcomePage', () => {
                 state: { from: '/auth/welcome', signOutOnBack: true },
             });
             expect(state.social.cancel).toHaveBeenCalledWith({ keepSession: true });
+        });
+
+        it('offers no way out while the device is still being registered', () => {
+            useOAuthAttemptStore.setState({
+                attempt: { provider: 'google', intent: 'login', signedOutAtStart: true },
+                failed: false,
+            });
+            render(<WelcomePage />);
+
+            const cancel = screen.getByRole('button', { name: i18n.t('auth.social.cancel') }) as HTMLButtonElement;
+            const phone = screen.getByRole('button', { name: i18n.t('auth.phone.start') }) as HTMLButtonElement;
+            expect(cancel.disabled).toBe(true);
+            expect(phone.disabled).toBe(true);
+        });
+
+        it('offers no way out while the code that came back is being exchanged', () => {
+            waiting();
+            useOAuthAttemptStore.setState({ completing: true });
+            render(<WelcomePage />);
+
+            const cancel = screen.getByRole('button', { name: i18n.t('auth.social.cancel') }) as HTMLButtonElement;
+            expect(cancel.disabled).toBe(true);
         });
 
         it('offers a retry once the hand-off failed', () => {

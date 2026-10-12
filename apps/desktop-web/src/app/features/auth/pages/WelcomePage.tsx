@@ -10,7 +10,7 @@ import { AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
 import { useAttemptExpired } from '../hooks/useAttemptExpired';
 import { useSocialLogin } from '../hooks/useSocialLogin';
-import { useOAuthAttemptStore, type OAuthAttempt } from '../stores/useOAuthAttemptStore';
+import { selectAttemptBusy, useOAuthAttemptStore, type OAuthAttempt } from '../stores/useOAuthAttemptStore';
 import { PHONE_BUTTON_CLASS, isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
 
 /**
@@ -24,6 +24,7 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
     const { start, reopen, cancel, isStarting } = useSocialLogin();
     const expired = useAttemptExpired(attempt);
     const [leaving, setLeaving] = useState(false);
+    const busy = useOAuthAttemptStore(selectAttemptBusy);
     const stuck = failed || expired;
 
     const onCancel = () => {
@@ -67,13 +68,13 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
                         size="lg"
                         className={PHONE_BUTTON_CLASS}
                         onClick={usePhone}
-                        disabled={leaving}
+                        disabled={leaving || busy}
                     >
                         <Smartphone className="h-4 w-4" />
                         {t('auth.phone.start')}
                     </Button>
                 )}
-                <Button variant="link" onClick={onCancel} disabled={leaving}>
+                <Button variant="link" onClick={onCancel} disabled={leaving || busy}>
                     {t('auth.social.cancel')}
                 </Button>
             </div>
