@@ -62,6 +62,14 @@ export class Coalescer<T> {
         return running;
     }
 
+    /**
+     * Drops the memoized answer and leaves an in-flight attempt shared. For a caller that knows the
+     * reason behind the last answer has just changed — the memo's own premise is that it has not.
+     */
+    forgetResult(): void {
+        this.lastResult = null;
+    }
+
     /** Test seam: a case must not inherit the previous one's shared attempt or memoized answer. */
     reset(): void {
         this.inFlight = null;

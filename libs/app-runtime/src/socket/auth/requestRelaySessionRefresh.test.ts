@@ -264,6 +264,56 @@ describe('requestRelaySessionRefresh — 중복 억제', () => {
         expect(manager.getClient).toHaveBeenCalledTimes(readsAfterFirstAttempt);
     });
 
+    // A returning user's first relay-signed requests fail while the socket is still handshaking and
+    // ask for a refresh; the staleness guard asks again on the verified edge, typically inside the
+    // memo window. Answering the guard from that memo left the expired credential in place.
+    it('does not answer from a "still handshaking" memo once the relay slot has verified', async () => {
+        const auth = makeAuth();
+        const client = { auth, state: 'connected' };
+        let verified = false;
+        const manager = {
+            getClient: jest.fn(() => client),
+            isSlotVerified: jest.fn(() => verified),
+        } as unknown as ISocketManager;
+
+        await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
+        expect(auth.refresh).not.toHaveBeenCalled();
+
+        verified = true;
+        const pending = requestRelaySessionRefresh({ manager });
+        expect(auth.refresh).toHaveBeenCalledTimes(1);
+
+        auth.finishRefresh();
+        await expect(pending).resolves.toBe(true);
+    });
+
+    it('keeps absorbing an "expired" memo even with the relay slot verified', async () => {
+        const auth = makeAuth({ state: 'expired' });
+        const client = { auth, state: 'connected' };
+        const manager = {
+            getClient: jest.fn(() => client),
+            isSlotVerified: jest.fn(() => true),
+        } as unknown as ISocketManager;
+
+        await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
+        const readsAfterFirstAttempt = (manager.getClient as jest.Mock).mock.calls.length;
+
+        await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
+        expect(manager.getClient).toHaveBeenCalledTimes(readsAfterFirstAttempt);
+        expect(auth.refresh).not.toHaveBeenCalled();
+    });
+
+    it('keeps absorbing a "no socket" memo while the relay slot is still unverified', async () => {
+        const auth = makeAuth();
+        const manager = makeManager({ auth, state: 'connected' }, { verified: false });
+
+        await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
+        const readsAfterFirstAttempt = (manager.getClient as jest.Mock).mock.calls.length;
+
+        await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
+        expect(manager.getClient).toHaveBeenCalledTimes(readsAfterFirstAttempt);
+    });
+
     it('메모 창이 지나면 다시 시도한다 — 캐시가 아니라 버스트 흡수기다', async () => {
         jest.useFakeTimers();
         try {

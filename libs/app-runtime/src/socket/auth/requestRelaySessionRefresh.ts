@@ -31,12 +31,23 @@ const RESULT_MEMO_MS = 3_000;
  */
 const coalescer = new Coalescer<boolean>({ memoMs: RESULT_MEMO_MS });
 
+/**
+ * Whether the memoized answer is "the relay socket is still handshaking". That is the one verdict the
+ * slot verifying overturns — the change the memo was betting would not happen inside its window.
+ * `absent` and `expired` can sit beside a verified slot and are not fixed by it, so they keep the
+ * memo; dropping it for them would re-run (and re-warn) on every relay 403.
+ */
+let lastVerdictHandshaking = false;
+
 export interface RequestRelaySessionRefreshDeps {
     manager?: ISocketManager;
 }
 
 /** Drops the coalescing state. Tests only — a case must not inherit the previous one's answer. */
-export const resetRelayRefreshCoalescing = (): void => coalescer.reset();
+export const resetRelayRefreshCoalescing = (): void => {
+    coalescer.reset();
+    lastVerdictHandshaking = false;
+};
 
 /**
  * One actual refresh attempt through the relay socket's controller. Never called directly — every
@@ -59,6 +70,7 @@ class RelayRefreshAttempt {
         // `deriveAuthStatus` folds that reasoning in: only `verified`/`stale` imply
         // verified-on-this-connection.
         const snapshot = getAuthSnapshot(RELAY_SLOT, { manager });
+        lastVerdictHandshaking = snapshot.status === 'handshaking';
         if (!canRefreshThroughSocket(snapshot.status)) {
             logger.warn('SOCKET', '[requestRelaySessionRefresh] relay cannot carry a refresh right now', {
                 data: {
@@ -120,5 +132,15 @@ class RelayRefreshAttempt {
  * Returns true when the refresh succeeded, false otherwise (including "no socket to ask" and "the
  * socket is back but its handshake has not completed yet"). Never throws.
  */
-export const requestRelaySessionRefresh = (deps: RequestRelaySessionRefreshDeps = {}): Promise<boolean> =>
-    coalescer.run(() => new RelayRefreshAttempt(deps).run());
+export const requestRelaySessionRefresh = (deps: RequestRelaySessionRefreshDeps = {}): Promise<boolean> => {
+    // A remembered "still handshaking" must not answer for a socket that has since verified. That
+    // moment is exactly when the staleness guard asks (the relay verified edge), and a returning
+    // user's first relay-signed requests fail and ask just before it — so without this the guard's
+    // refresh is swallowed, and the stale credential outlives the handshake until some later request
+    // happens to ask again. Read off the slot flag alone: it is the cheap, necessary half of
+    // `canRefreshThroughSocket`, and the attempt re-derives the full status anyway.
+    if (lastVerdictHandshaking && (deps.manager ?? getSocketManager()).isSlotVerified(RELAY_SLOT)) {
+        coalescer.forgetResult();
+    }
+    return coalescer.run(() => new RelayRefreshAttempt(deps).run());
+};

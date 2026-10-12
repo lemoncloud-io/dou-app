@@ -66,6 +66,31 @@ describe('Coalescer — 결과 메모 (버스트 흡수기)', () => {
         expect(attempt).toHaveBeenCalledTimes(2);
     });
 
+    it('forgetResult drops the memoized answer so the next caller runs a fresh attempt', async () => {
+        const c = new Coalescer<boolean>({ memoMs: 3_000, now: () => 0 });
+        const attempt = jest.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+        await expect(c.run(attempt)).resolves.toBe(false);
+        c.forgetResult();
+
+        await expect(c.run(attempt)).resolves.toBe(true);
+        expect(attempt).toHaveBeenCalledTimes(2);
+    });
+
+    it('forgetResult keeps an in-flight attempt shared', async () => {
+        const c = new Coalescer<boolean>({ memoMs: 3_000, now: () => 0 });
+        const d = deferred<boolean>();
+        const attempt = jest.fn(() => d.promise);
+
+        const first = c.run(attempt);
+        c.forgetResult();
+        const second = c.run(attempt);
+
+        expect(attempt).toHaveBeenCalledTimes(1);
+        d.settle(true);
+        await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+    });
+
     it('reset 은 공유 시도와 메모를 모두 버린다', async () => {
         const c = new Coalescer<boolean>({ memoMs: 3_000, now: () => 0 });
         const attempt = jest.fn().mockResolvedValue(true);
