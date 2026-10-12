@@ -86,6 +86,14 @@ Check a box only for something actually run in this work, with the command and t
 result beside it. Leave unchecked what the reader has to do themselves, and say what
 they should do. The checklist is worth having only if it is honest.
 
+**A manual line is a candidate for `apps/web-e2e`.** When a line checks a web flow by hand —
+a screen, a bridge request and its reply, an event the app pushes — ask whether the fake native
+shell could replay it, and either add the scenario
+([`apps/web-e2e/README.md` § Adding a scenario](../../../../apps/web-e2e/README.md#adding-a-scenario))
+or say on that line why not: native code doing the work, WebKit standing in for WKWebView, a real
+device trait. A check that stays manual is fine; one that stays manual without a reason is
+checked once and never again.
+
 Format and examples in
 [references/verification-plan.md](./references/verification-plan.md).
 
