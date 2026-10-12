@@ -70,7 +70,8 @@ test('a file the app would not copy is reported, and nothing is sent', async ({ 
 
     await openSelfChat(page);
     await chooseFromFiles(page);
-    await expect(page.getByText('Files can be up to 50MB')).toBeVisible();
+    // Exact: the toast's text also sits, prefixed, in the toaster's live region, which strict mode would trip on.
+    await expect(page.getByText('Files can be up to 50MB', { exact: true })).toBeVisible();
 
     // A second pick that is sent. Once its message is on screen, anything the first pick sent would
     // have gone out before it — so the upload requests now are the whole answer.
