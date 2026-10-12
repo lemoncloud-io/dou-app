@@ -73,3 +73,20 @@ export const classifyWireError = (raw: string): WireErrorKind => {
     if (/\b400\b/.test(text) || text.includes('INVALID')) return 'invalid';
     return 'unknown';
 };
+
+/**
+ * The status a rejected socket request carries, or `undefined` when it carries none. The socket
+ * library keeps only the server's message, which leads with the status (`403 FORBIDDEN - …`), so the
+ * status is read from that prefix — never from the wording after it. Prefer this over
+ * `classifyWireError` where one status means one thing and the wording is not a contract: the phone
+ * sign-in's wrong code and expired code differ by status alone.
+ *
+ * The same rule is in `@chatic/app-runtime` (internal) and `apps/web`'s `getSocketErrorCode`; a change
+ * to the convention belongs in all three.
+ */
+export const socketErrorStatus = (error: unknown): number | undefined => {
+    const carried = (error as { errorCode?: unknown } | null)?.errorCode;
+    if (typeof carried === 'number') return carried;
+    const leading = /^\s*([1-5]\d{2})\b/.exec(toError(error).message);
+    return leading ? Number(leading[1]) : undefined;
+};
