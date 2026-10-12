@@ -9,12 +9,17 @@ const rt = vi.hoisted(() => ({
     confirmPhoneCode: vi.fn(),
     applySessionToken: vi.fn(),
     error: vi.fn(),
+    waitUntilSlotVerified: vi.fn(),
 }));
 
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: rt.error, warn: vi.fn() } }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         boot: { startWebTransportInit: rt.startWebTransportInit },
+        connection: {
+            RELAY_SLOT: 'relay',
+            getSocketManager: () => ({ waitUntilSlotVerified: rt.waitUntilSlotVerified }),
+        },
         data: {
             useRuntimeRepositories: () => ({
                 auth: { sendPhoneCode: rt.sendPhoneCode, confirmPhoneCode: rt.confirmPhoneCode },
@@ -63,6 +68,7 @@ describe('usePhoneLogin', () => {
             .mockResolvedValue({ step: 'confirm', mode: 'login', loggedIn: true, isNew: false, $token: TOKEN });
         rt.applySessionToken.mockReset().mockResolvedValue(undefined);
         rt.error.mockReset();
+        rt.waitUntilSlotVerified.mockReset().mockResolvedValue(true);
     });
 
     it('sends the code in login mode as an E.164 number with its country', async () => {
@@ -78,6 +84,10 @@ describe('usePhoneLogin', () => {
         rt.isAuthenticated = false;
         const order: string[] = [];
         rt.loginGuest.mockImplementation(async () => void order.push('register'));
+        rt.waitUntilSlotVerified.mockImplementation(async () => {
+            order.push('verified');
+            return true;
+        });
         rt.sendPhoneCode.mockImplementation(async () => {
             order.push('send');
             return { sent: true, expiredAt: Date.now() + 180_000 };
@@ -87,7 +97,9 @@ describe('usePhoneLogin', () => {
         await sendCode(result);
 
         expect(rt.loginGuest).toHaveBeenCalledWith('device-1');
-        expect(order).toEqual(['register', 'send']);
+        // The send waits for the relay socket to authenticate the new device, or the first one fails.
+        expect(order).toEqual(['register', 'verified', 'send']);
+        expect(rt.waitUntilSlotVerified).toHaveBeenCalledWith('relay', expect.any(Number));
     });
 
     it('sends nothing for a number that is not a mobile number', async () => {

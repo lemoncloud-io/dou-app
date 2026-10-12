@@ -18,6 +18,9 @@ import { ensureDeviceSession } from '../utils';
 /** Digits in the code the server sends. */
 export const PHONE_CODE_LENGTH = 6;
 
+/** How long a send waits for the relay socket to finish authenticating a just-registered device. */
+const RELAY_VERIFY_TIMEOUT_MS = 10_000;
+
 /** The raw field keeps what was typed so a bad format stays visible; the parser reads digits. */
 const PHONE_INPUT_MAX = 20;
 
@@ -48,7 +51,8 @@ export interface PhoneLoginOptions {
  * linking a number to an account that is already signed in is the mobile app's.
  *
  * - The server takes a login only from a device session, so sending registers the device first when
- *   there is no session (the same registration the Welcome page's guest start does).
+ *   there is no session (the same registration the Welcome page's guest start does), and waits for the
+ *   relay socket to authenticate it before the send goes out.
  * - The code is checked by `confirm` alone. `verify` would only say the code is valid, which `confirm`
  *   proves anyway, and whether the number makes a new account is answered by `confirm` alone.
  * - The proof steps send the number and country the code was sent with, pinned at send time, not
@@ -130,6 +134,12 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
                 setPhoneError('deviceFailed');
                 return;
             }
+            // The code goes over the relay socket, which a fresh registration has only just started to
+            // authenticate: sent before that handshake ends, the first send fails. Never rejects; on a
+            // timeout the send goes anyway and the server's answer is what the person sees.
+            await runtime.connection
+                .getSocketManager()
+                .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, RELAY_VERIFY_TIMEOUT_MS);
             const sent = await auth.sendPhoneCode(wirePhone, { mode: 'login', countryCode: country });
             setExpiredAt(sent.expiredAt);
             setSentWith({ phone: wirePhone, country });

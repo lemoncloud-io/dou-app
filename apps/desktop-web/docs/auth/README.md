@@ -120,7 +120,9 @@ runs `usePhoneLogin` over the `auth.link-account` packet in `login` mode, the sa
 app's phone sign-in uses:
 
 1. **Send** — the number goes out in E.164 with its country. Sending registers the device first when
-   there is no session, because the server takes a login only from a device session.
+   there is no session, because the server takes a login only from a device session. The code goes
+   over the relay socket, so the send then waits (up to 10 seconds) for that socket to authenticate the
+   new device; sent before the handshake ends, the first send failed and only a second press got a text.
 2. **Confirm** — typing the sixth digit confirms. There is no separate verify step: it would only say
    the code is valid, which the confirm proves anyway.
 3. **Switch** — the confirm's `$token` becomes the session, and the app reloads at `/` so the socket,
