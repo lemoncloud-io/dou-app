@@ -119,7 +119,7 @@ describe('createNativeTransfers — videos and documents', () => {
             httpStatus: 200,
         });
 
-        expect(fallback).toHaveBeenCalledWith(target, picked, 'slot-0/original');
+        expect(fallback).toHaveBeenCalledWith(target, picked, 'slot-0/original', undefined);
         expect(requests).toEqual([]);
         // Not a verdict on the shell: the next image still goes native.
         expect(transfers.usesFallback()).toBe(false);
@@ -196,6 +196,51 @@ describe('createNativeTransfers', () => {
         });
     });
 
+    it("hands the shell's running byte counts to the caller, and none after the transfer settled", async () => {
+        const { transfers, requests, emit } = setup();
+        const sent: number[] = [];
+
+        const result = transfers.put(target, file, 'slot-0/original', bytes => sent.push(bytes));
+        await untilRequested(requests, 'StartFileTransfer');
+        emit({ transferId: 't-1', state: 'running', transferredBytes: 1, totalBytes: 3 });
+        emit({ transferId: 'someone-else', state: 'running', transferredBytes: 99 });
+        emit({ transferId: 't-1', state: 'running', transferredBytes: 3, totalBytes: 3 });
+        emit({ transferId: 't-1', state: 'responded', httpStatus: 200 });
+        emit({ transferId: 't-1', state: 'running', transferredBytes: 3 });
+        await result;
+
+        expect(sent).toEqual([1, 3]);
+    });
+
+    it('counts a shell file from the running states of its own transfer', async () => {
+        const { transfers, requests, emit } = setup();
+        const sent: number[] = [];
+        const shellFile = {
+            uri: 'file:///cache/attach-pick/u1/a.pdf',
+            name: 'a.pdf',
+            type: 'application/pdf',
+            size: 10,
+            kind: 'file' as const,
+        };
+
+        const result = transfers.putShellFile(target, shellFile, 'slot-0/original', bytes => sent.push(bytes));
+        await untilRequested(requests, 'StartFileTransfer');
+        emit({ transferId: 't-1', state: 'running', transferredBytes: 6, totalBytes: 10 });
+        emit({ transferId: 't-1', state: 'responded', httpStatus: 200 });
+        await result;
+
+        expect(sent).toEqual([6]);
+    });
+
+    it('passes the progress callback on to the page PUT it falls back to', async () => {
+        const { transfers, fallback } = setup({ WriteTempFile: notFound() });
+        const onProgress = jest.fn();
+
+        await transfers.put(target, file, 'slot-0/original', onProgress);
+
+        expect(fallback).toHaveBeenCalledWith(target, file, 'slot-0/original', onProgress);
+    });
+
     it('acknowledges the transfer once it has ended', async () => {
         const { transfers, requests, emit } = setup();
 
@@ -231,7 +276,7 @@ describe('createNativeTransfers', () => {
             await transfers.put(target, file, 'slot-1/original');
 
             expect(fallback).toHaveBeenCalledTimes(2);
-            expect(fallback).toHaveBeenCalledWith(target, file, 'slot-0/original');
+            expect(fallback).toHaveBeenCalledWith(target, file, 'slot-0/original', undefined);
             expect(transfers.usesFallback()).toBe(true);
             // The second PUT never asked the shell anything.
             expect(bridge.request.mock.calls.length).toBe(requestsAfterFirst);

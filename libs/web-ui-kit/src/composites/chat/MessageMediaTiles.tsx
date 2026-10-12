@@ -1,8 +1,11 @@
-import { useState, type Ref } from 'react';
+import { useId, useState, type Ref } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
 import { IconAlert, IconImage, IconPlaySolid, IconSpinner } from '../../resources/icons';
+
+import { clampFileProgress } from './messageFile';
+import { ProgressRing } from './ProgressRing';
 
 /**
  * - `ready` — drawn from `preview`. A `ready` tile with no `preview` yet is one the host is still
@@ -35,6 +38,11 @@ export interface MessageMediaTileItem {
      */
     frameUrl?: string;
     state: MessageMediaTileState;
+    /**
+     * 0..1 of a `sending` tile's bytes. Omit while it is not known — not started, or a sender that
+     * cannot count — and the tile turns a spinner instead of filling a ring.
+     */
+    progress?: number;
 }
 
 export interface MessageMediaTilesProps {
@@ -43,6 +51,8 @@ export interface MessageMediaTilesProps {
     onOpen?: (index: number) => void;
     /** Accessible name for a tile; receives the 1-based position and what the tile stands for. */
     tileLabel?: (position: number, kind: MessageMediaKind) => string;
+    /** Accessible name of a sending tile's progress. */
+    sendingLabel?: string;
     /**
      * Fired with the index of a preview that failed to load. Signed addresses expire, so the host can
      * fetch fresh ones; the tile itself only reports it.
@@ -91,10 +101,12 @@ export const MessageMediaTiles = ({
     items,
     onOpen,
     tileLabel = defaultTileLabel,
+    sendingLabel = 'Sending',
     onImageError,
     className,
     ref,
 }: MessageMediaTilesProps) => {
+    const progressIdBase = useId();
     const all = items.slice(0, MESSAGE_IMAGE_RENDER_MAX);
     if (all.length === 0) return null;
     const visible = all.slice(0, MESSAGE_IMAGE_VISIBLE_MAX);
@@ -107,6 +119,9 @@ export const MessageMediaTiles = ({
         >
             {visible.map((item, index) => {
                 const more = hidden > 0 && index === visible.length - 1 ? hidden : 0;
+                // The "+n" tile keeps the plain spinner: its count already sits where the percentage would.
+                const ratio = item.state === 'sending' && more === 0 ? clampFileProgress(item.progress) : undefined;
+                const progressId = ratio === undefined ? undefined : `${progressIdBase}-${index}`;
                 const video = item.kind === 'video';
                 const content = (
                     <>
@@ -142,11 +157,7 @@ export const MessageMediaTiles = ({
                                 </span>
                             </span>
                         )}
-                        {item.state === 'sending' && (
-                            <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                <IconSpinner className="size-6 animate-spin text-white" />
-                            </span>
-                        )}
+                        {item.state === 'sending' && <SendingMark ratio={ratio} label={sendingLabel} id={progressId} />}
                         {item.state === 'failed' && (
                             <span className="absolute inset-0 flex items-center justify-center bg-black/40">
                                 <IconAlert className="size-6 text-white" />
@@ -168,6 +179,8 @@ export const MessageMediaTiles = ({
                         key={item.key}
                         type="button"
                         aria-label={tileLabel(index + 1, item.kind)}
+                        // A button's content is not read out, so the percentage reaches a screen reader this way.
+                        aria-describedby={progressId}
                         onClick={() => onOpen(index)}
                         className={tileClass}
                     >
@@ -182,6 +195,33 @@ export const MessageMediaTiles = ({
         </div>
     );
 };
+
+/**
+ * What a sending tile carries over its preview: a ring filling with its bytes and the percentage inside
+ * it — a 300MB video takes minutes, and a spinner says nothing of how many — or a spinner while that is
+ * not known.
+ */
+const SendingMark = ({ ratio, label, id }: { ratio: number | undefined; label: string; id?: string }) => (
+    <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+        {ratio === undefined ? (
+            <IconSpinner className="size-6 animate-spin text-white" />
+        ) : (
+            <span
+                role="progressbar"
+                aria-label={label}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(ratio * 100)}
+                className="relative flex size-11 items-center justify-center"
+            >
+                <ProgressRing ratio={ratio} size={40} trackClassName="stroke-white/30" fillClassName="stroke-white" />
+                <span id={id} className="absolute text-[11px] font-semibold tabular-nums text-white">
+                    {Math.round(ratio * 100)}%
+                </span>
+            </span>
+        )}
+    </span>
+);
 
 /**
  * A video's first frame drawn by the browser itself, on the grey panel it replaces. The `#t=0.5`

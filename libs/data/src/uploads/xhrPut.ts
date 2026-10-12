@@ -25,12 +25,14 @@ const readProviderCode = (body: string): string | undefined => /<Code>([^<]+)<\/
  * PUTs the bytes from the page itself — the browser and desktop shells' only way, and the old app's fallback when
  * its shell has no transfer module. Uploads started here stop when the page stops.
  *
- * No progress listener: the screen shows no progress, and a listener on `upload` turns every
- * cross-origin PUT into a preflighted one.
+ * Progress is counted only when the caller asks for it. A listener on `upload` makes a cross-origin
+ * request preflighted, but a PUT carrying a signed `Content-Type` is preflighted already — neither
+ * the method nor that header is one a browser sends without asking — so the listener costs no
+ * extra round trip here.
  */
 export const createXhrPut =
     (createRequest: () => XMLHttpRequest = () => new XMLHttpRequest()): PutPort =>
-    (target, file) =>
+    (target, file, _label, onProgress) =>
         new Promise<PutResult>(resolve => {
             const request = createRequest();
             request.open('PUT', target.url);
@@ -47,6 +49,7 @@ export const createXhrPut =
             request.onerror = () => resolve({ kind: 'no-response', reason: 'network' });
             request.ontimeout = () => resolve({ kind: 'no-response', reason: 'network' });
             request.onabort = () => resolve({ kind: 'no-response', reason: 'system' });
+            if (onProgress) request.upload.onprogress = event => onProgress(event.loaded);
             request.send(file);
         });
 

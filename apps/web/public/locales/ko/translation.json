@@ -1041,6 +1041,7 @@
             },
             "tapAgain": "다시 눌러 주세요",
             "tileVideo": "동영상 {{position}}",
+            "sending": "보내는 중",
             "fileCard": {
                 "fallbackName": "파일",
                 "download": "{{name}} 다운로드",

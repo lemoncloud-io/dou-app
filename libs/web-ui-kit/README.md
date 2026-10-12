@@ -178,7 +178,7 @@ libs/web-ui-kit/src/
     layout(4) · subscription(7) · feedback(2) · navigation(2)
 ```
 
-Nine files are internal — used across a group but absent from every barrel, so grepping the public
+Ten files are internal — used across a group but absent from every barrel, so grepping the public
 API will not find them. The one partial exception is `slidePresence.ts`, whose timing is public while
 its hook is not:
 
@@ -233,6 +233,9 @@ its hook is not:
   box's drag applied to the crop, kept inside the photo, above a minimum size and on the preset's
   ratio. Pure and unit-tested; kept out of the barrel on purpose, since only the crop stage drags a
   box.
+- `composites/chat/ProgressRing.tsx` — the determinate ring: `MessageFileCard`'s download (with a
+  stop mark, since another press cancels) and upload, and a sending `MessageMediaTiles` tile's mark
+  with the percentage inside it. The hosts give it its accessible name and value.
 
 ### Photo editing
 

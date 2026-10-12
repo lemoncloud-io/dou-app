@@ -24,6 +24,12 @@ export const One: Story = { args: { items: tiles(1), onOpen: () => undefined } }
 export const Three: Story = { args: { items: tiles(3), onOpen: () => undefined } };
 export const Seven: Story = { args: { items: tiles(7), onOpen: () => undefined } };
 export const Sending: Story = { args: { items: tiles(2, 'sending') } };
+/** Bytes counted: a ring filling with the percentage. The second tile has not started, and spins. */
+export const SendingProgress: Story = {
+    args: {
+        items: tiles(3, 'sending').map((item, i) => (i < 2 ? { ...item, progress: i === 0 ? 0.73 : 0.18 } : item)),
+    },
+};
 export const Failed: Story = { args: { items: tiles(2, 'failed') } };
 export const Broken: Story = {
     args: {
@@ -46,5 +52,7 @@ export const Mixed: Story = {
 };
 /** A shell video still being prepared has no poster yet — the grey panel under the spinner. */
 export const VideoSending: Story = { args: { items: [clip(1, 'sending', false), clip(2, 'sending')] } };
+/** A large video counting its bytes, the case a spinner says least about. */
+export const VideoSendingProgress: Story = { args: { items: [{ ...clip(1, 'sending', false), progress: 0.36 }] } };
 export const VideoFailed: Story = { args: { items: [clip(1, 'failed'), clip(2, 'failed', false)] } };
 export const VideoBroken: Story = { args: { items: [clip(1), { ...clip(2), state: 'broken' }] } };

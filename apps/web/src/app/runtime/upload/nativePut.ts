@@ -3,6 +3,7 @@ import type { IWebBridgeClient } from '@chatic/bridges';
 import {
     chatAttachmentFormat,
     type PutPort,
+    type PutProgress,
     type PutResult,
     type ShellFilePutPort,
     type UploadPutTarget,
@@ -91,6 +92,9 @@ export const createNativeTransfers = ({
     log = () => undefined,
 }: NativeTransfersOptions): NativeTransfers => {
     const waiters = new Map<string, (result: PutResult) => void>();
+    // Who is told a transfer's bytes as the shell reports them (`running`, at most every 200 ms).
+    // Dropped with its waiter, so nothing is counted after the transfer settles.
+    const progressOf = new Map<string, PutProgress>();
     // Accepted by the shell. A waiter is registered before its start request, so until the reply it
     // is legitimately absent from the shell's list and must not be taken for a lost transfer.
     const accepted = new Set<string>();
@@ -121,13 +125,19 @@ export const createNativeTransfers = ({
         if (!resolve) return false;
         waiters.delete(state.transferId);
         accepted.delete(state.transferId);
+        progressOf.delete(state.transferId);
         resolve(toPutResult(state));
         return true;
     };
 
     const unsubscribe = bridge.onEvent('OnFileTransferState', message => {
         const state = message.data;
-        if (state && settle(state)) void acknowledge([state.transferId]);
+        if (!state) return;
+        if (state.state === 'running') {
+            progressOf.get(state.transferId)?.(state.transferredBytes);
+            return;
+        }
+        if (settle(state)) void acknowledge([state.transferId]);
     });
 
     const switchToFallback = () => {
@@ -139,11 +149,13 @@ export const createNativeTransfers = ({
     const startTransfer = async (
         target: UploadPutTarget,
         file: { uri: string; contentType: string; contentLength: number },
-        label: string
+        label: string,
+        onProgress: PutProgress | undefined
     ): Promise<PutResult | 'fallback'> => {
         const transferId = newTransferId();
         // Registered before the start request: the first state can arrive before its reply does.
         const result = new Promise<PutResult>(resolve => waiters.set(transferId, resolve));
+        if (onProgress) progressOf.set(transferId, onProgress);
         try {
             await bridge.request({
                 type: 'StartFileTransfer',
@@ -161,6 +173,7 @@ export const createNativeTransfers = ({
             if (waiters.has(transferId)) accepted.add(transferId);
         } catch (error) {
             waiters.delete(transferId);
+            progressOf.delete(transferId);
             if (isNotFound(error)) return 'fallback';
             log('native transfer: start refused', { label, code: codeOf(error) });
             // iOS refuses a source file that is gone at the start; Android fails it once it reads it.
@@ -170,12 +183,12 @@ export const createNativeTransfers = ({
         return result;
     };
 
-    const put: PutPort = async (target, file, label) => {
-        if (fallbackOnly) return fallback(target, file, label);
+    const put: PutPort = async (target, file, label, onProgress) => {
+        if (fallbackOnly) return fallback(target, file, label, onProgress);
         // Only an image crosses the bridge. A page video or document would have to go over whole, as
         // base64 in one message, and a WebView does not survive that for a 300MB file. The page PUT
         // streams the picked file from disk instead — at the cost of stopping with the page.
-        if (chatAttachmentFormat(file)?.kind !== 'image') return fallback(target, file, label);
+        if (chatAttachmentFormat(file)?.kind !== 'image') return fallback(target, file, label, onProgress);
 
         const written = await oneWriteAtATime(async (): Promise<{ uri: string } | PutResult | 'fallback'> => {
             let base64: string;
@@ -199,27 +212,29 @@ export const createNativeTransfers = ({
         });
         if (written === 'fallback') {
             switchToFallback();
-            return fallback(target, file, label);
+            return fallback(target, file, label, onProgress);
         }
         if (!('uri' in written)) return written;
         const started = await startTransfer(
             target,
             { uri: written.uri, contentType: file.type, contentLength: file.size },
-            label
+            label,
+            onProgress
         );
         if (started !== 'fallback') return started;
         switchToFallback();
-        return fallback(target, file, label);
+        return fallback(target, file, label, onProgress);
     };
 
     // A shell file exists only in an app whose shell has the transfer module, so there is no page
     // fallback to fall to: a shell file reaching an old shell fails its slot.
-    const putShellFile: ShellFilePutPort = async (target, file, label) => {
+    const putShellFile: ShellFilePutPort = async (target, file, label, onProgress) => {
         if (fallbackOnly) return { kind: 'no-response', reason: 'system' };
         const started = await startTransfer(
             target,
             { uri: file.uri, contentType: file.type, contentLength: file.size },
-            label
+            label,
+            onProgress
         );
         return started === 'fallback' ? { kind: 'no-response', reason: 'system' } : started;
     };
@@ -237,6 +252,7 @@ export const createNativeTransfers = ({
             for (const resolve of waiters.values()) resolve({ kind: 'no-response', reason: 'system' });
             waiters.clear();
             accepted.clear();
+            progressOf.clear();
         },
     };
 };

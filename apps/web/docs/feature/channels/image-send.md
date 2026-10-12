@@ -23,11 +23,11 @@ and the first request would otherwise fail. It returns `{ sendImages, retry, can
 
 `bridge/shellUpload.ts` decides once per page, at the bridge seam:
 
-| Shell                                | PUT                                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------------------- |
-| browser                              | `xhrPut` (`@chatic/data`) — the page's own `XMLHttpRequest`                            |
-| app with the transfer module         | `nativePut` — temp file, `StartFileTransfer`, wait for the terminal state, acknowledge |
-| app built before the transfer module | `xhrPut`, after the first request comes back `NOT_FOUND`; remembered for the page      |
+| Shell                                | PUT                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| browser                              | `xhrPut` (`@chatic/data`) — the page's own `XMLHttpRequest`                                                   |
+| app with the transfer module         | `nativePut` — temp file, `StartFileTransfer`, count `running` bytes, wait for the terminal state, acknowledge |
+| app built before the transfer module | `xhrPut`, after the first request comes back `NOT_FOUND`; remembered for the page                             |
 
 **Only a photo crosses the bridge.** A page file that is a video or a document goes up by `xhrPut`
 even inside the app: the native path would first copy it to the shell as base64 in one message, and a
@@ -429,6 +429,15 @@ the count still matches what was sent.
 The tiles are fixed-size: the server embeds no dimensions. A tap opens the viewer; a hold opens the
 message's action sheet, as on a bubble ([chat-room.md](./chat-room.md#a-message-row)).
 
+A pending slot shows how much of it has gone up. `MessageImages` reads the row's progress from the
+runtime (`data.useImageSendProgress`, by `upload$$` position, so tiles and cards each find their own
+slot), and a sending tile draws a ring filling with the percentage inside it, a sending card a ring
+and "12 MB / 48 MB" in place of its size. Until a slot's bytes start counting — still preparing,
+queued behind the three PUTs that run at once, or a shell that reports no size — it keeps the
+spinner. The page's PUT counts through `xhr.upload`; the native transfer through its `running` states,
+which the shell sends at most every 200 ms per transfer. A full ring then waits for the send itself,
+which is one more socket round trip.
+
 The addresses are signed when the message is read and expire a couple of hours later, and a cached row
 keeps them. An image that fails to load draws as a placeholder and the message is read again from its
 own cloud (`useImageAddressRefresh`), which writes fresh addresses to the cache; the row redraws with
@@ -628,7 +637,7 @@ share uses), and never in a browser, where the button already saves the file.
 
 ## Not done here
 
-- **Upload progress, cancel, a hash.** None are shown or sent.
+- **Cancel, a hash.** Neither is offered or sent. Upload progress is shown (§ Rendering).
 - **Documents surviving a reload inside the app.** The record of which file the shell downloaded lives
   in the page, so after a reload the card is `idle` again and the next press downloads once more.
 - **Save and share from a tile.** The viewer has them for photos and videos inside an app that can

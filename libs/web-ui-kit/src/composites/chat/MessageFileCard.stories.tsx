@@ -23,6 +23,10 @@ export const Unavailable: Story = {
     args: { download: 'unavailable', labels: { unavailable: '앱을 업데이트하면 받을 수 있어요' } },
 };
 export const Sending: Story = { args: { name: '회의록 v1.2.hwpx', size: 320 * 1024, state: 'sending' } };
+/** Bytes counted: the ring fills and the size line says how much has gone. */
+export const SendingProgress: Story = {
+    args: { name: 'site-walkthrough.pdf', size: 48 * 1024 * 1024, state: 'sending', progress: 0.62 },
+};
 export const Failed: Story = { args: { name: '회의록 v1.2.hwpx', size: 320 * 1024, state: 'failed' } };
 export const Broken: Story = { args: { state: 'broken', labels: { broken: '열 수 없음' } } };
 /** An old upload with no name: the fallback label and the generic glyph. */

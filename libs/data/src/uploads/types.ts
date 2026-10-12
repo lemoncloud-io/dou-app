@@ -219,11 +219,27 @@ export type PutResult =
     | { kind: 'responded'; httpStatus: number; providerCode?: string }
     | { kind: 'no-response'; reason: 'network' | 'source' | 'system' };
 
+/**
+ * Told how many bytes of one PUT have gone so far. Any number of calls, none after the PUT settles,
+ * and none at all from a sender that cannot see its bytes move — so a caller never waits on it.
+ */
+export type PutProgress = (sentBytes: number) => void;
+
 /** Sends `file` to `target`. `label` is a log-safe name for the payload, e.g. `slot-2/thumbnail`. */
-export type PutPort = (target: UploadPutTarget, file: File, label: string) => Promise<PutResult>;
+export type PutPort = (
+    target: UploadPutTarget,
+    file: File,
+    label: string,
+    onProgress?: PutProgress
+) => Promise<PutResult>;
 
 /** Sends a file the shell keeps, from where it lies. Only the native transfer can. */
-export type ShellFilePutPort = (target: UploadPutTarget, file: ShellFileRef, label: string) => Promise<PutResult>;
+export type ShellFilePutPort = (
+    target: UploadPutTarget,
+    file: ShellFileRef,
+    label: string,
+    onProgress?: PutProgress
+) => Promise<PutResult>;
 
 /**
  * Everything the send sequence touches outside itself. Binding them is the caller's job — the hook
@@ -237,7 +253,7 @@ export interface SendImagePorts<S extends ChatAttachmentSource = File> {
     prepare(file: S): Promise<PreparedImageMirror<S>>;
     start(input: UploadStartInput): Promise<PresignedUploadStartResult>;
     complete(input: UploadCompleteInput): Promise<CheckedUploadCompleteResult>;
-    put: (target: UploadPutTarget, file: S, label: string) => Promise<PutResult>;
+    put: (target: UploadPutTarget, file: S, label: string, onProgress?: PutProgress) => Promise<PutResult>;
     /** Sends the message with the stored uploads, in picking order, and settles the pending row. */
     send(input: { uploadIds: string[] }): Promise<unknown>;
 }

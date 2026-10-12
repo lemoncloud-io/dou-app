@@ -87,6 +87,38 @@ describe('MessageMediaTiles', () => {
         expect(container.querySelector('img')).toBeInTheDocument();
     });
 
+    it('fills a ring with the percentage on a sending tile whose progress is known', () => {
+        const items = tiles(2, 'sending').map((item, i) => (i === 0 ? { ...item, progress: 0.42 } : item));
+        const { container } = render(<MessageMediaTiles items={items} sendingLabel="Uploading" />);
+
+        const bar = screen.getByRole('progressbar', { name: 'Uploading' });
+        expect(bar).toHaveAttribute('aria-valuenow', '42');
+        expect(bar).toHaveTextContent('42%');
+        expect(bar.querySelector('[data-progress-ring]')).toBeInTheDocument();
+        // The tile with no count yet keeps the spinner.
+        expect(container.querySelectorAll('.animate-spin')).toHaveLength(1);
+    });
+
+    it("names the tile's percentage as its description, since a button's content is not read out", () => {
+        render(<MessageMediaTiles items={[{ ...tiles(1, 'sending')[0], progress: 0.3 }]} onOpen={() => undefined} />);
+
+        expect(screen.getByRole('button', { name: 'Photo 1' })).toHaveAccessibleDescription('30%');
+    });
+
+    it('keeps the spinner under the "+n" count rather than two numbers on one tile', () => {
+        const items = tiles(7, 'sending').map(item => ({ ...item, progress: 0.5 }));
+        const { container } = render(<MessageMediaTiles items={items} />);
+
+        expect(screen.getAllByRole('progressbar')).toHaveLength(3);
+        expect(screen.getByText('+3')).toBeInTheDocument();
+        expect(container.querySelectorAll('.animate-spin')).toHaveLength(1);
+    });
+
+    it('draws no ring on a tile that is not sending, whatever progress it is handed', () => {
+        render(<MessageMediaTiles items={[{ ...tiles(1, 'failed')[0], progress: 0.5 }]} />);
+        expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
     // Signed addresses expire; the host fetches fresh ones, so the tile has to say which one failed.
     it('reports which image failed to load', () => {
         const onImageError = jest.fn();

@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (both apps send through `useSendImages` in `@chatic/app-runtime`) · Last updated: 2026-10-08 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (both apps send through `useSendImages` in `@chatic/app-runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -12,7 +12,7 @@ operations, what to retry, and what a failure means. It does **not** know how by
 0. pending row      caller: ChatRepository.createPendingImageChat → pendingId   (before any byte moves)
 1. prepare          port prepare(file), one file at a time        → { original, thumbnail | null }
 2. start            upload.start({ list })                        one ticket per slot, same order
-3. PUT              port put(target, file, label), ≤ 3 at once    per slot: original, then thumbnail
+3. PUT              port put(target, file, label, onProgress?)    ≤ 3 at once; per slot: original, then thumbnail
 4. complete         upload.complete({ list: [{ id, failure? }] }) failed slots included
 5. send             port send({ uploadIds })                      only if ≥ 1 slot is stored
 ```
@@ -33,8 +33,18 @@ the send (§ Pending image rows), so the `send` port carries the upload ids alon
 - **At most ten attachments.** Anything past the tenth is left out. The screen is meant to stop the user
   earlier. This sequence does not re-validate format or size: the server rejects a bad slot at
   `start`, and that slot fails like any other.
-- **No hash, no progress, no cancel.** The hash is optional and the server verifies what it stores.
-  The screen shows no progress. Nothing here cancels.
+- **Progress is counted, not judged.** A PUT port may report the bytes it has sent (`PutProgress`,
+  its optional fourth argument). The sequence adds a slot's original and thumbnail together and tells
+  the caller per slot (`onProgress(slot, sentBytes, totalBytes)`): once as the slot's PUTs begin
+  (an original the server already had counts as sent), again from zero when a PUT is retried — the
+  retry sends from the first byte — and a last time, full, once the slot is done. A thumbnail that
+  failed still ends its slot full, as it does not fail it. A slot that fails ends with a total of 0,
+  unknown: the row turns failed only once the whole message settles, and a ring stopped at 40% for
+  the minutes a large video beside it takes would read as still moving. A slot `start` rejected and
+  one still queued behind the three running PUTs get no call at all. A count past the file is
+  clamped to it, one that is not a number is dropped, and an observer that throws is ignored.
+- **No hash, no cancel.** The hash is optional and the server verifies what it stores. Nothing here
+  cancels.
 
 ## What counts as failure
 
@@ -95,8 +105,12 @@ because the limits differ. A video still to convert is judged as the `mp4` it wi
 size-checked by its source: the shell's estimate and the check of its result decide that.
 
 The page's own sender lives here too: `xhrPut` (`uploads/xhrPut.ts`) PUTs from the page with
-`XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It sets no progress
-listener, because one on `upload` turns every cross-origin PUT into a preflighted one; it skips the
+`XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It listens on
+`xhr.upload` only when the caller asks for progress. That listener is free here: a listener on
+`upload` makes a cross-origin request preflighted, but a PUT is preflighted anyway — the method is
+not one a browser sends unasked — and a signed URL is unique, so no PUT ever reuses a cached
+preflight. Measured on the dev bucket in Chrome, a PUT to a new URL took the same time with the
+listener as without, about 25 ms more than a repeat to the same URL in both cases. It skips the
 headers the browser owns (`content-length`, `host`); and it bounds the whole PUT at five minutes, or
 at the time a 1 Mbps uplink needs for the file when that is longer (about 42 minutes for a 300MB
 video). The native sender stays in `apps/web`, since it talks through that shell's bridge.

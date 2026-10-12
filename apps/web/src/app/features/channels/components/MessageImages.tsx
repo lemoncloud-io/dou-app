@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { runtime } from '@chatic/app-runtime';
 import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/data';
 import { cn } from '@chatic/ui-kit';
 import { MediaViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
@@ -72,6 +73,9 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
 
     const split = useMemo(() => chatMediaItems(cid, uploads), [cid, uploads]);
     const files = useFileDownloads({ cid, chatId });
+    // How far a message still on its way has gone, by `upload$$` position. Only a pending row has any,
+    // and it is read from page memory, so the ring's ticks never touch the cached row.
+    const sendProgress = runtime.data.useImageSendProgress(chatId);
     // Tile positions are not `upload$$` positions once documents sit between them.
     const slotOf = (tile: number) => split.mediaSlots[tile];
 
@@ -186,10 +190,12 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                         ref={tilesRef}
                         items={tiles.map((tile, index) => {
                             const frame = frames[index];
+                            const progress = tile.state === 'sending' ? sendProgress?.[slotOf(index)] : undefined;
                             return {
                                 ...tile,
                                 preview: drawn(thumbs[index], tile.preview) ?? frameImage(index),
                                 ...(frame?.status === 'element' ? { frameUrl: frame.url } : {}),
+                                ...(progress !== undefined ? { progress } : {}),
                             };
                         })}
                         onOpen={index => {
@@ -203,11 +209,13 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                         tileLabel={(position, kind) =>
                             t(kind === 'video' ? 'chat.attach.tileVideo' : 'chat.attach.tile', { position })
                         }
+                        sendingLabel={t('chat.attach.sending')}
                         className={align === 'end' ? 'self-end' : 'self-start'}
                     />
                 )}
-                {split.files.map(file => {
+                {split.files.map((file, at) => {
                     const name = file.name ?? t('chat.attach.fileCard.fallbackName');
+                    const sent = file.state === 'sending' ? sendProgress?.[split.fileSlots[at]] : undefined;
                     return (
                         <MessageFileCard
                             key={file.key}
@@ -215,7 +223,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                             size={file.size}
                             state={file.state}
                             download={files.stateOf(file)}
-                            progress={files.progressOf(file) ?? undefined}
+                            progress={file.state === 'sending' ? sent : (files.progressOf(file) ?? undefined)}
                             onPress={() => void files.open(file)}
                             onDownload={() => void files.download(file)}
                             onCancel={() => files.cancel(file)}
@@ -227,6 +235,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                                 open: t('chat.attach.fileCard.open', { name }),
                                 unavailable: t('chat.attach.fileCard.unavailable'),
                                 broken: t('chat.attach.fileCard.broken'),
+                                sending: t('chat.attach.sending'),
                             }}
                             className={align === 'end' ? 'self-end' : 'self-start'}
                         />

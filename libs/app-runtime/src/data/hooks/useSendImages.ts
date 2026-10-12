@@ -11,6 +11,7 @@ import {
     judgeChatAttachments,
     type PendingFileDetails,
     type PreparedImageMirror,
+    type PutProgress,
     type PutResult,
     sendImageMessage,
     type PutPort,
@@ -24,6 +25,8 @@ import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories, runInCloud } from '../cloudChat';
 import { beginMediaSendTiming, type MediaSendTiming } from '../mediaSendTrace';
+
+import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';
 
 interface PendingImages {
     /** The cloud the row was written in — where its upload and its send go, whatever is selected by then. */
@@ -276,10 +279,15 @@ const codeOf = (error: unknown) => (error as { code?: string } | null)?.code;
  */
 const putFor =
     (put: PutPort, putShellFile: ShellFilePutPort | undefined) =>
-    async (target: UploadPutTarget, file: ChatAttachmentSource, label: string): Promise<PutResult> => {
-        if (!isShellFileRef(file)) return put(target, file, label);
+    async (
+        target: UploadPutTarget,
+        file: ChatAttachmentSource,
+        label: string,
+        onProgress?: PutProgress
+    ): Promise<PutResult> => {
+        if (!isShellFileRef(file)) return put(target, file, label, onProgress);
         if (!putShellFile) return { kind: 'no-response', reason: 'system' };
-        const result = await putShellFile(target, file, label);
+        const result = await putShellFile(target, file, label, onProgress);
         if (result.kind === 'no-response' && result.reason === 'source') goneShellFiles.add(file.uri);
         return result;
     };
@@ -304,6 +312,7 @@ const getVersion = () => version;
 const release = (pendingId: string) => {
     const entry = pendingImages.get(pendingId);
     if (!entry) return;
+    clearImageSendProgress(pendingId);
     entry.urls.forEach(revoke);
     entry.files.forEach(file => isShellFileRef(file) && goneShellFiles.delete(file.uri));
     pendingImages.delete(pendingId);
@@ -518,6 +527,8 @@ export const useSendImages = ({
             const entry = pendingImages.get(pendingId);
             if (!entry) return;
             const timing = entry.timing;
+            // A retry counts from nothing again: its PUTs start from the first byte.
+            clearImageSendProgress(pendingId);
             const { converted, refused } = await convertVideos(entry);
             if (converted.size > 0) timing?.mark('converted');
             // Positions in the pick of what goes to the sequence, which numbers its slots by its own list.
@@ -584,7 +595,18 @@ export const useSendImages = ({
                     };
                     return sendImageMessage(
                         sending.map(index => entry.files[index]),
-                        ports
+                        ports,
+                        {
+                            // The sequence numbers its slots by its own list; the row's are the pick's.
+                            onProgress: (slot, sentBytes, totalBytes) =>
+                                setImageSendProgress(
+                                    pendingId,
+                                    sending[slot],
+                                    sentBytes,
+                                    totalBytes,
+                                    entry.files.length
+                                ),
+                        }
                     );
                 }).catch(error => {
                     // A send that could not even hold its cloud (no slot bound) still ends its sample.
@@ -610,6 +632,8 @@ export const useSendImages = ({
                 .catch(error => {
                     log('image message: could not mark the row failed', { error: (error as Error)?.name });
                 });
+            // After the failure is written, so the row never shows "sending" without its count between the two.
+            clearImageSendProgress(pendingId);
             // Only now: a retry let in before the failure was written would be overwritten by it.
             entry.inFlight = false;
             changed();

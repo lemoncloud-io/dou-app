@@ -95,6 +95,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'sendChatInCloud',
         'syncInvitedCloudName',
         'useGlobalCacheSearch',
+        'useImageSendProgress',
         'useInvitedCloudNameSync',
         'useRuntimeRepositories',
         'useSendImages',

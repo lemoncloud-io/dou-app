@@ -172,6 +172,17 @@ describe('MessageFileCard', () => {
             expect(screen.queryByRole('button', { name: 'Download' })).not.toBeInTheDocument();
         });
 
+        it('fills a ring and says how much has gone while a file sends with a known progress', () => {
+            render(<MessageFileCard name="draft.hwpx" size={1024 * 1024} state="sending" progress={0.5} />);
+
+            const bar = screen.getByRole('progressbar', { name: 'Sending' });
+            expect(bar).toHaveAttribute('aria-valuenow', '50');
+            expect(bar.querySelector('[data-progress-ring]')).toBeInTheDocument();
+            expect(bar.querySelector('rect')).not.toBeInTheDocument();
+            expect(screen.getByText('512 KB / 1 MB')).toBeInTheDocument();
+            expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        });
+
         it('marks a file that failed to send, with no download button', () => {
             render(<MessageFileCard name="draft.hwpx" state="failed" />);
 

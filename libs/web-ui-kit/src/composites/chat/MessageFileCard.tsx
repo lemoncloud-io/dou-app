@@ -17,6 +17,7 @@ import {
     type FileKindIconProps,
 } from '../../resources/icons';
 import { clampFileProgress, formatFileSize, messageFileKind, splitFileName, type MessageFileKind } from './messageFile';
+import { ProgressRing } from './ProgressRing';
 
 /**
  * Where the file itself stands — the same four states a media tile has.
@@ -51,7 +52,7 @@ export interface MessageFileCardLabels {
     unavailable: string;
     /** The line a `broken` card shows in place of its size. */
     broken: string;
-    /** Accessible names of the sending spinner and the failed mark. */
+    /** Accessible names of the sending spinner or ring, and of the failed mark. */
     sending: string;
     failed: string;
 }
@@ -64,7 +65,10 @@ export interface MessageFileCardProps {
     state?: MessageFileCardState;
     /** The download button's state; only a `ready` card has one. */
     download?: MessageFileDownloadState;
-    /** 0..1 while `downloading`. Omit when the total is not known, and a spinner turns instead. */
+    /**
+     * 0..1 — of the download while `downloading`, of the upload while `sending`. Omit when it is not
+     * known, and a spinner turns instead.
+     */
     progress?: number;
     /**
      * Tap on the card's body. What it does is the host's — a preview where the shell has one, the
@@ -101,29 +105,6 @@ const KIND_GLYPH: Readonly<Record<MessageFileKind, { Icon: React.ComponentType<F
     text: { Icon: IconFileText, tint: 'text-description' },
     file: { Icon: IconFileGeneric, tint: 'text-description' },
 };
-
-const RING_RADIUS = 12;
-const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
-
-/** The determinate download ring, with a stop mark in its middle that says another press cancels. */
-const ProgressRing = ({ ratio }: { ratio: number }) => (
-    <svg width={28} height={28} viewBox="0 0 28 28" fill="none" aria-hidden="true" data-progress-ring>
-        <circle cx="14" cy="14" r={RING_RADIUS} strokeWidth="2.5" className="stroke-border" />
-        <circle
-            cx="14"
-            cy="14"
-            r={RING_RADIUS}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray={RING_LENGTH}
-            strokeDashoffset={RING_LENGTH * (1 - ratio)}
-            // From twelve o'clock, as every progress ring the OS draws starts.
-            transform="rotate(-90 14 14)"
-            className="stroke-foreground"
-        />
-        <rect x="10.5" y="10.5" width="7" height="7" rx="1.5" className="fill-foreground" />
-    </svg>
-);
 
 /**
  * A document in a chat message (pdf, word processor, spreadsheet, slides, Hangul, plain text): the
@@ -162,7 +143,14 @@ export const MessageFileCard = ({
     const broken = state === 'broken';
     const ready = state === 'ready';
 
-    const sub = broken ? text.broken : formatFileSize(size);
+    const ratio = clampFileProgress(progress);
+    // While it goes up, how much of it has: the ring alone says little about a 300MB video's minutes.
+    const sentBytes = state === 'sending' && ratio !== undefined && size !== undefined ? ratio * size : undefined;
+    const sub = broken
+        ? text.broken
+        : sentBytes !== undefined
+          ? `${formatFileSize(sentBytes)} / ${formatFileSize(size)}`
+          : formatFileSize(size);
     const notice = ready && download === 'unavailable' ? text.unavailable : undefined;
 
     const body = (
@@ -195,9 +183,21 @@ export const MessageFileCard = ({
 
     const trailing = (() => {
         if (state === 'sending') {
-            return (
+            return ratio === undefined ? (
                 <span role="status" aria-label={text.sending} className="flex size-11 items-center justify-center">
                     <IconSpinner className="size-5 animate-spin text-description" />
+                </span>
+            ) : (
+                <span
+                    role="progressbar"
+                    aria-label={text.sending}
+                    aria-describedby={nameId}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(ratio * 100)}
+                    className="flex size-11 items-center justify-center"
+                >
+                    <ProgressRing ratio={ratio} size={24} />
                 </span>
             );
         }
@@ -210,7 +210,6 @@ export const MessageFileCard = ({
         }
         if (!ready || download === 'unavailable') return null;
 
-        const ratio = clampFileProgress(progress);
         const button =
             download === 'downloading'
                 ? {
@@ -220,7 +219,7 @@ export const MessageFileCard = ({
                           ratio === undefined ? (
                               <IconSpinner className="size-5 animate-spin text-foreground" />
                           ) : (
-                              <ProgressRing ratio={ratio} />
+                              <ProgressRing ratio={ratio} stop />
                           ),
                   }
                 : download === 'done'
