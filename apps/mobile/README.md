@@ -152,7 +152,7 @@ apps/mobile/
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
-│       ├── webview/       82 files: AppWebView, SimpleWebView, the router, 30 handlers, injection
+│       ├── webview/       88 files: AppWebView, SimpleWebView, the router, 30 handlers, injection
 │       ├── services/      98 files across 20 domains, assembled in provider.ts
 │       ├── bridge/        13 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
@@ -245,6 +245,11 @@ Declare the request and response types in
 `bridge/` and both native implementations — Kotlin under `android/app/src/main/java/io/chatic/dou/`
 and Swift under `ios/Bridges/`. See [docs/native/README.md](./docs/native/README.md) and
 [docs/native/service.md](./docs/native/service.md).
+
+A new message has to be decided in every shell, not only this one: each shell's bridge contract
+suite fails until the request is handled there or listed as unsupported with a reason — step 5 of
+[adding a message](../../libs/app-messages/README.md#adding-a-message), and
+[docs/webview/README.md](./docs/webview/README.md#the-bridge-contract) for this shell's suite.
 
 ### 3. A push arrives
 

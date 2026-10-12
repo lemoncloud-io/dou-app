@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-10-12] - root@0.90.1, @chatic/web@0.67.1, @chatic/landing@0.5.5, @chatic/desktop-web@0.23.1
+
+### Documentation
+
+- (adr) test the web end to end inside a fake native shell (ADR-0180)
+
+### Other
+
+- build: (web-e2e) add install, ui and headed scripts that run from the repo root
+- ci: run the web e2e suite in verify when web-e2e or the mobile injection script changes
+- test: (web-e2e) run the web inside a fake native shell in a real browser, not only in jsdom
+
+## [2026-10-12] - No version updates
+
+### Refactor
+
+- (desktop) build the main process's own pushes in an electron-free module
+
+### Other
+
+- test: (mobile,desktop,app-messages) check what each shell pushes against the vocabulary
+
 ## [2026-10-12] - No version updates
 
 ### Features

@@ -21,6 +21,7 @@ import {
 } from 'electron';
 import { resolveAppLanguage } from './appLanguage';
 import { bringToFront } from './bringToFront';
+import { registerHandlers } from './bridgeHandlers';
 import { menuLabels } from './menuLabels';
 import {
     applyCustomUi,
@@ -36,8 +37,8 @@ import { createDownloadTargets, savesWithoutAsking } from './downloads';
 import { startFcm, type FcmConfig } from './fcm';
 import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
-import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
+import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
 import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
@@ -197,15 +198,6 @@ const openInWeb = (target: 'settings' | 'shortcuts' | 'switcher' | 'search'): vo
     if (mainHost) pushDeeplink(mainHost, `chatic-ui:${target}`);
 };
 
-/** Forward a deeplink URL to the web via the existing OnReceiveNotification event (web routes it). */
-const pushDeeplink = (host: AppBridgeHost, url: string): void => {
-    host.pushEvent({
-        type: 'OnReceiveNotification',
-        success: true,
-        data: { notification: { data: { deeplink: url } } },
-    });
-};
-
 // Last OS notification shown per channel (keyed by deeplink). Electron's
 /**
  * Raise an OS notification and draw attention when unfocused. Shared by the
@@ -273,53 +265,22 @@ const readFcmConfig = (): FcmConfig => ({
     packageName: import.meta.env.MAIN_VITE_FCM_PACKAGE ?? '',
 });
 
-/** Register native-capability handlers on the bridge host (web → app requests). */
-const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
-    // ShowNotification: the live web WS detected a message in the CURRENT cloud →
-    // show an OS notification. (Cross-cloud pushes arrive via FCM, see startFcm.)
-    host.registerHandler('ShowNotification', message => {
-        const { title, body, deeplink } = message.data;
-        showOsNotification(host, win, { title, body, deeplink });
-        return { type: 'OnShowNotification', success: true, data: { success: true } };
-    });
-
-    // FetchUrlMetadata: fetch + parse og: tags for chat link previews on the
-    // renderer's behalf (CORS blocks it there). SSRF guards live in unfurl.ts.
-    host.registerHandler('FetchUrlMetadata', async message => {
-        const { url } = message.data;
-        const meta = await fetchUrlMetadata(url);
-        return { type: 'OnFetchUrlMetadata', success: true, data: meta };
-    });
-
-    // FetchFcmToken: the renderer asks for the FCM token to register with the
-    // broker (reg-dev, platform 'desktop'). Awaits the in-flight Android
-    // registration; resolves '' if FCM is unconfigured/slow so the web degrades.
-    host.registerHandler('FetchFcmToken', async () => {
-        const token = await awaitFcmToken();
-        return { type: 'OnFetchFcmToken', success: true, data: { token } };
-    });
-
-    // SetBadgeCount: unread badge. macOS/Linux use the dock badge; Windows has none,
-    // so paint a taskbar overlay icon from the PNG the renderer rendered (Electron's
-    // nativeImage can't rasterize SVG). Cleared with null at zero.
-    host.registerHandler('SetBadgeCount', message => {
-        const { count } = message.data;
-        // Optional Windows overlay PNG. Read structurally: the field crosses the
-        // @chatic/app-messages → bridges project-reference boundary, where the
-        // emitted declaration can lag the source type.
-        const { overlayIconDataUrl } = message.data as { overlayIconDataUrl?: string };
-        if (process.platform === 'win32') {
-            let icon: Electron.NativeImage | null = null;
-            if (count > 0 && overlayIconDataUrl) {
-                const img = nativeImage.createFromDataURL(overlayIconDataUrl);
-                if (!img.isEmpty()) icon = img;
-            }
-            win.setOverlayIcon(icon, count > 0 ? `${count} unread` : '');
-            return { type: 'OnSetBadgeCount', success: true, data: { success: true } };
+/**
+ * Unread badge. macOS/Linux use the dock badge; Windows has none, so paint a taskbar overlay
+ * icon from the PNG the renderer rendered (Electron's nativeImage can't rasterize SVG). Cleared
+ * with null at zero.
+ */
+const setBadgeCount = (win: BrowserWindow, count: number, overlayIconDataUrl?: string): boolean => {
+    if (process.platform === 'win32') {
+        let icon: Electron.NativeImage | null = null;
+        if (count > 0 && overlayIconDataUrl) {
+            const img = nativeImage.createFromDataURL(overlayIconDataUrl);
+            if (!img.isEmpty()) icon = img;
         }
-        const ok = app.setBadgeCount(count);
-        return { type: 'OnSetBadgeCount', success: true, data: { success: ok } };
-    });
+        win.setOverlayIcon(icon, count > 0 ? `${count} unread` : '');
+        return true;
+    }
+    return app.setBadgeCount(count);
 };
 
 /**
@@ -766,7 +727,11 @@ const createWindow = (): BrowserWindow => {
         sendToWeb: (message: string) => win.webContents.send(TO_WEB_CHANNEL, message),
     });
     mainHost = host;
-    registerHandlers(host, win);
+    registerHandlers(host, {
+        showNotification: params => showOsNotification(host, win, params),
+        awaitFcmToken,
+        setBadgeCount: (count, overlayIconDataUrl) => setBadgeCount(win, count, overlayIconDataUrl),
+    });
 
     // Auto-update the shell (web updates remotely per ADR-0001). Ask-first UX: the
     // renderer drives download/restart via the OnUpdateStatus event + bridge handlers.
@@ -783,21 +748,11 @@ const createWindow = (): BrowserWindow => {
         onToken: token => {
             onFcmToken(token);
             // Proactively push the (re-minted) token so the renderer re-registers it
-            // with the broker. Its OnFetchFcmToken listener handles this beyond its
-            // own one-shot FetchFcmToken request; buffered until the web frame is ready.
-            host.pushEvent({ type: 'OnFetchFcmToken', success: true, data: { token } });
+            // with the broker; buffered until the web frame is ready.
+            pushFcmToken(host, token);
         },
-        onPush: push => {
-            // Forward-only: the renderer owns the whole presentation decision (DND,
-            // own-message, focus → toast vs ShowNotification banner), the same way it
-            // owns same-cloud live-WS banners. Raising a banner here would need the
-            // renderer's prefs mirrored into the shell and a second focus source.
-            host.pushEvent({
-                type: 'OnReceiveNotification',
-                success: true,
-                data: { notification: { title: push.title, body: push.body, data: push.data } },
-            });
-        },
+        // Forward-only: the renderer decides how to present it.
+        onPush: push => pushFcmMessage(host, push),
     }).catch(error => console.error('[fcm] start failed', error));
 
     // Only accept bridge requests from the trusted origin's frame. Listeners are removed

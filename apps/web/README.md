@@ -368,7 +368,12 @@ a new file goes, and which direction an import may point — and the index of ev
 npx tsc -b apps/web/tsconfig.json                                    # app AND specs
 yarn web:test                                                        # jest, --runInBand
 npx nx run web:lint
+yarn web:e2e                                                         # in a browser, inside a fake native shell
 ```
+
+`yarn web:e2e` runs `apps/web-e2e` — this app in its native mode against a scripted shell and relay;
+see [its README](../web-e2e/README.md) for what it can and cannot catch. CI runs it whenever this app
+changes.
 
 Build and deploy:
 

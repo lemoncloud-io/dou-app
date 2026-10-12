@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 
+import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { useFcmHandler } from './useFcmHandler';
 import { notificationService, pushEventManager } from '../../services';
 
@@ -151,6 +152,54 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
             const [message] = (pushEventManager.emitReceiveNotification as jest.Mock).mock.calls[0];
             expect(message.data.channelId).toBe('ch1');
             expect(message.data.notificationChannelId).toBe('dou_chat');
+        });
+    });
+
+    // Both foreground sources meet at PushEventManager, and one subscriber turns them into the event.
+    describe('app → web event contract', () => {
+        it("pushes 'OnReceiveNotification' for a foreground push the notification library delivers", () => {
+            renderHook(() => useFcmHandler(bridge as any));
+
+            act(() => {
+                mockOnReceiveCb?.({
+                    messageId: 'm1',
+                    sentTime: 1_700_000_000_000,
+                    notification: { title: 'title', body: 'body' },
+                    data: { channelId: 'ch1', cid: 'c1' },
+                });
+            });
+
+            expect(pushedEvents(bridge.pushEvent)).toEqual([
+                expect.objectContaining({ type: 'OnReceiveNotification' }),
+            ]);
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
+        });
+
+        it("pushes 'OnReceiveNotification' for a push Android's native service relays", () => {
+            renderHook(() => useFcmHandler(bridge as any));
+            act(() => {
+                mockForegroundPushCb?.({
+                    messageId: 'm1',
+                    type: 'chat',
+                    title: 'title',
+                    body: 'body',
+                    clickAction: 'chatic://channels/ch1/room',
+                    channelId: 'dou_chat',
+                    timestamp: '1700000000000',
+                    payload: JSON.stringify({ channelId: 'ch1', cid: 'c1' }),
+                    data: { silent: 'false' },
+                });
+            });
+            const [relayed] = (pushEventManager.emitReceiveNotification as jest.Mock).mock.calls[0];
+
+            act(() => {
+                mockOnReceiveCb?.(relayed);
+            });
+
+            expect(pushedEvents(bridge.pushEvent)).toEqual([
+                expect.objectContaining({ type: 'OnReceiveNotification' }),
+            ]);
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
         });
     });
 
