@@ -20,7 +20,7 @@ export interface DesktopBridgeDeps {
  * Register native-capability handlers on the bridge host (web → app requests).
  *
  * Every desktop handler a web build can reach is registered here, except the two auto-update ones
- * (`updater.ts`, packaged builds only) and `WebAppReady` (answered inside `AppBridgeHost`).
+ * (`updater.ts`, packaged builds only) and `WebAppReady` and `Ping` (answered inside `AppBridgeHost`).
  * `bridgeHandlers.contract.test.ts` loads only these two files, and fails if any other file in the
  * shell calls `registerHandler`.
  */
@@ -59,4 +59,16 @@ export const registerHandlers = (host: IAppBridgeHost, deps: DesktopBridgeDeps):
         const ok = deps.setBadgeCount(count, overlayIconDataUrl);
         return { type: 'OnSetBadgeCount', success: true, data: { success: ok } };
     });
+
+    // SavePreference: `@chatic/theme` posts the theme on mount and on every change. Accepted and not
+    // stored: the renderer's localStorage holds the theme, and nothing in the main process reads it.
+    // Answered because desktop-web really sends it, so it should not draw an ERROR reply every time.
+    // The post itself must keep coming: desktop-web sends no WebAppReady, so it is the first non-log
+    // message a fresh window sends — the one that flushes the events buffered before it (an update
+    // prompt, a re-minted FCM token).
+    host.registerHandler('SavePreference', message => ({
+        type: 'OnSavePreference',
+        success: true,
+        data: { key: message.data.key, success: true },
+    }));
 };

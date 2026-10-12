@@ -32,9 +32,8 @@ jest.mock('./unfurl', () => ({
     fetchUrlMetadata: jest.fn(async (url: string) => ({ success: true, url, title: 'Example' })),
 }));
 
-// Reasons shared by many lines below. desktop-web sends six requests of its own, all handled; of the
-// rest, only SavePreference reaches this shell (see its line), and the others belong to the phone
-// shell or to nobody.
+// Reasons shared by many lines below. Every request desktop-web sends is handled — its six own, and
+// the SavePreference that @chatic/theme posts — so the rest belong to the phone shell or to nobody.
 const NEVER_SENT = 'Declared, but no web build sends it';
 const PHONE = 'Phone OS or hardware surface with no desktop counterpart';
 const BROWSER = 'desktop-web does it with the browser (file input, downloads, clipboard, links)';
@@ -112,8 +111,6 @@ const DESKTOP_UNSUPPORTED = {
     ClearCacheDataByChannel: NO_STORE,
     SearchGlobalCacheData: NO_STORE,
     FetchPreference: NO_STORE,
-    // @chatic/theme posts it whenever isNative() holds, and the desktop preload makes that true.
-    SavePreference: 'Sent by @chatic/theme; the theme lives in the renderer, so NOT_FOUND is the answer',
     DeletePreference: NO_STORE,
     OAuthLogin: SYSTEM_BROWSER_LOGIN,
     OAuthLogout: SYSTEM_BROWSER_LOGIN,
@@ -159,6 +156,7 @@ const DESKTOP_UNSUPPORTED = {
 const SAMPLE_REQUESTS: Partial<{ [K in WebMessageType]: WebMessagePayloadMap[K] }> = {
     WebAppReady: {},
     Ping: { payload: 'probe' },
+    SavePreference: { key: 'theme', value: 'dark' },
     ShowNotification: { title: 'Alex', body: 'hello', deeplink: 'chatic://room/1' },
     FetchUrlMetadata: { url: 'https://example.com' },
     FetchFcmToken: {},
@@ -328,6 +326,12 @@ describe('desktop bridge handlers', () => {
         const reply = await createShell().send('FetchFcmToken', {});
 
         expect(reply).toEqual(expect.objectContaining({ data: { token: 'fcm-token' } }));
+    });
+
+    it('accepts a SavePreference for the key it was sent', async () => {
+        const reply = await createShell().send('SavePreference', { key: 'theme', value: 'dark' });
+
+        expect(reply).toEqual(expect.objectContaining({ data: { key: 'theme', success: true } }));
     });
 
     // The badge reply carries whether the OS took it, which the web reads.
