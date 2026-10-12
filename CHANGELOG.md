@@ -2,6 +2,14 @@
 
 ## [2026-10-12] - No version updates
 
+### Refactor
+
+- (mobile) remove SimpleWebView, unused since ModalScreen went
+- (mobile) remove ModalScreen, the native half of the retired modal bridge flow
+- (app-messages,bridges) retire six requests no web build sends and no shell answers
+
+## [2026-10-12] - No version updates
+
 ### Bug Fixes
 
 - (desktop) answer the SavePreference that @chatic/theme posts, not NOT_FOUND
