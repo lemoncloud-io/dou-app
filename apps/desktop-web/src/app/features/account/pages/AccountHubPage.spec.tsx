@@ -52,6 +52,9 @@ vi.mock('../../auth', () => ({
     isPhoneLoginEnabled: () => true,
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
     useSocialLogin: () => ({ start: startSocialLogin, isStarting: false }),
+    useAttemptExpired: () => false,
+    useOAuthAttemptStore: <T,>(select: (s: { attempt: null; failed: boolean; linkFailure: null }) => T) =>
+        select({ attempt: null, failed: false, linkFailure: null }),
 }));
 
 import '../../../../i18n';

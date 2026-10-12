@@ -8,6 +8,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import type { LinkedAccountsView, LinkVerifiedView } from '@lemoncloud/chatic-backend-api';
 
 import { socketErrorStatus, toError } from '../../../shared';
+import { useOAuthAttemptStore, type LinkFailure } from '../stores/useOAuthAttemptStore';
 import {
     buildAuthorizeUrl,
     createOAuthLoginStart,
@@ -18,15 +19,7 @@ import {
     type OAuthDeeplinkPayload,
     type OAuthStartIntent,
 } from '../utils';
-
-/** The toast a refused or failed link shows. */
-type LinkFailure = 'occupied' | 'typeLinked' | 'failed';
-
-const linkFailureKey: Record<LinkFailure, string> = {
-    occupied: 'account.signIn.link.occupied',
-    typeLinked: 'account.signIn.link.typeLinked',
-    failed: 'account.signIn.link.failed',
-};
+import { useSignOutGuest } from './useSignOutGuest';
 
 /** Why `verify` refused. Only verify names the reason; `link` maps confirm's statuses itself. */
 const refusalOf = (check: LinkVerifiedView): LinkFailure =>
@@ -39,7 +32,11 @@ const refusalOf = (check: LinkVerifiedView): LinkFailure =>
 const openAuthorize = (provider: string, intent: OAuthStartIntent, account?: string): void => {
     const record = createOAuthLoginStart(provider, Date.now(), intent, account);
     saveOAuthLoginStart(record);
-    const url = buildAuthorizeUrl(provider, record.nonce);
+    useOAuthAttemptStore.getState().opened(record.startedAt, record.nonce);
+    openBrowser(buildAuthorizeUrl(provider, record.nonce));
+};
+
+const openBrowser = (url: string): void => {
     if (isNative()) window.open(url, '_blank');
     else window.location.assign(url);
 };
@@ -82,6 +79,7 @@ export const useSocialLogin = () => {
     const { deviceId } = runtime.session.useDynamicDeviceId();
     const { mutateAsync: loginGuest } = runtime.session.useLoginRelayGuestByDevice();
     const { auth } = runtime.data.useRuntimeRepositories();
+    const signOutGuest = useSignOutGuest();
     const [isStarting, setIsStarting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isError, setIsError] = useState(false);
@@ -105,11 +103,23 @@ export const useSocialLogin = () => {
             startingRef.current = true;
             setIsStarting(true);
             setIsError(false);
+            // Begun before the registration: it flips the router, and the Welcome page has to be kept for
+            // the attempt by then.
+            // A retry from the waiting card keeps the first start's answer: the guest is the attempt's own.
+            const { attempt: previous, begin, clear } = useOAuthAttemptStore.getState();
+            begin({
+                provider,
+                intent: 'login',
+                signedOutAtStart:
+                    !runtime.session.getIdentityContext().isAuthenticated ||
+                    (previous?.intent === 'login' && previous.signedOutAtStart),
+            });
             try {
                 await ensureDeviceSession(() => loginGuest(deviceId));
             } catch (error) {
                 const err = toError(error);
                 logger.error('AUTH', '[useSocialLogin] device registration failed', { error: err });
+                clear();
                 if (mountedRef.current) setIsError(true);
                 return false;
             } finally {
@@ -126,10 +136,50 @@ export const useSocialLogin = () => {
     /** Link a provider account to the account signed in here. No device registration: there is a session. */
     const startLink = useCallback((provider: string): boolean => {
         const account = signedInAccountId();
-        if (!account) return false;
+        // One round trip at a time: a second start would overwrite the first one's nonce, and the browser
+        // tab already open would come back refused.
+        if (!account || useOAuthAttemptStore.getState().attempt) return false;
+        useOAuthAttemptStore.getState().begin({ provider, intent: 'link', signedOutAtStart: false });
         openAuthorize(provider, 'link', account);
         return true;
     }, []);
+
+    /** Send the browser to the pending attempt again, with the same nonce, for a tab that was closed. */
+    const reopen = useCallback((): boolean => {
+        const attempt = useOAuthAttemptStore.getState().attempt;
+        if (!attempt?.nonce) return false;
+        openBrowser(buildAuthorizeUrl(attempt.provider, attempt.nonce));
+        return true;
+    }, []);
+
+    /**
+     * Give up on the pending attempt. Its start record goes, so a browser tab finishing later is refused.
+     * A login that registered this device on its way also signs that guest out again, which reloads to
+     * Welcome; the person backed out before choosing to be a guest. `keepSession` leaves the guest for a
+     * caller that moves on to another sign-in needing a device session (phone).
+     */
+    const cancel = useCallback(
+        async ({ keepSession = false }: { keepSession?: boolean } = {}): Promise<void> => {
+            const { attempt, clear } = useOAuthAttemptStore.getState();
+            takeOAuthLoginStart();
+            const mintedGuest = attempt?.intent === 'login' && attempt.signedOutAtStart;
+            if (keepSession || !mintedGuest || !runtime.session.getIdentityContext().isAuthenticated) {
+                clear();
+                return;
+            }
+            // The hold stays until the sign-out has run: released first, the router would open the app as
+            // the guest for as long as the logout takes. The logout reloads; `clear` matters on failure.
+            try {
+                await signOutGuest();
+            } catch (error) {
+                logger.error('AUTH', '[useSocialLogin] signing out the guest of a cancelled login failed', { error });
+                toast({ variant: 'destructive', description: t('auth.social.cancelFailed') });
+            } finally {
+                clear();
+            }
+        },
+        [signOutGuest, t]
+    );
 
     const link = useCallback(
         async (provider: string, code: string, account: string | undefined): Promise<boolean> => {
@@ -139,8 +189,8 @@ export const useSocialLogin = () => {
             setIsError(false);
             const fail = (failure: LinkFailure) => {
                 setIsError(true);
-                // A link is always one the person pressed for, from either side of the hand-off.
-                toast({ variant: 'destructive', description: t(linkFailureKey[failure]) });
+                // Shown on the account hub's sign-in card, where both hand-off paths land, until dismissed.
+                useOAuthAttemptStore.getState().setLinkFailure(failure);
                 completingRef.current = false;
                 return false;
             };
@@ -234,9 +284,11 @@ export const useSocialLogin = () => {
             if (completingRef.current) return false;
             const start = takeOAuthLoginStart();
             const verdict = evaluateOAuthDeeplink(start, payload, Date.now());
+            const attempts = useOAuthAttemptStore.getState();
             if (!verdict.ok) {
                 logger.warn('AUTH', '[useSocialLogin] ignored an OAuth deeplink', { reason: verdict.reason });
                 setIsError(true);
+                attempts.fail();
                 toast({
                     variant: 'destructive',
                     description: t(verdict.reason === 'expired' ? 'auth.social.expired' : 'auth.social.notStarted'),
@@ -248,13 +300,17 @@ export const useSocialLogin = () => {
             // with a screen of its own can leave for the account hub instead of drawing a second one.
             if (start?.intent === 'link') {
                 await link(payload.provider, payload.code, start.account);
+                attempts.clear();
                 return 'link';
             }
-            return (await complete(payload.provider, payload.code, notifyFailure)) && 'login';
+            const done = await complete(payload.provider, payload.code, notifyFailure);
+            if (done) attempts.clear();
+            else attempts.fail();
+            return done && 'login';
         },
         [complete, link, t]
     );
 
     // `complete` and `link` stay private: exposing them would let a caller skip the start check.
-    return { start, startLink, completeFromHandoff, isStarting, isSubmitting, isError };
+    return { start, startLink, reopen, cancel, completeFromHandoff, isStarting, isSubmitting, isError };
 };

@@ -7,6 +7,14 @@ const startLink = vi.hoisted(() => vi.fn());
 const socialEnabled = vi.hoisted(() => ({ value: true }));
 const phoneEnabled = vi.hoisted(() => ({ value: true }));
 const navigate = vi.hoisted(() => vi.fn());
+const reopen = vi.hoisted(() => vi.fn());
+const cancel = vi.hoisted(() => vi.fn());
+const attempts = vi.hoisted(() => ({
+    attempt: null as { intent: 'login' | 'link' } | null,
+    failed: false,
+    linkFailure: null as 'occupied' | 'typeLinked' | 'failed' | null,
+    setLinkFailure: vi.fn(),
+}));
 const verifySocialAccount = vi.hoisted(() => vi.fn());
 const confirmSocialAccount = vi.hoisted(() => vi.fn());
 
@@ -15,7 +23,9 @@ vi.mock('../../auth', () => ({
     isSocialLoginEnabled: () => socialEnabled.value,
     isPhoneLoginEnabled: () => phoneEnabled.value,
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
-    useSocialLogin: () => ({ start, startLink, isStarting: false }),
+    useSocialLogin: () => ({ start, startLink, reopen, cancel, isStarting: false }),
+    useAttemptExpired: () => false,
+    useOAuthAttemptStore: <T,>(select: (s: typeof attempts) => T) => select(attempts),
 }));
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
@@ -35,6 +45,9 @@ describe('AccountSignInCard', () => {
         vi.clearAllMocks();
         socialEnabled.value = true;
         phoneEnabled.value = true;
+        attempts.attempt = null;
+        attempts.failed = false;
+        attempts.linkFailure = null;
     });
 
     it('renders nothing while the link$ slot is unknown', () => {
@@ -150,5 +163,27 @@ describe('AccountSignInCard', () => {
     it('says so when the slot is there and empty', () => {
         render(<AccountSignInCard account={{ userRole: 'user', link$: {} }} />);
         expect(screen.getByText(i18n.t('account.signIn.none'))).toBeTruthy();
+    });
+
+    it('holds the Google link while one is out in the browser, with a way to give up', () => {
+        attempts.attempt = { intent: 'link' };
+        render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
+
+        const link = screen.getByRole('button', { name: i18n.t('account.signIn.link.google') }) as HTMLButtonElement;
+        expect(link.disabled).toBe(true);
+        expect(screen.getByText(i18n.t('account.signIn.link.waiting'))).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.reopen') }));
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.cancel') }));
+        expect(reopen).toHaveBeenCalled();
+        expect(cancel).toHaveBeenCalled();
+    });
+
+    it('holds the guest Google sign-in while it is out in the browser', () => {
+        attempts.attempt = { intent: 'login' };
+        render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+        const google = screen.getByRole('button', { name: i18n.t('auth.social.google') }) as HTMLButtonElement;
+        expect(google.disabled).toBe(true);
+        expect(screen.getByText(i18n.t('auth.social.waitingInline'))).toBeTruthy();
     });
 });

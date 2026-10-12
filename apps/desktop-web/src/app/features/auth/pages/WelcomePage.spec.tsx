@@ -1,9 +1,15 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
     guest: { submit: vi.fn(), isSubmitting: false, isError: false },
-    social: { start: vi.fn(), isStarting: false, isError: false },
+    social: {
+        start: vi.fn(),
+        reopen: vi.fn(),
+        cancel: vi.fn(),
+        isStarting: false,
+        isError: false,
+    } as Record<string, unknown>,
     phoneLogin: true,
     navigate: vi.fn(),
 }));
@@ -12,22 +18,31 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
 vi.mock('../hooks/useGuestLogin', () => ({ useGuestLogin: () => state.guest }));
 vi.mock('../hooks/useSocialLogin', () => ({ useSocialLogin: () => state.social }));
 vi.mock('../utils', () => ({
+    OAUTH_LOGIN_START_TTL_MS: 10 * 60 * 1000,
     isSocialLoginEnabled: () => true,
     isPhoneLoginEnabled: () => state.phoneLogin,
     phoneSignupNoteKey: () => (state.phoneLogin ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote'),
 }));
 vi.mock('../components', () => ({
-    AuthCard: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    AuthCard: ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
+        <div>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+            {children}
+        </div>
+    ),
     GoogleIcon: () => null,
 }));
 
 import i18n from '../../../../i18n';
+import { useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
 import { WelcomePage } from './WelcomePage';
 
 describe('WelcomePage', () => {
     beforeEach(() => {
         state.guest = { submit: vi.fn(), isSubmitting: false, isError: false };
-        state.social = { start: vi.fn(), isStarting: false, isError: false };
+        state.social = { start: vi.fn(), reopen: vi.fn(), cancel: vi.fn(), isStarting: false, isError: false };
+        useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null });
         state.phoneLogin = true;
         state.navigate = vi.fn();
     });
@@ -105,5 +120,66 @@ describe('WelcomePage', () => {
         render(<WelcomePage />);
 
         expect(screen.queryByText(i18n.t('auth.phone.start'))).toBeNull();
+    });
+
+    describe('while the Google sign-in is out in the browser', () => {
+        const waiting = (startedAt = Date.now()) =>
+            useOAuthAttemptStore.setState({
+                attempt: { provider: 'google', intent: 'login', signedOutAtStart: true, startedAt, nonce: 'n' },
+                failed: false,
+            });
+
+        afterEach(() => vi.useRealTimers());
+
+        it('says to finish in the browser and offers to open it again', () => {
+            waiting();
+            render(<WelcomePage />);
+
+            expect(screen.getByText(i18n.t('auth.social.waitingTitle'))).toBeTruthy();
+            screen.getByText(i18n.t('auth.social.reopen')).click();
+            expect(state.social.reopen).toHaveBeenCalled();
+        });
+
+        it('cancels the attempt', () => {
+            waiting();
+            render(<WelcomePage />);
+
+            screen.getByText(i18n.t('auth.social.cancel')).click();
+
+            expect(state.social.cancel).toHaveBeenCalledWith();
+        });
+
+        it('moves to phone sign-in keeping the device session, and tells it where back goes', () => {
+            waiting();
+            render(<WelcomePage />);
+
+            screen.getByText(i18n.t('auth.phone.start')).click();
+
+            expect(state.navigate).toHaveBeenCalledWith('/auth/phone', {
+                state: { from: '/auth/welcome', signOutOnBack: true },
+            });
+            expect(state.social.cancel).toHaveBeenCalledWith({ keepSession: true });
+        });
+
+        it('offers a retry once the hand-off failed', () => {
+            waiting();
+            useOAuthAttemptStore.setState({ failed: true });
+            render(<WelcomePage />);
+
+            expect(screen.getByText(i18n.t('auth.social.waitingFailed'))).toBeTruthy();
+            screen.getByText(i18n.t('auth.social.retry')).click();
+            expect(state.social.start).toHaveBeenCalledWith('google');
+        });
+
+        it('says the sign-in expired when the start runs out', () => {
+            vi.useFakeTimers();
+            waiting();
+            render(<WelcomePage />);
+
+            act(() => void vi.advanceTimersByTime(10 * 60 * 1000));
+
+            expect(screen.getByText(i18n.t('auth.social.waitingExpired'))).toBeTruthy();
+            expect(screen.getByText(i18n.t('auth.social.retry'))).toBeTruthy();
+        });
     });
 });

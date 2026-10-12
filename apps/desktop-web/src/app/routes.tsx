@@ -6,6 +6,7 @@ import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { selectHeldLogin, useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
 import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
@@ -89,6 +90,7 @@ const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ 
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
+    const socialLoginHeld = useOAuthAttemptStore(selectHeldLogin);
 
     return (
         <Router>
@@ -131,6 +133,10 @@ export const AppRouter = () => {
                                 exchanged, so the session flips mid-attempt. Keep its page until
                                 it succeeds or is left, or a rejected code is never shown. */}
                             {inviteAttemptHeld && <Route path="/auth/login" element={<InviteLoginPage />} />}
+                            {/* A Google sign-in begun signed out registers the device before the browser
+                                opens. Keep Welcome, which waits for the browser, until it returns or is
+                                cancelled, or the person lands in the app as a guest they never chose. */}
+                            {socialLoginHeld && <Route path="/auth/welcome" element={<WelcomePage />} />}
                             {/* Sending the first code registers the device, which lands here mid-flow;
                                 the page also turns away an account that is already signed in. */}
                             {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}

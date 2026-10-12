@@ -9,6 +9,7 @@ const session = vi.hoisted(() => ({
     toast: vi.fn(),
 }));
 
+vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 vi.mock('@chatic/bridges', () => ({
     isNative: () => true,
     logger: { error: vi.fn(), warn: vi.fn() },

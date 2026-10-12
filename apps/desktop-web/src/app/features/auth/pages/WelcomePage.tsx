@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,8 +8,72 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
+import { useAttemptExpired } from '../hooks/useAttemptExpired';
 import { useSocialLogin } from '../hooks/useSocialLogin';
+import { useOAuthAttemptStore, type OAuthAttempt } from '../stores/useOAuthAttemptStore';
 import { isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
+
+/**
+ * The Google sign-in is out in the system browser. Said here, with the ways out, rather than leaving
+ * the person on a page that looks like nothing happened: open the browser again, sign in with the
+ * phone number instead, or cancel, which undoes the device registration the start made.
+ */
+const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed: boolean }) => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const { start, reopen, cancel, isStarting } = useSocialLogin();
+    const expired = useAttemptExpired(attempt);
+    const [leaving, setLeaving] = useState(false);
+    const stuck = failed || expired;
+
+    const onCancel = () => {
+        setLeaving(true);
+        void cancel();
+    };
+    const usePhone = () => {
+        // Navigate first: the cancel releases the held Welcome route, and phone sign-in needs the
+        // device session this start registered, so it stays.
+        navigate('/auth/phone', { state: { from: '/auth/welcome', signOutOnBack: attempt.signedOutAtStart } });
+        void cancel({ keepSession: true });
+    };
+
+    return (
+        <AuthCard
+            live
+            title={t('auth.social.waitingTitle')}
+            subtitle={t(
+                failed
+                    ? 'auth.social.waitingFailed'
+                    : expired
+                      ? 'auth.social.waitingExpired'
+                      : attempt.startedAt === undefined
+                        ? 'welcome.starting'
+                        : 'auth.social.waitingBody'
+            )}
+        >
+            <div className="flex flex-col gap-2">
+                {stuck ? (
+                    <Button size="lg" onClick={() => void start(attempt.provider)} disabled={isStarting || leaving}>
+                        {isStarting ? t('welcome.starting') : t('auth.social.retry')}
+                    </Button>
+                ) : (
+                    <Button size="lg" variant="outline" onClick={reopen} disabled={leaving || !attempt.nonce}>
+                        {t('auth.social.reopen')}
+                    </Button>
+                )}
+                {isPhoneLoginEnabled() && (
+                    <Button variant="secondary" size="lg" onClick={usePhone} disabled={leaving}>
+                        <Smartphone className="h-4 w-4" />
+                        {t('auth.phone.start')}
+                    </Button>
+                )}
+                <Button variant="link" onClick={onCancel} disabled={leaving}>
+                    {t('auth.social.cancel')}
+                </Button>
+            </div>
+        </AuthCard>
+    );
+};
 
 /**
  * First-run landing. Offers a one-tap guest start (device-register into the
@@ -22,7 +86,13 @@ export const WelcomePage = () => {
     const noteId = useId();
     const { submit, isSubmitting, isError } = useGuestLogin();
     const { start: startSocialLogin, isStarting, isError: isSocialError } = useSocialLogin();
+    const attempt = useOAuthAttemptStore(s => (s.attempt?.intent === 'login' ? s.attempt : null));
+    const attemptFailed = useOAuthAttemptStore(s => s.failed);
     const isBusy = isSubmitting || isStarting;
+
+    // From the moment the start begins, retries included: a second start from the buttons below would
+    // write a second record over the first one's nonce.
+    if (attempt) return <SocialLoginWaiting attempt={attempt} failed={attemptFailed} />;
 
     return (
         <AuthCard title={t('welcome.title')} subtitle={t('welcome.subtitle')}>

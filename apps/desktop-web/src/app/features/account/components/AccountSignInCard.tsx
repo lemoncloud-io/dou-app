@@ -6,12 +6,51 @@ import { Smartphone } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { GoogleIcon, isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey, useSocialLogin } from '../../auth';
+import {
+    GoogleIcon,
+    isPhoneLoginEnabled,
+    isSocialLoginEnabled,
+    phoneSignupNoteKey,
+    useAttemptExpired,
+    useOAuthAttemptStore,
+    useSocialLogin,
+    type OAuthStartIntent,
+} from '../../auth';
 import { linkedSignInOf, type LinkedMethod, type RelaySignInUser } from '../utils/linkedSignIn';
 
 const providerLabel = (provider: string | undefined, fallback: string): string => {
     if (!provider) return fallback;
     return provider.charAt(0).toUpperCase() + provider.slice(1);
+};
+
+/**
+ * A Google round trip of this kind is out in the system browser: say so, and offer to open the browser
+ * again or to give up. Neither signs anyone out — the session here was there before the button.
+ */
+const OAuthWaiting = ({ intent, label }: { intent: OAuthStartIntent; label: string }) => {
+    const { t } = useTranslation();
+    const { reopen, cancel } = useSocialLogin();
+    const attempt = useOAuthAttemptStore(s => (s.attempt?.intent === intent ? s.attempt : null));
+    const expired = useAttemptExpired(attempt);
+    const failed = useOAuthAttemptStore(s => s.failed) || expired;
+    if (!attempt) return null;
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3" role="status">
+            <span className="min-w-0 flex-1 break-keep text-caption text-muted-foreground">
+                {expired ? t('auth.social.waitingExpired') : failed ? t('auth.social.waitingFailed') : label}
+            </span>
+            <div className="flex shrink-0 gap-2">
+                {!failed && (
+                    <Button variant="outline" size="sm" onClick={reopen} disabled={!attempt.nonce}>
+                        {t('auth.social.reopen')}
+                    </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => void cancel()}>
+                    {t(failed ? 'auth.social.dismiss' : 'auth.social.cancel')}
+                </Button>
+            </div>
+        </div>
+    );
 };
 
 /**
@@ -23,6 +62,7 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { start, isStarting } = useSocialLogin();
+    const pending = useOAuthAttemptStore(s => s.attempt !== null);
     const noteId = useId();
     return (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
@@ -48,13 +88,16 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
                         size="sm"
                         className="gap-2"
                         onClick={() => void start('google')}
-                        disabled={isStarting}
+                        disabled={isStarting || pending}
                         aria-describedby={noteId}
                     >
                         <GoogleIcon />
                         {t('auth.social.google')}
                     </Button>
                 )}
+            </div>
+            <div className="basis-full empty:hidden">
+                <OAuthWaiting intent="login" label={t('auth.social.waitingInline')} />
             </div>
         </div>
     );
@@ -67,22 +110,27 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
 const LinkGoogle = () => {
     const { t } = useTranslation();
     const { startLink } = useSocialLogin();
+    const pending = useOAuthAttemptStore(s => s.attempt !== null);
     const hintId = useId();
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-            <span id={hintId} className="min-w-0 flex-1 text-caption text-muted-foreground">
-                {t('account.signIn.link.hint')}
-            </span>
-            <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-2"
-                onClick={() => startLink('google')}
-                aria-describedby={hintId}
-            >
-                <GoogleIcon />
-                {t('account.signIn.link.google')}
-            </Button>
+        <div className="flex flex-col gap-3 border-t border-border pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <span id={hintId} className="min-w-0 flex-1 text-caption text-muted-foreground">
+                    {t('account.signIn.link.hint')}
+                </span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-2"
+                    onClick={() => startLink('google')}
+                    disabled={pending}
+                    aria-describedby={hintId}
+                >
+                    <GoogleIcon />
+                    {t('account.signIn.link.google')}
+                </Button>
+            </div>
+            <OAuthWaiting intent="link" label={t('account.signIn.link.waiting')} />
         </div>
     );
 };

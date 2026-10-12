@@ -50,6 +50,17 @@ export const en = {
     'auth.social.notStarted':
         "That sign-in link didn't come from a sign-in started here, so it was ignored. Start again from DoU.",
     'auth.social.expired': 'That sign-in took too long and has expired. Start again from DoU.',
+    'auth.social.waitingTitle': 'Finish signing in in your browser',
+    'auth.social.waitingBody':
+        'Complete the Google sign-in in the browser that opened, and DoU picks it up from there.',
+    'auth.social.waitingInline': 'Waiting for the Google sign-in in your browser.',
+    'auth.social.waitingFailed': "The sign-in didn't finish. Try again, or sign in another way.",
+    'auth.social.waitingExpired': 'The sign-in took too long. Try again, or sign in another way.',
+    'auth.social.reopen': 'Open the browser again',
+    'auth.social.retry': 'Try again',
+    'auth.social.cancel': 'Cancel',
+    'auth.social.dismiss': 'Dismiss',
+    'auth.social.cancelFailed': "We couldn't clear the guest session. You can log out from the account menu.",
     'profile.signInGoogle': 'Sign in with Google',
     'profile.signInGoogleHint': 'Use your account across devices. Replaces this guest session.',
     'auth.social.phoneSignupNote':
@@ -509,6 +520,7 @@ export const en = {
     'account.signIn.link.occupied': 'That Google account already belongs to another DoU account.',
     'account.signIn.link.typeLinked': 'This account already has a social account linked.',
     'account.signIn.link.failed': "We couldn't link Google. Please try again.",
+    'account.signIn.link.waiting': 'Waiting for Google in your browser.',
     'account.profile.title': 'Edit profile',
     'account.profile.subtitle': 'The name and photo other people see.',
     'account.profile.nameLabel': 'Display name',

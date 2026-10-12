@@ -12,6 +12,7 @@ const session = vi.hoisted(() => ({
     verifySocialAccount: vi.fn(),
     confirmSocialAccount: vi.fn(),
     patchRelaySessionUser: vi.fn(),
+    signOutGuest: vi.fn(),
 }));
 
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: vi.fn(), warn: session.warn } }));
@@ -36,6 +37,7 @@ vi.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
+vi.mock('./useSignOutGuest', () => ({ useSignOutGuest: () => session.signOutGuest }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: session.toast }));
 vi.mock('@chatic/config', () => ({
     config: { get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined) },
@@ -45,7 +47,13 @@ import i18n from '../../../../i18n';
 import { setStorageAdapter } from '@chatic/shared';
 
 import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart } from '../utils';
+import { useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
 import { useSocialLogin } from './useSocialLogin';
+
+beforeEach(() => {
+    useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null });
+    session.signOutGuest.mockReset().mockResolvedValue(undefined);
+});
 
 describe('useSocialLogin.start', () => {
     const open = vi.fn();
@@ -328,9 +336,9 @@ describe('useSocialLogin.start', () => {
         });
 
         it.each([
-            ['occupied', 'account.signIn.link.occupied'],
-            ['type-linked', 'account.signIn.link.typeLinked'],
-        ])('stops at verify when the server says %s', async (reason, key) => {
+            ['occupied', 'occupied'],
+            ['type-linked', 'typeLinked'],
+        ])('stops at verify when the server says %s', async (reason, failure) => {
             signedIn();
             session.verifySocialAccount.mockResolvedValue({ step: 'verify', linkable: false, reason });
             const { result, nonce } = await startedLink();
@@ -339,17 +347,17 @@ describe('useSocialLogin.start', () => {
 
             expect(session.confirmSocialAccount).not.toHaveBeenCalled();
             expect(session.patchRelaySessionUser).not.toHaveBeenCalled();
-            expect(session.toast).toHaveBeenCalledWith(
-                expect.objectContaining({ variant: 'destructive', description: i18n.t(key) })
-            );
+            // Left for the account hub's sign-in card, which keeps it until dismissed; no toast.
+            expect(useOAuthAttemptStore.getState().linkFailure).toBe(failure);
+            expect(session.toast).not.toHaveBeenCalled();
         });
 
         it.each([
-            ['409 CONFLICT', 'account.signIn.link.occupied'],
+            ['409 CONFLICT', 'occupied'],
             // 403 from confirm can also be a session that is not a main user: only verify names type-linked.
-            ['403 FORBIDDEN', 'account.signIn.link.failed'],
-            ['500 ERROR', 'account.signIn.link.failed'],
-        ])('reads a confirm refused with %s', async (message, key) => {
+            ['403 FORBIDDEN', 'failed'],
+            ['500 ERROR', 'failed'],
+        ])('reads a confirm refused with %s', async (message, failure) => {
             signedIn();
             session.confirmSocialAccount.mockRejectedValue(new Error(message));
             const { result, nonce } = await startedLink();
@@ -357,9 +365,7 @@ describe('useSocialLogin.start', () => {
             await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce }));
 
             expect(result.current.isError).toBe(true);
-            expect(session.toast).toHaveBeenCalledWith(
-                expect.objectContaining({ variant: 'destructive', description: i18n.t(key) })
-            );
+            expect(useOAuthAttemptStore.getState().linkFailure).toBe(failure);
         });
 
         it('links nothing to another account that signed in while the browser was open', async () => {
@@ -384,7 +390,9 @@ describe('useSocialLogin.start', () => {
             });
 
             expect(done).toBe('link');
-            expect(session.toast).toHaveBeenCalledTimes(1);
+            expect(useOAuthAttemptStore.getState().linkFailure).toBe('failed');
+            // The attempt is over either way: the hub's link button comes back.
+            expect(useOAuthAttemptStore.getState().attempt).toBeNull();
         });
 
         it('signs in, never links, for a login start while an account is signed in', async () => {
@@ -409,9 +417,144 @@ describe('useSocialLogin.start', () => {
             await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce }));
 
             expect(session.verifySocialAccount).not.toHaveBeenCalled();
-            expect(session.toast).toHaveBeenCalledWith(
-                expect.objectContaining({ description: i18n.t('account.signIn.link.failed') })
+            expect(useOAuthAttemptStore.getState().linkFailure).toBe('failed');
+        });
+    });
+    describe('the attempt waiting on the browser', () => {
+        const store = () => useOAuthAttemptStore.getState();
+        const nonceOf = (call: number) =>
+            new URL(new URL(String(open.mock.calls[call][0])).searchParams.get('redirect') ?? '').searchParams.get(
+                'nonce'
             );
+
+        it('is begun before the device registration flips the router, marked as signed out at the start', async () => {
+            let atRegistration: unknown = 'unset';
+            session.loginGuest.mockImplementation(async () => {
+                atRegistration = store().attempt;
+            });
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.start('google'));
+
+            expect(atRegistration).toEqual({ provider: 'google', intent: 'login', signedOutAtStart: true });
+            expect(store().attempt).toMatchObject({ signedOutAtStart: true, nonce: nonceOf(0) });
+        });
+
+        it('is dropped when the registration fails', async () => {
+            session.loginGuest.mockRejectedValue(new Error('503'));
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.start('google'));
+
+            expect(store().attempt).toBeNull();
+        });
+
+        it('keeps the guest as its own when the start is retried, though a session exists by then', async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            session.isAuthenticated = true;
+
+            await act(() => result.current.start('google'));
+
+            expect(store().attempt?.signedOutAtStart).toBe(true);
+        });
+
+        it('reopens the browser with the same nonce', async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+
+            act(() => void result.current.reopen());
+
+            expect(open).toHaveBeenCalledTimes(2);
+            expect(nonceOf(1)).toBe(nonceOf(0));
+        });
+
+        it('cancels by dropping the start and signing out the guest the start registered', async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            session.isAuthenticated = true;
+
+            await act(() => result.current.cancel());
+
+            expect(takeOAuthLoginStart()).toBeNull();
+            expect(store().attempt).toBeNull();
+            expect(session.signOutGuest).toHaveBeenCalledTimes(1);
+        });
+
+        it('holds Welcome until the sign-out has run, so the app never opens as that guest', async () => {
+            let heldDuringSignOut: unknown = 'unset';
+            session.signOutGuest.mockImplementation(async () => {
+                heldDuringSignOut = store().attempt;
+            });
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            session.isAuthenticated = true;
+
+            await act(() => result.current.cancel());
+
+            expect(heldDuringSignOut).not.toBeNull();
+            expect(store().attempt).toBeNull();
+        });
+
+        it('says so when the sign-out fails, and lets go of Welcome anyway', async () => {
+            session.signOutGuest.mockRejectedValue(new Error('logout failed'));
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            session.isAuthenticated = true;
+
+            await act(() => result.current.cancel());
+
+            expect(store().attempt).toBeNull();
+            expect(session.toast).toHaveBeenCalledWith(
+                expect.objectContaining({ variant: 'destructive', description: i18n.t('auth.social.cancelFailed') })
+            );
+        });
+
+        it('keeps the guest when the cancel moves on to phone sign-in', async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            session.isAuthenticated = true;
+
+            await act(() => result.current.cancel({ keepSession: true }));
+
+            expect(store().attempt).toBeNull();
+            expect(session.signOutGuest).not.toHaveBeenCalled();
+        });
+
+        it('never signs out a session that was there before the start', async () => {
+            session.isAuthenticated = true;
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+
+            await act(() => result.current.cancel());
+
+            expect(session.signOutGuest).not.toHaveBeenCalled();
+        });
+
+        it('is marked failed, not dropped, when the exchange fails', async () => {
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.start('google'));
+            const nonce = nonceOf(0) ?? undefined;
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce }));
+
+            expect(store().failed).toBe(true);
+            expect(store().attempt).not.toBeNull();
+        });
+
+        it('starts no second link while one is out in the browser', async () => {
+            session.isAuthenticated = true;
+            session.user = { id: 'u-1', userRole: 'user' };
+            const { result } = renderHook(() => useSocialLogin());
+
+            act(() => void result.current.startLink('google'));
+            let second: boolean | undefined;
+            act(() => {
+                second = result.current.startLink('google');
+            });
+
+            expect(second).toBe(false);
+            expect(open).toHaveBeenCalledTimes(1);
         });
     });
 });
