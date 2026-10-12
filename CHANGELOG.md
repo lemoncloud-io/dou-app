@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-10-12] - No version updates
+
+### Bug Fixes
+
+- (desktop) answer the SavePreference that @chatic/theme posts, not NOT_FOUND
+- (bridges) list the handlers a host registered in the handshake, and answer ping
+
+### Documentation
+
+- (adr) record that the handshake lists what the shell answers (ADR-0186)
+
 ## [2026-10-12] - root@0.90.1, @chatic/web@0.67.1, @chatic/landing@0.5.5, @chatic/desktop-web@0.23.1
 
 ### Documentation
