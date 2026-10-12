@@ -1,6 +1,6 @@
 # Chatic
 
-Nx monorepo: `apps/` (8), `libs/` (16).
+Nx monorepo: `apps/` (9), `libs/` (16).
 
 ## Language
 
