@@ -152,7 +152,7 @@ apps/mobile/
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
-│       ├── webview/       82 files: AppWebView, SimpleWebView, the router, 30 handlers, injection
+│       ├── webview/       88 files: AppWebView, SimpleWebView, the router, 30 handlers, injection
 │       ├── services/      98 files across 20 domains, assembled in provider.ts
 │       ├── bridge/        13 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,

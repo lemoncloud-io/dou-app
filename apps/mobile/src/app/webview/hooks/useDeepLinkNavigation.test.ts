@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 
+import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { useDeepLinkNavigation } from './useDeepLinkNavigation';
 import { deeplinkService } from '../../services';
 import { navigationRef } from '../../features/core/navigation/navigationRef';
@@ -203,6 +204,53 @@ describe('useDeepLinkNavigation', () => {
             expect(result.current.deepLinkError).toBe(true);
             expect(result.current.deepLinkErrorReason).toBe('bad scheme');
             expect(bridge.pushEvent).not.toHaveBeenCalled();
+        });
+    });
+
+    // Every way into the web converges on one event; each must reach it in the vocabulary's shape.
+    describe('app → web event contract', () => {
+        // Warm entries fire after mount; a cold start is already waiting when the hook mounts.
+        const entries: Array<[string, boolean, () => void]> = [
+            ['a warm notification tap', false, () => mockCapturedOnOpened?.({ data: {}, messageId: 'm1' })],
+            ['a warm deep link', false, () => mockCapturedSubscribe?.('chatic://channels/1/room')],
+            ['a cold-start notification tap', true, () => (mockGetInitialResult = { data: {}, messageId: 'm1' })],
+            ['a cold-start deep link', true, () => (mockGetInitialUrl = 'chatic://channels/1/room')],
+        ];
+
+        it.each(entries)("pushes 'OnNavigate' with a room-open trace for %s", async (_entry, cold, trigger) => {
+            (deeplinkService.resolvePushTap as jest.Mock).mockReturnValue('/channels/1/room?cid=cloud_1');
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1/room' });
+            if (cold) trigger();
+
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+            await act(async () => {
+                if (!cold) trigger();
+                // The cold-start capture resolves on a microtask.
+                await Promise.resolve();
+            });
+
+            expect(pushedEvents(bridge.pushEvent)).toEqual([
+                expect.objectContaining({
+                    type: 'OnNavigate',
+                    data: expect.objectContaining({ perfTrace: expect.objectContaining({ coldStart: cold }) }),
+                }),
+            ]);
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
+        });
+
+        // No trace on a path that is not a room: the optional field is left out, not sent empty.
+        it("pushes 'OnNavigate' without a trace for a path that is not a room", () => {
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/?provider=invite' });
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            act(() => {
+                mockCapturedSubscribe?.('chatic://invite');
+            });
+
+            expect(pushedEvents(bridge.pushEvent)).toEqual([
+                expect.objectContaining({ type: 'OnNavigate', data: { path: '/?provider=invite', replace: false } }),
+            ]);
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
         });
     });
 

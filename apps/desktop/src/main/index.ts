@@ -38,6 +38,7 @@ import { startFcm, type FcmConfig } from './fcm';
 import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { startUpdater } from './updater';
+import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
 import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
@@ -195,15 +196,6 @@ const openInWeb = (target: 'settings' | 'shortcuts' | 'switcher' | 'search'): vo
         bringToFront(win);
     }
     if (mainHost) pushDeeplink(mainHost, `chatic-ui:${target}`);
-};
-
-/** Forward a deeplink URL to the web via the existing OnReceiveNotification event (web routes it). */
-const pushDeeplink = (host: AppBridgeHost, url: string): void => {
-    host.pushEvent({
-        type: 'OnReceiveNotification',
-        success: true,
-        data: { notification: { data: { deeplink: url } } },
-    });
 };
 
 // Last OS notification shown per channel (keyed by deeplink). Electron's
@@ -756,21 +748,11 @@ const createWindow = (): BrowserWindow => {
         onToken: token => {
             onFcmToken(token);
             // Proactively push the (re-minted) token so the renderer re-registers it
-            // with the broker. Its OnFetchFcmToken listener handles this beyond its
-            // own one-shot FetchFcmToken request; buffered until the web frame is ready.
-            host.pushEvent({ type: 'OnFetchFcmToken', success: true, data: { token } });
+            // with the broker; buffered until the web frame is ready.
+            pushFcmToken(host, token);
         },
-        onPush: push => {
-            // Forward-only: the renderer owns the whole presentation decision (DND,
-            // own-message, focus → toast vs ShowNotification banner), the same way it
-            // owns same-cloud live-WS banners. Raising a banner here would need the
-            // renderer's prefs mirrored into the shell and a second focus source.
-            host.pushEvent({
-                type: 'OnReceiveNotification',
-                success: true,
-                data: { notification: { title: push.title, body: push.body, data: push.data } },
-            });
-        },
+        // Forward-only: the renderer decides how to present it.
+        onPush: push => pushFcmMessage(host, push),
     }).catch(error => console.error('[fcm] start failed', error));
 
     // Only accept bridge requests from the trusted origin's frame. Listeners are removed

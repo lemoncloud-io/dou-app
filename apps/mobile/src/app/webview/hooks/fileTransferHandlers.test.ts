@@ -3,6 +3,7 @@ import type { OnFileTransferStatePayload, StartFileTransferPayload } from '@chat
 import type { ITransferManagerBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 
+import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { createFileTransferHandlers } from './fileTransferHandlers';
 
 // The real bridge barrel loads every native module wrapper; the handlers only need `safeHost` from it
@@ -233,6 +234,7 @@ describe('createFileTransferHandlers', () => {
             listener?.(state);
 
             expect(bridge.pushEvent).toHaveBeenCalledWith({ type: 'OnFileTransferState', success: true, data: state });
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
         });
 
         it('forwards every native state change to the WebView as OnFileTransferState', () => {
@@ -254,6 +256,7 @@ describe('createFileTransferHandlers', () => {
             listener?.(state);
 
             expect(bridge.pushEvent).toHaveBeenCalledWith({ type: 'OnFileTransferState', success: true, data: state });
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
             stop();
             expect(unsubscribe).toHaveBeenCalled();
         });
