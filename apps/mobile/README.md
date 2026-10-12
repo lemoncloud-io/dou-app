@@ -159,7 +159,7 @@ apps/mobile/
 │       │                  push marks, shared language, system bars, file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
-│       ├── features/      core chrome and features/main — MainScreen and ModalScreen only
+│       ├── features/      core chrome and features/main — MainScreen only
 │       ├── stores/        zustand stores, including debugSettingsStore (resolves the WebView URL)
 │       ├── hooks/         useServices, useResolvedTheme, useAppVersionCheck
 │       ├── customZip/     the static server that serves a locally unpacked web bundle

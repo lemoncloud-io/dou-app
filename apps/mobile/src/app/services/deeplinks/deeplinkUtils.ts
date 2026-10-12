@@ -447,7 +447,7 @@ const DEBUG_SCREENS = [
     'UploadTest',
 ] as const;
 
-/** Partial navigation state accepted by navigationRef.reset() for native (Debug/Modal) routes. */
+/** Partial navigation state accepted by navigationRef.reset() for native (Debug) routes. */
 export type NativeRouteState = {
     routes: Array<{ name: string; state?: unknown; params?: Record<string, string> }>;
 };
@@ -455,7 +455,7 @@ export type NativeRouteState = {
 /**
  * Discriminated result of resolving an inbound deep link:
  * - `web`: a WEBVIEW_URL-relative path to hand the web via OnNavigate.
- * - `native`: a navigation state to apply imperatively (target=native Debug/Modal).
+ * - `native`: a navigation state to apply imperatively (target=native Debug).
  * - `invalid`: validation/parse failure; the caller surfaces an error screen.
  */
 export type DeepLinkResolution =
@@ -497,13 +497,6 @@ const buildNativeRouteState = (urlObj: URL, logger?: ILogService): NativeRouteSt
         const matchedScreen = DEBUG_SCREENS.find(s => s.toLowerCase() === screenSegment) || 'Home';
         logger?.info('DEEPLINK', '[deeplinkUtils] Native route → Debug', { screen: matchedScreen, params });
         return { routes: [{ name: 'Debug', state: { routes: [{ name: matchedScreen, params }] } }] };
-    }
-
-    if (root === 'main' && segments[1]?.toLowerCase() === 'modal') {
-        logger?.info('DEEPLINK', '[deeplinkUtils] Native route → Modal', { params });
-        // Flat single-level route: after the RootNavigator/MainNavigator merge the native stack has no
-        // Main-nested child, so Modal is addressed as a top-level route (see boot-optimization.md 4.3).
-        return { routes: [{ name: 'Modal', params }] };
     }
 
     logger?.info('DEEPLINK', '[deeplinkUtils] Unknown native route, falling back to Main', {

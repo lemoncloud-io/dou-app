@@ -18,7 +18,7 @@ path for the web to read.
 | `src/app/services/deeplinks/DeeplinkService.ts`           | The single resolver: `resolveInbound(url)` (`web`/`native`/`invalid`) and `resolvePushTap(data)`                                                                                            |
 | `src/app/services/deeplinks/deeplinkUtils.ts`             | Pure helpers: validation, invite conversion (`convertShortUrlWithEnvsSync`), path reduction (`resolveDeepLink`), cid/sid merge (`resolvePushTapPath`)                                       |
 | `src/app/webview/hooks/useDeepLinkNavigation.ts`          | Single owner of inbound navigation: OS links, invite links and push taps → `OnNavigate` (web) / `navigationRef` (native) / the error screen                                                 |
-| `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [../push/README.md](../push/README.md))                                                                                                        |
+| `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [../push/README.md](../push/README.md))                                                                                      |
 | `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (web) Extracts and strips `cid`/`sid` from the `OnNavigate` path and switches cloud/site                                                                                                    |
 
 ## Structure
@@ -29,7 +29,7 @@ flowchart TD
     Push["Push tap (onNotificationOpenedApp / getInitialNotification)"] --> Coord
     Manager --> Coord["useDeepLinkNavigation"]
     Coord --> Resolve["DeeplinkService.resolveInbound / resolvePushTap"]
-    Resolve -->|"native (target=native)"| Native["navigationRef.reset (Debug/Modal)"]
+    Resolve -->|"native (target=native)"| Native["navigationRef.reset (Debug)"]
     Resolve -->|"web / push tap"| Navigate["bridge.pushEvent(OnNavigate, { path })"]
     Resolve -->|"invalid"| Error["deepLinkError screen"]
     Navigate --> Web["WebView (resolvePushNavigation)"]

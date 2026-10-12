@@ -212,9 +212,6 @@ Background color is unified at three call sites: [`webview/AppWebView.tsx`](../.
 [`features/core/components/ResumeOverlay.tsx`](../../src/app/features/core/components/ResumeOverlay.tsx)
 and [`features/main/screens/MainScreen.tsx`](../../src/app/features/main/screens/MainScreen.tsx) all read
 `useResolvedTheme().backgroundColor` instead of a local light/dark constant.
-[`features/main/screens/ModalScreen.tsx`](../../src/app/features/main/screens/ModalScreen.tsx) keeps a
-hardcoded `#1E1E1E` for its modal surface — out of scope, treated as an intentional surface color, not
-a background.
 
 ### Bridge input validation
 
@@ -310,8 +307,6 @@ combination is what reproduces every symptom above.
 6. Android: the navigation bar icon color follows too.
 7. Android 8-9: with the OS dark and the app light (and the reverse), the navigation bar stays
    transparent and its icons stay readable — the versions where the app's override is what does it.
-8. Open and close a modal (`ModalScreen`): the status bar should not reset — unverified on iOS; if it
-   reproduces, add an `applySystemBars` trigger there too.
 
 A browser-only check is possible against the dev server: with the OS set to dark and
 `localStorage['vite-ui-theme']` cleared, a fresh load should show `<html class="light">` and
