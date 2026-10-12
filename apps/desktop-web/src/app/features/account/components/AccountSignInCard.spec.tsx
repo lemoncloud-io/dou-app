@@ -69,7 +69,7 @@ describe('AccountSignInCard', () => {
         const names = screen.getAllByRole('button').map(b => b.textContent);
         expect(names[0]).toContain(i18n.t('auth.phone.start'));
         fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.phone.start') }));
-        expect(navigate).toHaveBeenCalledWith('/auth/phone');
+        expect(navigate).toHaveBeenCalledWith('/auth/phone', { state: { from: '/account' } });
     });
 
     it('offers a guest phone sign-in alone, without the Google note, when social login is off', () => {

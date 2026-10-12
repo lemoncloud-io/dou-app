@@ -102,7 +102,7 @@ describe('WelcomePage', () => {
 
         screen.getByText(i18n.t('auth.phone.start')).click();
 
-        expect(state.navigate).toHaveBeenCalledWith('/auth/phone');
+        expect(state.navigate).toHaveBeenCalledWith('/auth/phone', { state: { from: '/auth/welcome' } });
     });
 
     it('puts phone sign-in before Google, so a phone sign-up reaches for it first', () => {

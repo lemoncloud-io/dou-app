@@ -86,6 +86,7 @@ export const en = {
     'auth.phone.codeHint': 'Enter the 6-digit code from the text message.',
     'auth.phone.expiresIn': 'Expires in {{time}}.',
     'auth.phone.resend': 'Send a new code',
+    'auth.phone.resendIn': 'Send a new code (in {{time}})',
     'auth.phone.confirming': 'Signing in…',
     'auth.phone.retry': 'Finish signing in',
     'auth.phone.newAccountTitle': 'A new account was made',

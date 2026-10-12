@@ -97,6 +97,7 @@ export const ko: EnTranslation = {
     'auth.phone.codeHint': '문자로 받은 6자리 숫자를 입력하세요.',
     'auth.phone.expiresIn': '{{time}} 후 만료돼요.',
     'auth.phone.resend': '인증번호 다시 받기',
+    'auth.phone.resendIn': '인증번호 다시 받기 ({{time}} 후)',
     'auth.phone.confirming': '로그인하는 중…',
     'auth.phone.retry': '로그인 마치기',
     'auth.phone.newAccountTitle': '새 계정이 만들어졌어요',

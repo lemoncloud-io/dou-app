@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rt = vi.hoisted(() => ({
     isAuthenticated: true,
@@ -12,6 +12,8 @@ const rt = vi.hoisted(() => ({
     waitUntilSlotVerified: vi.fn(),
 }));
 
+const ui = vi.hoisted(() => ({ language: 'en' }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: ui.language } }) }));
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: rt.error, warn: vi.fn() } }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -34,7 +36,7 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-import { PHONE_CODE_LENGTH, usePhoneLogin } from './usePhoneLogin';
+import { PHONE_CODE_LENGTH, PHONE_RESEND_COOLDOWN_MS, usePhoneLogin } from './usePhoneLogin';
 
 const TOKEN = { Token: { identityToken: 'id' }, $auth: { id: 'auth-1' } };
 const CODE = '123456';
@@ -69,6 +71,43 @@ describe('usePhoneLogin', () => {
         rt.applySessionToken.mockReset().mockResolvedValue(undefined);
         rt.error.mockReset();
         rt.waitUntilSlotVerified.mockReset().mockResolvedValue(true);
+        ui.language = 'en';
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('opens on the country a Korean UI implies, before the OS locale', () => {
+        ui.language = 'ko';
+
+        const { result } = setup();
+
+        expect(result.current.country).toBe('KR');
+    });
+
+    it('lets a malformed number be submitted, to say why it is refused', async () => {
+        const { result } = setup();
+        act(() => result.current.changeCountry('KR'));
+        act(() => result.current.changePhone('123'));
+
+        expect(result.current.canRequestCode).toBe(true);
+        await act(async () => result.current.requestCode());
+
+        expect(result.current.phoneError).toBe('invalidNumber');
+        expect(rt.sendPhoneCode).not.toHaveBeenCalled();
+    });
+
+    it('keeps Resend shut, counting down, until the wait between sends is over', async () => {
+        vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+        const { result } = setup();
+        await sendCode(result);
+
+        expect(result.current.canResend).toBe(false);
+        expect(result.current.resendIn).toBeGreaterThan(55);
+
+        await act(async () => void vi.advanceTimersByTime(PHONE_RESEND_COOLDOWN_MS));
+
+        expect(result.current.resendIn).toBe(0);
+        expect(result.current.canResend).toBe(true);
     });
 
     it('sends the code in login mode as an E.164 number with its country', async () => {

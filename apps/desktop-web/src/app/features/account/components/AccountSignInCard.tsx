@@ -105,7 +105,12 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
             </div>
             <div className="flex shrink-0 flex-col gap-2">
                 {phone && (
-                    <Button variant="secondary" size="sm" className="gap-2" onClick={() => navigate('/auth/phone')}>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => navigate('/auth/phone', { state: { from: '/account' } })}
+                    >
                         <Smartphone className="h-4 w-4" />
                         {t('auth.phone.start')}
                     </Button>

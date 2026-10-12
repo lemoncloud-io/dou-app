@@ -220,15 +220,17 @@ export const readLocaleCountry = (): PhoneCountry | null => {
 };
 
 /**
- * Which country a phone field opens on: last explicit pick, then the device locale's region, then
- * nothing.
+ * Which country a phone field opens on: last explicit pick, then the caller's `preferred` country (an
+ * app whose UI language implies one: a Korean UI on an English OS), then the device locale's region,
+ * then nothing.
  *
  * The stored pick wins over the locale because it is the stronger signal — someone abroad on a
  * Korean-language device corrects it once and keeps it (ADR-0044 §4). `null` is a legitimate
  * answer, not a failure: `navigator.language` is often region-less (`en`), and an empty picker with
  * a disabled CTA says "pick one" without accusing the user of a mistake.
  */
-export const resolveDefaultCountry = (): PhoneCountry | null => readStoredCountry() ?? readLocaleCountry();
+export const resolveDefaultCountry = (preferred?: PhoneCountry | null): PhoneCountry | null =>
+    readStoredCountry() ?? preferred ?? readLocaleCountry();
 
 /** Remembers an explicit pick. A storage-denied browser simply forgets it. */
 export const rememberCountry = (country: PhoneCountry): void => {

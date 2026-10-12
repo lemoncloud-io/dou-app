@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
     user: null as { userRole?: string } | null,
     login: {} as Record<string, unknown>,
     onSignedIn: null as null | ((result: { isNew: boolean }) => void),
+    signOutGuest: vi.fn(),
 }));
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -17,6 +18,7 @@ vi.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
+vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => state.signOutGuest }));
 vi.mock('../hooks/usePhoneLogin', () => ({
     PHONE_CODE_LENGTH: 6,
     usePhoneLogin: ({ onSignedIn }: { onSignedIn: (result: { isNew: boolean }) => void }) => {
@@ -25,8 +27,13 @@ vi.mock('../hooks/usePhoneLogin', () => ({
     },
 }));
 vi.mock('../components', () => ({
-    AuthCard: ({ title, children }: { title: string; children: React.ReactNode }) => (
+    AuthCard: ({ title, children, onBack }: { title: string; children: React.ReactNode; onBack?: () => void }) => (
         <div>
+            {onBack && (
+                <button type="button" onClick={onBack}>
+                    back
+                </button>
+            )}
             <h1>{title}</h1>
             {children}
         </div>
@@ -57,17 +64,20 @@ const baseLogin = () => ({
     countdown: null,
     resend: vi.fn(),
     canResend: false,
+    resendIn: 0,
     busy: 'idle',
     isRetry: false,
     retrySwitch: vi.fn(),
 });
 
-const renderPage = () =>
+const renderPage = (entry?: Record<string, unknown>) =>
     render(
-        <MemoryRouter initialEntries={['/auth/phone']}>
+        <MemoryRouter initialEntries={[{ pathname: '/auth/phone', state: entry }]}>
             <Routes>
                 <Route path="/auth/phone" element={<PhoneLoginPage />} />
                 <Route path="/" element={<div data-testid="home" />} />
+                <Route path="/account" element={<div data-testid="account" />} />
+                <Route path="/auth/welcome" element={<div data-testid="welcome" />} />
             </Routes>
         </MemoryRouter>
     );
@@ -79,6 +89,7 @@ describe('PhoneLoginPage', () => {
         state.isAuthenticated = false;
         state.user = null;
         state.login = baseLogin();
+        state.signOutGuest.mockReset().mockResolvedValue(undefined);
         replace.mockReset();
         vi.stubGlobal('location', { ...window.location, replace });
     });
@@ -149,5 +160,62 @@ describe('PhoneLoginPage', () => {
         expect(screen.getByText(i18n.t('auth.phone.newAccountTitle'))).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'name step' }));
         expect(replace).toHaveBeenCalledWith('/');
+    });
+
+    it('goes back to where it was opened from', () => {
+        state.isAuthenticated = true;
+        state.user = { userRole: 'guest' };
+        renderPage({ from: '/account' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'back' }));
+
+        expect(screen.getByTestId('account')).toBeTruthy();
+        expect(state.signOutGuest).not.toHaveBeenCalled();
+    });
+
+    it('signs out the guest that sending the first code registered, on the way back', () => {
+        renderPage({ from: '/auth/welcome' });
+        state.isAuthenticated = true;
+
+        fireEvent.click(screen.getByRole('button', { name: 'back' }));
+
+        expect(state.signOutGuest).toHaveBeenCalled();
+    });
+
+    it('signs out a guest a Google start registered before leaving for this page', () => {
+        state.isAuthenticated = true;
+        state.user = { userRole: 'guest' };
+        renderPage({ from: '/auth/welcome', signOutOnBack: true });
+
+        fireEvent.click(screen.getByRole('button', { name: 'back' }));
+
+        expect(state.signOutGuest).toHaveBeenCalled();
+    });
+
+    it('counts down to the next resend', () => {
+        state.login = { ...baseLogin(), codeSent: true, resendIn: 42 };
+        renderPage();
+
+        expect(screen.getByRole('button', { name: i18n.t('auth.phone.resendIn', { time: '0:42' }) })).toBeTruthy();
+    });
+
+    it('goes back to Welcome when it was opened with no entry, signed out', () => {
+        renderPage();
+
+        fireEvent.click(screen.getByRole('button', { name: 'back' }));
+
+        expect(screen.getByTestId('welcome')).toBeTruthy();
+    });
+
+    it('lands at home when signing the guest out fails', async () => {
+        state.signOutGuest.mockRejectedValue(new Error('logout failed'));
+        renderPage({ from: '/auth/welcome' });
+        state.isAuthenticated = true;
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'back' }));
+        });
+
+        expect(screen.getByTestId('home')).toBeTruthy();
     });
 });

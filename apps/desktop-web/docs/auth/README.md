@@ -51,11 +51,41 @@ and the page opens `chatic:`.
 The device is registered first. The backend's sign-in contract expects a device session,
 so tapping Google with no session registers the device (the same registration as the guest start)
 before the browser opens, and a registration that fails stops there with the Welcome page's
-"couldn't get you started" message. Cancelling in the browser therefore leaves the person with a
-guest session. A code that comes back and fails to exchange is shown as a message rather than
-dropped. The start record is used up by then, so the same link arriving again is refused as not
-started; the way to retry is to tap Google again, which after a Welcome start is on the Profile
-page, because the device is already registered.
+"couldn't get you started" message.
+
+That registration flips the router to its signed-in branch while the browser is still open. Left
+alone, the person would land in the app as a guest they never chose. So the attempt is kept in an
+in-memory store (`useOAuthAttemptStore`) from before the registration until the code comes back, and
+while an attempt begun signed out is pending the router keeps `/auth/welcome`, which shows a waiting
+card instead of the buttons:
+
+- **Open the browser again** sends it to the same authorize URL with the same nonce, for a tab that
+  was closed. No new record is written.
+- **Sign in with phone number** drops the start and moves to phone sign-in, keeping the device
+  session that phone sign-in needs anyway.
+- **Cancel** drops the start record, so a tab finishing later is refused, and signs out the guest
+  the start registered, which reloads to Welcome. A session that was there before the start is never
+  signed out.
+- A hand-off that fails, or a start that runs past its ten minutes, turns the card into a retry.
+
+The account hub's guest Google button and Link Google wait the same way, inline on the card, and stay
+disabled while an attempt is out: a second start would overwrite the first one's nonce and the open
+tab would come back refused.
+
+### After the sign-in lands
+
+The app says who the person signed in as. The sign-in leaves a one-shot notice in storage (it
+reloads when it replaces a session) and the signed-in shell takes it once:
+
+- **An existing account** gets a toast with its name.
+- **A new account** gets a stop that cannot be dismissed by Escape or a stray click: the Google had no
+  DoU account, so someone who signed up on mobile with a phone number has just made a second one. It
+  asks for a display name (skippable) and offers to log out of it.
+
+The server does not say whether the sign-in made the account. The app reads it off the account's
+`createdAt`: an account created at or after the moment the sign-in started, less a minute of slack for
+a server clock that runs behind, was made by it. A Google that already owned a DoU account was made
+long before. Without a `createdAt` nothing is claimed and the toast is shown.
 
 ## Linking Google
 
@@ -73,17 +103,21 @@ as a sign-in, with two differences:
 
 The session does not change, so nothing reloads. The server's answer (provider and hint) is patched
 into the relay user's `link$`, so the hub shows Google straight away; the next relay verification
-reads the profile again. When the code lands in the app window instead (the hand-off page inside
-the shell), the page goes back to the account hub once the link has run, whatever its outcome.
+reads the profile again. Whether the code arrives by the deeplink or lands in the app window (the
+hand-off page inside the shell), the app goes back to the account hub once the link has run, whatever
+its outcome.
 
 What the person is told:
 
-| Answer                                    | Toast                                                      |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| linked                                    | Google is now linked                                       |
-| verify `reason: occupied`, or confirm 409 | that Google account already belongs to another DoU account |
-| verify `reason: type-linked`              | this account already has a social account linked           |
-| anything else                             | the link failed, try again                                 |
+| Answer                                    | Where              | What                                                                                                                         |
+| ----------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| linked                                    | toast              | Google is now linked                                                                                                         |
+| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that Google already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
+| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                             |
+| anything else                             | sign-in card, kept | the link failed, try again                                                                                                   |
+
+A refusal stays on the card until dismissed: a toast is gone before someone back from the browser
+looks, and the occupied case needs its next step read.
 
 The intent is read off the record, never off the link, so a link cannot turn a login into a link or
 the other way round. A record written before intents existed, or one whose intent cannot be read, is
@@ -178,12 +212,25 @@ What it refuses and what it says:
   into an account.
 - **A number with no account** gets one: the server answers that only on the confirm (`isNew`), after
   it has made the account. The page says so before the app opens, so someone expecting their mobile
-  account notices.
+  account notices, and asks for the new account's display name (skippable; a failed save offers to
+  carry on without it). The name waits for the relay connection to sign in as the new account.
+- **A malformed number** is told why: the button opens as soon as anything is typed, and asking for a
+  code checks the number first.
 - **Errors** are read off the socket status, never the wording: on a first send 429 is the daily cap;
   on a resend 429 is the one-minute cooldown; on the confirm 403 is a wrong code, 429 too many wrong
   codes and 400 an expired code.
 - **A switch that fails after the confirm** keeps the token and offers to finish; the retry re-applies
   it and never spends the code again.
+
+Around the form:
+
+- **Resend** is shut for the minute the server enforces between sends and counts it down; a resend
+  refused with 429 restarts the wait.
+- **The country** opens on the last pick, then on the country the UI language implies (a Korean UI
+  opens on Korea even on an English OS), then on the OS locale's region.
+- **Back** returns to where the page was opened from (Welcome or the account hub). A guest that this
+  visit registered — by sending the first code, or by a Google start that moved here — is signed out
+  on the way, which reloads to Welcome: backing out is not choosing to be a guest.
 
 The route is registered on both sides of the router's signed-in switch, because the registration in
 step 1 flips it while the form is open. There is no development bypass code on desktop; a code

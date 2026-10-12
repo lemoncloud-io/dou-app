@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
@@ -9,6 +9,16 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { AuthCard, NewAccountName } from '../components';
 import { PHONE_CODE_LENGTH, usePhoneLogin } from '../hooks/usePhoneLogin';
+import { useSignOutGuest } from '../hooks/useSignOutGuest';
+
+/**
+ * Where the page was opened from, set by the button that opened it. `signOutOnBack`: the device session
+ * was registered on the way here (a Google start left for phone) and is not the person's choice to keep.
+ */
+export interface PhoneLoginEntry {
+    from?: string;
+    signOutOnBack?: boolean;
+}
 
 const fieldClass = cn(
     'focus-ring h-11 rounded-lg border bg-background px-3 text-callout text-foreground outline-none transition-colors',
@@ -42,8 +52,12 @@ const enterApp = () => window.location.replace('/');
 export const PhoneLoginPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
+    const entry = (useLocation().state ?? {}) as PhoneLoginEntry;
+    const signOutGuest = useSignOutGuest();
     // Judged once, on arrival: the sign-in itself turns the session into an account.
     const [allowed] = useState(isGuestSession);
+    const [arrivedSignedOut] = useState(() => !runtime.session.getIdentityContext().isAuthenticated);
+    const [leaving, setLeaving] = useState(false);
     const [createdAccount, setCreatedAccount] = useState(false);
     const login = usePhoneLogin({
         onSignedIn: ({ isNew }) => (isNew ? setCreatedAccount(true) : enterApp()),
@@ -62,10 +76,28 @@ export const PhoneLoginPage = () => {
 
     const isSending = login.busy === 'sending';
     const isConfirming = login.busy === 'confirming';
-    const onBack = () => navigate(runtime.session.getIdentityContext().isAuthenticated ? '/' : '/auth/welcome');
+    // Back goes where the page was opened from. A guest this visit registered (sending the first code, or
+    // the Google start that led here) is signed out on the way, which reloads to Welcome: backing out
+    // is not choosing to be a guest.
+    const onBack = () => {
+        const signedIn = runtime.session.getIdentityContext().isAuthenticated;
+        if (signedIn && (arrivedSignedOut || entry.signOutOnBack)) {
+            setLeaving(true);
+            void signOutGuest().catch(() => {
+                setLeaving(false);
+                navigate('/', { replace: true });
+            });
+            return;
+        }
+        navigate(entry.from ?? (signedIn ? '/' : '/auth/welcome'));
+    };
 
     return (
-        <AuthCard title={t('auth.phone.title')} subtitle={t('auth.phone.subtitle')} onBack={onBack}>
+        <AuthCard
+            title={t('auth.phone.title')}
+            subtitle={t('auth.phone.subtitle')}
+            onBack={leaving ? undefined : onBack}
+        >
             <form
                 className="flex flex-col gap-3"
                 onSubmit={e => {
@@ -163,7 +195,9 @@ export const PhoneLoginPage = () => {
                     )}
                     {!login.isRetry && (
                         <Button variant="link" size="sm" onClick={login.resend} disabled={!login.canResend}>
-                            {t('auth.phone.resend')}
+                            {login.resendIn > 0
+                                ? t('auth.phone.resendIn', { time: mmss(login.resendIn) })
+                                : t('auth.phone.resend')}
                         </Button>
                     )}
                 </div>

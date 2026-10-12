@@ -39,8 +39,10 @@ change means: the same invalidation as retyping the number.
 
 The module exports the country list (`listPhoneCountries`, all 245 the mobile metadata knows,
 localized, sorted and memoized per language), the dial code, mobile-only validation, the wire value,
-an international-paste parser, and the default-country resolution — the stored pick, else the
-locale's region, else `null`, each checked with `isSupportedCountry`. `rememberCountry` writes
+an international-paste parser, and the default-country resolution — the stored pick, else a
+caller's `preferred` country (the desktop passes the one its UI language implies; this app passes
+none), else the locale's region, else `null`. The stored pick and the region are checked with
+`isSupportedCountry`. `rememberCountry` writes
 `dou.phoneInput.country.v1` and swallows a private-mode failure.
 
 Two behaviours are not obvious from a signature: `isValidMobileNumber` is `false` whenever there is

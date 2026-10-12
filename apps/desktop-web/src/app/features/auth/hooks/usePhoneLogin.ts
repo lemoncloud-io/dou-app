@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
@@ -17,6 +18,12 @@ import { ensureDeviceSession } from '../utils';
 
 /** Digits in the code the server sends. */
 export const PHONE_CODE_LENGTH = 6;
+
+/** The wait the server enforces between sends to one number (it answers 429 inside it). */
+export const PHONE_RESEND_COOLDOWN_MS = 60 * 1000;
+
+/** The country a UI language implies, for a phone field on an OS whose locale says otherwise. */
+const UI_LANGUAGE_COUNTRY: Record<string, PhoneCountry> = { ko: 'KR' };
 
 /** How long a send waits for the relay socket to finish authenticating a just-registered device. */
 const RELAY_VERIFY_TIMEOUT_MS = 10_000;
@@ -68,9 +75,13 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     const { mutateAsync: loginGuest } = runtime.session.useLoginRelayGuestByDevice();
 
     const [phone, setPhone] = useState('');
-    const [country, setCountry] = useState<PhoneCountry | null>(resolveDefaultCountry);
+    const { i18n } = useTranslation();
+    const [country, setCountry] = useState<PhoneCountry | null>(() =>
+        resolveDefaultCountry(UI_LANGUAGE_COUNTRY[(i18n.language ?? '').split('-')[0]] ?? null)
+    );
     const [sentWith, setSentWith] = useState<{ phone: string; country: PhoneCountry } | null>(null);
     const [expiredAt, setExpiredAt] = useState<number | undefined>(undefined);
+    const [resendAt, setResendAt] = useState<number | undefined>(undefined);
     const [otp, setOtp] = useState('');
     const [busy, setBusy] = useState<Busy>('idle');
     const [phoneError, setPhoneError] = useState<PhoneLoginError | null>(null);
@@ -81,6 +92,9 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     const submittedRef = useRef<string | null>(null);
 
     const countdown = useOtpExpiryCountdown(expiredAt);
+    // The same ticker, run to the end of the wait between sends, so Resend says when it opens.
+    const resendWait = useOtpExpiryCountdown(resendAt);
+    const resendIn = resendWait && !resendWait.isExpired ? resendWait.secondsLeft : 0;
     const isExpired = countdown?.isExpired ?? false;
     const codeSent = expiredAt !== undefined;
     const isBusy = busy !== 'idle';
@@ -88,6 +102,7 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     // A different number or country makes the outstanding code someone else's.
     const dropOutstandingCode = () => {
         setExpiredAt(undefined);
+        setResendAt(undefined);
         setSentWith(null);
         setOtp('');
         setCodeError(null);
@@ -142,6 +157,7 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
                 .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, RELAY_VERIFY_TIMEOUT_MS);
             const sent = await auth.sendPhoneCode(wirePhone, { mode: 'login', countryCode: country });
             setExpiredAt(sent.expiredAt);
+            setResendAt(Date.now() + PHONE_RESEND_COOLDOWN_MS);
             setSentWith({ phone: wirePhone, country });
             setOtp('');
             setCodeError(null);
@@ -167,13 +183,15 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
                 resend: true,
             });
             setExpiredAt(sent.expiredAt);
+            setResendAt(Date.now() + PHONE_RESEND_COOLDOWN_MS);
             setOtp('');
             setCodeError(null);
             submittedRef.current = null;
         } catch (error) {
             const status = socketErrorStatus(error);
             logger.warn('AUTH', `[usePhoneLogin] resend failed (status=${status ?? '-'})`, { error });
-            // Mid-flow, 429 is the cooldown between sends.
+            // Mid-flow, 429 is the cooldown between sends: restart the wait the button shows.
+            if (status === 429) setResendAt(Date.now() + PHONE_RESEND_COOLDOWN_MS);
             setCodeError(status === 429 ? 'cooldown' : 'resendFailed');
         } finally {
             setBusy('idle');
@@ -261,7 +279,8 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         country,
         changeCountry,
         phoneError,
-        canRequestCode: isValidMobileNumber(phone, country) && !codeSent && !isBusy,
+        // Open as soon as something is typed: asking for a code is where a malformed number is told why.
+        canRequestCode: phone.trim().length > 0 && !codeSent && !isBusy,
         requestCode: () => void requestCode(),
         codeSent,
         otp,
@@ -270,7 +289,9 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         codeError: codeError ?? (isExpired ? ('codeExpired' as const) : null),
         countdown,
         resend: () => void resend(),
-        canResend: codeSent && !isBusy && !pendingToken,
+        canResend: codeSent && !isBusy && !pendingToken && resendIn === 0,
+        /** Seconds until Resend opens; 0 once it is open. */
+        resendIn,
         busy,
         isRetry: !!pendingToken,
         retrySwitch: () => void retrySwitch(),

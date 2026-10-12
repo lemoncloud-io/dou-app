@@ -117,7 +117,12 @@ export const WelcomePage = () => {
                     number gets a second, empty account from Google until Google is linked to theirs. The
                     order steers them; nothing stops someone who signed up with Google. */}
                 {isPhoneLoginEnabled() && (
-                    <Button variant="secondary" size="lg" onClick={() => navigate('/auth/phone')} disabled={isBusy}>
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        onClick={() => navigate('/auth/phone', { state: { from: '/auth/welcome' } })}
+                        disabled={isBusy}
+                    >
                         <Smartphone className="h-4 w-4" />
                         {t('auth.phone.start')}
                     </Button>

@@ -85,6 +85,14 @@ describe('resolveDefaultCountry — 기본 국가 3분기', () => {
         setLanguage('en-US');
     });
 
+    it('takes a preferred country over the locale, but not over the last pick', () => {
+        setLanguage('en-US');
+        expect(resolveDefaultCountry('KR')).toBe('KR');
+
+        rememberCountry('JP');
+        expect(resolveDefaultCountry('KR')).toBe('JP');
+    });
+
     it('prefers the last explicit pick over the locale', () => {
         setLanguage('ja-JP');
         rememberCountry('KR');
