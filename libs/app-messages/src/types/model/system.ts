@@ -474,9 +474,13 @@ export type OnWebAppReadyPayload = {
     appVersion?: string;
     /** Bridge protocol version to use for the current conversation */
     protocolVersion: string;
-    /** List of WebMessages the App can handle */
+    /**
+     * The WebMessages the App has a handler for when it answers. An app whose bridge predates
+     * 2.6.0 lists every WebMessage it was compiled against instead, so a web build still needs its
+     * `NOT_FOUND` fallback for anything it decides from this list.
+     */
     supportedWebMessages: string[];
-    /** List of AppMessages the App can send to Web */
+    /** The replies paired with `supportedWebMessages`. Pushed events are not listed. */
     supportedAppMessages: string[];
     /**
      * The schema version of the App's local cache DB (target for native SQLite's `PRAGMA

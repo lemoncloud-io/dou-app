@@ -366,3 +366,68 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect(response).toEqual(expect.objectContaining({ type: 'ERROR', success: false }));
     });
 });
+
+describe('AppBridgeHost handshake capability lists', () => {
+    let mockSendToWeb: jest.Mock;
+
+    beforeEach(() => {
+        mockSendToWeb = jest.fn();
+    });
+
+    const handshake = async (host: AppBridgeHost) => {
+        await host.handleMessage(JsonProtocol.encode({ type: 'WebAppReady', refId: 'ready', data: {} }) as string);
+        const reply = mockSendToWeb.mock.calls
+            .map(call => JsonProtocol.decode(call[0]) as any)
+            .find(message => message.refId === 'ready');
+        return reply.data as { supportedWebMessages: string[]; supportedAppMessages: string[] };
+    };
+
+    it('advertises only what the host itself answers when the shell registers nothing', async () => {
+        const report = await handshake(new AppBridgeHost({ sendToWeb: mockSendToWeb }));
+
+        expect(report.supportedWebMessages.sort()).toEqual(['Ping', 'WebAppReady']);
+        expect(report.supportedAppMessages.sort()).toEqual(['OnWebAppReady', 'Pong']);
+    });
+
+    it('advertises a registered handler with its paired reply, and drops one unregistered', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        host.registerHandler('SaveToPhotoLibrary', jest.fn());
+        host.registerHandler('ShareFile', jest.fn());
+        host.unregisterHandler('ShareFile');
+
+        const report = await handshake(host);
+
+        expect(report.supportedWebMessages).toContain('SaveToPhotoLibrary');
+        expect(report.supportedAppMessages).toContain('OnSaveToPhotoLibrary');
+        expect(report.supportedWebMessages).not.toContain('ShareFile');
+        expect(report.supportedAppMessages).not.toContain('OnShareFile');
+    });
+
+    // The list is read when the reply is built, so a later handshake (a page reload) reports a
+    // handler registered after the first one.
+    it('reports the handlers registered at the time of each handshake', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        const before = await handshake(host);
+        host.registerHandler('StartPerfTrace', jest.fn());
+        mockSendToWeb.mockClear();
+
+        const after = await handshake(host);
+
+        expect(before.supportedWebMessages).not.toContain('StartPerfTrace');
+        expect(after.supportedWebMessages).toContain('StartPerfTrace');
+    });
+
+    it('answers Ping with a Pong carrying the payload back', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+
+        await host.handleMessage(JsonProtocol.encode({ type: 'Ping', refId: 'p1', data: { payload: 'hi' } }) as string);
+        // No payload, which is what the web's debug overlay sends.
+        await host.handleMessage(JsonProtocol.encode({ type: 'Ping', refId: 'p2', data: {} } as any) as string);
+
+        const [withPayload, without] = mockSendToWeb.mock.calls.map(call => JsonProtocol.decode(call[0]) as any);
+        expect(withPayload).toEqual(
+            expect.objectContaining({ type: 'Pong', refId: 'p1', success: true, data: { payload: 'hi' } })
+        );
+        expect(without).toEqual(expect.objectContaining({ type: 'Pong', refId: 'p2', data: { payload: '' } }));
+    });
+});

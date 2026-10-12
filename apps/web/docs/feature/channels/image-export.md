@@ -34,10 +34,10 @@ before anything was learned. The two known faults of the handshake are covered i
 
 - **It arrives asynchronously.** Here it races nothing. The buttons start hidden, and the viewer opens
   long after boot.
-- **It is built from the app's compiled message map, not its registered handlers.** The app's router
-  test fails when either message has no handler. And if a press still meets `NOT_FOUND`,
-  `withdrawImageExport()` hides the buttons for the rest of the session, with a toast asking for an
-  app update.
+- **An older app builds it from its compiled message map, not its registered handlers.** An app
+  whose bridge is `2.6.0` or later lists only what it registered; before that, the app's router test
+  held both messages to a handler. And if a press still meets `NOT_FOUND`, `withdrawImageExport()`
+  hides the buttons for the rest of the session, with a toast asking for an app update.
 
 **Videos need one more thing, and it is learned, not read.** Videos widened the same two messages
 instead of adding new ones, so an app built before them lists both in its handshake exactly as a

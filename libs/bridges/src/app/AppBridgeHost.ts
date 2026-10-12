@@ -100,14 +100,20 @@ export class AppBridgeHost implements IAppBridgeHost {
             const supportedCacheTypes = cacheDomainVersions
                 ? Object.keys(cacheDomainVersions)
                 : config.supportedCacheTypes;
+            const supportedWebMessages = [...this.handlers.keys()] as WebMessageType[];
             return {
                 type: 'OnWebAppReady',
                 success: true,
                 data: {
                     appVersion: this.version,
                     protocolVersion: message.version ?? this.version,
-                    supportedWebMessages: Object.keys(WEB_MESSAGE_RESPONSE_TYPE),
-                    supportedAppMessages: Object.values(WEB_MESSAGE_RESPONSE_TYPE),
+                    // What this host answers, read when the reply is built rather than taken from
+                    // the compiled message map: a shell that leaves a request unregistered must not
+                    // advertise it, or a web build reading this list offers a control that fails.
+                    supportedWebMessages,
+                    supportedAppMessages: [
+                        ...new Set(supportedWebMessages.map(type => WEB_MESSAGE_RESPONSE_TYPE[type]).filter(Boolean)),
+                    ],
                     // Reported only when the host declares them, so a host with no local cache DB
                     // (desktop main process) sends exactly the payload it sent before these existed.
                     ...(config.cacheSchemaVersion !== undefined
@@ -118,6 +124,14 @@ export class AppBridgeHost implements IAppBridgeHost {
                 },
             };
         });
+
+        // A liveness probe answered by the host itself, so every shell answers it the same way and
+        // a round trip that reaches any host comes back as `Pong`, not as `NOT_FOUND`.
+        this.registerHandler('Ping', message => ({
+            type: 'Pong',
+            success: true,
+            data: { payload: message.data?.payload ?? '' },
+        }));
     }
 
     public async handleMessage(data: string): Promise<void> {

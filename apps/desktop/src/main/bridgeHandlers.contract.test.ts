@@ -2,7 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/app-messages';
-import { AppBridgeHost, JsonProtocol, type RequestMessage, type ResponseMessage } from '@chatic/bridges';
+import {
+    AppBridgeHost,
+    InMemoryAdapter,
+    JsonProtocol,
+    WebBridgeClient,
+    type RequestMessage,
+    type ResponseMessage,
+} from '@chatic/bridges';
 
 import { registerHandlers, type DesktopBridgeDeps } from './bridgeHandlers';
 import { startUpdater } from './updater';
@@ -136,7 +143,6 @@ const DESKTOP_UNSUPPORTED = {
     SetDebugMode: PHONE_TOOLING,
     StartPerfTrace: PHONE_TOOLING,
     StopPerfTrace: PHONE_TOOLING,
-    Ping: "Debug overlay's round-trip probe; the NOT_FOUND reply already proves the channel",
     FetchTestRecord: NO_STORE,
     FetchAllTestRecords: NO_STORE,
     SaveTestRecord: NO_STORE,
@@ -152,6 +158,7 @@ const DESKTOP_UNSUPPORTED = {
  */
 const SAMPLE_REQUESTS: Partial<{ [K in WebMessageType]: WebMessagePayloadMap[K] }> = {
     WebAppReady: {},
+    Ping: { payload: 'probe' },
     ShowNotification: { title: 'Alex', body: 'hello', deeplink: 'chatic://room/1' },
     FetchUrlMetadata: { url: 'https://example.com' },
     FetchFcmToken: {},
@@ -174,10 +181,13 @@ const createDeps = (): jest.Mocked<DesktopBridgeDeps> => ({
  * This repeats createWindow's two calls (registerHandlers, startUpdater) rather than running them:
  * index.ts cannot load under jest. The registration-site test below keeps a third call site out.
  */
-const createShell = (deps = createDeps()) => {
+const createShell = (deps = createDeps(), deliver?: (raw: string) => void) => {
     const replies: ResponseMessage[] = [];
     const host = new AppBridgeHost({
-        sendToWeb: raw => replies.push(JsonProtocol.decode(raw) as ResponseMessage),
+        sendToWeb: raw => {
+            replies.push(JsonProtocol.decode(raw) as ResponseMessage);
+            deliver?.(raw);
+        },
     });
     registerHandlers(host, deps);
     // startUpdater arms a check loop; the contract only needs what it registers.
@@ -195,7 +205,7 @@ const createShell = (deps = createDeps()) => {
 };
 
 describe('desktop bridge contract', () => {
-    // Read off a real host, so `WebAppReady` — answered inside `AppBridgeHost` — counts too.
+    // Read off a real host, so `WebAppReady` and `Ping` — answered inside `AppBridgeHost` — count too.
     const registeredTypes = (): string[] => {
         const register = jest.spyOn(AppBridgeHost.prototype, 'registerHandler');
         createShell();
@@ -234,7 +244,6 @@ describe('desktop bridge contract', () => {
         expect(handled).toEqual([]);
     });
 
-    // Every handler, really run: the reply type the web checks against is the one the map names.
     // A handler registered anywhere else is invisible to the checks above, so a message already
     // listed as unsupported could gain one without failing them.
     it('registers handlers only in the files this suite loads', () => {
@@ -253,6 +262,35 @@ describe('desktop bridge contract', () => {
         expect(elsewhere).toEqual([]);
     });
 
+    // What a web build reads to decide which controls to offer: exactly the requests decided as
+    // handled above, each with its paired reply, over the same client and channel code the page runs.
+    it('advertises in the handshake exactly the requests it answers', async () => {
+        const adapter = new InMemoryAdapter();
+        const { host } = createShell(createDeps(), raw => adapter.receiveFromApp(JsonProtocol.decode(raw) as any));
+        adapter.setAppHost(host);
+        // The client refuses to send without a `window` (its SSR guard); this suite runs in node.
+        (globalThis as { window?: unknown }).window = globalThis;
+        let report;
+        try {
+            const client = new WebBridgeClient({ adapter, isBridgeAvailable: () => true, timeoutMs: 1000 });
+            try {
+                report = (await client.request({ type: 'WebAppReady', data: {} })).data;
+            } finally {
+                client.destroy();
+            }
+        } finally {
+            delete (globalThis as { window?: unknown }).window;
+        }
+
+        const handled = VOCABULARY.filter(type => !UNSUPPORTED.includes(type));
+        expect([...report.supportedWebMessages].sort()).toEqual([...new Set(registeredTypes())].sort());
+        expect([...report.supportedWebMessages].sort()).toEqual([...handled].sort());
+        expect([...report.supportedAppMessages].sort()).toEqual(
+            [...new Set(handled.map(type => WEB_MESSAGE_RESPONSE_TYPE[type]))].sort()
+        );
+    });
+
+    // Every handler, really run: the reply type the web checks against is the one the map names.
     it.each(registeredTypes())('answers %s with its mapped reply type', async type => {
         const sample = SAMPLE_REQUESTS[type as WebMessageType];
         expect(sample).toBeDefined();

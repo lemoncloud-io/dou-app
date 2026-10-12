@@ -21,10 +21,10 @@ type Listener = () => void;
  * Image export is decided from the handshake rather than learned from a first `NOT_FOUND`, because
  * the buttons have to be absent before anyone presses them — on an older app they would otherwise
  * appear and fail. Until the report arrives the answer is `false`, so the viewer, which opens long
- * after boot, never shows a button that is not backed. The report is built from the app's compiled
- * message map rather than from its handlers; that gap is closed on the app side, where a test holds
- * both types to a registered handler. If a press still meets `NOT_FOUND`, `withdrawImageExport`
- * turns the buttons off for the rest of the session.
+ * after boot, never shows a button that is not backed. The report lists the handlers the app
+ * registered; an app whose bridge predates 2.6.0 lists its whole compiled message map instead, which
+ * its own tests kept in step with its handlers for these two. If a press still meets `NOT_FOUND`,
+ * `withdrawImageExport` turns the buttons off for the rest of the session.
  *
  * Videos widened the same two messages instead of adding new ones, so the handshake cannot tell an
  * app that takes videos from one built before them. That one is learned instead: an older app answers

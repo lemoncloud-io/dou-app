@@ -433,9 +433,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ListFileTransfers: () => handlersRef.current.handleListFileTransfers(),
             AckFileTransfers: message => handlersRef.current.handleAckFileTransfers(message),
             WriteTempFile: message => handlersRef.current.handleWriteTempFile(message),
-            // Registered with their message types in the same change: the web shows save and share
-            // only when the handshake lists both names, and the handshake is built from the message
-            // map, not from this table — a type without a handler here would be advertised anyway.
+            // The web shows save and share only when the handshake lists both names, and the
+            // handshake lists what this table registers.
             SaveToPhotoLibrary: message => handlersRef.current.handleSaveToPhotoLibrary(message),
             ShareFile: message => handlersRef.current.handleShareFile(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
