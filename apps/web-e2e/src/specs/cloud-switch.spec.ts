@@ -125,7 +125,20 @@ test('entering a cloud and moving between its places shows only that place, and 
  * shown the switch begin — it moves to the cloud first and asks after — so what is read once it
  * resolves is a rollback, not a switch that never started.
  */
-const tryRefusedCloud = async (page: Page, backend: FakeBackend, owned: OwnedCloudState): Promise<void> => {
+const tryRefusedCloud = async (
+    page: Page,
+    backend: FakeBackend,
+    owned: OwnedCloudState,
+    {
+        beforeTap,
+        beforeRefusal,
+    }: {
+        /** Runs just before the tap that starts the switch. */
+        beforeTap?: () => void;
+        /** Runs once the switch has begun, and the refusal waits for it. */
+        beforeRefusal?: () => Promise<void>;
+    } = {}
+): Promise<void> => {
     await page.goto('/');
     await expectRelayHome(page);
     // The page tries the cloud once on its own, in the background, after boot.
@@ -137,11 +150,13 @@ const tryRefusedCloud = async (page: Page, backend: FakeBackend, owned: OwnedClo
         asked = true;
         return held;
     });
+    beforeTap?.();
 
     await (await openSwitcher(page)).getByRole('button', { name: new RegExp(`^\\S ${CLOUD.name}\\b`) }).click();
     // The tap is a try of its own: the page has moved to the cloud and asked the relay again.
     await expect(switcher(page)).toContainText(CLOUD.name);
     await expect.poll(() => asked).toBe(true);
+    await beforeRefusal?.();
     release();
 };
 
@@ -166,20 +181,67 @@ test('a cloud that cannot be entered is rolled back: the switcher is on DoU agai
     expect(cachedRoomIds(shell, CLOUD.id, GUEST.uid)).toEqual([]);
 });
 
-// A product bug, left for its own fix: after the rollback above, home often lists no rooms at all
-// ("Chat Rooms 0", on both engines in about six runs of ten, and for as long as it was watched — 8s),
-// though the selection is back on the relay. In a failing run the last cache read the page makes is
-// of the cloud's partition, started during the switch. The likely mechanism: the home list's
-// observation re-subscribes to the relay on the rollback and is answered at once from memory, and
-// the cloud read it abandoned lands after that and still reaches the list, emptying it. Here the
-// refusal is an instant local answer while a cache read is a round trip through the test process,
-// so on a device, where the refusal takes longer, it is probably rarer.
-test.fixme('a cloud that cannot be entered leaves the relay rooms on home', async ({ page, backend }) => {
+/**
+ * Holds the shell's answer to the channel-list reads of the cloud's partition, from `arm()` until
+ * `release()`.
+ *
+ * Entering the cloud points home's room list at the cloud's partition, and its first read there is
+ * a round trip through the shell. If the switch is refused before that read comes back, the list
+ * moves back to the relay and is answered from memory at once — and the cloud's read, landing after
+ * that, used to reach the list anyway and empty it. Left to timing that ordering showed up in some
+ * runs and not others; holding the read makes it happen every time.
+ */
+const holdCloudChannelReads = (shell: FakeShell) => {
+    const { FetchAllCacheData: answer } = shell.cache.handlers();
+    if (!answer) throw new Error('the memory cache answers FetchAllCacheData');
+    let armed = false;
+    let release: () => void = () => undefined;
+    const released = new Promise<void>(resolve => (release = resolve));
+    const reads = { held: 0, answered: 0 };
+    shell.handle('FetchAllCacheData', async (data, message) => {
+        if (armed && data.type === 'channel' && data.cid === CLOUD.id) {
+            reads.held += 1;
+            await released;
+            const reply = await answer(data, message);
+            reads.answered += 1;
+            return reply;
+        }
+        return answer(data, message);
+    });
+    return {
+        reads,
+        arm: () => {
+            armed = true;
+        },
+        release: () => release(),
+    };
+};
+
+test('a cloud that cannot be entered leaves the relay rooms on home', async ({ page, shell, backend }) => {
     backend.useSocket(roomsSocket(backend, [dmRoom()]));
     const owned = ownCloud(backend, { issue: false });
     installCloud(backend, { profileInPlace: true, secondPlace: true });
-    await tryRefusedCloud(page, backend, owned);
+    const cloudReads = holdCloudChannelReads(shell);
+    await tryRefusedCloud(page, backend, owned, {
+        beforeTap: cloudReads.arm,
+        // The cloud's read is out before the switch is refused, not started by something afterwards.
+        beforeRefusal: () => expect.poll(() => cloudReads.reads.held).toBeGreaterThan(0),
+    });
 
+    // Rolled back, with the cloud's read still out: the relay's rooms are back.
+    await expectRelayHome(page);
+
+    // The read the switch abandoned lands now, and changes nothing on home. The answer is in the
+    // page a moment after the shell builds it, and the list renders a task later; past both, the
+    // rows are counted once rather than waited for — a retrying check would pass on the list as it
+    // was before the stale answer arrived.
+    cloudReads.release();
+    await expect.poll(() => cloudReads.reads.answered).toBe(cloudReads.reads.held);
+    await page.evaluate(
+        () => new Promise<void>(resolve => setTimeout(() => requestAnimationFrame(() => resolve()), 100))
+    );
+    expect(await roomRow(page, MINA.nick).count()).toBe(1);
+    expect(await roomRow(page, GUEST_NICK).count()).toBe(1);
     await expectRelayHome(page);
     await roomRow(page, MINA.nick).click();
     await expect(composer(page)).toBeVisible();
