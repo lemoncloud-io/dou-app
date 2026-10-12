@@ -62,6 +62,9 @@ export class FakeShell {
     /** Replies that could not be dispatched into the page for a reason other than it going away. */
     readonly deliveryErrors: string[] = [];
     private readonly listeners = new Set<Listener>();
+    /** Types of the app → web messages dispatched into the page so far, and who waits on the next. */
+    private readonly dispatched: string[] = [];
+    private readonly dispatchWaiters = new Set<{ type: string; resolve: () => void }>();
 
     private constructor(
         private readonly page: Page,
@@ -125,6 +128,30 @@ export class FakeShell {
     /** Pushes an app → web event, as the app does for a push tap or a resume. */
     push<K extends AppMessageType>(type: K, data: AppMessageDataMap[K]): void {
         this.host.pushEvent({ type, success: true, data });
+    }
+
+    /**
+     * Resolves once a message of this type from the shell has been dispatched in the page — not when it
+     * was pushed, which for an event held until the handshake can be much earlier. For a scenario that
+     * must keep something else back until the page has it, as a device's timing would.
+     */
+    delivered(type: AppMessageType, { timeout = 15_000 }: { timeout?: number } = {}): Promise<void> {
+        if (this.dispatched.includes(type)) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            const waiter = {
+                type,
+                resolve: () => {
+                    clearTimeout(timer);
+                    resolve();
+                },
+            };
+            const timer = setTimeout(() => {
+                this.dispatchWaiters.delete(waiter);
+                const sent = [...new Set(this.dispatched)].join(', ') || 'nothing';
+                reject(new Error(`delivered(${type}) timed out after ${timeout}ms; the shell dispatched: ${sent}`));
+            }, timeout);
+            this.dispatchWaiters.add(waiter);
+        });
     }
 
     /** Every message the page has sent so far, oldest first. */
@@ -196,6 +223,13 @@ export class FakeShell {
                     (on === 'window' ? window : document).dispatchEvent(new MessageEvent('message', { data })),
                 { data: raw, on: target }
             );
+            const type = (JSON.parse(raw) as { type: string }).type;
+            this.dispatched.push(type);
+            for (const waiter of [...this.dispatchWaiters]) {
+                if (waiter.type !== type) continue;
+                this.dispatchWaiters.delete(waiter);
+                waiter.resolve();
+            }
         } catch (error) {
             // The page navigated or closed between request and reply. The real shell drops the reply
             // in that case too (`webViewRef.current` is gone), and the web never matches it. Anything
@@ -249,7 +283,9 @@ const defaultHandlers = (platform: ShellPlatform): ShellHandlerTable => ({
     SendLog: () => undefined,
     SetDebugMode: () => undefined,
     SetBadgeCount: () => undefined,
-    SetCanGoBack: () => undefined,
+    // Posted too, but the real handlers do answer (`useWebViewNavigation`, `useAppStateHandler`).
+    SetCanGoBack: () => ({}),
+    DismissResumeOverlay: () => ({}),
     FirstScreenReady: () => undefined,
     SendBootMetrics: () => undefined,
     StartPerfTrace: () => undefined,
