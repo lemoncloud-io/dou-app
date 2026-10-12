@@ -87,26 +87,16 @@ Open verification by rendering a shell with the `mode` the caller derived (`'log
 (`'invite-accept'` | `'invite-create'`), which picks its hero copy →
 [phone-verification.md](./phone-verification.md).
 
-The feature's three routes are plumbing: `/auth/login` forwards to the root route, `/auth/logout`
-runs the logout, `/auth/oauth-response` runs the callback, and anything else falls back to the first.
+The feature's two routes are plumbing: `/auth/login` forwards to the root route, `/auth/logout`
+runs the logout, and anything else falls back to the first.
+
+There is no OAuth callback route. Social login on the web goes through the native app
+(`appBridge.startOAuthLogin`, then `verify-native-token`), and nothing here sends a browser to the
+relay's authorize page, so the `/auth/oauth-response` page and its code exchange were removed.
 
 ## Scenarios
 
-### 1. An OAuth redirect comes back
-
-`useOAuthLogin` runs once on mount, reading `code`, `provider` and `state` from the query string. A
-code shorter than six characters is treated as a failed callback: it logs, toasts and returns to the
-login route.
-
-Otherwise `runtime.session.createCredentialsByProvider(provider, code)` exchanges the code, and the
-exchange **commits the session itself** — there is no follow-up refresh to recover identity fields.
-The destination is `state.from`, falling back to `/home` when the state parameter will not parse.
-
-`provider=invite` is the one branch that does not exchange: it requires a `delegatorId` on the
-session and throws without one. The whole run is wrapped so that throw is logged as an AUTH failure
-rather than escaping as an unhandled rejection.
-
-### 2. `/auth/login` is opened
+### 1. `/auth/login` is opened
 
 It is a shim, not a screen. Already-distributed deeplinks — the landing page and the native converter
 both still build this address — arrive with `provider=invite&code=…&_backend=…`, and the page
@@ -115,7 +105,7 @@ forwards to the root route carrying the query string untouched.
 Forwarding straight to the accept page would skip the entry gate at the root, which is the one place
 that knows onboarding comes before an invite on a first run.
 
-### 3. A user logs out
+### 2. A user logs out
 
 `LogoutPage` fires once, guarded by a ref, and calls `runtime.session.useSessionLogout()` — a
 best-effort socket `auth.logout` followed by local teardown. A rejected teardown is logged, because
@@ -127,7 +117,7 @@ repositories, but nothing calls it today.
 Once the relay session ends, the runtime signs a guest back in on its own, so the next session starts
 authenticated as the same device user.
 
-### 4. A user is sent to login, and comes back
+### 3. A user is sent to login, and comes back
 
 This is the reason `useNavigateToLogin` exists. It captures the current pathname, search and hash,
 pushes the login route with them as router state, and the login screen returns with `navigate(-1)`.
@@ -168,12 +158,12 @@ Three entry points use the hook today — the MY page header, `PhoneVerifyBanner
 plans screen. The subscription **status** screen deliberately is not one: it routes to the plans
 screen, which is where a guest is asked. The list is not fixed by a test; the invariant is.
 
-### 5. A login fails or is cancelled
+### 4. A login fails or is cancelled
 
 Nothing navigates. The user stays on the login screen with a toast, and pressing back returns them
 where they came from, because the history was never rewound.
 
-### 6. A guest proves a number
+### 5. A guest proves a number
 
 Covered in full by [phone-verification.md](./phone-verification.md): the send, the pinned country,
 the confirm, and the two guards around installing the returned `$token`.

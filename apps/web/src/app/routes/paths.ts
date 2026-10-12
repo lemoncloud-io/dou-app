@@ -20,7 +20,6 @@ export const ROUTES = {
     auth: {
         login: '/auth/login',
         logout: '/auth/logout',
-        oauthResponse: '/auth/oauth-response',
     },
     account: {
         signup: {

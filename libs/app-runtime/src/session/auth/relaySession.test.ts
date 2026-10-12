@@ -330,7 +330,7 @@ describe('session/auth/relaySession', () => {
     });
 
     // Desktop signs the exchange with the guest session it registered before the browser opened, so
-    // the backend links that guest to the account. Web and admin call without a session and keep
+    // the backend links that guest to the account. Admin-v2 calls without a session and keeps
     // the old endpoint.
     it('linkCurrentSession exchanges through verify-oauth-code and commits the session', async () => {
         const view = {
