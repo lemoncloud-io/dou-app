@@ -39,14 +39,14 @@ its own.
 Under the identity card, `AccountSignInCard` says how the account signs in, read off the relay
 user's `userRole` and `link$` (`linkedSignInOf`):
 
-| Relay user                          | The card shows                                                                                                                                                                          |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `userRole: guest`                   | **Continue with Google**, with the note for phone sign-ups ([auth](../auth/README.md#social-login)), and **Sign in with phone number** ([auth](../auth/README.md#phone-number-sign-in)) |
-| a social account in `link$`         | the provider and its hint, e.g. "Google · a\*\*\*@example.com"                                                                                                                          |
-| only a phone number in `link$`      | the last four digits                                                                                                                                                                    |
-| only an email in `link$`            | the email hint                                                                                                                                                                          |
-| a `link$` with none of them         | that no sign-in method is linked                                                                                                                                                        |
-| no relay user, or no `link$` at all | nothing                                                                                                                                                                                 |
+| Relay user                          | The card shows                                                                                                                                                                                |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `userRole: guest`                   | **Sign in with phone number** ([auth](../auth/README.md#phone-number-sign-in)) first, then **Continue with Google** with the note for phone sign-ups ([auth](../auth/README.md#social-login)) |
+| a social account in `link$`         | the provider and its hint, e.g. "Google · a\*\*\*@example.com"                                                                                                                                |
+| only a phone number in `link$`      | the last four digits                                                                                                                                                                          |
+| only an email in `link$`            | the email hint                                                                                                                                                                                |
+| a `link$` with none of them         | that no sign-in method is linked                                                                                                                                                              |
+| no relay user, or no `link$` at all | nothing                                                                                                                                                                                       |
 
 A missing `link$` is not read as "nothing linked": the profile may not have arrived yet, or the
 server never built the slot for an older account, and saying "no sign-in method" to a signed-in

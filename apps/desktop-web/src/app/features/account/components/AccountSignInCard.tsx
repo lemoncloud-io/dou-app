@@ -15,8 +15,9 @@ const providerLabel = (provider: string | undefined, fallback: string): string =
 };
 
 /**
- * The guest's ways in, each replacing the guest session on this device: Google (when the build allows
- * it) and the phone number an account was made with on mobile (when the build allows that).
+ * The guest's ways in, each replacing the guest session on this device: the phone number an account was
+ * made with on mobile (when the build allows it), placed first so a phone sign-up does not reach for
+ * Google and get a second account, and Google (when the build allows it).
  */
 const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => {
     const { t } = useTranslation();
@@ -35,6 +36,12 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
                 )}
             </div>
             <div className="flex shrink-0 flex-col gap-2">
+                {phone && (
+                    <Button variant="secondary" size="sm" className="gap-2" onClick={() => navigate('/auth/phone')}>
+                        <Smartphone className="h-4 w-4" />
+                        {t('auth.phone.start')}
+                    </Button>
+                )}
                 {google && (
                     <Button
                         variant="outline"
@@ -46,12 +53,6 @@ const GuestSignIn = ({ google, phone }: { google: boolean; phone: boolean }) => 
                     >
                         <GoogleIcon />
                         {t('auth.social.google')}
-                    </Button>
-                )}
-                {phone && (
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate('/auth/phone')}>
-                        <Smartphone className="h-4 w-4" />
-                        {t('auth.phone.start')}
                     </Button>
                 )}
             </div>

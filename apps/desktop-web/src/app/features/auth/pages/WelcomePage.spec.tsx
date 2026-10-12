@@ -90,6 +90,16 @@ describe('WelcomePage', () => {
         expect(state.navigate).toHaveBeenCalledWith('/auth/phone');
     });
 
+    it('puts phone sign-in before Google, so a phone sign-up reaches for it first', () => {
+        render(<WelcomePage />);
+
+        const buttons = screen.getAllByRole('button').map(b => b.textContent);
+        const phone = buttons.findIndex(text => text?.includes(i18n.t('auth.phone.start')));
+        const google = buttons.findIndex(text => text?.includes(i18n.t('auth.social.google')));
+        expect(phone).toBeGreaterThanOrEqual(0);
+        expect(phone).toBeLessThan(google);
+    });
+
     it('offers no phone sign-in when the build turns it off', () => {
         state.phoneLogin = false;
         render(<WelcomePage />);

@@ -49,9 +49,11 @@ describe('AccountSignInCard', () => {
         expect(start).toHaveBeenCalledWith('google');
     });
 
-    it('offers a guest phone sign-in beside Google', () => {
+    it('offers a guest phone sign-in ahead of Google', () => {
         render(<AccountSignInCard account={{ userRole: 'guest' }} />);
 
+        const names = screen.getAllByRole('button').map(b => b.textContent);
+        expect(names[0]).toContain(i18n.t('auth.phone.start'));
         fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.phone.start') }));
         expect(navigate).toHaveBeenCalledWith('/auth/phone');
     });

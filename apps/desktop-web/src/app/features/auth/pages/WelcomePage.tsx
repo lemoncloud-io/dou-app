@@ -43,6 +43,15 @@ export const WelcomePage = () => {
                 <p id="welcome-guest-note" className="-mt-0.5 text-center text-caption text-muted-foreground">
                     {t('welcome.guestNote')}
                 </p>
+                {/* Phone before Google, and weighted above it: someone who signed up on mobile with a
+                    number gets a second, empty account from Google until Google is linked to theirs. The
+                    order steers them; nothing stops someone who signed up with Google. */}
+                {isPhoneLoginEnabled() && (
+                    <Button variant="secondary" size="lg" onClick={() => navigate('/auth/phone')} disabled={isBusy}>
+                        <Smartphone className="h-4 w-4" />
+                        {t('auth.phone.start')}
+                    </Button>
+                )}
                 {isSocialLoginEnabled() && (
                     <>
                         <Button
@@ -61,14 +70,6 @@ export const WelcomePage = () => {
                             {t(phoneSignupNoteKey())}
                         </p>
                     </>
-                )}
-                {/* For the account someone made on mobile with a phone number — the one way into it
-                    from here until Google can be linked on desktop. */}
-                {isPhoneLoginEnabled() && (
-                    <Button variant="outline" size="lg" onClick={() => navigate('/auth/phone')} disabled={isBusy}>
-                        <Smartphone className="h-4 w-4" />
-                        {t('auth.phone.start')}
-                    </Button>
                 )}
                 <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
                     {t('welcome.haveInvite')}
