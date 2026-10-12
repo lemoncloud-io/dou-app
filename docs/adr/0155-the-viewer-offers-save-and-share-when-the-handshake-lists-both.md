@@ -3,6 +3,8 @@
 > Status: Accepted · Decided: 2026-10-01
 > · Amended by: [ADR-0160](./0160-the-mobile-snackbar-sits-at-the-bottom-and-screens-lift-it-over-their-bars.md)
 > — the snackbar moved to the bottom; the buttons stay there and the viewer lifts it above them
+> · Amended by: [ADR-0186](./0186-the-handshake-lists-what-the-shell-answers.md) — from bridge `2.6.0`
+> the handshake lists only registered handlers, so the gap below is closed in the bridge
 > · Scope: `apps/web/src/app/bridge/{shellCapabilities,shellDownload,appBridge}.ts` ·
 > `apps/web/src/app/runtime/transfer/` · `apps/web/src/app/runtime/upload/transferSync.ts` ·
 > `apps/web/src/app/features/channels/{lib/imageExport.ts,hooks/useImageExports.tsx,components/SaveShareButtons.tsx,components/MessageImages.tsx}` ·
