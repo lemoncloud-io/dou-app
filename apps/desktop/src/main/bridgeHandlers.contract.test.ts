@@ -25,10 +25,8 @@ jest.mock('./unfurl', () => ({
     fetchUrlMetadata: jest.fn(async (url: string) => ({ success: true, url, title: 'Example' })),
 }));
 
-// Reasons shared by many lines below. desktop-web sends six requests of its own, all handled; of the
-// rest, only SavePreference reaches this shell (see its line), and the others belong to the phone
-// shell or to nobody.
-const NEVER_SENT = 'Declared, but no web build sends it';
+// Reasons shared by many lines below. desktop-web sends six requests of its own, all handled. Of
+// the rest, only SavePreference reaches this shell (see its line); the others belong to the phone shell.
 const PHONE = 'Phone OS or hardware surface with no desktop counterpart';
 const BROWSER = 'desktop-web does it with the browser (file input, downloads, clipboard, links)';
 const NO_STORE = 'No cache, preference or config store in the main process; desktop-web keeps them in the renderer';
@@ -46,8 +44,6 @@ const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDow
  */
 const DESKTOP_UNSUPPORTED = {
     SetCanGoBack: PHONE,
-    OpenModal: NEVER_SENT,
-    CloseModal: NEVER_SENT,
     OpenSettings: PHONE,
     StartFileTransfer: BROWSER,
     CancelFileTransfer: BROWSER,
@@ -118,10 +114,6 @@ const DESKTOP_UNSUPPORTED = {
     ApplyCustomZip: PHONE_TOOLING,
     DisableCustomZip: PHONE_TOOLING,
     FetchCustomZipStatus: PHONE_TOOLING,
-    ShowLoader: NEVER_SENT,
-    HideLoader: NEVER_SENT,
-    SyncCredential: NEVER_SENT,
-    PopWebView: NEVER_SENT,
     FetchAppLogBuffer: PHONE_LOGS,
     PollAppLogBuffer: PHONE_LOGS,
     ClearAppLogBuffer: PHONE_LOGS,

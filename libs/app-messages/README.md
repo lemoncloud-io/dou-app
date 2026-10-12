@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 105 web→app request types, 113 app→web message types, the payload
+can cross the WebView boundary — 99 web→app request types, 107 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -58,7 +58,10 @@ mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
    that predates a removal is still installed against the newest shell and still sends the old
    message. Deleting the type deletes the handler, which answers `NOT_FOUND`, which surfaces as a
    failure on a screen that used to work. The four `*AppLogBuffer` request/reply pairs are in this
-   state today: declared, handled, and documented as answering empty.
+   state today: declared, handled, and documented as answering empty. A declaration goes once
+   deleting it changes no reply anyone receives: either no installed web build sends it any more
+   (how the `*AppLogBuffer` pairs will go), or no shell handles it, so a build that still sends it
+   already gets `NOT_FOUND` and only the handshake's list of supported messages changes.
 5. **Where both sides must declare independently, share the type and not the value.**
    `CacheDomainVersions` is `Partial<Record<CacheType, number>>` and there is deliberately no shared
    constant of version numbers: if both sides imported one, the handshake would be an identity
@@ -95,8 +98,8 @@ flowchart TD
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
     Model["model/ × 21<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>105 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>113 message types</i>"]:::map
+    WM["WebMessagePayloadMap<br/><i>99 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>107 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -158,26 +161,26 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (105) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (113) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (99)  + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (107) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
     └── model/                    22 files — 21 payload files, grouped by domain, and their barrel
 ```
 
-28 files, 3,738 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+28 files, 3,642 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
 
 | File                   | Lines | What it declares                                                                                                                                                                   |
 | ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `system.ts`            | 580   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                             |
-| `cache.ts`             | 472   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                           |
+| `system.ts`            | 510   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                             |
+| `cache.ts`             | 480   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                           |
 | `common.ts`            | 225   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                                                                                                 |
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                          |
 | `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes               |
-| `attachment-picker.ts` | 214   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame) |
-| `photo-library.ts`     | 189   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                    |
+| `attachment-picker.ts` | 215   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame) |
+| `photo-library.ts`     | 192   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                    |
 | `device.ts`            | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file                                                                                                     |
 | `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                |
 | `notification.ts`      | 133   | FCM token, badge count and base, push marks, OS notification                                                                                                                       |
@@ -277,14 +280,14 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 105 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 99 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for
 
 `Purchase` resolves with `OnPurchase`, which is an **acknowledgement that the flow started**, not the
 outcome. The outcome arrives later and unsolicited, as `OnPurchaseSuccess` or `OnPurchaseError`, and
-the web reads it through `onEvent`. That split is why those two are among the nine app-only types:
+the web reads it through `onEvent`. That split is why those two are among the eight app-only types:
 there is no request they could be the reply to.
 
 ### 3. A message the installed shell does not implement

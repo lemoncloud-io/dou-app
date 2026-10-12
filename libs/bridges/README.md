@@ -480,7 +480,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.5.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.6.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. `BRIDGE_PROTOCOL_VERSION` is an alias of it today, kept separate so a future
 compatibility layer can run a newer bridge that still speaks an older protocol.
@@ -498,4 +498,7 @@ opened `StartFileTransfer` to downloads and added `SaveToPhotoLibrary` and `Shar
 that needs those asks whether the handshake's `supportedWebMessages` lists the message names, which
 says what the installed shell actually handles. `2.5.0` added `KeepLibraryVideo` and `ReadVideoFrame`
 and the opt-in `mediaTypes` on the photo-library lists; the web learns a shell without them from
-`NOT_FOUND`, and a shell that predates the field simply ignores it.
+`NOT_FOUND`, and a shell that predates the field simply ignores it. `2.6.0` removed six requests no
+shell answered (`OpenModal`, `CloseModal`, `ShowLoader`, `HideLoader`, `SyncCredential`,
+`PopWebView`): a web build that still sends one gets the same `NOT_FOUND` as before, and the
+handshake simply stops listing them.
