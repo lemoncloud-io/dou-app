@@ -78,6 +78,8 @@ test('a document the app picks waits in the tray, and Send makes it a file messa
     await expect(trayFile(page, REPORT.name)).toBeVisible();
     await expect(trayFile(page, REPORT.name)).toContainText('47 KB');
     await expect(roomFile(page, REPORT.name)).toHaveCount(0);
+    // Read again at the last moment before Send, so the check covers the whole time the file waited —
+    // still best effort: an upload started later than this would only show in the count below.
     expect(backend.sent('upload.start')).toHaveLength(0);
 
     await send(page);
@@ -130,6 +132,8 @@ test('an app without the picker gets the page own file input, and is not asked a
         await firstChooser
     ).setFiles({ name: REPORT.name, mimeType: REPORT.contentType, buffer: Buffer.alloc(REPORT.size) });
     await expect(trayFile(page, REPORT.name)).toBeVisible();
+    // The page's own input fills the same tray, and sends nothing until Send either.
+    expect(backend.sent('upload.start')).toHaveLength(0);
     await send(page);
     await expect(roomFile(page, REPORT.name)).toBeVisible();
     await expect.poll(() => backend.sent('upload.start').length).toBe(1);

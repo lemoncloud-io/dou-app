@@ -32,8 +32,9 @@ type Listener = (message: WebMessage) => void;
 /**
  * The shell lane a scenario starts from: onboarding already done, and the debug overlay off. The suite
  * builds with `VITE_ENV=LOCAL`, whose stage rule turns that overlay on, and its floating button sits
- * over the composer's Send button — a shell-lane value outranks the stage rule, exactly as the app's
- * own debug toggle does, so the page under test looks like the one a user has.
+ * over the composer's Send button. A shell-lane value outranks the stage rule, so this puts the page
+ * back to what a user has. The real app never writes this key there — its own debug toggle writes the
+ * local lane, which outranks the stage rule the same way.
  */
 const DEFAULT_CONFIG_BAG: Record<string, string> = {
     'ui.onboardingCompleted': 'true',
