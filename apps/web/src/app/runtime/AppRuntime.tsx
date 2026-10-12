@@ -12,7 +12,7 @@ import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { runtime } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
-import { ActiveCloudDataProvider, OtherCloudUnreadProvider } from '../hooks';
+import { ActiveCloudDataProvider, OtherCloudUnreadProvider, useCloudCatalogRelayResync } from '../hooks';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { DebugObservationReporter } from '../features/debug';
 import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
@@ -53,6 +53,9 @@ export const AppRuntime = () => {
     // cycle (5min) away, so without this every relay-signed request — notably the cloud entry
     // calls — 403s meanwhile.
     useRelayCredentialRefresh();
+    // ...and re-read the cloud catalog if that stale credential already cost it its boot read —
+    // otherwise home's cloud header stays a bare `?` until the switcher sheet refetches.
+    useCloudCatalogRelayResync();
 
     // Cloud half of the same problem, different cure: a cloud credential that lapses while its socket
     // is down is RE-ISSUED from the relay identity (there is no refresh to ask for). Arms itself off

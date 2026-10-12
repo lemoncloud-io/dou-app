@@ -127,7 +127,13 @@ it stays there; the screen says the word a user would.
 **Cloud** (anything else). The header is `kind="cloud"`: a `CloudAvatar` built from the cloud's
 initials, since `CloudView` carries no image field, beside the cloud name — read from the local cache
 first and the relay catalog second, so a rename shows immediately. On a cold start with neither, the
-header shows a loading placeholder rather than a nameless circle. The Place section lists the cloud's
+header shows a loading placeholder rather than a nameless circle. A catalog that failed — typically a
+boot after more than an hour away, when the relay signing credential has expired and the handshake
+has not yet re-minted it — is read again once the relay socket is verified
+(`useCloudCatalogRelayResync`, mounted once under `AppRuntime`), so the name fills in by itself
+instead of waiting for the switcher sheet's open-time refetch. The rule is desktop-web's: one re-read
+each time the socket verifies with a failure standing, and one when a read fails with the socket
+already verified. A re-read that fails again waits for the next verification, a pull, or the sheet. The Place section lists the cloud's
 places, the selected one carrying a badge and the others a dot when they have unread.
 
 **The profile menu** holds "Place settings" and, for the owner of the active cloud place who has
