@@ -2,6 +2,12 @@
 
 ## [2026-10-12] - No version updates
 
+### Features
+
+- (web,data,app-runtime,web-ui-kit) show how far a sending attachment has gone, not a spinner
+
+## [2026-10-12] - No version updates
+
 ### Refactor
 
 - (mobile) remove SimpleWebView, unused since ModalScreen went
