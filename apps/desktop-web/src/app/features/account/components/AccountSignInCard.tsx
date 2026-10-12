@@ -53,6 +53,34 @@ const OAuthWaiting = ({ intent, label }: { intent: OAuthStartIntent; label: stri
     );
 };
 
+const linkFailureKey = {
+    occupied: 'account.signIn.link.occupied',
+    typeLinked: 'account.signIn.link.typeLinked',
+    failed: 'account.signIn.link.failed',
+} as const;
+
+/**
+ * Why the last Google link did not go through, kept on the card until dismissed: a toast is gone before
+ * someone back from the browser looks, and an occupied Google needs its next step read, not glimpsed.
+ */
+const LinkFailureNotice = () => {
+    const { t } = useTranslation();
+    const failure = useOAuthAttemptStore(s => s.linkFailure);
+    const setLinkFailure = useOAuthAttemptStore(s => s.setLinkFailure);
+    if (!failure) return null;
+    return (
+        <div role="alert" className="flex flex-col gap-2 rounded-lg border border-destructive/40 p-3">
+            <p className="break-keep text-callout text-destructive">{t(linkFailureKey[failure])}</p>
+            {failure === 'occupied' && (
+                <p className="break-keep text-caption text-muted-foreground">{t('account.signIn.link.occupiedNext')}</p>
+            )}
+            <Button variant="ghost" size="sm" className="self-end" onClick={() => setLinkFailure(null)}>
+                {t('auth.social.dismiss')}
+            </Button>
+        </div>
+    );
+};
+
 /**
  * The guest's ways in, each replacing the guest session on this device: the phone number an account was
  * made with on mobile (when the build allows it), placed first so a phone sign-up does not reach for
@@ -179,6 +207,7 @@ export const AccountSignInCard = ({ account }: { account: RelaySignInUser | null
                     <span className="text-caption text-muted-foreground">{t('account.signIn.none')}</span>
                 )}
             </div>
+            <LinkFailureNotice />
             {canLinkGoogle && <LinkGoogle />}
         </div>
     );

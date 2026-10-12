@@ -10,7 +10,7 @@ const navigate = vi.hoisted(() => vi.fn());
 const reopen = vi.hoisted(() => vi.fn());
 const cancel = vi.hoisted(() => vi.fn());
 const attempts = vi.hoisted(() => ({
-    attempt: null as { intent: 'login' | 'link' } | null,
+    attempt: null as { intent: 'login' | 'link'; nonce?: string } | null,
     failed: false,
     linkFailure: null as 'occupied' | 'typeLinked' | 'failed' | null,
     setLinkFailure: vi.fn(),
@@ -166,7 +166,7 @@ describe('AccountSignInCard', () => {
     });
 
     it('holds the Google link while one is out in the browser, with a way to give up', () => {
-        attempts.attempt = { intent: 'link' };
+        attempts.attempt = { intent: 'link', nonce: 'n' };
         render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
 
         const link = screen.getByRole('button', { name: i18n.t('account.signIn.link.google') }) as HTMLButtonElement;
@@ -185,5 +185,25 @@ describe('AccountSignInCard', () => {
         const google = screen.getByRole('button', { name: i18n.t('auth.social.google') }) as HTMLButtonElement;
         expect(google.disabled).toBe(true);
         expect(screen.getByText(i18n.t('auth.social.waitingInline'))).toBeTruthy();
+    });
+
+    it('keeps an occupied Google on the card with its next step, until dismissed', () => {
+        attempts.linkFailure = 'occupied';
+        render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
+
+        const alert = screen.getByRole('alert');
+        expect(alert.textContent).toContain(i18n.t('account.signIn.link.occupied'));
+        expect(alert.textContent).toContain(i18n.t('account.signIn.link.occupiedNext'));
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.dismiss') }));
+        expect(attempts.setLinkFailure).toHaveBeenCalledWith(null);
+    });
+
+    it('says why a link failed without the occupied next step', () => {
+        attempts.linkFailure = 'typeLinked';
+        render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
+
+        expect(screen.getByRole('alert').textContent).toBe(
+            i18n.t('account.signIn.link.typeLinked') + i18n.t('auth.social.dismiss')
+        );
     });
 });

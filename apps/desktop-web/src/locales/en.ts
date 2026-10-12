@@ -518,6 +518,8 @@ export const en = {
     'account.signIn.link.hint': 'Link Google to sign in with it on another computer, too.',
     'account.signIn.link.done': 'Google is now linked to this account.',
     'account.signIn.link.occupied': 'That Google account already belongs to another DoU account.',
+    'account.signIn.link.occupiedNext':
+        'Signing in with that Google opens that account. Merging two accounts into one is not available yet.',
     'account.signIn.link.typeLinked': 'This account already has a social account linked.',
     'account.signIn.link.failed': "We couldn't link Google. Please try again.",
     'account.signIn.link.waiting': 'Waiting for Google in your browser.',

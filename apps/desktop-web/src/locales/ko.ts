@@ -520,6 +520,8 @@ export const ko: EnTranslation = {
     'account.signIn.link.hint': 'Google을 연동하면 다른 컴퓨터에서도 Google로 로그인할 수 있어요.',
     'account.signIn.link.done': '이 계정에 Google을 연동했어요.',
     'account.signIn.link.occupied': '이 Google 계정은 이미 다른 DoU 계정에서 쓰고 있어요.',
+    'account.signIn.link.occupiedNext':
+        '그 Google로 로그인하면 그 계정으로 들어가요. 두 계정을 하나로 합치는 기능은 아직 없어요.',
     'account.signIn.link.typeLinked': '이 계정에는 이미 소셜 계정이 연동돼 있어요.',
     'account.signIn.link.failed': 'Google을 연동하지 못했어요. 다시 시도해 주세요.',
     'account.signIn.link.waiting': '브라우저에서 Google 연동을 기다리는 중이에요.',

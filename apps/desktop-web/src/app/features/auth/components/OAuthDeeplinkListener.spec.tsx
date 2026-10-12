@@ -7,7 +7,10 @@ const session = vi.hoisted(() => ({
     createCredentialsByProvider: vi.fn(),
     loginGuest: vi.fn(),
     toast: vi.fn(),
+    navigate: vi.fn(),
 }));
+
+vi.mock('react-router-dom', () => ({ useNavigate: () => session.navigate }));
 
 vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 vi.mock('@chatic/bridges', () => ({
@@ -28,6 +31,7 @@ vi.mock('@chatic/app-runtime', () => ({
         data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),
+            getRelaySessionUser: () => null,
             createCredentialsByProvider: session.createCredentialsByProvider,
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: session.loginGuest }),
@@ -75,6 +79,7 @@ describe('OAuthDeeplinkListener', () => {
         session.createCredentialsByProvider.mockReset().mockResolvedValue(undefined);
         session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.toast.mockReset();
+        session.navigate.mockReset();
         vi.spyOn(window, 'open').mockReturnValue(null);
         render(<OAuthDeeplinkListener />);
     });
@@ -95,6 +100,23 @@ describe('OAuthDeeplinkListener', () => {
         expect(session.toast).toHaveBeenCalledWith(
             expect.objectContaining({ description: i18n.t('auth.social.notStarted') })
         );
+    });
+
+    it('takes a link back to the account hub, where its outcome is shown', async () => {
+        saveOAuthLoginStart({ provider: 'google', intent: 'link', account: 'u-1', startedAt: NOW, nonce: 'n1' });
+
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
+
+        expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+        expect(session.navigate).toHaveBeenCalledWith('/account');
+    });
+
+    it('stays where it is after a login', async () => {
+        started();
+
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
+
+        expect(session.navigate).not.toHaveBeenCalled();
     });
 
     it('exchanges a deeplink for a login that was started', async () => {
