@@ -9,7 +9,6 @@ import type {
     OnClearCacheDataPayload,
     OnClearConfigValuePayload,
     OnClearTestRecordsPayload,
-    OnCloseModalPayload,
     OnCreateDummyFilePayload,
     OnDeleteAllCacheDataPayload,
     OnDeleteCacheDataPayload,
@@ -43,7 +42,6 @@ import type {
     OnOAuthLogoutPayload,
     OnOpenCameraPayload,
     OnOpenDocumentPayload,
-    OnOpenModalPayload,
     OnOpenPhotoLibraryPayload,
     OnOpenSettingsPayload,
     OnOpenShareSheetPayload,
@@ -54,10 +52,6 @@ import type {
     OnDismissResumeOverlayPayload,
     OnFirstScreenReadyPayload,
     OnWebAppReadyPayload,
-    OnShowLoaderPayload,
-    OnHideLoaderPayload,
-    OnSyncCredentialPayload,
-    OnPopWebViewPayload,
     OnPollAppLogBufferPayload,
     OnPurchaseErrorPayload,
     OnPurchasePayload,
@@ -125,8 +119,6 @@ export type AppMessageDataMap = {
     OnFetchSafeArea: OnFetchSafeAreaPayload;
     OnBackgroundStatusChanged: OnBackgroundStatusChangedPayload;
     OnSetCanGoBack: OnSetCanGoBackPayload;
-    OnOpenModal: OnOpenModalPayload;
-    OnCloseModal: OnCloseModalPayload;
     OnOpenSettings: OnOpenSettingsPayload;
     OnOpenShareSheet: OnOpenShareSheetPayload;
     OnFileTransferState: OnFileTransferStatePayload;
@@ -220,10 +212,6 @@ export type AppMessageDataMap = {
 
     // 7. Common & Others
     OnWebAppReady: OnWebAppReadyPayload;
-    OnShowLoader: OnShowLoaderPayload;
-    OnHideLoader: OnHideLoaderPayload;
-    OnSyncCredential: OnSyncCredentialPayload;
-    OnPopWebView: OnPopWebViewPayload;
     OnFetchAppLogBuffer: OnFetchAppLogBufferPayload;
     OnPollAppLogBuffer: OnPollAppLogBufferPayload;
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;

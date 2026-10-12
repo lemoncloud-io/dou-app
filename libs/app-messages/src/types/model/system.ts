@@ -261,21 +261,6 @@ export type ScrollDataPayload = {
     scrollPercentage: number;
 };
 
-/** [Request] Open a webview for a specific URL in a native bottom sheet/modal */
-export type OpenModalPayload = {
-    /** Web page URL to show as a modal */
-    url: string;
-    /** * The proportion and shape of screen coverage
-     * - full: a modal covering the full screen
-     * - sheet: a bottom sheet rising from the bottom of the screen
-     */
-    type?: 'full' | 'sheet';
-    /** Height ratio the bottom sheet expands to (default 0.9; ignored and treated as 1 when type is full) */
-    heightRatio?: number;
-    /** Whether to show a drag handle bar at the top of the bottom sheet for closing */
-    dragHandle?: boolean;
-};
-
 /** [Request] Change the app icon */
 export type ChangeAppIconPayload = {
     /**
@@ -283,11 +268,6 @@ export type ChangeAppIconPayload = {
      * null, undefined, or 'default' restores the default app icon.
      */
     iconName?: string | null;
-};
-
-/** [Request] Close the native bottom sheet/modal */
-export type CloseModalPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Request] Open the native settings screen */
@@ -310,26 +290,6 @@ export type WebAppReadyPayload = {
      * otherwise sit under the splash until the shell's safety cap.
      */
     holdsBootSplash?: boolean;
-};
-
-/** [Request] Show loader (indicator) request */
-export type ShowLoaderPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Hide loader (indicator) request */
-export type HideLoaderPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Credential sync request */
-export type SyncCredentialPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Pop (close) a webview from the webview stack */
-export type PopWebViewPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /**
@@ -449,16 +409,6 @@ export type OnSetCanGoBackPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
-/** [Response] Result of opening a webview for a specific URL in a native bottom sheet/modal */
-export type OnOpenModalPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Response] Result of closing the native bottom sheet/modal */
-export type OnCloseModalPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
 /** [Response] Result of opening the native settings screen */
 export type OnOpenSettingsPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
@@ -512,26 +462,6 @@ export type OnWebAppReadyPayload = {
     cacheDomainVersions?: CacheDomainVersions;
     /** Feature flags. New features are negotiated here before use. */
     capabilities?: Record<string, boolean | string | number>;
-};
-
-/** [Response] Result of handling the show-loader request */
-export type OnShowLoaderPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Response] Result of handling the hide-loader request */
-export type OnHideLoaderPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Response] Result of handling the credential sync request */
-export type OnSyncCredentialPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Response] Result of handling the webview pop request */
-export type OnPopWebViewPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Response] Native back-button pressed event payload */

@@ -12,8 +12,6 @@ export type WebMessageRequest<K extends WebMessageType> = WebMessageData<K>;
  */
 export const WEB_MESSAGE_RESPONSE_TYPE = {
     SetCanGoBack: 'OnSetCanGoBack',
-    OpenModal: 'OnOpenModal',
-    CloseModal: 'OnCloseModal',
     OpenSettings: 'OnOpenSettings',
     StartFileTransfer: 'OnStartFileTransfer',
     CancelFileTransfer: 'OnCancelFileTransfer',
@@ -88,10 +86,6 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchCustomZipStatus: 'OnFetchCustomZipStatus',
     ClearConfigValue: 'OnClearConfigValue',
     WebAppReady: 'OnWebAppReady',
-    ShowLoader: 'OnShowLoader',
-    HideLoader: 'OnHideLoader',
-    SyncCredential: 'OnSyncCredential',
-    PopWebView: 'OnPopWebView',
     FetchAppLogBuffer: 'OnFetchAppLogBuffer',
     PollAppLogBuffer: 'OnPollAppLogBuffer',
     ClearAppLogBuffer: 'OnClearAppLogBuffer',

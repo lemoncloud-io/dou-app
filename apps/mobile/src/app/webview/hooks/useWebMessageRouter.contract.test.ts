@@ -14,12 +14,6 @@ import { useWebViewNavigation } from './useWebViewNavigation';
  * line here.
  */
 const MOBILE_UNSUPPORTED = {
-    OpenModal: 'Declared, but no web build sends it',
-    CloseModal: 'Declared, but no web build sends it',
-    ShowLoader: 'Declared, but no web build sends it',
-    HideLoader: 'Declared, but no web build sends it',
-    SyncCredential: 'Declared, but no web build sends it',
-    PopWebView: 'Declared, but no web build sends it',
     ShowNotification: "Desktop's OS banner; the phone raises notifications from push, not on request",
     StartUpdateDownload: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)',
     RestartToUpdate: 'Desktop self-update; the phone updates through the store (OpenStore)',

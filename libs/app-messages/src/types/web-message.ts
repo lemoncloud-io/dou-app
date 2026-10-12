@@ -26,7 +26,6 @@ import type {
     OAuthLogoutPayload,
     OpenCameraPayload,
     OpenDocumentPayload,
-    OpenModalPayload,
     OpenPhotoLibraryPayload,
     OpenShareSheetPayload,
     OpenURLPayload,
@@ -70,7 +69,6 @@ import type {
     PrepareVideoPayload,
     ReadAttachmentPayload,
     ReadVideoFramePayload,
-    CloseModalPayload,
     OpenSettingsPayload,
     OpenStorePayload,
     GetContactsPayload,
@@ -88,10 +86,6 @@ import type {
     FetchCurrentPurchasesPayload,
     OpenSubscriptionManagementPayload,
     WebAppReadyPayload,
-    ShowLoaderPayload,
-    HideLoaderPayload,
-    SyncCredentialPayload,
-    PopWebViewPayload,
     ClearAppLogBufferPayload,
     FetchAppLogBufferSizePayload,
     CopyToClipboardPayload,
@@ -111,8 +105,6 @@ import type { BaseMessage } from './types';
 export type WebMessagePayloadMap = {
     // 1. Device & System
     SetCanGoBack: SetCanGoBackPayload;
-    OpenModal: OpenModalPayload;
-    CloseModal: CloseModalPayload;
     OpenSettings: OpenSettingsPayload;
     StartFileTransfer: StartFileTransferPayload;
     CancelFileTransfer: CancelFileTransferPayload;
@@ -212,10 +204,6 @@ export type WebMessagePayloadMap = {
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;
-    ShowLoader: ShowLoaderPayload;
-    HideLoader: HideLoaderPayload;
-    SyncCredential: SyncCredentialPayload;
-    PopWebView: PopWebViewPayload;
     FetchAppLogBuffer: FetchAppLogBufferPayload;
     PollAppLogBuffer: PollAppLogBufferPayload;
     ClearAppLogBuffer: ClearAppLogBufferPayload;

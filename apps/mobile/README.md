@@ -152,14 +152,14 @@ apps/mobile/
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
-│       ├── webview/       88 files: AppWebView, SimpleWebView, the router, 30 handlers, injection
+│       ├── webview/       88 files: AppWebView, the router, 30 handlers, injection
 │       ├── services/      98 files across 20 domains, assembled in provider.ts
 │       ├── bridge/        13 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, shared language, system bars, file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
-│       ├── features/      core chrome and features/main — MainScreen and ModalScreen only
+│       ├── features/      core chrome and features/main — MainScreen only
 │       ├── stores/        zustand stores, including debugSettingsStore (resolves the WebView URL)
 │       ├── hooks/         useServices, useResolvedTheme, useAppVersionCheck
 │       ├── customZip/     the static server that serves a locally unpacked web bundle

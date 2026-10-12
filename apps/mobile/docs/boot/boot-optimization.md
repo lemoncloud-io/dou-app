@@ -104,7 +104,7 @@ here — none of them sit on this app's native pre-WebView path.
 - [`buildDeviceInfoParams.test.ts`](../../src/app/webview/utils/buildDeviceInfoParams.test.ts) covers
   the cached-value mapping into the injected `DeviceInfoParams`.
 - [`deeplinkUtils.test.ts`](../../src/app/services/deeplinks/deeplinkUtils.test.ts) covers the
-  single-stack native route state (`Main`/`Modal` as top-level siblings).
+  single-stack native route state (`Main` as the top-level route).
 - Boot timing itself is not asserted by a unit test — it is read from the on-device timeline in
   [boot-metrics.md](./boot-metrics.md) (FAB debug menu › Boot Performance). Reordering anything
   under [What is deferred, and how](#what-is-deferred-and-how) is a measurable regression there, not

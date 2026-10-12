@@ -4,10 +4,3 @@ export type RootStackParamList = {
     // params: deep link destinations reach the WebView via OnNavigate (see useDeepLinkNavigation).
     Main: undefined;
 };
-
-export type ModalScreenParams = {
-    url: string;
-    type: 'full' | 'sheet';
-    heightRatio?: number;
-    dragHandle?: boolean;
-};

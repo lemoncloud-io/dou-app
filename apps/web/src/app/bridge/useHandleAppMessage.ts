@@ -47,12 +47,6 @@ export const useOnBackgroundStatusChanged = (handler: (message: AppMessageData<'
 export const useOnSetCanGoBack = (handler: (message: AppMessageData<'OnSetCanGoBack'>) => void) =>
     useHandleAppMessage('OnSetCanGoBack', handler);
 
-export const useOnOpenModal = (handler: (message: AppMessageData<'OnOpenModal'>) => void) =>
-    useHandleAppMessage('OnOpenModal', handler);
-
-export const useOnCloseModal = (handler: (message: AppMessageData<'OnCloseModal'>) => void) =>
-    useHandleAppMessage('OnCloseModal', handler);
-
 export const useOnFileTransferState = (handler: (message: AppMessageData<'OnFileTransferState'>) => void) =>
     useHandleAppMessage('OnFileTransferState', handler);
 
