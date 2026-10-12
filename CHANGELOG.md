@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-12] - No version updates
+
+### Features
+
+- (web,mobile) let the phone send and save a zip archive, not only desktop (ADR-0187)
+
 ## [2026-10-12] - root@0.90.0, @chatic/desktop-web@0.23.0
 
 ### Features
