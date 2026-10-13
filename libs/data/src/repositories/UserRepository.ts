@@ -5,12 +5,42 @@ import type {
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import type { DomainListResult, DomainUser } from '../domain';
+import type { DomainListResult, DomainPlaceMember, DomainUser } from '../domain';
 import type { IJoinLocalDataSource, IPlaceLocalDataSource, IUserLocalDataSource } from '../local/data-sources';
 import type { IUserSocketDataSource, UserInviteBatchPayload } from '../remote/socket-data-sources';
 import type { IUserHttpDataSource } from '../remote/http-data-sources';
+import type { IProfileRepository } from './ProfileRepository';
+import { isForeignContext } from './scopeGuards';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
+
+/** The server's own default page size for `place.list-user`, kept so both calls of a page agree. */
+const PLACE_MEMBER_PAGE_SIZE = 10;
+
+export interface PlaceMembersQuery {
+    /** The place whose members are listed. */
+    placeId: string;
+    /**
+     * The place the socket session is on, or `null` when the caller cannot vouch for one (a switch in
+     * flight). Profiles are loaded only when this equals `placeId`: `profile.sync` answers for the
+     * session's place, and its rows are stamped with the place the caller names.
+     */
+    sessionPlaceId: string | null;
+    /** Members per page — and so the most user ids one profile load names. Defaults to 10. */
+    pageSize?: number;
+}
+
+export interface PlaceMembersResult {
+    members: DomainPlaceMember[];
+    /** The cloud and place the request was made for, so a caller can drop an answer that outlived its scope. */
+    context: { cid: string; sid: string };
+    /**
+     * What happened to the members' place profiles: `loaded` into the profile cache, `skipped` because
+     * the session is on another place, or `failed` on at least one page. The members are returned
+     * either way.
+     */
+    profiles: 'loaded' | 'skipped' | 'failed';
+}
 
 export interface UserRepositoryOptions {
     /**
@@ -32,6 +62,12 @@ export interface IUserRepository extends DisposableRepository {
     requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]>;
     syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number>;
     refreshList(query: ChatUsersInput): Promise<void>;
+    /**
+     * place.list-user — every member of one place, read page by page, with each page's place profiles
+     * loaded into the profile cache as it arrives (see `PlaceMembersQuery.sessionPlaceId`). The list
+     * itself is not cached: it is asked for each time a picker opens.
+     */
+    listPlaceMembers(query: PlaceMembersQuery): Promise<PlaceMembersResult>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;
@@ -58,7 +94,8 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         private readonly placeLocalDataSource: IPlaceLocalDataSource,
         contextProvider: DataContextProvider,
         private readonly options?: UserRepositoryOptions,
-        private readonly userHttpDataSource?: IUserHttpDataSource
+        private readonly userHttpDataSource?: IUserHttpDataSource,
+        private readonly profileRepository?: Pick<IProfileRepository, 'syncProfilesOf'>
     ) {
         super(contextProvider);
     }
@@ -200,5 +237,75 @@ export class UserRepository extends BaseRepository implements IUserRepository {
 
         // syncedAt is the cursor the caller passes back as `since` on the next sync.
         return remote.syncedAt;
+    }
+
+    public async listPlaceMembers({
+        placeId,
+        sessionPlaceId,
+        pageSize = PLACE_MEMBER_PAGE_SIZE,
+    }: PlaceMembersQuery): Promise<PlaceMembersResult> {
+        const sid = this.assertRequiredString(placeId, 'placeId');
+        const requestContext = this.getRequestContext();
+        // A socket still bound to the outgoing cloud would answer for that cloud: refuse rather than
+        // hand back somebody else's member list under this cloud's name.
+        if (isForeignContext(requestContext)) {
+            throw new Error('[UserRepository] place.list-user: the socket is still on another cloud');
+        }
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const cid = normalizedContext.cid || 'default';
+        const loadProfiles = !!this.profileRepository && sessionPlaceId === sid;
+        // A profile answer is filed under the cloud the repository is on WHEN IT IS SENT, so each load
+        // first checks that is still the one this list was asked for. A cloud switch between pages
+        // stops the profile loads; the members already read are still returned.
+        const stillInScope = () => {
+            const current = this.getRepositoryContext();
+            return (current.cid || 'default') === cid && !isForeignContext(current);
+        };
+        let skippedAfterMove = false;
+        // Profile loads run alongside the paging rather than between pages, so the list's own round
+        // trips set the wait; each still names one page's ids at most.
+        const profileLoads: Array<Promise<unknown>> = [];
+
+        const byId = new Map<string, DomainPlaceMember>();
+        for (let page = 0; ; page += 1) {
+            const answer = await this.userSocketDataSource.fetchPlaceUsers(
+                { id: sid, page, limit: pageSize },
+                normalizedContext
+            );
+            // An empty page is the end. A SHORT page is not: the server drops members who have left
+            // after slicing the page, so only `total` (counted before that) says where the list stops.
+            if (answer.members.length === 0) break;
+
+            const fresh = answer.members.filter(member => !byId.has(member.id));
+            fresh.forEach(member => byId.set(member.id, member));
+
+            if (loadProfiles && fresh.length > 0) {
+                if (stillInScope()) {
+                    profileLoads.push(
+                        this.profileRepository!.syncProfilesOf(
+                            fresh.map(member => member.id),
+                            sid
+                        )
+                    );
+                } else {
+                    skippedAfterMove = true;
+                }
+            }
+
+            // A page that brought nobody new means the server is not paging; stop rather than spin.
+            if (fresh.length === 0) break;
+            const limit = answer.limit > 0 ? answer.limit : pageSize;
+            if ((page + 1) * limit >= answer.total) break;
+        }
+
+        // A failed load leaves those rows to the user's own name — the list is still worth showing.
+        const settled = await Promise.allSettled(profileLoads);
+        const profiles: PlaceMembersResult['profiles'] = !loadProfiles
+            ? 'skipped'
+            : settled.some(result => result.status === 'rejected') || skippedAfterMove
+              ? 'failed'
+              : 'loaded';
+
+        return { members: [...byId.values()], context: { cid, sid }, profiles };
     }
 }

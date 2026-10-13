@@ -32,6 +32,16 @@ export interface DomainChannelListPayload extends ChatMineInput {
 }
 
 export type DomainUser = CacheUserView;
+
+/**
+ * A member of one place, as `place.list-user` lists them. The display fields are the user's own
+ * (backend) name and picture — the place profile, when there is one, lives in the profile cache and
+ * wins over these. `isOwner` is per place, so it rides on this shape only and never reaches the
+ * cloud-wide user cache.
+ */
+export type DomainPlaceMember = Pick<DomainUser, 'id' | 'cid' | 'name' | 'nick' | 'thumbnail'> & {
+    isOwner?: boolean;
+};
 export type DomainPlace = CacheSiteView;
 
 export type DomainProfile = CacheProfileView;

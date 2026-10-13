@@ -67,6 +67,60 @@ describe('ProfileRepository', () => {
         expect(result).toEqual({ syncedAt: 123, updatedCount: 1, removedCount: 1 });
     });
 
+    describe('syncProfilesOf — profiles of named users', () => {
+        it('asks for exactly those users with no since, and saves the answer on the named site', async () => {
+            const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
+            profileSocketDataSource.sync.mockResolvedValue({
+                upserts: [{ id: 'site-1@u1', sid: 'site-1', uid: 'u1', userId: 'u1', nick: 'Alice' }],
+                removals: ['site-1@u2'],
+                syncedAt: 999,
+            });
+
+            const result = await repository.syncProfilesOf(['u1', 'u2', 'u1'], 'site-1');
+
+            expect(profileSocketDataSource.sync).toHaveBeenCalledWith(
+                { userIds: ['u1', 'u2'] },
+                expect.objectContaining({ cid: 'cloud-a', sid: 'site-1' })
+            );
+            expect(profileSocketDataSource.sync.mock.calls[0][0]).not.toHaveProperty('since');
+            expect(profileLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+                [expect.objectContaining({ id: 'site-1@u1', nick: 'Alice' })],
+                { cid: 'cloud-a', uid: 'me' }
+            );
+            // A null answer is a reset, exactly as in the delta sync.
+            expect(profileLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['site-1@u2'], {
+                cid: 'cloud-a',
+                uid: 'me',
+            });
+            expect(result).toEqual({ updatedCount: 1, removedCount: 1 });
+        });
+
+        it('hands back no syncedAt, so the background watermark cannot be fed from it', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+            profileSocketDataSource.sync.mockResolvedValue({ upserts: [], removals: [], syncedAt: 999 });
+
+            const result = await repository.syncProfilesOf(['u1'], 'site-1');
+
+            expect(result).not.toHaveProperty('syncedAt');
+        });
+
+        it('sends nothing for an empty id list — the server would answer for my channel members instead', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+
+            const result = await repository.syncProfilesOf(['', ''], 'site-1');
+
+            expect(profileSocketDataSource.sync).not.toHaveBeenCalled();
+            expect(result).toEqual({ updatedCount: 0, removedCount: 0 });
+        });
+
+        it('rejects without a site rather than writing unattributed rows', async () => {
+            const { repository, profileSocketDataSource } = createRepository();
+
+            await expect(repository.syncProfilesOf(['u1'], '')).rejects.toThrow('siteId is required');
+            expect(profileSocketDataSource.sync).not.toHaveBeenCalled();
+        });
+    });
+
     it('rolls back the optimistic cache write when setMyProfile fails', async () => {
         const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
         profileLocalDataSource.cacheRead.mockResolvedValue({

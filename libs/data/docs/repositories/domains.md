@@ -1,6 +1,6 @@
 # The 13 domains
 
-> Status: Live · Last updated: 2026-09-29 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
+> Status: Live · Last updated: 2026-10-13 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
 
 The per-domain facade catalogue for `repositories/`. A table for looking up which method reads local
 and which hits remote, and what rule differs per domain — **a document you look things up in**, not one
@@ -78,19 +78,25 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### Profile
 
 `observeList` · `observeItem` · `refreshItem(id)` · `getMyProfile()` · `setMyProfile` ·
-`syncProfiles(since)` · `cache*`
+`syncProfiles(since)` · `syncProfilesOf(userIds, siteId)` · `cache*`
 
 - The per-site user profile domain, **fully separated from the User domain**. It depends only on the dedicated `ProfileGateway` (`get`/`getMine`/`set`/`sync`).
 - `refreshItem(id)` — writes the result of `profile.get` (id = `${sid}:${uid}`) to local.
 - `getMyProfile()` — writes the result of `profile.get-mine` (the current session) to local.
 - `setMyProfile(body, siteId)` — optimistic write with rollback on failure (a row that did not exist before is deleted, not left behind). The server stores the profile on the site **its session is on** and ignores the payload's `siteId`, so `siteId` cannot steer the write; it is checked against the response instead. When the response names another site the write already happened there: that row is cached as the server now holds it, the optimistic row is rolled back, and the call rejects. `profile.set` is also **update-only**: on a site where I have no row yet (one I just created or just entered) it answers 404, so the repository sends `profile.get-mine` — a get-or-create that makes the row — and retries the write once. It does not retry when `get-mine` answers for another site: the retry would create and fill a row there.
 - `syncProfiles(since)` — upserts/removes the `profile.sync` delta into the local cache. A `null` for a given uid in the response deletes that profile.
+- `syncProfilesOf(userIds, siteId)` — the same `profile.sync` with `userIds` and no `since`: the current profiles of exactly those people, stored through the same save path (upsert, `null` deletes). Two rules come with it. **It returns no `syncedAt`**: the place-wide cursor belongs to the background delta sync, which follows only my rooms' members, and storing a by-id answer's cursor there would make that sync skip their changes. **`siteId` must be the session's place**: the server answers for the session's place and the rows are filed under the place named, so asking from elsewhere files one place's profiles under another. An empty id list sends nothing — without `userIds` the server would answer for my rooms' members instead.
 - Cache keys take the form `${sid}:${uid}`.
 
 ### User
 
 `observeList` · `observeItem` · `getMyProfile` · `updateProfile` · `requestInvite` ·
-`requestInviteBatch` · `syncChannelUsers` · `listRelayUsers` · `tryFetchProfile` · `cache*`
+`requestInviteBatch` · `syncChannelUsers` · `listPlaceMembers` · `listRelayUsers` · `tryFetchProfile` · `cache*`
+
+- `listPlaceMembers({ placeId, sessionPlaceId, pageSize? })` — `place.list-user`, every member of one place (its role holders plus its owner, including people with no room and invitees who have not accepted). It lives here, not under Place, because what it answers is users — the same reason `channel.list-user` is here. Pages are read from 0 until an **empty page** or the answer's `total`; a short page is not the end, because the server drops members who left after cutting the page and `total` is counted before that. A page that adds nobody new also stops it, so a server ignoring `page` cannot spin it.
+    - After each page it starts the Profile domain's `syncProfilesOf` with that page's ids — never more ids than one page holds, since list and profiles share the socket's answer size limit — **only when `sessionPlaceId` equals `placeId`**; the caller passes `null` while a switch is in flight. The loads run alongside the paging and are awaited together at the end, so the wait is set by the list's own round trips. Before each one the repository checks it is still on the cloud the list was asked in: a profile answer is filed under the cloud current when it is sent, so a switch between pages stops the remaining loads. A failed or stopped load leaves the members in the result (`profiles: 'failed'`).
+    - The list is **not cached**: it is a per-open read, so it is returned, with the `{ cid, sid }` it was asked for, for the caller to drop if its scope has moved. That makes it an exception to "reads come from a local stream", like `listRelayUsers`; the profiles it loads do go through the cache. Each member is a `DomainPlaceMember` — id, the user's own `name`/`nick`, the picture moved from the server's `photo` to `thumbnail`, and `isOwner`, which is per place and so never written to the cloud-wide user cache. Nothing else the answer carries is kept.
+    - It rejects without asking while the socket is still bound to another cloud (`isForeignContext`).
 
 - `syncChannelUsers` — writes the result of `channel.sync-users` to local.
 - `updateProfile` (`user.update`) edits the user's own **account** profile, which is separate from the site profile (→ the Profile domain).

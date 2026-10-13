@@ -1,4 +1,4 @@
-import type { ProfileSetInput } from '@lemoncloud/chatic-sockets-lib';
+import type { ProfileSetInput, ProfileSyncInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../domain';
 import type { IProfileLocalDataSource } from '../local/data-sources';
@@ -27,6 +27,16 @@ export interface ProfileSyncResult {
     removedCount: number;
 }
 
+/**
+ * Result of loading named users' profiles. There is deliberately no `syncedAt`: the server's cursor
+ * from a by-id load says nothing about the place-wide delta, and handing it back would invite a
+ * caller to store it as the background sync's watermark.
+ */
+export interface ProfileLoadResult {
+    updatedCount: number;
+    removedCount: number;
+}
+
 export interface IProfileRepository extends DisposableRepository {
     observeList(
         query: DomainProfileListPayload | undefined,
@@ -47,6 +57,12 @@ export interface IProfileRepository extends DisposableRepository {
     setMyProfile(body: ProfileBody, siteId: string): Promise<DomainProfile>;
     /** profile.sync — upserts/removes the multi-profile delta sync result for `siteId` into local. */
     syncProfiles(since: number, siteId: string): Promise<ProfileSyncResult>;
+    /**
+     * profile.sync with `userIds` — loads those users' profiles on `siteId` through the same save path
+     * as `syncProfiles`, with no `since` and no cursor. The server answers for the site the session is
+     * on, so `siteId` must be that site; a caller that cannot vouch for it must not call this.
+     */
+    syncProfilesOf(userIds: string[], siteId: string): Promise<ProfileLoadResult>;
 
     cacheRead(id: string): Promise<DomainProfile | null>;
     cacheReadList(query?: DomainProfileListPayload): Promise<DomainListResult<DomainProfile> | null>;
@@ -216,13 +232,34 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
     }
 
     public async syncProfiles(since: number, siteId: string): Promise<ProfileSyncResult> {
+        const { syncedAt, updatedCount, removedCount } = await this.applyProfileSync({ since }, siteId);
+        return { syncedAt: syncedAt ?? since, updatedCount, removedCount };
+    }
+
+    public async syncProfilesOf(userIds: string[], siteId: string): Promise<ProfileLoadResult> {
+        const ids = Array.from(new Set((userIds || []).filter(Boolean)));
+        this.assertRequiredString(siteId, 'siteId');
+        // With no ids the server would fall back to the session's channel members — a different
+        // question from the one asked, so nothing is sent.
+        if (ids.length === 0) return { updatedCount: 0, removedCount: 0 };
+        // No `since`: the place-wide cursor belongs to the background delta sync, and these users are
+        // the ones that sync never covers. Their full current profile is asked for every time.
+        const { updatedCount, removedCount } = await this.applyProfileSync({ userIds: ids }, siteId);
+        return { updatedCount, removedCount };
+    }
+
+    /** The one save path for a `profile.sync` answer: upsert the profiles, delete the `null` resets. */
+    private async applyProfileSync(
+        payload: ProfileSyncInput,
+        siteId: string
+    ): Promise<ProfileLoadResult & { syncedAt?: number }> {
         const requestContext = this.getRequestContext();
         // Sync is scoped to ONE site and the response rows do not name it, so the caller's site id
         // is what the mapper stamps on them (ADR-0085). Fail fast rather than write unattributed rows.
         const sid = this.assertRequiredString(siteId, 'siteId');
         const normalizedContext = { ...this.getNormalizedContext(requestContext), sid };
 
-        const { upserts, removals, syncedAt } = await this.profileSocketDataSource.sync({ since }, normalizedContext);
+        const { upserts, removals, syncedAt } = await this.profileSocketDataSource.sync(payload, normalizedContext);
 
         if (upserts.length > 0) {
             await this.profileLocalDataSource.cacheWriteMany(upserts, requestContext);
@@ -233,7 +270,7 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
             await this.profileLocalDataSource.cacheDeleteMany(removals, requestContext);
         }
 
-        return { syncedAt: syncedAt ?? since, updatedCount: upserts.length, removedCount: removals.length };
+        return { syncedAt, updatedCount: upserts.length, removedCount: removals.length };
     }
 
     private makeProfileId(sid: string, uid: string): string {

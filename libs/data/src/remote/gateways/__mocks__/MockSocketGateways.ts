@@ -61,6 +61,7 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
     },
     user: {
         listUser: jest.fn(),
+        listPlaceUser: jest.fn(),
         update: jest.fn(),
         profile: jest.fn(),
         invite: jest.fn(),

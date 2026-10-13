@@ -1,4 +1,5 @@
 import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { PlaceUserView } from '@lemoncloud/chatic-sockets-api/dist/lib/place/types';
 import type {
     ChannelView,
     ChatView,
@@ -14,6 +15,7 @@ import type {
     DomainCloud,
     DomainJoin,
     DomainPlace,
+    DomainPlaceMember,
     DomainProfile,
     DomainUser,
 } from './models';
@@ -185,6 +187,20 @@ export const toDomainUser = (
         cid,
         channelIds: Array.from(new Set(channelIds)),
     };
+};
+
+/**
+ * `place.list-user` item -> DomainPlaceMember. Only the listed display fields are carried; the
+ * picture arrives under the backend's name `photo` and is moved to `thumbnail`, the field every
+ * client surface reads a user's picture from. Without the move the picker draws no picture at all.
+ */
+export const toDomainPlaceMember = (view: PlaceUserView, context: DataContext): DomainPlaceMember => {
+    const member: DomainPlaceMember = { id: toStringSafe(view.id), cid: context.cid || 'default' };
+    if (view.name) member.name = view.name;
+    if (view.nick) member.nick = view.nick;
+    if (view.photo) member.thumbnail = view.photo;
+    if (view.isOwner != null) member.isOwner = !!view.isOwner;
+    return member;
 };
 
 /** API View -> DomainPlace. Normalizes the place `type` and keeps a stable sort `order`. */

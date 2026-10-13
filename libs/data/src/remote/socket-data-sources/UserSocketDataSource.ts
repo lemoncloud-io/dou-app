@@ -1,8 +1,15 @@
 import type { ChannelUsersSyncView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { MyInviteView, MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import type { DomainJoin, DomainListResult, DomainPlace, DomainUser } from '../../domain';
-import { createDomainListResult, toDomainJoinFromUser, toDomainPlace, toDomainUser } from '../../domain';
+import type { PlaceListUserResult } from '@lemoncloud/chatic-sockets-api/dist/lib/place/types';
+import type { DomainJoin, DomainListResult, DomainPlace, DomainPlaceMember, DomainUser } from '../../domain';
+import {
+    createDomainListResult,
+    toDomainJoinFromUser,
+    toDomainPlace,
+    toDomainPlaceMember,
+    toDomainUser,
+} from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { UserSocketDomainGateway } from '../gateways';
 
@@ -39,11 +46,24 @@ export interface UserProfileResult {
     site: DomainPlace | null;
 }
 
+/**
+ * One page of `place.list-user`. `total` counts the place's member index BEFORE the server drops the
+ * users who have left, so a page can hold fewer than `limit` and `total` can overstate the real count —
+ * neither is a signal that the list has ended. `page` and `limit` are the server's echo.
+ */
+export interface PlaceUsersPage {
+    members: DomainPlaceMember[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
 export type UserFetchUsersInput = Parameters<UserSocketDomainGateway['listUser']>[0];
 export type UserUpdateProfilePayload = Parameters<UserSocketDomainGateway['update']>[0];
 export type UserRequestInviteInput = Parameters<UserSocketDomainGateway['invite']>[0];
 export type UserInviteBatchPayload = Parameters<UserSocketDomainGateway['inviteBatch']>[0];
 export type UserSyncChannelUsersInput = Parameters<UserSocketDomainGateway['syncUsers']>[0];
+export type UserFetchPlaceUsersInput = Parameters<UserSocketDomainGateway['listPlaceUser']>[0];
 
 export interface IUserSocketDataSource {
     /** Requests a filtered user list and returns the domain users together with their embedded joins. */
@@ -58,6 +78,8 @@ export interface IUserSocketDataSource {
     inviteBatch(payload: UserInviteBatchPayload): Promise<ListResult<MyInviteView>>;
     /** Syncs channel members from `since` and returns the users, their embedded joins, and the cursor (`syncedAt`). */
     syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<ChannelUsersSyncResult>;
+    /** Requests one page of a place's members (`place.list-user`) and returns them as domain members. */
+    fetchPlaceUsers(payload: UserFetchPlaceUsersInput, context: DataContext): Promise<PlaceUsersPage>;
 }
 
 /**
@@ -125,5 +147,17 @@ export class UserSocketDataSource implements IUserSocketDataSource {
             .filter((join): join is DomainJoin => !!join);
 
         return { users, joins, ids: remote?.ids || [], syncedAt: remote?.syncedAt || 0 };
+    }
+
+    public async fetchPlaceUsers(payload: UserFetchPlaceUsersInput, context: DataContext): Promise<PlaceUsersPage> {
+        const remote = await this.gateway.listPlaceUser<PlaceListUserResult>(payload);
+        const members = (remote?.list || []).filter(item => !!item?.id).map(item => toDomainPlaceMember(item, context));
+        return {
+            members,
+            // No `total` means no stated end: the caller pages on to an empty page instead.
+            total: typeof remote?.total === 'number' ? remote.total : Number.POSITIVE_INFINITY,
+            page: typeof remote?.page === 'number' ? remote.page : (payload.page ?? 0),
+            limit: typeof remote?.limit === 'number' ? remote.limit : (payload.limit ?? members.length),
+        };
     }
 }
