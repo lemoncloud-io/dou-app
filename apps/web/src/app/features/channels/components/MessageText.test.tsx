@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { MessageText } from './MessageText';
+import type { MentionMarks } from '../utils/mentionHighlight';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
 jest.mock('../utils/openExternalUrl', () => ({
@@ -70,24 +71,45 @@ describe('MessageText', () => {
 
         expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.com/very/long/pa');
     });
-    describe('mentions of me', () => {
-        const mentionSpans = (container: HTMLElement) =>
-            Array.from(container.querySelectorAll('span')).map(span => span.textContent);
+    describe('mentions', () => {
+        const marks = (fields: Partial<MentionMarks> = {}): MentionMarks => ({
+            words: ['@레인', '@Minsu', '@channel'],
+            self: [],
+            own: false,
+            ...fields,
+        });
+        const mentionSpan = (container: HTMLElement, word: string) =>
+            Array.from(container.querySelectorAll('span')).find(span => span.textContent === word);
 
-        it('draws the given words louder and leaves the rest as text', () => {
-            const { container } = render(<MessageText text="hi @레인 and @channel" mentions={['@레인', '@channel']} />);
+        it('draws every mention word and leaves the rest as text', () => {
+            const { container } = render(<MessageText text="hi @Minsu and @channel" mentions={marks()} />);
 
-            expect(mentionSpans(container)).toEqual(['@레인', '@channel']);
-            expect(container).toHaveTextContent('hi @레인 and @channel');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary-ink');
+            expect(mentionSpan(container, '@channel')).toHaveClass('text-primary-ink');
+            expect(container).toHaveTextContent('hi @Minsu and @channel');
+        });
+
+        it('draws a mention of me louder than one of anybody else', () => {
+            const { container } = render(
+                <MessageText text="@레인 @Minsu" mentions={marks({ self: ['@레인', '@channel'] })} />
+            );
+
+            expect(mentionSpan(container, '@레인')).toHaveClass('bg-warning/30');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary-ink');
+        });
+
+        // My bubble is dark; the shared mark is drawn for a light one.
+        it('draws the mentions on my own message in a mark that reads on my bubble', () => {
+            const { container } = render(<MessageText text="@Minsu hello" mentions={marks({ own: true })} />);
+
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('bg-white/20');
         });
 
         // A name inside a link or a code span belongs to that link or that code.
         it('does not mark a word inside a link or a code span', () => {
-            const { container } = render(
-                <MessageText text="`@레인` https://x.test/@레인 @레인" mentions={['@레인']} />
-            );
+            const { container } = render(<MessageText text="`@레인` https://x.test/@레인 @레인" mentions={marks()} />);
 
-            expect(mentionSpans(container)).toEqual(['@레인']);
+            expect(Array.from(container.querySelectorAll('span')).map(span => span.textContent)).toEqual(['@레인']);
         });
 
         it('marks nothing without words to mark', () => {

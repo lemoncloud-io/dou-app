@@ -3,23 +3,23 @@ import { isMentioningViewer, type DomainChat } from '@chatic/data';
 import { escapeRegExp, EVERYONE_ALIASES } from './mentionInput';
 
 /**
- * The words a message that mentions me is highlighted on.
+ * The words a message's mentions are drawn on.
  *
- * Whether a message mentions me is never decided here — that is the message's mention record
- * (`isMentioningViewer`), which the sender's composer filled. This only says which words of an
- * already-matching message to draw louder: my names as other people would have written them, and the
- * words that call everyone.
+ * Two marks. Every `@name` of a member of a group room, and every everyone word, is drawn as a
+ * mention, on anyone's message — how it is written, not whom it calls. Drawn louder is a mention of
+ * me, and whether a message calls me is never decided here: that is the message's mention record
+ * (`isMentioningViewer`), which the sender's composer filled, the same record the push reads.
  */
 
 /** The words readers treat as calling everyone in the room — the composer's everyone row answers them. */
 export const GROUP_MENTION_TOKENS: readonly string[] = EVERYONE_ALIASES.map(word => `@${word}`);
 
 /**
- * `@` + each of my names, then the everyone words. My names are every name a sender's list could
- * have shown me under — my place nick, my nick, my account name — since the text holds whichever
+ * `@` + each name, once, then the everyone words. For me, the names are every name a sender's list
+ * could have shown me under — my place nick, my nick, my account name — since the text holds whichever
  * one the sender saw.
  */
-export const selfMentionTokens = (names: ReadonlyArray<string | null | undefined>): string[] => {
+export const mentionTokensOf = (names: ReadonlyArray<string | null | undefined>): string[] => {
     const own = [...new Set(names.map(name => name?.trim()).filter((name): name is string => !!name))];
     return [...own.map(name => `@${name}`), ...GROUP_MENTION_TOKENS];
 };
@@ -64,29 +64,55 @@ interface MentionViewerSources {
     sessionUid: string | null | undefined;
     /** My names in the room: the place profile's nick, then the member row's nick and name. */
     names: ReadonlyArray<string | null | undefined>;
-}
-
-/** Me, as a row needs me to tell a mention of me: every id I go by here, and the words I am called. */
-export const mentionViewerOf = ({ roomUid, sessionUid, names }: MentionViewerSources): MentionViewer => ({
-    ids: [...new Set([roomUid, sessionUid].filter((id): id is string => !!id))],
-    tokens: selfMentionTokens(names),
-});
-
-/** Me as a mention needs me — what `mentionViewerOf` builds. */
-export interface MentionViewer {
-    ids: readonly string[];
-    tokens: readonly string[];
+    /**
+     * The room's members, by the name every row draws them by — a group room's only. A 1:1 and a self
+     * chat have no `@` list, so an `@name` in them is just text.
+     */
+    memberNames?: ReadonlyArray<string | null | undefined>;
 }
 
 /**
- * The words to draw louder in a message, or nothing.
- *
- * Whether the message calls me is its record, never its text. My own message is never drawn as a
- * mention, even one calling everyone: it does not call me out, and on my dark bubble the highlight
- * would not read.
+ * Me in the room, as a row needs me to draw mentions: every id I go by here, the words I am called,
+ * and the words every member is mentioned by.
  */
-export const mentionWordsFor = (
+export const mentionViewerOf = ({ roomUid, sessionUid, names, memberNames }: MentionViewerSources): MentionViewer => ({
+    ids: [...new Set([roomUid, sessionUid].filter((id): id is string => !!id))],
+    tokens: mentionTokensOf(names),
+    roomTokens: memberNames ? mentionTokensOf([...memberNames, ...names]) : [],
+});
+
+/** What `mentionViewerOf` builds. */
+export interface MentionViewer {
+    ids: readonly string[];
+    /** My names after `@`, and the everyone words. */
+    tokens: readonly string[];
+    /** Every member's name after `@`, mine included, and the everyone words. Empty outside a group room. */
+    roomTokens: readonly string[];
+}
+
+/** How one message's mentions are drawn — what `mentionMarksFor` answers. */
+export interface MentionMarks {
+    /** Every word drawn as a mention. */
+    words: readonly string[];
+    /** The ones drawn as calling me. */
+    self: readonly string[];
+    /** The message is mine: my bubble is dark, so its mentions take a mark that reads on it. */
+    own: boolean;
+}
+
+/**
+ * How a message's mentions are drawn, or nothing when it has none to draw.
+ *
+ * Whether the message calls me is its record, never its text. My own message never calls me, even
+ * one calling everyone: it does not call me out.
+ */
+export const mentionMarksFor = (
     message: Pick<DomainChat, 'mention$'> & { isOwner?: boolean },
     viewer: MentionViewer | undefined
-): readonly string[] | undefined =>
-    viewer && !message.isOwner && isMentioningViewer(message, viewer.ids) ? viewer.tokens : undefined;
+): MentionMarks | undefined => {
+    if (!viewer) return undefined;
+    const self = !message.isOwner && isMentioningViewer(message, viewer.ids) ? viewer.tokens : [];
+    const words = [...viewer.roomTokens, ...self];
+    if (!words.length) return undefined;
+    return { words, self, own: !!message.isOwner };
+};

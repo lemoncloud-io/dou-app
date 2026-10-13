@@ -96,19 +96,64 @@ export const applyMentionPick = (
     return { text: next, caret: at.start + inserted.length + (hasSpaceAfter ? 1 : 0) };
 };
 
+/** One `@name` in the text: where it starts (at the `@`), where it ends, and the name. */
+export interface MentionRange {
+    start: number;
+    end: number;
+    label: string;
+}
+
 /**
- * The names the text holds after an `@` that starts a word — for each such `@`, the longest of
- * `labels` the text goes on with, unless the name runs on into more of a name (`NAME_RUNS_ON`).
+ * The `@name`s the text holds — for each `@` that starts a word, the longest of `labels` the text goes
+ * on with, unless the name runs on into more of a name (`NAME_RUNS_ON`).
  */
-export const mentionedLabels = (text: string, labels: readonly string[]): Set<string> => {
+export const mentionRanges = (text: string, labels: readonly string[]): MentionRange[] => {
     const longestFirst = [...new Set(labels.filter(Boolean))].sort((a, b) => b.length - a.length);
-    const found = new Set<string>();
+    const ranges: MentionRange[] = [];
     for (const match of text.matchAll(/(?:^|\s)@/gu)) {
-        const rest = text.slice((match.index ?? 0) + match[0].length);
+        const start = (match.index ?? 0) + match[0].length - 1;
+        const rest = text.slice(start + 1);
         const hit = longestFirst.find(label => rest.startsWith(label) && !NAME_RUNS_ON.test(rest.slice(label.length)));
-        if (hit) found.add(hit);
+        if (hit) ranges.push({ start, end: start + 1 + hit.length, label: hit });
     }
-    return found;
+    return ranges;
+};
+
+/** The names the text holds after an `@` that starts a word (see `mentionRanges`). */
+export const mentionedLabels = (text: string, labels: readonly string[]): Set<string> =>
+    new Set(mentionRanges(text, labels).map(range => range.label));
+
+/**
+ * A backspace at the end of a picked `@name` takes the whole name, the way a chat app's mention
+ * chip goes in one keystroke: half a name would call nobody and read as a typo.
+ *
+ * `previous` is the text before the edit and `next` the field's text after it. The edit counts when it
+ * removed the name's last character and nothing past it — a plain backspace, or a Korean keyboard
+ * breaking the last syllable back into its consonant (`@민수` to `@민ㅅ`). `picked` are the labels the
+ * composer picked, and only those go whole; `known` are the room's other names, which settle where a
+ * name ends (`민` / `민수`). Answers the text without the name and where the caret goes, or null.
+ */
+export const removeWholeMention = (
+    previous: string,
+    next: string,
+    picked: readonly string[],
+    known: readonly string[] = []
+): { text: string; caret: number; label: string } | null => {
+    if (!picked.length || next.length > previous.length) return null;
+    let head = 0;
+    while (head < next.length && previous[head] === next[head]) head += 1;
+    let tail = 0;
+    while (tail < next.length - head && previous[previous.length - 1 - tail] === next[next.length - 1 - tail]) {
+        tail += 1;
+    }
+    const removedEnd = previous.length - tail;
+    const inserted = next.slice(head, next.length - tail);
+    if (removedEnd <= head || (inserted && !/^[\u3131-\u318E]$/u.test(inserted))) return null;
+    const range = mentionRanges(previous, [...picked, ...known]).find(
+        candidate => candidate.end === removedEnd && head > candidate.start && picked.includes(candidate.label)
+    );
+    if (!range) return null;
+    return { text: previous.slice(0, range.start) + previous.slice(range.end), caret: range.start, label: range.label };
 };
 
 /**

@@ -929,14 +929,26 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         expect(avatarButton()).not.toBeInTheDocument();
         expect(screen.getByText('친구').tagName).toBe('SPAN');
     });
-    describe('a mention of the reader', () => {
-        const viewer = { ids: ['me-cloud', 'me'], tokens: ['@레인', '@channel'] };
+    describe('mentions', () => {
+        const viewer = {
+            ids: ['me-cloud', 'me'],
+            tokens: ['@레인', '@channel'],
+            roomTokens: ['@레인', '@Minsu', '@channel'],
+        };
         const mentioning = (fields: Partial<ClientChatView>) =>
-            ({ ...message, content: '@레인 확인해 줘', ...fields }) as ClientChatView;
-        const highlighted = () => screen.queryByText('@레인', { selector: 'span' });
+            ({ ...message, content: '@레인 @Minsu 확인해 줘', ...fields }) as ClientChatView;
+        const mark = (word: string) => screen.queryByText(word, { selector: 'span' });
 
-        // The record decides, not the text: the sender picked me in their composer.
-        it('draws my name louder when the record names one of my ids', () => {
+        // How it is written, not whom it calls: a member's name after `@` reads as a mention.
+        it("draws every member's mention, with no record at all", () => {
+            render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
+
+            expect(mark('@Minsu')).toHaveClass('text-primary-ink');
+            expect(mark('@레인')).toHaveClass('text-primary-ink');
+        });
+
+        // The record decides whether it calls me, not the text: the sender picked me in their composer.
+        it('draws my name louder only when the record names one of my ids', () => {
             render(
                 <ChannelMessageRow
                     {...baseProps}
@@ -945,18 +957,12 @@ describe('ChannelMessageRow — opening the sender profile', () => {
                 />
             );
 
-            expect(highlighted()).toHaveClass('bg-warning/30');
+            expect(mark('@레인')).toHaveClass('bg-warning/30');
+            expect(mark('@Minsu')).toHaveClass('text-primary-ink');
         });
 
-        it('draws nothing when the text names me but the record does not', () => {
-            render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
-
-            expect(highlighted()).not.toBeInTheDocument();
-            expect(screen.getByText('@레인 확인해 줘')).toBeInTheDocument();
-        });
-
-        // My own message does not call me out, and the highlight would not read on my dark bubble.
-        it('draws nothing on my own message, even one calling everyone', () => {
+        // My own message does not call me out; its mentions take the mark that reads on my dark bubble.
+        it('draws my own message in the mark for my bubble, even one calling everyone', () => {
             render(
                 <ChannelMessageRow
                     {...baseProps}
@@ -965,13 +971,14 @@ describe('ChannelMessageRow — opening the sender profile', () => {
                 />
             );
 
-            expect(highlighted()).not.toBeInTheDocument();
+            expect(mark('@레인')).toHaveClass('bg-white/20');
+            expect(mark('@레인')).not.toHaveClass('bg-warning/30');
         });
 
         it('draws nothing when the row is not told who is reading', () => {
             render(<ChannelMessageRow {...baseProps} message={mentioning({ mention$: { all: true } })} />);
 
-            expect(highlighted()).not.toBeInTheDocument();
+            expect(mark('@레인')).not.toBeInTheDocument();
         });
     });
 });

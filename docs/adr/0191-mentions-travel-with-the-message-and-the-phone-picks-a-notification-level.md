@@ -3,8 +3,8 @@
 > Status: Accepted · Decided: 2026-10-13 · Implemented: `feat/channel-notify-mode`
 > · Scope: `libs/data/src/domain/mention.ts` · `libs/data` `ChatRepository` (send and pending image rows)
 > · `libs/app-runtime` `sendChatInCloud` and `useSendImages` (`mention`) · `apps/web/src/app/features/channels/`
-> (`useMentionComposer`, `MentionSuggestions`, `MentionButton`, `NotifyModeSheet`, `MessageText`,
-> `ChannelMessageRow`, the room and thread pages, `ChannelSettingsPage`)
+> (`useMentionComposer`, `MentionSuggestions`, `NotifyModeSheet`, `MessageText`, `ChannelMessageRow`,
+> the room and thread pages, `ChannelSettingsPage`)
 > · Partially supersedes [ADR-0025](./0025-channel-notification-mute-toggle.md) (its on/off switch and the
 > out-of-scope `notify = 'mention'`)
 > · The module docs are [apps/web channels/chat-room.md](../../apps/web/docs/feature/channels/chat-room.md)
@@ -39,14 +39,16 @@ message of a 1:1 is addressed to the other person.
    picked `@name` means, and at the send the picks whose `@name` is still in the text go out as
    `mention`. An `@name` typed by hand, a name deleted before the send, and an e-mail address call
    nobody. Everyone is a row in the list (writing `@channel`), not a word read out of the text.
-2. **Every "did this call me" check reads `mention$`.** The phone's highlight uses the same rule as the
-   push (`isMentioningViewer`, in `libs/data` so the desktop can take it next): everyone, or one of the
-   reader's ids — the room-cloud uid and the account uid, because the record holds the room's member
-   ids. The highlight draws the reader's names and the everyone words on someone else's message only.
+2. **Every "did this call me" check reads `mention$`.** The phone's louder mark for a mention of me
+   uses the same rule as the push (`isMentioningViewer`, in `libs/data` so the desktop can take it
+   next): everyone, or one of the reader's ids — the room-cloud uid and the account uid, because the
+   record holds the room's member ids — on someone else's message. Separately, every member's `@name`
+   and every everyone word in a group room is drawn as a mention on any message, the desktop's plain
+   mention mark: that says how the text is written, not whom it calls, so it may read the text.
 3. **The phone's composer gets the `@` list,** inside the composer bar right above the field, in group
    rooms only. A 1:1 always notifies and has one person to call; a self chat has nobody. Typing `@` at
-   the start of a word opens it, and so does an `@` button beside the attach button, which writes the
-   `@` for the person who would rather tap a name than type the start of one.
+   the start of a word opens it. A backspace at the end of a picked name takes the whole name and the
+   pick with it, as a mention chip would go.
 4. **The phone's settings row offers levels**: all · mentions only · off in a group, all · off in a
    1:1. A 1:1 stored as `mention` shows as "All messages", how it is delivered, and is not rewritten.
    The home list's swipe stays an off/all toggle and draws only "off" as muted.
@@ -85,8 +87,8 @@ message of a 1:1 is addressed to the other person.
   costs only the call. Not done for now.
 - **Pick from a bottom sheet** instead of a list above the field. A sheet takes the keyboard away
   while the name is still being typed; the list inside the composer bar keeps it up and rides with it.
-- **A dropdown opened from a button, in place of the list typing `@` opens.** Easier to find, but
-  typing `@`, the way the desktop and most chat apps call someone, would then open nothing on the
-  phone. The button opens the same list instead, so both ways reach it.
+- **An `@` button beside the attach button** that writes the `@` and opens the same list. Tried on a
+  device and left out: typing `@` is the way in, as on the desktop, and the composer's row stays the
+  attach button's.
 - **Offer "mentions only" in a 1:1 too.** It would behave exactly like all messages, since the server
   delivers every 1:1 message. Rejected as a choice that changes nothing.

@@ -15,9 +15,8 @@ import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useComposerDraft } from '../hooks/useComposerDraft';
 import { useMentionComposer } from '../hooks/useMentionComposer';
-import { MentionButton } from '../components/MentionButton';
 import { MentionSuggestions } from '../components/MentionSuggestions';
-import { mentionViewerOf, mentionWordsFor } from '../utils/mentionHighlight';
+import { mentionMarksFor, mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
 import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -272,8 +271,15 @@ export const ThreadPage = () => {
     const mentionViewer = useMemo(() => {
         const me = userId ? memberById.get(userId) : undefined;
         const names = [userId ? profileMap.get(userId)?.nick : undefined, me?.nick, me?.name];
-        return mentionViewerOf({ roomUid: userId, sessionUid, names });
-    }, [userId, sessionUid, memberById, profileMap]);
+        // Every member's `@name` is drawn as a mention, by the name the list writes it with.
+        const memberNames = isGroupChat
+            ? [
+                  ...mentionCandidates.filter(row => !row.everyone).map(row => row.label),
+                  userId ? nameOfUser(userId) : undefined,
+              ]
+            : undefined;
+        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames });
+    }, [userId, sessionUid, memberById, profileMap, isGroupChat, mentionCandidates, nameOfUser]);
 
     const toClientView = useMemo(
         () =>
@@ -480,7 +486,7 @@ export const ThreadPage = () => {
                             <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
                                 <MessageText
                                     text={messagePlainText(message.content)}
-                                    mentions={mentionWordsFor(message, mentionViewer)}
+                                    mentions={mentionMarksFor(message, mentionViewer)}
                                 />
                             </p>
                         )
@@ -637,18 +643,7 @@ export const ThreadPage = () => {
                     // is outside my window: a reply needs the root's full id, so `handleSend`
                     // would drop what was typed without saying anything.
                     disabled={editing.isEditing || rootOutsideJoinWindow}
-                    leadingSlot={
-                        <>
-                            {attach.button}
-                            {isGroupChat && (
-                                <MentionButton
-                                    open={mentionComposer.suggestions.length > 0}
-                                    onClick={mentionComposer.openList}
-                                    disabled={editing.isEditing || rootOutsideJoinWindow}
-                                />
-                            )}
-                        </>
-                    }
+                    leadingSlot={attach.button}
                 />
             </div>
             {attach.overlays}

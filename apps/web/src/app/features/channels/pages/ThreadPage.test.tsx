@@ -52,10 +52,9 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady, leadingSlot }: any) => (
+    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady }: any) => (
         <div data-testid="composer" data-disabled={String(!!disabled)}>
             {placeholder}
-            {leadingSlot}
             <textarea
                 data-testid="composer-input"
                 ref={inputRef}
@@ -612,23 +611,7 @@ describe('ThreadPage — mentions', () => {
         });
     });
 
-    it('opens the list from the @ button too', () => {
-        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
-        mockChats = [chat({ cid: 'cloud-a' })];
-        mockActiveMemberIds = ['peer', 'me'];
-        mockMembers = [
-            { id: 'peer', name: 'Minsu' },
-            { id: 'me', name: 'Me' },
-        ];
-        render(<ThreadPage />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'chat.mention.open' }));
-
-        expect(field().value).toBe('@');
-        expect(screen.getByRole('option', { name: 'Minsu' })).toBeInTheDocument();
-    });
-
-    it('offers no list in a 1:1 thread, and no button for one', () => {
+    it('offers no list in a 1:1 thread', () => {
         mockChannel = { id: 'ch1', stereo: 'dm', cid: 'cloud-a' };
         mockChats = [chat({ cid: 'cloud-a' })];
         mockActiveMemberIds = ['peer', 'me'];
@@ -638,7 +621,6 @@ describe('ThreadPage — mentions', () => {
         fireEvent.change(field(), { target: { value: '@' } });
 
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'chat.mention.open' })).not.toBeInTheDocument();
     });
 });
 

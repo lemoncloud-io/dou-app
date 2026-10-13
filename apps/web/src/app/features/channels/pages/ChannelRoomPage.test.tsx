@@ -59,9 +59,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: () => null,
     SystemNotice: () => null,
     // The field and the send button, and what the room tells the button: enough to drive the send.
-    MessageInput: ({ onSend, value, onChange, inputRef, sendReady, leadingSlot }: any) => (
+    MessageInput: ({ onSend, value, onChange, inputRef, sendReady }: any) => (
         <>
-            {leadingSlot}
             <textarea
                 data-testid="composer-input"
                 ref={inputRef}
@@ -426,24 +425,6 @@ describe('ChannelRoomPage — mentions', () => {
         expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hi @Minsu' });
     });
 
-    it('opens the same list from the @ button, and sends what is picked from it', async () => {
-        render(<ChannelRoomPage />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'chat.mention.open' }));
-        expect(field().value).toBe('@');
-        expect(screen.getByRole('listbox', { name: 'chat.mention.listLabel' })).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('option', { name: 'Minsu' }));
-        await act(async () => {
-            fireEvent.click(screen.getByTestId('send-typed'));
-        });
-        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', {
-            channelId: 'ch1',
-            content: '@Minsu',
-            mention: { userIds: ['peer'] },
-        });
-    });
-
     // The picks go with the caption; a caption whose photos were all refused comes back still calling them.
     it('sends the mention with a caption, and keeps it for a caption that comes back unsent', async () => {
         mockSendPicked.mockReset().mockReturnValue(true);
@@ -469,14 +450,13 @@ describe('ChannelRoomPage — mentions', () => {
         });
     });
 
-    // A 1:1 always notifies and has one person to call, so it has no list, and no button for one.
+    // A 1:1 always notifies and has one person to call, so it has no list.
     it('offers no list in a 1:1', () => {
         mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'dm', memberIds: ['peer', 'uid-b'] };
         render(<ChannelRoomPage />);
 
         type('@');
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'chat.mention.open' })).not.toBeInTheDocument();
     });
 });
 

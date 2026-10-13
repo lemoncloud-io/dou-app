@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
+import { MSG_MENTION_CLASS, MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
 import { CodeBlock, InlineCode } from '@chatic/web-ui-kit';
 
-import { splitMentionRuns } from '../utils/mentionHighlight';
+import { type MentionMarks, splitMentionRuns } from '../utils/mentionHighlight';
 import { tokenizeMessage } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
@@ -22,23 +22,29 @@ export interface MessageTextProps {
      */
     renderCodeBlock?: (code: string, lang: string | undefined, key: number) => ReactNode;
     /**
-     * Words to draw as a mention of me — given only for a message that mentions me. Marked in plain
-     * text alone: a name inside a link or a code span is part of that link or that code.
+     * The mentions to draw, and which of them call me. Marked in plain text alone: a name inside a
+     * link or a code span is part of that link or that code.
      */
-    mentions?: readonly string[];
+    mentions?: MentionMarks;
 }
 
+/** A mention on my own bubble: the bubble is dark, and the shared marks are drawn for a light one. */
+const OWN_MENTION_CLASS = 'rounded bg-white/20 px-1 font-medium';
+
 /**
- * Plain text, with the words that call me drawn in the self-mention highlight the desktop's message view
- * uses (`MSG_MENTION_SELF_CLASS`, from `@chatic/block-kit`).
+ * Plain text, with its mentions drawn the way the desktop's message view draws them (the classes are
+ * `@chatic/block-kit`'s): a mention of me louder than a mention of anyone else.
  */
-const PlainText = ({ value, mentions }: { value: string; mentions?: readonly string[] }) => {
-    if (!mentions?.length) return <>{value}</>;
+const PlainText = ({ value, mentions }: { value: string; mentions?: MentionMarks }) => {
+    if (!mentions?.words.length) return <>{value}</>;
+    const self = new Set(mentions.self.map(word => word.toLowerCase()));
+    const classOf = (word: string) =>
+        self.has(word.toLowerCase()) ? MSG_MENTION_SELF_CLASS : mentions.own ? OWN_MENTION_CLASS : MSG_MENTION_CLASS;
     return (
         <>
-            {splitMentionRuns(value, mentions).map((run, index) =>
+            {splitMentionRuns(value, mentions.words).map((run, index) =>
                 run.mention ? (
-                    <span key={index} className={MSG_MENTION_SELF_CLASS}>
+                    <span key={index} className={classOf(run.value)}>
                         {run.value}
                     </span>
                 ) : (

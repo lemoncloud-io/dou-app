@@ -181,6 +181,20 @@ describe('useMentionComposer', () => {
             expect(result.current.mentionFor('@Minsu hello')).toEqual({ userIds: ['u2'] });
         });
 
+        // A chat app's mention goes in one keystroke; half a name would call nobody.
+        it('deletes the whole picked name on a backspace at its end, and forgets the pick', () => {
+            const { result, field, type } = setup();
+
+            type('hi @');
+            act(() => result.current.pick(MINSU));
+            type('hi @Minsu');
+            type('hi @Mins');
+
+            expect(result.current.content).toBe('hi ');
+            expect(field.selectionStart).toBe(3);
+            expect(result.current.mentionFor('hi @Minsu')).toBeUndefined();
+        });
+
         it('drops a pick whose name was deleted before the send', () => {
             const { result, type } = setup();
 
@@ -210,83 +224,6 @@ describe('useMentionComposer', () => {
             rerender({ scope: 'room-2' });
 
             expect(result.current.mentionFor('@Minsu ')).toBeUndefined();
-        });
-    });
-
-    describe('the @ button', () => {
-        it('starts an @ in an empty field, focuses it and lists everyone', () => {
-            const { result, field, ids } = setup();
-
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('@');
-            expect(document.activeElement).toBe(field);
-            expect(field.selectionStart).toBe(1);
-            expect(ids()).toEqual(['@everyone', 'u2', 'u3']);
-        });
-
-        // An `@` glued to a word is an e-mail to the lookup; the button writes it apart.
-        it('writes the @ apart from the word before the caret', () => {
-            const { result, field, type } = setup();
-            field.focus();
-
-            type('hi');
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('hi @');
-            expect(field.selectionStart).toBe(4);
-        });
-
-        it('starts at the caret when the field has focus', () => {
-            const { result, field, type } = setup();
-            field.focus();
-
-            type('hi there');
-            field.setSelectionRange(3, 3);
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('hi @there');
-            expect(field.selectionStart).toBe(4);
-        });
-
-        // Without focus the caret is wherever it was last left; the button means the end of the text.
-        it('starts at the end of the text when the field has no focus', () => {
-            const { result, field, type } = setup();
-
-            type('hi there');
-            field.setSelectionRange(0, 0);
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('hi there @');
-        });
-
-        it('reopens the @ word the caret is in instead of starting another', () => {
-            const { result, field, type, ids } = setup();
-            field.focus();
-
-            type('hi @mi');
-            act(() => field.blur());
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('hi @mi');
-            expect(ids()).toEqual(['u2']);
-        });
-
-        it('does nothing where there is no list', () => {
-            const { result } = setup({ enabled: false });
-
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('');
-        });
-
-        it('does nothing while the field is locked', () => {
-            const { result, field } = setup();
-            field.disabled = true;
-
-            act(() => result.current.openList());
-
-            expect(result.current.content).toBe('');
         });
     });
 });

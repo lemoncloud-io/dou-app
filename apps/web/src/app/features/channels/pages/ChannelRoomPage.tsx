@@ -31,7 +31,6 @@ import { useMentionComposer } from '../hooks/useMentionComposer';
 import { useSendImages } from '../hooks/useSendImages';
 import { isPendingImageChat } from '../utils/imageTiles';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { MentionButton } from '../components/MentionButton';
 import { MentionSuggestions } from '../components/MentionSuggestions';
 import { DmInviteFooter } from '../components/DmInviteFooter';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
@@ -329,8 +328,15 @@ export const ChannelRoomPage = () => {
     const mentionViewer = useMemo(() => {
         const me = userId ? memberById.get(userId) : undefined;
         const names = [userId ? profileMap.get(userId)?.nick : undefined, me?.nick, me?.name];
-        return mentionViewerOf({ roomUid: userId, sessionUid, names });
-    }, [userId, sessionUid, memberById, profileMap]);
+        // Every member's `@name` is drawn as a mention, by the name the list writes it with.
+        const memberNames = isGroupChat
+            ? [
+                  ...mentionCandidates.filter(row => !row.everyone).map(row => row.label),
+                  userId ? nameOfUser(userId) : undefined,
+              ]
+            : undefined;
+        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames });
+    }, [userId, sessionUid, memberById, profileMap, isGroupChat, mentionCandidates, nameOfUser]);
     // `myJoin` (above, from the join cache stream) is NOT `channel.$join`, which is a projection that
     // lags the cache. The DM title reads the nick off it, so a rename in settings has to land here
     // immediately or the header disagrees with every other surface.
@@ -1412,18 +1418,7 @@ export const ChannelRoomPage = () => {
                     // Also locked while a message is being edited: two live fields on one screen
                     // and there is no telling which one you are typing into.
                     disabled={composerLocked}
-                    leadingSlot={
-                        <>
-                            {attach.button}
-                            {isGroupChat && (
-                                <MentionButton
-                                    open={mentionComposer.suggestions.length > 0}
-                                    onClick={mentionComposer.openList}
-                                    disabled={composerLocked}
-                                />
-                            )}
-                        </>
-                    }
+                    leadingSlot={attach.button}
                 />
             </div>
             {attach.overlays}

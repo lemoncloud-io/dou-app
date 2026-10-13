@@ -17,6 +17,7 @@ import {
     collectMention,
     filterMentionCandidates,
     findMentionQuery,
+    removeWholeMention,
     type MentionCandidate,
     type MentionPick,
     type MentionQuery,
@@ -42,8 +43,6 @@ export interface MentionComposer {
     suggestions: MentionCandidate[];
     /** Writes the picked name into the text and remembers who it means. */
     pick: (candidate: MentionCandidate) => void;
-    /** The `@` button: starts an `@` at the caret, or reopens the one the caret is in, and opens the list. */
-    openList: () => void;
     /** The mention a send of `text` would carry. Reads the picks and leaves them in place. */
     mentionFor: (text: string) => ChatMentionBody | undefined;
     /** Forgets the picks once a send has gone out — kept aside, in case its text comes back. */
@@ -114,13 +113,30 @@ export const useMentionComposer = ({
 
     const onChange = useCallback(
         (value: string) => {
+            if (enabled) {
+                const whole = removeWholeMention(
+                    content,
+                    value,
+                    picksRef.current.map(pick => pick.label),
+                    candidates.map(candidate => candidate.label)
+                );
+                if (whole) {
+                    // The name is gone, so is who it meant: one pick of it, the one this name was.
+                    const index = picksRef.current.findIndex(pick => pick.label === whole.label);
+                    picksRef.current = picksRef.current.filter((_, position) => position !== index);
+                    caretAfterPickRef.current = whole.caret;
+                    setContent(whole.text);
+                    setQuery(null);
+                    return;
+                }
+            }
             setContent(value);
             if (!enabled) return;
             // The field hands over its value only; the caret is read off the element itself.
             const caret = inputRef.current?.selectionStart ?? value.length;
             setQuery(findMentionQuery(value, caret));
         },
-        [enabled, inputRef, setContent]
+        [enabled, content, candidates, inputRef, setContent]
     );
 
     const suggestions = useMemo(
@@ -153,27 +169,6 @@ export const useMentionComposer = ({
         [content, query, inputRef, setContent]
     );
 
-    const openList = useCallback(() => {
-        const field = inputRef.current;
-        if (!enabled || !field || field.disabled) return;
-        // With the field not focused, its caret is wherever it was last left; the button means "at the
-        // end of what I wrote", which is also where the keyboard opens the field.
-        const caret = document.activeElement === field ? (field.selectionStart ?? content.length) : content.length;
-        field.focus();
-        const typing = findMentionQuery(content, caret);
-        if (typing) {
-            setQuery(typing);
-            return;
-        }
-        // An `@` only opens a lookup at the start of a word, so it is written apart from what precedes it.
-        const before = content.slice(0, caret);
-        const lead = before && !/\s$/u.test(before) ? ' ' : '';
-        const at = caret + lead.length;
-        caretAfterPickRef.current = at + 1;
-        setContent(`${before}${lead}@${content.slice(caret)}`);
-        setQuery({ start: at, query: '' });
-    }, [enabled, inputRef, content, setContent]);
-
     // The field is controlled, so the new text lands on the next render; the caret is placed before
     // that render is painted, or it shows for a frame at the end of the text and a long draft scrolls.
     useLayoutEffect(() => {
@@ -204,5 +199,5 @@ export const useMentionComposer = ({
         clearedPicksRef.current = [];
     }, []);
 
-    return { onChange, suggestions, pick, openList, mentionFor, clearPicks, restoreClearedPicks };
+    return { onChange, suggestions, pick, mentionFor, clearPicks, restoreClearedPicks };
 };

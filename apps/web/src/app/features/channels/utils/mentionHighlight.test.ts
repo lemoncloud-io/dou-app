@@ -1,14 +1,14 @@
 import {
     GROUP_MENTION_TOKENS,
+    mentionMarksFor,
+    mentionTokensOf,
     mentionViewerOf,
-    mentionWordsFor,
-    selfMentionTokens,
     splitMentionRuns,
 } from './mentionHighlight';
 
-describe('selfMentionTokens', () => {
-    it('turns each of my names into an @ word, once, followed by the everyone words', () => {
-        expect(selfMentionTokens(['레인', ' Raine ', '레인', undefined, null, ''])).toEqual([
+describe('mentionTokensOf', () => {
+    it('turns each name into an @ word, once, followed by the everyone words', () => {
+        expect(mentionTokensOf(['레인', ' Raine ', '레인', undefined, null, ''])).toEqual([
             '@레인',
             '@Raine',
             ...GROUP_MENTION_TOKENS,
@@ -17,7 +17,7 @@ describe('selfMentionTokens', () => {
 });
 
 describe('splitMentionRuns', () => {
-    const tokens = selfMentionTokens(['레인', 'Min']);
+    const tokens = mentionTokensOf(['레인', 'Min']);
 
     it('marks my name and the everyone words, keeping the text around them', () => {
         expect(splitMentionRuns('hi @레인 and @channel!', tokens)).toEqual([
@@ -76,6 +76,7 @@ describe('mentionViewerOf', () => {
         expect(mentionViewerOf({ roomUid: 'cloud-7', sessionUid: 'acct-1', names: ['레인', undefined] })).toEqual({
             ids: ['cloud-7', 'acct-1'],
             tokens: ['@레인', ...GROUP_MENTION_TOKENS],
+            roomTokens: [],
         });
         expect(mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: [] }).ids).toEqual(['me']);
     });
@@ -83,18 +84,38 @@ describe('mentionViewerOf', () => {
     it('drops an id that is not known yet', () => {
         expect(mentionViewerOf({ roomUid: null, sessionUid: 'acct-1', names: [] }).ids).toEqual(['acct-1']);
     });
+
+    // A group room draws every member's mention; mine are among them.
+    it("turns a group room's members and my names into the room's words", () => {
+        expect(
+            mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: ['레인'], memberNames: ['Minsu', '레인'] })
+                .roomTokens
+        ).toEqual(['@Minsu', '@레인', ...GROUP_MENTION_TOKENS]);
+    });
 });
 
-describe('mentionWordsFor', () => {
-    const viewer = { ids: ['me'], tokens: ['@레인'] };
+describe('mentionMarksFor', () => {
+    const viewer = { ids: ['me'], tokens: ['@레인'], roomTokens: ['@레인', '@Minsu'] };
 
-    it("gives the words for someone else's message whose record calls me", () => {
-        expect(mentionWordsFor({ mention$: { userIds: ['me'] } }, viewer)).toEqual(['@레인']);
+    it("draws the room's words on any message, and mine louder when the record calls me", () => {
+        expect(mentionMarksFor({ mention$: { userIds: ['me'] } }, viewer)).toEqual({
+            words: ['@레인', '@Minsu', '@레인'],
+            self: ['@레인'],
+            own: false,
+        });
+        expect(mentionMarksFor({ mention$: { userIds: ['u2'] } }, viewer)?.self).toEqual([]);
     });
 
-    it('gives nothing for my own message, a record naming others, or an unknown reader', () => {
-        expect(mentionWordsFor({ isOwner: true, mention$: { all: true } }, viewer)).toBeUndefined();
-        expect(mentionWordsFor({ mention$: { userIds: ['u2'] } }, viewer)).toBeUndefined();
-        expect(mentionWordsFor({ mention$: { all: true } }, undefined)).toBeUndefined();
+    it('never draws my own message as calling me', () => {
+        expect(mentionMarksFor({ isOwner: true, mention$: { all: true } }, viewer)).toEqual({
+            words: ['@레인', '@Minsu'],
+            self: [],
+            own: true,
+        });
+    });
+
+    it('draws nothing for an unknown reader, or outside a group room with no mention of me', () => {
+        expect(mentionMarksFor({ mention$: { all: true } }, undefined)).toBeUndefined();
+        expect(mentionMarksFor({}, { ids: ['me'], tokens: ['@레인'], roomTokens: [] })).toBeUndefined();
     });
 });

@@ -8,6 +8,8 @@ import {
     findMentionQuery,
     type MentionCandidate,
     mentionedLabels,
+    mentionRanges,
+    removeWholeMention,
 } from './mentionInput';
 
 describe('findMentionQuery', () => {
@@ -85,6 +87,51 @@ describe('mentionedLabels', () => {
     it('treats the name literally', () => {
         expect(mentionedLabels('@a.b', ['a.b'])).toEqual(new Set(['a.b']));
         expect(mentionedLabels('@axb', ['a.b'])).toEqual(new Set());
+    });
+});
+
+describe('mentionRanges', () => {
+    it('places each @name from its @ to its last letter', () => {
+        expect(mentionRanges('hi @Minsu and @레인님', ['Minsu', '레인'])).toEqual([
+            { start: 3, end: 9, label: 'Minsu' },
+            { start: 14, end: 17, label: '레인' },
+        ]);
+    });
+});
+
+describe('removeWholeMention', () => {
+    it('takes the whole picked name on a backspace at its end', () => {
+        expect(removeWholeMention('hi @Minsu', 'hi @Mins', ['Minsu'])).toEqual({
+            text: 'hi ',
+            caret: 3,
+            label: 'Minsu',
+        });
+        expect(removeWholeMention('@Minsu look', '@Mins look', ['Minsu'])).toEqual({
+            text: ' look',
+            caret: 0,
+            label: 'Minsu',
+        });
+    });
+
+    // A Korean keyboard can break the last syllable back into its consonant instead of deleting it.
+    it('takes it when the last syllable breaks into its consonant', () => {
+        expect(removeWholeMention('@민수', '@민ㅅ', ['민수'])?.text).toBe('');
+    });
+
+    it('leaves the space after the name to an ordinary backspace', () => {
+        expect(removeWholeMention('@Minsu ', '@Minsu', ['Minsu'])).toBeNull();
+    });
+
+    it('leaves a name typed by hand, typing, and a deletion past the name alone', () => {
+        expect(removeWholeMention('@Minsu', '@Mins', [])).toBeNull();
+        expect(removeWholeMention('@Minsu', '@Mins', ['레인'])).toBeNull();
+        expect(removeWholeMention('@Mins', '@Minsu', ['Minsu'])).toBeNull();
+        expect(removeWholeMention('@Minsu ok', '@Min', ['Minsu'])).toBeNull();
+    });
+
+    // With both in the room, `@민수` ends after `수`; deleting it is not a backspace at the end of `민`.
+    it("measures the name by the room's longest one", () => {
+        expect(removeWholeMention('@민수', '@민', ['민'], ['민', '민수'])).toBeNull();
     });
 });
 
