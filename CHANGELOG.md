@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-13] - root@0.98.0, @chatic/desktop-web@0.28.0
+
+### Features
+
+- (desktop-web) reorder the place rail by dragging its tiles
+- (desktop-web) reorder the cloud rail by dragging its tiles
+
+### Bug Fixes
+
+- (desktop-web) offer no skip links while the sidebar drawer is open
+
+### Other
+
+- test: (desktop-web) cover the click after a rail drag on the place rail
+
 ## [2026-10-13] - root@0.97.0, @chatic/desktop-web@0.27.0
 
 ### Features
