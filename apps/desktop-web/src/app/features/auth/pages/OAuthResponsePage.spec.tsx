@@ -83,6 +83,7 @@ describe('OAuthResponsePage', () => {
         beforeEach(() => {
             native = false;
             replace.mockReset();
+            sessionStorage.clear();
             Object.defineProperty(window, 'location', {
                 configurable: true,
                 value: { ...originalLocation, replace },
@@ -101,6 +102,16 @@ describe('OAuthResponsePage', () => {
             expect(link.protocol).toBe('chatic-dev:');
             expect(Object.fromEntries(link.searchParams)).toEqual({ provider: 'google', code: 'abc', nonce: 'n1' });
             expect(completeFromHandoff).not.toHaveBeenCalled();
+        });
+
+        it('opens the app once per sign-in, not again when the tab is reloaded or restored', () => {
+            const { unmount } = render(page());
+            unmount();
+
+            render(page());
+
+            expect(replace).toHaveBeenCalledTimes(1);
+            expect(screen.getByRole('link', { name: i18n.t('auth.social.openApp') })).toBeTruthy();
         });
 
         it('shows the failure screen and does not open the app when it arrives without a nonce', () => {

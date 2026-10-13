@@ -185,7 +185,11 @@ The same check guards the hand-off page when the relay's return lands inside the
   does not stop a party that can read the real link.
 - **A record used up by the first link** stops the same link being used twice here. Whether the relay
   accepts a code that was already exchanged is not shown in this repository, so nothing here relies
-  on it refusing one.
+  on it refusing one. The same link sent again is ignored without a word: the app keeps the nonces of
+  its last five starts (`chatic-oauth-used-nonces`), so a repeat is told apart from a link it never
+  started, and it does not use up a newer start that is waiting. A repeat is what a browser tab left on
+  the hand-off page sends when it is reloaded or restored; the page itself also opens the app only
+  once per nonce (`sessionStorage`), and keeps the button for a second try.
 - **A record that lives only where the login started** means a link arriving on another device or
   installation finds none, and the exchange is sent from the device that started it.
   That is as far as it goes: this repository does not show that the server refuses a different

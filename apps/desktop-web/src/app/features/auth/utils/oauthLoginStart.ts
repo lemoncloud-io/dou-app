@@ -126,3 +126,30 @@ export const takeOAuthLoginStart = (): OAuthLoginStart | null => {
         return null;
     }
 };
+
+/**
+ * The nonces of the last few starts this app took, so a link that comes again after its start was used
+ * is recognised as a repeat rather than as a link from someone else. A browser tab left on the hand-off
+ * page sends its link again when it is reloaded or restored, and that must not warn the person, nor use
+ * up a newer start that is waiting. Persistent, like the start: the repeat often lands after the reload
+ * a successful login makes.
+ */
+const OAUTH_USED_NONCES_KEY = 'chatic-oauth-used-nonces';
+const USED_NONCES_KEPT = 5;
+
+const readUsedNonces = (): string[] => {
+    try {
+        const parsed: unknown = JSON.parse(storage.get(OAUTH_USED_NONCES_KEY) ?? '[]');
+        return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === 'string') : [];
+    } catch {
+        return [];
+    }
+};
+
+export const rememberUsedOAuthNonce = (nonce: string): void => {
+    const kept = [nonce, ...readUsedNonces().filter(n => n !== nonce)].slice(0, USED_NONCES_KEPT);
+    storage.set(OAUTH_USED_NONCES_KEY, JSON.stringify(kept));
+};
+
+export const isUsedOAuthNonce = (nonce: string | undefined): boolean =>
+    nonce !== undefined && readUsedNonces().includes(nonce);
