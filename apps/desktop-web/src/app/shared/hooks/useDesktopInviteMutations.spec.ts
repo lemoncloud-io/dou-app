@@ -93,6 +93,22 @@ describe('useDesktopInviteMutations', () => {
         expect(error).toBeInstanceOf(Error);
     });
 
+    it('reads a place invite link from Location, where user.invite puts it', async () => {
+        userRepository.requestInvite.mockResolvedValueOnce({
+            id: 'inv-p',
+            Location: 'https://dou.example/i?t=abc',
+        } as never);
+        const { result } = renderHook(() => useDesktopInviteMutations());
+
+        let view: unknown;
+        await act(async () => {
+            view = await result.current.requestPlaceInvite({ phone: '+821012345678', name: 'Ada' });
+        });
+
+        expect(userRepository.requestInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: 'Ada' });
+        expect(view).toMatchObject({ id: 'inv-p', deeplink: 'https://dou.example/i?t=abc' });
+    });
+
     it('lists without flipping the mutating flag', async () => {
         const { result } = renderHook(() => useDesktopInviteMutations());
 
