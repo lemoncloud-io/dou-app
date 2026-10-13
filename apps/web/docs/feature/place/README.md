@@ -2,8 +2,8 @@
 
 `apps/web/src/app/features/place` owns the screens for a **single place**: its settings hub, its
 read-only information screen, the owner's edit screen, the per-place user profile, channel
-management, and its member list — which is also where the owner removes a member, and the hub is
-where a member leaves. A place is a `site` in the backend model — the two words name the same entity, and the
+management, and its member list — which is also where the owner removes a member. The information
+screen is where a member leaves the place and where its owner deletes it. A place is a `site` in the backend model — the two words name the same entity, and the
 session axis for it is `sid`.
 
 Everything plural belongs to [home](../home/README.md): the place list, creating a place, switching
@@ -12,10 +12,13 @@ place from the URL rather than from the active session.
 
 ## Layout
 
-Six screens, two components (the channel-sort bottom sheet and `PlaceMemberRow`), two hooks
-(`usePlaceOwnerProfile`, `usePlaceMembers`) and a `lib/` of two pure functions: `orderPlaceMembers`
-(the member screen's order) and `placeActionFailure` (which sentence a failed leave or removal
-gets). There is no `types/`: the edit path reuses `useUpdatePlace`, the profile form is the shared
+Six screens; six components — the channel-sort bottom sheet, `PlaceMemberRow`, the place confirm
+`PlaceConfirmDialog` (leave, remove) and the delete confirm built on it, `PlaceDeleteDialog`, the
+one-button `PlaceNoticeDialog`, and `PlaceDeletedNotice`, which the private shell mounts above every
+screen; two hooks (`usePlaceOwnerProfile`, `usePlaceMembers`) and a `lib/` of two pure functions:
+`orderPlaceMembers` (the member screen's order) and `placeActionFailure` (which sentence a failed
+leave, delete or removal gets). The dialogs set Korean so a line wraps between words, never inside
+one, and keep the line breaks the copy carries (`PLACE_DIALOG_TEXT`). There is no `types/`: the edit path reuses `useUpdatePlace`, the profile form is the shared
 `ui/components/PlaceProfileForm`, and the place record is typed by `MySiteView` from the backend
 package.
 
@@ -35,13 +38,13 @@ is why several rows simply do not exist on the relay's default place.
 
 ### Screens
 
-`edit` writes and `detail` reads. The word `info` is not used anywhere — in a file name, a route, or
+`edit` writes and `detail` reads — apart from its one action row at the foot, below. The word `info` is not used anywhere — in a file name, a route, or
 an i18n key — because it reads as both.
 
 | Page                     | Route (`ROUTES.place.*`)            | Who can open it                  |
 | ------------------------ | ----------------------------------- | -------------------------------- |
 | `PlaceSettingsHubPage`   | `/place/:placeId/settings`          | Anyone in the place              |
-| `PlaceDetailPage`        | `/place/:placeId/settings/detail`   | Anyone — read-only               |
+| `PlaceDetailPage`        | `/place/:placeId/settings/detail`   | Anyone — leave / delete at foot  |
 | `PlaceDetailPage`        | `/place/:placeId`                   | Same page, `ROUTES.place.detail` |
 | `PlaceEditPage`          | `/place/:placeId/settings/edit`     | Owner only                       |
 | `PlaceProfilePage`       | `/place/:placeId/settings/profile`  | Anyone — edits their own nick    |
@@ -50,16 +53,12 @@ an i18n key — because it reads as both.
 
 The hub holds three cards — **Settings** (my profile, place profile, place information, members),
 **Notifications** (one disabled switch; place push has no backend yet, so it renders as a
-placeholder and holds no state) and **Chats** (sort, manage) — and, below them, a card of its own
-with one destructive row, **Leave place**. Channel sort is a bottom sheet opened from the hub, not a
-page. There is no delete or report row: those do not exist on mobile, and the hub shows no disabled
-rows for them.
+placeholder and holds no state) and **Chats** (sort, manage). Channel sort is a bottom sheet opened
+from the hub, not a page. Leaving and deleting are not here: they sit at the foot of the information
+screen, as the design draws them.
 
-The members row and the leave row both exist only for a member of a real place: not on the relay's
-own place (`HOME_PLACE_ID`), which is a system place nobody joins or leaves, and not for a guest.
-Leave is further limited to someone who is not the owner, and waits for the place row before it
-shows — until the row arrives nobody is known not to be the owner. The owner cannot leave their own
-place (the server refuses it); there is no ownership transfer.
+The members row exists only for a member of a real place: not on the relay's own place
+(`HOME_PLACE_ID`), which is a system place nobody joins, and not for a guest.
 
 The owner gate sits only on the screens that write. The hub row for "place profile" is `disabled`
 for a non-owner with an explanatory subtitle, and `PlaceEditPage` calls `navigate(-1)` on
@@ -165,17 +164,35 @@ removed is disabled while its request runs. Removal happens on this screen and n
 a room's member list, where a kick means something narrower (one room, checked against the room's
 owner).
 
-**Leaving** sits on the hub, behind a confirm whose copy says what goes (every group room of the
-place) and what stays (1:1 rooms and notes to self). The dialog stays up with a spinner until the
-server answers. On success a toast says so and the app goes home, where the place's row is already
-gone from the list and home moves the session to another place — see
-[home/README.md](../home/README.md#switching). On failure the dialog closes, a toast says why and the
-hub stays.
+**Leaving and deleting** sit at the foot of the information screen, under a block divider, as one red
+row: **Leave place** for anyone but the owner, **Delete place** for the owner. Neither exists on the
+relay's own place or for a guest. The owner cannot leave their own place (the server refuses it);
+there is no ownership transfer.
+
+- **Leave** asks first ("leave this place?" — every chat room goes with it, and coming back takes a
+  new invite); the confirm stays up with a spinner until the server answers. On success a one-button
+  notice says it is done and that the user is going to DoU Home, and its OK leaves the cloud session
+  (`logoutCloudSession`) and lands on the relay's home. The design sends the user there rather than
+  to another of the cloud's places. The screen keeps showing the place under the notice even though
+  the leave has already dropped its row.
+- **Delete** asks with a card listing the place's group rooms and their member counts, then sends
+  `place.delete`. The copy says what members lose — the place and its rooms are out of reach for
+  everyone in it, for good — and not that the rooms are deleted: the server's delete is soft and
+  leaves the rooms in place. On success a toast says so and the app goes home, where the deleted
+  place has left the list and home moves to the cloud's next place.
+- **When an owner deletes a place a member is in**, the server tells nobody. `PlaceDeletedNotice`,
+  mounted once in the private shell above every screen, watches the selected place: when it drops
+  out of the list it asks `place.get` about that one place, and only a deleted place (404, or a row
+  stamped `deletedAt`) gets the "this place was deleted" notice, whose OK goes to DoU Home. A place
+  the member left or was removed from still answers with its row and gets nothing; a place the user
+  owned is never asked about. The notice arrives with the next list refresh, wherever the member is —
+  home or a chat room.
 
 A failure picks its sentence from `placeActionFailure`, by status only: `403` → "you can't" (an owner
-leaving, a non-owner removing, anyone removing the owner), the socket client's own `408`/`503` → check
-the connection, anything else → failed, try again. A leave the server half finished — membership
-gone, some room clean-up failed — lands in the last group, and pressing again finishes it.
+leaving, a non-owner removing or deleting, anyone removing the owner), the socket client's own
+`408`/`503` → check the connection, anything else → failed, try again. A leave the server half
+finished — membership gone, some room clean-up failed — lands in the last group, and pressing again
+finishes it.
 
 ### Editing rules
 
@@ -256,7 +273,7 @@ and the only thing in the way was one local type. Adding the next field follows 
 
 ## Notes for implementers and tests
 
-Nine test files:
+Ten test files:
 
 ```bash
 npx jest --config apps/web/jest.config.js --testPathPatterns="features/place"
@@ -275,9 +292,10 @@ Traps:
   the owner row only render with a real owner session; the unit tests are the coverage for those
   four combinations.
 - **This group imports from other features.** `PlaceEditPage` takes `useUpdatePlace` from
-  `features/home`; the channel-management, member and hub screens take `ConfirmDialog`, the profile
-  hook and the display-name chain from `features/channels`. That contradicts the app rule that two
-  features sharing something promote it to `app/hooks/` — treat it as debt, not as precedent.
+  `features/home`; the channel-management screen takes `ConfirmDialog`, and the member and
+  information screens the profile hook, the room-title chain and the display-name chain, from
+  `features/channels`. That contradicts the app rule that two features sharing something promote it
+  to `app/hooks/` — treat it as debt, not as precedent.
 - **Two routes render `PlaceDetailPage`.** Changing one URL without the other leaves a live screen
   behind.
 

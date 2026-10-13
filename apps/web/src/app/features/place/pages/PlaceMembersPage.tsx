@@ -12,9 +12,9 @@ import { GroupLabel } from '@chatic/web-ui-kit';
 import { useSelectedCloudId } from '../../../hooks';
 import { PageHeader } from '../../../ui';
 import { ROUTES } from '../../../routes/paths';
-import { ConfirmDialog } from '../../channels/components';
 import { useChannelProfiles } from '../../channels/hooks';
 import { type DisplayNameSources, resolveUserName } from '../../channels/utils/displayName';
+import { PlaceConfirmDialog } from '../components/PlaceConfirmDialog';
 import { PlaceMemberRow } from '../components/PlaceMemberRow';
 import { usePlaceMembers } from '../hooks/usePlaceMembers';
 import { orderPlaceMembers, placeActionFailure } from '../lib';
@@ -147,7 +147,7 @@ export const PlaceMembersPage = () => {
                 )}
             </div>
 
-            <ConfirmDialog
+            <PlaceConfirmDialog
                 open={!!confirming}
                 onOpenChange={open => (open ? undefined : setConfirming(null))}
                 title={t('placeMembers.removeDialog.title', { name: confirming?.name ?? '' })}

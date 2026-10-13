@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 
 import { HomeRoutes } from '../features/home';
+import { PlaceDeletedNotice } from '../features/place/components/PlaceDeletedNotice';
 import { UnifiedLayout } from '../ui/layouts';
 import { InviteEntryGate } from './InviteEntryGate';
 import { useBootSplashHold } from '../runtime/bootSplash';
@@ -84,6 +85,9 @@ const PrivateShell = () => {
     return (
         <>
             <UnifiedLayout />
+            {/* Above every private screen, home and chat rooms alike: the owner deleting the place
+                the user is in reaches them wherever they are. */}
+            <PlaceDeletedNotice />
             <Suspense fallback={null}>
                 <AddCloudFlowHost />
                 <EmailBindRequestHost />

@@ -552,11 +552,11 @@ export const HomePage = () => {
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
                         // An invited member cannot create rooms here, so the empty body explains
-                        // that rooms arrive by invitation and points at the place-info hub — the
-                        // one place they CAN act on (leaving). See ChannelEmptyState.
+                        // that rooms arrive by invitation and points at the place information
+                        // screen — where they CAN act on it (leaving). See ChannelEmptyState.
                         isInvitedPlace={isInvitedCloud}
                         onOpenPlaceInfo={
-                            selectedSiteId ? () => navigate(ROUTES.place.settings(selectedSiteId)) : undefined
+                            selectedSiteId ? () => navigate(ROUTES.place.settingsDetail(selectedSiteId)) : undefined
                         }
                         sentInvites={isDefaultCloud ? sentInvites : []}
                         onSelectInvite={inviteId => navigate(ROUTES.invite.waiting(inviteId))}

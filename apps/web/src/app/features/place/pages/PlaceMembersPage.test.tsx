@@ -51,26 +51,6 @@ jest.mock('../../../hooks', () => ({ useSelectedCloudId: () => 'cloud-a' }));
 // The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../../channels/hooks', () => ({ useChannelProfiles: () => ({ profileMap: mockProfiles }) }));
-// A plain stand-in for the alert dialog: open shows the title and a confirm button.
-jest.mock('../../channels/components', () => ({
-    ConfirmDialog: ({
-        open,
-        title,
-        confirmLabel,
-        onConfirm,
-    }: {
-        open: boolean;
-        title: string;
-        confirmLabel: string;
-        onConfirm: () => void;
-    }) =>
-        open ? (
-            <div role="dialog">
-                <p>{title}</p>
-                <button onClick={onConfirm}>{confirmLabel}</button>
-            </div>
-        ) : null,
-}));
 
 import { PlaceMembersPage } from './PlaceMembersPage';
 
@@ -116,7 +96,7 @@ describe('PlaceMembersPage — the list', () => {
         await renderSettled();
 
         expect(rowNames()).toEqual(['Olivia', 'Mina', 'Bora', 'Chul']);
-        expect(screen.getByText('placeMembers.badge.owner')).toBeInTheDocument();
+        expect(screen.getByText('chat.settings.badge.owner')).toBeInTheDocument();
         expect(screen.getByText('placeMembers.badge.me')).toBeInTheDocument();
         // The count is the rows received.
         expect(screen.getByText('placeMembers.count')).toBeInTheDocument();
@@ -206,7 +186,7 @@ describe('PlaceMembersPage — removing a member', () => {
         fireEvent.click(within(rowOf('Bora')).getByText('placeMembers.remove'));
         expect(screen.getByText('placeMembers.removeDialog.title:Bora')).toBeInTheDocument();
         await act(async () => {
-            fireEvent.click(within(screen.getByRole('dialog')).getByText('placeMembers.removeDialog.confirm'));
+            fireEvent.click(within(screen.getByRole('alertdialog')).getByText('placeMembers.removeDialog.confirm'));
         });
 
         expect(removeMember).toHaveBeenCalledWith('p1', 'u-2');
@@ -224,7 +204,7 @@ describe('PlaceMembersPage — removing a member', () => {
         await act(() => new Promise(resolve => setTimeout(resolve, 0)));
         fireEvent.click(within(rowOf('Bora')).getByText('placeMembers.remove'));
         await act(async () => {
-            fireEvent.click(within(screen.getByRole('dialog')).getByText('placeMembers.removeDialog.confirm'));
+            fireEvent.click(within(screen.getByRole('alertdialog')).getByText('placeMembers.removeDialog.confirm'));
         });
 
         // The socket drops and comes back, which reads the list again.
@@ -247,7 +227,7 @@ describe('PlaceMembersPage — removing a member', () => {
 
         fireEvent.click(within(rowOf('Bora')).getByText('placeMembers.remove'));
         await act(async () => {
-            fireEvent.click(within(screen.getByRole('dialog')).getByText('placeMembers.removeDialog.confirm'));
+            fireEvent.click(within(screen.getByRole('alertdialog')).getByText('placeMembers.removeDialog.confirm'));
         });
 
         expect(toast).toHaveBeenCalledWith({ title: 'placeMembers.removeDenied', variant: 'destructive' });
@@ -266,7 +246,7 @@ describe('PlaceMembersPage — removing a member', () => {
         await renderSettled();
 
         fireEvent.click(within(rowOf('Bora')).getByText('placeMembers.remove'));
-        fireEvent.click(within(screen.getByRole('dialog')).getByText('placeMembers.removeDialog.confirm'));
+        fireEvent.click(within(screen.getByRole('alertdialog')).getByText('placeMembers.removeDialog.confirm'));
 
         expect(within(rowOf('Bora')).getByText('placeMembers.remove').closest('button')).toBeDisabled();
         expect(within(rowOf('Chul')).getByText('placeMembers.remove').closest('button')).toBeEnabled();

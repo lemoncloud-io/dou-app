@@ -1139,18 +1139,17 @@
         "ownerOnly": "오너만 변경할 수 있어요",
         "comingSoon": "준비 중이에요",
         "members": "멤버",
-        "leavePlace": "플레이스 나가기",
         "networkError": "연결 상태를 확인하고 다시 시도해 주세요."
     },
     "placeLeave": {
         "dialog": {
-            "title": "'{{name}}' 플레이스를 나갈까요?",
-            "description": "이 플레이스의 그룹 채팅방에서 모두 나가요. 1:1 대화와 나와의 채팅은 그대로 남아요. 다시 초대받아야 들어올 수 있어요.",
+            "title": "해당 플레이스를 나가시겠습니까?",
+            "description": "플레이스를 나가면 참여 중인\n모든 채팅방에서도 함께 나가게 됩니다.\n다시 참여하려면 새로운 초대를\n받아야 합니다.",
             "confirm": "나가기"
         },
-        "done": "플레이스에서 나갔어요.",
         "denied": "이 플레이스는 나갈 수 없어요.",
-        "failed": "플레이스를 나가지 못했어요. 다시 시도해 주세요."
+        "failed": "플레이스를 나가지 못했어요. 다시 시도해 주세요.",
+        "doneTitle": "플레이스 나가기가 완료되었어요\nDoU Home으로 이동됩니다."
     },
     "placeMembers": {
         "title": "멤버",
@@ -1160,18 +1159,37 @@
         "retry": "다시 시도",
         "notMember": "이 플레이스의 멤버가 아니에요.",
         "badge": {
-            "owner": "오너",
             "me": "나"
         },
         "remove": "내보내기",
         "removeDialog": {
             "title": "'{{name}}'님을 내보낼까요?",
-            "description": "이 플레이스의 모든 그룹 채팅방에서 나가게 돼요. 다시 초대되면 돌아올 수 있어요.",
+            "description": "이 플레이스의 모든 그룹 채팅방에서\n나가게 돼요.\n다시 초대되면 돌아올 수 있어요.",
             "confirm": "내보내기"
         },
         "removed": "'{{name}}'님을 내보냈어요.",
         "removeDenied": "이 멤버는 내보낼 수 없어요.",
         "removeFailed": "내보내지 못했어요. 다시 시도해 주세요."
+    },
+    "placeDelete": {
+        "dialog": {
+            "title": "해당 플레이스를 삭제하시겠습니까?",
+            "description": "플레이스를 삭제하면 참여자 모두\n이 플레이스와 채팅방에\n더 이상 접근할 수 없습니다.\n삭제 후에는 복구할 수 없습니다.",
+            "confirm": "삭제"
+        },
+        "rooms": {
+            "title": "채팅방 항목",
+            "label": "채팅방",
+            "count": "{{count}}개",
+            "members": "방 친구"
+        },
+        "done": "플레이스를 삭제했어요.",
+        "denied": "이 플레이스는 삭제할 수 없어요.",
+        "failed": "플레이스를 삭제하지 못했어요. 다시 시도해 주세요."
+    },
+    "placeDeleted": {
+        "title": "플레이스가 삭제되었어요",
+        "description": "소유자가 플레이스를 삭제하여,\n더 이상 참여할 수 없습니다.\n포함된 채팅방과 대화 내용에도\n접근할 수 없어 DoU Home으로\n이동됩니다."
     },
     "channelSort": {
         "title": "채팅방 정렬",
@@ -1185,7 +1203,9 @@
         "invitedNameLabel": "초대된 플레이스 이름",
         "descLabel": "플레이스 소개",
         "createdAtLabel": "플레이스 만든 날짜",
-        "ownerLabel": "소유자 정보"
+        "ownerLabel": "소유자 정보",
+        "leave": "플레이스 나가기",
+        "delete": "플레이스 삭제"
     },
     "placeEdit": {
         "title": "플레이스 프로필",

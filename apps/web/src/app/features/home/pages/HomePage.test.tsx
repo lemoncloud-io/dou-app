@@ -424,14 +424,14 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
     });
 
-    // The empty room list's "you can leave this place" link opens the active place's settings hub,
-    // where the Leave row is — the link is unchanged, the hub is what gained the row.
-    it("points the empty room list's leave hint at the active place's settings hub", () => {
+    // The empty room list's "you can leave this place" link opens the active place's information
+    // screen, where the Leave row is.
+    it("points the empty room list's leave hint at the active place's information screen", () => {
         render(<HomePage />);
 
         fireEvent.click(screen.getByTestId('open-place-info'));
 
-        expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settings('site-1'));
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settingsDetail('site-1'));
     });
 });
 

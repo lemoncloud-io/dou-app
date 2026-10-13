@@ -125,7 +125,7 @@ state `ChannelEmptyState variant="invited"` already drew.
 - **A pending invitee shows on the place's member screen** like any other member, so the owner can
   remove them there — see [place/README.md](../place/README.md#members-and-leaving). Whether that
   also voids the unaccepted invite on the server has not been checked. The recipient leaves from the
-  place settings hub, which the empty state's link opens.
+  place information screen, which the empty state's link opens.
 
 ## How to verify
 

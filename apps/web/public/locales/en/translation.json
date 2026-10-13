@@ -1139,18 +1139,17 @@
         "ownerOnly": "Only the owner can change this",
         "comingSoon": "Coming soon",
         "members": "Members",
-        "leavePlace": "Leave place",
         "networkError": "Check your connection and try again."
     },
     "placeLeave": {
         "dialog": {
-            "title": "Leave {{name}}?",
-            "description": "You'll leave every group chat in this place. Your 1:1 chats and notes to self stay. You'll need a new invite to come back.",
+            "title": "Leave this place?",
+            "description": "Leaving the place also takes you out of every chat room you're in. To join again, you'll need a new invite.",
             "confirm": "Leave"
         },
-        "done": "You left the place.",
         "denied": "You can't leave this place.",
-        "failed": "Couldn't leave the place. Try again."
+        "failed": "Couldn't leave the place. Try again.",
+        "doneTitle": "You left the place.\nTaking you to DoU Home."
     },
     "placeMembers": {
         "title": "Members",
@@ -1160,7 +1159,6 @@
         "retry": "Try again",
         "notMember": "You're not a member of this place.",
         "badge": {
-            "owner": "Owner",
             "me": "You"
         },
         "remove": "Remove",
@@ -1172,6 +1170,26 @@
         "removed": "Removed {{name}} from the place.",
         "removeDenied": "You can't remove this member.",
         "removeFailed": "Couldn't remove the member. Try again."
+    },
+    "placeDelete": {
+        "dialog": {
+            "title": "Delete this place?",
+            "description": "Once the place is deleted, no one in it can reach the place or its chat rooms any more. This can't be undone.",
+            "confirm": "Delete"
+        },
+        "rooms": {
+            "title": "Chat rooms in this place",
+            "label": "Rooms",
+            "count": "{{count}}",
+            "members": "Members"
+        },
+        "done": "Place deleted.",
+        "denied": "You can't delete this place.",
+        "failed": "Couldn't delete the place. Try again."
+    },
+    "placeDeleted": {
+        "title": "This place was deleted",
+        "description": "The owner deleted this place, so you can no longer take part. Its chat rooms and messages are no longer available, so you'll be taken to DoU Home."
     },
     "channelSort": {
         "title": "Sort Chats",
@@ -1185,7 +1203,9 @@
         "invitedNameLabel": "Invited Place Name",
         "descLabel": "Place Introduction",
         "createdAtLabel": "Date Created",
-        "ownerLabel": "Owner"
+        "ownerLabel": "Owner",
+        "leave": "Leave place",
+        "delete": "Delete place"
     },
     "placeEdit": {
         "title": "Place Profile",

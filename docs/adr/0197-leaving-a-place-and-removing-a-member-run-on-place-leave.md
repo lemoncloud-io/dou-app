@@ -1,4 +1,4 @@
-# ADR-0197: Leaving a place and removing a member run on `place.leave`, from a member screen and the place settings
+# ADR-0197: Leaving, deleting and removing a member — `place.leave` and `place.delete` from the place information and member screens
 
 > Status: Accepted · Decided: 2026-10-13 · Implemented: `feat/place-leave-and-remove` (data layer and
 > `apps/web`; `apps/desktop-web` follows in a separate change)
@@ -9,9 +9,9 @@
 > · Related: [ADR-0195](./0195-invite-candidates-come-from-the-place-member-list.md) (the place member list this
 > screen reads) · [ADR-0067](./0067-rejoin-hides-prior-messages.md) (what a left room loses) ·
 > [ADR-0185](./0185-desktop-place-management-is-limited-to-admins.md) (desktop's admin menu, left as it is)
-> · Scope: `libs/data` (`PlaceSocketDomainGateway`, `PlaceSocketDataSource.leavePlace`,
-> `PlaceRepository.leavePlace` / `removeMember`, `ChannelRepository.evictLeftChannels` /
-> `dropMemberFromChannels`) · `libs/app-runtime` socket factory and `session.clearSiteSelection` ·
+> · Scope: `libs/data` (`PlaceSocketDomainGateway`, `PlaceSocketDataSource.leavePlace` / `getPlace`,
+> `PlaceRepository.leavePlace` / `removeMember` / `isPlaceDeleted` and its list snapshot,
+> `ChannelRepository.evictLeftChannels` / `dropMemberFromChannels`) · `libs/app-runtime` socket factory and `session.clearSiteSelection` ·
 > `apps/web` `features/place`, `features/home`
 > · The module docs are [libs/data repositories/domains.md](../../libs/data/docs/repositories/domains.md),
 > [libs/data remote/socket.md](../../libs/data/docs/remote/socket.md),
@@ -72,27 +72,41 @@ time.
    error and a retry. It does not fall back to the union of my rooms' rosters as the invite pickers do
    — on a screen that manages membership, a list that is not "the members of this place" is wrong, not
    approximate.
-7. **Leave is offered to anyone but the owner.** On the web it is the last row of the place settings
-   hub, behind a confirm that says what goes (every group room) and what stays (1:1 rooms, notes to
-   self, which belong to the cloud), and that coming back takes a new invite. The relay's own place,
-   which is a system place, and guests get neither Leave nor the member screen. On desktop, where the
-   place rail's tile menu is only for admins today, a place I do not own gets a menu too, with place
-   settings and Leave; the admin menu's own rule is untouched.
-8. **After leaving, the app moves to another place of the same cloud, or stays on its empty home.**
-   Leaving the place on screen drops its row, and home's existing fallback for a selected place that
-   left the list moves the session to the first remaining place. With no place left in that cloud the
-   user stays in the cloud, on a home with no place — the cloud's 1:1 rooms and notes to self are still
-   theirs — rather than being moved to another cloud or the relay. Being invited back brings the place
-   back through the normal list refresh.
+7. **Leave and delete sit at the foot of the place information screen, as the design draws them.**
+   One red row under a block divider: Leave for anyone but the owner, Delete for the owner. Leave asks
+   first — every chat room goes with it, and coming back takes a new invite. The relay's own place,
+   which is a system place, and guests get neither, nor the member screen. The settings hub keeps only
+   the Members row. On desktop, where the place rail's tile menu is only for admins today, a place I do
+   not own gets a menu too, with place settings and Leave; the admin menu's own rule is untouched.
+8. **After leaving, the user goes to DoU Home.** A one-button notice says the leave is done and that
+   DoU Home is next; its OK leaves the cloud session for the relay. The design sends the user there
+   whatever else the cloud holds, rather than picking another of its places. A place that leaves the
+   list some other way (a removal, a delete) still goes through home's fallback to the cloud's first
+   place, and with none left the selection is emptied without a switch
+   (`runtime.session.clearSiteSelection`) and home shows the cloud with no place.
+9. **The owner deletes from the web too.** The confirm lists the place's group rooms and their member
+   counts, as this device holds them, then sends `place.delete`. Afterwards home moves to the cloud's
+   next place.
+10. **A deleted place is a stamped row, and a member is told.** The server's delete is soft: the row
+    gets `deletedAt` and keeps being listed, to members as to the owner, and no event goes out. The
+    place list therefore drops stamped rows and prunes their cache — which also removes deleted places
+    that had been showing until now. When the selected place drops out of a member's list, the app
+    asks `place.get` about it: 404 or a stamped row means deleted, and only then does the member get
+    "this place was deleted", whose OK goes to DoU Home. A place the member left or was removed from
+    still answers with its row and gets nothing; a place the user owned is never asked about.
 
 ## Consequences
 
 - An invited member can leave from the web app, and the empty room list's "you can leave" hint now
   leads somewhere that does it. The owner can see and remove anyone in the place, including people in
   no room — the gap ADR-0139 named and ADR-0166 cited.
-- Removal and leave copy is a draft built on existing screen patterns; no design was drawn for these
-  screens and it is flagged for review. ADR-0095's design reference put Leave at the foot of the place
-  information screen; it sits on the hub instead, beside the rest of the place's actions.
+- Leave, delete and the deleted-place notice follow the design. The member screen and its removal have
+  no design yet and reuse existing patterns; they are flagged for review.
+- The server's delete is soft and leaves the place's rooms in place, so the delete confirm says what
+  members lose — the place and its rooms are out of everyone's reach, for good — rather than the
+  design's first wording, which said the rooms and messages are deleted.
+- A member learns that their place was deleted with the next place list refresh, wherever they are in
+  the app — there is no push.
 - A removed member's app learns of it on its next place list refresh, not at once — there is no push.
 - Re-inviting a removed or departed person is allowed by the server and brings them back.
 - Opening the member screen costs one request per ten members plus their profile loads, every time.
@@ -110,6 +124,9 @@ time.
   and strand the session.
 - **Fall back to the roster union on a failed member list**, as the invite pickers do. Rejected for
   the reason in decision 6.
-- **Move to another cloud, or the relay, after leaving the last place.** The cloud membership is
-  untouched and its 1:1 rooms still belong to the user; leaving them on a cloud with nothing in it
-  would be a surprise, and moving them would hide the rooms they still have.
+- **Stay in the cloud after leaving** — move to another of its places, or its empty home. This was the
+  first version of decision 8. The design sends the user to DoU Home instead, with a notice that says
+  so, and the notice is the same one a deleted place ends on.
+- **Tell a deleted place from a removal by the list alone.** A stamped row does say "deleted", but the
+  list drops it, and the member's app may never have seen the stamp before the row went. Asking about
+  the one place that vanished is a single request, made only when it matters.

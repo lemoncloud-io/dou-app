@@ -24,7 +24,7 @@ export const PlaceMemberRow = ({ name, avatar, isOwner, isMe, onRemove, isRemovi
     const { t } = useTranslation();
 
     const badge = isOwner
-        ? { variant: 'owner' as const, label: t('placeMembers.badge.owner') }
+        ? { variant: 'owner' as const, label: t('chat.settings.badge.owner') }
         : isMe
           ? { variant: 'mine' as const, label: t('placeMembers.badge.me') }
           : null;
