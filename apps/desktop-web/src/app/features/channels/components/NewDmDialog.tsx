@@ -34,10 +34,11 @@ interface NewDmDialogProps {
  * to talk to) and the room comes from its own call, so the row is drawn separately — independent of
  * the pool loading, failing or being empty.
  *
- * The pool is the people I share a channel with — the server has no user directory to search.
- * On failure the dialog stays open (the hook shows the toast) so the pick can be retried.
+ * The pool is the members of this place, channel or no channel; when the place list cannot be had
+ * it falls back to the people I share a channel with (see `useInviteCandidates`). On failure the
+ * dialog stays open (the hook shows the toast) so the pick can be retried.
  *
- * Mount it only while open: the candidate hook fans out one roster request per channel.
+ * Mount it only while open: the candidate hook reads the place's member list.
  */
 export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
     const { t } = useTranslation();

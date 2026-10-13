@@ -1,6 +1,8 @@
 # ADR-0139: An owner invites into a place without a room, and the session names the place
 
 > Status: Accepted · Decided: 2026-09-29 · Implemented: `feat/place-invite`
+> · The place member list this says is missing is supplied by
+> [ADR-0195](./0195-invite-candidates-come-from-the-place-member-list.md)
 > · Amended by: [ADR-0166](./0166-place-invite-is-a-lab-experiment-off-until-a-device-turns-it-on.md)
 > — decisions 1–2: the entry and the page sit behind a Lab switch, off by default
 > · Scope: apps/web `features/invite` (`PlaceInvitePage`, `PlaceInviteLinkPage`, `CloudInviteAccept`'s

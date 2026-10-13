@@ -8,9 +8,9 @@ import { dmCounterpartId, isSelfChannel } from './dmDisplay';
  * A cloud 1:1 has no place of its own: the server stamps it with the place its creator was
  * standing in, which says nothing about the other person. People are invited per place, so the
  * room belongs where its peer is — the places in which the peer shares a group channel with me.
- * There is no place member list to ask, and the place profile cache is empty for members who never
- * set a profile, so the group channels I am in are the only membership on hand. A place member who
- * shares none of them with me is therefore not seen.
+ * The server's place member list is read only when a picker opens and is not kept, and the place
+ * profile cache is empty for members who never set a profile, so the group channels I am in are the
+ * only membership on hand. A place member who shares none of them with me is therefore not seen.
  *
  * A peer found in no place still has to be reachable: the room falls back to its stamped place when
  * that place is one of mine, and to every place otherwise.

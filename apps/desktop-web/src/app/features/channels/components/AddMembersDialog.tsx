@@ -10,7 +10,15 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { MobileAppPointer, avatarStyle, displayName, focusComposerIfDropped } from '../../../shared';
+import {
+    MobileAppPointer,
+    avatarStyle,
+    displayName,
+    focusComposerIfDropped,
+    resolveDisplay,
+    useDisplayProfile,
+    useSiteProfileMap,
+} from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
 import { channelActionErrorKey } from '../utils';
 import { AvatarRowsSkeleton } from './AvatarRowsSkeleton';
@@ -22,13 +30,16 @@ interface AddMembersDialogProps {
 }
 
 /**
- * Add existing members of my other channels to this one. The server call
- * (`channel.invite` via channelRepository.inviteChannel) adds the picked users
- * immediately — there is no link and no accept step, and no way to reach someone
- * who has no account yet.
+ * Add members of this place to this channel. The server call (`channel.invite` via
+ * channelRepository.inviteChannel) adds the picked users immediately — there is no link and no
+ * accept step, and no way to reach someone who has no account yet.
  *
- * Mounted only while open (see ChannelActionDialogs): the candidate hook fans out
- * one roster request per channel, which must not run on every panel mount.
+ * Each person is drawn the way the 1:1 picker draws them: this place's profile (nick and photo)
+ * over the user record, so somebody who shares no channel with me still reads by the name they
+ * chose here.
+ *
+ * Mounted only while open (see ChannelActionDialogs): the candidate hook reads the place's member
+ * list, which must not run on every panel mount.
  */
 export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDialogProps) => {
     const { t } = useTranslation();
@@ -39,11 +50,20 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
     const [query, setQuery] = useState('');
     const [selected, setSelected] = useState<string[]>([]);
 
+    const placeProfiles = useSiteProfileMap();
+
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return candidates;
-        return candidates.filter(c => displayName(c).toLowerCase().includes(q) || (c.id ?? '').includes(q));
-    }, [candidates, query]);
+        return candidates.filter(
+            c =>
+                resolveDisplay(placeProfiles[c.id ?? ''], displayName(c), c.thumbnail)
+                    .name.toLowerCase()
+                    .includes(q) ||
+                displayName(c).toLowerCase().includes(q) ||
+                (c.id ?? '').includes(q)
+        );
+    }, [candidates, query, placeProfiles]);
 
     const toggle = (userId: string) =>
         setSelected(prev => (prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]));
@@ -194,7 +214,7 @@ interface CandidateRowProps {
 }
 
 const CandidateRow = ({ candidate, isSelected, onToggle, disabled }: CandidateRowProps) => {
-    const name = displayName(candidate);
+    const { name, thumbnail } = useDisplayProfile(candidate.id ?? '', displayName(candidate), candidate.thumbnail);
     const initial = name.charAt(0).toUpperCase() || '?';
 
     return (
@@ -210,7 +230,7 @@ const CandidateRow = ({ candidate, isSelected, onToggle, disabled }: CandidateRo
             )}
         >
             <Avatar className="size-8 shrink-0">
-                {candidate.thumbnail && <AvatarImage src={candidate.thumbnail} alt={name} />}
+                {thumbnail && <AvatarImage src={thumbnail} alt={name} />}
                 <AvatarFallback className="text-micro font-semibold" style={avatarStyle(candidate.id || name)}>
                     {initial}
                 </AvatarFallback>

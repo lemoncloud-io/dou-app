@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { DomainChannel, DomainUser } from '@chatic/data';
+import { useIsMutating } from '@tanstack/react-query';
+
+import { RELAY_CLOUD_ID, type DomainChannel, type DomainUser } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { isDmChannel, isSelfChannel, useChannels, useCurrentPlace } from '../../../shared';
@@ -25,21 +27,31 @@ const viaLabelOf = (channel: DomainChannel): string =>
     isDmChannel(channel) || isSelfChannel(channel) ? '' : (channel.name ?? channel.id ?? '');
 
 /**
- * People I can add to `targetChannelId`: every member of my *other* channels in the
- * active place, minus the target's current members and myself. With no target (a picker that
- * opens a 1:1 rather than adding to a room) it is every member of my channels, minus myself.
+ * People I can add to `targetChannelId`: the members of the active place, minus the target's
+ * current members and myself. With no target (a picker that opens a 1:1 rather than adding to a
+ * room) it is every member of the place, minus myself.
  *
- * There is no cloud-wide user directory on the server — `channel.list-user` is scoped
- * to one channel — so the pool is assembled client-side by loading each of my channels'
- * rosters and unioning them. The union is built from per-channel `cacheReadList({ channelId })`
- * reads rather than an unfiltered one: the user cache is a flat table that also holds chat
- * authors and profile lookups, so an unscoped read is not "members of my channels".
+ * The members come from `place.list-user` (`userRepository.listPlaceMembers`), so somebody with no
+ * channel at all — invited into the place only, or not yet past accepting — and somebody who
+ * shares no channel with me are offered too. That read also loads their place profiles into the
+ * profile cache, which is where the pickers take names and pictures from.
  *
- * `isVerified` decides whether the rosters are refreshed from the network or read straight from
- * the cache — the socket can sit unverified indefinitely after a sleep/wake wedge, and a picker
- * that waits it out shows a spinner forever. The cached pool is served either way, and the
- * network pass re-runs on the false→true edge.
- * Mount this only while the picker is open; it fans out one request per channel.
+ * The target's members are excluded from two independent sources: the channel record's own
+ * `memberIds`, and the target's roster. Either alone covers the happy path; both together mean a
+ * record without `memberIds`, or a roster read that failed, cannot offer someone already there.
+ * `viaChannels` is worked out from the rosters already in the cache — nothing is fetched for it —
+ * so a member who shares no channel with me simply has none.
+ *
+ * When the member list fails (the server answers 403 to a non-member, and a cloud whose server has
+ * not shipped the action fails it outright), the pool falls back to the previous one: the union of
+ * my own channels' rosters, loaded one request per channel. That holds only people I already share
+ * a room with, so the fallback can never show anyone I would not be allowed to see. The two are
+ * never mixed — the place list stands alone, or the fallback does.
+ *
+ * `isVerified` decides whether anything is fetched at all — the socket can sit unverified
+ * indefinitely after a sleep/wake wedge, and a picker that waits it out shows a spinner forever.
+ * Unverified, the cached rosters are served; the network pass re-runs on the false→true edge.
+ * Mount this only while the picker is open.
  */
 export const useInviteCandidates = (
     targetChannelId: string | null,
@@ -47,9 +59,19 @@ export const useInviteCandidates = (
 ) => {
     const { user: userRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
-    const { userId: myUid } = runtime.session.useSessionIdentity();
+    const { userId: sessionUid } = runtime.session.useSessionIdentity();
+    const { selectedCloudId } = runtime.session.useSessionSelection();
+    // "Me" is my id in this cloud, which is what the place list and its profiles name me by. The
+    // session id is left out too, in case the two differ.
+    const myUid = runtime.session.useUidInCloud(selectedCloudId) ?? sessionUid;
     const { placeId } = useCurrentPlace();
     const { channels } = useChannels(placeId ?? undefined);
+    // Mid-switch the socket session may still be on the outgoing place, so no place is vouched for
+    // and the member list loads without profiles (see `listPlaceMembers`).
+    const isSwitching =
+        useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
+            useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
+        0;
 
     const [candidates, setCandidates] = useState<InviteCandidate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -76,12 +98,89 @@ export const useInviteCandidates = (
     // empty and the picker offers people who are already in the channel.
     const targetMemberIds = useMemo(() => targetMemberKey.split(',').filter(Boolean), [targetMemberKey]);
 
+    const readRosters = useCallback(
+        (channelIds: string[]) =>
+            Promise.all(
+                channelIds.map(async channelId => ({
+                    channelId,
+                    users: (await userRepository.cacheReadList({ channelId }))?.list ?? [],
+                }))
+            ),
+        [userRepository]
+    );
+
+    // The place's members as the pool. `members` null when the list cannot be had, which is the
+    // caller's cue to fall back to the roster union; `refreshedTarget` says the target roster was
+    // already refreshed, so the fallback does not ask again.
+    const loadPlaceMembers = useCallback(async (): Promise<{
+        members: InviteCandidate[] | null;
+        refreshedTarget: boolean;
+    }> => {
+        if (!placeId) return { members: null, refreshedTarget: false };
+        // The target roster is refreshed alongside the list: it is the second exclusion source, and
+        // a member list that reaches the picker before it would offer people already in the room.
+        const [listed, targetRefresh] = await Promise.allSettled([
+            userRepository.listPlaceMembers({ placeId, sessionPlaceId: isSwitching ? null : placeId }),
+            targetChannelId ? userRepository.refreshList({ channelId: targetChannelId, detail: true }) : null,
+        ]);
+        // Only a refresh that worked spares the fallback its own; a failed one is asked again there.
+        const refreshedTarget = !!targetChannelId && targetRefresh.status === 'fulfilled';
+        if (listed.status === 'rejected') return { members: null, refreshedTarget };
+        // An answer asked for in another cloud (the repository moved while it ran) is not this pool.
+        // Named the way the repository names it: no cloud is the relay.
+        if (listed.value.context.cid !== (selectedCloudId || RELAY_CLOUD_ID)) return { members: null, refreshedTarget };
+
+        const rosters = await readRosters(
+            targetChannelId && !myChannelIds.includes(targetChannelId)
+                ? [...myChannelIds, targetChannelId]
+                : myChannelIds
+        );
+        const excluded = new Set([
+            ...(rosters.find(r => r.channelId === targetChannelId)?.users.map(u => u.id) ?? []),
+            ...targetMemberIds,
+        ]);
+        const viaById = new Map<string, string[]>();
+        for (const { channelId, users } of rosters) {
+            if (channelId === targetChannelId) continue;
+            const label = channelNameById.get(channelId) ?? channelId;
+            if (!label) continue;
+            for (const user of users) {
+                if (user.id) viaById.set(user.id, [...(viaById.get(user.id) ?? []), label]);
+            }
+        }
+
+        const members = listed.value.members
+            .filter(member => member.id && member.id !== myUid && member.id !== sessionUid && !excluded.has(member.id))
+            .map(({ isOwner: _isOwner, ...member }) => ({ ...member, viaChannels: viaById.get(member.id) ?? [] }));
+        return { members, refreshedTarget };
+    }, [
+        userRepository,
+        placeId,
+        isSwitching,
+        selectedCloudId,
+        targetChannelId,
+        myChannelIds,
+        readRosters,
+        targetMemberIds,
+        channelNameById,
+        myUid,
+        sessionUid,
+    ]);
+
     // `fetch` false = cache-only pass. The socket can sit unverified indefinitely after a
     // sleep/wake wedge (see useChannels), and a picker that spins forever there is worse than
     // one showing the rosters already cached; the effect re-runs on the false→true edge.
     const load = useCallback(
         async (fetch: boolean): Promise<InviteCandidate[]> => {
             if (!enabled) return [];
+            let refreshedTarget = false;
+            if (fetch) {
+                const placed = await loadPlaceMembers();
+                if (placed.members) return placed.members;
+                refreshedTarget = placed.refreshedTarget;
+            }
+
+            // Fallback: the union of my channels' rosters.
             const channelIds =
                 !targetChannelId || myChannelIds.includes(targetChannelId)
                     ? myChannelIds
@@ -93,7 +192,9 @@ export const useInviteCandidates = (
             // simply contributes nobody — a partial pool is more useful than an empty one.
             // 1:1 and self rooms are read from the cache only: their one other member is someone I
             // already talk to, and the sidebar loads that roster when it names the row.
-            const fetchIds = channelIds.filter(id => id === targetChannelId || !personalRoomIds.has(id));
+            const fetchIds = channelIds.filter(id =>
+                id === targetChannelId ? !refreshedTarget : !personalRoomIds.has(id)
+            );
             const results = fetch
                 ? await Promise.allSettled(
                       fetchIds.map(channelId => userRepository.refreshList({ channelId, detail: true }))
@@ -104,12 +205,7 @@ export const useInviteCandidates = (
                 throw reason instanceof Error ? reason : new Error(String(reason));
             }
 
-            const rosters = await Promise.all(
-                channelIds.map(async channelId => ({
-                    channelId,
-                    users: (await userRepository.cacheReadList({ channelId }))?.list ?? [],
-                }))
-            );
+            const rosters = await readRosters(channelIds);
 
             const excluded = new Set([
                 ...(rosters.find(r => r.channelId === targetChannelId)?.users.map(u => u.id) ?? []),
@@ -120,7 +216,7 @@ export const useInviteCandidates = (
             for (const { channelId, users } of rosters) {
                 if (channelId === targetChannelId) continue;
                 for (const user of users) {
-                    if (!user.id || user.id === myUid || excluded.has(user.id)) continue;
+                    if (!user.id || user.id === myUid || user.id === sessionUid || excluded.has(user.id)) continue;
                     const label = channelNameById.get(channelId) ?? channelId;
                     const via = label ? [label] : [];
                     const existing = byId.get(user.id);
@@ -133,12 +229,15 @@ export const useInviteCandidates = (
         [
             userRepository,
             enabled,
+            loadPlaceMembers,
+            readRosters,
             targetChannelId,
             myChannelIds,
             personalRoomIds,
             channelNameById,
             targetMemberIds,
             myUid,
+            sessionUid,
         ]
     );
 

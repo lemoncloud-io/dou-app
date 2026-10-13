@@ -35,7 +35,8 @@ export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions
                 channelId={channelId}
                 currentName={channelName}
             />
-            {/* Mounted only while open — its candidate hook fans out one roster request per channel. */}
+            {/* Mounted only while open — its candidate hook reads the place's member list (one roster
+                request per channel on the fallback). */}
             {dialog === 'add-members' && <AddMembersDialog open onOpenChange={onOpenChange} channelId={channelId} />}
             <ConfirmDialog
                 open={dialog === 'delete'}

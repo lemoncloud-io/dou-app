@@ -13,6 +13,12 @@ let mockCandidateIds: string[] = [];
 let mockIsLoading = false;
 let mockProfiles: Array<[string, Partial<DomainProfile>]> = [];
 let mockUsers: Array<{ id: string; name?: string }> = [];
+// Rows the place member list returned, by id. Replaced (not mutated) per test so its identity is stable within one.
+let mockMemberById = new Map<string, { id: string; name?: string; thumbnail?: string }>();
+let mockFromPlaceList = false;
+const useChannelProfiles = jest.fn((_sid: string | null, _ids: string[], _interval?: number) => ({
+    profileMap: new Map(mockProfiles),
+}));
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
@@ -36,8 +42,14 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('../hooks', () => ({
     LIST_PROFILE_SYNC_INTERVAL_MS: 60_000,
     useChannelMutations: () => ({ inviteChannel }),
-    useInviteCandidates: () => ({ candidateIds: mockCandidateIds, isLoading: mockIsLoading }),
-    useChannelProfiles: () => ({ profileMap: new Map(mockProfiles) }),
+    useInviteCandidates: () => ({
+        candidateIds: mockCandidateIds,
+        memberById: mockMemberById,
+        fromPlaceList: mockFromPlaceList,
+        isLoading: mockIsLoading,
+    }),
+    useChannelProfiles: (sid: string | null, ids: string[], interval?: number) =>
+        useChannelProfiles(sid, ids, interval),
     // The real one: it is the user-cache fallback these tests exercise, and it reads through
     // the mocked repositories above. Stubbing it would test the stub instead of the chain.
     useUserRecords: jest.requireActual('../hooks/useUserRecords').useUserRecords,
@@ -74,6 +86,8 @@ beforeEach(() => {
     mockIsLoading = false;
     mockProfiles = [['u1', { nick: '아리' }]];
     mockUsers = [{ id: 'u2', name: '***5678' }];
+    mockMemberById = new Map();
+    mockFromPlaceList = false;
     inviteChannel.mockResolvedValue({});
     cacheRead.mockImplementation((id: string) => Promise.resolve(mockUsers.find(user => user.id === id) ?? null));
 });
@@ -130,6 +144,60 @@ describe('PlaceInviteTab — 표시', () => {
         setup();
 
         expect(await screen.findByTestId('cand-***5678')).toBeInTheDocument();
+    });
+});
+
+describe('PlaceInviteTab — members from the place list', () => {
+    // The list loaded its profiles a page at a time; a bootstrap and a poll per person on top would
+    // be one request per member of the place.
+    it('registers no per-person profile targets for a pool from the place list', () => {
+        mockFromPlaceList = true;
+        setup();
+
+        expect(useChannelProfiles).toHaveBeenCalledWith('site-1', [], expect.any(Number));
+    });
+
+    it('still registers them for the fallback pool', () => {
+        setup();
+
+        expect(useChannelProfiles).toHaveBeenCalledWith('site-1', ['u1', 'u2'], expect.any(Number));
+    });
+
+    // Somebody who shares no room with me is in no cache row, so the place list's own row is the
+    // only name there is when they have no place profile either.
+    it("names a member the user cache has never seen by the place list's row", async () => {
+        mockProfiles = [];
+        mockUsers = [];
+        mockCandidateIds = ['u9'];
+        mockMemberById = new Map([['u9', { id: 'u9', name: 'Placeonly' }]]);
+        setup();
+
+        expect(await screen.findByTestId('cand-Placeonly')).toBeInTheDocument();
+    });
+
+    it("keeps the cached row ahead of the list's row where both exist", async () => {
+        mockProfiles = [];
+        mockMemberById = new Map([['u2', { id: 'u2', name: 'From the list' }]]);
+        setup();
+
+        expect(await screen.findByTestId('cand-***5678')).toBeInTheDocument();
+        expect(screen.queryByTestId('cand-From the list')).not.toBeInTheDocument();
+    });
+
+    it("falls back to the user's own picture from the list when the place profile has none", () => {
+        mockProfiles = [['u1', { nick: '아리' }]];
+        mockMemberById = new Map([['u1', { id: 'u1', thumbnail: 'data:image/png;base64,BBB' }]]);
+        setup();
+
+        expect(screen.getByTestId('cand-아리')).toHaveAttribute('data-avatar', 'data:image/png;base64,BBB');
+    });
+
+    it("prefers the place profile's picture over the list's", () => {
+        mockProfiles = [['u1', { nick: '아리', thumbnail: 'data:image/png;base64,AAA' }]];
+        mockMemberById = new Map([['u1', { id: 'u1', thumbnail: 'data:image/png;base64,BBB' }]]);
+        setup();
+
+        expect(screen.getByTestId('cand-아리')).toHaveAttribute('data-avatar', 'data:image/png;base64,AAA');
     });
 });
 
