@@ -108,6 +108,16 @@ attachments, taken from each slot of `upload$$` (or from `uploadIds` on a row th
   Changing a noun or counter here means changing the push copy with it.
 - `apps/desktop-web` previews its rows with the same `chatAttachmentSummary`, so the two lists agree.
 
+### A mention of me
+
+An unread last message that calls me leads its line with a semibold "@me" (`channelList.mentionedMe`),
+in the brand navy — lime in dark mode. Whether it calls me is the row's `mention$`
+(`isMentioningViewer`, from `@chatic/data`), the record the push and the room's highlight read too,
+never the text. The ids are my join row's `userId` — my member id in that room's cloud, what the record
+holds — and the account uid. My own message never calls me, and once the room is read the mark goes:
+it points at something waiting. The mark stays readable under the preview blur, like the draft's pencil,
+and a draft's line carries none.
+
 ### A room's draft
 
 A room whose composer holds a draft (ADR-0183,

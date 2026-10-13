@@ -1,6 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
 import { CodeBlock, InlineCode } from '@chatic/web-ui-kit';
 
 import { type MentionMarks, type MentionPerson, splitMentionRuns } from '../utils/mentionHighlight';
@@ -31,14 +30,14 @@ export interface MessageTextProps {
 }
 
 /**
- * A mention is coloured text with no chip, the way a phone's chat draws one, in DoU's brand colours:
- * the brand lime on my own dark bubble, and on a light bubble the brand navy, since lime text does not
- * read on white — lime again in dark mode, where the bubble is dark. A mention of me keeps the
- * desktop's louder highlight (`MSG_MENTION_SELF_CLASS`, from `@chatic/block-kit`), so the eye finds it
- * among the others.
+ * Every mention is drawn in DoU's brand colours. Anyone else's is coloured text with no chip, the way a
+ * phone's chat draws one: brand navy on a light bubble, since lime text does not read on white, and
+ * brand lime on a dark one — my own, and every bubble in dark mode. A mention of me is louder, a
+ * brand-lime highlight behind navy text, so the eye finds it among the others.
  */
 const MENTION_CLASS = 'font-semibold text-brand-ink dark:text-primary';
 const OWN_MENTION_CLASS = 'font-semibold text-primary';
+const SELF_MENTION_CLASS = 'rounded bg-primary/40 px-1 font-semibold text-brand-ink dark:text-foreground';
 
 interface PlainTextProps {
     value: string;
@@ -51,7 +50,7 @@ const PlainText = ({ value, mentions, onMentionClick }: PlainTextProps) => {
     if (!mentions?.words.length) return <>{value}</>;
     const self = new Set(mentions.self.map(word => word.toLowerCase()));
     const classOf = (word: string) =>
-        self.has(word.toLowerCase()) ? MSG_MENTION_SELF_CLASS : mentions.own ? OWN_MENTION_CLASS : MENTION_CLASS;
+        self.has(word.toLowerCase()) ? SELF_MENTION_CLASS : mentions.own ? OWN_MENTION_CLASS : MENTION_CLASS;
     return (
         <>
             {splitMentionRuns(value, mentions.words).map((run, index) => {

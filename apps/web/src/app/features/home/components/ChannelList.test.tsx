@@ -583,6 +583,28 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
         expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
     });
 
+    // "Mentions only" still rings for a mention, so it is not drawn as off.
+    it("notify가 'mention'이면 알림꺼짐 대신 @ 아이콘을 노출한다", () => {
+        renderRow({ joinByChannel: new Map([['c1', { notify: 'mention' } as any]]) });
+
+        expect(screen.getByLabelText('channelList.mentionOnly')).toBeInTheDocument();
+        expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
+    });
+
+    // A 1:1 delivers every message whatever its level, so a stored `mention` draws as all messages.
+    it("1:1의 notify 'mention'은 아무 아이콘도 노출하지 않는다", () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'c1', stereo: 'dm', name: 'dm' })]}
+                joinByChannel={new Map([['c1', { notify: 'mention' } as any]])}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.queryByLabelText('channelList.mentionOnly')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
+    });
+
     it('고정 + 알림꺼짐이 동시에 켜져 있으면 두 아이콘 모두 노출한다', () => {
         renderRow({
             pinnedChannelIds: new Set(['c1']),
@@ -1084,6 +1106,61 @@ describe('ChannelList unread divergence report', () => {
             expect.objectContaining({ channelId: 'g9', cursorChatNo: 12, drawn: 0, hasReadMetaNo: true })
         );
         readMarkRegistry.reset();
+    });
+});
+
+// An unread last message that calls me leads its line with "@me", read off the record like the push.
+describe('ChannelList — a last message that mentions me', () => {
+    afterEach(() => {
+        mockLastChat = null;
+    });
+
+    const renderRoom = (lastChat: any, unread = true) => {
+        mockLastChat = {
+            id: 'm1',
+            channelId: 'r1',
+            content: 'look at this',
+            ownerId: 'peer',
+            createdAt: 1,
+            ...lastChat,
+        };
+        return render(
+            <ChannelList
+                channels={[makeChannel({ id: 'r1', stereo: 'group', name: 'Room', chatNo: 10, metaNo: 0 })]}
+                // My read cursor: behind the head while unread, at it once read.
+                joinByChannel={
+                    new Map([['r1', { channelId: 'r1', userId: 'cloud-me', chatNo: unread ? 2 : 10 } as never]])
+                }
+                isLoading={false}
+            />
+        );
+    };
+
+    // The record holds the room's member ids: in a cloud room that is my join's id, not the account's.
+    it('marks the line when the record names my id in the room', () => {
+        renderRoom({ mention$: { userIds: ['cloud-me'] } });
+
+        expect(screen.getByText('channelList.mentionedMe')).toBeInTheDocument();
+    });
+
+    it('marks it for a message calling everyone', () => {
+        renderRoom({ mention$: { all: true } });
+
+        expect(screen.getByText('channelList.mentionedMe')).toBeInTheDocument();
+    });
+
+    it('does not mark a record naming someone else, my own message, a read room, or the text alone', () => {
+        const cases = [
+            () => renderRoom({ mention$: { userIds: ['peer-2'] } }),
+            () => renderRoom({ ownerId: 'cloud-me', mention$: { all: true } }),
+            () => renderRoom({ mention$: { userIds: ['cloud-me'] } }, false),
+            () => renderRoom({ content: '@me look' }),
+        ];
+        for (const draw of cases) {
+            const { unmount } = draw();
+            expect(screen.queryByText('channelList.mentionedMe')).not.toBeInTheDocument();
+            unmount();
+        }
     });
 });
 

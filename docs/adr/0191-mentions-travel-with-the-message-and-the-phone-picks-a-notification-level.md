@@ -39,20 +39,24 @@ message of a 1:1 is addressed to the other person.
    picked `@name` means, and at the send the picks whose `@name` is still in the text go out as
    `mention`. An `@name` typed by hand, a name deleted before the send, and an e-mail address call
    nobody. Everyone is a row in the list (writing `@channel`), not a word read out of the text.
-2. **Every "did this call me" check reads `mention$`.** The phone's louder mark for a mention of me
-   uses the same rule as the push (`isMentioningViewer`, in `libs/data` so the desktop can take it
-   next): everyone, or one of the reader's ids — the room-cloud uid and the account uid, because the
-   record holds the room's member ids — on someone else's message. Separately, every member's `@name`
-   and every everyone word in a group room is drawn as a mention on any message — coloured text, with
-   a tap on a member's opening their profile: that says how the text is written, not whom it calls,
-   so it may read the text.
+2. **Every "did this call me" check reads `mention$`.** The push, the home preview's "@me" and the
+   phone's brand-lime highlight for a mention of me use the same rule (`isMentioningViewer`, in
+   `libs/data` so the desktop can take it next): everyone, or one of the reader's ids — the room-cloud
+   uid and the account uid, because the record holds the room's member ids — on someone else's
+   message. The highlight alone falls back to the text for a message that carries no record, in a
+   group room, so a mention written before mentions travelled, or while the socket service does not
+   forward them, still reads as one. Every member's `@name` and every everyone word in a group room is
+   drawn as a mention on any message, in the brand colours, with a tap on a member's opening their
+   profile: that says how the text is written, not whom it calls.
 3. **The phone's composer gets the `@` list,** inside the composer bar right above the field, in group
    rooms only. A 1:1 always notifies and has one person to call; a self chat has nobody. Typing `@` at
    the start of a word opens it. A backspace at the end of a picked name takes the whole name and the
    pick with it, as a mention chip would go.
 4. **The phone's settings row offers levels**: all · mentions only · off in a group, all · off in a
    1:1. A 1:1 stored as `mention` shows as "All messages", how it is delivered, and is not rewritten.
-   The home list's swipe stays an off/all toggle and draws only "off" as muted.
+   The home list's swipe stays an off/all toggle and draws only "off" as muted; a room on "mentions
+   only" shows an @ glyph beside its name, and an unread last message that calls me leads its preview
+   with "@me", by the same record.
 5. **A mention survives a failed send.** The optimistic row keeps it as `mention$`, a resend rebuilt
    from the row sends it again, and an image message's pending row keeps it with its text.
 6. **The send type is widened locally.** The socket SDK's `ChatSendInput` does not declare `mention`

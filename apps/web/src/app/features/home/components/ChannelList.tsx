@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AtSign } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
@@ -9,6 +10,7 @@ import {
     type DomainChannel,
     type DomainChat,
     type DomainJoin,
+    isMentioningViewer,
 } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -61,6 +63,7 @@ import {
 } from '../../channels/lib';
 import { messagePlainText } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
+import { notifyLevelOf } from '../../channels/utils/notifyLevel';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { ChannelEmptyState } from './ChannelEmptyState';
@@ -108,6 +111,8 @@ const ChannelItem = ({
     dmPeer,
     pinned,
     muted,
+    mentionOnly,
+    myMemberId,
     lastChat,
 }: {
     channel: DomainChannel;
@@ -123,6 +128,10 @@ const ChannelItem = ({
     pinned?: boolean;
     /** Room notifications off (my join's notify === 'none', ADR-0025) — shown as a bell-off glyph. */
     muted?: boolean;
+    /** Room notifications on mentions only (my join's notify === 'mention', outside a 1:1) — an @ glyph. */
+    mentionOnly?: boolean;
+    /** My id in this room's cloud (my join row's `userId`) — what a mention record holds. */
+    myMemberId?: string;
     /**
      * This row's last-message preview, from the ONE list-level useLastChats subscription
      * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
@@ -189,6 +198,17 @@ const ChannelItem = ({
           ? t(attachmentPreviewKey(attachments), { count: attachments.count })
           : textPreview;
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
+
+    // An unread last message that calls me leads its line with "@me" — the record decides, as it
+    // does for the push and the room's highlight, never the text. Mine never calls me, and once the
+    // room is read the mark goes: it points at something waiting.
+    const mentionsMe =
+        unread > 0 &&
+        !!lastChat &&
+        !lastChat.hidden &&
+        lastChat.ownerId !== uid &&
+        lastChat.ownerId !== myMemberId &&
+        isMentioningViewer(lastChat, [myMemberId, uid]);
 
     // What was left unsent in this room's composer takes the line instead, behind a pencil, so a
     // half-written message is not forgotten in a room further down — the typed text on one line, or,
@@ -258,6 +278,14 @@ const ChannelItem = ({
                             className="size-3.5 shrink-0 text-muted-foreground"
                         />
                     )}
+                    {mentionOnly && (
+                        <AtSign
+                            role="img"
+                            aria-label={t('channelList.mentionOnly')}
+                            aria-hidden={false}
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                        />
+                    )}
                 </>
             }
             subtitleIcon={
@@ -274,12 +302,21 @@ const ChannelItem = ({
             }
             subtitle={
                 line ? (
-                    blurLastMessage ? (
-                        // The pencil stays readable: that a draft exists is not what the blur hides.
-                        <span className="select-none blur-[5px]">{line}</span>
-                    ) : (
-                        line
-                    )
+                    <>
+                        {/* Readable under the blur too, like the pencil: that I was called is not
+                            what the blur hides. */}
+                        {mentionsMe && !draftPreview && (
+                            <span className="mr-1 font-semibold text-brand-ink dark:text-primary">
+                                {t('channelList.mentionedMe')}
+                            </span>
+                        )}
+                        {blurLastMessage ? (
+                            // The pencil stays readable: that a draft exists is not what the blur hides.
+                            <span className="select-none blur-[5px]">{line}</span>
+                        ) : (
+                            line
+                        )}
+                    </>
                 ) : undefined
             }
             trailing={
@@ -625,9 +662,11 @@ export const ChannelList = ({
                 sortedChannels.map(channel => {
                     const join = joinByChannel?.get(channel.id);
                     const pinned = pinnedChannelIds?.has(channel.id) ?? false;
-                    // The mute state lives on my join row, same source the settings toggle writes
-                    // through (join.update) — not the channel's embedded $join.
-                    const muted = join?.notify === 'none';
+                    // The level lives on my join row, same source the settings sheet writes through
+                    // (join.update) — not the channel's embedded $join. A 1:1 stored as `mention` is
+                    // delivered as all messages, so it draws as that.
+                    const notifyLevel = notifyLevelOf(join?.notify, channel.stereo === 'dm');
+                    const muted = notifyLevel === 'none';
                     const { leading, trailing } = swipeActionsFor(channel, join, pinned, muted);
                     return (
                         <SwipeActionRow
@@ -648,6 +687,8 @@ export const ChannelList = ({
                                 dmPeer={dmPeers.get(channel.id)}
                                 pinned={pinned}
                                 muted={muted}
+                                mentionOnly={notifyLevel === 'mention'}
+                                myMemberId={join?.userId}
                                 lastChat={lastChats.get(channel.id)}
                             />
                         </SwipeActionRow>

@@ -941,25 +941,35 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         const mark = (word: string) => screen.queryByText(word, { selector: 'span, button' });
 
         // How it is written, not whom it calls: a member's name after `@` reads as a mention.
-        it("draws every member's mention, with no record at all", () => {
+        // A message with no record — sent before mentions travelled with it — is read by its text.
+        it("draws every member's mention, and mine louder by the text when there is no record", () => {
             render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
 
             expect(mark('@Minsu')).toHaveClass('text-brand-ink');
-            expect(mark('@레인')).toHaveClass('text-brand-ink');
+            expect(mark('@레인')).toHaveClass('bg-primary/40');
         });
 
-        // The record decides whether it calls me, not the text: the sender picked me in their composer.
+        // With a record, the record decides: the sender picked me in their composer, or did not.
         it('draws my name louder only when the record names one of my ids', () => {
-            render(
+            const { unmount } = render(
                 <ChannelMessageRow
                     {...baseProps}
                     message={mentioning({ mention$: { userIds: ['me-cloud'] } })}
                     mentionViewer={viewer}
                 />
             );
-
-            expect(mark('@레인')).toHaveClass('bg-warning/30');
+            expect(mark('@레인')).toHaveClass('bg-primary/40');
             expect(mark('@Minsu')).toHaveClass('text-brand-ink');
+            unmount();
+
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={mentioning({ mention$: { userIds: ['someone-else'] } })}
+                    mentionViewer={viewer}
+                />
+            );
+            expect(mark('@레인')).not.toHaveClass('bg-primary/40');
         });
 
         // My own message does not call me out; its mentions take the mark that reads on my dark bubble.
@@ -973,7 +983,7 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             );
 
             expect(mark('@레인')).toHaveClass('text-primary');
-            expect(mark('@레인')).not.toHaveClass('bg-warning/30');
+            expect(mark('@레인')).not.toHaveClass('bg-primary/40');
         });
 
         // The profile the member's avatar opens.

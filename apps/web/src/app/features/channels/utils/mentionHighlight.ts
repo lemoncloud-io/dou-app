@@ -121,17 +121,24 @@ export interface MentionMarks {
 }
 
 /**
- * How a message's mentions are drawn, or nothing when it has none to draw.
- *
- * Whether the message calls me is its record, never its text. My own message never calls me, even
- * one calling everyone: it does not call me out.
+ * Whether a message is drawn as calling me. The record decides when the message has one — what the
+ * sender picked, the same record the push reads. A message without one (sent before mentions travelled
+ * with the message, or through a path that does not carry them yet) falls back to its text, in a group
+ * room only: my `@name` or an everyone word. My own message never calls me, even one calling everyone.
  */
+const callsMe = (message: Pick<DomainChat, 'mention$'> & { isOwner?: boolean }, viewer: MentionViewer): boolean => {
+    if (message.isOwner) return false;
+    if (message.mention$) return isMentioningViewer(message, viewer.ids);
+    return viewer.roomTokens.length > 0;
+};
+
+/** How a message's mentions are drawn, or nothing when it has none to draw. */
 export const mentionMarksFor = (
     message: Pick<DomainChat, 'mention$'> & { isOwner?: boolean },
     viewer: MentionViewer | undefined
 ): MentionMarks | undefined => {
     if (!viewer) return undefined;
-    const self = !message.isOwner && isMentioningViewer(message, viewer.ids) ? viewer.tokens : [];
+    const self = callsMe(message, viewer) ? viewer.tokens : [];
     const words = [...viewer.roomTokens, ...self];
     if (!words.length) return undefined;
     return { words, self, own: !!message.isOwner, people: viewer.people };
