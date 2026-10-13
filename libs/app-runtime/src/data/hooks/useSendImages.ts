@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 import {
     type ChatAttachmentSource,
     chatAttachmentSourceFormat,
+    type ChatMentionBody,
     type ChatUploadKind,
     IMAGE_MESSAGE_SLOT_MAX,
     isPendingUploadSlot,
@@ -432,6 +433,11 @@ export interface SendImagesOptions {
      * each, only the first message does, so the text is said once. Blank or absent sends files alone.
      */
     content?: string;
+    /**
+     * Who the text calls out, as the composer picked it. It belongs to the text, so it goes with the
+     * one message that carries the text and is dropped when there is no text to carry.
+     */
+    mention?: ChatMentionBody;
 }
 
 /**
@@ -648,7 +654,12 @@ export const useSendImages = ({
      * neither a retry nor the sweep can take it before its sequence runs.
      */
     const writePending = useCallback(
-        async (files: ChatAttachmentSource[], inTurn: boolean, content: string): Promise<string> => {
+        async (
+            files: ChatAttachmentSource[],
+            inTurn: boolean,
+            content: string,
+            mention?: ChatMentionBody
+        ): Promise<string> => {
             const urls = files.map(previewUrlOf);
             // Left out when every file is an image, so an image send writes the row it always has.
             const localFiles = files.map(pendingFileDetails);
@@ -666,6 +677,7 @@ export const useSendImages = ({
                     ...(localFiles.some(Boolean) ? { localFiles } : {}),
                     // Kept on the row, which sends it and keeps it for a retry: the entry never holds it.
                     ...(content ? { content } : {}),
+                    ...(content && mention ? { mention } : {}),
                 });
             } catch (error) {
                 timing?.end('error');
@@ -716,8 +728,14 @@ export const useSendImages = ({
                     if (pendingIds.length > 0) await pastMillisecond(writtenAt);
                     try {
                         // The text rides on the first message only, so it is said once.
+                        const first = pendingIds.length === 0;
                         pendingIds.push(
-                            await writePending(message, separately, pendingIds.length === 0 ? content : '')
+                            await writePending(
+                                message,
+                                separately,
+                                first ? content : '',
+                                first ? options.mention : undefined
+                            )
                         );
                     } catch (error) {
                         errors.push(error);

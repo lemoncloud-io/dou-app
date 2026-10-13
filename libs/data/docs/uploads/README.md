@@ -184,7 +184,9 @@ quote the request it failed on.
   the optimistic row at once, so the pending message shows its text while the files go up, and
   `sendPendingImageChat` sends whatever the row holds rather than a copy the caller passes. A retry
   re-arms the row with previews only, so it sends the text the row was written with; a row written
-  without text sends `''`, exactly the message of images alone it always was.
+  without text sends `''`, exactly the message of images alone it always was. The text's `mention`
+  (`PendingImageChatInput.mention`) is the row's the same way: kept on it as `mention$` and sent from
+  there, so a retry calls the same people.
 - **Local slots use local names.** `PendingUploadSlot` is `{ localStatus, localThumbUrl }` (plus
   `localName` / `localContentType` / `localSize` for a video or document), never
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a

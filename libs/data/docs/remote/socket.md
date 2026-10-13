@@ -46,7 +46,7 @@ Design points:
 - **Auth**'s `linkAccount` is the unified account-proof packet: phone/email/social × link/login × send/resend/verify/confirm in one. Three things are left out of it, all deliberately → [where absence is the contract](#where-absence-is-the-contract).
 - **Connection**'s bundle key is `connection` while its wire module is `sockets` (action `sockets/find-connection`).
 - **Upload** exposes `start` / `complete` only → [upload](#upload).
-- **Chat's `send` takes `-lib`'s `ChatSendInput`.** `@lemoncloud/chatic-sockets-api` and `-lib` both export a type of that name, and only `-lib`'s carries `uploadIds`. Importing the `-api` one still compiles — it just drops attachments from every caller's type — so `ChatSocketDataSource` and `ChatRepository` import it from `-lib` on purpose.
+- **Chat's `send` takes `-lib`'s `ChatSendInput`.** `@lemoncloud/chatic-sockets-api` and `-lib` both export a type of that name, and only `-lib`'s carries `uploadIds`. Importing the `-api` one still compiles — it just drops attachments from every caller's type — so `domain/mention.ts` imports it from `-lib` on purpose and wraps it in `ChatSendPayload`, which adds the `mention` the chats service takes on `chat.send` and the SDK type does not declare yet. `ChatSocketDataSource` and `ChatRepository` take that wrapper, and the payload goes to the socket as it is.
 
 ### Upload
 

@@ -881,6 +881,28 @@ describe('useSendImages — text with the pictures', () => {
         unmount();
     });
 
+    it('writes the picked mention with the text, on the first message only', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+        const mention = { userIds: ['u2'] };
+
+        await act(() => result.current.sendImages(three(), { separately: true, content: '@Min look', mention }));
+
+        expect(writes().map(write => write.mention)).toEqual([mention, undefined, undefined]);
+        unmount();
+    });
+
+    // A mention is part of the text; with no text left there is nothing for it to belong to.
+    it('drops the mention when there is no text', async () => {
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(three(), { content: '  ', mention: { all: true } }));
+
+        expect(writes()[0]).not.toHaveProperty('mention');
+        unmount();
+    });
+
     // The text went out with the message the files were left out of; a second copy would repeat it.
     it('writes the row of the files a sent message left out without the text', async () => {
         const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };

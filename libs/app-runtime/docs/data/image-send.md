@@ -175,6 +175,9 @@ panel. Desktop sends its text as a message of its own and passes none.
 - **Bundled, the one message carries it. One each, the first message only**, so the text is said
   once, with the first picture, and the others go as pictures alone. A single file is one message
   either way and carries it.
+- **The mention goes with the text.** `{ content, mention }` — who the text calls, as the composer
+  picked it — rides on the same message as the text, and is dropped when there is no text to carry,
+  since a mention belongs to the words.
 - **It lives on the row, not in the page's memory.** The hook writes it onto the pending row
   (`createPendingImageChat({ …, content })`), and `sendPendingImageChat` sends whatever the row
   holds ([the uploads doc](../../../data/docs/uploads/README.md#pending-image-rows)). So the pending

@@ -184,6 +184,34 @@ describe('ChatRepository', () => {
         expect(result).toEqual(expect.objectContaining({ id: 'm1' }));
     });
 
+    // A failed row is the only copy of the send, and a resend is rebuilt from it.
+    it('sends the picked mention and keeps it on the row that a failure leaves behind', async () => {
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.sendChat.mockRejectedValue(new Error('boom'));
+        const mention = { userIds: ['u2'], all: true };
+
+        await expect(repository.sendChat({ channelId: 'ch-1', content: '@Min hi', mention })).rejects.toThrow('boom');
+
+        expect(chatSocketDataSource.sendChat).toHaveBeenCalledWith(
+            expect.objectContaining({ mention }),
+            expect.anything()
+        );
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ isFailed: true, mention$: { userIds: ['u2'], all: true } }),
+            expect.anything()
+        );
+    });
+
+    it('writes no mention record for a send that picked no one', async () => {
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.sendChat.mockRejectedValue(new Error('boom'));
+
+        await expect(repository.sendChat({ channelId: 'ch-1', content: 'hello' })).rejects.toThrow('boom');
+
+        expect(chatLocalDataSource.cacheWrite.mock.calls[0][0]).not.toHaveProperty('mention$');
+    });
+
     it('rolls back the optimistic patch when updateChat fails', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
@@ -547,6 +575,47 @@ describe('ChatRepository', () => {
                     'look at this',
                     'look at this',
                 ]);
+            });
+
+            it('sends the mention with the text and sends it again on a retry', async () => {
+                const { repository, chatSocketDataSource } = createPendingRepository();
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    content: '@Min look',
+                    mention: { userIds: ['u2'] },
+                });
+                chatSocketDataSource.sendChat.mockRejectedValueOnce(new Error('socket down'));
+                await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).rejects.toThrow();
+                await repository.failPendingImageChat(id);
+
+                // The retry re-arms the row without naming the mention, as the image send does.
+                await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    pendingId: id,
+                });
+                chatSocketDataSource.sendChat.mockResolvedValueOnce({ id: 'ch-1:9', channelId: 'ch-1', chatNo: 9 });
+                await repository.sendPendingImageChat(id, { uploadIds: ['up-2'] });
+
+                expect(chatSocketDataSource.sendChat.mock.calls.map(call => call[0].mention)).toEqual([
+                    { userIds: ['u2'] },
+                    { userIds: ['u2'] },
+                ]);
+            });
+
+            it('sends no mention for a caption that picked no one', async () => {
+                const { repository, chatSocketDataSource } = createPendingRepository();
+                const id = await repository.createPendingImageChat({
+                    channelId: 'ch-1',
+                    localThumbUrls: ['blob:a'],
+                    content: 'look',
+                });
+                chatSocketDataSource.sendChat.mockResolvedValue({ id: 'ch-1:7', channelId: 'ch-1', chatNo: 7 });
+
+                await repository.sendPendingImageChat(id, { uploadIds: ['up-1'] });
+
+                expect(chatSocketDataSource.sendChat.mock.calls[0][0]).not.toHaveProperty('mention');
             });
 
             it('replaces the text when a rewrite of the row names one', async () => {
