@@ -85,8 +85,8 @@ describe('MessageText', () => {
         it('draws every mention word and leaves the rest as text', () => {
             const { container } = render(<MessageText text="hi @Minsu and @channel" mentions={marks()} />);
 
-            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary-ink');
-            expect(mentionSpan(container, '@channel')).toHaveClass('text-primary-ink');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-brand-ink');
+            expect(mentionSpan(container, '@channel')).toHaveClass('text-brand-ink');
             expect(container).toHaveTextContent('hi @Minsu and @channel');
         });
 
@@ -96,14 +96,14 @@ describe('MessageText', () => {
             );
 
             expect(mentionSpan(container, '@레인')).toHaveClass('bg-primary');
-            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary-ink');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-brand-ink');
         });
 
         // My bubble is dark; the blue of a light bubble would not read on it.
         it('draws the mentions on my own message in a colour that reads on my bubble', () => {
             const { container } = render(<MessageText text="@Minsu hello" mentions={marks({ own: true })} />);
 
-            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-sky-300');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary');
         });
 
         it('opens the member a mention names on a tap, and nothing for an everyone word', () => {

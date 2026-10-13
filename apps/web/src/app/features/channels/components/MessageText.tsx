@@ -30,12 +30,13 @@ export interface MessageTextProps {
 }
 
 /**
- * Every mention is marked, and only a mention of me takes DoU's brand colour, so the eye finds it among
- * the others: a brand-lime highlight behind navy text. Anyone else's mention is coloured text with no
- * chip, the way a phone's chat draws one — blue on a light bubble, light blue on my own dark one.
+ * Every mention is drawn in DoU's brand colours. Anyone else's is coloured text with no chip, the way a
+ * phone's chat draws one: brand navy on a light bubble, since lime text does not read on white, and
+ * brand lime on a dark one — my own, and every bubble in dark mode. A mention of me is louder, a
+ * brand-lime highlight behind navy text, so the eye finds it among the others.
  */
-const MENTION_CLASS = 'font-semibold text-primary-ink';
-const OWN_MENTION_CLASS = 'font-semibold text-sky-300';
+const MENTION_CLASS = 'font-semibold text-brand-ink dark:text-primary';
+const OWN_MENTION_CLASS = 'font-semibold text-primary';
 const SELF_MENTION_CLASS = 'rounded bg-primary px-1 font-semibold text-brand-ink';
 
 interface PlainTextProps {

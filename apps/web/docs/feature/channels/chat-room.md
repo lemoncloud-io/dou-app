@@ -182,15 +182,17 @@ sheet are all withheld; the sheet especially, since Copy would hand the deleted 
 room draws them by, mine included — and every everyone word (`@channel`, `@here`, `@everyone`) is
 drawn as a mention, on anyone's message: the row hands
 [`MessageText`](../../../src/app/features/channels/components/MessageText.tsx) the room's words from
-[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts). Anyone
-else's mention is coloured text with no chip, the way a phone's chat draws one — semibold `primary-ink`
-blue on a light bubble, light blue on my own dark one. This says how the text is written, not whom it
-calls. Only a mention **of me** takes DoU's brand colour, so the eye finds it among the others — a
-brand-lime (`primary`) highlight behind navy (`brand-ink`) text — and only when the message's `mention$` names one of my ids — my uid in the
-room's cloud, or the account's — or calls everyone (`isMentioningViewer`, from `@chatic/data`), the
-record the push reads too. The text is never read to decide that: the record is what the sender
-picked in their composer, filtered to the room's members by the server, so an `@name` typed by hand
-or an e-mail address (`ops@here.io`) calls nobody. My names are every name a sender's list could have
+[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts). Every
+mention is drawn in DoU's brand colours. Anyone else's is coloured text with no chip, the way a phone's
+chat draws one — semibold navy (`brand-ink`) on a light bubble, since lime text does not read on
+white, and lime (`primary`) on a dark one: my own, and every bubble in dark mode. This says how the
+text is written, not whom it calls. A mention **of me** is louder, a brand-lime highlight behind navy
+text. Whether a message calls me is its record when it has one — the message's `mention$` names one of
+my ids (my uid in the room's cloud, or the account's) or calls everyone (`isMentioningViewer`, from
+`@chatic/data`), the record the push reads too, which is what the sender picked in their composer,
+filtered to the room's members by the server. A message with no record — sent before mentions
+travelled with the message, or while the socket service does not forward them — is read by its text
+instead, in a group room only: my `@name` or an everyone word marks it. My names are every name a sender's list could have
 shown me under — my place nick, my nick, my account name — since the text holds whichever one they
 saw. My own message never calls me, even one calling everyone.
 

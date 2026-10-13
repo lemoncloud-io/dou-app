@@ -116,6 +116,12 @@ describe('mentionMarksFor', () => {
         expect(mentionMarksFor({ mention$: { userIds: ['u2'] } }, viewer)?.self).toEqual([]);
     });
 
+    // A message with no record is read by its text, in a group room only.
+    it('falls back to the text for a message with no record', () => {
+        expect(mentionMarksFor({}, viewer)?.self).toEqual(['@레인']);
+        expect(mentionMarksFor({}, { ...viewer, roomTokens: [] })).toBeUndefined();
+    });
+
     it('never draws my own message as calling me', () => {
         expect(mentionMarksFor({ isOwner: true, mention$: { all: true } }, viewer)).toEqual({
             words: ['@레인', '@Minsu'],
