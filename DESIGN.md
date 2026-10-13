@@ -31,7 +31,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | `BK_100`                      | `#EAEAEC` | `--border`, `--hairline`, `--input-border` (web)                 |
 | `BK_300`                      | `#CFD0D3` | `--control-idle`, `--toast-muted`                                |
 | `BK_400`                      | `#BABCC0` | `--placeholder` (web)                                            |
-| `BK_500`                      | `#9FA2A7` | `--placeholder` (desktop), dark `--label` (web)                  |
+| `BK_500`                      | `#9FA2A7` | dark `--label` (web). Desktop's `--placeholder` is a step darker |
 | `BK_600`                      | `#84888F` | `--description`: timestamps, sub text                            |
 | `BK_700`                      | `#53555B` | `--label` (web), `--dialog-subtitle` (desktop)                   |
 | `BK_800`                      | `#3A3C40` | `--label` (desktop), `--rail-foreground`, `--focus-border` (web) |
@@ -228,7 +228,7 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
   (`px-4`), builder pane headings 16 / 12.
 - **Radius**: `--radius` is 0.5rem on desktop and builder, 0.75rem on mobile web.
   `rounded-lg` = radius, `md` = radius − 2, `sm` = radius − 4. Fixed radii: cloud rail
-  tiles 14px, mobile bubbles 18px with the sender-side top corner squared, mobile buttons
+  tiles 14px, the desktop composer box 16px, mobile bubbles 18px with the sender-side top corner squared, mobile buttons
   full pill, mobile cards `rounded-2xl`.
 - **Elevation** (desktop, builder): three named shadows, low opacity, tinted.
   `shadow-raised` for a card on the ground, `shadow-overlay` for popovers and menus,
@@ -263,7 +263,7 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
 | Channel row     | 36px tall, `#` or 24px avatar leading, star or 18px unread pill trailing, section header 43px with chevron and `+`                | same                                                                     |
 | Main header     | 56px, hairline bottom, `#` + `text-title` + member count chip, three 36px bordered icon squares (star, search, more)              | same                                                                     |
 | Message row     | 36px avatar, 16px name + 13px time, body `text-body`, hover `bg-accent/70` with a floating toolbar                                | 35px avatar                                                              |
-| Composer        | boxed on `bg-input`, 50px toolbar row (+ B I S code), hairline, input area with emoji and send on the right, 24px gutters         | 121px box, 24px gutters                                                  |
+| Composer        | `bg-background` box, `control-border` edge, 16px radius; rows: formats (28px buttons), text, actions (32px; send on the right)    | 121px box, 24px gutters                                                  |
 | Trailing panels | resizable, every panel opens at `PANEL_WIDTH` 360 and remembers its own drag; below 1280px it covers the chat (scrim, chat inert) | —                                                                        |
 
 The rail width difference (68 versus 80) is a deliberate code choice shared by
