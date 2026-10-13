@@ -25,7 +25,7 @@ import type { ConfigSnapshot } from '@chatic/config';
  *
  * `overriddenSnapshots()` is keys a LANE supplied — shell, local storage, or the server. A value
  * that a `byStage`/`byPlatform` rule chose is excluded even though it differs from `defaultValue`,
- * because the registry choosing it is not news: `feature.auth.socialLogin` is off on every PROD
+ * because the registry choosing it is not news: `system.overridesUnlocked` is off on every PROD
  * device by declaration, so counting it would fill the boot line on every device and drown the one
  * device where somebody actually changed something.
  *

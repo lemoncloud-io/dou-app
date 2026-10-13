@@ -13,7 +13,7 @@ switch that follows a successful login-mode proof.
 ## Layout
 
 Number parsing and validation are **not** in `features/auth/utils`. The machine imports
-`apps/web/src/app/utils/phoneNumber.ts` (`toE164`, `isValidMobileNumber`, `readInternationalInput`,
+`@chatic/shared/phone` (`toE164`, `isValidMobileNumber`, `readInternationalInput`,
 `resolveDefaultCountry`, `rememberCountry`) — see
 [international-phone-input.md](./international-phone-input.md).
 

@@ -23,10 +23,9 @@ import { config } from '@chatic/config';
 const protocolScheme = (): string => config.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
 
 /**
- * Social Login is dev-only for now: the backend can restore only OWNED clouds
- * (`/clouds/0/list?view=mine` filters by ownerId) — invite-joined memberships
- * don't follow the account yet, so the login promise doesn't hold in prod.
- * Flip when the joined-clouds endpoint lands.
+ * Social sign-in: on in every build. A registry key rather than a constant so it can be turned off
+ * without a release once a server lane writes it. Read per call — `config.get()` answers nothing
+ * until boot has run `config.init()`.
  */
 export const isSocialLoginEnabled = (): boolean => config.get<boolean>('feature.auth.socialLogin') !== false;
 /** Both channels' schemes parse — receiving is harmless, launching is what must not cross. */
@@ -52,6 +51,12 @@ export const buildAuthorizeUrl = (provider: string, nonce: string): string => {
     handoff.searchParams.set('nonce', nonce);
     return `${socialOauthEndpoint()}/oauth/${provider}/authorize?redirect=${encodeURIComponent(handoff.toString())}`;
 };
+
+/**
+ * A deeplink that only brings the app forward: the shell raises its window for any link of its scheme,
+ * and nothing in the app acts on this one. Used where the next step is in the app, not in the browser.
+ */
+export const buildAppDeeplink = (): string => `${protocolScheme()}://open`;
 
 /** Hand-off deeplink carrying the relay code and the start's nonce back into the shell. */
 export const buildOAuthDeeplink = (provider: string, code: string, nonce: string): string =>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { JoinWithInviteDialog, useJoinDialogStore } from '../../auth';
+import { JoinWithInviteDialog, selectNewAccountPending, useJoinDialogStore, useSignInNoticeStore } from '../../auth';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -100,6 +100,8 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
 export const HomePage = () => {
     const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
     const { places, isLoading: placesLoading } = usePlaces();
+    // A new account's "not my account" stop comes first; the first-run tips wait until it is answered.
+    const newAccountPending = useSignInNoticeStore(selectNewAccountPending);
     // Unread is aggregated once in the always-mounted shell (ShellUnreadSync) and
     // published to the store — read it here for the rail/place switcher.
     const unreadByPlace = useUnreadStore(s => s.byPlace);
@@ -877,7 +879,7 @@ export const HomePage = () => {
             {/* Ready means the Self Channel itself has arrived — not merely that some
                 channel has, which is what the card used to claim. */}
             <OnboardingDialog
-                enabled
+                enabled={!newAccountPending}
                 showChannelStatus={isDefaultMode}
                 isChannelReady={channels.some(isSelfChannel)}
                 hasWorkspaces={clouds.some(cloud => cloud.kind !== 'home')}

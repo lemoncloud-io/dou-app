@@ -34,7 +34,7 @@ import {
     resolveDefaultCountry,
     toE164,
     type PhoneCountry,
-} from '../../../utils/phoneNumber';
+} from '@chatic/shared/phone';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
 import { useSetMyPlaceProfile } from '../../../hooks';

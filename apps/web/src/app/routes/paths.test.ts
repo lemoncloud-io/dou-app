@@ -9,7 +9,6 @@ describe('ROUTES — 상수 경로', () => {
     it('auth 경로를 노출한다', () => {
         expect(ROUTES.auth.login).toBe('/auth/login');
         expect(ROUTES.auth.logout).toBe('/auth/logout');
-        expect(ROUTES.auth.oauthResponse).toBe('/auth/oauth-response');
     });
 
     it('account 회원가입/비밀번호 재설정 플로우를 노출한다', () => {

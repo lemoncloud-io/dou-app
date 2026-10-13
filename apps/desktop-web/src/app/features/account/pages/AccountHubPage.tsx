@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
@@ -6,22 +6,38 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { useRelayAccount } from '../../../shared';
+import { isPlaceholderName, useRelayAccount } from '../../../shared';
+import { isPhoneLoginEnabled, isSocialLoginEnabled } from '../../auth';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
+import { AccountSignInCard } from '../components/AccountSignInCard';
+import { linkedSignInOf } from '../utils/linkedSignIn';
 
 /**
- * The account hub: the relay identity card (with profile edit) and the
- * entries that lead out of it — owned clouds, notifications (the Settings
- * page) and the terms and privacy policy. A guest has no relay identity, so
- * the card becomes a join prompt and the clouds entry is hidden.
+ * The account hub: the relay identity card (with profile edit), how the
+ * account signs in, and the entries that lead out of it — owned clouds,
+ * notifications (the Settings page) and the terms and privacy policy. A guest
+ * (no relay user, or one whose role is `guest`) gets a join prompt instead of
+ * the card (or, where a sign-in is on, the sign-in card with the join link in it), and the clouds entry
+ * is hidden.
  */
 export const AccountHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { account } = useRelayAccount();
+    const isGuest = !account || account.userRole === 'guest';
+    // An account that never set a name carries a bare UUID; show it, and prefill the edit, as unnamed.
+    const profile = useMemo(
+        () => (account && isPlaceholderName(account.name) ? { ...account, name: '' } : account),
+        [account]
+    );
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const [editingProfile, setEditingProfile] = useState(false);
+    // A guest who can sign in gets one card: the sign-in card carries the invite link too, so the two
+    // ways out of being a guest are not two cards competing with no order between them.
+    // With no relay user yet the sign-in card draws nothing, so the plain guest card stays for that.
+    const guestCanSignIn =
+        linkedSignInOf(account).kind === 'guest' && (isSocialLoginEnabled() || isPhoneLoginEnabled());
 
     return (
         <div className="flex h-full flex-col bg-background">
@@ -35,24 +51,24 @@ export const AccountHubPage = () => {
 
             <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
                 <section className="flex flex-col gap-4">
-                    {account ? (
+                    {profile && !isGuest ? (
                         <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
                             <Avatar className="h-14 w-14">
-                                <AvatarImage src={account.photo || undefined} alt="" />
+                                <AvatarImage src={profile.photo || undefined} alt="" />
                                 <AvatarFallback>
-                                    {(account.name ?? '?').trim().charAt(0).toUpperCase() || '?'}
+                                    {(profile.name ?? '?').trim().charAt(0).toUpperCase() || '?'}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                 <span className="truncate text-heading text-foreground">
-                                    {account.name || t('account.unnamed')}
+                                    {profile.name || t('account.unnamed')}
                                 </span>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => setEditingProfile(true)}>
                                 {t('account.editProfile')}
                             </Button>
                         </div>
-                    ) : (
+                    ) : guestCanSignIn ? null : (
                         <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-8 text-center">
                             <p className="text-heading text-foreground">{t('account.guestTitle')}</p>
                             <p className="max-w-xs text-caption text-muted-foreground">{t('account.guestBody')}</p>
@@ -62,7 +78,9 @@ export const AccountHubPage = () => {
                         </div>
                     )}
 
-                    {account && (
+                    <AccountSignInCard account={account} onJoin={openJoinDialog} />
+
+                    {!isGuest && (
                         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                             <div className="flex min-w-0 flex-col gap-0.5">
                                 <span className="text-callout font-medium text-foreground">
@@ -102,8 +120,8 @@ export const AccountHubPage = () => {
                 </section>
             </div>
 
-            {account && (
-                <AccountProfileDialog open={editingProfile} onOpenChange={setEditingProfile} initial={account} />
+            {profile && !isGuest && (
+                <AccountProfileDialog open={editingProfile} onOpenChange={setEditingProfile} initial={profile} />
             )}
         </div>
     );

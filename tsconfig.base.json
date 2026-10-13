@@ -40,6 +40,7 @@
             "@chatic/perf": ["libs/perf/src/index.ts"],
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/shared": ["libs/shared/src/index.ts"],
+            "@chatic/shared/phone": ["libs/shared/src/phone/index.ts"],
             "@chatic/data": ["libs/data/src/index.ts"],
             "@chatic/db": ["libs/db/src/index.ts"],
             "@chatic/theme": ["libs/theme/src/index.ts"],

@@ -7,7 +7,7 @@ import type {
     UserTokenView,
 } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '@chatic/http';
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView, VerifyOAuthCodeBody } from '@chatic/http';
 import type { DomainUser } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { AuthHttpDomainGateway } from '../gateways';
@@ -34,6 +34,7 @@ export interface IAuthHttpDataSource {
     login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
     verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView>;
     exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView>;
+    verifyOAuthCode(body: VerifyOAuthCodeBody): Promise<UserTokenView>;
     delegateCloud(target: string): Promise<CloudDelegationTokenView>;
     exchangeToken(input: {
         baseURL: string;
@@ -96,6 +97,10 @@ export class AuthHttpDataSource implements IAuthHttpDataSource {
 
     exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView> {
         return this.gateway.exchangeCode(input);
+    }
+
+    verifyOAuthCode(body: VerifyOAuthCodeBody): Promise<UserTokenView> {
+        return this.gateway.verifyOAuthCode(body);
     }
 
     delegateCloud(target: string): Promise<CloudDelegationTokenView> {

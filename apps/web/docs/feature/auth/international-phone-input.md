@@ -10,8 +10,10 @@ The screens themselves are elsewhere — [phone-verification.md](./phone-verific
 
 ## Layout
 
-`apps/web/src/app/utils/phoneNumber.ts` sits beside `errors.ts` and `placeProfile.ts` — a pure
-helper several features share. The picker is two files under `apps/web/src/app/ui/components/`:
+`libs/shared/src/phone/phoneNumber.ts`, imported as `@chatic/shared/phone`, is a pure helper several
+features share — and the desktop app's phone sign-in with them. The subpath keeps it out of
+`@chatic/shared`'s barrel, which every app loads eagerly; the library's metadata stays behind the lazy
+routes that use it. The picker is two files under `apps/web/src/app/ui/components/`:
 `CountrySelectSheet` is pure presentation taking `{ open, onOpenChange, value, onSelect }`, and
 `CountrySelect` owns the trigger and the sheet's open state.
 
@@ -33,12 +35,14 @@ change means: the same invalidation as retyping the number.
 
 ## The shared contract
 
-### `apps/web/src/app/utils/phoneNumber.ts`
+### `libs/shared/src/phone/phoneNumber.ts`
 
 The module exports the country list (`listPhoneCountries`, all 245 the mobile metadata knows,
 localized, sorted and memoized per language), the dial code, mobile-only validation, the wire value,
-an international-paste parser, and the default-country resolution — the stored pick, else the
-locale's region, else `null`, each checked with `isSupportedCountry`. `rememberCountry` writes
+an international-paste parser, and the default-country resolution — the stored pick, else a
+caller's `preferred` country (the desktop passes the one its UI language implies; this app passes
+none), else the locale's region, else `null`. The stored pick and the region are checked with
+`isSupportedCountry`. `rememberCountry` writes
 `dou.phoneInput.country.v1` and swallows a private-mode failure.
 
 Two behaviours are not obvious from a signature: `isValidMobileNumber` is `false` whenever there is
@@ -211,7 +215,8 @@ reissue dialog holds the same value.
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false \
-  --testPathPatterns "utils/phoneNumber|ui/components/CountrySelect|features/auth|features/invite|hooks/useSentInviteLog"
+  --testPathPatterns "ui/components/CountrySelect|features/auth|features/invite|hooks/useSentInviteLog"
+npx jest --config libs/shared/jest.config.js --runInBand --watchman=false --testPathPatterns "phone/"
 npx jest --config libs/web-ui-kit/jest.config.js --runInBand --watchman=false --testPathPatterns "TextField"
 npx tsc -b apps/web/tsconfig.app.json
 ```

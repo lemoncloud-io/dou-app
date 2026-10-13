@@ -206,12 +206,13 @@ libs/shared/src/
 ├── components/       6 components + index; all React, all DOM
 ├── consts/           STORE_URLS, and ERROR_MESSAGES inline in index.ts
 ├── hooks/            7 hook modules + index
+├── phone/            phone-number parsing (libphonenumber-js) + OTP expiry countdown — NOT in the barrel
 ├── preferences/      pinnedChannels · channelOrder · placeScope + index
 ├── types/            index.ts and nothing else — four declarations, no reader
 └── utils/            5 single-purpose helpers + index
 ```
 
-Four things the filenames do not tell you.
+Five things the filenames do not tell you.
 
 - **`consts/index.ts` is not just re-exports.** The `ERROR_MESSAGES` table — six error kinds, each with
   a title, a description and two button labels, in English — is declared inline there. It is the
@@ -219,6 +220,11 @@ Four things the filenames do not tell you.
   under `error.screen.*`. There is no `errorMessages.ts` to open.
 - **`hooks/useGlobalLoader.tsx` holds the zustand store, not a component.** It is `.tsx` and contains
   no JSX. The overlay that reads the store is `components/GlobalLoader.tsx`.
+- **`phone/` is a subpath entry, `@chatic/shared/phone`, and the barrel does not re-export it.** It
+  carries libphonenumber's metadata, and the barrel sits on every app's eager path; re-exporting it would
+  land that metadata in the initial chunk. Its consumers (the web phone-verification screens, the desktop
+  phone sign-in) are behind lazy routes and import the subpath. The alias is in `tsconfig.base.json`'s
+  `paths`, and `apps/web/jest.config.js` maps it ahead of its generic `@chatic/*` rule.
 - **`@chatic/lib/utils`, imported by `VersionUpdateBanner`, is `libs/ui-kit/src/utils`.** The alias does
   not name ui-kit; `tsconfig.base.json`'s `paths` is where that is settled.
 - **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds

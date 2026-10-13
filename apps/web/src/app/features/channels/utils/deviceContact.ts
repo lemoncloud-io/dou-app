@@ -6,7 +6,7 @@ import type { ContactInfo } from '@chatic/app-messages';
 
 // Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
 // metadata — see that barrel's comment).
-import { readLocaleCountry, readMobileNumber, type MobileNumber, type PhoneCountry } from '../../../utils/phoneNumber';
+import { readLocaleCountry, readMobileNumber, type MobileNumber, type PhoneCountry } from '@chatic/shared/phone';
 
 /**
  * Hangul syllables, CJK ideographs and kana. A name written in any of them is ordered family-first

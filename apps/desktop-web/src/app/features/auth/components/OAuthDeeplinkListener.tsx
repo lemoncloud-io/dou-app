@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
 
@@ -17,6 +18,10 @@ import { parseOAuthDeeplink } from '../utils';
  */
 export const OAuthDeeplinkListener = () => {
     const { completeFromHandoff } = useSocialLogin();
+    // A ref: `navigate` changes with every route, and the native subscription should not churn with it.
+    const navigate = useNavigate();
+    const navigateRef = useRef(navigate);
+    navigateRef.current = navigate;
 
     useEffect(() => {
         if (!isNative()) return;
@@ -25,7 +30,10 @@ export const OAuthDeeplinkListener = () => {
                 ?.deeplink;
             const payload = deeplink ? parseOAuthDeeplink(deeplink) : null;
             if (!payload) return;
-            void completeFromHandoff(payload, { notifyFailure: true });
+            // A link's outcome, refused ones included, is shown on the account hub's sign-in card.
+            void completeFromHandoff(payload, { notifyFailure: true }).then(done => {
+                if (done === 'link') navigateRef.current('/account');
+            });
         });
     }, [completeFromHandoff]);
 

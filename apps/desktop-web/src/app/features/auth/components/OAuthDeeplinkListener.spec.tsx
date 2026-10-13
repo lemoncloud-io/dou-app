@@ -7,8 +7,12 @@ const session = vi.hoisted(() => ({
     createCredentialsByProvider: vi.fn(),
     loginGuest: vi.fn(),
     toast: vi.fn(),
+    navigate: vi.fn(),
 }));
 
+vi.mock('react-router-dom', () => ({ useNavigate: () => session.navigate }));
+
+vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 vi.mock('@chatic/bridges', () => ({
     isNative: () => true,
     logger: { error: vi.fn(), warn: vi.fn() },
@@ -24,8 +28,10 @@ vi.mock('@chatic/bridges', () => ({
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         boot: { startWebTransportInit: vi.fn().mockResolvedValue(undefined) },
+        data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),
+            getRelaySessionUser: () => null,
             createCredentialsByProvider: session.createCredentialsByProvider,
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: session.loginGuest }),
@@ -73,6 +79,7 @@ describe('OAuthDeeplinkListener', () => {
         session.createCredentialsByProvider.mockReset().mockResolvedValue(undefined);
         session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.toast.mockReset();
+        session.navigate.mockReset();
         vi.spyOn(window, 'open').mockReturnValue(null);
         render(<OAuthDeeplinkListener />);
     });
@@ -84,7 +91,7 @@ describe('OAuthDeeplinkListener', () => {
     });
 
     const started = (over: Partial<{ provider: string; startedAt: number; nonce: string }> = {}) =>
-        saveOAuthLoginStart({ provider: 'google', startedAt: NOW, nonce: 'n1', ...over });
+        saveOAuthLoginStart({ provider: 'google', intent: 'login', startedAt: NOW, nonce: 'n1', ...over });
 
     it('does not exchange a deeplink when no login was started, and says so', async () => {
         await deliver('chatic://oauth?provider=google&code=attacker');
@@ -95,12 +102,29 @@ describe('OAuthDeeplinkListener', () => {
         );
     });
 
+    it('takes a link back to the account hub, where its outcome is shown', async () => {
+        saveOAuthLoginStart({ provider: 'google', intent: 'link', account: 'u-1', startedAt: NOW, nonce: 'n1' });
+
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
+
+        expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+        expect(session.navigate).toHaveBeenCalledWith('/account');
+    });
+
+    it('stays where it is after a login', async () => {
+        started();
+
+        await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
+
+        expect(session.navigate).not.toHaveBeenCalled();
+    });
+
     it('exchanges a deeplink for a login that was started', async () => {
         started();
 
         await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc', { linkCurrentSession: true });
         expect(session.toast).not.toHaveBeenCalled();
     });
 
@@ -129,7 +153,9 @@ describe('OAuthDeeplinkListener', () => {
         started();
         await deliver('chatic://oauth?provider=google&code=good&nonce=n1');
 
-        expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good');
+        expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good', {
+            linkCurrentSession: true,
+        });
         expect(session.toast).toHaveBeenCalledTimes(1);
     });
 
@@ -148,7 +174,9 @@ describe('OAuthDeeplinkListener', () => {
         await deliver('chatic://oauth?provider=google&code=second&nonce=n1');
 
         expect(session.createCredentialsByProvider).toHaveBeenCalledTimes(1);
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'first');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'first', {
+            linkCurrentSession: true,
+        });
     });
 
     it('consumes the start even when the deeplink is refused', async () => {
@@ -185,7 +213,7 @@ describe('OAuthDeeplinkListener', () => {
 
         await deliver('chatic://oauth?provider=google&code=abc&nonce=n1');
 
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc', { linkCurrentSession: true });
     });
 
     it('ignores deeplinks that are not OAuth ones without touching the start', async () => {
@@ -210,7 +238,7 @@ describe('OAuthDeeplinkListener', () => {
 
         await deliver(`chatic://oauth?provider=google&code=abc&nonce=${nonce}`);
 
-        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc');
+        expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'abc', { linkCurrentSession: true });
         expect(replace).toHaveBeenCalledWith('/');
         vi.unstubAllGlobals();
     });

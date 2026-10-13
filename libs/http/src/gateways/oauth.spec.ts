@@ -66,6 +66,21 @@ describe('createOAuthHttpGateway', () => {
         });
     });
 
+    it('verifyOAuthCode — signed POST {relay}/users/0/verify-oauth-code?token=1 with provider and code', async () => {
+        executeSignedRelayRequest.mockResolvedValue({});
+        const gateway = createOAuthHttpGateway(exec);
+
+        await gateway.verifyOAuthCode({ provider: 'google', code: 'auth2:abc' });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'POST',
+            baseURL: 'https://relay.test/users/0/verify-oauth-code',
+            params: { token: 1 },
+            body: { provider: 'google', code: 'auth2:abc' },
+        });
+        expect(executeRelayRequest).not.toHaveBeenCalled();
+    });
+
     it('findAlias / verifyAlias — unsigned relay', async () => {
         executeRelayRequest.mockResolvedValue({});
         const gateway = createOAuthHttpGateway(exec);

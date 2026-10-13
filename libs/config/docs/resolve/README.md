@@ -57,7 +57,7 @@ the loop ends.
 
 Rows 1 to 4 set `ConfigSnapshot.isOverridden`. Rows 5 to 7 do not — the registry deciding its own
 value is not an override, which is why a clean PROD device logs nothing at boot even though
-`feature.auth.socialLogin` resolves `false` through a stage rule on every one of them.
+`system.overridesUnlocked` resolves `false` through a stage rule on every one of them.
 
 Adding a fifth lane costs two lines: one in `order`, one `case` in `ConfigResolver.readLane`.
 

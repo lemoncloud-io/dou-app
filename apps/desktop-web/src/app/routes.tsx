@@ -6,6 +6,8 @@ import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { selectHeldLogin, useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
+import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
@@ -81,12 +83,15 @@ const SettingsPage = lazy(() => import('./features/settings').then(m => ({ defau
 const WelcomePage = lazy(() => import('./features/auth').then(m => ({ default: m.WelcomePage })));
 const InviteLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.InviteLoginPage })));
 const DebugLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.DebugLoginPage })));
+const PhoneLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.PhoneLoginPage })));
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
+const SignInNotice = lazy(() => import('./features/auth').then(m => ({ default: m.SignInNotice })));
 
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
+    const socialLoginHeld = useOAuthAttemptStore(selectHeldLogin);
 
     return (
         <Router>
@@ -106,6 +111,8 @@ export const AppRouter = () => {
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}
                 <OAuthDeeplinkListener />
+                {/* Who a Google sign-in landed as, said once the app is up as that account. */}
+                {isAuthenticated && <SignInNotice />}
                 <Routes>
                     {isAuthenticated ? (
                         <>
@@ -129,6 +136,13 @@ export const AppRouter = () => {
                                 exchanged, so the session flips mid-attempt. Keep its page until
                                 it succeeds or is left, or a rejected code is never shown. */}
                             {inviteAttemptHeld && <Route path="/auth/login" element={<InviteLoginPage />} />}
+                            {/* A Google sign-in begun signed out registers the device before the browser
+                                opens. Keep Welcome, which waits for the browser, until it returns or is
+                                cancelled, or the person lands in the app as a guest they never chose. */}
+                            {socialLoginHeld && <Route path="/auth/welcome" element={<WelcomePage />} />}
+                            {/* Sending the first code registers the device, which lands here mid-flow;
+                                the page also turns away an account that is already signed in. */}
+                            {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
                             {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
@@ -137,6 +151,7 @@ export const AppRouter = () => {
                         <>
                             <Route path="/auth/welcome" element={<WelcomePage />} />
                             <Route path="/auth/login" element={<InviteLoginPage />} />
+                            {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
                             {import.meta.env.DEV && <Route path="/auth/debug" element={<DebugLoginPage />} />}
                             <Route path="*" element={<Navigate to="/auth/welcome" replace />} />

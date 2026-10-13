@@ -5,7 +5,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import type * as ChaticSharedModule from '@chatic/shared';
 
-const tokenUser = vi.hoisted(() => ({ value: null as { name?: string; photo?: string } | null }));
+const tokenUser = vi.hoisted(() => ({
+    value: null as { name?: string; photo?: string; userRole?: string } | null,
+}));
 const patchRelaySessionUser = vi.hoisted(() => vi.fn());
 const gatewayUpdate = vi.fn(async (data: unknown) => data);
 
@@ -43,6 +45,20 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
+const startSocialLogin = vi.hoisted(() => vi.fn());
+vi.mock('../../auth', () => ({
+    GoogleIcon: () => null,
+    PHONE_BUTTON_CLASS: '',
+    isSocialLoginEnabled: () => true,
+    isPhoneLoginEnabled: () => true,
+    phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
+    useSocialLogin: () => ({ start: startSocialLogin, isStarting: false }),
+    useAttemptExpired: () => false,
+    useOAuthAttemptStore: <T,>(select: (s: { attempt: null; failed: boolean; linkFailure: null }) => T) =>
+        select({ attempt: null, failed: false, linkFailure: null }),
+    selectAttemptBusy: () => false,
+}));
+
 import '../../../../i18n';
 
 import { AccountHubPage } from './AccountHubPage';
@@ -73,11 +89,44 @@ describe('AccountHubPage', () => {
         expect(screen.getByText('Ada')).toBeTruthy();
     });
 
+    it('shows an account whose name is a bare UUID as unnamed, and does not prefill the edit with it', () => {
+        tokenUser.value = { name: 'a0a260da-f3d9-45e9-86cb-a4f225c2861c' };
+        renderAt();
+
+        expect(screen.getByText('Unnamed account')).toBeTruthy();
+        expect(screen.queryByText('a0a260da-f3d9-45e9-86cb-a4f225c2861c')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+        expect((screen.getByLabelText('Display name') as HTMLInputElement).value).toBe('');
+    });
+
     it('invites a guest to join instead of showing an empty card', () => {
         renderAt();
 
         expect(screen.getByText('Guest account')).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    });
+
+    // A guest has a relay user too — its role is what says it is a guest.
+    it('treats a relay user whose role is guest as a guest, and offers Google sign-in', () => {
+        tokenUser.value = { name: 'Guest', userRole: 'guest' } as typeof tokenUser.value;
+        renderAt();
+
+        expect(screen.getByText('Guest account')).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Edit profile' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+        expect(startSocialLogin).toHaveBeenCalledWith('google');
+    });
+
+    it('gives a guest who can sign in one card, signing in first and the invite last', () => {
+        tokenUser.value = { name: 'Guest', userRole: 'guest' } as typeof tokenUser.value;
+        renderAt();
+
+        expect(screen.getAllByText('Guest account')).toHaveLength(1);
+        const buttons = screen.getAllByRole('button').map(button => button.textContent ?? '');
+        const google = buttons.findIndex(text => text.includes('Continue with Google'));
+        const join = buttons.findIndex(text => text.includes('Join with invite'));
+        expect(google).toBeGreaterThanOrEqual(0);
+        expect(join).toBeGreaterThan(google);
     });
 
     it('opens the cloud list from its entry', () => {

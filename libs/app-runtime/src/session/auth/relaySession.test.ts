@@ -3,6 +3,7 @@ import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import { createCredentialsByProvider, relaySession } from './relaySession';
 
 const mockExchangeOAuthCode = jest.fn();
+const mockVerifyOAuthCode = jest.fn();
 const mockLoginRelayRequest = jest.fn();
 const mockRegisterDevice = jest.fn();
 const mockVerifyNativeAppToken = jest.fn();
@@ -51,6 +52,7 @@ jest.mock('../../data/runtime', () => ({
             registerDevice: (...args: unknown[]) => mockRegisterDevice(...args),
             verifyNativeToken: (...args: unknown[]) => mockVerifyNativeAppToken(...args),
             exchangeCode: (...args: unknown[]) => mockExchangeOAuthCode(...args),
+            verifyOAuthCode: (...args: unknown[]) => mockVerifyOAuthCode(...args),
         },
     }),
 }));
@@ -325,6 +327,45 @@ describe('session/auth/relaySession', () => {
             expect.stringContaining('$auth.id'),
             expect.objectContaining({ data: { provider: 'google' } })
         );
+    });
+
+    // Desktop signs the exchange with the guest session it registered before the browser opened, so
+    // the backend links that guest to the account. Admin-v2 calls without a session and keeps
+    // the old endpoint.
+    it('linkCurrentSession exchanges through verify-oauth-code and commits the session', async () => {
+        const view = {
+            id: 'user-1',
+            $auth: { id: 'auth-1' },
+            Token: { identityToken: 'jwt-1' },
+        } as unknown as UserTokenView;
+        mockVerifyOAuthCode.mockResolvedValue(view);
+
+        await createCredentialsByProvider('google', 'code-1', { linkCurrentSession: true });
+
+        expect(mockVerifyOAuthCode).toHaveBeenCalledWith({ provider: 'google', code: 'code-1' });
+        expect(mockExchangeOAuthCode).not.toHaveBeenCalled();
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(view.Token);
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(view);
+        expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
+    });
+
+    it('without linkCurrentSession the exchange stays on the code endpoint', async () => {
+        mockExchangeOAuthCode.mockResolvedValue({ id: 'user-1', $auth: { id: 'a' }, Token: { identityToken: 'j' } });
+
+        await createCredentialsByProvider('google', 'code-1');
+
+        expect(mockVerifyOAuthCode).not.toHaveBeenCalled();
+    });
+
+    it('a rejected linked exchange leaves the stored session alone', async () => {
+        mockVerifyOAuthCode.mockRejectedValue(Object.assign(new Error('expired'), { status: 400 }));
+
+        await expect(createCredentialsByProvider('google', 'code-1', { linkCurrentSession: true })).rejects.toThrow(
+            'expired'
+        );
+
+        expect(mockRelaySaveRelayToken).not.toHaveBeenCalled();
+        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
     });
 
     // ⑪ device registration: deviceId persisted through identityStore ONLY

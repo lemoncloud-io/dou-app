@@ -112,11 +112,11 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `sendPhoneCode` · `verifyPhoneCode` · `confirmPhoneCode` · `verifySocialAccount` ·
 `confirmSocialAccount` · `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` ·
 `loginWithInviteCode` · `fetchInviteInfo` · `registerDevice` · `login` · `verifyNativeToken` ·
-`exchangeCode` · `delegateCloud` · `exchangeToken`
+`exchangeCode` · `verifyOAuthCode` · `delegateCloud` · `exchangeToken`
 
 - **Remote-only.** A surface of session identity commands with nothing to cache.
 - On the socket axis every phone/social proof goes out as the single `auth.linkAccount` packet — assembling `type`/`mode`/`step` is `AuthSocketDataSource`'s monopoly.
-- The HTTP axis carries signup, aliases and invite login plus the session-material actions (`login`, `exchangeCode`, `delegateCloud`, `exchangeToken`). What is missing is the two refresh calls, and they cannot be added because the wire vocabulary itself no longer has them → [http.md's gateway Pick](../remote/http.md#gateway-pick).
+- The HTTP axis carries signup, aliases and invite login plus the session-material actions (`login`, `exchangeCode`, `verifyOAuthCode`, `delegateCloud`, `exchangeToken`). What is missing is the two refresh calls, and they cannot be added because the wire vocabulary itself no longer has them → [http.md's gateway Pick](../remote/http.md#gateway-pick).
 
 ### Device
 

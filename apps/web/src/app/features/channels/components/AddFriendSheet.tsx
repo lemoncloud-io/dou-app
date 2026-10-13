@@ -17,7 +17,7 @@ import {
     resolveDefaultCountry,
     toE164,
     type PhoneCountry,
-} from '../../../utils/phoneNumber';
+} from '@chatic/shared/phone';
 
 interface AddFriendSheetProps {
     open: boolean;

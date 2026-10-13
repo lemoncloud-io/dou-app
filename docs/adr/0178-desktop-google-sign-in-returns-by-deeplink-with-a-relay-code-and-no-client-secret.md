@@ -4,7 +4,7 @@ Date: 2026-10-07
 
 ## Status
 
-Accepted. Builds on [ADR-0009](./0009-desktop-social-login-via-system-browser-deeplink.md) (system browser, hand-off page, protocol deeplink) and closes the part of the risk its amendment left open that a link opened on the machine inside the ten-minute window passes. The part about another app claiming the protocol scheme stays open and is recorded below.
+Accepted. Builds on [ADR-0009](./0009-desktop-social-login-via-system-browser-deeplink.md) (system browser, hand-off page, protocol deeplink) and closes the part of the risk its amendment left open that a link opened on the machine inside the ten-minute window passes. The part about another app claiming the protocol scheme stays open and is recorded below. Amended by [ADR-0192](./0192-desktop-sign-in-opens-in-production-with-the-scheme-claim-risk-accepted.md): sign-in is on in production with that risk accepted.
 
 ## Context
 

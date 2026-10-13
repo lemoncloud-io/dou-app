@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import type { LinkedAccountsView } from '@lemoncloud/chatic-backend-api';
+
 import { runtime } from '@chatic/app-runtime';
 
 import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
@@ -7,6 +9,9 @@ import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
 export interface RelayAccount {
     name?: string;
     photo?: string;
+    email?: string;
+    userRole?: string;
+    link$?: LinkedAccountsView;
 }
 
 export interface RelayAccountUpdate {
@@ -53,6 +58,9 @@ export const useRelayAccount = () => {
                 const patch: Record<string, unknown> = {};
                 if (typeof view.name === 'string') patch.name = view.name;
                 if (typeof view.photo === 'string') patch.photo = view.photo;
+                if (typeof view.email === 'string') patch.email = view.email;
+                // The profile is where the view-shaped linked sign-in slot comes from.
+                if (view.link$ && typeof view.link$ === 'object') patch.link$ = view.link$;
                 if (Object.keys(patch).length) runtime.session.patchRelaySessionUser(patch);
             } catch {
                 // Nothing to do and nothing to say: a missed refresh leaves the

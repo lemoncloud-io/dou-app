@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { isNative } from '@chatic/bridges';
-import { cn } from '@chatic/lib/utils';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { AuthCard } from '../components';
 import { useSocialLogin } from '../hooks';
-import { buildOAuthDeeplink } from '../utils';
+import { buildAppDeeplink, buildOAuthDeeplink } from '../utils';
 
 /**
  * OAuth Relay hand-off page. The relay redirects here with `?code=&provider=` after the provider
@@ -42,49 +42,54 @@ export const OAuthResponsePage = () => {
         if (isNative()) {
             // Pre-auth: success flips isAuthenticated → router leaves this branch.
             // In-app (already signed in): the exchange swaps the session and reloads.
-            void completeFromHandoff({ provider, code, nonce });
+            // A link leaves the session as it was, so nothing moves the page: go back to the account hub.
+            void completeFromHandoff({ provider, code, nonce }).then(done => {
+                if (done === 'link') navigate('/account', { replace: true });
+            });
             return;
         }
         const url = buildOAuthDeeplink(provider, code, nonce);
         setDeeplink(url);
         window.location.replace(url);
-    }, [isComplete, provider, code, nonce, completeFromHandoff]);
+    }, [isComplete, provider, code, nonce, completeFromHandoff, navigate]);
 
     const failed = !isComplete || isError;
+    const inApp = isNative();
 
     return (
         <AuthCard
             live
             title={failed ? t('auth.social.failedTitle') : t('auth.social.handoffTitle')}
             subtitle={
-                failed ? t('auth.social.failed') : deeplink ? t('auth.social.handoffBody') : t('auth.social.signingIn')
+                failed
+                    ? t(inApp ? 'auth.social.failed' : 'auth.social.failedInBrowser')
+                    : deeplink
+                      ? t('auth.social.handoffBody')
+                      : t('auth.social.signingIn')
             }
         >
             <div className="flex flex-col gap-2">
                 {failed ? (
-                    <button
-                        type="button"
-                        onClick={() => navigate('/auth/welcome', { replace: true })}
-                        className={cn(
-                            'focus-ring h-11 rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
-                            'hover:opacity-90 active:scale-[0.98]'
-                        )}
-                    >
-                        {t('auth.social.backToWelcome')}
-                    </button>
+                    inApp ? (
+                        <Button size="lg" onClick={() => navigate('/auth/welcome', { replace: true })}>
+                            {t('auth.social.backToWelcome')}
+                        </Button>
+                    ) : (
+                        // In the system browser a way "back" would open a second copy of the app in this
+                        // tab. The retry is in the DoU window, so the page points there and opens it.
+                        <Button size="lg" asChild>
+                            <a href={buildAppDeeplink()}>{t('auth.social.openApp')}</a>
+                        </Button>
+                    )
                 ) : (
                     deeplink && (
                         <>
-                            <a
-                                href={deeplink}
-                                className={cn(
-                                    'focus-ring flex h-11 items-center justify-center rounded-full bg-primary text-callout font-semibold text-primary-foreground transition-colors',
-                                    'hover:opacity-90 active:scale-[0.98]'
-                                )}
-                            >
-                                {t('auth.social.openApp')}
-                            </a>
-                            <p className="text-center text-micro text-muted-foreground">{t('auth.social.closeTab')}</p>
+                            <Button size="lg" asChild>
+                                <a href={deeplink}>{t('auth.social.openApp')}</a>
+                            </Button>
+                            <p className="break-keep text-center text-caption text-muted-foreground">
+                                {t('auth.social.closeTab')}
+                            </p>
                         </>
                     )
                 )}

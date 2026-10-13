@@ -18,20 +18,48 @@ and leaves through its back button, one level up each time.
 "Account" here means the relay account, not the session's user inside whichever cloud is active. The
 name and photo come from the relay token (`useRelayAccount`): reading it costs no request. Once per
 relay verification the hook asks the relay gateway for the profile and patches the token with the
-name and photo that come back; if that call fails the token's value stays on screen. Screens that
+name, photo, email and linked sign-in slot (`link$`) that come back; if that call fails the token's
+value stays on screen. The sign-in card below reads the `link$` that refresh brings. Screens that
 ask what the person may do in the current cloud read the session's profile instead.
 
 ## The hub
 
-- **Signed in** (the token names a relay user): an identity card with the photo (the name's initial
-  when there is none), the name (or "unnamed"), and **Edit profile**. Below it, an entry for the
+- **Signed in** (the token names a relay user that is not a guest): an identity card with the photo (the name's initial
+  when there is none), the name (or "unnamed" — also when the name is the bare UUID an account gets before it sets one, which the edit dialog does not prefill), and **Edit profile**. Below it, an entry for the
   owned clouds, then Notifications and Policies.
-- **Guest** (no relay user): the card is replaced by a prompt with a **Join** button that opens the
-  join dialog. There is no clouds entry, since a guest owns none. Notifications and Policies are
-  still offered.
+- **Guest** (no relay user, or a relay user whose `userRole` is `guest` — a guest does have one): where
+  the build offers a sign-in, one card holds both ways out of being a guest — signing in first, then
+  **Join with invite** as a link at its foot, which opens the join dialog. Two cards side by side gave
+  no order between them. Where no sign-in is on, or the relay user has not loaded, a plain prompt with
+  the **Join** button stands in. There is no clouds entry, since a guest owns none. Notifications and
+  Policies are still offered.
 
 Notifications is a link to `/settings`, where the notification controls live; the hub holds none of
 its own.
+
+## How the account signs in
+
+Under the identity card, `AccountSignInCard` says how the account signs in, read off the relay
+user's `userRole` and `link$` (`linkedSignInOf`):
+
+| Relay user                             | The card shows                                                                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `userRole: guest`                      | **Sign in with phone number** ([auth](../auth/README.md#phone-number-sign-in)) first, then **Continue with Google** with the note for phone sign-ups ([auth](../auth/README.md#social-login)) |
+| any of social, phone, email in `link$` | each one, social first: "Google · a\*\*\*@example.com", the last four digits of a number, the email hint, and **Link Google** while no social account is linked                               |
+| a `link$` with none of them            | that no sign-in method is linked, and **Link Google**                                                                                                                                         |
+| no relay user, or no `link$` at all    | nothing                                                                                                                                                                                       |
+
+A missing `link$` is not read as "nothing linked": the profile may not have arrived yet, or the
+server never built the slot for an older account, and saying "no sign-in method" to a signed-in
+person would be wrong. An account can hold one method of each kind — a number it signed up with and
+the Google linked to it — so the card lists them all. **Link Google** starts the browser round trip
+([auth](../auth/README.md#linking-google)); the card itself never calls the account-linking
+endpoints. While that round trip (or a guest's Google sign-in) is out in the browser, the button is
+held and the card says it is waiting, with ways to open the browser again or give up. A link that does
+not go through is shown on the card until dismissed — for an occupied Google, with what that means. The server keeps one social slot per account, so the button goes once any social account
+is linked, and it is hidden where the build turns Google off. The guest's buttons are the
+same sign-ins the Welcome page starts; each is hidden where the build turns it off, and the card is
+left out when both are.
 
 ## Editing the profile
 

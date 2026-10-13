@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,7 +21,7 @@ import {
     useSiteProfileMap,
     useSiteProfiles,
 } from '../../../shared';
-import { GoogleIcon, isSocialLoginEnabled, useSocialLogin } from '../../auth';
+import { GoogleIcon, isSocialLoginEnabled, phoneSignupNoteKey, useSocialLogin } from '../../auth';
 import { EditPlaceProfileDialog, PlaceChip } from '../components';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
@@ -124,10 +124,10 @@ export const ProfilePage = () => {
     const name = ownName || fallback;
     const email = accountUser?.email || t('profile.notSet');
     const uid = accountUid ?? fallback;
-    // No email on the account ⇒ a Guest Session (Social Login backfills the
-    // email) — offer the in-app Google link (ADR 0009; replaces the session).
-    // Dev-only until the backend can restore joined clouds (see oauth.ts).
-    const showSocialLogin = !accountUser?.email && isSocialLoginEnabled();
+    // Only a Guest Session is offered Google sign-in, which replaces the session. A signed-in account
+    // with no email (a phone sign-up) would land in a new account, so it is not offered one.
+    const showSocialLogin = accountUser?.userRole === 'guest' && isSocialLoginEnabled();
+    const phoneNoteId = useId();
 
     // Effective display = my Place Profile when active, else the global identity.
     const { name: displayName, thumbnail: displayPhoto } = resolveDisplay(
@@ -226,8 +226,11 @@ export const ProfilePage = () => {
                                 <span className="text-callout font-medium text-foreground">
                                     {t('profile.signInGoogle')}
                                 </span>
-                                <span className="text-caption text-muted-foreground">
+                                <span className="break-keep text-caption text-muted-foreground">
                                     {t('profile.signInGoogleHint')}
+                                </span>
+                                <span id={phoneNoteId} className="break-keep text-caption text-muted-foreground">
+                                    {t(phoneSignupNoteKey())}
                                 </span>
                             </div>
                             <Button
@@ -236,6 +239,7 @@ export const ProfilePage = () => {
                                 className="shrink-0 gap-2"
                                 onClick={() => void startSocialLogin('google')}
                                 disabled={isStarting}
+                                aria-describedby={phoneNoteId}
                             >
                                 <GoogleIcon />
                                 {t('auth.social.google')}

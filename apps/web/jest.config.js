@@ -22,6 +22,8 @@ module.exports = {
         // exist — the real entry is `libs/config/src/react/index.ts` (see libs/config/jest.config.js,
         // which hit the same trap).
         '^@chatic/config/(.*)$': '<rootDir>/../../libs/config/src/$1/index.ts',
+        // Same trap: `shared/phone` is a subpath entry kept out of the root barrel (libphonenumber's metadata).
+        '^@chatic/shared/phone$': '<rootDir>/../../libs/shared/src/phone/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         // web-ui-kit re-exports SVG/image assets from its barrel; stub them (and styles) so tests
         // importing @chatic/web-ui-kit don't choke on static asset imports.

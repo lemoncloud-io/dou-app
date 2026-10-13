@@ -39,12 +39,15 @@ vi.mock('./features/chat', () => ({
     ShortcutsDialog: () => null,
 }));
 vi.mock('./features/auth/components/OAuthDeeplinkListener', () => ({ OAuthDeeplinkListener: () => null }));
+vi.mock('./features/auth/components/SignInNotice', () => ({ SignInNotice: () => <p>sign-in notice</p> }));
+vi.mock('./features/auth/pages/WelcomePage', () => ({ WelcomePage: () => <p>welcome page</p> }));
 
 const login = vi.fn();
 vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => ({ login }) }));
 
 import '../i18n';
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
 import { AppRouter } from './routes';
 
 /** The exchange needs a guest session, so a real attempt signs in before the code is judged. */
@@ -114,5 +117,67 @@ describe('AppRouter signed-out invite attempt', () => {
 
         expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
         expect(window.location.pathname).toBe('/');
+    });
+
+    // The notice is taken from storage when it mounts: signed out, it must wait for the account.
+    it('says what a sign-in landed as only once signed in', async () => {
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        await screen.findByRole('textbox', {}, WAIT);
+        expect(screen.queryByText('sign-in notice')).toBeNull();
+
+        await act(async () => session.set(true));
+
+        expect(await screen.findByText('sign-in notice', {}, WAIT)).toBeTruthy();
+    });
+});
+
+// Starting Google from Welcome registers the device first, which flips the router to its signed-in
+// branch while the browser is still open; Welcome has to stay for the attempt.
+describe('AppRouter signed-out Google attempt', () => {
+    beforeAll(async () => {
+        await Promise.all([import('./features/auth'), import('./features/chat')]);
+    });
+    beforeEach(() => {
+        window.history.pushState({}, '', '/auth/welcome');
+    });
+    afterEach(() => {
+        session.set(false);
+        useOAuthAttemptStore.getState().clear();
+    });
+
+    it('keeps Welcome after the registration signs the device in', async () => {
+        useOAuthAttemptStore.getState().begin({ provider: 'google', intent: 'login', signedOutAtStart: true });
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('welcome page', {}, WAIT)).toBeTruthy();
+        expect(window.location.pathname).toBe('/auth/welcome');
+    });
+
+    it('opens the app once the attempt is over', async () => {
+        useOAuthAttemptStore.getState().begin({ provider: 'google', intent: 'login', signedOutAtStart: true });
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        await screen.findByText('welcome page', {}, WAIT);
+
+        act(() => useOAuthAttemptStore.getState().clear());
+
+        expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
+    });
+
+    it('keeps nothing for a sign-in begun by someone already signed in', async () => {
+        useOAuthAttemptStore.getState().begin({ provider: 'google', intent: 'login', signedOutAtStart: false });
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
     });
 });
