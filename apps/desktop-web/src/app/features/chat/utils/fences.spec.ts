@@ -24,6 +24,10 @@ describe('splitFences', () => {
         expect(splitFences('```sh\r\nls\n```')).toEqual([{ type: 'code', value: 'ls', lang: 'sh' }]);
     });
 
+    it('drops the CRLF around a body pasted from Windows', () => {
+        expect(splitFences('```\r\nls\r\n```')).toEqual([{ type: 'code', value: 'ls' }]);
+    });
+
     it('keeps a first line that is not a bare word as code', () => {
         expect(splitFences('```echo hi\n```')).toEqual([{ type: 'code', value: 'echo hi' }]);
     });

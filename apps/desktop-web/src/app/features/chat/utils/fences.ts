@@ -51,7 +51,7 @@ export const splitFences = (text: string): FenceSegment[] => {
         let body = text.slice(bodyStart, close);
         const lang = LANG_LINE.exec(body)?.[1];
         if (lang) body = body.slice(body.indexOf('\n'));
-        body = body.replace(/^\n/, '').replace(/\n$/, '');
+        body = body.replace(/^\r?\n/, '').replace(/\r?\n$/, '');
         segments.push(lang ? { type: 'code', value: body, lang } : { type: 'code', value: body });
         index = closeEnd;
     }
