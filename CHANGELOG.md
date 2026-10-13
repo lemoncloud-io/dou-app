@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-13] - root@0.94.1, @chatic/web@0.69.1
+
+### Bug Fixes
+
+- (web) print the place name bare in profile titles, not wrapped in <>
+
+### Documentation
+
+- (adr) quote the place profile titles with {{place}}, not <place>
+
 ## [2026-10-13] - root@0.94.0, @chatic/web@0.69.0
 
 ### Features
