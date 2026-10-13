@@ -19,11 +19,27 @@ Slack's row also has underline and list buttons. They are left out on purpose: t
 no form for them that the web and mobile readers understand, so a message sent with one would lose it
 on every other client. Adding them means changing that shared format first.
 
-The link button is cut down for the same reason. A message has no link-with-label form — a link is
-its URL, which every client turns into a link when it reads one — so the button asks for an address
-only. `example.com` gets `https://`, an address with spaces is refused, and the URL goes in at the
-caret, or after the selected words rather than replacing them. The autolink plugin then marks it, as
-if it had been typed.
+## Links
+
+The link button opens Slack's dialog: **Text** and **Link**, then Save or Cancel. Text starts as the
+selected words, or as the words of the link the caret is in, which is then edited in place. Save puts
+the words back as a link to the address. With no words the address goes in bare, as if it had been
+typed, and the autolink plugin marks it. The button lights up while the caret is in a link.
+
+The address has to be `http(s)` with a host: `example.com` gets `https://`, parentheses are
+percent-encoded (`Foo_(bar)` becomes `Foo_%28bar%29`, the same page to a browser), and anything else
+— a space, another scheme — keeps Save off. Brackets in the text become parentheses and line breaks
+become spaces, since either would end the words early.
+
+A labelled link travels as `[words](address)`. Readers draw it only when the words hold no brackets or
+line breaks and the address is http(s) with a host and no spaces or parentheses — the same rule in this
+app's `RichText` and in apps/web — so `[x] done (see notes)` stays text. Previews (sidebar,
+notifications, search) show the words, so search finds a labelled link by its words, not its address.
+Typing `[words](address)` by hand is not a shortcut; it is sent as typed and still read as a link.
+
+A pasted web page keeps its links only where a message can carry them. An anchor to a relative path,
+`mailto:`, or an address with parentheses is unwrapped to its words (`LinkGuardPlugin`). When a message
+is opened for editing, only what readers would draw as a link becomes one.
 
 ## Code blocks
 

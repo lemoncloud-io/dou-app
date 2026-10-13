@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { $createLinkNode, $isLinkNode } from '@lexical/link';
+import { $dfs } from '@lexical/utils';
+
 import {
     $createParagraphNode,
     $createTextNode,
@@ -50,6 +53,11 @@ describe('wire markdown round trip', () => {
         ['dunder', '__init__.py'],
         ['single tildes', '~single~'],
         ['a url with markup characters', 'https://example.com/a_b?c=*d'],
+        ['a labelled link', 'see [the docs](https://example.com/a_b) here'],
+        ['bracket text that is not a link', '[x] done (see notes)'],
+        ['bracket text before a link', '[x] done [y](https://a.example)'],
+        ['a labelled link to a non-http address', '[x](javascript:alert(1))'],
+        ['a labelled link with no host', '[x](https:///a)'],
         ['a mention-shaped word with an underscore', '@snake_name hi'],
         ['an underscore inside bold', '**bold_x**'],
         ['two backslashes', 'a\\\\b'],
@@ -165,5 +173,44 @@ describe('wire markdown export', () => {
         const wire = exportOf(() => [$createTextNode(' word ').toggleFormat('bold')]);
         expect(wire).not.toContain('&#');
         expect(wire.trim()).toBe('**word**');
+    });
+});
+
+describe('wire markdown labelled links', () => {
+    const linkTexts = (wire: string) => {
+        const editor = makeEditor();
+        editor.update(() => $importWireMarkdown(wire), { discrete: true });
+        return editor.getEditorState().read(() =>
+            [...$dfs()]
+                .map(({ node }) => node)
+                .filter($isLinkNode)
+                .map(node => node.getTextContent())
+        );
+    };
+
+    it('links only the words in brackets right before the address', () => {
+        expect(linkTexts('[x] done [y](https://a.example)')).toEqual(['y']);
+    });
+
+    it('reads a labelled link to anything but an http(s) address as text', () => {
+        expect(linkTexts('[x](javascript:alert(1))')).toEqual([]);
+        expect(linkTexts('[x](/relative)')).toEqual([]);
+    });
+
+    it("writes brackets typed into a link's words as parentheses", () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append(
+                        $createParagraphNode().append(
+                            $createLinkNode('https://a.example').append($createTextNode('see [1]'))
+                        )
+                    );
+            },
+            { discrete: true }
+        );
+        expect(editor.getEditorState().read($exportWireMarkdown)).toBe('[see (1)](https://a.example)');
     });
 });

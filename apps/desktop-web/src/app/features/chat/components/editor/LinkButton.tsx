@@ -1,7 +1,9 @@
 import { type FormEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { $createLinkNode, $isAutoLinkNode, $isLinkNode, type LinkNode } from '@lexical/link';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { $findMatchingParent } from '@lexical/utils';
 import {
     $createTextNode,
     $getRoot,
@@ -12,115 +14,139 @@ import {
 } from 'lexical';
 import { Link } from 'lucide-react';
 
+import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
+import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { Hint, LINK_URL_SOURCE } from '../../../../shared';
+import { Hint, isLabelledLinkAddress, toLabelledLinkWords } from '../../../../shared';
 
-const WHOLE_URL = new RegExp(`^${LINK_URL_SOURCE}$`);
-
-/** The address as it will be sent, or null when it cannot be one: a bare `example.com` gets https. */
+/**
+ * The address as it will be sent, or null when it cannot be one. A bare `example.com` gets https,
+ * and parentheses are percent-encoded (the same address to a browser) because a labelled link's
+ * address cannot hold them.
+ */
 export const normalizeLinkAddress = (raw: string): string | null => {
     const value = raw.trim();
     // `://`, not any `word:` — `localhost:3000` is a host and a port, not a scheme.
-    const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
-    return value && WHOLE_URL.test(url) ? url : null;
+    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+    const url = withScheme.replace(/\(/g, '%28').replace(/\)/g, '%29');
+    return value && isLabelledLinkAddress(url) ? url : null;
+};
+
+/** The labelled link the caret sits in, if any — an autolinked bare URL is not one. */
+export const $selectedLink = (): LinkNode | null => {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) return null;
+    const link = $findMatchingParent(selection.anchor.getNode(), $isLinkNode);
+    return link && !$isAutoLinkNode(link) ? link : null;
 };
 
 /**
- * Slack's link button, cut to what a message can carry. Messages have no link-with-label form —
- * a link is its URL, which every client turns into a link when it reads one — so this asks for
- * the address only and writes it at the caret, after the selected words if there are any, rather
- * than hiding it behind them. The autolink plugin then marks it as a link, as if it was typed.
+ * Slack's link button: a dialog with the words to show and the address they go to. The words
+ * start as the selection (or the link the caret is in, which is then edited in place), and Save
+ * puts them back as a link. With no words the address goes in bare, as if it had been typed, and
+ * the autolink plugin marks it. A message carries the link as `[words](address)`.
  */
-export const LinkButton = ({ className }: { className: string }) => {
+export const LinkButton = ({ className, isActive = false }: { className: string; isActive?: boolean }) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
     const [isOpen, setOpen] = useState(false);
+    const [text, setText] = useState('');
     const [address, setAddress] = useState('');
-    // Focus moves to the field while the popover is open, so the caret it was opened from is
-    // kept here and put back before the link goes in.
+    // Focus moves into the dialog, so the selection it was opened from is kept here and put
+    // back before the link goes in.
     const savedSelection = useRef<BaseSelection | null>(null);
+    const url = normalizeLinkAddress(address);
 
-    const open = (next: boolean) => {
-        if (next) {
-            savedSelection.current = editor.getEditorState().read(() => $getSelection()?.clone() ?? null);
-            setAddress('');
-        }
-        setOpen(next);
+    const open = () => {
+        editor.getEditorState().read(() => {
+            const selection = $getSelection();
+            savedSelection.current = selection?.clone() ?? null;
+            const link = $selectedLink();
+            setText(link ? link.getTextContent() : (selection?.getTextContent() ?? ''));
+            setAddress(link ? link.getURL() : '');
+        });
+        setOpen(true);
     };
 
-    const submit = (event: FormEvent) => {
+    const save = (event: FormEvent) => {
         event.preventDefault();
-        const url = normalizeLinkAddress(address);
         if (!url) return;
+        const words = toLabelledLinkWords(text).trim();
         editor.update(() => {
             if (savedSelection.current) $setSelection(savedSelection.current.clone());
-            const selection = $getSelection();
-            const target = $isRangeSelection(selection) ? selection : $getRoot().selectEnd();
-            if (!target.isCollapsed()) {
-                const end = target.isBackward() ? target.anchor : target.focus;
-                target.anchor.set(end.key, end.offset, end.type);
-                target.focus.set(end.key, end.offset, end.type);
+            const existing = $selectedLink();
+            const replacement = words ? $createLinkNode(url).append($createTextNode(words)) : $createTextNode(url);
+            if (existing) {
+                existing.replace(replacement);
+                replacement.selectEnd();
+                return;
             }
-            // A text anchor's offset counts characters; an element anchor's counts children, so
-            // there the text before the caret is whatever the child ahead of it ends with.
-            const { anchor } = target;
-            const before =
-                anchor.type === 'text'
-                    ? anchor.getNode().getTextContent().slice(0, anchor.offset)
-                    : (anchor
-                          .getNode()
-                          .getChildAtIndex?.(anchor.offset - 1)
-                          ?.getTextContent() ?? '');
-            target.insertNodes([$createTextNode(`${before && !/\s$/.test(before) ? ' ' : ''}${url} `)]);
+            const selection = $getSelection();
+            ($isRangeSelection(selection) ? selection : $getRoot().selectEnd()).insertNodes([replacement]);
         });
         setOpen(false);
     };
 
     return (
-        <Popover open={isOpen} onOpenChange={open}>
-            <PopoverTrigger asChild>
-                <Hint label={t('chat.composer.format.link')}>
-                    <button
-                        type="button"
-                        aria-label={t('chat.composer.format.link')}
-                        onMouseDown={e => e.preventDefault()}
-                        className={className}
-                    >
-                        <Link size={16} strokeWidth={2} aria-hidden />
-                    </button>
-                </Hint>
-            </PopoverTrigger>
-            <PopoverContent
-                align="start"
-                side="top"
-                className="w-80 p-3"
-                onCloseAutoFocus={event => {
-                    // Back to the text, where the link just went (or would have gone).
-                    event.preventDefault();
-                    editor.focus();
-                }}
-            >
-                <form onSubmit={submit} className="flex items-center gap-2">
-                    <Input
-                        autoFocus
-                        value={address}
-                        onChange={event => setAddress(event.target.value)}
-                        aria-label={t('chat.composer.link.address')}
-                        aria-invalid={address.trim() !== '' && !normalizeLinkAddress(address)}
-                        placeholder={t('chat.composer.link.placeholder')}
-                        className="h-9 p-2 text-body"
-                    />
-                    <button
-                        type="submit"
-                        disabled={!normalizeLinkAddress(address)}
-                        className="focus-ring tactile h-9 shrink-0 rounded-md bg-primary px-3 text-caption text-primary-foreground transition-opacity ease-tactile disabled:opacity-50"
-                    >
-                        {t('chat.composer.link.add')}
-                    </button>
-                </form>
-            </PopoverContent>
-        </Popover>
+        <>
+            <Hint label={t('chat.composer.format.link')}>
+                <button
+                    type="button"
+                    aria-label={t('chat.composer.format.link')}
+                    aria-pressed={isActive}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={open}
+                    className={className}
+                >
+                    <Link size={16} strokeWidth={2} aria-hidden />
+                </button>
+            </Hint>
+            <Dialog open={isOpen} onOpenChange={setOpen}>
+                <DialogContent
+                    closeLabel={t('common.close')}
+                    aria-describedby={undefined}
+                    className="sm:max-w-md"
+                    onCloseAutoFocus={event => {
+                        // Back to the text, where the link just went (or would have gone).
+                        event.preventDefault();
+                        editor.focus();
+                    }}
+                >
+                    <DialogTitle>{t('chat.composer.link.title')}</DialogTitle>
+                    <form onSubmit={save} className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="composer-link-text">{t('chat.composer.link.text')}</Label>
+                            <Input
+                                id="composer-link-text"
+                                autoFocus={!text}
+                                value={text}
+                                onChange={event => setText(event.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="composer-link-address">{t('chat.composer.link.address')}</Label>
+                            <Input
+                                id="composer-link-address"
+                                autoFocus={!!text}
+                                value={address}
+                                onChange={event => setAddress(event.target.value)}
+                                aria-invalid={address.trim() !== '' && !url}
+                                placeholder={t('chat.composer.link.placeholder')}
+                            />
+                        </div>
+                        <DialogFooter className="gap-2 sm:space-x-0">
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                                {t('common.cancel')}
+                            </Button>
+                            <Button type="submit" disabled={!url}>
+                                {t('chat.composer.link.save')}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };

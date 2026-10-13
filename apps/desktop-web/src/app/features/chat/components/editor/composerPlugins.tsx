@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
-import { $isAutoLinkNode, createLinkMatcherWithRegExp } from '@lexical/link';
+import { $isAutoLinkNode, createLinkMatcherWithRegExp, LinkNode } from '@lexical/link';
 import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $setBlocksType } from '@lexical/selection';
@@ -31,7 +31,7 @@ import {
     TextNode,
 } from 'lexical';
 
-import { LINK_URL_SOURCE, useComposerDraftStore } from '../../../../shared';
+import { isLabelledLinkAddress, LINK_URL_SOURCE, useComposerDraftStore } from '../../../../shared';
 import { type FenceSegment, splitFences } from '../../utils';
 import { $importWireMarkdown } from './wireMarkdown';
 
@@ -104,6 +104,26 @@ export const ComposerAutoLinkPlugin = () => {
 };
 
 const FENCE = '```';
+
+/**
+ * Keeps a link only where a message can carry it. A pasted web page brings its anchors along as
+ * link nodes, with whatever address they had — a relative path, `mailto:`, a URL with parentheses —
+ * and sent as `[words](address)` those would reach readers as raw markup. Such a link is unwrapped
+ * to its words. Autolinks are left alone: they are bare URLs and export as such.
+ */
+export const LinkGuardPlugin = () => {
+    const [editor] = useLexicalComposerContext();
+    useEffect(
+        () =>
+            editor.registerNodeTransform(LinkNode, node => {
+                if ($isAutoLinkNode(node) || isLabelledLinkAddress(node.getURL())) return;
+                for (const child of node.getChildren()) node.insertBefore(child);
+                node.remove();
+            }),
+        [editor]
+    );
+    return null;
+};
 
 /**
  * Typing ``` on a line of its own opens a code block there and then, as in Slack. Lexical's own

@@ -25,6 +25,7 @@ import {
     ComposerEmojiButton,
     ComposerToolbar,
     FormatShortcutsPlugin,
+    LinkGuardPlugin,
     MentionsPlugin,
     SubmitPlugin,
 } from './editor';
@@ -151,6 +152,7 @@ const MessageEditorInner = ({
             <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />
             <CodeFenceShortcutPlugin />
             <CodeFencePastePlugin />
+            <LinkGuardPlugin />
             <MentionsPlugin mentionables={mentionables} />
             <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={save} />

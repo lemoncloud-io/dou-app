@@ -18,7 +18,7 @@ import {
 import { cn } from '@chatic/lib/utils';
 import { Hint } from '../../../../shared';
 import { toggleCodeBlock } from './composerPlugins';
-import { LinkButton } from './LinkButton';
+import { $selectedLink, LinkButton } from './LinkButton';
 
 const textFormat =
     (format: TextFormatType) =>
@@ -56,7 +56,7 @@ const BUTTON_CLASS =
     'focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50';
 
 type FormatKey = (typeof INLINE_FORMATS)[number]['key'] | (typeof BLOCK_FORMATS)[number]['key'];
-type ActiveFormats = Partial<Record<FormatKey, boolean>>;
+type ActiveFormats = Partial<Record<FormatKey | 'link', boolean>>;
 
 /** Which formats the current selection carries, so the row can light them up. */
 const readActiveFormats = (): ActiveFormats => {
@@ -70,6 +70,7 @@ const readActiveFormats = (): ActiveFormats => {
         code: selection.hasFormat('code'),
         quote: $isQuoteNode(top),
         codeBlock: $isCodeNode(top),
+        link: $selectedLink() !== null,
     };
 };
 
@@ -110,7 +111,10 @@ export const ComposerToolbar = () => {
     return (
         <div className="flex items-center gap-0.5" role="toolbar" aria-label={t('chat.composer.formatting')}>
             {INLINE_FORMATS.map(renderButton)}
-            <LinkButton className={cn(BUTTON_CLASS, 'text-label')} />
+            <LinkButton
+                isActive={!!active.link}
+                className={cn(BUTTON_CLASS, active.link ? 'bg-accent text-foreground' : 'text-label')}
+            />
             <div aria-hidden className="mx-1 h-4 w-px bg-input" />
             {BLOCK_FORMATS.map(renderButton)}
         </div>

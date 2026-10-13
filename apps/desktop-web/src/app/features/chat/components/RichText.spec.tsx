@@ -47,3 +47,19 @@ describe('RichText fenced code', () => {
         expect(container.textContent).toBe('ls\ndone');
     });
 });
+
+describe('RichText labelled links', () => {
+    it('shows the label as a link to the address', () => {
+        const container = renderText('see [the docs](https://example.com/a) here');
+        const link = container.querySelector('a');
+        expect(link?.textContent).toBe('the docs');
+        expect(link?.getAttribute('href')).toBe('https://example.com/a');
+        expect(container.textContent).toBe('see the docs here');
+    });
+
+    it('leaves a label pointing anywhere but http(s) as text', () => {
+        const container = renderText('[x](javascript:alert(1))');
+        expect(container.querySelector('a')).toBeNull();
+        expect(container.textContent).toBe('[x](javascript:alert(1))');
+    });
+});

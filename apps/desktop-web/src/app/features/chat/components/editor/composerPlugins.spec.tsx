@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 
 import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
-import { $isAutoLinkNode } from '@lexical/link';
+import { $createLinkNode, $isAutoLinkNode } from '@lexical/link';
 import { $convertToMarkdownString } from '@lexical/markdown';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
@@ -27,7 +27,12 @@ import {
     type TextFormatType,
 } from 'lexical';
 
-import { CodeFencePastePlugin, CodeFenceShortcutPlugin, ComposerAutoLinkPlugin } from './composerPlugins';
+import {
+    CodeFencePastePlugin,
+    CodeFenceShortcutPlugin,
+    ComposerAutoLinkPlugin,
+    LinkGuardPlugin,
+} from './composerPlugins';
 import { COMPOSER_NODES, COMPOSER_THEME, COMPOSER_TRANSFORMERS } from './editorConfig';
 import { $createMentionNode } from './MentionNode';
 import { $exportWireMarkdown } from './wireMarkdown';
@@ -373,5 +378,48 @@ describe('CodeFencePastePlugin', () => {
         await typeKeys(editor, '```');
         expect(await paste(editor, '```\nx\n```')).toBe(true);
         expect(blockTypes(editor)).toEqual(['code']);
+    });
+});
+
+// A pasted web page brings its anchors as link nodes; only the ones a message can carry stay links.
+describe('LinkGuardPlugin', () => {
+    afterEach(cleanup);
+
+    it.each([
+        ['a relative path', '/docs'],
+        ['a mail address', 'mailto:a@example.com'],
+        ['an address with parentheses', 'https://en.wikipedia.org/wiki/Foo_(bar)'],
+    ])('keeps only the words of a link to %s', async (_, url) => {
+        const editor = mountEditor(<LinkGuardPlugin />);
+        await act(async () =>
+            editor.update(
+                () => {
+                    $getRoot()
+                        .clear()
+                        .append($createParagraphNode().append($createLinkNode(url).append($createTextNode('docs'))));
+                },
+                { discrete: true }
+            )
+        );
+        expect(editor.getEditorState().read($exportWireMarkdown)).toBe('docs');
+    });
+
+    it('keeps a link to an http(s) address', async () => {
+        const editor = mountEditor(<LinkGuardPlugin />);
+        await act(async () =>
+            editor.update(
+                () => {
+                    $getRoot()
+                        .clear()
+                        .append(
+                            $createParagraphNode().append(
+                                $createLinkNode('https://a.example').append($createTextNode('docs'))
+                            )
+                        );
+                },
+                { discrete: true }
+            )
+        );
+        expect(editor.getEditorState().read($exportWireMarkdown)).toBe('[docs](https://a.example)');
     });
 });

@@ -271,32 +271,48 @@ describe('Composer layout', () => {
         expect(input.querySelector(tag)).toBeNull();
     });
 
-    it('inserts a link at the caret, adding the scheme a bare address leaves out', async () => {
+    const addLink = async (fields: { text?: string; link: string }) => {
+        await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Link' })));
+        const dialog = await screen.findByRole('dialog', { name: 'Add link' });
+        if (fields.text !== undefined) {
+            const text = screen.getByRole('textbox', { name: 'Text' });
+            await act(async () => fireEvent.change(text, { target: { value: fields.text } }));
+        }
+        const link = screen.getByRole('textbox', { name: 'Link' });
+        await act(async () => fireEvent.change(link, { target: { value: fields.link } }));
+        await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+        await settle();
+        return dialog;
+    };
+
+    it('inserts the text as a link to the address, Slack-style, and sends it labelled', async () => {
         const container = await mount();
         const input = container.querySelector('[data-composer-input]') as HTMLElement;
 
-        await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Link' })));
-        const field = await screen.findByRole('textbox', { name: 'Link address' });
-        await act(async () => fireEvent.change(field, { target: { value: 'example.com/a' } }));
-        await act(async () => fireEvent.submit(field));
-        await settle();
+        await addLink({ text: 'the docs', link: 'example.com/a' });
 
-        expect(input.textContent?.trim()).toBe('https://example.com/a');
-        expect(input.querySelector('a')?.getAttribute('href')).toBe('https://example.com/a');
-        expect(screen.queryByRole('textbox', { name: 'Link address' })).toBeNull();
+        const link = input.querySelector('a');
+        expect(link?.textContent).toBe('the docs');
+        expect(link?.getAttribute('href')).toBe('https://example.com/a');
+        expect(useComposerDraftStore.getState().drafts.L1).toBe('[the docs](https://example.com/a)');
+        expect(screen.queryByRole('dialog', { name: 'Add link' })).toBeNull();
     });
 
-    it('does not insert an address with spaces in it', async () => {
-        const container = await mount();
-        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+    it('inserts the bare address when no text is given', async () => {
+        await mount();
+
+        await addLink({ link: 'example.com/a' });
+
+        expect(useComposerDraftStore.getState().drafts.L1).toBe('https://example.com/a');
+    });
+
+    it('keeps Save off until the address can be a link', async () => {
+        await mount();
 
         await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Link' })));
-        const field = await screen.findByRole('textbox', { name: 'Link address' });
-        await act(async () => fireEvent.change(field, { target: { value: 'not a link' } }));
-        await act(async () => fireEvent.submit(field));
-        await settle();
+        const link = await screen.findByRole('textbox', { name: 'Link' });
+        await act(async () => fireEvent.change(link, { target: { value: 'not a link' } }));
 
-        expect(input.textContent).toBe('');
-        expect(screen.getByRole('textbox', { name: 'Link address' })).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
     });
 });

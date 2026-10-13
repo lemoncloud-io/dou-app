@@ -1,6 +1,12 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { GROUP_MENTIONS, LINK_URL_SOURCE, MENTION_TOKEN_SOURCE, UserProfilePopover } from '../../../shared';
+import {
+    GROUP_MENTIONS,
+    LABELLED_LINK_SOURCE,
+    LINK_URL_SOURCE,
+    MENTION_TOKEN_SOURCE,
+    UserProfilePopover,
+} from '../../../shared';
 
 // The message styles live in `@chatic/block-kit`: the block renderer needs them
 // and that renderer is what got shared.
@@ -18,12 +24,17 @@ import { splitFences } from '../utils';
 /** Name (without the @) → the member it refers to, when the roster knows one. */
 export type MentionResolver = (name: string) => { userId: string; name: string } | undefined;
 
-// One pass over a non-code run: bold, italic, strikethrough, links, @mentions.
+// One pass over a non-code run: labelled links, bold, italic, strikethrough, bare links, @mentions.
+// A labelled link is listed first so its address is not read as a bare one.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
 const INLINE = new RegExp(
-    `(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(${LINK_URL_SOURCE})|(@${MENTION_TOKEN_SOURCE}+)`,
+    `${LABELLED_LINK_SOURCE}|(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(${LINK_URL_SOURCE})|(@${MENTION_TOKEN_SOURCE}+)`,
     'gu'
 );
+
+// Underlined at rest, not only on hover: colour alone cannot carry "this is a link" inside body
+// text (WCAG 1.4.1), and the colour it used to carry was the brand accent, shared with every button.
+const LINK_CLASS = 'text-link underline underline-offset-2 hover:no-underline';
 
 const renderInline = (
     text: string,
@@ -37,9 +48,15 @@ const renderInline = (
     let match: RegExpExecArray | null;
     while ((match = INLINE.exec(text)) !== null) {
         if (match.index > last) nodes.push(text.slice(last, match.index));
-        const [token, bold, italic, strike, url, mention] = match;
+        const [token, label, labelHref, bold, italic, strike, url, mention] = match;
         const key = `${keyBase}-${match.index}`;
-        if (bold) {
+        if (label && labelHref) {
+            nodes.push(
+                <a key={key} href={labelHref} target="_blank" rel="noreferrer noopener" className={LINK_CLASS}>
+                    {label}
+                </a>
+            );
+        } else if (bold) {
             nodes.push(
                 <strong key={key} className={MSG_BOLD_CLASS}>
                     {bold.slice(2, -2)}
@@ -51,16 +68,7 @@ const renderInline = (
             nodes.push(<s key={key}>{strike.slice(2, -2)}</s>);
         } else if (url) {
             nodes.push(
-                <a
-                    key={key}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    // Underlined at rest, not only on hover: colour alone cannot carry
-                    // "this is a link" inside body text (WCAG 1.4.1), and the colour it
-                    // used to carry was the brand accent, shared with every button.
-                    className="text-link underline underline-offset-2 hover:no-underline"
-                >
+                <a key={key} href={url} target="_blank" rel="noreferrer noopener" className={LINK_CLASS}>
                     {url}
                 </a>
             );

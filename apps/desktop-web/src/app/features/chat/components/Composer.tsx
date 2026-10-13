@@ -33,6 +33,7 @@ import {
     ComposerSendButton,
     ComposerToolbar,
     FormatShortcutsPlugin,
+    LinkGuardPlugin,
     MentionsPlugin,
     SubmitPlugin,
 } from './editor';
@@ -249,6 +250,7 @@ const ComposerInner = ({
             <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />
             <CodeFenceShortcutPlugin />
             <CodeFencePastePlugin />
+            <LinkGuardPlugin />
             <MentionsPlugin mentionables={mentionables} />
             <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={submit} />
