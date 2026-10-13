@@ -14,6 +14,8 @@ stores in `src/app/shared/`.
   holds while rows are measured, and how a jump reaches a row outside the window.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
+- [read-receipts.md](./read-receipts.md): the "Seen by" line under a message, what it counts and which
+  messages show one.
 - [room-names.md](./room-names.md): one name per room on every surface, and the profile cache behind it.
 - [channel-settings.md](./channel-settings.md): the channel settings panel's sections, and the channel
   ID a group channel shows for pointing a service at it.

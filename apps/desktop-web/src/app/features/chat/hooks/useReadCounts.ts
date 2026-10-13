@@ -20,7 +20,7 @@ import {
 export type ReadCountOf = (chatNo: number, senderId?: string) => ReadCount | null;
 
 /**
- * Per-message read receipts for the open channel (`Read N · Unread M`).
+ * Per-message read receipts for the open channel (`Seen by N • Unseen by M`, or `Seen by all`).
  *
  * Reporting our own read position is already handled (`useReadReceipts`); this is the
  * reading side, and it needs every *other* member's cursor. The sidebar only keeps MY join
