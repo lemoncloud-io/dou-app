@@ -1229,7 +1229,7 @@
         "invalidCode": "Invalid invite code. Please check and try again."
     },
     "placeProfileCreate": {
-        "title": "Create your profile for\n<{{place}}>",
+        "title": "Create your profile for\n{{place}}",
         "subtitle": "Set up a profile just for this place!\nYou can join as a new you in every place.",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",
@@ -1248,7 +1248,7 @@
     },
     "placeProfileEdit": {
         "loading": "Loading your profile...",
-        "title": "The profile you use in\n<{{place}}>",
+        "title": "The profile you use in\n{{place}}",
         "header": "My profile",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",
@@ -1933,7 +1933,7 @@
         "cancelFailed": "Couldn't cancel the invite. Please try again shortly"
     },
     "placeProfileBanner": {
-        "title": "You have no profile in\n<{{place}}> yet",
+        "title": "You have no profile in\n{{place}} yet",
         "action": "Create profile",
         "dismiss": "Dismiss"
     },

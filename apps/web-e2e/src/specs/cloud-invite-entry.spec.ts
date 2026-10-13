@@ -19,7 +19,7 @@ import { expect, test } from '../support/test';
 
 const acceptButton = (page: Page) => page.getByRole('button', { name: 'Accept' });
 const profileDialog = (page: Page) =>
-    page.getByRole('dialog').getByRole('heading', { level: 2, name: `Create your profile for <${CLOUD_PLACE.name}>` });
+    page.getByRole('dialog').getByRole('heading', { level: 2, name: `Create your profile for ${CLOUD_PLACE.name}` });
 
 /** Accepts the invite on screen and waits until the accept screen has handed over to the room. */
 const acceptIntoRoom = async (page: Page): Promise<void> => {
