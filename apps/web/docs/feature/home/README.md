@@ -285,7 +285,8 @@ behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing els
 - **Notifications** write my join row's `notify` — `none` to mute, `all` to unmute — the field the
   room's settings level writes. Only "Off" reads as muted here, so a room set to "Mentions only" offers
   "Mute", and muting then unmuting it from the list sets it back to "All messages". The write is
-  optimistic, so the bell-off glyph is the answer; only a failure speaks, as a toast. A room on
+  a state write, so the bell-off glyph is the answer at once: a write waiting on the socket shows
+  nothing and goes out on reconnect, and only a refusal from the server speaks, as a toast. A room on
   "Mentions only" draws an @ glyph beside its name instead, since a mention still rings; a 1:1 stored
   as `mention` draws nothing, as it is delivered as all messages (`notifyLevelOf`).
 - **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin

@@ -24,21 +24,20 @@ The read path was bound to that socket:
 
 1. The room waited for `isVerified` before marking, and the optimistic cache write lived inside the
    same call, so a room entered while the socket reconnected kept its count until the handshake ended.
-2. A failed `chat.read` was rolled back. The room sent it again on the next reconnect, new message or
-   return to the foreground, but the count was back until then, and a failure that left the socket up
-   (a timeout, a 5xx) was not sent again at all.
+2. A failed `chat.read` was rolled back, and the count was back until the room sent it again — on the
+   next reconnect, new message or return to the foreground. A failure that left the socket up (a
+   timeout, a 5xx) waited for one of the last two.
 3. The join cache took whatever cursor a write carried, so a join sync answer that left before the read
    and landed after it lowered the cursor again.
 4. The room page stays mounted from one room to the next, and its dedup guard was not scoped to the
    room, so a room whose head was below the previous room's was never marked.
 
-The read was one case of a wider pattern. "Show it now, tell the server later" was done five ways —
+The read was one case of a wider pattern. "Show it now, tell the server later" was done four ways —
 a repository's optimistic write with a rollback (notification setting, room name, reactions), an app
-setting plus react-query (push mute), desktop-only stores, the chat outbox, and a first read queue —
-and most rolled back on failure and never sent again. A first fix put a read queue in
-`libs/app-runtime` behind `runtime.data.markChannelRead`; its review found screens that still called
-`readChat` directly, which, with the rollback gone, left a failed read read on the device with nothing
-resending it. A queue a screen can step around does not hold.
+setting plus react-query (push mute), desktop-only stores, and the chat outbox — and most rolled back
+on failure and never sent again. Fixing it with a queue the screens call, beside the repository, does
+not hold: any screen that calls the repository steps around the queue, and once the rollback is gone
+such a failed write stays on the device with nothing resending it.
 
 ## Decision
 
@@ -60,9 +59,12 @@ resending it. A queue a screen can step around does not hold.
 5. **One value per key.** Values fold per `(cid, uid, op, key)` — the highest cursor, the latest
    setting — with one request per key in flight. A failure while the socket looks ready retries after
    2 s, 5 s and 15 s; otherwise the next ready transition is the retry. A 4xx other than 408, 429 or 499
-   is final: the value is dropped, its receipt rejects, and the last accepted value (or the one the
-   write replaced) is put back. A late answer is not recorded over a newer waiting value. A write from
-   an account no longer signed in to its cloud is dropped.
+   is final, and so is a precondition the repository finds unmet before the socket (my join row having
+   gone): the value is dropped, its receipt rejects, and the last accepted value (or the one the write
+   replaced, empty included) is put back. A late answer is not recorded over a newer waiting value of
+   the same key, and an answer records only its own field. A write made under another account than the
+   one now signed in to its cloud is dropped. Only a read cursor skips a value the server already
+   accepted; a setting another device can change is always sent.
 6. **A cached read cursor never moves backwards**, and the room's dedup guard is per room.
 7. **Every read and join write in both apps uses it** — the rooms, the thread page, bulk "mark all
    read", the home row's mute, the settings screen, the name dialogs, desktop's row menu and places page.
@@ -72,8 +74,9 @@ resending it. A queue a screen can step around does not hold.
 - The unread count clears as soon as the room is shown, including on a reconnecting socket, and a
   read, mute or rename made while offline reaches the server on the next reconnect without the user
   doing anything.
-- `libs/data`'s design principle 2 ("there is no automatic dispatcher") now names one exception: state
-  writes reach the server through the outbox, at a time the runtime decides.
+- `libs/data`'s design principle 2 — remote calls are explicit commands with no dispatcher behind
+  them — now names one exception: state writes reach the server through the outbox, at a time the
+  runtime decides.
 - `readChat` and `updateJoin` return `WriteReceipt` instead of the server's join row. A screen reports a
   refusal from `delivered` and never waits on it to update; a name dialog closes at once and says so
   later if the server refuses.
@@ -83,8 +86,8 @@ resending it. A queue a screen can step around does not hold.
   queued value lands. Accepted for now; the final state is right.
 - The outbox is in memory. A write still queued when the app is killed survives only locally; the
   server hears of it on the next write to that key.
-- `feat/channel-notify-mode` rewrites the settings screen's notification write; merging it means
-  reading `delivered` instead of a rejected `updateJoin`.
+- The settings screen's notification level picker reverts its mirror only when the local write fails;
+  a refusal arrives through `delivered`, and the restored join row brings the mirror back.
 
 ## Alternatives
 
@@ -92,9 +95,8 @@ resending it. A queue a screen can step around does not hold.
   entry; the delay was the socket, not the computation.
 - **Keep the rollback and add retries.** The count reappears between the failure and the retry, which
   is the symptom; with a monotonic cursor the restore write is ignored anyway.
-- **A runtime facade (`runtime.data.markChannelRead`) over a runtime queue.** The first iteration. It
-  works for the screens that use it and not for any that call the repository, which is the bypass the
-  review found.
+- **A runtime facade over a runtime queue** (`runtime.data.markChannelRead(cid, …)`). It works for the
+  screens that use it and not for any that call the repository, which a screen can always do.
 - **One outbox for state writes and chat sends.** Their policies are opposite — idempotent latest value
   vs ordered, non-idempotent, one row per attempt — and a stuck send would hold reads behind it. They
   share a name, not a queue; the chat outbox can move under `outbox/` later with its own machine.

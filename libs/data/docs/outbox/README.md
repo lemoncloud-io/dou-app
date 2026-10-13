@@ -20,7 +20,7 @@ screen → repository.readChat / updateJoin
             ③ the answer → local cache (accepted: the server's row · refused: the value put back)
 ```
 
-Order is local first, then the outbox; a failed local write is still queued. There is no path from a
+Order is local first, then the outbox; a local write that fails rejects the call and nothing is queued. There is no path from a
 repository to the server for these writes that skips the outbox, so no screen can bypass it.
 
 **Not a state write** — and so not here: a write the server has to answer before the app can go on
@@ -44,11 +44,11 @@ not own; it arrives through `OutboxTransport`, which `libs/app-runtime` implemen
 ## The machine
 
 - **One value per key.** A key is `(cid, uid, op, key)`. A new value folds into one still waiting (`merge`; default: it replaces it), and one request per key is in flight; a value set meanwhile goes right after. Keys never wait for each other.
-- **Already there.** A value the server already holds (`isCovered`) resolves without a request — only while nothing waits for that key. With a value queued, setting the accepted value again must replace the queued one, or the server would end on the queued value.
-- **Retries.** A failure while the socket still looks ready is retried on the transport's bounded schedule; past it, and for any failure while the socket is down, the next ready transition is the retry, and it restarts the schedule. A timer is safe here because a repeat is harmless and collapsed to one request per key — the reason the chat outbox may not have one does not apply.
-- **Refusals are final.** The transport classifies a failure (`isRefusal`). A refused value is dropped and its receipts reject; the spec puts back the last accepted value, or the value the first waiting write replaced (`previous`) when none was accepted. A value set after the refused one is its own write and still goes out, and nothing is put back over it.
-- **Late answers do not win.** A request's answer is recorded (`accept`) only when no newer value is waiting; otherwise on → off → on would flash the first answer.
-- **Accounts.** A write carries the uid it was made under. If another uid is signed in to that cloud when it would go out, it is dropped and its receipt rejects with `OutboxAccountChangedError`. A host that reports no uid is not checked.
+- **Already there.** A value the server already holds (`isCovered`) resolves without a request — only while nothing waits for that key, and only for state no other device can move back. With a value queued, setting the accepted value again must replace the queued one, or the server would end on the queued value. A setting another device can change (notifications, a name) has no `isCovered`: "this outbox sent that value earlier" says nothing about the server now, so every value is sent.
+- **Retries.** A failure while the socket still looks ready is retried on the transport's bounded schedule; past it, and for any failure while the socket is down, the next ready transition is the retry, and it restarts the schedule. A new value for a key that used up its schedule starts it again. A timer is safe here because a repeat is harmless and collapsed to one request per key — the reason the chat outbox may not have one does not apply.
+- **Refusals are final.** The transport classifies a failure (`isRefusal`); an `OutboxRefusalError` — a precondition the repository checks before the socket, such as my join row having gone — is final whatever the transport says. A refused value is dropped and its receipts reject; the spec puts back the last accepted value, or the value the first waiting write replaced (`previous`, which may itself be empty — a room that had no name goes back to having none) when none was accepted. A value set after the refused one is its own write and still goes out, and nothing is put back over it.
+- **Late answers do not win.** A request's answer is recorded (`accept`) only when no newer value of that key is waiting; otherwise on → off → on would flash the first answer. And `accept` records only its own field: the cursor, the notification setting and the name share one join row, and the answer's copy of the others may be older than a change still waiting.
+- **Accounts.** A write carries the uid it was made under. If another uid is signed in to that cloud when it would go out, it is dropped and its receipt rejects with `OutboxAccountChangedError`. An unknown uid on either side — a host that reports none, or a write made before the identity was known — is not checked.
 - **Receipts.** `delivered` resolves when the server accepted this value or a later one, rejects only on a refusal or an account change, and stays pending while the socket is down. The machine marks it handled, so a refusal nobody asked about is not an unhandled rejection.
 - **Scope.** The queue lives in memory for the page. A write still queued when the app is killed survives only as the local value; the server hears of it on the next write to that key.
 
@@ -59,12 +59,13 @@ not own; it arrives through `OutboxTransport`, which `libs/app-runtime` implemen
 | key           | channelId                                    | channelId                                            | channelId                           |
 | value         | chatNo                                       | `all` · `mention` · `none`                           | my name for the room                |
 | merge         | the higher                                   | the latest                                           | the latest                          |
-| already there | at or below the accepted cursor              | the same value                                       | the same value                      |
+| already there | at or below the accepted cursor              | never — every value is sent                          | never — every value is sent         |
+| records       | the cursor (`readNo`, `chatNo`, `metaNo`)    | `notify`                                             | `nick`                              |
 | deliver       | `join.sendRead` (`chat.read`)                | `join.sendJoinUpdate` (`join.update`, `notify` only) | `join.sendJoinUpdate` (`nick` only) |
 | restore       | none — the cache never takes an older cursor | `join.writeMyJoinLocally`                            | `join.writeMyJoinLocally`           |
 
 A notification change and a name change are separate keys, so changing both at once sends two
-requests that cannot overwrite each other.
+requests, and neither answer overwrites the other's field in the cache.
 
 ## Adding a state
 

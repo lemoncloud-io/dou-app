@@ -10,9 +10,9 @@ import { useDesktopChannelMutations } from './useChannelMutations';
 /**
  * One writer for the per-channel notify mode, shared by the settings panel and the
  * row menu (they carried separate copies of the same lines). The local pref applies
- * instantly and stands even if the server sync fails — but a failure is announced
- * instead of swallowed: other devices follow the server record, so silence here
- * reads as success while they drift. The next successful change re-syncs.
+ * instantly; the server half goes through the join repository's outbox, which resends it
+ * until it lands. Only a refusal comes back as a rejection, and it is announced instead of
+ * swallowed: other devices follow the server record, so silence here would read as success.
  */
 export const useChannelNotifyChange = (channel: DomainChannel | undefined, myUid: string | null) => {
     const { t } = useTranslation();

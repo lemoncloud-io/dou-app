@@ -29,6 +29,17 @@ export interface StateWrite<V = unknown> {
     previous?: V;
 }
 
+/**
+ * Thrown by a delivery that can never succeed for reasons on this side — a precondition the repository
+ * checks before the socket, such as my join row having gone. The outbox treats it as a refusal.
+ */
+export class OutboxRefusalError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'OutboxRefusalError';
+    }
+}
+
 /** What a repository hands back once the local half is done. */
 export interface WriteReceipt {
     /**
@@ -69,11 +80,18 @@ export interface StateSpec<V> {
     op: OutboxOp;
     /** Folds `next` into a value still waiting to be sent. Default: `next` replaces it. */
     merge?(waiting: V, next: V): V;
-    /** Whether the server already has `next`. Consulted only while nothing waits for the key. */
+    /**
+     * Whether the server already has `next`, judged from what this outbox saw it accept. Consulted only
+     * while nothing waits for the key — and only safe for state another device cannot move back, such
+     * as a read cursor. A setting changed elsewhere would make the outbox skip a write the server needs.
+     */
     isCovered?(accepted: V, next: V): boolean;
     /** Sends the value through `repositories` — the write's own cloud — and returns the server's answer. */
     deliver(repositories: DataRepositories, write: StateWrite<V>): Promise<unknown>;
-    /** Records the server's answer locally. Skipped when a newer value is already waiting. */
+    /**
+     * Records the server's answer locally — its own field only, since several states can share one row
+     * and another may still be waiting. Skipped when a newer value of this key is already waiting.
+     */
     accept?(repositories: DataRepositories, write: StateWrite<V>, answer: unknown): Promise<void>;
     /** Puts `value` back locally after a refusal. Skipped when a newer value is already waiting. */
     restore?(repositories: DataRepositories, write: StateWrite<V>, value: V): Promise<void>;

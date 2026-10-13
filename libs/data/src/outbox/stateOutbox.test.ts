@@ -1,5 +1,6 @@
 import type { DataRepositories } from '../repositories';
 import type { OutboxTransport, StateSpec, StateWrite } from './ports';
+import { OutboxRefusalError } from './ports';
 import { createStateOutbox, OutboxAccountChangedError, type StateSpecs } from './stateOutbox';
 
 const CID = 'cloud-a';
@@ -307,6 +308,62 @@ describe('createStateOutbox', () => {
             );
         });
 
+        it('restores an empty value too — a room that had no name goes back to having none', async () => {
+            const spec = settingSpec();
+            spec.deliver.mockRejectedValue(new Error('403 FORBIDDEN'));
+            const { outbox, write, setReady } = setup(spec);
+            setReady(CID, true);
+
+            await expect(outbox.set(write('Foo', { previous: undefined })).delivered).rejects.toThrow('403');
+            await outbox.flush();
+
+            expect(spec.restore).toHaveBeenCalledWith(expect.anything(), expect.anything(), undefined);
+        });
+
+        it('restores nothing for a state that names no previous value', async () => {
+            const spec = cursorSpec();
+            spec.deliver.mockRejectedValue(new Error('403 FORBIDDEN'));
+            const { outbox, write, setReady } = setup(spec);
+            setReady(CID, true);
+
+            await expect(outbox.set(write(10)).delivered).rejects.toThrow('403');
+            await outbox.flush();
+
+            expect(spec.restore).not.toHaveBeenCalled();
+        });
+
+        it('treats a precondition the repository found unmet as final, whatever the transport says', async () => {
+            const spec = settingSpec();
+            spec.deliver.mockRejectedValue(new OutboxRefusalError('[Repository] id is required.'));
+            const { outbox, write, setReady, fireTimers } = setup(spec);
+            setReady(CID, true);
+
+            await expect(outbox.set(write('New', { previous: 'Old' })).delivered).rejects.toThrow('id is required');
+            await outbox.flush();
+
+            expect(fireTimers()).toEqual([]);
+            expect(spec.restore).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'Old');
+        });
+
+        it('gives a parked key its timed retries again when a new value is set', async () => {
+            const spec = settingSpec();
+            spec.deliver.mockRejectedValue(new Error('500 INTERNAL'));
+            const { outbox, write, setReady, fireTimers } = setup(spec);
+            setReady(CID, true);
+            void outbox.set(write('A'));
+            await outbox.flush();
+            fireTimers();
+            await outbox.flush();
+            fireTimers();
+            await outbox.flush();
+            expect(fireTimers()).toEqual([]);
+
+            void outbox.set(write('B'));
+            await outbox.flush();
+
+            expect(fireTimers()).toEqual([10]);
+        });
+
         it('restores the last accepted value rather than an older baseline', async () => {
             const spec = settingSpec();
             const { outbox, write, setReady } = setup(spec);
@@ -366,6 +423,17 @@ describe('createStateOutbox', () => {
             await expect(delivered).rejects.toBeInstanceOf(OutboxAccountChangedError);
             expect(spec.deliver).not.toHaveBeenCalled();
             expect(outbox.pending()).toEqual([]);
+        });
+
+        it('keeps a write made before the uid was known', async () => {
+            const spec = cursorSpec();
+            const { outbox, write, setReady } = setup(spec);
+
+            const { delivered } = outbox.set(write(10, { uid: '' }));
+            setReady(CID, true);
+            await delivered;
+
+            expect(spec.deliver).toHaveBeenCalledTimes(1);
         });
 
         it('sends when the host knows no uid at all', async () => {

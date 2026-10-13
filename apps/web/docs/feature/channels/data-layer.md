@@ -81,11 +81,11 @@ is the only member there is, so the section rendered empty forever. `ChannelMemb
 
 ### A network read waits for its socket to verify
 
-Anything that talks to the server is gated on verification and takes it as an effect dependency —
-except a state write — the read mark, a notification setting, a room name — which the repository
-queues in the outbox itself (§ Reads advance in two stages) —
-so it retries itself on the `false → true` edge after a reconnect or a site switch. Which socket
-depends on where the call goes:
+Anything that talks to the server is gated on verification and takes it as an effect dependency,
+so it retries itself on the `false → true` edge after a reconnect or a site switch. State writes (the
+read mark, a notification setting, a room name) are the exception: the repository queues them in the
+outbox, which does its own waiting (§ Reads advance in two stages). Which socket depends on where the
+call goes:
 
 - A sync target registered for a named cloud (`registerJoin`, `registerProfile`) runs on that
   cloud's own slot, so it waits for that slot — `runtime.connection.useCloudVerified(cid)`, which
@@ -243,8 +243,8 @@ independent buttons only reflect their own in-flight state.
 | Hook                  | Actions                                                                                | Repository                   |
 | --------------------- | -------------------------------------------------------------------------------------- | ---------------------------- |
 | `useChannelMutations` | `createChannel` · `updateChannel` · `deleteChannel` · `leaveChannel` · `inviteChannel` | channel (+ join, for a kick) |
-| `useChatMutations`    | `sendMessage` · `retryMessage` · `readMessage` · `deleteMessage`                       | chat, join                   |
-| `useJoinMutations`    | `updateJoin` (my nick / notify)                                                        | join                         |
+| `useChatMutations`    | `sendMessage` · `retryMessage` · `deleteMessage`                                       | chat                         |
+| `useJoinMutations`    | `updateJoin` (my nick / notify) → `WriteReceipt` once local; refusals from `delivered` | join                         |
 | `useUserMutations`    | `requestInvite` · `requestInviteBatch`                                                 | user                         |
 
 Image messages have their own write hook, `useSendImages` (`sendImages` · `retry` · `canRetry` ·

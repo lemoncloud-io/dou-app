@@ -573,7 +573,25 @@ describe('ChannelSettingsPage', () => {
             expect(updateJoin).not.toHaveBeenCalled();
         });
 
-        it('reverts the shown level and toasts when the write fails', async () => {
+        // A state write: the level shows at once and waits in the outbox; only a server refusal comes
+        // back, through the receipt, after the sheet has closed.
+        it('keeps the picked level while it waits, and says why if the server later refuses it', async () => {
+            updateJoin.mockImplementationOnce(async () => ({ delivered: Promise.reject(new Error('403 FORBIDDEN')) }));
+            channelValue = OWNER_CHANNEL;
+            render(<ChannelSettingsPage />);
+
+            openSheet();
+            await pick('none');
+
+            expect(notifyRow()).toHaveTextContent('chat.settings.notifyMode.none');
+            await waitFor(() =>
+                expect(toast).toHaveBeenCalledWith(
+                    expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
+                )
+            );
+        });
+
+        it('reverts the shown level and toasts when the local write fails', async () => {
             updateJoin.mockRejectedValueOnce(new Error('boom'));
             channelValue = OWNER_CHANNEL;
             render(<ChannelSettingsPage />);
@@ -593,22 +611,6 @@ describe('ChannelSettingsPage', () => {
 
             expect(screen.queryByText('chat.settings.roomNotification')).not.toBeInTheDocument();
         });
-    });
-
-    it('says why when the server later refuses the notification change', async () => {
-        updateJoin.mockImplementationOnce(async () => ({ delivered: Promise.reject(new Error('403 FORBIDDEN')) }));
-        channelValue = OWNER_CHANNEL;
-        render(<ChannelSettingsPage />);
-
-        await act(async () => {
-            fireEvent.click(screen.getByRole('switch'));
-        });
-
-        await waitFor(() =>
-            expect(toast).toHaveBeenCalledWith(
-                expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
-            )
-        );
     });
 
     it('멤버 항목을 탭하면 프로필이 열리고, 소유자가 일반 멤버를 볼 때 canKick=true', () => {

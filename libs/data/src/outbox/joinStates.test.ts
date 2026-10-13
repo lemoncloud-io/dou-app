@@ -1,10 +1,13 @@
 import type { DataRepositories } from '../repositories';
 import { joinNickState, joinNotifyState, joinReadState } from './joinStates';
 
+const ROW = { id: 'ch-1@me', channelId: 'ch-1', userId: 'me', readNo: 4, chatNo: 4, notify: 'all', nick: 'Old' };
+
 const graph = () => {
     const join = {
-        sendRead: jest.fn().mockResolvedValue({ id: 'ch-1@me', chatNo: 9 }),
-        sendJoinUpdate: jest.fn().mockResolvedValue({ id: 'ch-1@me', notify: 'none' }),
+        // A whole row, as the server answers, with every field this device might be waiting to send.
+        sendRead: jest.fn().mockResolvedValue({ ...ROW, readNo: 9, chatNo: 9, metaNo: 2 }),
+        sendJoinUpdate: jest.fn().mockResolvedValue({ ...ROW, notify: 'none', nick: 'New' }),
         writeMyJoinLocally: jest.fn().mockResolvedValue(undefined),
         cacheWrite: jest.fn().mockResolvedValue(undefined),
     };
@@ -28,13 +31,21 @@ describe('join states', () => {
             expect(joinReadState.isCovered?.(10, 11)).toBe(false);
         });
 
-        it('delivers through sendRead and records the answer', async () => {
+        it('delivers through sendRead and records only the cursor from the answer', async () => {
             const { join, repositories } = graph();
             const answer = await joinReadState.deliver(repositories, write('join.read', 9));
             await joinReadState.accept?.(repositories, write('join.read', 9), answer);
 
             expect(join.sendRead).toHaveBeenCalledWith({ channelId: 'ch-1', chatNo: 9 });
-            expect(join.cacheWrite).toHaveBeenCalledWith({ id: 'ch-1@me', chatNo: 9 });
+            // The answer's notify and nick may be older than a change still waiting to go out.
+            expect(join.cacheWrite).toHaveBeenCalledWith({
+                id: 'ch-1@me',
+                channelId: 'ch-1',
+                userId: 'me',
+                readNo: 9,
+                chatNo: 9,
+                metaNo: 2,
+            });
         });
 
         it('has nothing to restore — the cursor never moves backwards', () => {
@@ -46,20 +57,19 @@ describe('join states', () => {
         ['join.notify', joinNotifyState, 'none', { notify: 'none' }, { notify: 'all' }],
         ['join.nick', joinNickState, 'New', { nick: 'New' }, { nick: 'Old' }],
     ] as const)('%s', (op, state, value, sent, restored) => {
-        it('lets the latest value win and treats the same value as already there', () => {
+        it('lets the latest value win and sends every value — another device can change it back', () => {
             expect(state.merge).toBeUndefined();
-            expect((state.isCovered as (a: unknown, b: unknown) => boolean)(value, value)).toBe(true);
-            expect((state.isCovered as (a: unknown, b: unknown) => boolean)(value, 'other')).toBe(false);
+            expect(state.isCovered).toBeUndefined();
         });
 
-        it('delivers only its own field through sendJoinUpdate and records the answer', async () => {
+        it('delivers only its own field through sendJoinUpdate and records only that field', async () => {
             const { join, repositories } = graph();
             const deliver = state.deliver as (r: DataRepositories, w: unknown) => Promise<unknown>;
             const answer = await deliver(repositories, write(op, value));
             await state.accept?.(repositories, write(op, value) as never, answer);
 
             expect(join.sendJoinUpdate).toHaveBeenCalledWith('ch-1', sent);
-            expect(join.cacheWrite).toHaveBeenCalledWith(answer);
+            expect(join.cacheWrite).toHaveBeenCalledWith({ id: 'ch-1@me', channelId: 'ch-1', userId: 'me', ...sent });
         });
 
         it('puts the restored value back locally only', async () => {

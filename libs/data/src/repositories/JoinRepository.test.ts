@@ -1,3 +1,4 @@
+import { OutboxRefusalError } from '../outbox/ports';
 import { JoinRepository } from './JoinRepository';
 
 describe('JoinRepository', () => {
@@ -168,6 +169,15 @@ describe('JoinRepository', () => {
                 { id: 'ch-1@me', notify: 'none' },
                 { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
             );
+        });
+
+        it('sendJoinUpdate refuses for good once my join row is gone — retrying cannot bring it back', async () => {
+            const { repository, joinSocketDataSource } = createRepository();
+
+            await expect(repository.sendJoinUpdate('ch-1', { notify: 'none' })).rejects.toBeInstanceOf(
+                OutboxRefusalError
+            );
+            expect(joinSocketDataSource.updateJoin).not.toHaveBeenCalled();
         });
 
         it('writeMyJoinLocally puts a field back without the socket', async () => {

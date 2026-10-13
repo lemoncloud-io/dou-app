@@ -2,9 +2,17 @@ import type { DomainJoin } from '../domain';
 import type { DataRepositories } from '../repositories';
 import type { StateSpec } from './ports';
 
-/** The server's answer is my join row as it now stands; record it like any join the server sends. */
-const recordAnswer = (repositories: DataRepositories, _write: unknown, answer: unknown): Promise<void> =>
-    repositories.join.cacheWrite(answer as DomainJoin);
+/**
+ * The server's answer is my whole join row, but only the field this state set is recorded: the read
+ * cursor, the notification setting and my name for the room share that row, and another of them may
+ * still be waiting to go out — the answer's older copy of it would put the screen back.
+ */
+const recordFields =
+    (pick: (answer: DomainJoin) => Partial<DomainJoin>) =>
+    (repositories: DataRepositories, _write: unknown, answer: unknown): Promise<void> => {
+        const row = answer as DomainJoin;
+        return repositories.join.cacheWrite({ id: row.id, channelId: row.channelId, userId: row.userId, ...pick(row) });
+    };
 
 /**
  * My read cursor in one room. A cursor only moves forward, so a waiting read folds to the higher
@@ -16,26 +24,28 @@ export const joinReadState: StateSpec<number> = {
     merge: (waiting, next) => Math.max(waiting, next),
     isCovered: (accepted, next) => next <= accepted,
     deliver: (repositories, write) => repositories.join.sendRead({ channelId: write.key, chatNo: write.value }),
-    accept: recordAnswer,
+    accept: recordFields(row => ({ readNo: row.readNo, chatNo: row.chatNo, metaNo: row.metaNo })),
 };
 
 type NotifyMode = DomainJoin['notify'];
 
-/** My notification setting for one room. The latest choice wins; a refusal puts the last accepted one back. */
+/**
+ * My notification setting for one room. The latest choice wins, and every choice is sent: another
+ * device can change the setting, so "this outbox already sent that value" says nothing about the
+ * server now. A refusal puts the last accepted one back.
+ */
 export const joinNotifyState: StateSpec<NotifyMode> = {
     op: 'join.notify',
-    isCovered: (accepted, next) => accepted === next,
     deliver: (repositories, write) => repositories.join.sendJoinUpdate(write.key, { notify: write.value }),
-    accept: recordAnswer,
+    accept: recordFields(row => ({ notify: row.notify })),
     restore: (repositories, write, value) => repositories.join.writeMyJoinLocally(write.key, { notify: value }),
 };
 
 /** The name I gave one room, shown only to me. Same rules as the notification setting. */
 export const joinNickState: StateSpec<string> = {
     op: 'join.nick',
-    isCovered: (accepted, next) => accepted === next,
     deliver: (repositories, write) => repositories.join.sendJoinUpdate(write.key, { nick: write.value }),
-    accept: recordAnswer,
+    accept: recordFields(row => ({ nick: row.nick })),
     restore: (repositories, write, value) => repositories.join.writeMyJoinLocally(write.key, { nick: value }),
 };
 

@@ -1,7 +1,7 @@
 import type { ChannelUpdateJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../domain';
 import type { IJoinLocalDataSource } from '../local/data-sources';
-import type { OutboxPort, WriteReceipt } from '../outbox/ports';
+import { OutboxRefusalError, type OutboxPort, type WriteReceipt } from '../outbox/ports';
 import type { IJoinSocketDataSource } from '../remote/socket-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -143,8 +143,13 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
     public async sendJoinUpdate(channelId: string, fields: MyJoinFields): Promise<DomainJoin> {
         const requestContext = this.getRequestContext();
         // `join.update` requires a single composite join id; resolved when the write goes out, from the
-        // row the local half wrote.
-        const { existing } = await this.resolveMyJoin({ channelId } as ChannelUpdateJoinInput, requestContext);
+        // row the local half wrote. A row that is gone by then (I left the room) never comes back for
+        // this write, so it is a refusal rather than something to retry.
+        const { existing } = await this.resolveMyJoin({ channelId } as ChannelUpdateJoinInput, requestContext).catch(
+            (error: unknown) => {
+                throw new OutboxRefusalError(error instanceof Error ? error.message : String(error));
+            }
+        );
         return this.joinSocketDataSource.updateJoin(
             { id: existing.id, ...fields },
             this.getNormalizedContext(requestContext)

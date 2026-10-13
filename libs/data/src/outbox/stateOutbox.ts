@@ -1,4 +1,5 @@
 import type { DataRepositories } from '../repositories';
+import { OutboxRefusalError } from './ports';
 import type { OutboxOp, OutboxPort, OutboxTransport, OutboxValues, StateSpec, StateWrite, WriteReceipt } from './ports';
 
 /**
@@ -39,8 +40,11 @@ interface KeyState {
     settledSeq: number;
     /** The last value the server accepted. */
     accepted: { value: unknown } | null;
-    /** What a refusal restores when nothing was accepted: the value before the first waiting write. */
-    baseline: unknown;
+    /**
+     * What a refusal restores when nothing was accepted: the value before the first waiting write.
+     * Boxed, because "the room had no name" is a value to put back, not the absence of one.
+     */
+    baseline: { value: unknown } | null;
     inFlight: Promise<void> | null;
     failures: number;
     timer: unknown;
@@ -122,9 +126,10 @@ export const createStateOutbox = ({
         cancelTimer(state);
 
         // Another account is signed in to this cloud now: its partition, its server, not this write's.
-        // No uid at all says nothing either way (a host that does not track accounts).
+        // An unknown uid on either side says nothing either way — a host that does not track accounts,
+        // or a write made before the identity was known.
         const currentUid = transport.uidOf(cid);
-        if (currentUid !== null && currentUid !== uid) {
+        if (uid && currentUid !== null && currentUid !== uid) {
             state.settledSeq = state.seq;
             settleWaiters(state, state.seq, new OutboxAccountChangedError());
             releaseCloudIfIdle(cid);
@@ -150,15 +155,17 @@ export const createStateOutbox = ({
                 },
                 (error: unknown) => {
                     state.inFlight = null;
-                    if (transport.isRefusal(error)) {
+                    // A precondition the repository found unmet (my row is gone, say) fails the same way
+                    // every time, so it is final whatever the transport makes of it.
+                    if (error instanceof OutboxRefusalError || transport.isRefusal(error)) {
                         state.settledSeq = Math.max(state.settledSeq, seq);
                         settleWaiters(state, seq, error);
                         const restore = spec.restore;
-                        const restoreTo = state.accepted ? state.accepted.value : state.baseline;
+                        const restoreTo = state.accepted ?? state.baseline;
                         // Nothing to put back over a newer value: it is its own write and goes out next.
-                        if (!isPending(state) && restore && restoreTo !== undefined) {
+                        if (!isPending(state) && restore && restoreTo) {
                             void transport
-                                .inCloud(cid, repositories => restore(repositories, write, restoreTo))
+                                .inCloud(cid, repositories => restore(repositories, write, restoreTo.value))
                                 .catch(() => undefined);
                         }
                         afterSettle(state);
@@ -213,7 +220,7 @@ export const createStateOutbox = ({
                     seq: sequence,
                     settledSeq: 0,
                     accepted: null,
-                    baseline: write.previous,
+                    baseline: 'previous' in write ? { value: write.previous } : null,
                     inFlight: null,
                     failures: 0,
                     timer: undefined,
@@ -221,7 +228,9 @@ export const createStateOutbox = ({
                 };
                 keys.set(id, state);
             } else {
-                if (!isPending(state)) state.baseline = write.previous;
+                if (!isPending(state)) state.baseline = 'previous' in write ? { value: write.previous } : null;
+                // A new value is a fresh start for the timed retries a parked key used up.
+                if (!state.inFlight) state.failures = 0;
                 const value = isPending(state) && spec.merge ? spec.merge(state.write.value, write.value) : write.value;
                 state.write = { ...write, value };
                 state.seq = sequence;
