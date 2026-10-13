@@ -791,7 +791,8 @@
                 "selfLine2": "메모, 링크 등 자유롭게 기록할 수 있어요"
             },
             "read": "읽음",
-            "unread": "안읽음",
+            "unread": "미확인",
+            "allRead": "모두 읽음",
             "readCount": "읽음 {{count}}",
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",

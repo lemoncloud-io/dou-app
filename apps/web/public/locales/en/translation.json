@@ -792,6 +792,7 @@
             },
             "read": "Read",
             "unread": "Unread",
+            "allRead": "Read by all",
             "readCount": "Read {{count}}",
             "unreadCount": "Unread {{count}}",
             "viewAll": "View All",

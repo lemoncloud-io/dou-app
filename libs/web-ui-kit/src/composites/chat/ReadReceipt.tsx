@@ -9,8 +9,10 @@ export interface ReadReceiptProps {
     readLabel: string;
     /** Localized "unread" label (e.g. "Unread"). Host supplies the string. */
     unreadLabel: string;
+    /** Localized label shown instead of the counts once every member has read (e.g. "Read by all"). */
+    allReadLabel: string;
     /**
-     * Presentation mode. `count` (default) is the group indicator `Read N · Unread M`.
+     * Presentation mode. `count` (default) is the group indicator `Read N • Unread M`.
      * `dm` is the 1:1 KakaoTalk-style badge: just the unread count (0 or 1) while the
      * peer has not read, and nothing once read — labels are unused in this mode.
      */
@@ -20,18 +22,20 @@ export interface ReadReceiptProps {
 
 /**
  * Per-message read receipt — the Figma group-chat indicator next to a message
- * time (node 3209:27289): `Read N · Unread M`. The read count (point color) is
- * always shown; the unread segment (muted, with a bullet separator) appears only
- * while some members are still unread, so a fully-read message reads just
- * `Read N`. In `dm` mode it collapses to a single point-color unread count that
- * disappears once the peer reads. Purely presentational; counts and labels come
- * in as props.
+ * time (node 3209:27289):
+ * `Read N • Unread M` while some members are still unread, with the read count in
+ * the point color and the unread segment muted. Once nobody is left it collapses to
+ * the single all-read label in the point color, because "Read 10" alone made the
+ * reader work out from the member count whether that was everyone. In `dm` mode it
+ * is a single point-color unread count that disappears once the peer reads.
+ * Purely presentational; counts and labels come in as props.
  */
 export const ReadReceipt = ({
     readCount,
     unreadCount,
     readLabel,
     unreadLabel,
+    allReadLabel,
     mode = 'count',
     className,
 }: ReadReceiptProps) => {
@@ -53,26 +57,27 @@ export const ReadReceipt = ({
         );
     }
 
+    const textClass = cn('flex items-center gap-1 text-[12px] font-semibold leading-4 tracking-[-0.18px]', className);
+
+    if (!hasUnread) {
+        return (
+            <span aria-label={allReadLabel} className={cn(textClass, 'text-main-accent')}>
+                {allReadLabel}
+            </span>
+        );
+    }
+
     return (
-        <span
-            aria-label={
-                hasUnread ? `${readLabel} ${readCount} ${unreadLabel} ${unreadCount}` : `${readLabel} ${readCount}`
-            }
-            className={cn('flex items-center gap-1 text-[12px] font-semibold leading-4 tracking-[-0.18px]', className)}
-        >
+        <span aria-label={`${readLabel} ${readCount} ${unreadLabel} ${unreadCount}`} className={textClass}>
             <span className="text-main-accent">
                 {readLabel} {readCount}
             </span>
-            {hasUnread && (
-                <>
-                    <span aria-hidden className="text-description">
-                        ·
-                    </span>
-                    <span className="text-description">
-                        {unreadLabel} {unreadCount}
-                    </span>
-                </>
-            )}
+            <span aria-hidden className="text-description">
+                •
+            </span>
+            <span className="text-description">
+                {unreadLabel} {unreadCount}
+            </span>
         </span>
     );
 };
