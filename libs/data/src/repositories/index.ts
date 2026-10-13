@@ -65,6 +65,16 @@ const buildRepositories = (
     // Built ahead of the literal because the user repository loads place members' profiles through
     // its save path.
     const profile = new ProfileRepository(socketDataSources.profile, localDataSources.profile, context);
+    // `localDataSources.chat` so a leave can purge the room's messages, not just the channel
+    // row — the cache is what the screen renders, so the server's rejoin cursor reset alone
+    // changed nothing. Built ahead of the literal because leaving a place clears the
+    // channels it took me out of through it.
+    const channel = new ChannelRepository(
+        socketDataSources.channel,
+        localDataSources.channel,
+        localDataSources.chat,
+        context
+    );
     return {
         // auth/device take no local data source: they are remote-only access surfaces
         // (session-identity commands, viewing signals) with nothing to cache. `invite` (ADR-0052)
@@ -72,15 +82,7 @@ const buildRepositories = (
         // command-shaped calls (create/accept/cancel/reject/get). `subscription` (ADR-0070, late
         // stage 2) is remote-only too, and HTTP-only — it has no socket data source either.
         auth: new AuthRepository(socketDataSources.auth, context, httpDataSources?.auth),
-        // `localDataSources.chat` so a leave can purge the room's messages, not just the channel
-        // row — the cache is what the screen renders, so the server's rejoin cursor reset alone
-        // changed nothing (ADR-0067).
-        channel: new ChannelRepository(
-            socketDataSources.channel,
-            localDataSources.channel,
-            localDataSources.chat,
-            context
-        ),
+        channel,
         chat: new ChatRepository(socketDataSources.chat, localDataSources.chat, context, socketDataSources.upload),
         cloud: new CloudRepository(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
         device: new DeviceRepository(socketDataSources.device, context),
@@ -89,7 +91,7 @@ const buildRepositories = (
         profile,
         // Remote-only and HTTP-only like `subscription` — a report has nothing to cache.
         report: new ReportRepository(context, httpDataSources?.report),
-        place: new PlaceRepository(socketDataSources.place, localDataSources.place, context),
+        place: new PlaceRepository(socketDataSources.place, localDataSources.place, context, channel),
         subscription: new SubscriptionRepository(context, httpDataSources?.subscription),
         user: new UserRepository(
             socketDataSources.user,

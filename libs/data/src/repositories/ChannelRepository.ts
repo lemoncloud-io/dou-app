@@ -56,6 +56,20 @@ export interface IChannelRepository extends DisposableRepository {
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
     deleteChannel(payload: ChannelDeleteInput): Promise<DomainChannel>;
 
+    /**
+     * Clears channels the server has already taken me out of — `place.leave` answers with them. Each
+     * one gets what a confirmed self-leave of that channel gets: its row goes, the leave guard keeps a
+     * late snapshot from putting it back, and its messages are purged. `requestContext` is the scope
+     * the leave was asked in, so a cloud change while it ran cannot aim the clean-up at another cloud.
+     */
+    evictLeftChannels(channelIds: string[], requestContext: DataContext): Promise<void>;
+    /**
+     * Takes `userId` out of the cached `memberIds` of channels the server has already removed them
+     * from — the cache side of a kick, for several channels at once. A channel this device has no row
+     * for is skipped: there is nothing of it to correct.
+     */
+    dropMemberFromChannels(channelIds: string[], userId: string, requestContext: DataContext): Promise<void>;
+
     /** `channel.get-self` — `siteId` tags the returned row; the response carries no site. */
     getSelfChannel(payload: ChannelGetSelfInput | undefined, siteId: string): Promise<DomainChannel>;
 
@@ -129,6 +143,20 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 data: { channelId },
             });
         }
+    }
+
+    /**
+     * The local half of being out of a channel: guard it against a late snapshot, then drop its row.
+     * A self-leave runs it before the round trip (optimistic) and `evictLeftChannels` after one.
+     */
+    private async markChannelLeft(channelId: string, requestContext: DataContext): Promise<void> {
+        this.leftChannelGuards.set(channelId, Date.now() + LEFT_CHANNEL_GUARD_MS);
+        await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
+    }
+
+    /** `memberIds` with `userId` taken out — the cache side of a kick. */
+    private static withoutMember(memberIds: string[] | undefined, userId: string): string[] {
+        return (memberIds ?? []).filter(id => id !== userId);
     }
 
     /** Whether the leave guard on this channel is still standing; lapsed entries are dropped here. */
@@ -397,8 +425,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const normalizedContext = this.getNormalizedContext(requestContext);
         const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
         if (isSelfLeave && channelId) {
-            this.leftChannelGuards.set(channelId, Date.now() + LEFT_CHANNEL_GUARD_MS);
-            await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
+            await this.markChannelLeft(channelId, requestContext);
         }
 
         try {
@@ -406,7 +433,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             if (!isSelfLeave && channelId) {
                 // The kicked member must drop out of memberIds even if the server response
                 // omits a fresh list — don't rely on that undocumented contract.
-                const memberIds = (domain.memberIds ?? existing?.memberIds ?? []).filter(id => id !== payload.userId);
+                const memberIds = ChannelRepository.withoutMember(
+                    domain.memberIds ?? existing?.memberIds,
+                    payload.userId as string
+                );
                 await this.channelLocalDataSource.cacheWrite({ ...domain, memberIds }, requestContext);
             }
             if (isSelfLeave && channelId) await this.purgeChatHistory(channelId, requestContext);
@@ -419,6 +449,44 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 }
             }
             throw error;
+        }
+    }
+
+    // Both run after the server has already acted, so a channel whose cache write fails is logged and
+    // skipped rather than failing the call: the departure happened, and reporting it as failed would
+    // be the bigger lie (see purgeChatHistory). The next channel is still cleared.
+    public async evictLeftChannels(channelIds: string[], requestContext: DataContext): Promise<void> {
+        for (const channelId of new Set(channelIds.filter(Boolean))) {
+            try {
+                await this.markChannelLeft(channelId, requestContext);
+            } catch (error) {
+                logger.warn('CACHE', '[ChannelRepository] a left channel could not be removed from the cache', {
+                    error,
+                    data: { channelId },
+                });
+            }
+            await this.purgeChatHistory(channelId, requestContext);
+        }
+    }
+
+    public async dropMemberFromChannels(
+        channelIds: string[],
+        userId: string,
+        requestContext: DataContext
+    ): Promise<void> {
+        for (const channelId of new Set(channelIds.filter(Boolean))) {
+            try {
+                const existing = await this.channelLocalDataSource.cacheRead(channelId, requestContext);
+                // No row, nothing to correct — and cacheWrite rejects a partial it cannot place.
+                if (!existing) continue;
+                const memberIds = ChannelRepository.withoutMember(existing.memberIds, userId);
+                await this.channelLocalDataSource.cacheWrite({ id: channelId, memberIds }, requestContext);
+            } catch (error) {
+                logger.warn('CACHE', '[ChannelRepository] a removed member could not be dropped from a roster', {
+                    error,
+                    data: { channelId, userId },
+                });
+            }
         }
     }
 

@@ -2,7 +2,17 @@ import { PlaceLocalDataSource } from '../local/data-sources/PlaceLocalDataSource
 import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { PlaceRepository } from './PlaceRepository';
 import { createRepositories } from './index';
+import { ChannelRepository } from './ChannelRepository';
 import { DataContextHolder } from './types';
+
+jest.mock('@chatic/bridges', () => ({
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
+import { logger } from '@chatic/bridges';
+
+/** A channel clean-up for tests that never leave a place. */
+const noChannelCleanup = () => ({ evictLeftChannels: jest.fn(), dropMemberFromChannels: jest.fn() });
 
 describe('PlaceRepository', () => {
     const createRepository = () => {
@@ -12,6 +22,7 @@ describe('PlaceRepository', () => {
             createPlace: jest.fn(),
             updatePlace: jest.fn(),
             deletePlace: jest.fn(),
+            leavePlace: jest.fn(),
         };
         const placeLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -28,11 +39,18 @@ describe('PlaceRepository', () => {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
         };
+        const channelCleanup = noChannelCleanup();
 
         return {
-            repository: new PlaceRepository(placeSocketDataSource as any, placeLocalDataSource as any, contextProvider),
+            repository: new PlaceRepository(
+                placeSocketDataSource as any,
+                placeLocalDataSource as any,
+                contextProvider,
+                channelCleanup
+            ),
             placeSocketDataSource,
             placeLocalDataSource,
+            channelCleanup,
         };
     };
 
@@ -71,10 +89,15 @@ describe('PlaceRepository', () => {
         const placeSocketDataSource = { deletePlace: jest.fn() };
         const placeLocalDataSource = { cacheDelete: jest.fn() };
         let context = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
-        const repository = new PlaceRepository(placeSocketDataSource as any, placeLocalDataSource as any, {
-            getContext: () => context,
-            setContext: () => undefined,
-        });
+        const repository = new PlaceRepository(
+            placeSocketDataSource as any,
+            placeLocalDataSource as any,
+            {
+                getContext: () => context,
+                setContext: () => undefined,
+            },
+            noChannelCleanup()
+        );
         // The session moves to another cloud while the server is still answering.
         placeSocketDataSource.deletePlace.mockImplementation(async () => {
             context = { cid: 'cloud-b', sid: 'site-9', uid: 'me-b' };
@@ -97,6 +120,142 @@ describe('PlaceRepository', () => {
 
         expect(placeLocalDataSource.cacheDelete).not.toHaveBeenCalled();
         expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
+    describe('leavePlace', () => {
+        const scope = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+
+        it('clears the channels the server took me out of, then the place row, under the scope it was asked in', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource, channelCleanup } = createRepository();
+            const answer = { siteId: 'place-1', leftChannelIds: ['ch-1', 'ch-2'], failedChannelIds: [] };
+            const order: string[] = [];
+            placeSocketDataSource.leavePlace.mockImplementation(async () => (order.push('remote'), answer));
+            channelCleanup.evictLeftChannels.mockImplementation(async () => void order.push('channels'));
+            placeLocalDataSource.cacheDelete.mockImplementation(async () => void order.push('place'));
+
+            await expect(repository.leavePlace('place-1')).resolves.toEqual(answer);
+
+            expect(placeSocketDataSource.leavePlace).toHaveBeenCalledWith({ id: 'place-1' });
+            expect(channelCleanup.evictLeftChannels).toHaveBeenCalledWith(['ch-1', 'ch-2'], scope);
+            expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
+            expect(order).toEqual(['remote', 'channels', 'place']);
+        });
+
+        it('drops the row of the last place too — the empty list snapshot would never remove it', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+            placeSocketDataSource.leavePlace.mockResolvedValue({
+                siteId: 'place-1',
+                leftChannelIds: [],
+                failedChannelIds: [],
+            });
+            placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [] });
+
+            await repository.leavePlace('place-1');
+            await repository.refreshList();
+
+            expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
+            // The snapshot that follows is empty and, by design, touches nothing.
+            expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+        });
+
+        it('leaves the place and its channels cached and rethrows when the server refuses', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource, channelCleanup } = createRepository();
+            placeSocketDataSource.leavePlace.mockRejectedValue(new Error('403 FORBIDDEN - owner cannot leave'));
+
+            await expect(repository.leavePlace('place-1')).rejects.toThrow('403 FORBIDDEN');
+
+            expect(channelCleanup.evictLeftChannels).not.toHaveBeenCalled();
+            expect(placeLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+            expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+        });
+
+        it('succeeds when some channels could not be left, and logs them', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource, channelCleanup } = createRepository();
+            (logger.warn as jest.Mock).mockClear();
+            placeSocketDataSource.leavePlace.mockResolvedValue({
+                siteId: 'place-1',
+                leftChannelIds: ['ch-1'],
+                failedChannelIds: ['ch-9'],
+            });
+
+            await repository.leavePlace('place-1');
+
+            expect(channelCleanup.evictLeftChannels).toHaveBeenCalledWith(['ch-1'], scope);
+            expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
+            expect(logger.warn).toHaveBeenCalledWith(
+                'PLACE',
+                expect.any(String),
+                expect.objectContaining({ data: expect.objectContaining({ failedChannelIds: ['ch-9'] }) })
+            );
+        });
+
+        it('still succeeds, and still drops the place row, when clearing the channels fails locally', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource, channelCleanup } = createRepository();
+            const answer = { siteId: 'place-1', leftChannelIds: ['ch-1'], failedChannelIds: [] };
+            placeSocketDataSource.leavePlace.mockResolvedValue(answer);
+            channelCleanup.evictLeftChannels.mockRejectedValue(new Error('IndexedDB is closed'));
+
+            await expect(repository.leavePlace('place-1')).resolves.toEqual(answer);
+
+            expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
+        });
+
+        it('cleans up the cloud the leave started in, even when the scope moves before the answer', async () => {
+            const placeSocketDataSource = { leavePlace: jest.fn() };
+            const placeLocalDataSource = { cacheDelete: jest.fn() };
+            const channelCleanup = noChannelCleanup();
+            let context = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+            const repository = new PlaceRepository(
+                placeSocketDataSource as any,
+                placeLocalDataSource as any,
+                { getContext: () => context, setContext: () => undefined },
+                channelCleanup
+            );
+            placeSocketDataSource.leavePlace.mockImplementation(async () => {
+                context = { cid: 'cloud-b', sid: 'site-9', uid: 'me-b' };
+                return { siteId: 'place-1', leftChannelIds: ['ch-1'], failedChannelIds: [] };
+            });
+
+            await repository.leavePlace('place-1');
+
+            expect(channelCleanup.evictLeftChannels).toHaveBeenCalledWith(['ch-1'], scope);
+            expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
+        });
+    });
+
+    describe('removeMember', () => {
+        const scope = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+
+        it('takes the member out of the rosters of the channels the server named, and keeps the place row', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource, channelCleanup } = createRepository();
+            const answer = { siteId: 'place-1', leftChannelIds: ['ch-1', 'ch-2'], failedChannelIds: [] };
+            placeSocketDataSource.leavePlace.mockResolvedValue(answer);
+
+            await expect(repository.removeMember('place-1', 'u-2')).resolves.toEqual(answer);
+
+            expect(placeSocketDataSource.leavePlace).toHaveBeenCalledWith({ id: 'place-1', userId: 'u-2' });
+            expect(channelCleanup.dropMemberFromChannels).toHaveBeenCalledWith(['ch-1', 'ch-2'], 'u-2', scope);
+            expect(channelCleanup.evictLeftChannels).not.toHaveBeenCalled();
+            expect(placeLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+        });
+
+        it('still succeeds when a roster cannot be corrected locally', async () => {
+            const { repository, placeSocketDataSource, channelCleanup } = createRepository();
+            const answer = { siteId: 'place-1', leftChannelIds: ['ch-1'], failedChannelIds: [] };
+            placeSocketDataSource.leavePlace.mockResolvedValue(answer);
+            channelCleanup.dropMemberFromChannels.mockRejectedValue(new Error('IndexedDB is closed'));
+
+            await expect(repository.removeMember('place-1', 'u-2')).resolves.toEqual(answer);
+        });
+
+        it('touches no cache and rethrows when the server refuses', async () => {
+            const { repository, placeSocketDataSource, channelCleanup } = createRepository();
+            placeSocketDataSource.leavePlace.mockRejectedValue(new Error('403 FORBIDDEN - not the owner'));
+
+            await expect(repository.removeMember('place-1', 'u-2')).rejects.toThrow('403 FORBIDDEN');
+
+            expect(channelCleanup.dropMemberFromChannels).not.toHaveBeenCalled();
+        });
     });
 
     it('normalizes a sid-only update payload to carry id (= sid) for remote and optimistic cache', async () => {
@@ -235,11 +394,16 @@ describe('PlaceRepository', () => {
 
     it('skips the snapshot entirely while the socket still serves another cloud', async () => {
         const { placeSocketDataSource, placeLocalDataSource } = createRepository();
-        const repository = new PlaceRepository(placeSocketDataSource as any, placeLocalDataSource as any, {
-            // cid already flipped optimistically, but the socket is still bound to the outgoing cloud.
-            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me', socketCid: 'cloud-b' }),
-            setContext: () => undefined,
-        });
+        const repository = new PlaceRepository(
+            placeSocketDataSource as any,
+            placeLocalDataSource as any,
+            {
+                // cid already flipped optimistically, but the socket is still bound to the outgoing cloud.
+                getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me', socketCid: 'cloud-b' }),
+                setContext: () => undefined,
+            },
+            noChannelCleanup()
+        );
 
         await repository.refreshList();
 
@@ -273,10 +437,15 @@ describe('PlaceRepository', () => {
             cacheDelete: jest.fn(),
             cacheClear: jest.fn(),
         };
-        const repository = new PlaceRepository(placeSocketDataSource as any, placeLocalDataSource as any, {
-            getContext: () => mutableContext,
-            setContext: next => Object.assign(mutableContext, next),
-        });
+        const repository = new PlaceRepository(
+            placeSocketDataSource as any,
+            placeLocalDataSource as any,
+            {
+                getContext: () => mutableContext,
+                setContext: next => Object.assign(mutableContext, next),
+            },
+            noChannelCleanup()
+        );
 
         const pending = repository.refreshList({});
         Object.assign(mutableContext, { cid: 'cloud-b', sid: 'site-9', uid: 'other' });
@@ -353,7 +522,12 @@ describe('PlaceRepository — the scope an answer is written under', () => {
         const socket = {
             fetchPlace: jest.fn(() => new Promise(resolve => (resolveRemote = resolve))),
         };
-        const repository = new PlaceRepository(socket as any, new PlaceLocalDataSource(context, places), context);
+        const repository = new PlaceRepository(
+            socket as any,
+            new PlaceLocalDataSource(context, places),
+            context,
+            noChannelCleanup()
+        );
 
         const pending = repository.refreshList();
         context.setContext({ cid: 'cloud-b', uid: 'other' });
@@ -372,7 +546,12 @@ describe('PlaceRepository — the scope an answer is written under', () => {
         const places = createPartitionedMemoryStorage('site');
         await places.forScope({ cid: 'cloud-a', uid: 'me' }).save('place-1', { id: 'place-1', name: 'Design' } as any);
         const socket = { updatePlace: jest.fn().mockRejectedValue(new Error('403 NOT ALLOWED')) };
-        const repository = new PlaceRepository(socket as any, new PlaceLocalDataSource(context, places), context);
+        const repository = new PlaceRepository(
+            socket as any,
+            new PlaceLocalDataSource(context, places),
+            context,
+            noChannelCleanup()
+        );
 
         await expect(
             repository.updatePlace({ id: 'place-1', name: 'Studio', thumbnail: 'data:image/jpeg;base64,AAAA' } as any)
@@ -381,5 +560,85 @@ describe('PlaceRepository — the scope an answer is written under', () => {
         const row = await places.forScope({ cid: 'cloud-a', uid: 'me' }).load('place-1');
         expect(row?.name).toBe('Design');
         expect(row?.thumbnail).toBeUndefined();
+    });
+});
+
+/**
+ * Leaving a place, with the real channel repository behind it: the rows, the messages and the leave
+ * guard are the channel side's, and this is where they are seen together.
+ */
+describe('PlaceRepository — leaving a place clears what the channel side holds', () => {
+    const scope = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+    const setup = () => {
+        const contextProvider = { getContext: () => scope, setContext: () => undefined };
+        const channelSocket = { fetchChannel: jest.fn(), leaveChannel: jest.fn() };
+        const channelLocal = {
+            cacheRead: jest.fn(async (id: string) =>
+                id === 'ch-other' ? null : { id, sid: 'site-1', memberIds: ['me', 'u-2', 'u-3'] }
+            ),
+            cacheReadList: jest.fn(async () => ({ list: [] })),
+            cacheWrite: jest.fn(),
+            cacheWriteMany: jest.fn(),
+            cacheDelete: jest.fn(),
+            cacheDeleteMany: jest.fn(),
+        };
+        const chatLocal = { cacheClearByChannelId: jest.fn() };
+        const channel = new ChannelRepository(
+            channelSocket as any,
+            channelLocal as any,
+            chatLocal as any,
+            contextProvider
+        );
+        const placeSocket = { leavePlace: jest.fn() };
+        const placeLocal = { cacheDelete: jest.fn() };
+        const place = new PlaceRepository(placeSocket as any, placeLocal as any, contextProvider, channel);
+        return { channel, channelSocket, channelLocal, chatLocal, place, placeSocket, placeLocal };
+    };
+
+    it('a leave drops the place row, each left channel row and its messages, and guards them from a late snapshot', async () => {
+        const { channel, channelSocket, channelLocal, chatLocal, place, placeSocket, placeLocal } = setup();
+        placeSocket.leavePlace.mockResolvedValue({
+            siteId: 'site-1',
+            leftChannelIds: ['ch-1', 'ch-2'],
+            failedChannelIds: [],
+        });
+
+        await place.leavePlace('site-1');
+
+        expect(placeLocal.cacheDelete).toHaveBeenCalledWith('site-1', scope);
+        expect(channelLocal.cacheDelete.mock.calls).toEqual([
+            ['ch-1', scope],
+            ['ch-2', scope],
+        ]);
+        expect(chatLocal.cacheClearByChannelId.mock.calls).toEqual([
+            ['ch-1', scope],
+            ['ch-2', scope],
+        ]);
+
+        // A list request that was already in flight answers with the old rooms: they stay out.
+        channelSocket.fetchChannel.mockResolvedValue({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-3', sid: 'site-1' },
+            ],
+        });
+        await channel.refreshList({ sid: 'site-1' } as any);
+        expect(channelLocal.cacheWriteMany).toHaveBeenCalledWith([{ id: 'ch-3', sid: 'site-1' }], scope);
+    });
+
+    it('a removal takes the member out of the cached rosters and skips a channel this device does not hold', async () => {
+        const { channelLocal, chatLocal, place, placeSocket, placeLocal } = setup();
+        placeSocket.leavePlace.mockResolvedValue({
+            siteId: 'site-1',
+            leftChannelIds: ['ch-1', 'ch-other'],
+            failedChannelIds: [],
+        });
+
+        await place.removeMember('site-1', 'u-2');
+
+        expect(channelLocal.cacheWrite.mock.calls).toEqual([[{ id: 'ch-1', memberIds: ['me', 'u-3'] }, scope]]);
+        expect(channelLocal.cacheDelete).not.toHaveBeenCalled();
+        expect(chatLocal.cacheClearByChannelId).not.toHaveBeenCalled();
+        expect(placeLocal.cacheDelete).not.toHaveBeenCalled();
     });
 });

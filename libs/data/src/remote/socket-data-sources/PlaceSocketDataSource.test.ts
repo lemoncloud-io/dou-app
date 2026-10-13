@@ -36,6 +36,16 @@ describe('PlaceSocketDataSource', () => {
             await dataSource.deletePlace({ id: 'place-1' });
             expect(mockGateways.place.delete).toHaveBeenCalledWith({ id: 'place-1' });
         });
+
+        it('leavePlace sends the request as the place.leave action and returns the answer as it came', async () => {
+            const answer = { siteId: 'place-1', leftChannelIds: ['ch-1', 'ch-2'], failedChannelIds: ['ch-3'] };
+            (mockGateways.place.leave as jest.Mock).mockResolvedValue(answer);
+
+            const result = await dataSource.leavePlace({ id: 'place-1', userId: 'u-2' });
+
+            expect(mockGateways.place.leave).toHaveBeenCalledWith({ id: 'place-1', userId: 'u-2' });
+            expect(result).toEqual(answer);
+        });
     });
 
     describe('inbound mapping (View → Domain)', () => {

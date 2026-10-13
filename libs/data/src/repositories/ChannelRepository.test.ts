@@ -340,6 +340,115 @@ describe('ChannelRepository', () => {
         );
     });
 
+    it('evictLeftChannels — each channel the server took me out of loses its row and its messages, under the scope given', async () => {
+        const { repository, channelLocalDataSource, chatLocalDataSource, channelSocketDataSource } = createRepository();
+        // The scope the place leave was asked in — not the repository's live one.
+        const asked = { cid: 'cloud-x', uid: 'me-x' };
+
+        await repository.evictLeftChannels(['ch-1', 'ch-2', 'ch-1'], asked);
+
+        expect(channelLocalDataSource.cacheDelete.mock.calls).toEqual([
+            ['ch-1', asked],
+            ['ch-2', asked],
+        ]);
+        expect(chatLocalDataSource.cacheClearByChannelId.mock.calls).toEqual([
+            ['ch-1', asked],
+            ['ch-2', asked],
+        ]);
+        // No round trip of its own: the server has already answered.
+        expect(channelSocketDataSource.leaveChannel).not.toHaveBeenCalled();
+    });
+
+    it('evictLeftChannels — a snapshot that still lists an evicted channel does not bring it back', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+
+        await repository.evictLeftChannels(['ch-left'], { cid: 'cloud-a', uid: 'me' });
+        channelSocketDataSource.fetchChannel.mockResolvedValue({
+            list: [
+                { id: 'ch-left', sid: 'site-1' },
+                { id: 'ch-kept', sid: 'site-1' },
+            ],
+        });
+        await repository.refreshList({ sid: 'site-1' } as any);
+
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'ch-kept', sid: 'site-1' }],
+            expect.anything()
+        );
+    });
+
+    it('evictLeftChannels — a chat cache that cannot be cleared does not stop the next channel', async () => {
+        const { repository, channelLocalDataSource, chatLocalDataSource } = createRepository();
+        chatLocalDataSource.cacheClearByChannelId.mockRejectedValueOnce(new Error('bridge timeout'));
+
+        await expect(repository.evictLeftChannels(['ch-1', 'ch-2'], { cid: 'cloud-a', uid: 'me' })).resolves.toBe(
+            undefined
+        );
+
+        expect(channelLocalDataSource.cacheDelete).toHaveBeenCalledWith('ch-2', expect.anything());
+        expect(chatLocalDataSource.cacheClearByChannelId).toHaveBeenCalledWith('ch-2', expect.anything());
+    });
+
+    it('evictLeftChannels — a row that cannot be removed is logged and the next channel is still cleared', async () => {
+        const { repository, channelLocalDataSource, chatLocalDataSource } = createRepository();
+        (logger.warn as jest.Mock).mockClear();
+        channelLocalDataSource.cacheDelete.mockRejectedValueOnce(new Error('IndexedDB is closed'));
+
+        await expect(repository.evictLeftChannels(['ch-1', 'ch-2'], { cid: 'cloud-a', uid: 'me' })).resolves.toBe(
+            undefined
+        );
+
+        expect(channelLocalDataSource.cacheDelete).toHaveBeenCalledWith('ch-2', expect.anything());
+        expect(chatLocalDataSource.cacheClearByChannelId).toHaveBeenCalledWith('ch-2', expect.anything());
+        expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('dropMemberFromChannels — a roster that cannot be written is logged and the next channel is still corrected', async () => {
+        const { repository, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockImplementation(async (id: string) => ({ id, memberIds: ['me', 'u-2'] }));
+        channelLocalDataSource.cacheWrite.mockRejectedValueOnce(new Error('IndexedDB is closed'));
+
+        await expect(
+            repository.dropMemberFromChannels(['ch-1', 'ch-2'], 'u-2', { cid: 'cloud-a', uid: 'me' })
+        ).resolves.toBe(undefined);
+
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
+            { id: 'ch-2', memberIds: ['me'] },
+            expect.anything()
+        );
+    });
+
+    it('dropMemberFromChannels — takes the member out of cached rosters and skips channels this device does not hold', async () => {
+        const { repository, channelLocalDataSource, chatLocalDataSource } = createRepository();
+        const asked = { cid: 'cloud-x', uid: 'me-x' };
+        channelLocalDataSource.cacheRead.mockImplementation(async (id: string) =>
+            id === 'ch-1' ? { id: 'ch-1', sid: 'site-1', memberIds: ['me', 'u-2', 'u-3'] } : null
+        );
+
+        await repository.dropMemberFromChannels(['ch-1', 'ch-unknown'], 'u-2', asked);
+
+        expect(channelLocalDataSource.cacheRead).toHaveBeenCalledWith('ch-unknown', asked);
+        expect(channelLocalDataSource.cacheWrite.mock.calls).toEqual([
+            [{ id: 'ch-1', memberIds: ['me', 'u-3'] }, asked],
+        ]);
+        // I stay in those rooms: nothing of mine is evicted.
+        expect(channelLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+        expect(chatLocalDataSource.cacheClearByChannelId).not.toHaveBeenCalled();
+    });
+
+    it('leaveChannel — a kick still takes the member out when the answer carries no roster', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelLocalDataSource.cacheRead.mockResolvedValue({ id: 'ch-1', memberIds: ['me', 'u-2'] });
+        channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+
+        await repository.leaveChannel({ channelId: 'ch-1', userId: 'u-2' } as any);
+
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            { id: 'ch-1', memberIds: ['me'] },
+            { cid: 'cloud-a', uid: 'me' }
+        );
+    });
+
     it('refreshList — leaves the cache untouched on an empty snapshot', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [] });

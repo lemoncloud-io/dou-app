@@ -189,7 +189,8 @@ have no local source and some have no socket source.
 - `report` and `subscription` are remote-only **and** HTTP-only — they do not even have a socket data source.
 - `channel` also takes the `chat` local source because leaving has to empty that room's messages, not just the channel row (ADR-0067).
 - `user` takes the `join` and `place` local sources because assembling invite candidates reads all three caches together.
-- `user` also takes the **`profile` repository** — the one repository-to-repository dependency here. `listPlaceMembers` stores each page's place profiles, and a `profile.sync` answer has exactly one save path (`ProfileRepository`'s upsert and `null` delete); taking the profile data sources instead would have made a second copy of it. The dependency runs one way, and both are built in the same `buildRepositories` call from the same context provider, so a scoped graph (`withContext`) keeps them on the same scope. `index.ts` builds `profile` first for that reason.
+- `user` also takes the **`profile` repository** — one of the two repository-to-repository dependencies here. `listPlaceMembers` stores each page's place profiles, and a `profile.sync` answer has exactly one save path (`ProfileRepository`'s upsert and `null` delete); taking the profile data sources instead would have made a second copy of it. The dependency runs one way, and both are built in the same `buildRepositories` call from the same context provider, so a scoped graph (`withContext`) keeps them on the same scope. `index.ts` builds `profile` first for that reason.
+- `place` takes the **`channel` repository** (as `PlaceChannelCleanup`: `evictLeftChannels` and `dropMemberFromChannels`) — the other one. Leaving a place clears the rooms the server took me out of, and the leave guard that keeps a late snapshot from restoring a left room lives in the channel repository's instance and nowhere else. `index.ts` builds `channel` before the literal for the same reason as `profile`.
 
 ## HTTP injection is optional
 
@@ -253,10 +254,11 @@ reason.
 
 **② Purge — on explicit signals only**
 
-| Signal                     | Where                                         |
-| -------------------------- | --------------------------------------------- |
-| A successful self-leave    | `ChannelRepository.leaveChannel`              |
-| Removal of my own join row | the join sync plan's `onRemove` (app-runtime) |
+| Signal                     | Where                                                                 |
+| -------------------------- | --------------------------------------------------------------------- |
+| A successful self-leave    | `ChannelRepository.leaveChannel`                                      |
+| A successful place leave   | `ChannelRepository.evictLeftChannels`, for each room the server names |
+| Removal of my own join row | the join sync plan's `onRemove` (app-runtime)                         |
 
 It is **not** attached to `ChannelSyncPlan.onRemove` or to `syncChannels`' stale prune. One misjudgement
 by inference-based cleanup becomes unrecoverable history loss.

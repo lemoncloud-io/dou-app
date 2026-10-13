@@ -45,7 +45,13 @@ export type ChannelSocketDomainGateway = Pick<
     get<T = unknown>(data: ChannelGetRequestData, options?: DomainGatewayCallOptions): Promise<T>;
 };
 export type JoinSocketDomainGateway = Pick<JoinGateway, 'update'> & Pick<ChatGateway, 'read'>;
-export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update' | 'delete'> & Pick<UserGateway, 'mySite'>;
+/**
+ * `leave` is `place.leave` — one action for two callers: with `id` alone I leave the place, with a
+ * `userId` as well the place owner removes that member. Either way the server takes the person out of
+ * every group channel of the place and answers with the channels it took them out of.
+ */
+export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update' | 'delete' | 'leave'> &
+    Pick<UserGateway, 'mySite'>;
 export type DeviceSocketDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync' | 'updateRemote'>;
 
 /**
