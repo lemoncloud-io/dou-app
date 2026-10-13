@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-10-13] - root@0.91.0, @chatic/web@0.68.0
+
+### Features
+
+- (web) draw mentions in DoU brand colours and open the member's profile from one
+- (web) draw member mentions, delete a picked name whole on backspace, drop the @ button
+- (web) mention people from an @ list and pick a notification level, not on/off (ADR-0191)
+- (data,app-runtime) carry a picked mention on the send, its retry and the pending image row
+
 ## [2026-10-13] - root@0.90.2, @chatic/web@0.67.2
 
 ### Bug Fixes
