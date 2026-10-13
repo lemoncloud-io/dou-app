@@ -52,7 +52,9 @@ message of a 1:1 is addressed to the other person.
    pick with it, as a mention chip would go.
 4. **The phone's settings row offers levels**: all · mentions only · off in a group, all · off in a
    1:1. A 1:1 stored as `mention` shows as "All messages", how it is delivered, and is not rewritten.
-   The home list's swipe stays an off/all toggle and draws only "off" as muted.
+   The home list's swipe stays an off/all toggle and draws only "off" as muted; a room on "mentions
+   only" shows an @ glyph beside its name, and an unread last message that calls me leads its preview
+   with "@me", by the same record.
 5. **A mention survives a failed send.** The optimistic row keeps it as `mention$`, a resend rebuilt
    from the row sends it again, and an image message's pending row keeps it with its text.
 6. **The send type is widened locally.** The socket SDK's `ChatSendInput` does not declare `mention`
