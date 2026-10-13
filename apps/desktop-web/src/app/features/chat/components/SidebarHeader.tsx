@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AtSign, Bookmark, Search, UserPen } from 'lucide-react';
+import { AtSign, Bookmark, MessagesSquare, Search, UserPen } from 'lucide-react';
 
-import { Skeleton, unreadMentionCount, useMentionsStore } from '../../../shared';
+import { Skeleton, hasUnreadThread, unreadMentionCount, useMentionsStore, useMyThreadsStore } from '../../../shared';
 import { NotificationSnoozeButton } from './NotificationSnoozeButton';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
@@ -21,6 +21,10 @@ interface SidebarHeaderProps {
     onOpenSaved: () => void;
     /** Open the device-local mentions inbox (Activity) trailing pane. */
     onOpenActivity: () => void;
+    /** The active cloud — scopes the Threads dot to its threads. */
+    cloudId: string;
+    /** Open the device-local Threads trailing pane. */
+    onOpenThreads: () => void;
 }
 
 interface ActionRowProps {
@@ -29,9 +33,11 @@ interface ActionRowProps {
     onClick: () => void;
     /** Small lime dot on the icon — something inside is unread. */
     hasDot?: boolean;
+    /** What the dot means, read after the label — the dot itself is not announced. */
+    dotLabel?: string;
 }
 
-const ActionRow = ({ icon, label, onClick, hasDot }: ActionRowProps) => (
+const ActionRow = ({ icon, label, onClick, hasDot, dotLabel }: ActionRowProps) => (
     <button type="button" onClick={onClick} className={SIDEBAR_ACTION_ROW}>
         <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md">
             {icon}
@@ -43,6 +49,7 @@ const ActionRow = ({ icon, label, onClick, hasDot }: ActionRowProps) => (
             )}
         </span>
         <span className="truncate">{label}</span>
+        {hasDot && dotLabel && <span className="sr-only">, {dotLabel}</span>}
     </button>
 );
 
@@ -60,10 +67,13 @@ export const SidebarHeader = ({
     onEditPlaceProfile,
     onOpenSaved,
     onOpenActivity,
+    cloudId,
+    onOpenThreads,
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
     // Select the boolean, not the count — the dot only re-renders on false↔true.
     const hasMentionUnread = useMentionsStore(s => unreadMentionCount(s.items) > 0);
+    const hasThreadUnread = useMyThreadsStore(s => hasUnreadThread(s.threads, cloudId));
     const showPlaceSkeleton = isLoading && !placeName && !isDefaultMode;
 
     return (
@@ -98,10 +108,18 @@ export const SidebarHeader = ({
                 )}
                 <NotificationSnoozeButton />
                 <ActionRow
+                    icon={<MessagesSquare size={18} aria-hidden />}
+                    label={t('myThreads.title')}
+                    onClick={onOpenThreads}
+                    hasDot={hasThreadUnread}
+                    dotLabel={t('myThreads.unread')}
+                />
+                <ActionRow
                     icon={<AtSign size={18} aria-hidden />}
                     label={t('activity.title')}
                     onClick={onOpenActivity}
                     hasDot={hasMentionUnread}
+                    dotLabel={t('activity.unread')}
                 />
                 <ActionRow icon={<Bookmark size={18} aria-hidden />} label={t('saved.title')} onClick={onOpenSaved} />
             </div>

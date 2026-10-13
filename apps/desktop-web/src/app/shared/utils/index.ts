@@ -37,3 +37,5 @@ export * from './viewer';
 export * from './placeAccess';
 export * from './phoneNumber';
 export * from './inviteCode';
+export * from './myThreads';
+export * from './cachedThreads';

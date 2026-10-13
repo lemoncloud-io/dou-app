@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 // Initialises i18next, so the photo labels read as the reader sees them.
 import '../../../i18n';
 
-import { messagePreview } from './messagePreview';
+import { messagePreview, outgoingMessagePreview } from './messagePreview';
 
 describe('messagePreview', () => {
     it('is the message text when there is any', () => {
@@ -42,5 +42,25 @@ describe('messagePreview', () => {
 
     it('is empty when there is neither', () => {
         expect(messagePreview({ content: '' })).toBe('');
+    });
+});
+
+describe('outgoingMessagePreview', () => {
+    const file = (type: string) => new File(['x'], 'f', { type });
+
+    it('is the text when the reply has any', () => {
+        expect(outgoingMessagePreview('**hi**', [file('image/png')])).toBe('hi');
+    });
+
+    it('names what a files-only reply carries, by kind', () => {
+        expect(outgoingMessagePreview('', [file('image/png')])).toBe('Photo');
+        expect(outgoingMessagePreview('', [file('image/png'), file('image/jpeg')])).toBe('2 photos');
+        expect(outgoingMessagePreview('', [file('image/png'), file('application/pdf')])).toBe(
+            messagePreview({ content: '', upload$$: [{ stereo: 'image' }, { stereo: 'file' }] as never })
+        );
+    });
+
+    it('is empty for an empty reply with nothing attached', () => {
+        expect(outgoingMessagePreview('', [])).toBe('');
     });
 });

@@ -32,3 +32,13 @@ export const formatShortDate = (ms: number | undefined): string => {
 /** "June 15, 2026" / "2026년 6월 15일". */
 export const formatLongDate = (ms: number | undefined): string =>
     valid(ms)?.toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' }) ?? '';
+
+/**
+ * When something in a list happened: the clock time today, the short date before. A list of
+ * today's activity read "Oct 13" on every row, which tells the rows apart by nothing.
+ */
+export const formatListTime = (ms: number | undefined): string => {
+    const date = valid(ms);
+    if (!date) return '';
+    return date.toDateString() === new Date().toDateString() ? formatClockTime(ms) : formatShortDate(ms);
+};
