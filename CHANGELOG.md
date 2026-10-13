@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-13] - root@0.93.0, @chatic/desktop-web@0.25.0
+
+### Features
+
+- (desktop-web) show seen by all once everyone has read, not a count
+- (web,web-ui-kit) show read • unread, or all read, on group messages
+
 ## [2026-10-13] - root@0.92.1, @chatic/desktop-web@0.24.1
 
 ### Bug Fixes
