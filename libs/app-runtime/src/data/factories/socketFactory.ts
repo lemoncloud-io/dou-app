@@ -127,6 +127,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
             update: placeGateway.update,
             delete: placeGateway.delete,
             leave: placeGateway.leave,
+            get: placeGateway.get,
             mySite: userGateway.mySite,
         },
         user: {

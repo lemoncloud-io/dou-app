@@ -28,6 +28,8 @@ export interface IPlaceSocketDataSource {
      * the cache.
      */
     leavePlace(payload: PlaceLeaveInput): Promise<PlaceLeaveResult>;
+    /** `place.get` — one place as the server has it now. Rejects with 404 for a deleted place. */
+    getPlace(id: string, context: DataContext): Promise<DomainPlace>;
 }
 
 /**
@@ -73,5 +75,10 @@ export class PlaceSocketDataSource implements IPlaceSocketDataSource {
 
     public async leavePlace(payload: PlaceLeaveInput): Promise<PlaceLeaveResult> {
         return this.gateway.leave<PlaceLeaveResult>(payload);
+    }
+
+    public async getPlace(id: string, context: DataContext): Promise<DomainPlace> {
+        const remote = await this.gateway.get<MySiteView>({ id });
+        return toDomainPlace((remote || {}) as MySiteView, context);
     }
 }

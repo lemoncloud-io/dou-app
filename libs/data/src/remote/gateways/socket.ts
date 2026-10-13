@@ -49,8 +49,11 @@ export type JoinSocketDomainGateway = Pick<JoinGateway, 'update'> & Pick<ChatGat
  * `leave` is `place.leave` — one action for two callers: with `id` alone I leave the place, with a
  * `userId` as well the place owner removes that member. Either way the server takes the person out of
  * every group channel of the place and answers with the channels it took them out of.
+ *
+ * `get` is `place.get`, read for one question only: is this place still there? A deleted place answers
+ * 404, while a place I merely left or was removed from still answers with its row.
  */
-export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update' | 'delete' | 'leave'> &
+export type PlaceSocketDomainGateway = Pick<PlaceGateway, 'create' | 'update' | 'delete' | 'leave' | 'get'> &
     Pick<UserGateway, 'mySite'>;
 export type DeviceSocketDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync' | 'updateRemote'>;
 

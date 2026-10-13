@@ -9,6 +9,7 @@ import type {
     PlaceUpdateInput,
 } from '../remote/socket-data-sources';
 import type { IChannelRepository } from './ChannelRepository';
+import { isNotFoundError } from './socketError';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -17,6 +18,13 @@ import { BaseRepository, type DisposableRepository } from './types';
  * keeps a late snapshot from restoring a left room lives there, and nowhere else.
  */
 export type PlaceChannelCleanup = Pick<IChannelRepository, 'evictLeftChannels' | 'dropMemberFromChannels'>;
+
+/**
+ * A place its owner deleted. The delete is soft: the server keeps the row, stamps `deletedAt`, and goes
+ * on listing it to the people who were in it, so a stamped row is as good as gone.
+ */
+export const isDeletedPlace = (place: Pick<DomainPlace, 'deletedAt'> | null | undefined): boolean =>
+    Number(place?.deletedAt ?? 0) > 0;
 
 export interface IPlaceRepository extends DisposableRepository {
     observeList(
@@ -40,6 +48,12 @@ export interface IPlaceRepository extends DisposableRepository {
      * drops out of the cached rosters of the channels the server took them out of.
      */
     removeMember(id: string, userId: string): Promise<PlaceLeaveResult>;
+    /**
+     * Asks the server whether the place has been deleted (`place.get`: 404, or a row stamped
+     * `deletedAt`). A place I left or was removed from is still there and answers false. Any other
+     * failure rejects — it says nothing either way.
+     */
+    isPlaceDeleted(id: string): Promise<boolean>;
 
     cacheReadList(query?: UserMySiteInput): Promise<DomainListResult<DomainPlace> | null>;
     cacheWrite(item: Partial<DomainPlace>): Promise<void>;
@@ -106,15 +120,18 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
         if (!this.acceptsAnswer(requestContext, 'place-refresh')) return;
         const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeSocketDataSource.fetchPlace(query, normalizedContext);
-        // Preserve the server-provided ordering by stamping the list index as `order`.
-        const domainList = (remote.list || [])
-            .filter(item => !!item.id)
-            .map((item, index) => ({ ...item, order: index }));
+        const listed = (remote.list || []).filter(item => !!item.id);
         // Nothing usable came back — leave the cache entirely alone. Right after a switch the
         // session may not be ready and answer empty; writing or pruning against that would wipe
         // the real rows. A genuinely empty account settles on a later response.
-        if (domainList.length === 0) return;
-        await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
+        if (listed.length === 0) return;
+        // A deleted place stays in the list, stamped `deletedAt`. It is not written, and, being
+        // absent from the ids below, its cached row is pruned. Server order is stamped as `order`
+        // over the live rows only.
+        const domainList = listed
+            .filter(item => !isDeletedPlace(item))
+            .map((item, index) => ({ ...item, order: index }));
+        if (domainList.length > 0) await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
 
         // The server snapshot is authoritative for this scope: prune cached rows it no longer
         // lists (e.g. the embedded-$site default place written into a cloud partition, ADR-0094).
@@ -248,6 +265,17 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
                 error,
                 data: { placeId: id },
             });
+        }
+    }
+
+    public async isPlaceDeleted(id: string): Promise<boolean> {
+        const requestContext = this.getRequestContext();
+        try {
+            const place = await this.placeSocketDataSource.getPlace(id, this.getNormalizedContext(requestContext));
+            return isDeletedPlace(place);
+        } catch (error) {
+            if (isNotFoundError(error)) return true;
+            throw error;
         }
     }
 

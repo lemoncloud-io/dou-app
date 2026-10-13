@@ -70,7 +70,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### Place
 
 `observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `updatePlace` · `deletePlace` · `leavePlace` ·
-`removeMember` · `cache*`
+`removeMember` · `isPlaceDeleted` · `cache*`
 
 - Based on `PlaceGateway` (`place.create/update/delete/leave`) plus `UserGateway.mySite` for listing.
 - `deletePlace(id)` — asks the server first and removes the local row only after it agrees. It is not optimistic like `deleteChannel`: the app moves the session out of a place whose row has gone, and a refusal that restored the row would not move it back.
@@ -79,6 +79,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
     - `removeMember` takes the member out of those channels' cached rosters (`dropMemberFromChannels`) and leaves the place row alone.
     - `failedChannelIds` are channels the server already counted the person out of. They are logged and the call still succeeds.
     - The clean-up runs in the scope the request was made in, so a cloud switch while it ran cannot aim it at another cloud. Which place the session moves to afterwards is the app's call, not this repository's.
+- **A deleted place is a stamped row, not a missing one.** The server's delete is soft: it sets `deletedAt` and goes on listing the place, to its owner and its members alike, and it tells nobody. `refreshList` therefore leaves any row with `deletedAt` set out of what it writes and prunes its cached row (`isDeletedPlace`), and an answer whose every row is deleted still prunes — it is a real answer, not the empty one a switch can produce. `isPlaceDeleted(id)` asks `place.get` about one place: 404 or a stamped row is deleted; a row without the stamp — a place I left or was removed from — is not; any other failure rejects.
 - A Place is the workspace unit a user belongs to or created. Rather than a periodic delta sync, it re-reads the current cloud's place list with `refreshList` on a scope (cid) switch.
 - Local-first: remote results are written to `PlaceLocalDataSource` and then read through `observe*`.
 

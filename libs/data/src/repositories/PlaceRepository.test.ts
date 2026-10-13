@@ -23,6 +23,7 @@ describe('PlaceRepository', () => {
             updatePlace: jest.fn(),
             deletePlace: jest.fn(),
             leavePlace: jest.fn(),
+            getPlace: jest.fn(),
         };
         const placeLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -220,6 +221,68 @@ describe('PlaceRepository', () => {
 
             expect(channelCleanup.evictLeftChannels).toHaveBeenCalledWith(['ch-1'], scope);
             expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
+        });
+    });
+
+    describe('deleted places', () => {
+        const scope = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+
+        it('leaves a deleted place out of the list and prunes its cached row', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+            placeSocketDataSource.fetchPlace.mockResolvedValue({
+                list: [
+                    { id: 'live-1', name: 'A', deletedAt: 0 },
+                    { id: 'gone', name: 'B', deletedAt: 1791464896817 },
+                    { id: 'live-2', name: 'C' },
+                ],
+            });
+            placeLocalDataSource.cacheReadList.mockResolvedValue({ list: [{ id: 'live-1' }, { id: 'gone' }] });
+
+            await repository.refreshList();
+
+            expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+                [
+                    { id: 'live-1', name: 'A', deletedAt: 0, order: 0 },
+                    { id: 'live-2', name: 'C', order: 1 },
+                ],
+                scope
+            );
+            expect(placeLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['gone'], scope);
+        });
+
+        it('prunes when every listed place has been deleted — the answer was real, just all deleted', async () => {
+            const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
+            placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'gone', deletedAt: 5 }] });
+            placeLocalDataSource.cacheReadList.mockResolvedValue({ list: [{ id: 'gone' }] });
+
+            await repository.refreshList();
+
+            expect(placeLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+            expect(placeLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['gone'], scope);
+        });
+
+        it('reads a 404 from place.get as deleted', async () => {
+            const { repository, placeSocketDataSource } = createRepository();
+            placeSocketDataSource.getPlace.mockRejectedValue(new Error('404 NOT FOUND - site:10013'));
+
+            await expect(repository.isPlaceDeleted('10013')).resolves.toBe(true);
+            expect(placeSocketDataSource.getPlace).toHaveBeenCalledWith('10013', scope);
+        });
+
+        it('reads a row stamped deletedAt as deleted, and a live row as not', async () => {
+            const { repository, placeSocketDataSource } = createRepository();
+            placeSocketDataSource.getPlace.mockResolvedValueOnce({ id: 'p', deletedAt: 1791464896817 });
+            await expect(repository.isPlaceDeleted('p')).resolves.toBe(true);
+
+            placeSocketDataSource.getPlace.mockResolvedValueOnce({ id: 'p', deletedAt: 0 });
+            await expect(repository.isPlaceDeleted('p')).resolves.toBe(false);
+        });
+
+        it('rejects on any other failure, which says nothing either way', async () => {
+            const { repository, placeSocketDataSource } = createRepository();
+            placeSocketDataSource.getPlace.mockRejectedValue(new Error('503 SOCKET NOT CONNECTED'));
+
+            await expect(repository.isPlaceDeleted('p')).rejects.toThrow('503');
         });
     });
 

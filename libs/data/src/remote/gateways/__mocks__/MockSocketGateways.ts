@@ -58,6 +58,7 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         update: jest.fn(),
         delete: jest.fn(),
         leave: jest.fn(),
+        get: jest.fn(),
         mySite: jest.fn(),
     },
     user: {
