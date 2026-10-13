@@ -208,8 +208,11 @@ const ChannelRow = memo(function ChannelRow({
                         <span className="sr-only">{t('sidebar.draft')}</span>
                     </span>
                 )}
+                {/* A filled pill like the count beside it, not red text: the badge colour is made
+                to carry white text and is too dim as text on the dark sidebar. The fill also
+                keeps it apart from the mentions-only glyph, which is the same character. */}
                 {calledMe && (
-                    <span className="shrink-0 text-caption font-semibold text-badge-unread">
+                    <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-tiny font-semibold text-badge-unread-foreground">
                         <span aria-hidden>@</span>
                         <span className="sr-only">{t('sidebar.mentionedMe')}</span>
                     </span>

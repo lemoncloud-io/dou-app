@@ -33,6 +33,24 @@ Slack's row also has underline and list buttons. They are left out on purpose: t
 no form for them that the web and mobile readers understand, so a message sent with one would lose it
 on every other client. Adding them means changing that shared format first.
 
+## Mentions
+
+Picking a member from the `@` list puts a chip in the text and records who was picked on it
+(`editor/MentionNode.ts`). On send the chips still in the text are collected into the payload's
+`mention` — `userIds` for members, `all` for the "Everyone" row (`$collectMention` in
+`editor/wireMarkdown.ts`). The server goes by that record, never by the text, to decide who a
+"mentions only" member is told about, and the readers go by it for the banner, the mentions inbox
+and the self highlight (`mentionsMe` in `shared/utils/mentionMatch.ts`); a message with no record is
+still read by its text.
+
+- **Only a pick counts.** A name typed by hand, and a chip restored from a draft or from a message
+  opened for editing, carry no id. A chip whose text has changed since the pick (a name of several
+  words cut short by Backspace) stops counting.
+- **"Everyone" is a group channel's first row.** A 1:1 and my notes-to-self have none, and neither
+  does the box that edits a sent message: an edit does not change who was mentioned.
+- **A resend keeps the mention.** The failed row holds the record, and both Retry and the reconnect
+  sweep rebuild the payload from it (`toSendPayload`).
+
 ## Links
 
 The link button opens Slack's dialog: **Text** and **Link**, then Save or Cancel. Text starts as the
