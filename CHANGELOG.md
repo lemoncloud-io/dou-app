@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - root@0.100.0, @chatic/desktop-web@0.29.0
+
+### Features
+
+- (desktop-web) scope the Threads pane to the active place (ADR-0198)
+
 ## [2026-10-13] - root@0.99.0, @chatic/web@0.71.0
 
 ### Features
