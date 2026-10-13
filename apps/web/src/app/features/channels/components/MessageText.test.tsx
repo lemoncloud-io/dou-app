@@ -95,7 +95,7 @@ describe('MessageText', () => {
                 <MessageText text="@레인 @Minsu" mentions={marks({ self: ['@레인', '@channel'] })} />
             );
 
-            expect(mentionSpan(container, '@레인')).toHaveClass('bg-primary');
+            expect(mentionSpan(container, '@레인')).toHaveClass('bg-primary/40');
             expect(mentionSpan(container, '@Minsu')).toHaveClass('text-brand-ink');
         });
 

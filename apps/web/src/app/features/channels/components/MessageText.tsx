@@ -37,7 +37,7 @@ export interface MessageTextProps {
  */
 const MENTION_CLASS = 'font-semibold text-brand-ink dark:text-primary';
 const OWN_MENTION_CLASS = 'font-semibold text-primary';
-const SELF_MENTION_CLASS = 'rounded bg-primary px-1 font-semibold text-brand-ink';
+const SELF_MENTION_CLASS = 'rounded bg-primary/40 px-1 font-semibold text-brand-ink dark:text-foreground';
 
 interface PlainTextProps {
     value: string;

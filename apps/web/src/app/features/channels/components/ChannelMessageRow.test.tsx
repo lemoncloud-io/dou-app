@@ -946,7 +946,7 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
 
             expect(mark('@Minsu')).toHaveClass('text-brand-ink');
-            expect(mark('@레인')).toHaveClass('bg-primary');
+            expect(mark('@레인')).toHaveClass('bg-primary/40');
         });
 
         // With a record, the record decides: the sender picked me in their composer, or did not.
@@ -958,7 +958,7 @@ describe('ChannelMessageRow — opening the sender profile', () => {
                     mentionViewer={viewer}
                 />
             );
-            expect(mark('@레인')).toHaveClass('bg-primary');
+            expect(mark('@레인')).toHaveClass('bg-primary/40');
             expect(mark('@Minsu')).toHaveClass('text-brand-ink');
             unmount();
 
@@ -969,7 +969,7 @@ describe('ChannelMessageRow — opening the sender profile', () => {
                     mentionViewer={viewer}
                 />
             );
-            expect(mark('@레인')).not.toHaveClass('bg-primary');
+            expect(mark('@레인')).not.toHaveClass('bg-primary/40');
         });
 
         // My own message does not call me out; its mentions take the mark that reads on my dark bubble.
@@ -983,7 +983,7 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             );
 
             expect(mark('@레인')).toHaveClass('text-primary');
-            expect(mark('@레인')).not.toHaveClass('bg-primary');
+            expect(mark('@레인')).not.toHaveClass('bg-primary/40');
         });
 
         // The profile the member's avatar opens.
