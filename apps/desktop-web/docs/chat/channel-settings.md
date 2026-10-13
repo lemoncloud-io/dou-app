@@ -18,6 +18,32 @@ Top to bottom:
 - **Leaving and deleting**: Leave for everyone, Delete for the owner. Either one closes the panel and
   clears the selected room.
 
+## Add members
+
+"Add members" opens `AddMembersDialog`, which adds the picked people at once with `channel.invite` —
+no link, no accept step. The pool, from `useInviteCandidates`, is **the members of the active place,
+minus the channel's current members and me**. The members come from the server's place member list
+(`place.list-user`, read through `userRepository.listPlaceMembers` each time the dialog opens), so
+someone with no channel at all — invited into the place only, accepted or not — and someone who
+shares no channel with me are both offered. Pending invitees are not marked apart; the server has
+nothing to tell them by.
+
+- **Two exclusion sources** keep a current member out: the channel record's `memberIds` and the
+  channel's roster, refreshed alongside the list. Either alone covers the happy path; both together
+  survive a record without `memberIds` or a roster read that failed.
+- **"Me" is my id in this cloud** (`useUidInCloud`) and the session's user id both.
+- **The roster union is the fallback, never a supplement.** When the list fails — `403` to a
+  non-member, or a cloud whose server does not have the action yet — the pool is the old one: the
+  union of my channels' rosters, one request per channel. That only holds people I already share a
+  room with. While the socket is unverified nothing is fetched and the cached rosters are served;
+  the list is asked for on the false→true edge.
+- **The second line** names the channels a person shares with me, read from the cached rosters. A
+  member sharing none has an empty line.
+- **Names** are the place profile's nick and picture over the user's own name and picture — the
+  same merge the 1:1 picker and the message rows use. The list load fills the place profile cache
+  for each page it reads, but only while the session is on the active place and no switch is in
+  flight, since `profile.sync` answers for the session's place.
+
 ## Channel ID
 
 A service that posts notifications into a channel (a webhook) is pointed at the channel by its id.

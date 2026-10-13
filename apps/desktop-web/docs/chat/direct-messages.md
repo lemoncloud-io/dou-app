@@ -23,10 +23,11 @@ elsewhere.
   switcher's index read the same helper. Filtering on `c.sid === placeId` instead would show a 1:1
   only under its creator's place.
 - **Membership is read from the group channels I am in.** A place's members are taken to be the
-  union of `memberIds` over its group channels. The server has no place member list to ask, and the
-  place profile cache is no substitute: members who never set a profile have no row there (a test
-  cloud measured zero rows across six places). The cost is that a place member who shares none of
-  my channels is not seen, and a 1:1 with them is not listed in that place.
+  union of `memberIds` over its group channels. The place profile cache is no substitute: members
+  who never set a profile have no row there (a test cloud measured zero rows across six places). The
+  server's place member list (`place.list-user`) is read only when a picker opens, not kept, so the
+  sidebar does not use it. The cost is that a place member who shares none of my channels is not
+  seen here, and a 1:1 with them is listed only in its stamped place.
 - **A peer found in no place** is still reachable. The 1:1 is listed in its stamped place (`sid`)
   when that place is mine, and in every place otherwise. The same applies while a room's members are
   not known yet.
@@ -78,10 +79,13 @@ that exists — there is no "already have one?" branch.
 - **A cloud switched away from mid-call opens nothing.** The returned room belongs to the cloud that
   was left, and its id could land on another room here.
 - **Failure** is logged and shown as a toast; the picker stays open for a retry.
-- **The picker's pool** is everyone I share a channel with in this place, plus the peers of the 1:1s
-  this place lists, minus me, so a 1:1 started from it is always listed in this place. There is no
-  user directory to search. 1:1 and self rooms are read from the cache only, not fetched per room.
-  With no place, the "+" hides, since the pool could only be empty.
+- **The picker's pool** is the place's member list (`place.list-user`), minus me — the same pool as
+  "Add members", described in [channel-settings.md § Add members](./channel-settings.md#add-members).
+  It includes people I share no channel with, and people with no channel at all. A 1:1 started with
+  one of them is still listed here: a peer found in no place is listed in the 1:1's stamped place,
+  which is this one. When the list cannot be had, the pool falls back to everyone I share a channel
+  with in this place plus the peers of the 1:1s this place lists — 1:1 and self rooms read from the
+  cache only. With no place, the "+" hides, since the pool could only be empty.
 
 ### Notes to self
 

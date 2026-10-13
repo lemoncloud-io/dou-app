@@ -132,6 +132,8 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
             update: userGateway.update,
             profile: userGateway.profile,
             listUser: channelGateway.listUser,
+            // `place.list-user` answers users, so it rides in this bundle under its own name.
+            listPlaceUser: placeGateway.listUser,
             invite: userGateway.invite,
             inviteBatch: userGateway.inviteBatch,
             syncUsers: observeMembershipRefusal(channelGateway.syncUsers),

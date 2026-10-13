@@ -16,6 +16,7 @@ vi.mock('../hooks', () => ({
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 
 import '../../../../i18n';
+import { useSiteProfilesStore } from '../../../shared';
 import { AddMembersDialog } from './AddMembersDialog';
 
 /**
@@ -104,5 +105,22 @@ describe('AddMembersDialog when adding fails', () => {
 
         expect(await screen.findByText("You don't have permission to do that.")).toBeTruthy();
         expect(screen.queryByText(/NOT ALLOWED/)).toBeNull();
+    });
+});
+
+describe('AddMembersDialog names', () => {
+    afterEach(() => {
+        useSiteProfilesStore.getState().reset();
+    });
+
+    it("draws a candidate by this place's profile, and finds them by it", () => {
+        // Somebody who shares no channel with me is known here only by the profile the member
+        // list loaded, so the row has to read it rather than the account name.
+        useSiteProfilesStore.getState().setAll({ u2: { nick: 'Bobby in this place' } });
+        render(<AddMembersDialog open onOpenChange={() => undefined} channelId="C1" />);
+
+        expect(screen.getByRole('checkbox', { name: /Bobby in this place/ })).toBeTruthy();
+        fireEvent.change(screen.getByRole('textbox'), { target: { value: 'this place' } });
+        expect(screen.getByRole('checkbox', { name: /Bobby in this place/ })).toBeTruthy();
     });
 });

@@ -63,8 +63,16 @@ export type RoutedGateway<G> = Record<SocketRoute, G>;
 export type ConnectionSocketDomainGateway = Pick<DomainGateway, 'request'>;
 export type CloudSocketDomainGateway = Pick<CloudGateway, 'update' | 'get'>;
 export type ProfileSocketDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' | 'set' | 'sync'>;
+/**
+ * `listPlaceUser` is `place.list-user` — the members of one place. It sits with the users rather than
+ * the place bundle because what it answers is users, the same reason `channel.list-user` is here. It
+ * is renamed because `listUser` already names the channel roster in this bundle; the composition root
+ * binds it to `PlaceGateway.listUser`.
+ */
 export type UserSocketDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
-    Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch'>;
+    Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch'> & {
+        listPlaceUser: PlaceGateway['listUser'];
+    };
 /**
  * Relay 1:1 (DM) invite codes — distinct from `UserSocketDomainGateway.invite`, which is the cloud
  * bulk-invite action (ADR-0016). Issued and redeemed on the relay server, so the composition root

@@ -62,6 +62,9 @@ const buildRepositories = (
     options?: DataRepositoriesOptions,
     httpDataSources?: HttpDataSources
 ): Omit<DataRepositories, 'withContext' | 'dispose'> => {
+    // Built ahead of the literal because the user repository loads place members' profiles through
+    // its save path.
+    const profile = new ProfileRepository(socketDataSources.profile, localDataSources.profile, context);
     return {
         // auth/device take no local data source: they are remote-only access surfaces
         // (session-identity commands, viewing signals) with nothing to cache. `invite` (ADR-0052)
@@ -83,7 +86,7 @@ const buildRepositories = (
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),
         join: new JoinRepository(socketDataSources.join, localDataSources.join, context),
-        profile: new ProfileRepository(socketDataSources.profile, localDataSources.profile, context),
+        profile,
         // Remote-only and HTTP-only like `subscription` — a report has nothing to cache.
         report: new ReportRepository(context, httpDataSources?.report),
         place: new PlaceRepository(socketDataSources.place, localDataSources.place, context),
@@ -95,7 +98,8 @@ const buildRepositories = (
             localDataSources.place,
             context,
             options?.user,
-            httpDataSources?.user
+            httpDataSources?.user,
+            profile
         ),
         syncMeta: new SyncMetaRepository(localDataSources.syncMeta, context),
     };

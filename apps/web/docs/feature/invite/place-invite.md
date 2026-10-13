@@ -11,11 +11,14 @@ Nobody sees the entry until they turn on **Lab → Experiments → Place invite*
 switch is the `feature.placeInvite` config key (`labs` surface, default off, persisted to local
 storage), read through `app/hooks/usePlaceInviteExperiment`.
 
-It ships behind a switch because it works and still leaves its user stuck one step later. Once
-someone is in the place, the owner cannot add them to a room: the room invite's "place members" tab
-is built from the rosters of the rooms the owner is in, and a place-only member is in none of them
-(see [What this does not solve](#what-this-does-not-solve)). Until the backend can list a place's
-members, the feature is opt-in rather than on every owner's menu.
+It shipped behind a switch because, at first, the owner could not find the person afterwards: the
+room invite's "place members" tab was built from the rosters of the rooms the owner is in, and a
+place-only member is in none of them. That tab now reads the server's place member list
+([channels/invite.md § The place tab](../channels/invite.md#the-place-tab)), which includes people
+with no room and people who have not accepted yet. The switch stays off by default until that list
+has been seen to work end to end on servers that have shipped it — invite into the place, accept,
+then the owner adds the person to a room or starts a 1:1 with them. On a cloud whose server does not
+have the list yet, the tab falls back to the room rosters and the old gap is back.
 
 The switch gates issuing, not joining. Turning it off hides the entry, sends a direct visit home
 without waiting for the place row, and makes a page already open in the same tab leave and refuse to
@@ -117,15 +120,6 @@ state `ChannelEmptyState variant="invited"` already drew.
 
 ## What this does not solve
 
-- **The owner cannot find the person afterwards, so cannot add them to a room.** There is no place
-  member list. The room invite's "place members" tab (`useInviteCandidates`) is the union of the
-  rosters of the rooms the owner is in, so someone who is only in the place appears in none of them
-  until they join a room some other way. The backend lists no place's members, and no cloud's either:
-  the list-shaped calls are per room (`channel.list-user`, `channel.sync-users`), per place but only
-  for people with a place profile (`profile.sync`), or about the caller (`user.my-site`).
-  `profile.sync` is not a substitute — on the dev servers one place's rooms held six people and it
-  returned two. Closing this needs a place member listing from the backend; it is the main reason the
-  feature is a Lab experiment.
 - **An unaccepted invite cannot be taken back.** The member row exists from the moment of issue, and
   the cloud invite lane has neither a list of sent invites nor a cancel.
 - **The recipient cannot leave.** The empty state says they can, and the place settings hub has no
@@ -144,6 +138,9 @@ End to end on the web it needs two sessions that do not share storage. On a loca
 2. Open the invite from the profile menu, send a link from the sheet, and land on the link page.
 3. Open the link at `[::1]` (another origin, so another guest) and accept.
 4. Check that home shows the place as invited, with no rooms.
+5. Back as the owner, on a server that has the place member list, open any room's invite page: the
+   invitee is on the Place tab and can be added. Desktop's "Add members" and "New message" list them
+   too.
 
 The contact picker and the SMS composer need the app on a device or simulator; the browser only
 reaches the link path.

@@ -66,7 +66,7 @@ Chat, profile, join and user reads and every optimistic mutation are not guarded
 
 `sid` is **not** ambient (ADR-0085). The field exists on `DataContext`, but nothing seeds it: a
 repository that needs a place takes it as an argument (`setMyProfile(body, siteId)`,
-`syncProfiles(since, siteId)`, `createChannel(payload, siteId)`, `getSelfChannel(payload, siteId)`,
+`syncProfiles(since, siteId)`, `syncProfilesOf(userIds, siteId)`, `listPlaceMembers({ placeId })`, `createChannel(payload, siteId)`, `getSelfChannel(payload, siteId)`,
 `refreshOne(channelId, siteId)`, `refreshOneInCloud(channelId, fallbackSiteId)`,
 `refreshList({ sid })`) and puts it on the context it hands down. It has to travel that way because
 `profile.sync`, `channel.mine`, `channel.get-self` and `channel.get` return rows carrying no place of their own —
@@ -189,6 +189,7 @@ have no local source and some have no socket source.
 - `report` and `subscription` are remote-only **and** HTTP-only — they do not even have a socket data source.
 - `channel` also takes the `chat` local source because leaving has to empty that room's messages, not just the channel row (ADR-0067).
 - `user` takes the `join` and `place` local sources because assembling invite candidates reads all three caches together.
+- `user` also takes the **`profile` repository** — the one repository-to-repository dependency here. `listPlaceMembers` stores each page's place profiles, and a `profile.sync` answer has exactly one save path (`ProfileRepository`'s upsert and `null` delete); taking the profile data sources instead would have made a second copy of it. The dependency runs one way, and both are built in the same `buildRepositories` call from the same context provider, so a scoped graph (`withContext`) keeps them on the same scope. `index.ts` builds `profile` first for that reason.
 
 ## HTTP injection is optional
 

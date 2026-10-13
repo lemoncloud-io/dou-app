@@ -1,6 +1,7 @@
 # ADR-0072: Add desktop channel members with a single "add directly" flow scoped to shared channels, and take the read cursor out of the global user record
 
-> Status: Accepted · Decided: 2026-08-28
+> Status: Accepted · Decided: 2026-08-28 · **Decision 1 narrowed by [ADR-0195](./0195-invite-candidates-come-from-the-place-member-list.md):**
+> the pool is now the place member list; the roster union below is its failure fallback
 > Related: [ADR-0022](./0022-channel-invite-page-web-ui-kit.md) (apps/web invitations — batch contact invites, invite links. **A different thing from this ADR**) · [ADR-0015](./0015-channel-settings-ui-refresh.md) (channel settings, turning kick into `leaveChannel`) · [ADR-0048](./0048-unread-count-derivation-contract.md) (unread derivation contract — shares the premise that the join cache is home to the read cursor)
 
 ## Context

@@ -18,6 +18,8 @@ import {
 } from '../hooks';
 import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
 
+const NO_PROFILE_TARGETS: string[] = [];
+
 interface PlaceInviteTabProps {
     channelId: string;
     /** The target channel's site. Candidates and their profiles are both scoped to it. */
@@ -29,11 +31,12 @@ interface PlaceInviteTabProps {
 /**
  * Add people who are already in this place to the channel.
  *
- * The pool comes from {@link useInviteCandidates} (a pure derivation over the channel cache, no
- * requests) and each row is drawn with that person's PLACE profile, so somebody picked here reads
- * the same as they will in the room's member list. Confirming calls `channel.invite` once for the
- * whole selection; the repository owns the optimistic membership write and its rollback, so this
- * component only has to report the outcome. See ADR-0075.
+ * The pool comes from {@link useInviteCandidates} — the place's member list, or the union of my
+ * rooms' rosters when that list cannot be had — and each row is drawn with that person's PLACE
+ * profile, so somebody picked here reads the same as they will in the room's member list.
+ * Confirming calls `channel.invite` once for the whole selection; the repository owns the
+ * optimistic membership write and its rollback, so this component only has to report the outcome.
+ * See ADR-0075.
  */
 export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabProps) => {
     const { t } = useTranslation();
@@ -41,24 +44,35 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabP
     const navigate = useNavigateWithTransition();
 
     const { inviteChannel } = useChannelMutations();
-    const { candidateIds, isLoading } = useInviteCandidates(channelId, sid);
+    const { candidateIds, memberById, fromPlaceList, isLoading } = useInviteCandidates(channelId, sid);
     /**
      * Same machinery the room uses for its member list: observe the site's profiles and one-shot
      * the ones the cache is missing, so a never-seen candidate still gets a name instead of an id.
      *
      * On the LIST cadence, not the room's. One sync target is registered per candidate, and this
-     * pool is the union across every room I am in — larger than any single member list. A nick
+     * pool is the whole place — larger than any single member list. A nick
      * changing while somebody picks people does not matter, so the picker polls at the slow rate
      * the other list surfaces use; first paint still comes from the one-shot bootstrap.
      */
-    const { profileMap } = useChannelProfiles(sid, candidateIds, LIST_PROFILE_SYNC_INTERVAL_MS);
+    //
+    // Only for the fallback pool. The place list loaded its own profiles a page at a time, and its
+    // pool is the whole place: a bootstrap and a poll per person there is a request per member.
+    // Without ids the hook still observes the place's profiles, which is all this tab reads.
+    const { profileMap } = useChannelProfiles(
+        sid,
+        fromPlaceList ? NO_PROFILE_TARGETS : candidateIds,
+        LIST_PROFILE_SYNC_INTERVAL_MS
+    );
 
     const [search, setSearch] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isInviting, setIsInviting] = useState(false);
 
-    // Middle rung of the name chain below — see `useUserRecords`, which the 1:1 picker shares.
+    // Middle rung of the name chain below — see `useUserRecords`, which the 1:1 picker shares. A
+    // member the user cache has never seen (no room in common) is named by the place list's own
+    // row instead; the cached row wins where both exist, as it always has.
     const userRecords = useUserRecords(candidateIds);
+    const memberRecords = useMemo(() => new Map([...memberById, ...userRecords]), [memberById, userRecords]);
 
     /**
      * Display name for a candidate — `resolveUserName`, the same call every other surface makes.
@@ -74,11 +88,11 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabP
     const nameSources: DisplayNameSources = useMemo(
         () => ({
             profileMap,
-            memberById: userRecords,
+            memberById: memberRecords,
             unknownLabel: t('chat.unknownUser'),
             meLabel: t('chat.me'),
         }),
-        [profileMap, userRecords, t]
+        [profileMap, memberRecords, t]
     );
     const nameOf = useCallback((id: string) => resolveUserName(id, nameSources), [nameSources]);
 
@@ -87,9 +101,10 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabP
             candidateIds.map(id => ({
                 id,
                 name: nameOf(id),
-                avatarSrc: profileMap.get(id)?.thumbnail || undefined,
+                // The place profile's picture, else the user's own from the place list.
+                avatarSrc: profileMap.get(id)?.thumbnail || memberById.get(id)?.thumbnail || undefined,
             })),
-        [candidateIds, nameOf, profileMap]
+        [candidateIds, nameOf, profileMap, memberById]
     );
 
     // Picked people stay pinned above the filtered rest, matching the contact tab.
@@ -146,8 +161,9 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabP
         }
     };
 
-    // A place where I have no other room — or whose every member is already here — has nothing to
-    // offer. Say so and point at the tab that can still reach someone, rather than a blank panel.
+    // A place whose every member is already here — or, on the fallback, where I have no other
+    // room — has nothing to offer. Say so and point at the tab that can still reach someone,
+    // rather than a blank panel.
     if (!isLoading && candidateIds.length === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-1 px-8">

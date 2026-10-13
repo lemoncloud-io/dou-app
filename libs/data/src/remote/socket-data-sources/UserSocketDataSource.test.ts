@@ -160,4 +160,72 @@ describe('UserSocketDataSource', () => {
             expect(result.joins[0]).toMatchObject({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1' });
         });
     });
+
+    describe('place.list-user (fetchPlaceUsers)', () => {
+        it('sends one page as the place.list-user action', async () => {
+            (mockGateways.user.listPlaceUser as jest.Mock).mockResolvedValue({
+                list: [],
+                total: 0,
+                page: 0,
+                limit: 10,
+            });
+
+            await dataSource.fetchPlaceUsers({ id: 'site-1', page: 2, limit: 10 }, context);
+
+            expect(mockGateways.user.listPlaceUser).toHaveBeenCalledWith({ id: 'site-1', page: 2, limit: 10 });
+            expect(mockGateways.user.listUser).not.toHaveBeenCalled();
+        });
+
+        it('moves photo to thumbnail, stamps the cloud, and keeps isOwner on the member', async () => {
+            (mockGateways.user.listPlaceUser as jest.Mock).mockResolvedValue({
+                list: [
+                    { id: 'owner', name: 'Olivia', nick: 'olly', photo: 'data:image/png;base64,AAA', isOwner: true },
+                    { id: 'u2', name: 'Bob' },
+                ],
+                total: 2,
+                page: 0,
+                limit: 10,
+            });
+
+            const result = await dataSource.fetchPlaceUsers({ id: 'site-1' }, context);
+
+            expect(result.members).toEqual([
+                {
+                    id: 'owner',
+                    cid: 'cloud-a',
+                    name: 'Olivia',
+                    nick: 'olly',
+                    thumbnail: 'data:image/png;base64,AAA',
+                    isOwner: true,
+                },
+                { id: 'u2', cid: 'cloud-a', name: 'Bob' },
+            ]);
+            expect(result).toMatchObject({ total: 2, page: 0, limit: 10 });
+        });
+
+        it('carries only the listed display fields, never whatever else the answer holds', async () => {
+            (mockGateways.user.listPlaceUser as jest.Mock).mockResolvedValue({
+                list: [{ id: 'u1', name: 'Alice', siteIds: ['site-1', 'site-9'], phone: '010' }],
+                total: 1,
+                page: 0,
+                limit: 10,
+            });
+
+            const result = await dataSource.fetchPlaceUsers({ id: 'site-1' }, context);
+
+            expect(result.members[0]).toEqual({ id: 'u1', cid: 'cloud-a', name: 'Alice' });
+        });
+
+        it('drops items with no id and falls back to the request when the answer omits its paging echo', async () => {
+            (mockGateways.user.listPlaceUser as jest.Mock).mockResolvedValue({
+                list: [{ name: 'ghost' }, { id: 'u1' }],
+            });
+
+            const result = await dataSource.fetchPlaceUsers({ id: 'site-1', page: 3, limit: 5 }, context);
+
+            expect(result.members.map(m => m.id)).toEqual(['u1']);
+            // No stated total is no stated end — paging continues to an empty page.
+            expect(result).toMatchObject({ total: Number.POSITIVE_INFINITY, page: 3, limit: 5 });
+        });
+    });
 });

@@ -2,23 +2,42 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook, waitFor } from '@testing-library/react';
 
-// There is no cloud-wide user directory (`channel.list-user` is per channel), so the candidate
-// pool is the union of my other channels' rosters. An unfiltered user-cache read would also
-// return chat authors and profile lookups, so the union must be assembled per channel id.
+// The pool is the place's member list (`place.list-user`). When that fails, it falls back to the
+// union of my channels' rosters — and an unfiltered user-cache read would also return chat authors
+// and profile lookups, so that union is assembled per channel id.
 let rostersByChannel: Record<string, Array<Record<string, unknown>>> = {};
 let channels: Array<{ id: string; name: string; memberIds?: string[]; stereo?: string }> = [];
 let isVerified = true;
 let refreshRejects: string[] = [];
+let switching = 0;
+let selectedCloudId: string | null = 'cloud-a';
 
 const refreshList = vi.fn((query: { channelId: string }) =>
     refreshRejects.includes(query.channelId) ? Promise.reject(new Error('denied')) : Promise.resolve()
 );
+
+type Member = { id: string; cid?: string; name?: string; thumbnail?: string; isOwner?: boolean };
+// Rejects unless a test says otherwise: a cloud whose server has not shipped the action, which is
+// exactly the case the roster fallback exists for.
+const listPlaceMembers = vi.fn(
+    (_query: {
+        placeId: string;
+        sessionPlaceId: string | null;
+    }): Promise<{
+        members: Member[];
+        context: { cid: string; sid: string };
+        profiles: string;
+    }> => Promise.reject(new Error('403 FORBIDDEN - not a member of site[site-1]'))
+);
+const placeList = (members: Member[], context = { cid: 'cloud-a', sid: 'site-1' }) =>
+    listPlaceMembers.mockResolvedValue({ members, context, profiles: 'loaded' });
 
 // The runtime returns a singleton repository bundle, so the mock must be identity-stable too —
 // a fresh object per render re-runs the load effect on every state change.
 const repositories = {
     user: {
         refreshList,
+        listPlaceMembers,
         cacheReadList: ({ channelId }: { channelId: string }) =>
             Promise.resolve({ list: rostersByChannel[channelId] ?? [] }),
     },
@@ -34,8 +53,16 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionSelection: () => ({ selectedCloudId, selectedSiteId: 'site-1' }),
+            // My id in this cloud differs from the session's, as it can for a cloud account.
+            useUidInCloud: () => 'me-in-cloud',
+            SWITCH_SITE_MUTATION_KEY: ['switch-site'],
+            SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
     },
+}));
+vi.mock('@tanstack/react-query', () => ({
+    useIsMutating: ({ mutationKey }: { mutationKey: string[] }) => (mutationKey[0] === 'switch-site' ? switching : 0),
 }));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<object>('../../../shared/utils/dmDisplay')),
@@ -48,10 +75,155 @@ import { useInviteCandidates } from './useInviteCandidates';
 describe('useInviteCandidates', () => {
     beforeEach(() => {
         refreshList.mockClear();
+        listPlaceMembers.mockClear();
+        listPlaceMembers.mockImplementation(() => Promise.reject(new Error('403 FORBIDDEN')));
         rostersByChannel = {};
         channels = [];
         refreshRejects = [];
         isVerified = true;
+        switching = 0;
+        selectedCloudId = 'cloud-a';
+    });
+
+    describe('from the place member list', () => {
+        it('offers a member with no channel and one who shares none with me', async () => {
+            channels = [
+                { id: 'ch-target', name: 'lemoncloud', memberIds: ['me-in-cloud', 'u-in'] },
+                { id: 'ch-other', name: 'design' },
+            ];
+            rostersByChannel = { 'ch-other': [{ id: 'u-co', name: 'Coworker' }] };
+            placeList([
+                { id: 'owner', name: 'Olivia', isOwner: true },
+                { id: 'u-in', name: 'Already in' },
+                { id: 'u-co', name: 'Coworker' },
+                // Invited into the place only — no channel anywhere, possibly not accepted yet.
+                { id: 'u-nochannel', name: 'Placeonly' },
+                // In channels of this place, none of them mine.
+                { id: 'u-stranger', name: 'Elsewhere' },
+            ]);
+
+            const { result } = renderHook(() => useInviteCandidates('ch-target'));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(result.current.candidates.map(c => c.id)).toEqual(['owner', 'u-co', 'u-nochannel', 'u-stranger']);
+            const via = new Map(result.current.candidates.map(c => [c.id, c.viaChannels]));
+            expect(via.get('u-co')).toEqual(['design']);
+            expect(via.get('u-nochannel')).toEqual([]);
+            expect(via.get('u-stranger')).toEqual([]);
+            // The roster union is the fallback only — it is not fetched alongside a list that worked.
+            expect(refreshList.mock.calls.map(([query]) => query.channelId)).toEqual(['ch-target']);
+        });
+
+        it("leaves out the target's members from both the record and its roster, and me under either id", async () => {
+            channels = [{ id: 'ch-target', name: 'lemoncloud', memberIds: ['u-record'] }];
+            rostersByChannel = { 'ch-target': [{ id: 'u-roster' }] };
+            placeList([
+                { id: 'me' },
+                { id: 'me-in-cloud' },
+                { id: 'u-record' },
+                { id: 'u-roster' },
+                { id: 'u-free', name: 'Free' },
+            ]);
+
+            const { result } = renderHook(() => useInviteCandidates('ch-target'));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(result.current.candidates.map(c => c.id)).toEqual(['u-free']);
+        });
+
+        it('offers the whole place minus me when there is no target channel', async () => {
+            placeList([{ id: 'me-in-cloud' }, { id: 'u-1', name: 'Aiden' }, { id: 'u-2', name: 'SteveJ' }]);
+
+            const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(result.current.candidates.map(c => c.id)).toEqual(['u-1', 'u-2']);
+            expect(listPlaceMembers).toHaveBeenCalledWith({ placeId: 'site-1', sessionPlaceId: 'site-1' });
+            expect(refreshList).not.toHaveBeenCalled();
+        });
+
+        it('keeps the picture the list moved to thumbnail, and does not carry isOwner onto the row', async () => {
+            placeList([{ id: 'owner', name: 'Olivia', thumbnail: 'data:image/png;base64,AAA', isOwner: true }]);
+
+            const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+            await waitFor(() => expect(result.current.candidates).toHaveLength(1));
+            expect(result.current.candidates[0]).toMatchObject({ thumbnail: 'data:image/png;base64,AAA' });
+            expect(result.current.candidates[0]).not.toHaveProperty('isOwner');
+        });
+
+        it('vouches for no place while a switch is in flight, so profiles are not loaded', async () => {
+            switching = 1;
+            placeList([{ id: 'u-1' }]);
+
+            const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(listPlaceMembers).toHaveBeenCalledWith({ placeId: 'site-1', sessionPlaceId: null });
+        });
+
+        it('falls back to the roster union, unmixed, when the list fails with 403', async () => {
+            channels = [
+                { id: 'ch-target', name: 'lemoncloud' },
+                { id: 'ch-other', name: 'design' },
+            ];
+            rostersByChannel = { 'ch-target': [{ id: 'me' }], 'ch-other': [{ id: 'u-2', name: 'SteveJ' }] };
+            listPlaceMembers.mockRejectedValue(new Error('403 FORBIDDEN - not a member of site[site-1]'));
+
+            const { result } = renderHook(() => useInviteCandidates('ch-target'));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(result.current.error).toBeNull();
+            expect(result.current.candidates.map(c => c.id)).toEqual(['u-2']);
+            expect(result.current.candidates[0].viaChannels).toEqual(['design']);
+        });
+
+        it('treats an answer asked for in another cloud as no answer and falls back', async () => {
+            channels = [{ id: 'ch-a', name: 'design' }];
+            rostersByChannel = { 'ch-a': [{ id: 'u-roster', name: 'Roster' }] };
+            placeList([{ id: 'u-elsewhere' }], { cid: 'cloud-b', sid: 'site-1' });
+
+            const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(result.current.candidates.map(c => c.id)).toEqual(['u-roster']);
+        });
+
+        it("takes the list on the relay, where no cloud is selected and the repository says 'default'", async () => {
+            selectedCloudId = null;
+            placeList([{ id: 'u-1' }], { cid: 'default', sid: 'site-1' });
+
+            const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(result.current.candidates.map(c => c.id)).toEqual(['u-1']);
+        });
+
+        it('does not refresh the target roster a second time when the fallback runs', async () => {
+            channels = [
+                { id: 'ch-target', name: 'lemoncloud' },
+                { id: 'ch-other', name: 'design' },
+            ];
+            listPlaceMembers.mockRejectedValue(new Error('403 FORBIDDEN'));
+
+            const { result } = renderHook(() => useInviteCandidates('ch-target'));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(refreshList.mock.calls.map(([query]) => query.channelId).sort()).toEqual(['ch-other', 'ch-target']);
+        });
+
+        it('serves the cached rosters without asking for the list while the socket is unverified', async () => {
+            isVerified = false;
+            channels = [{ id: 'ch-a', name: 'design' }];
+            rostersByChannel = { 'ch-a': [{ id: 'u-1', name: 'Aiden' }] };
+            placeList([{ id: 'u-1' }, { id: 'u-nochannel' }]);
+
+            const { result } = renderHook(() => useInviteCandidates(null, { enabled: true }));
+
+            await waitFor(() => expect(result.current.isLoading).toBe(false));
+            expect(listPlaceMembers).not.toHaveBeenCalled();
+            expect(result.current.candidates.map(c => c.id)).toEqual(['u-1']);
+        });
     });
 
     it('offers members of my other channels, minus the target roster and myself', async () => {

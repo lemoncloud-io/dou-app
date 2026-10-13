@@ -6,10 +6,10 @@ gated to a group room's owner, so the page itself never re-checks permission per
 
 The page holds **two different acts under one title**:
 
-| Tab                 | Who it adds                                           | How                           | Result                         |
-| ------------------- | ----------------------------------------------------- | ----------------------------- | ------------------------------ |
-| **Place** (default) | somebody already sharing a room with me in this place | `channel.invite`              | they are in the room at once   |
-| Contact             | somebody with no account, or outside this cloud       | `user.invite-batch` or a link | they receive a link and accept |
+| Tab                 | Who it adds                                     | How                           | Result                         |
+| ------------------- | ----------------------------------------------- | ----------------------------- | ------------------------------ |
+| **Place** (default) | somebody who is already a member of this place  | `channel.invite`              | they are in the room at once   |
+| Contact             | somebody with no account, or outside this cloud | `user.invite-batch` or a link | they receive a link and accept |
 
 Place is the default because most people worth adding are already here, and because on the web the
 contact tab has nothing to offer but the link prompt — a browser has no device contacts.
@@ -56,37 +56,69 @@ drops an answer that arrives after its timeout. At 15 seconds, a person who took
 
 ## The place tab
 
-`useInviteCandidates(channelId, sid)` answers who can be added: **every member of my other channels
-in this place, minus the target's members and me**. It issues no requests at all —
-`useHomeChannels(sid)` is a slice of the app's single cloud-wide channel observation and each row
-already carries `memberIds`, so the union is a pure derivation over data the screen holds anyway.
-There is no user-directory API to ask instead: every listing action the server has is scoped to one
-channel.
+`useInviteCandidates(channelId, sid)` answers who can be added: **the members of the room's place,
+minus the target's members and me**. The members come from the server's place member list
+(`place.list-user`, through `userRepository.listPlaceMembers`), which counts everyone the place has
+given a role to, plus its owner. So two kinds of people the owner could not reach before are
+offered: somebody with no room at all — invited into the place only, whether or not they have
+accepted yet — and somebody whose rooms are all ones the owner is not in. A person whose invite is
+not yet accepted is not marked apart: the server has nothing to tell them by, and being able to put
+them straight into a room is the point.
 
-Two independent exclusions keep an existing member out of the pool — the target channel is skipped
-while unioning, _and_ the target's `memberIds` are subtracted afterwards. Either alone suffices in
-the happy path; both together mean a channel row that arrived without `memberIds` cannot leak its
-members back in as candidates. A row missing that field contributes nothing rather than guessing.
+The list is read page by page and asked for each time the tab opens; it is not cached. A page can
+come back shorter than asked for (the server drops members who left after cutting the page), so the
+end is an empty page or reaching the answer's `total`, never a short page.
 
-The hook returns **ids only**. Rows are drawn with the person's **place profile**, through the same
-machinery the room's member list uses — observe the site's profiles, one-shot the ones the cache is
-missing — so somebody picked here reads exactly as they will in the member list. The name chain is
-`profile nick → user-record name → userId`, with the middle rung read through a per-id `cacheRead`
-rather than an observer, because `observeList` for users requires a `channelId` and these candidates
-come from many channels. Search matches all three, so pasting an id still finds someone whose nick
-you do not know.
+"Me" is my id in the selected cloud (`useUidInCloud`) and the session's user id both — the list names
+me by the first, older paths by the second. The target's members are excluded from two independent
+sources: the room row's `memberIds` and the room's roster as the user cache holds it. Either alone
+covers the happy path; both together mean a row that arrived without `memberIds` cannot offer
+somebody already there.
 
-Profiles here poll on the **list** cadence (`LIST_PROFILE_SYNC_INTERVAL_MS`, 60s), not the room's
-20s: one sync target is registered per candidate and this pool is the union across every room I am
-in. A nick changing mid-selection does not matter, and first paint comes from the bootstrap anyway.
+**The fallback is the previous pool** — every member of my _other_ rooms in this place, a pure
+derivation over `useHomeChannels(sid)` (a slice of the app's single cloud-wide channel observation,
+where each row already carries `memberIds`) that issues no requests. It is used when the list fails —
+`403` to somebody who is not a member, or a cloud whose server does not have the action yet — and
+while the socket is not verified, so a wedged connection still shows the people the cache knows. It
+holds only people I already share a room with, so it can never show anyone I could not see anyway.
+**The two pools are never mixed**: either the list stands alone or the fallback does. While a
+verified list is still in flight the tab shows nothing rather than flashing the fallback first.
+
+Rows are drawn with the person's **place profile** first, through the same machinery the room's
+member list uses — observe the site's profiles, one-shot the ones the cache is missing — so somebody
+picked here reads exactly as they will in the member list. The list warms that cache itself: each
+page's ids go to `profile.sync` with `userIds`, and the answer is stored the way the background
+profile sync stores its own. That only happens when the session is on the room's place and no switch
+is in flight, because `profile.sync` answers for the session's place and the rows are filed under
+the place the caller names — asking from another place would file that place's profiles here. When
+it is skipped, the one-shot per missing candidate still runs. This by-id load never touches the
+background sync's cursor: it is sent without `since`, and its `syncedAt` is not kept.
+
+The name chain is `profile nick → user-record nick/name → label`. The middle rung is the user cache
+read per id (`cacheRead`, since `observeList` for users needs a `channelId`), and, for a member the
+user cache has never seen, the list's own row — the user's account name. Where both exist the
+cached row wins, as it always did. The avatar is the place profile's picture, else the user's own
+picture from the list (the server calls it `photo`; the data layer moves it to `thumbnail`). Search
+matches the shown name and the id, so pasting an id still finds someone whose nick you do not know.
+
+For a pool from the place list the tab registers **no per-person profile work**: the list loaded the
+profiles a page at a time, and a bootstrap plus a poll per person would be one request per member of
+the place. It only observes the place's profile cache. For the fallback pool the old behaviour
+holds — one sync target per candidate on the **list** cadence (`LIST_PROFILE_SYNC_INTERVAL_MS`, 60s),
+not the room's 20s, with a one-shot read for each candidate the cache is missing.
+
+The list is held until the channel rows are in: the target's `memberIds` arrive with them, and a list
+that showed first would offer people already in the room. The target's roster, the second exclusion,
+is read from the user cache only — unlike desktop, which refreshes it alongside the list; the web
+issues no roster requests on either path.
 
 Confirming calls `inviteChannel({ channelId, userIds })` once. The repository owns the optimistic
 membership write and its rollback, so the screen only reports the outcome, and the settings list
 behind it shows the new members immediately — `channel.memberIds` is what seeds that list, and the
 names come from profiles the picker has already cached.
 
-With no candidates — no other rooms, or everybody is already here — the tab says so and points at
-the contact tab.
+With no candidates — everybody is already here, or, on the fallback, no other rooms — the tab says
+so and points at the contact tab.
 
 ## The contact tab
 
@@ -199,8 +231,13 @@ at once instead of leaving the settings and invite entries stacked underneath.
 
 ## What not to do
 
-- **Do not fetch a roster per channel to build the candidate pool.** The cache already holds
-  `memberIds` for every row the home observation covers.
+- **Do not fetch a roster per channel to build the candidate pool.** The place list is the pool;
+  the fallback is built from the `memberIds` the cache already holds for every row the home
+  observation covers.
+- **Do not merge the place list with the roster union.** The union is the failure fallback only.
+- **Do not call `profile.sync` with `userIds` from a place the session is not on**, and do not store
+  its `syncedAt` as the background sync's cursor — the first files profiles under the wrong place,
+  the second makes the background sync skip changes to my rooms' members.
 - **Do not call `getContacts()` on mount**, and do not key its effect on the tab's current value.
 - **Do not name a candidate from the channel row.** Names come from the place profile, or the
   picker and the member list will disagree about the same person.
@@ -211,10 +248,13 @@ at once instead of leaving the settings and invite entries stacked underneath.
 ## Notes for implementers and tests
 
 - The place tab's real round trip needs two accounts, so it is covered by unit tests rather than a
-  browser check: `useInviteCandidates.test.ts` (the union, both exclusions, rows without
-  `memberIds`, no ids, no user id) and `PlaceInviteTab.test.tsx` (the three-rung name fallback,
-  selection and the cap, search, one `inviteChannel` call, success and failure paths, the empty and
-  loading states).
+  browser check: `useInviteCandidates.test.ts` (the place list — members with no room and members
+  sharing none with me, both exclusions, me under either id, the 403 fallback, an answer for another
+  place, a switch in flight, the loading state, the unverified path — and the fallback union, rows
+  without `memberIds`, no ids, no user id) and `PlaceInviteTab.test.tsx` (the name fallback including
+  the list's row, the avatar fallback, selection and the cap, search, one `inviteChannel` call,
+  success and failure paths, the empty and loading states). Paging, the profile load and its
+  session-place check are `UserRepository.test.ts` and `ProfileRepository.test.ts` in `libs/data`.
 - `InvitePage.test.tsx` covers the tab shell — place is the default, contacts are not requested
   while it stays there, they are requested once on entering the contact tab and not again, and a
   response that arrives after switching back still lands.
