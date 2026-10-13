@@ -49,6 +49,16 @@ describe('useAccountResetOnLogout', () => {
         removeItemSpy.mockRestore();
     });
 
+    it("clears the device-local thread list — the next account must not see this one's threads", async () => {
+        const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
+
+        const { result } = renderHook(() => useAccountResetOnLogout());
+        await result.current.resetAccount();
+
+        expect(removeItemSpy).toHaveBeenCalledWith('chatic-my-threads');
+        removeItemSpy.mockRestore();
+    });
+
     it('7개 repo 캐시를 비운다 — 로그아웃 위생은 그대로 유지된다', async () => {
         const { result } = renderHook(() => useAccountResetOnLogout());
 

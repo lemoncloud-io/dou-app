@@ -12,6 +12,7 @@ export * from './useMessageJumpStore';
 export * from './useProfilePanelStore';
 export * from './useSavedItemsStore';
 export * from './useMentionsStore';
+export * from './useMyThreadsStore';
 export * from './useCloudPushBadgeStore';
 export * from './useLastChannelStore';
 export * from './useDebugModeStore';

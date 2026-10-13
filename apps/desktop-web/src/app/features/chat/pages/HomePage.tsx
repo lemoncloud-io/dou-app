@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { JoinWithInviteDialog, selectNewAccountPending, useJoinDialogStore, useSignInNoticeStore } from '../../auth';
 import {
@@ -33,6 +34,7 @@ import {
     useProfilePanelStore,
     useSavedPanelStore,
     useMentionsPanelStore,
+    useMyThreadsPanelStore,
     useReadCursorStore,
     useSelectPlace,
     useDeletePlace,
@@ -61,6 +63,7 @@ import {
     SidebarHeader,
     SavedPanel,
     MentionsPanel,
+    MyThreadsPanel,
     ThreadPanel,
 } from '../components';
 import {
@@ -194,6 +197,7 @@ export const HomePage = () => {
         profileTarget,
         savedOpen,
         activityOpen,
+        threadsOpen,
     } = useTrailingPanelOwners(threadChannel?.id, isLoading);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
@@ -203,6 +207,8 @@ export const HomePage = () => {
     const openSaved = useSavedPanelStore(s => s.open);
     const closeActivity = useMentionsPanelStore(s => s.close);
     const openActivity = useMentionsPanelStore(s => s.open);
+    const closeThreads = useMyThreadsPanelStore(s => s.close);
+    const openThreads = useMyThreadsPanelStore(s => s.open);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
@@ -449,14 +455,15 @@ export const HomePage = () => {
         closeProfile();
     }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
 
-    // The saved + activity panes group their rows by place, current place first, so a
+    // The saved, activity and threads panes list rows from every place of the cloud, so a
     // place switch leaves them valid — and closing them there made the same row click
     // produce two layouts (a cross-place jump closed the pane, a same-place jump kept
     // it). Only a cloud switch retires them: their items belong to the cloud.
     useEffect(() => {
         closeSaved();
         closeActivity();
-    }, [activeCloudId, closeSaved, closeActivity]);
+        closeThreads();
+    }, [activeCloudId, closeSaved, closeActivity, closeThreads]);
 
     const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
 
@@ -783,6 +790,8 @@ export const HomePage = () => {
                             onEditPlaceProfile={openEditPlaceProfile}
                             onOpenSaved={openSaved}
                             onOpenActivity={openActivity}
+                            cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                            onOpenThreads={openThreads}
                         />
                         <div className="flex-1 overflow-y-auto scrollbar-hide">
                             <ChannelList
@@ -858,6 +867,14 @@ export const HomePage = () => {
                         />
                     ) : activityOpen ? (
                         <MentionsPanel
+                            channels={channels}
+                            places={places}
+                            currentPlaceId={selectedPlaceId ?? undefined}
+                            onSelect={jumpToSaved}
+                        />
+                    ) : threadsOpen ? (
+                        <MyThreadsPanel
+                            cloudId={activeCloudId ?? RELAY_CLOUD_ID}
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}

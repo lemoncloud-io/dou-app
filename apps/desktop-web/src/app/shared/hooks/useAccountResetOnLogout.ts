@@ -15,6 +15,7 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     // logout (the new record is handled by config.clear below).
     'chatic-favorite-channels',
     'chatic-mentions',
+    'chatic-my-threads',
     'chatic-site-profile-cursor',
     'chatic-selected-channel',
     'chatic-known-channels',

@@ -1,15 +1,20 @@
 import { useEffect } from 'react';
 
 import { useChannelSettingsStore } from '../../channels';
-import { useMentionsPanelStore, useProfilePanelStore, useSavedPanelStore } from '../../../shared';
+import {
+    useMentionsPanelStore,
+    useMyThreadsPanelStore,
+    useProfilePanelStore,
+    useSavedPanelStore,
+} from '../../../shared';
 import { useThreadStore } from '../stores';
 
 /**
- * The trailing pane's owners (thread, settings, profile, saved, activity) and the rule that keeps
+ * The trailing pane's owners (thread, settings, profile, saved, activity, threads list) and the rule that keeps
  * them from sharing it. The host renders the profile above the rest, so this returns the raw state
  * and leaves the choice of panel to it.
  *
- * Thread, settings, saved and activity are exclusive: opening any of them closes the others and the
+ * Thread, settings, saved, activity and the threads list are exclusive: opening any of them closes the others and the
  * profile, and the last one opened wins (each effect fires on its own opener only).
  *
  * The profile is the exception. It opens from inside another panel (a mention in a thread, a member
@@ -44,6 +49,8 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined, listL
     const closeSaved = useSavedPanelStore(s => s.close);
     const activityOpen = useMentionsPanelStore(s => s.isOpen);
     const closeActivity = useMentionsPanelStore(s => s.close);
+    const threadsOpen = useMyThreadsPanelStore(s => s.isOpen);
+    const closeThreads = useMyThreadsPanelStore(s => s.close);
 
     useEffect(() => {
         if (openRootId && !threadHere && !awaitingList) closeThread();
@@ -54,32 +61,45 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined, listL
             closeProfile();
             closeSaved();
             closeActivity();
+            closeThreads();
         }
-    }, [threadRootId, closeSettings, closeProfile, closeSaved, closeActivity]);
+    }, [threadRootId, closeSettings, closeProfile, closeSaved, closeActivity, closeThreads]);
     useEffect(() => {
         if (settingsChannelId) {
             closeThread();
             closeProfile();
             closeSaved();
             closeActivity();
+            closeThreads();
         }
-    }, [settingsChannelId, closeThread, closeProfile, closeSaved, closeActivity]);
+    }, [settingsChannelId, closeThread, closeProfile, closeSaved, closeActivity, closeThreads]);
     useEffect(() => {
         if (savedOpen) {
             closeThread();
             closeSettings();
             closeProfile();
             closeActivity();
+            closeThreads();
         }
-    }, [savedOpen, closeThread, closeSettings, closeProfile, closeActivity]);
+    }, [savedOpen, closeThread, closeSettings, closeProfile, closeActivity, closeThreads]);
     useEffect(() => {
         if (activityOpen) {
             closeThread();
             closeSettings();
             closeProfile();
             closeSaved();
+            closeThreads();
         }
-    }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved]);
+    }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved, closeThreads]);
+    useEffect(() => {
+        if (threadsOpen) {
+            closeThread();
+            closeSettings();
+            closeProfile();
+            closeSaved();
+            closeActivity();
+        }
+    }, [threadsOpen, closeThread, closeSettings, closeProfile, closeSaved, closeActivity]);
 
-    return { threadRootId, settingsChannelId, profileTarget, savedOpen, activityOpen };
+    return { threadRootId, settingsChannelId, profileTarget, savedOpen, activityOpen, threadsOpen };
 };

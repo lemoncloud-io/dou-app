@@ -1,7 +1,7 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel } from '@chatic/data';
@@ -10,6 +10,13 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Hint,
     lastChatNoOf,
+    messagePreview,
+    outgoingMessagePreview,
+    myThreadKey,
+    threadChannel,
+    threadRootNo,
+    useMyThreadsPanelStore,
+    useMyThreadsStore,
     useAuthorNames,
     useChats,
     ResizablePanel,
@@ -137,11 +144,55 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
         ...(root?.id ? { parentId: root.id } : {}),
     });
 
+    // My threads list: a reply of mine records the thread, and the panel being open is the user looking
+    // at it — so every reply that lands while it is open is seen, not only the ones before it opened.
+    const cid = channel.cid || RELAY_CLOUD_ID;
+    const rootNo = root?.chatNo != null ? String(root.chatNo) : threadRootNo(rootId);
+    const recordThread = useMyThreadsStore(s => s.record);
+    const markThreadSeen = useMyThreadsStore(s => s.markSeen);
+    const threadKey = myThreadKey(cid, channelId, rootNo);
+    const listedReplyNo = useMyThreadsStore(s => s.threads[threadKey]?.lastReplyNo);
+    // Opened from the Threads pane: the header leads back to it, and focus starts there rather than in
+    // the composer — the reader came to read, and the way back is the next thing they reach for. Read
+    // once per thread, as it mounts: the pane disarms the key when it closes, which follows right after.
+    const [origin, setOrigin] = useState(() => ({
+        key: threadKey,
+        fromList: useMyThreadsPanelStore.getState().backKey === threadKey,
+    }));
+    if (origin.key !== threadKey) {
+        setOrigin({ key: threadKey, fromList: useMyThreadsPanelStore.getState().backKey === threadKey });
+    }
+    const fromList = origin.fromList;
+    const backToList = useMyThreadsPanelStore(s => s.back);
+    useEffect(() => {
+        if (listedReplyNo !== undefined) markThreadSeen(cid, channelId, rootNo);
+    }, [cid, channelId, rootNo, listedReplyNo, markThreadSeen]);
+
     const handleReply = (content: string, files: File[]) => {
         // Unreachable when !root (Composer isn't rendered then); type guard only.
         if (!root?.id) return;
         composer.send(content, files);
         tray.clear();
+        recordThread(
+            {
+                cid,
+                channelId,
+                placeId: channel.sid,
+                ...threadChannel(channel),
+                rootNo,
+                replyNo: 0,
+                preview: outgoingMessagePreview(content, files),
+                ownerName: viewer.name,
+                at: Date.now(),
+                mine: true,
+            },
+            {
+                root: {
+                    preview: messagePreview(root),
+                    ownerName: root.owner$?.name || names.get(root.ownerId ?? '') || '',
+                },
+            }
+        );
     };
 
     // The row under the root while older replies are still out: progress, the reader's way to ask for the
@@ -180,7 +231,21 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
             className="bg-background"
         >
             <header className={`${PANE_HEADER} px-6`}>
-                <span className={PANEL_TITLE}>{t('chat.thread.title')}</span>
+                <div className="flex min-w-0 items-center gap-1">
+                    {/* No tooltip: it would pop on the autofocus every time a thread opens from the list. */}
+                    {fromList && (
+                        <button
+                            type="button"
+                            onClick={backToList}
+                            aria-label={t('myThreads.back')}
+                            autoFocus
+                            className="focus-ring tactile -ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-foreground transition-colors ease-tactile hover:bg-accent"
+                        >
+                            <ChevronLeft size={20} aria-hidden />
+                        </button>
+                    )}
+                    <span className={PANEL_TITLE}>{t('chat.thread.title')}</span>
+                </div>
                 <Hint label={t('chat.thread.close')}>
                     <button
                         type="button"
@@ -238,6 +303,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         onAddFiles={tray.addFiles}
                         onRemoveAttachment={tray.remove}
                         autoFocus
+                        holdFocus={fromList}
                         compact
                     />
                 )}
