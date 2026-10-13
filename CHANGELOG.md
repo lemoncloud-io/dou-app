@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - root@0.96.2, @chatic/desktop-web@0.26.2
+
+### Bug Fixes
+
+- (desktop-web) keep a muted channel off the place and cloud dots
+
 ## [2026-10-13] - root@0.96.1, @chatic/desktop-web@0.26.1
 
 ### Bug Fixes
