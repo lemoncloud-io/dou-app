@@ -1,5 +1,6 @@
 /**
- * Reconstructed browser history stack for the debug overlay.
+ * Reconstructed browser history stack for the debug overlay and the stack policy's graph and
+ * eviction rules.
  *
  * Distinct from [[routeTrail]], which is a chronological list of visited paths. A trail cannot
  * answer "what is behind me right now": `/a → /b → back → /c` leaves a trail of `a, b, c` while

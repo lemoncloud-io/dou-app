@@ -44,8 +44,8 @@ export const useStackNavigate = (): ((entry: EntryKind, to: string) => void) => 
                 to,
                 depth: readHistoryIndex(),
                 // Only trustworthy while every transition carried a readable index; once one did
-                // not, the reconstruction has a hole in it of unknown size and the graph rule must
-                // fall back rather than rewind by a number derived from it.
+                // not, the reconstruction has a hole in it of unknown size and the rules that read
+                // it must fall back rather than rewind on the strength of it.
                 stack: snapshot.isIndexed ? snapshot.entries.map(item => item.pathname) : undefined,
             });
 

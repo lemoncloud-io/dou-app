@@ -123,10 +123,10 @@ test('a tap into a room the guest has left says so and lands on home', async ({ 
     await expect(page.getByText(MINA.nick).first()).toBeVisible();
 });
 
-// The room leaves for home with `replace` (ChannelRoomPage's not-a-member redirect), but the tap had
-// PUSHED the room above the home the guest was on — so home now sits above home, and the first back
-// press rewinds into an identical screen and looks like it did nothing.
-test.fixme('a tap into a room the guest has left leaves one home entry, not two', async ({ page, shell }) => {
+// The tap PUSHED the room above the home the guest was on, so the room leaves by rewinding onto that
+// home. Overwriting the room with home instead left home above home, and the first back press
+// rewound into an identical screen and looked like it did nothing.
+test('a tap into a room the guest has left leaves one home entry, not two', async ({ page, shell }) => {
     await tapIntoLeftRoom(page, shell);
 
     expect(await historyIndex(page)).toBe(0);

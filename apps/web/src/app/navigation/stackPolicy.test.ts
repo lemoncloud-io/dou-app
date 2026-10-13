@@ -11,7 +11,7 @@ const ACCEPT = '/invite/accept';
 describe('resolveEntryAction — the same-target rule, which outranks every kind', () => {
     // Re-entering the screen you are on remounts it (scroll and input reset) and leaves a duplicate
     // entry, so back appears to do nothing once.
-    it.each<EntryKind>(['push', 'deeplink', 'auth-transition', 'in-app'])('skips for %s', entry => {
+    it.each<EntryKind>(['push', 'deeplink', 'auth-transition', 'eviction', 'in-app'])('skips for %s', entry => {
         expect(act(entry, at('/mypage', '/mypage'))).toBe('skip');
     });
 
@@ -103,9 +103,53 @@ describe('resolveEntryAction — in-app', () => {
     });
 });
 
+describe('resolveEntryAction — eviction (leaving a room I am not in)', () => {
+    const HOME = '/';
+    const evict = (stack: (string | null)[] | undefined, depth: number | null, to = HOME): EntryContext => ({
+        from: ROOM,
+        to,
+        depth,
+        stack,
+    });
+
+    // The reported case. A push tap PUSHED the room above home, and overwriting the room with home
+    // left `[home, home]`: the first back press rewound into an identical screen and did nothing.
+    it('rewinds onto home when home is directly underneath', () => {
+        expect(act('eviction', evict([HOME, ROOM], 1))).toBe('back');
+    });
+
+    // Deeper in the stack the rule reads the entry below the cursor, not the first one.
+    it('reads the entry directly below the cursor', () => {
+        expect(act('eviction', evict(['/mypage', HOME, ROOM], 2))).toBe('back');
+        expect(act('eviction', evict([HOME, '/search', ROOM], 2))).toBe('replace');
+    });
+
+    // Reached from another screen — search, a place, a thread — that screen is one the reader chose,
+    // and rewinding onto it would land them somewhere other than home.
+    it.each(['/search', '/mypage', '/channels/c0/thread/3'])('replaces when %s is underneath', below => {
+        expect(act('eviction', evict([HOME, below, ROOM], 2))).toBe('replace');
+    });
+
+    // A deep link or a reload that opened the room first has nothing underneath.
+    it('replaces at the first entry', () => {
+        expect(act('eviction', evict([ROOM], 0))).toBe('replace');
+    });
+
+    // The tracker only reconstructs what it observed; a hole is not evidence of home.
+    it('replaces when the entry underneath is unknown', () => {
+        expect(act('eviction', evict([null, ROOM], 1))).toBe('replace');
+        expect(act('eviction', evict(undefined, 1))).toBe('replace');
+    });
+
+    // The tracker keeps pathnames only, so a target with a query cannot be matched to the entry.
+    it('replaces when the target carries a query', () => {
+        expect(act('eviction', evict([HOME, ROOM], 1, '/?tab=chat'))).toBe('replace');
+    });
+});
+
 describe('resolveEntryAction — never rewinds without a readable index', () => {
     // The one outcome the module refuses outright, across every kind.
-    it.each<EntryKind>(['push', 'deeplink', 'auth-transition', 'in-app'])(
+    it.each<EntryKind>(['push', 'deeplink', 'auth-transition', 'eviction', 'in-app'])(
         '%s never returns back at null depth',
         entry => {
             expect(act(entry, at(ACCEPT, '/', null))).not.toBe('back');
@@ -113,10 +157,13 @@ describe('resolveEntryAction — never rewinds without a readable index', () => 
         }
     );
 
-    it.each<EntryKind>(['push', 'deeplink', 'auth-transition', 'in-app'])('%s never returns back at depth 0', entry => {
-        expect(act(entry, at(ACCEPT, '/', 0))).not.toBe('back');
-        expect(act(entry, at(LOGIN, '/', 0))).not.toBe('back');
-    });
+    it.each<EntryKind>(['push', 'deeplink', 'auth-transition', 'eviction', 'in-app'])(
+        '%s never returns back at depth 0',
+        entry => {
+            expect(act(entry, at(ACCEPT, '/', 0))).not.toBe('back');
+            expect(act(entry, at(LOGIN, '/', 0))).not.toBe('back');
+        }
+    );
 });
 
 describe('resolveEntryAction — collapsing a feature graph', () => {

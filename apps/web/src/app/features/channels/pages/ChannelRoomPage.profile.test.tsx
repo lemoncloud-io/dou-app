@@ -60,6 +60,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
 jest.mock('../../../hooks/useMenuNavigate', () => ({ useMenuNavigate: () => jest.fn() }));
+jest.mock('../../../navigation', () => ({ useStackNavigate: () => jest.fn() }));
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
         headerRef: { current: null },

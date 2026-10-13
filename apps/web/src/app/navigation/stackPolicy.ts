@@ -5,14 +5,15 @@
  * it needs, so the rules can be read and tested without standing an app up.
  *
  * "Entry" is the narrow word it looks like. This answers for the three ways a screen is reached
- * from OUTSIDE the user's own tapping — a deep link, an auth transition, a push — and for nothing
- * else. Ordinary in-app movement keeps calling `navigate` directly; `'in-app'` exists so that
- * "we deliberately do not decide this one" has a name rather than being an omission.
+ * from OUTSIDE the user's own tapping — a deep link, an auth transition, a push — plus an eviction,
+ * the app moving the reader off a screen they cannot stay on, and for nothing else. Ordinary
+ * in-app movement keeps calling `navigate` directly; `'in-app'` exists so that "we deliberately do
+ * not decide this one" has a name rather than being an omission.
  */
 
 import { countGraphRun, isSiblingGraphEntry, readFeatureGraph } from './featureGraph';
 
-/** Which kind of entry is being made. These four are exhaustive. */
+/** Which kind of entry is being made. These five are exhaustive. */
 export type EntryKind =
     /** An invite or share link; the link arrived from outside the app. */
     | 'deeplink'
@@ -23,6 +24,12 @@ export type EntryKind =
      * over, once the accept screen is gone — it lands in a room from outside just as a tap does.
      */
     | 'push'
+    /**
+     * The app sending the reader away from a screen they cannot stay on — a room they are no longer
+     * a member of. The screen left behind is not one to come back to, so back must not reach it,
+     * and neither may back reach a second copy of the screen underneath it.
+     */
+    | 'eviction'
     /** Everything else. Named so that "no policy applies" is explicit. */
     | 'in-app';
 
@@ -39,13 +46,15 @@ export interface EntryContext {
      */
     depth: number | null;
     /**
-     * The reconstructed stack, indexed by history index, for the one rule that needs to see more
-     * than the top of it — collapsing a whole feature graph (`featureGraph`).
+     * The reconstructed stack, indexed by history index, for the two rules that need to see more
+     * than the top of it — collapsing a whole feature graph (`featureGraph`), and an eviction
+     * asking whether its destination is the entry directly underneath.
      *
      * Optional, and its absence is not an error: the browser exposes no way to enumerate history,
      * so this is `stackTracker`'s reconstruction and it is only as good as what the tracker
-     * observed. Every rule that does not name it behaves identically without it, and the one that
-     * does falls back to the single-entry behaviour it had before.
+     * observed. Every rule that does not name it behaves identically without it, and the two that
+     * do fall back to the single-entry behaviour — the graph rule to the one it had before, an
+     * eviction to a plain replace.
      */
     stack?: readonly (string | null)[];
 }
@@ -175,6 +184,26 @@ export const resolveEntryAction = (entry: EntryKind, ctx: EntryContext): EntryAc
             // So: rewind onto the screen that sent us to login. With nothing behind us — a fresh
             // WebView load, a deep link, a reload — fall back to the target instead.
             return canRewind ? { kind: 'back' } : { kind: 'replace' };
+
+        case 'eviction': {
+            // The screen being left is dead, so it is overwritten either way. The only question is
+            // what with. When the destination is the entry directly underneath — a push tap PUSHED
+            // the room above the home the reader was on — overwriting the room with the destination
+            // leaves two copies of it, and the first back press rewinds into an identical screen and
+            // looks like it did nothing. Rewinding lands on the copy already there and leaves the room
+            // ahead of the cursor, where back cannot reach it.
+            //
+            // Only the pathname can be compared, because that is all the tracker keeps; a target
+            // carrying a query could match a pathname whose entry had a different one, so it is
+            // never confirmed. The other direction is not guarded: home underneath still holding an
+            // invite query (onboarding keeps `/?provider=invite…` while it runs) would be rewound
+            // onto and run the invite again. That needs a room pushed above onboarding, and is left.
+            // No stack, an unreadable depth or the first entry all mean the screen underneath is
+            // unknown, and an unknown screen is never rewound onto.
+            const below = ctx.depth !== null && ctx.depth > 0 ? ctx.stack?.[ctx.depth - 1] : undefined;
+            const isBelow = below != null && below === toPath && to === toPath;
+            return isBelow ? { kind: 'back' } : { kind: 'replace' };
+        }
 
         case 'in-app':
             // No policy. The caller decides; this branch exists so the kind is total.

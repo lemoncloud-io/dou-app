@@ -5,6 +5,7 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 
+import { useStackNavigate } from '../../../navigation';
 import { pushEntryRegistry } from '../../../runtime/logging/pushEntryRegistry';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
@@ -98,6 +99,8 @@ export const ChannelRoomPage = () => {
     // transition snapshots the screen, so the open menu is not carried off inside the outgoing
     // page. See `hooks/menuDismissal`.
     const navigateFromMenu = useMenuNavigate();
+    // Only for leaving a room I am not in — see the not-a-member effect.
+    const enterStack = useStackNavigate();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -470,16 +473,18 @@ export const ChannelRoomPage = () => {
     // Read off `memberIds`, which drops a departed member, with the cap and my own join row as the
     // two guards against closing a room on somebody who belongs in it. See `isNotMyChannel`.
     const isNotMine = isNotMyChannel(channel, myJoin, userId);
-    // One notice per room, even if the effect re-runs before the redirect unmounts this screen.
-    // Toasts stack, so a repeat would put the same sentence on screen two and three times.
-    const noticedNotAMemberRef = useRef<string | null>(null);
+    // One exit per room, even if the effect re-runs before the redirect unmounts this screen. Toasts
+    // stack, so a repeat would put the same sentence on screen two and three times; and the exit can
+    // be a rewind, which lands asynchronously, so a second one issued before the first has landed
+    // would rewind past home.
+    const leftNotMyRoomRef = useRef<string | null>(null);
     useEffect(() => {
         // A refusal is an answer, so it does not wait for the loading window to close — that window
         // exists for a fetch that might still arrive, and this one already came back.
         if (!isChannelForbidden && (isChannelLoading || isChannelError)) return;
         if (!channel || isForeignSelfChat || isNotMine || isChannelForbidden) {
-            const alreadyNoticed = noticedNotAMemberRef.current === stableChannelId;
-            noticedNotAMemberRef.current = stableChannelId;
+            if (leftNotMyRoomRef.current === stableChannelId) return;
+            leftNotMyRoomRef.current = stableChannelId;
             // Say something on the way out. A notification outlives the membership it was sent
             // for: leaving a room drops it from this device's list and cache, while the push that
             // announced it stays in the OS tray and in the in-app notification list — both of
@@ -490,8 +495,12 @@ export const ChannelRoomPage = () => {
             // One line, not a dialog: nothing is being confirmed or prevented, and no way back in
             // is offered — returning to a 1:1 takes the other side's invite, so a button here
             // would be one that cannot work.
-            if (!alreadyNoticed) toast({ title: t('chat.notAMember') });
-            void navigate(ROUTES.root, { replace: true });
+            toast({ title: t('chat.notAMember') });
+            // An eviction, not a plain replace: a push tap PUSHES the room above the home the
+            // reader was on, and overwriting the room with home there would leave home above home,
+            // so the first back press rewinds into an identical screen. The stack policy rewinds
+            // onto home when it is directly underneath and replaces the room everywhere else.
+            enterStack('eviction', ROUTES.root);
         }
     }, [
         channel,
@@ -500,7 +509,7 @@ export const ChannelRoomPage = () => {
         isChannelForbidden,
         isChannelLoading,
         isChannelError,
-        navigate,
+        enterStack,
         t,
         stableChannelId,
     ]);

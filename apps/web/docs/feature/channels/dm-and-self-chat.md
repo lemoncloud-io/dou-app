@@ -448,6 +448,15 @@ disappeared, and that redirect used to be silent, which looked exactly like the 
 tap. It now leaves one line behind, once per room. No way back in is offered: returning to a 1:1
 takes the other side's invite, so a button there would be one that cannot work.
 
+The room leaves as an **eviction** through the history-stack policy rather than a plain `replace`.
+A push tap pushes the room above the home the reader was on; replacing the room
+with home there left home above home, so the first back press rewound into an identical screen and
+looked like it did nothing. The eviction rewinds onto home when home is the entry directly
+underneath and replaces the room everywhere else — a deep link or a reload that opened the room
+first, or a room reached from search or a place. The rule itself is in
+[routing.md](../../shell/routing.md). Once matters because a rewind lands asynchronously: a second
+one issued before the first landed would rewind past home.
+
 There is a path to the cold case too, through `useChannel`'s `isForbidden`. A room this device has
 never cached sits on a skeleton until its resolve window closes and then shows a load error, because
 the hook cannot tell a refusal from a fetch still coming. The sync scheduler can: it classifies a
