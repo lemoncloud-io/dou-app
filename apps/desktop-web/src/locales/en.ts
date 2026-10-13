@@ -253,6 +253,7 @@ export const en = {
     // for your own unread messages, and the two sat side by side meaning opposite things.
     'chat.readReceipt.read': 'Seen by {{n}}',
     'chat.readReceipt.unread': 'Unseen by {{n}}',
+    'chat.readReceipt.allRead': 'Seen by all',
     'sidebar.dms': 'Direct messages',
     'dm.you': 'You',
     'chat.save': 'Save for later',

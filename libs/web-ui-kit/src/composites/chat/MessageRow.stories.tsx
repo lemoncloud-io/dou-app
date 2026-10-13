@@ -49,7 +49,15 @@ export const MineWithReadReceipt: Story = {
         <MessageRow
             variant="mine"
             time="오후 12:10"
-            status={<ReadReceipt readCount={1} unreadCount={28} readLabel="읽음" unreadLabel="안읽음" />}
+            status={
+                <ReadReceipt
+                    readCount={1}
+                    unreadCount={28}
+                    readLabel="읽음"
+                    unreadLabel="미확인"
+                    allReadLabel="모두 읽음"
+                />
+            }
         >
             <MessageBubble variant="mine">Lorem ipsum dolor sit amet</MessageBubble>
         </MessageRow>

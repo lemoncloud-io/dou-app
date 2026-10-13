@@ -307,7 +307,7 @@ describe('MessageList', () => {
                 isLoading={false}
                 viewer={VIEWER}
                 names={new Map([['ada', 'Ada']])}
-                readCountOf={(chatNo, senderId) => (senderId === 'me' ? { readCount: chatNo, unreadCount: 0 } : null)}
+                readCountOf={(chatNo, senderId) => (senderId === 'me' ? { readCount: chatNo, unreadCount: 1 } : null)}
             />,
             { wrapper }
         );
@@ -322,6 +322,38 @@ describe('MessageList', () => {
 
         fireEvent.focus(older);
         expect(screen.getByText('Seen by 1')).toBeDefined();
+    });
+
+    // "Seen by 10" alone left the reader to compare it with the room size; once nobody is
+    // behind, the counts give way to one phrase that says so.
+    it('collapses the receipt to "Seen by all" once every member has read', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'me', 'hello')]}
+                isLoading={false}
+                viewer={VIEWER}
+                readCountOf={() => ({ readCount: 3, unreadCount: 0 })}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('Seen by all')).toBeDefined();
+        expect(screen.queryByText('Seen by 3')).toBeNull();
+        expect(screen.queryByText(/^Unseen by /)).toBeNull();
+    });
+
+    it('separates the read and unread counts with a bullet', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'me', 'hello')]}
+                isLoading={false}
+                viewer={VIEWER}
+                readCountOf={() => ({ readCount: 2, unreadCount: 1 })}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('Seen by 2').parentElement?.textContent).toBe('Seen by 2•Unseen by 1');
     });
 
     // In the thread panel the column is about 270px and the toolbar about 210px, so a toolbar

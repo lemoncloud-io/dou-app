@@ -5,7 +5,7 @@ import { ReadReceipt } from '@chatic/web-ui-kit';
 const meta: Meta<typeof ReadReceipt> = {
     title: 'web-ui-kit/composites/ReadReceipt',
     component: ReadReceipt,
-    args: { readLabel: '읽음', unreadLabel: '안읽음' },
+    args: { readLabel: '읽음', unreadLabel: '미확인', allReadLabel: '모두 읽음' },
 };
 export default meta;
 
