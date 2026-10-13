@@ -59,6 +59,15 @@ Supplying `onClose` buys the whole contract, at any width:
 Below `NARROW_SHELL_WIDTH` (860px) the sidebar is a drawer beside the rails: `role="dialog"`,
 `aria-modal`, with the chat `inert` and a scrim behind it. Picking a channel closes it.
 
+Below `COMPACT_SHELL_WIDTH` (480px) the rails join the drawer: they are not drawn while it is shut,
+and open with it, with the channel list taking the width that is left beside them. Rails and list
+are one dialog there, so the cloud and place tiles stay reachable to a screen reader that keeps to a
+modal dialog. That drawer fills the window, so it has no scrim and closes by its close button, by
+Escape, or by picking a channel. It is hidden rather than removed while shut, because the rails own
+dialogs (rename, delete, sign out) that must outlive it. Docked, two rails are 136px, which at 320px left the conversation too narrow for its own
+header and composer. The desktop window cannot be made this narrow, so in the app this is what a
+window zoomed far in gets.
+
 ## Opening a panel on a section
 
 `useChannelSettingsStore.open(channelId, 'members')` opens the settings panel on its member list. The

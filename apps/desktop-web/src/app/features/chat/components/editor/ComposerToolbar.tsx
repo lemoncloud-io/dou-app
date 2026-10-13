@@ -52,8 +52,14 @@ const BLOCK_FORMATS = [
     { key: 'codeBlock', Icon: SquareCode, apply: toggleCodeBlock },
 ] as const;
 
+// A format that is on. The fill alone is what hover draws, and at 1.1:1 on the box it cannot
+// be told from one; the inset edge is what says "on".
+const PRESSED_CLASS = 'bg-accent text-foreground ring-1 ring-inset ring-control-border';
+
+// `shrink-0`: in a box narrower than the row, the row wraps (the toolbar's `flex-wrap`) rather
+// than squeezing the buttons until the last one runs out of the box.
 const BUTTON_CLASS =
-    'focus-ring tactile flex h-7 w-7 items-center justify-center rounded-md transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50';
+    'focus-ring tactile flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50';
 
 type FormatKey = (typeof INLINE_FORMATS)[number]['key'] | (typeof BLOCK_FORMATS)[number]['key'];
 type ActiveFormats = Partial<Record<FormatKey | 'link', boolean>>;
@@ -101,7 +107,7 @@ export const ComposerToolbar = () => {
                 // Enter and Space reach it too.
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => apply(editor)}
-                className={cn(BUTTON_CLASS, active[key] ? 'bg-accent text-foreground' : 'text-label')}
+                className={cn(BUTTON_CLASS, active[key] ? PRESSED_CLASS : 'text-label')}
             >
                 <Icon size={16} strokeWidth={2} aria-hidden />
             </button>
@@ -109,13 +115,13 @@ export const ComposerToolbar = () => {
     );
 
     return (
-        <div className="flex items-center gap-0.5" role="toolbar" aria-label={t('chat.composer.formatting')}>
+        <div className="flex flex-wrap items-center gap-0.5" role="toolbar" aria-label={t('chat.composer.formatting')}>
             {INLINE_FORMATS.map(renderButton)}
             <LinkButton
                 isActive={!!active.link}
-                className={cn(BUTTON_CLASS, active.link ? 'bg-accent text-foreground' : 'text-label')}
+                className={cn(BUTTON_CLASS, active.link ? PRESSED_CLASS : 'text-label')}
             />
-            <div aria-hidden className="mx-1 h-4 w-px bg-input" />
+            <div aria-hidden className="mx-1 h-4 w-px shrink-0 bg-input" />
             {BLOCK_FORMATS.map(renderButton)}
         </div>
     );

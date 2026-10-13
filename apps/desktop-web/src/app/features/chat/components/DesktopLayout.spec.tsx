@@ -7,7 +7,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import '../../../../i18n';
 
 import { ResizablePanel } from '../../../shared';
-import { DesktopLayout } from './DesktopLayout';
+import { DesktopLayout, useShellSidebar } from './DesktopLayout';
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
@@ -103,5 +103,67 @@ describe('DesktopLayout trailing panel', () => {
         rerender(layout(false));
         await Promise.resolve();
         expect(document.activeElement).toBe(screen.getByLabelText('Message'));
+    });
+});
+
+describe('DesktopLayout compact window', () => {
+    beforeEach(() => localStorage.clear());
+    afterEach(cleanup);
+
+    const OpenSidebar = () => {
+        const shell = useShellSidebar();
+        return (
+            <button type="button" onClick={shell.open}>
+                open
+            </button>
+        );
+    };
+
+    const renderShellAt = (width: number) => {
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+        render(<DesktopLayout rail={<span />} rail2={<span />} sidebar={<span />} main={<OpenSidebar />} />, {
+            wrapper,
+        });
+    };
+
+    const rails = () => screen.queryAllByRole('navigation', { hidden: true });
+
+    // Docked at 320px the two rails left the conversation 136px: its header actions drew over
+    // each other and the composer's format row ran out of its box.
+    it('takes the rails off the conversation and brings them back with the drawer', () => {
+        renderShellAt(320);
+        const drawer = screen.getByRole('dialog', { hidden: true });
+        expect(drawer.className).toContain('hidden');
+        fireEvent.click(screen.getByRole('button', { name: 'open' }));
+        expect(drawer.className).not.toContain('hidden');
+        // In the dialog with the channel list, not beside it: a modal dialog is all a screen
+        // reader is offered, and the tiles have to be in it.
+        expect(rails()).toHaveLength(2);
+        expect(rails().every(rail => drawer.contains(rail))).toBe(true);
+    });
+
+    // The opener is in the chat, which is inert while the drawer is open: focusing it before
+    // the drawer was gone did nothing, and focus fell to <body>.
+    it('hands focus back to the button that opened the drawer, once the chat is live again', () => {
+        renderShellAt(640);
+        const opener = screen.getByRole('button', { name: 'open' });
+        opener.focus();
+        fireEvent.click(opener);
+        expect(document.activeElement).toBe(screen.getByRole('dialog'));
+        const inertWhenFocused: boolean[] = [];
+        const focus = opener.focus.bind(opener);
+        opener.focus = () => {
+            inertWhenFocused.push(screen.getByRole('main').hasAttribute('inert'));
+            focus();
+        };
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(inertWhenFocused).toEqual([false]);
+        expect(document.activeElement).toBe(opener);
+    });
+
+    it('keeps the rails docked while only the sidebar is a drawer', () => {
+        renderShellAt(640);
+        expect(rails()).toHaveLength(2);
+        expect(screen.queryByRole('dialog', { hidden: true })).toBeNull();
     });
 });

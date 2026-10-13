@@ -7,6 +7,14 @@ import { useEffect, useState } from 'react';
  */
 export const NARROW_SHELL_WIDTH = 860;
 
+/**
+ * Width below which the rails cannot stay docked either. Two 68px rails take 136px, and the
+ * conversation needs about 300px for its header actions and the composer's format row, so under
+ * this the rails ride in the drawer with the sidebar. The window's own floor is wider than this;
+ * it is reached by zooming in.
+ */
+export const COMPACT_SHELL_WIDTH = 480;
+
 const isNarrow = (max: number) => typeof window !== 'undefined' && window.innerWidth < max;
 
 /**

@@ -114,7 +114,7 @@ const MessageEditorInner = ({
                 onCancel();
             }}
         >
-            <div className="relative flex flex-col overflow-hidden rounded-xl border border-control-border bg-background transition-colors ease-tactile focus-within:border-focus-border focus-within:shadow-[0_0_0_0.5px_hsl(var(--focus-border))]">
+            <div className="relative flex flex-col overflow-hidden rounded-xl border border-control-border bg-background transition-colors ease-tactile focus-within:border-focus-border focus-within:shadow-[0_0_0_1px_hsl(var(--focus-border))]">
                 <div className="px-3 py-2">
                     <ComposerToolbar />
                 </div>

@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 
 import { EmojiPicker } from '../EmojiPicker';
 import { Hint } from '../../../../shared';
+import { COMPOSER_ACTION_BUTTON } from './composerActionButton';
 
 /**
  * The smile button and its picker. Controlled so a pick can close it: leaving it open after a
@@ -23,12 +24,8 @@ export const ComposerEmojiButton = ({ onEmoji }: { onEmoji: (emoji: string) => v
         <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger asChild>
                 <Hint label={t('chat.composer.emoji')}>
-                    <button
-                        type="button"
-                        aria-label={t('chat.composer.emoji')}
-                        className="focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
-                    >
-                        <Smile className="h-5 w-5" strokeWidth={1.75} />
+                    <button type="button" aria-label={t('chat.composer.emoji')} className={COMPOSER_ACTION_BUTTON}>
+                        <Smile size={18} aria-hidden />
                     </button>
                 </Hint>
             </PopoverTrigger>
@@ -54,7 +51,7 @@ export const ComposerEmojiButton = ({ onEmoji }: { onEmoji: (emoji: string) => v
     );
 };
 
-/** The send square at the end of the composer's bottom row (Figma: 38px, lime once there is something to send). */
+/** The send square at the end of the composer's bottom row, lime once there is something to send. */
 export const ComposerSendButton = ({ canSend, onSend }: { canSend: boolean; onSend: () => void }) => {
     const { t } = useTranslation();
     return (
@@ -71,7 +68,7 @@ export const ComposerSendButton = ({ canSend, onSend }: { canSend: boolean; onSe
                     canSend ? 'bg-primary text-primary-foreground hover:opacity-90' : 'bg-muted text-muted-foreground'
                 )}
             >
-                <Send className="h-4 w-4 fill-current" aria-hidden />
+                <Send size={18} className="fill-current" aria-hidden />
             </button>
         </Hint>
     );

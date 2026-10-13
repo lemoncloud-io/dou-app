@@ -15,6 +15,20 @@ Three rows, in Slack's order:
 3. **Actions** — attach ("+", only where files are accepted) and emoji on the left; the newline hint
    (shown once there is text) and send on the right.
 
+The two button rows are two sizes on purpose, and one size each. Formats are 28px squares with 16px
+icons: seven of them have to fit the thread panel. Actions are 32px squares with 18px icons, attach and
+emoji drawn alike (`COMPOSER_ACTION_BUTTON`) and send in the same box with its own fill.
+
+A format that is on carries an inset edge as well as the hover fill. The fill alone is what hovering
+draws, and it is too faint against the box to be told from "off".
+
+In a box too narrow for the format row, the row wraps onto a second line. The buttons do not shrink
+and none is cut off.
+
+The placeholder that stands in while the editor's chunk loads (`LazyComposer`) is the height of the
+empty box, 121px, so the feed does not move when the editor arrives. Changing a row's height means
+changing that number too.
+
 Slack's row also has underline and list buttons. They are left out on purpose: the wire format has
 no form for them that the web and mobile readers understand, so a message sent with one would lose it
 on every other client. Adding them means changing that shared format first.

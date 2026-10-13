@@ -192,8 +192,9 @@ const ComposerInner = ({
             <div
                 className={cn(
                     'relative flex flex-col overflow-hidden rounded-2xl border border-control-border bg-background transition-colors ease-tactile',
-                    // Figma "#before sending image": the box turns GR2 lime while you are in it.
-                    'focus-within:border-focus-border focus-within:shadow-[0_0_0_0.5px_hsl(var(--focus-border))]'
+                    // Figma "#before sending image": the box turns lime while you are in it. The
+                    // edge and the ring add up to 2px; at 1.5px the change was hard to see.
+                    'focus-within:border-focus-border focus-within:shadow-[0_0_0_1px_hsl(var(--focus-border))]'
                 )}
             >
                 {/* Slack's three rows: formats above the text, the message's own actions

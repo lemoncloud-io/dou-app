@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 
 import { CHAT_ATTACHMENT_ACCEPT } from '@chatic/data';
 import { Hint } from '../../../../shared';
+import { COMPOSER_ACTION_BUTTON } from '../editor/composerActionButton';
 
 interface AttachButtonProps {
     onFiles: (files: File[]) => void;
@@ -30,7 +31,7 @@ export const AttachButton = ({ onFiles }: AttachButtonProps) => {
                     // mousedown default kept off so the editor keeps its caret.
                     onMouseDown={event => event.preventDefault()}
                     onClick={() => inputRef.current?.click()}
-                    className="focus-ring tactile hit-target flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors ease-tactile hover:bg-accent"
+                    className={COMPOSER_ACTION_BUTTON}
                 >
                     <Plus size={18} aria-hidden />
                 </button>
