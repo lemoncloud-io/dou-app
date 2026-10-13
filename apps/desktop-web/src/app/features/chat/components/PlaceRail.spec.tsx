@@ -366,15 +366,24 @@ describe('PlaceRail order', () => {
         expect(dnd.end).toBeUndefined();
     });
 
-    it('swallows the click that ends a drag', () => {
-        const onSelectPlace = vi.fn();
-        renderRail({ places: three, selectedPlaceId: 'p1', onSelectPlace });
-        drop('p3', 'p1');
-        fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
-        expect(onSelectPlace).not.toHaveBeenCalled();
+    it('swallows the click that ends a drag, and only that one', () => {
+        vi.useFakeTimers();
+        try {
+            const onSelectPlace = vi.fn();
+            renderRail({ places: three, selectedPlaceId: 'p1', onSelectPlace });
+            drop('p3', 'p1');
+            fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+            expect(onSelectPlace).not.toHaveBeenCalled();
+
+            act(() => vi.runAllTimers());
+            fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+            expect(onSelectPlace).toHaveBeenCalledWith('p2');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
-    it('shows the tiles as not draggable while a switch is in flight', () => {
+    it('drops the grab cursor from the tiles while a switch is in flight', () => {
         renderRail({ places: three, selectedPlaceId: 'p1', isSwitching: true });
         const row = screen.getByRole('button', { name: 'Sales' }).closest('div[class*="cursor-"]');
         expect(row?.className).toMatch(/cursor-default/);

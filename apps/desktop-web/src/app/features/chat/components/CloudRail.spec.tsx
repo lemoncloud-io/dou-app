@@ -342,7 +342,7 @@ describe('CloudRail order', () => {
         }
     });
 
-    it('shows the tiles as not draggable while a switch is in flight', () => {
+    it('drops the grab cursor from the tiles while a switch is in flight', () => {
         renderRail({ isSwitching: true });
         const row = screen.getByRole('button', { name: 'Studio' }).closest('div[class*="cursor-"]');
         expect(row?.className).toMatch(/cursor-default/);
