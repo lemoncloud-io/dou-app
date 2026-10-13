@@ -132,7 +132,7 @@ const useMentionTypeahead = (editor: LexicalEditor, mentionables: Mentionable[])
                     if (!found) return;
                     // Expand the collapsed caret back over "@query", then replace it.
                     selection.anchor.set(found.startKey, found.startOffset, 'text');
-                    const mentionNode = $createMentionNode(`@${item.name}`);
+                    const mentionNode = $createMentionNode(`@${item.name}`, { userId: item.id });
                     selection.insertNodes([mentionNode]);
                     const space = $createTextNode(' ');
                     mentionNode.insertAfter(space);

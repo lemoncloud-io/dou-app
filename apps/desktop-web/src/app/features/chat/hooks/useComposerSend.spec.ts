@@ -60,6 +60,34 @@ describe('useComposerSend', () => {
         expect(sendMessage).toHaveBeenCalledWith('cloud-a', { channelId: 'ch-1', content: 'hello' });
     });
 
+    // The server learns who was called only from this field, never from the text.
+    it('carries the picked mention beside the text', () => {
+        const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        act(() => result.current.send('@Ada hello', [], { userIds: ['u-ada'] }));
+
+        expect(sendMessage).toHaveBeenCalledWith('cloud-a', {
+            channelId: 'ch-1',
+            content: '@Ada hello',
+            mention: { userIds: ['u-ada'] },
+        });
+    });
+
+    it('carries the picked mention on a thread reply, with its parent', () => {
+        const { result } = renderHook(() =>
+            useComposerSend({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'ch-1:7' })
+        );
+
+        act(() => result.current.send('@Ada hello', [], { userIds: ['u-ada'] }));
+
+        expect(sendMessage).toHaveBeenCalledWith('cloud-a', {
+            channelId: 'ch-1',
+            content: '@Ada hello',
+            parentId: 'ch-1:7',
+            mention: { userIds: ['u-ada'] },
+        });
+    });
+
     it('sends pictures alone as one image message and no text', async () => {
         const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1' }));
         const files = picked();

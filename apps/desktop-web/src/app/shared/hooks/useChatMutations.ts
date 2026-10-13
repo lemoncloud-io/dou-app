@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
 
-import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
-
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChat } from '@chatic/data';
+import type { ChatSendPayload, DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { getChatOutbox, toSendPayload } from './useChatOutbox';
@@ -21,7 +19,7 @@ import { getChatOutbox, toSendPayload } from './useChatOutbox';
  */
 export const useChatMutations = () => {
     // `cid` is captured when the user presses send, so the message goes where it was written.
-    const sendMessage = useCallback((cid: string, payload: ChatSendInput): Promise<DomainChat> => {
+    const sendMessage = useCallback((cid: string, payload: ChatSendPayload): Promise<DomainChat> => {
         if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
         if (!payload.content) return Promise.reject(new Error('content is required'));
 

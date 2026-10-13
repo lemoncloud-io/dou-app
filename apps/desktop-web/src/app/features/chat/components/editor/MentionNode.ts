@@ -1,4 +1,12 @@
-import { $applyNodeReplacement, TextNode, type EditorConfig, type LexicalNode, type SerializedTextNode } from 'lexical';
+import {
+    $applyNodeReplacement,
+    TextNode,
+    type EditorConfig,
+    type LexicalNode,
+    type NodeKey,
+    type SerializedTextNode,
+    type Spread,
+} from 'lexical';
 
 import { MSG_MENTION_CLASS } from '@chatic/block-kit';
 
@@ -6,23 +14,50 @@ import { MSG_MENTION_CLASS } from '@chatic/block-kit';
  * A picked @mention rendered as a chip inside the composer. Plain TextNode
  * subclass, so markdown serialization emits its literal text ("@name") — the
  * wire format stays what RichText renders. Segmented mode: backspace removes
- * the whole mention, matching Slack.
+ * a one-word mention whole, matching Slack, and a name with spaces one word at a time.
+ *
+ * A chip picked from the list also holds that member's id. The text is not enough to say who was
+ * called — names repeat and change — and the server reads the id, never the text. A chip made from
+ * text (an opened message, a restored draft) holds none: it shows a name and calls no one.
+ *
+ * The id is kept with the text it was picked as. Backspace on "@Ada Lovelace" leaves a chip that
+ * reads "@Ada"; that chip no longer shows who was picked, so it no longer answers with the id.
  */
 export class MentionNode extends TextNode {
+    __picked?: PickedMember;
+
+    constructor(text: string, key?: NodeKey, userId?: string) {
+        super(text, key);
+        this.__picked = userId ? { userId, text } : undefined;
+    }
+
     static override getType(): string {
         return 'mention';
     }
 
+    // Lexical clones a node on every write to it, so the id has to ride the clone.
     static override clone(node: MentionNode): MentionNode {
-        return new MentionNode(node.__text, node.__key);
+        const clone = new MentionNode(node.__text, node.__key);
+        clone.__picked = node.__picked;
+        return clone;
     }
 
-    static override importJSON(serialized: SerializedTextNode): MentionNode {
-        return $createMentionNode(serialized.text).updateFromJSON(serialized);
+    static override importJSON(serialized: SerializedMentionNode): MentionNode {
+        return $createMentionNode(serialized.text, { userId: serialized.userId }).updateFromJSON(serialized);
     }
 
-    override exportJSON(): SerializedTextNode {
-        return { ...super.exportJSON(), type: 'mention' };
+    override exportJSON(): SerializedMentionNode {
+        const userId = this.getUserId();
+        return { ...super.exportJSON(), type: 'mention', ...(userId ? { userId } : {}) };
+    }
+
+    /**
+     * The picked member's id — undefined for a chip made from text, and for a picked chip whose
+     * text is no longer the name it was picked as.
+     */
+    getUserId(): string | undefined {
+        const { __picked: picked, __text: text } = this.getLatest();
+        return picked?.text === text ? picked.userId : undefined;
     }
 
     override createDOM(config: EditorConfig): HTMLElement {
@@ -44,8 +79,23 @@ export class MentionNode extends TextNode {
     }
 }
 
-export const $createMentionNode = (text: string): MentionNode =>
-    $applyNodeReplacement(new MentionNode(text).setMode('segmented').toggleDirectionless());
+/** The member a chip was picked as, with the chip's text at that moment. */
+interface PickedMember {
+    userId: string;
+    text: string;
+}
+
+/** Who a chip stands for: the member picked from the list. Omitted for a chip made from text. */
+export interface MentionTarget {
+    userId?: string;
+}
+
+type SerializedMentionNode = Spread<MentionTarget, SerializedTextNode>;
+
+export const $createMentionNode = (text: string, target?: MentionTarget): MentionNode =>
+    $applyNodeReplacement(
+        new MentionNode(text, undefined, target?.userId).setMode('segmented').toggleDirectionless()
+    );
 
 export const $isMentionNode = (node: LexicalNode | null | undefined): node is MentionNode =>
     node instanceof MentionNode;

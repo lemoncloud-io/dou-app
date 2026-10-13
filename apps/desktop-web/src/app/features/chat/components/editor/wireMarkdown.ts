@@ -3,9 +3,11 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/m
 import { $dfs } from '@lexical/utils';
 import { $getRoot, $isTextNode, type TextNode } from 'lexical';
 
+import type { ChatMentionBody } from '@chatic/data';
+
 import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { WIRE_TRANSFORMERS } from './editorConfig';
-import { $createMentionNode } from './MentionNode';
+import { $createMentionNode, $isMentionNode } from './MentionNode';
 
 /**
  * The only place a message's wire string and the editor's document are converted. The wire is
@@ -133,6 +135,21 @@ export const $importWireMarkdown = (wire: string, mentionNames?: readonly string
         }
     }
     if (mentionNames) $restoreMentions(mentionNames);
+};
+
+/**
+ * Who the document calls, for the send's `mention`: the ids on the chips that are still in it.
+ * A pick that was deleted is not here to be counted, one cut short by Backspace no longer answers
+ * with its id (`MentionNode.getUserId`), and a name typed by hand or restored from text was never
+ * a pick. Call inside `editor.read`.
+ */
+export const $collectMention = (): ChatMentionBody | undefined => {
+    const userIds = new Set<string>();
+    for (const { node } of $dfs()) {
+        const userId = $isMentionNode(node) ? node.getUserId() : undefined;
+        if (userId) userIds.add(userId);
+    }
+    return userIds.size > 0 ? { userIds: [...userIds] } : undefined;
 };
 
 /** The editor's document as a wire string. Call inside `editor.read` or `editor.update`. */
