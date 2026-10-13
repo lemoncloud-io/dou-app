@@ -75,11 +75,14 @@ export const classifyWireError = (raw: string): WireErrorKind => {
 };
 
 /**
- * The status a rejected socket request carries, or `undefined` when it carries none. The socket
- * library keeps only the server's message, which leads with the status (`403 FORBIDDEN - …`), so the
- * status is read from that prefix — never from the wording after it. Prefer this over
- * `classifyWireError` where one status means one thing and the wording is not a contract: the phone
- * sign-in's wrong code and expired code differ by status alone.
+ * The status a rejected socket request carries, or `undefined` when it carries none. A numeric
+ * `errorCode` on the Error comes first: the socket library drops the server's code when it rejects,
+ * and `@chatic/app-runtime`'s socket manager puts it back on every request made through it — the only
+ * source of a status for a refusal whose message does not lead with one (a parameter check is coded
+ * 400 with nothing in front). Otherwise the status is read from the message prefix
+ * (`403 FORBIDDEN - …`, and the client's own `503 …`/`408 …`) — never from the wording after it.
+ * Prefer this over `classifyWireError` where one status means one thing and the wording is not a
+ * contract: the phone sign-in's wrong code and expired code differ by status alone.
  *
  * The same rule is in `@chatic/app-runtime` (internal) and `apps/web`'s `getSocketErrorCode`; a change
  * to the convention belongs in all three.

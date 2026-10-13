@@ -7,9 +7,9 @@ import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
 /**
- * Did a socket request fail with 404? The `:error` frame carries `errorCode`, but the socket library
- * rejects with an Error holding only the server's message, which by convention starts with the
- * status (`404 NOT FOUND - …`). Read the property when present, otherwise the prefix.
+ * Did a socket request fail with 404? The `:error` frame carries `errorCode`, which the socket library
+ * drops when it rejects; `@chatic/app-runtime`'s socket manager puts it back on the Error. Read that
+ * property when present, otherwise the message prefix (`404 NOT FOUND - …`).
  *
  * The same leading-status reading as `getSocketErrorCode` in `@chatic/app-runtime` (and its copy in
  * apps/web), repeated here because this lib cannot depend on the runtime. A change to one belongs in

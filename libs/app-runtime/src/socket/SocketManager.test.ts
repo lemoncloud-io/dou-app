@@ -7,6 +7,7 @@ import { SocketManager } from './SocketManager';
 import { socketFailureReporter } from './socketFailureReporter';
 import type { SocketBindingConfig } from './types';
 import { RELAY_SLOT, slotKeyOf } from './utils/slotKey';
+import { getSocketErrorCode } from './utils/socketErrorCode';
 
 // SocketManager is the only owner of createClientSocketV2; mock the value export so
 // ensure() yields a controllable fake client (types are erased at runtime).
@@ -286,6 +287,157 @@ describe('SocketManager error annotation', () => {
 
         await expect(manager.request('chat.feed')).rejects.toEqual(REQUEST_ERROR);
         expect(REQUEST_ERROR.message).toBe('UNAUTHORIZED');
+    });
+});
+
+/**
+ * chatic-sockets-lib rejects a refused request with only `${error} - ${type}` and drops the frame's
+ * `errorCode`, so a server answer whose text has no status in front (a parameter check, coded 400)
+ * read as unclassified. The facade watches each slot's frames and puts the code back.
+ */
+describe('SocketManager server error codes', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+        jest.clearAllMocks();
+    });
+
+    const OVERFLOW_FRAME = {
+        type: 'chat.read:error',
+        mid: 'm-1',
+        data: null,
+        error: '@chatNo[999] is invalid - overflow[5]',
+        errorCode: 400,
+    };
+
+    /**
+     * A fake client that answers its next request the way the SDK does for a `*:error` frame: the
+     * `onMessage` listeners see the frame, then the request rejects with the SDK's text.
+     */
+    const refusingClient = (frame: typeof OVERFLOW_FRAME = OVERFLOW_FRAME) => {
+        const client = makeClient();
+        client.request.mockImplementationOnce(() => {
+            const rejection = Promise.reject(new Error(`${frame.error} - ${frame.type}`));
+            for (const [listener] of client.onMessage.mock.calls) {
+                listener({ message: frame, raw: JSON.stringify(frame) });
+            }
+            return rejection;
+        });
+        return client;
+    };
+
+    it('puts the frame’s errorCode on the error the active facade rethrows', async () => {
+        const client = refusingClient();
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+
+        const caught = (await manager.request('chat.read').catch((e: unknown) => e)) as Error;
+
+        expect(getSocketErrorCode(caught)).toBe(400);
+        // The text is untouched: it already names the type, so the annotator leaves it alone.
+        expect(caught.message).toBe('@chatNo[999] is invalid - overflow[5] - chat.read:error');
+    });
+
+    it('does the same for a scoped client, from its own slot’s frames', async () => {
+        const relay = refusingClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        manager.ensure(onCloud({ url: 'wss://cloud.test/socket', deviceId: 'device-1' }));
+        manager.setActiveSlot(CLOUD);
+
+        const caught = await manager
+            .getScopedClient(RELAY)
+            .request('chat.read')
+            .catch((e: unknown) => e);
+
+        expect(getSocketErrorCode(caught)).toBe(400);
+    });
+
+    it('does not lend one slot’s answer to another slot’s request', async () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        manager.ensure(onCloud({ url: 'wss://cloud.test/socket', deviceId: 'device-1' }));
+        // Only the cloud socket saw the refusal; the relay request rejects with the same text.
+        const [cloudListener] = cloud.onMessage.mock.calls[0];
+        cloudListener({ message: OVERFLOW_FRAME, raw: '' });
+        relay.request.mockRejectedValueOnce(new Error(`${OVERFLOW_FRAME.error} - ${OVERFLOW_FRAME.type}`));
+
+        const caught = await manager
+            .getScopedClient(RELAY)
+            .request('chat.read')
+            .catch((e: unknown) => e);
+
+        expect(getSocketErrorCode(caught)).toBeUndefined();
+    });
+
+    it('reads the answer from the slot the request went to, even if the active slot moves meanwhile', async () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        let refuse: (error: Error) => void = () => undefined;
+        relay.request.mockImplementationOnce(() => new Promise((_, reject) => (refuse = reject)));
+
+        const pending = manager.request('chat.read').catch((e: unknown) => e);
+        manager.ensure(onCloud({ url: 'wss://cloud.test/socket', deviceId: 'device-1' }));
+        manager.setActiveSlot(CLOUD);
+        const [relayListener] = relay.onMessage.mock.calls[0];
+        relayListener({ message: OVERFLOW_FRAME, raw: '' });
+        refuse(new Error(`${OVERFLOW_FRAME.error} - ${OVERFLOW_FRAME.type}`));
+
+        expect(getSocketErrorCode(await pending)).toBe(400);
+    });
+
+    it('classifies the refusal everywhere the code is read: the observer and the failure report', async () => {
+        const client = refusingClient();
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const observer = jest.fn();
+        manager.setRequestObserver(observer);
+
+        await manager.request('chat.read').catch(() => undefined);
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ type: 'chat.read', outcome: '400' }));
+        expect((logger.error as jest.Mock).mock.calls[0][1]).toContain('400 socket request failed');
+        manager.setRequestObserver(undefined);
+    });
+
+    it('leaves client-made 499 / 503 / 408 failures as they were — no frame names them', async () => {
+        const client = makeClient();
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        // A refusal seen earlier on the same slot must not leak onto an unrelated failure.
+        const [listener] = client.onMessage.mock.calls[0];
+        listener({ message: OVERFLOW_FRAME, raw: '' });
+
+        for (const status of ['499 CLIENT CLOSED REQUEST', '503 SOCKET NOT CONNECTED', '408 REQUEST TIMEOUT']) {
+            client.request.mockRejectedValueOnce(new Error(`${status} - x`));
+            const caught = (await manager.request('chat.read').catch((e: unknown) => e)) as Error & {
+                errorCode?: number;
+            };
+            expect(caught.errorCode).toBeUndefined();
+            expect(getSocketErrorCode(caught)).toBe(Number(status.slice(0, 3)));
+        }
+    });
+
+    it('stops listening to a slot’s frames when the slot is torn down', () => {
+        const unsubscribe = jest.fn();
+        const client = makeClient({ onMessage: jest.fn().mockReturnValue(unsubscribe) });
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+
+        manager.destroy(RELAY);
+
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 });
 
