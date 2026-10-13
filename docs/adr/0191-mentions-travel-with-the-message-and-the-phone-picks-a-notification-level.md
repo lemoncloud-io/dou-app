@@ -39,7 +39,7 @@ message of a 1:1 is addressed to the other person.
    picked `@name` means, and at the send the picks whose `@name` is still in the text go out as
    `mention`. An `@name` typed by hand, a name deleted before the send, and an e-mail address call
    nobody. Everyone is a row in the list (writing `@channel`), not a word read out of the text.
-2. **Every "did this call me" check reads `mention$`.** The phone's louder mark for a mention of me
+2. **Every "did this call me" check reads `mention$`.** The phone's brand-colour highlight for a mention of me
    uses the same rule as the push (`isMentioningViewer`, in `libs/data` so the desktop can take it
    next): everyone, or one of the reader's ids — the room-cloud uid and the account uid, because the
    record holds the room's member ids — on someone else's message. Separately, every member's `@name`

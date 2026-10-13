@@ -182,12 +182,11 @@ sheet are all withheld; the sheet especially, since Copy would hand the deleted 
 room draws them by, mine included — and every everyone word (`@channel`, `@here`, `@everyone`) is
 drawn as a mention, on anyone's message: the row hands
 [`MessageText`](../../../src/app/features/channels/components/MessageText.tsx) the room's words from
-[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts). A mention
-is coloured text with no chip, the way a phone's chat draws one, in DoU's brand colours — semibold
-brand lime (`primary`) on my own dark bubble, brand navy (`brand-ink`) on a light bubble, since lime
-text does not read on white, and lime again on the dark bubble of dark mode. This says how the text is written, not whom it calls. A
-mention **of me** is drawn louder, with the desktop's self-mention highlight (`MSG_MENTION_SELF_CLASS`,
-from `@chatic/block-kit`), and only when the message's `mention$` names one of my ids — my uid in the
+[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts). Anyone
+else's mention is coloured text with no chip, the way a phone's chat draws one — semibold `primary-ink`
+blue on a light bubble, light blue on my own dark one. This says how the text is written, not whom it
+calls. Only a mention **of me** takes DoU's brand colour, so the eye finds it among the others — a
+brand-lime (`primary`) highlight behind navy (`brand-ink`) text — and only when the message's `mention$` names one of my ids — my uid in the
 room's cloud, or the account's — or calls everyone (`isMentioningViewer`, from `@chatic/data`), the
 record the push reads too. The text is never read to decide that: the record is what the sender
 picked in their composer, filtered to the room's members by the server, so an `@name` typed by hand
