@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-10-13] - root@0.95.0, @chatic/desktop-web@0.26.0
+
+### Features
+
+- (desktop-web,web) send labelled links from Slack's link dialog
+- (desktop-web) lay the composer out in Slack's three rows
+- (desktop-web) open a code block on typed and pasted fences
+
+### Bug Fixes
+
+- (desktop-web) drop the CRLF around a fenced code body
+- (desktop-web) read fence language tags and long fences in messages
+
 ## [2026-10-13] - root@0.94.1, @chatic/web@0.69.1
 
 ### Bug Fixes
