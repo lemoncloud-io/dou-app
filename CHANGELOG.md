@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - root@0.96.1, @chatic/desktop-web@0.26.1
+
+### Bug Fixes
+
+- (desktop-web) keep the composer and shell usable in a narrow window
+
 ## [2026-10-13] - root@0.96.0, @chatic/web@0.70.0
 
 ### Features
