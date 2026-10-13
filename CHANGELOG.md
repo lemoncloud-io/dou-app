@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web/subscription) show the purchase confirmation instead of redirecting to the plan list
+
+## [2026-10-13] - No version updates
+
+### Bug Fixes
+
 - (data) stop a first read from reaching a subscription that already ended
 
 ## [2026-10-12] - No version updates
