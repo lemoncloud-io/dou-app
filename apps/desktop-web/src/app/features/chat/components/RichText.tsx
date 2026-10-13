@@ -13,6 +13,8 @@ import {
     MSG_QUOTE_CLASS,
 } from '@chatic/block-kit';
 
+import { splitFences } from '../utils';
+
 /** Name (without the @) → the member it refers to, when the roster knows one. */
 export type MentionResolver = (name: string) => { userId: string; name: string } | undefined;
 
@@ -168,23 +170,21 @@ interface RichTextProps {
 
 /**
  * Message text with lightweight, safe formatting — no HTML injection. Parse
- * order: fenced ```code blocks``` are split out first (their contents stay
- * fully literal), then "> " quote lines group into quote blocks, then backtick
- * `code` spans, then the inline pass (**bold**, *italic*, ~~strike~~, links,
+ * order: fenced ```code blocks``` are split out first (`splitFences`; their
+ * contents stay fully literal and a language tag is not shown), then "> "
+ * quote lines group into quote blocks, then backtick `code` spans, then the inline pass (**bold**, *italic*, ~~strike~~, links,
  * @mentions). Block elements render as display:block <span>s because the host
  * wraps messages in a <p>.
  */
 export const RichText = ({ content, selfNames, resolveMention }: RichTextProps): ReactNode => {
     if (!content) return null;
-    return content.split(/(```[\s\S]*?```)/g).map((part, idx) => {
-        if (idx % 2 === 1) {
-            const inner = part.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
-            return (
-                <span key={idx} className={MSG_CODE_BLOCK_CLASS}>
-                    {inner}
-                </span>
-            );
-        }
-        return <Fragment key={idx}>{renderQuoteRuns(part, String(idx), selfNames, resolveMention)}</Fragment>;
-    });
+    return splitFences(content).map((segment, idx) =>
+        segment.type === 'code' ? (
+            <span key={idx} className={MSG_CODE_BLOCK_CLASS}>
+                {segment.value}
+            </span>
+        ) : (
+            <Fragment key={idx}>{renderQuoteRuns(segment.value, String(idx), selfNames, resolveMention)}</Fragment>
+        )
+    );
 };
