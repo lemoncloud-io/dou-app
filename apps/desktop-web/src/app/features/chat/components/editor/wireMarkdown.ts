@@ -138,18 +138,24 @@ export const $importWireMarkdown = (wire: string, mentionNames?: readonly string
 };
 
 /**
- * Who the document calls, for the send's `mention`: the ids on the chips that are still in it.
+ * Who the document calls, for the send's `mention`: the ids on the chips that are still in it,
+ * and `all` when the everyone row's chip is.
  * A pick that was deleted is not here to be counted, one cut short by Backspace no longer answers
  * with its id (`MentionNode.getUserId`), and a name typed by hand or restored from text was never
  * a pick. Call inside `editor.read`.
  */
 export const $collectMention = (): ChatMentionBody | undefined => {
     const userIds = new Set<string>();
+    let all = false;
     for (const { node } of $dfs()) {
-        const userId = $isMentionNode(node) ? node.getUserId() : undefined;
+        if (!$isMentionNode(node)) continue;
+        const userId = node.getUserId();
         if (userId) userIds.add(userId);
+        if (node.isEveryone()) all = true;
     }
-    return userIds.size > 0 ? { userIds: [...userIds] } : undefined;
+    if (userIds.size === 0 && !all) return undefined;
+    // `all` is sent as `true` or not at all: the server takes no other value for it.
+    return { ...(userIds.size > 0 ? { userIds: [...userIds] } : {}), ...(all ? { all: true } : {}) };
 };
 
 /** The editor's document as a wire string. Call inside `editor.read` or `editor.update`. */

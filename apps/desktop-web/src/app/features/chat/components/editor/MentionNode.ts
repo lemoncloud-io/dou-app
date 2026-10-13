@@ -20,15 +20,18 @@ import { MSG_MENTION_CLASS } from '@chatic/block-kit';
  * called — names repeat and change — and the server reads the id, never the text. A chip made from
  * text (an opened message, a restored draft) holds none: it shows a name and calls no one.
  *
- * The id is kept with the text it was picked as. Backspace on "@Ada Lovelace" leaves a chip that
+ * Picking the everyone row makes a chip that stands for the whole channel instead of one member.
+ *
+ * The pick is kept with the text it was picked as. Backspace on "@Ada Lovelace" leaves a chip that
  * reads "@Ada"; that chip no longer shows who was picked, so it no longer answers with the id.
  */
 export class MentionNode extends TextNode {
-    __picked?: PickedMember;
+    __picked?: PickedTarget;
 
-    constructor(text: string, key?: NodeKey, userId?: string) {
+    constructor(text: string, key?: NodeKey, target?: MentionTarget) {
         super(text, key);
-        this.__picked = userId ? { userId, text } : undefined;
+        const who = target?.everyone ? { everyone: true as const } : target?.userId ? { userId: target.userId } : null;
+        this.__picked = who ? { ...who, text } : undefined;
     }
 
     static override getType(): string {
@@ -43,12 +46,24 @@ export class MentionNode extends TextNode {
     }
 
     static override importJSON(serialized: SerializedMentionNode): MentionNode {
-        return $createMentionNode(serialized.text, { userId: serialized.userId }).updateFromJSON(serialized);
+        const { userId, everyone } = serialized;
+        return $createMentionNode(serialized.text, { userId, everyone }).updateFromJSON(serialized);
     }
 
     override exportJSON(): SerializedMentionNode {
         const userId = this.getUserId();
-        return { ...super.exportJSON(), type: 'mention', ...(userId ? { userId } : {}) };
+        return {
+            ...super.exportJSON(),
+            type: 'mention',
+            ...(userId ? { userId } : {}),
+            ...(this.isEveryone() ? { everyone: true } : {}),
+        };
+    }
+
+    /** The pick, while the chip still reads as what was picked. */
+    private getPick(): PickedTarget | undefined {
+        const { __picked: picked, __text: text } = this.getLatest();
+        return picked?.text === text ? picked : undefined;
     }
 
     /**
@@ -56,8 +71,14 @@ export class MentionNode extends TextNode {
      * text is no longer the name it was picked as.
      */
     getUserId(): string | undefined {
-        const { __picked: picked, __text: text } = this.getLatest();
-        return picked?.text === text ? picked.userId : undefined;
+        const pick = this.getPick();
+        return pick && 'userId' in pick ? pick.userId : undefined;
+    }
+
+    /** Whether this chip is the everyone row's pick, with its word still whole. */
+    isEveryone(): boolean {
+        const pick = this.getPick();
+        return !!pick && 'everyone' in pick;
     }
 
     override createDOM(config: EditorConfig): HTMLElement {
@@ -79,23 +100,19 @@ export class MentionNode extends TextNode {
     }
 }
 
-/** The member a chip was picked as, with the chip's text at that moment. */
-interface PickedMember {
-    userId: string;
-    text: string;
-}
+/** What a chip was picked as — a member or everyone — with the chip's text at that moment. */
+type PickedTarget = ({ userId: string } | { everyone: true }) & { text: string };
 
-/** Who a chip stands for: the member picked from the list. Omitted for a chip made from text. */
+/** Who a chip stands for: the member picked from the list, or everyone. Omitted for a chip made from text. */
 export interface MentionTarget {
     userId?: string;
+    everyone?: boolean;
 }
 
 type SerializedMentionNode = Spread<MentionTarget, SerializedTextNode>;
 
 export const $createMentionNode = (text: string, target?: MentionTarget): MentionNode =>
-    $applyNodeReplacement(
-        new MentionNode(text, undefined, target?.userId).setMode('segmented').toggleDirectionless()
-    );
+    $applyNodeReplacement(new MentionNode(text, undefined, target).setMode('segmented').toggleDirectionless());
 
 export const $isMentionNode = (node: LexicalNode | null | undefined): node is MentionNode =>
     node instanceof MentionNode;

@@ -254,6 +254,52 @@ describe('collected mention', () => {
         ).toEqual({ userIds: ['u-ada', 'u-bo'] });
     });
 
+    it('says everyone was called when the everyone row was picked', () => {
+        expect(
+            collect(() => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append($createMentionNode('@all', { everyone: true })));
+            })
+        ).toEqual({ all: true });
+    });
+
+    it('names both the members and everyone when both were picked', () => {
+        expect(
+            collect(() => {
+                $getRoot()
+                    .clear()
+                    .append(
+                        $createParagraphNode().append(
+                            pick('Ada', 'u-ada'),
+                            $createTextNode(' '),
+                            $createMentionNode('@all', { everyone: true })
+                        )
+                    );
+            })
+        ).toEqual({ userIds: ['u-ada'], all: true });
+    });
+
+    // `@all` typed by hand is drawn as a chip when a message is opened, and calls no one.
+    it('is nothing for an everyone word that was not picked', () => {
+        expect(collect(() => $importWireMarkdown('@all heads up', []))).toBeUndefined();
+    });
+
+    it('keeps the everyone pick through a serialised editor state', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append($createMentionNode('@all', { everyone: true })));
+            },
+            { discrete: true }
+        );
+        const restored = makeEditor();
+        restored.setEditorState(restored.parseEditorState(JSON.stringify(editor.getEditorState().toJSON())));
+        expect(restored.read(() => $collectMention())).toEqual({ all: true });
+    });
+
     it('is nothing for a name typed by hand', () => {
         expect(collect(() => $importWireMarkdown('hi @Ada'))).toBeUndefined();
     });
@@ -307,7 +353,9 @@ describe('collected mention', () => {
         const editor = makeEditor();
         editor.update(
             () => {
-                $getRoot().clear().append($createParagraphNode().append(pick('Ada', 'u-ada')));
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append(pick('Ada', 'u-ada')));
             },
             { discrete: true }
         );
@@ -326,7 +374,9 @@ describe('collected mention', () => {
         const editor = makeEditor();
         editor.update(
             () => {
-                $getRoot().clear().append($createParagraphNode().append(pick('Ada', 'u-ada')));
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append(pick('Ada', 'u-ada')));
             },
             { discrete: true }
         );
@@ -340,7 +390,9 @@ describe('collected mention', () => {
         const editor = makeEditor();
         editor.update(
             () => {
-                $getRoot().clear().append($createParagraphNode().append($createMentionNode('@Ada')));
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append($createMentionNode('@Ada')));
             },
             { discrete: true }
         );
