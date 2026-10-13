@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-13] - root@0.94.0, @chatic/web@0.69.0
+
+### Features
+
+- (web) draw mentions in brand colours, mine by its text when it has no record
+- (web) highlight only a mention of me in the brand colour, others in blue
+- (web/home) mark mentions-only rooms with an @ glyph and an unread mention of me with @me
+
+### Other
+
+- style: (web) soften the highlight behind a mention of me
+
 ## [2026-10-13] - No version updates
 
 ### Bug Fixes
