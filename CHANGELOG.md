@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-10-13] - No version updates
+
+### Features
+
+- (desktop-web,web) offer every place member in the invite pickers (ADR-0195)
+- (data,app-runtime) read a place's members and load their profiles by id
+
+### Chores
+
+- (deps) bump chatic sockets sdk for place.list-user
+
 ## [2026-10-13] - root@0.95.0, @chatic/desktop-web@0.26.0
 
 ### Features
