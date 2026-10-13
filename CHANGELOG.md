@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - root@0.92.1, @chatic/desktop-web@0.24.1
+
+### Bug Fixes
+
+- (desktop-web) ignore a Google sign-in link sent again
+
 ## [2026-10-13] - root@0.92.0, @chatic/desktop-web@0.24.0
 
 ### Features
