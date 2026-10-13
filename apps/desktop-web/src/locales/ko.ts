@@ -444,6 +444,8 @@ export const ko: EnTranslation = {
     'sidebar.favorites': '즐겨찾기',
     'sidebar.draft': '초안',
     'sidebar.muted': '알림 꺼짐',
+    'sidebar.mentionsOnly': '멘션만 알림',
+    'sidebar.mentionedMe': '나를 멘션함',
     'sidebar.markRead': '읽음으로 표시',
     'sidebar.markReadFailed': '읽음으로 표시하지 못했어요.',
     'sidebar.notifications': '알림',

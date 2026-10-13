@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
+import { AtSign, BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -23,9 +23,12 @@ import {
     useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
+    hasUnreadMentionIn,
     isNotifyDm,
     useComposerDraftStore,
+    useMentionsStore,
     useNotificationPrefsStore,
+    useReadCursorStore,
     useSelectedChannelStore,
     useSiteProfileMap,
 } from '../../../shared';
@@ -134,13 +137,25 @@ const ChannelRow = memo(function ChannelRow({
     const hasDraft = useComposerDraftStore(s => !isActive && !!s.drafts[id]?.trim());
     // Muting a channel changed nothing here, so a channel that had been told to stay
     // quiet looked the same as one that simply had nothing new — the silence read as
-    // a bug. 'mention' counts as muted for this glyph: both suppress the default.
+    // a bug. Both quiet levels dim the name; each has its own glyph, because a channel
+    // that still tells me when I am called is not one that is off.
     // The join row types `notify` with an empty-string member the store does not
     // model; '' means "never set", which is exactly what `undefined` means here.
     const joinNotify = channel.$join?.notify;
     const isDm = isNotifyDm(channel);
-    const isMuted = useNotificationPrefsStore(
-        s => channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify, isDm) !== 'all'
+    const notifyMode = useNotificationPrefsStore(s =>
+        channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify, isDm)
+    );
+    const isMuted = notifyMode !== 'all';
+    // An unread row says when one of its unread messages called me. Read from the mentions
+    // inbox, not from the last message: the row's `useLastChat` above is off until it is
+    // pointed at, and the newest message is not the only one that can have called me.
+    // "What I have read" is this device's cursor or the one on the channel record, whichever
+    // is further.
+    const localReadNo = useReadCursorStore(s => s.cursors[id] ?? 0);
+    const readNo = Math.max(localReadNo, channel.$join?.chatNo ?? 0);
+    const calledMe = useMentionsStore(
+        s => indicator !== 'none' && hasUnreadMentionIn(s.items, { id, placeId: channel.sid }, readNo)
     );
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself
@@ -175,16 +190,28 @@ const ChannelRow = memo(function ChannelRow({
                 >
                     {label}
                 </span>
-                {isMuted && (
+                {notifyMode === 'none' && (
                     <span className="flex shrink-0 items-center text-muted-foreground">
                         <BellOff size={13} aria-hidden />
                         <span className="sr-only">{t('sidebar.muted')}</span>
+                    </span>
+                )}
+                {notifyMode === 'mention' && (
+                    <span className="flex shrink-0 items-center text-muted-foreground">
+                        <AtSign size={13} aria-hidden />
+                        <span className="sr-only">{t('sidebar.mentionsOnly')}</span>
                     </span>
                 )}
                 {hasDraft && (
                     <span className="flex shrink-0 items-center text-muted-foreground">
                         <Pencil size={14} aria-hidden />
                         <span className="sr-only">{t('sidebar.draft')}</span>
+                    </span>
+                )}
+                {calledMe && (
+                    <span className="shrink-0 text-caption font-semibold text-badge-unread">
+                        <span aria-hidden>@</span>
+                        <span className="sr-only">{t('sidebar.mentionedMe')}</span>
                     </span>
                 )}
                 {/* The mark is decorative; the sr-only text carries it. Deliberately NOT

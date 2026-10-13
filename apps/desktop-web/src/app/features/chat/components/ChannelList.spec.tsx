@@ -19,6 +19,8 @@ const menu = vi.hoisted(() => ({
     openDialog: vi.fn(),
     openSettings: vi.fn(),
     markRead: vi.fn(),
+    // What this device has read, by channel id.
+    cursors: {} as Record<string, number>,
     readChat: vi.fn(() => Promise.resolve()),
     serverSync: vi.fn(() => Promise.resolve()),
     leaveChannel: vi.fn(() => Promise.resolve()),
@@ -52,7 +54,11 @@ vi.mock('../../channels', async () => {
 });
 vi.mock('../../../shared/stores/useReadCursorStore', async () => ({
     ...(await vi.importActual<typeof ReadCursorStore>('../../../shared/stores/useReadCursorStore')),
-    useReadCursorStore: { getState: () => ({ markRead: menu.markRead }) } as never,
+    // The row reads its channel's cursor as a hook; the menu writes through `getState`.
+    useReadCursorStore: Object.assign(
+        (selector: (state: { cursors: Record<string, number> }) => unknown) => selector({ cursors: menu.cursors }),
+        { getState: () => ({ markRead: menu.markRead, cursors: menu.cursors }) }
+    ) as never,
 }));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof AppShared>('../../../shared')),
@@ -119,7 +125,7 @@ import '../../../../i18n';
 import i18next from 'i18next';
 
 import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
-import { useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
+import { useMentionsStore, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
 import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList, DM_NAME_WAIT_MS } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
 
@@ -743,6 +749,118 @@ describe('ChannelList row context menu (slice 05)', () => {
 
             expect(useSelectedChannelStore.getState().selectedChannelId).toBeNull();
         });
+    });
+});
+
+describe('ChannelList notify level and mention marks', () => {
+    const renderRows = (channels: DomainChannel[]) =>
+        render(
+            <ChannelList
+                channels={channels}
+                isLoading={false}
+                selectedChannelId={null}
+                query=""
+                onSelect={vi.fn()}
+                isDefaultMode={false}
+            />,
+            { wrapper }
+        );
+    const row = (name: RegExp) => within(screen.getByRole('button', { name }));
+    const mention = (chatNo: number, readAt?: number, placeId = 'place-1') => ({
+        [`C1:${chatNo}`]: {
+            id: `C1:${chatNo}`,
+            channelId: 'C1',
+            placeId,
+            chatNo,
+            content: '@Me hi',
+            ownerName: 'Ada',
+            createdAt: 1,
+            ...(readAt ? { readAt } : {}),
+        },
+    });
+
+    afterEach(() => {
+        cleanup();
+        menu.cursors = {};
+        act(() => {
+            useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+            useMentionsStore.setState({ items: {} });
+        });
+    });
+
+    it('marks a channel that is off as off', () => {
+        renderRows([{ id: 'C1', name: 'general', $join: { notify: 'none' } } as DomainChannel]);
+
+        expect(row(/general/).getByText('Notifications off')).toBeTruthy();
+        expect(row(/general/).queryByText('Mentions only')).toBeNull();
+    });
+
+    // It used to wear the same crossed bell as a channel that is off.
+    it('marks a mentions-only channel as mentions only, not as off', () => {
+        renderRows([{ id: 'C1', name: 'general', $join: { notify: 'mention' } } as DomainChannel]);
+
+        expect(row(/general/).getByText('Mentions only')).toBeTruthy();
+        expect(row(/general/).queryByText('Notifications off')).toBeNull();
+    });
+
+    it('marks neither on a channel that tells me everything', () => {
+        renderRows([{ id: 'C1', name: 'general', $join: { notify: 'all' } } as DomainChannel]);
+
+        expect(row(/general/).queryByText('Mentions only')).toBeNull();
+        expect(row(/general/).queryByText('Notifications off')).toBeNull();
+    });
+
+    const unread = {
+        id: 'C1',
+        sid: 'place-1',
+        name: 'general',
+        unreadCount: 3,
+        chatNo: 7,
+        $join: { chatNo: 4 },
+    } as DomainChannel;
+
+    it('says I was mentioned on an unread channel with a mention past what I have read', () => {
+        act(() => useMentionsStore.setState({ items: mention(6) }));
+        renderRows([unread]);
+
+        expect(row(/general/).getByText('Mentioned you')).toBeTruthy();
+    });
+
+    // Channel ids are numbered per place: another place's channel can have this one's id.
+    it('does not say so for a mention from the channel of the same id in another place', () => {
+        act(() => useMentionsStore.setState({ items: mention(6, undefined, 'place-2') }));
+        renderRows([unread]);
+
+        expect(row(/general/).queryByText('Mentioned you')).toBeNull();
+    });
+
+    it('does not say so for a mention at or before what I have read', () => {
+        act(() => useMentionsStore.setState({ items: mention(4) }));
+        renderRows([unread]);
+
+        expect(row(/general/).queryByText('Mentioned you')).toBeNull();
+    });
+
+    it('does not say so for a mention this device has read past', () => {
+        menu.cursors = { C1: 6 };
+        act(() => useMentionsStore.setState({ items: mention(6) }));
+        renderRows([unread]);
+
+        expect(row(/general/).queryByText('Mentioned you')).toBeNull();
+    });
+
+    it('does not say so for a mention already opened from the inbox', () => {
+        act(() => useMentionsStore.setState({ items: mention(6, 2) }));
+        renderRows([unread]);
+
+        expect(row(/general/).queryByText('Mentioned you')).toBeNull();
+    });
+
+    it('does not say so once the channel has nothing unread', () => {
+        act(() => useMentionsStore.setState({ items: mention(6) }));
+        renderRows([{ ...unread, unreadCount: 0 }]);
+
+        expect(row(/general/).queryByText('Mentioned you')).toBeNull();
     });
 });
 

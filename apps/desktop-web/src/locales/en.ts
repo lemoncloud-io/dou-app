@@ -438,6 +438,8 @@ export const en = {
     'sidebar.favorites': 'Favorites',
     'sidebar.draft': 'Draft',
     'sidebar.muted': 'Notifications off',
+    'sidebar.mentionsOnly': 'Mentions only',
+    'sidebar.mentionedMe': 'Mentioned you',
     'sidebar.markRead': 'Mark as read',
     'sidebar.markReadFailed': 'Could not mark as read.',
     'sidebar.notifications': 'Notifications',
