@@ -41,9 +41,12 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-vi.mock('./usePlaces', () => ({
-    usePlaces: () => ({ placeIds: [] as string[] }),
-}));
+// One array for every render, as the real hook gives: a fresh one would rebuild the counts on each
+// render and hide a missing dependency.
+vi.mock('./usePlaces', () => {
+    const placeIds: string[] = [];
+    return { usePlaces: () => ({ placeIds }) };
+});
 
 // The live-read registry is module state; the hook under test only reads it.
 const liveIds = vi.hoisted(() => new Set<string>());
@@ -53,6 +56,7 @@ vi.mock('./liveReadRegistry', () => ({
 
 import { webClient } from '@chatic/bridges';
 
+import { useNotificationPrefsStore } from '../stores';
 import { usePlaceUnreadCounts } from './usePlaceUnreadCounts';
 
 type PushHandler = (message: unknown) => void;
@@ -169,5 +173,41 @@ describe('usePlaceUnreadCounts live-read skip', () => {
         await advanceDebounce();
 
         expect(channelMocks.fetchList).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('usePlaceUnreadCounts notify mode', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+    });
+
+    afterEach(() => {
+        channelMocks.fetchList.mockResolvedValue({ list: [] });
+        useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+    });
+
+    it('drops a channel from the counts the moment it is muted, without re-pulling', async () => {
+        const channel = {
+            id: 'g',
+            cid: 'cloud-1',
+            sid: 'place-a',
+            stereo: 'private',
+            memberIds: ['me'],
+            chatNo: 3,
+            metaNo: 0,
+            $join: { chatNo: 0, metaNo: 0 },
+            lastChat$: { ownerId: 'other' },
+        };
+        channelMocks.fetchList.mockResolvedValue({ list: [channel] } as never);
+        const { result } = renderHook(() => usePlaceUnreadCounts());
+        await act(async () => undefined);
+        expect(result.current).toEqual({ byPlace: { 'place-a': 3 }, total: 3 });
+        channelMocks.fetchList.mockClear();
+
+        act(() => useNotificationPrefsStore.getState().setChannelNotify('g', 'none'));
+
+        expect(result.current).toEqual({ byPlace: {}, total: 0 });
+        expect(channelMocks.fetchList).not.toHaveBeenCalled();
     });
 });

@@ -181,8 +181,9 @@ place, so a Self Channel hit opens in the place the reader is in.
 
 ## Unread
 
-The place rail puts a dot on every place that lists an unread 1:1, so a dot always leads to a
-Direct messages row. The window title and the OS badge count that 1:1 once (`placeUnreadCounts`
+The place rail puts a dot on every place that lists an unread 1:1 that is not muted, so a dot always
+leads to a Direct messages row (a muted one counts nowhere above its own row — see
+[the cloud rail's Unread section](../shell/cloud-rail.md#unread)). The window title and the OS badge count that 1:1 once (`placeUnreadCounts`
 keeps a per-channel total beside the per-place map); summing the places would count one conversation
 as many. The counts come from a separate whole-cloud listing (`usePlaceUnreadCounts`), not the
 sidebar's cache, and both place a 1:1 with `cloudDmPlaces`, so for a moment after a change a dot can
