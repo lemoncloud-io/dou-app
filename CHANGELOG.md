@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - No version updates
+
+### Bug Fixes
+
+- (app-runtime) give a refused socket request its server errorCode back (ADR-0194)
+
 ## [2026-10-13] - root@0.93.0, @chatic/desktop-web@0.25.0
 
 ### Features
