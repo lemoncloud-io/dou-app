@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-13] - root@0.97.0, @chatic/desktop-web@0.27.0
+
+### Features
+
+- (desktop-web) list the threads I take part in, in a Threads pane
+
+### Documentation
+
+- record the device-local thread list on desktop (ADR-0196)
+
 ## [2026-10-13] - root@0.96.2, @chatic/desktop-web@0.26.2
 
 ### Bug Fixes
