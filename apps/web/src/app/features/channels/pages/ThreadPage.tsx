@@ -250,6 +250,7 @@ export const ThreadPage = () => {
                       avatarOf: avatarOfUser,
                       unknownLabel: t('chat.unknownUser'),
                       everyoneKeyword: t('chat.mention.everyone'),
+                      everyoneLabel: t('chat.mention.everyoneWord'),
                   })
                 : [],
         [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]

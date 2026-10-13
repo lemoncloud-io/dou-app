@@ -5,9 +5,9 @@ import { createEvent, fireEvent, render, screen } from '@testing-library/react';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
 import { MentionSuggestions } from './MentionSuggestions';
-import { EVERYONE_MENTION, type MentionCandidate } from '../utils/mentionInput';
+import type { MentionCandidate } from '../utils/mentionInput';
 
-const EVERYONE: MentionCandidate = { id: '@everyone', label: EVERYONE_MENTION, everyone: true };
+const EVERYONE: MentionCandidate = { id: '@everyone', label: 'all', everyone: true };
 const MINSU: MentionCandidate = { id: 'u2', label: 'Minsu', thumbnail: 'https://example.test/minsu.png' };
 const RAIN: MentionCandidate = { id: 'u3', label: '레인' };
 
@@ -24,7 +24,7 @@ describe('MentionSuggestions', () => {
         expect(screen.getByRole('listbox', { name: 'chat.mention.listLabel' })).toBeInTheDocument();
         const options = screen.getAllByRole('option');
         expect(options.map(option => option.textContent)).toEqual([
-            `chat.mention.everyone@${EVERYONE_MENTION} · chat.mention.everyoneHint`,
+            'chat.mention.everyone@all · chat.mention.everyoneHint',
             'Minsu',
             '레인',
         ]);

@@ -9,11 +9,15 @@ import type { ChatMentionBody } from '@chatic/data';
  * an `@name` typed by hand, mentions nobody. The server never reads the text to decide who was called.
  */
 
-/** What the "everyone" pick writes after `@`. Readers and the desktop composer treat it as everyone. */
-export const EVERYONE_MENTION = 'channel';
-
-/** Every word readers treat as calling everyone, so typing one of them finds the everyone row. */
-export const EVERYONE_ALIASES: readonly string[] = [EVERYONE_MENTION, 'here', 'everyone'];
+/**
+ * Every word readers treat as calling everyone, so typing one of them finds the everyone row.
+ *
+ * The everyone pick writes the UI language's word (`chat.mention.everyoneWord`: `all`, `전체`), so
+ * both are here whatever language the reader runs in — the sender's language chose the word, not the
+ * reader's. `channel`, `here` and `everyone` stay: the pick wrote `@channel` before, and the desktop
+ * reads all three as everyone, so messages already sent keep their mark.
+ */
+export const EVERYONE_ALIASES: readonly string[] = ['all', '전체', 'channel', 'here', 'everyone'];
 
 /**
  * What may follow a name and still leave it the same name.
@@ -212,6 +216,8 @@ interface MentionCandidateSources {
     unknownLabel: string;
     /** The localized "everyone" title, so typing it finds the everyone row. */
     everyoneKeyword: string;
+    /** What the everyone row writes after `@` — the UI language's word for it (`all`, `전체`). */
+    everyoneLabel: string;
 }
 
 /** The suggestion list's rows for a group room: everyone first, then the members by name. */
@@ -222,6 +228,7 @@ export const buildMentionCandidates = ({
     avatarOf,
     unknownLabel,
     everyoneKeyword,
+    everyoneLabel,
 }: MentionCandidateSources): MentionCandidate[] => {
     const people = memberIds
         .filter(id => !!id && id !== me)
@@ -229,7 +236,7 @@ export const buildMentionCandidates = ({
         .filter(person => person.label !== unknownLabel)
         .sort((a, b) => a.label.localeCompare(b.label));
     return [
-        { id: EVERYONE_CANDIDATE_ID, label: EVERYONE_MENTION, everyone: true, keywords: [everyoneKeyword] },
+        { id: EVERYONE_CANDIDATE_ID, label: everyoneLabel, everyone: true, keywords: [everyoneKeyword] },
         ...people,
     ];
 };

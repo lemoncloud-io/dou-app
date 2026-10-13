@@ -953,7 +953,8 @@
         "mention": {
             "listLabel": "People to mention",
             "everyone": "Everyone",
-            "everyoneHint": "Mention everyone in this chat"
+            "everyoneHint": "Mention everyone in this chat",
+            "everyoneWord": "all"
         },
         "unknownUser": "Unknown user",
         "me": "You",

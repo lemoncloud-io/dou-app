@@ -14,6 +14,8 @@ import { escapeRegExp, EVERYONE_ALIASES } from './mentionInput';
 /** The words readers treat as calling everyone in the room — the composer's everyone row answers them. */
 export const GROUP_MENTION_TOKENS: readonly string[] = EVERYONE_ALIASES.map(word => `@${word}`);
 
+const GROUP_WORDS = new Set(GROUP_MENTION_TOKENS.map(word => word.toLowerCase()));
+
 /**
  * `@` + each name, once, then the everyone words. For me, the names are every name a sender's list
  * could have shown me under — my place nick, my nick, my account name — since the text holds whichever
@@ -94,7 +96,13 @@ export const mentionViewerOf = ({
     ids: [...new Set([roomUid, sessionUid].filter((id): id is string => !!id))],
     tokens: mentionTokensOf(names),
     roomTokens: memberNames ? mentionTokensOf([...memberNames, ...names]) : [],
-    people: new Map(people.map(person => [`@${person.name.trim()}`.toLowerCase(), person])),
+    // A member named like an everyone word (`all`, `전체`) cannot be told apart from that word in the
+    // text, and the word calls everyone — so it opens nobody rather than that member's profile.
+    people: new Map(
+        people
+            .map(person => [`@${person.name.trim()}`.toLowerCase(), person] as const)
+            .filter(([word]) => !GROUP_WORDS.has(word))
+    ),
 });
 
 /** What `mentionViewerOf` builds. */
