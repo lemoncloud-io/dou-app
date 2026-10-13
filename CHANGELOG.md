@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-10-13] - root@0.99.0, @chatic/web@0.71.0
+
+### Features
+
+- (web) leave and delete a place from its information screen, per the design (ADR-0197)
+- (web) let a member leave a place and its owner remove members (ADR-0197)
+- (app-runtime) clear the place selection without a switch
+- (data,app-runtime) leave a place and remove a member through place.leave
+
+### Bug Fixes
+
+- (data,app-runtime) drop deleted places from the list and tell a deleted place apart
+
 ## [2026-10-13] - root@0.98.0, @chatic/desktop-web@0.28.0
 
 ### Features
