@@ -110,5 +110,12 @@ describe('useDesktopNotifications', () => {
             feedHandler?.(mentionOnly({ content: 'hello @Me', mention$: { userIds: ['u-other'] } }));
             expect(request).not.toHaveBeenCalled();
         });
+
+        // A 1:1 has no such level: the server sends every message of it, so this banners them all.
+        it('banners every message of a 1:1 that was left on mentions only', () => {
+            const { channel, ...rest } = mentionOnly({ content: 'hello' });
+            feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
+            expect(request).toHaveBeenCalledTimes(1);
+        });
     });
 });

@@ -23,6 +23,7 @@ import {
     useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
+    isNotifyDm,
     useComposerDraftStore,
     useNotificationPrefsStore,
     useSelectedChannelStore,
@@ -137,8 +138,9 @@ const ChannelRow = memo(function ChannelRow({
     // The join row types `notify` with an empty-string member the store does not
     // model; '' means "never set", which is exactly what `undefined` means here.
     const joinNotify = channel.$join?.notify;
+    const isDm = isNotifyDm(channel);
     const isMuted = useNotificationPrefsStore(
-        s => channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify) !== 'all'
+        s => channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify, isDm) !== 'all'
     );
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself

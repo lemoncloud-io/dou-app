@@ -114,6 +114,16 @@ describe('useCrossCloudPushNotifications', () => {
             await waitFor(() => expect(shown()).toBe(1));
         });
 
+        // A 1:1 has no such level, so a mode this device still holds for one filters nothing.
+        it('presents every push of a 1:1 that this device left on mentions only', async () => {
+            cacheRecords = [
+                { type: 'channel', cid: 'cloud-9', data: { id: 'ch-1', stereo: 'dm', $join: { userId: CLOUD_UID } } },
+            ];
+            useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'mention' } });
+            pushHandler?.(push({ content: 'hello there' }));
+            await waitFor(() => expect(shown()).toBe(1));
+        });
+
         // No cached channel: the mode is this device's own setting, and the server may be sending
         // everything. The text is all there is to go by.
         it("still reads the text when the mode is only this device's", async () => {

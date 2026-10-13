@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 
-import { channelNotifyMode, useNotificationPrefsStore } from '../../../shared';
+import { channelNotifyMode, isNotifyDm, useNotificationPrefsStore } from '../../../shared';
 import { useSidebarOrderStore } from '../stores';
 import { isTypingTarget, nextUnreadChannelId, sidebarMoveChord } from '../utils';
 
@@ -48,7 +48,12 @@ export const useNextUnreadShortcut = (
                 .filter(channel => {
                     const joinNotify = channel.$join?.notify;
                     return (
-                        channelNotifyMode(prefs, channel.id ?? '', joinNotify === '' ? undefined : joinNotify) === 'all'
+                        channelNotifyMode(
+                            prefs,
+                            channel.id ?? '',
+                            joinNotify === '' ? undefined : joinNotify,
+                            isNotifyDm(channel)
+                        ) === 'all'
                     );
                 });
             const next = nextUnreadChannelId(ordered, current, direction);

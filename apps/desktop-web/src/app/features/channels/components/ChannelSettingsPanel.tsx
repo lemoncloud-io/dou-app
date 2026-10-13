@@ -16,7 +16,6 @@ import {
     useChannelNotifyChange,
     useCopyToClipboard,
     useSelectedChannelStore,
-    type ChannelNotifyMode,
     PANE_HEADER,
     PANEL_TITLE,
     radioGroupOptions,
@@ -30,8 +29,6 @@ import { MemberList } from './MemberList';
 
 /** Below this member count the roster is short enough to scan without a filter. */
 const MEMBER_SEARCH_THRESHOLD = 5;
-
-const NOTIFY_MODES: readonly ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
 interface ChannelSettingsPanelProps {
     /** The channel matching the store's openChannelId, resolved by the host. */
@@ -105,13 +102,13 @@ export const ChannelSettingsPanel = ({
     // Shared writer (local pref + announced server sync) — read above the early
     // return: hooks must run in the same order on every render, including the
     // ones where the channel has not resolved yet.
-    const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
+    const { notifyMode, notifyModes, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     if (!channel || !channelId) return null;
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
 
-    const notifyProps = radioGroupOptions(NOTIFY_MODES, notifyMode, onNotifyChange);
+    const notifyProps = radioGroupOptions(notifyModes, notifyMode, onNotifyChange);
     // A service posts into a group channel by its id, and the desktop app has no address bar to
     // read one from. A 1:1 or my notes-to-self is not somewhere a service posts to.
     const showId = !isDmChannel(channel) && !isSelfChannel(channel);
@@ -216,7 +213,7 @@ export const ChannelSettingsPanel = ({
                         aria-label={t('channels.settings.notifications')}
                         className="flex rounded-lg border border-hairline bg-well p-0.5"
                     >
-                        {NOTIFY_MODES.map(mode => (
+                        {notifyModes.map(mode => (
                             <button
                                 key={mode}
                                 type="button"

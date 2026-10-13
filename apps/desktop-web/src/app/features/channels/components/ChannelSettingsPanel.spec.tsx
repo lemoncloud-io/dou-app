@@ -82,3 +82,20 @@ describe('ChannelSettingsPanel channel ID', () => {
         expect(screen.queryByRole('button', { name: 'Copy' })).toBeNull();
     });
 });
+
+describe('ChannelSettingsPanel notification level', () => {
+    const levels = () => screen.getAllByRole('radio').map(radio => radio.textContent);
+
+    it('offers mentions only in a channel', () => {
+        renderPanel({ name: 'general', stereo: 'public', memberNo: 3 } as Partial<DomainChannel>);
+
+        expect(levels()).toEqual(['All messages', 'Mentions only', 'Off']);
+    });
+
+    // The server delivers everything in a 1:1 whatever the level says, short of off.
+    it('does not offer mentions only in a 1:1', () => {
+        renderPanel({ stereo: 'dm', memberNo: 2 } as Partial<DomainChannel>);
+
+        expect(levels()).toEqual(['All messages', 'Off']);
+    });
+});

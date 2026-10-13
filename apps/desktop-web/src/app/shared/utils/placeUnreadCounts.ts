@@ -1,6 +1,6 @@
 import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 
-import { channelNotifyMode, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
+import { channelNotifyMode, isNotifyDm, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import { computeChannelUnread } from './channelUnread';
 import { listingPlaces } from './cloudDmPlaces';
 
@@ -39,7 +39,8 @@ export const placeUnreadCounts = (
         // A room with no place was never counted; a 1:1 is placed by the rule instead of its stamp.
         const places = listingPlaces(channel, dmPlaces);
         if (!isCloudWideChannel(channel) && places.length === 0) continue;
-        if (channelNotifyMode(notifyPrefs, channel.id ?? '', channel.$join?.notify) !== 'all') continue;
+        const mode = channelNotifyMode(notifyPrefs, channel.id ?? '', channel.$join?.notify, isNotifyDm(channel));
+        if (mode !== 'all') continue;
         // Read boundary: the channel's own `$join` (chatNo + the metaNo snapshot that nets
         // system messages out), with the local cursor clearing the badge on read.
         const unread = computeChannelUnread(channel, myUid, readCursors[channel.id ?? '']);

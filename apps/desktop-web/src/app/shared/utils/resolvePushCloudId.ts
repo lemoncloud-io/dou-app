@@ -21,6 +21,7 @@ export interface PushChannelData {
     id?: string;
     sid?: string;
     name?: string;
+    stereo?: string;
     $join?: { userId?: string; notify?: string };
 }
 
