@@ -88,4 +88,26 @@ describe('useMentionCapture', () => {
         feedHandler?.(feed({ id: undefined }));
         expect(captured()).toEqual([]);
     });
+
+    // The phone writes the name its list showed; the record carries my id either way.
+    it('captures a message whose record names me though the text does not', () => {
+        feedHandler?.(feed({ content: '@Nickname hello', mention$: { userIds: [CLOUD_UID] } }));
+        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+    });
+
+    it('captures a message whose record calls everyone, with no @ in what is left of its text', () => {
+        feedHandler?.(feed({ content: 'standup', mention$: { all: 1 } }));
+        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+    });
+
+    it('skips a message that has my name in its text when its record names someone else', () => {
+        feedHandler?.(feed({ content: 'hello @Me', mention$: { userIds: ['u-other'] } }));
+        expect(captured()).toEqual([]);
+    });
+
+    // I called everyone; the record's `all` covers me too, and my own message is still not my mention.
+    it('skips my own message whose record calls everyone', () => {
+        feedHandler?.(feed({ ownerId: CLOUD_UID, content: 'standup', mention$: { all: 1 } }));
+        expect(captured()).toEqual([]);
+    });
 });

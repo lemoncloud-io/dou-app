@@ -9,9 +9,9 @@ import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from 
 import {
     buildOpenDeeplink,
     isDndActive,
-    isMentioned,
     isNotifiableChat,
     isOwnChat,
+    mentionsMe,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
@@ -84,12 +84,15 @@ export const useDesktopNotifications = (): void => {
         const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
         if (isOwnChat(chat, viewer)) return;
 
-        // Mentions-only channels: drop anything that doesn't @-mention me
-        // (global profile name + this place's nick, plus @channel/@here).
+        // Mentions-only channels: drop anything that doesn't mention me — by the message's
+        // mention record when it has one, else by its text (global profile name + this
+        // place's nick, plus @channel/@here).
         // Flattened first: a mention lives in the block text, not in the JSON that
         // carries it, and the raw payload would also match on field names.
         const message = messagePlainText(chat.content);
-        if (notifyMode === 'mention' && !isMentioned(message, resolveMyMentionNames())) return;
+        if (notifyMode === 'mention') {
+            if (!mentionsMe(chat, [viewer.uid, viewer.cloudUid], message, resolveMyMentionNames())) return;
+        }
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
