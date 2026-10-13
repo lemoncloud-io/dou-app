@@ -287,9 +287,12 @@ credential bundle survive, and lands in the store. **There is no HTTP fallback**
 `cloudSession.switchTo(cloudId)` flips the selected cid and clears the selected site immediately, so
 cid-scoped cache observers re-subscribe to the target at once. The token exchange
 (`delegate-cloud` then `exchange-token`) runs, and the commits happen inside one
-`sessionSignal.batch()` — subscribers see one notification, not eight, and a failed switch rolls
-back inside the batch so it is never observed at all. `committed` moves only on success; `bound`
-says where the socket actually is. The committed cid is the cloud slot's key, so the commit hands
+`sessionSignal.batch()` — subscribers see one notification, not eight, and a failed switch's token
+commits roll back inside the batch so they are never observed at all. The selected cid's flip and
+its rollback are seen, by the cache observers above: a read one of them started for the target and
+abandoned on the rollback is dropped in `@chatic/data`, not delivered
+([the stream model](../data/docs/local/README.md#the-stream-model)).
+`committed` moves only on success; `bound` says where the socket actually is. The committed cid is the cloud slot's key, so the commit hands
 `SocketBinder` a different slot, not a changed one. When the target already holds a background slot
 — every cloud the account belongs to does, up to five — the switch commits the tokens that slot
 registered with instead of exchanging new ones, and the reconcile pass only moves the pointer: the

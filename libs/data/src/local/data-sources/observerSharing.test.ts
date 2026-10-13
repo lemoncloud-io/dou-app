@@ -376,3 +376,86 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
         expect(observer).not.toHaveBeenCalled();
     });
 });
+
+describe('a subscriber that left before its first read landed', () => {
+    /**
+     * The shared partitioned fixture with one cloud's reads held until `release`; every other
+     * partition answers at once. That is the ordering a refused cloud switch produces: the screen
+     * moves to the cloud, its read there is a round trip, and the move is undone before it returns.
+     */
+    const holdCloud = (heldCid: string) => {
+        const slot = createPartitionedMemoryStorage('user');
+        let release: () => void = () => undefined;
+        const released = new Promise<void>(resolve => (release = resolve));
+        const instrumented = new Set<CacheStorage<'user'>>();
+        const storages: ScopedCacheStorage<'user'> = {
+            forScope(context) {
+                const storage = slot.forScope(context);
+                if (context.cid === heldCid && !instrumented.has(storage)) {
+                    instrumented.add(storage);
+                    const loadAll = storage.loadAll.bind(storage);
+                    storage.loadAll = async options => {
+                        await released;
+                        return loadAll(options);
+                    };
+                }
+                return storage;
+            },
+        };
+        return { storages, release: () => release() };
+    };
+
+    const ids = (result: any): string[] => result?.list.map((item: any) => item.id) ?? [];
+
+    it('a read for a scope the screen moved away from does not overwrite the answer of the scope it moved back to', async () => {
+        const held = holdCloud('cloud');
+        const dataSource = new UserLocalDataSource(
+            createContextProvider({ cid: 'relay', uid: 'u' }) as any,
+            held.storages
+        );
+        await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any, { cid: 'relay' });
+        await new Promise(resolve => setTimeout(resolve, 80)); // past the write re-emit flush
+
+        // One screen state, as a hook's setState would be: whatever was delivered last is shown.
+        const shown = jest.fn();
+        const query = { channelId: 'ch-1' } as any;
+        const leaveRelay = dataSource.observeList(query, shown, { cid: 'relay' });
+        await flushPromises();
+        leaveRelay();
+
+        // Into the cloud: its read is out. Then the move is undone, and the relay — still in grace —
+        // answers from memory at once.
+        const leaveCloud = dataSource.observeList(query, shown, { cid: 'cloud' });
+        await flushPromises();
+        leaveCloud();
+        dataSource.observeList(query, shown, { cid: 'relay' });
+        await flushPromises();
+        expect(shown.mock.calls.map(([result]) => ids(result))).toEqual([['u1'], ['u1']]);
+
+        // The cloud's read lands last. It must not reach a subscription that already ended.
+        held.release();
+        await flushPromises();
+
+        expect(shown.mock.calls.map(([result]) => ids(result))).toEqual([['u1'], ['u1']]);
+    });
+
+    it('one who joined a read in flight and left before it landed is not called, while one still subscribed is', async () => {
+        const held = holdCloud('cloud');
+        const dataSource = new UserLocalDataSource(
+            createContextProvider({ cid: 'cloud', uid: 'u' }) as any,
+            held.storages
+        );
+
+        const staying = jest.fn();
+        const leaving = jest.fn();
+        dataSource.observeList({ channelId: 'ch-1' } as any, staying);
+        const leave = dataSource.observeList({ channelId: 'ch-1' } as any, leaving);
+        leave();
+
+        held.release();
+        await flushPromises();
+
+        expect(staying).toHaveBeenCalledTimes(1);
+        expect(leaving).not.toHaveBeenCalled();
+    });
+});

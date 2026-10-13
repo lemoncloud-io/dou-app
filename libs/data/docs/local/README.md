@@ -1,6 +1,6 @@
 # local — storing, reading, emitting streams
 
-> Status: Live · Last updated: 2026-09-23 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
+> Status: Live · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
 
 The local layer handles **storing, reading and emitting streams** for the local data an app reads.
 
@@ -85,13 +85,14 @@ into `syncMeta`, so a cursor can notice that its storage moved (ADR-0053).
 `BaseLocalDataSource` is the core of it. The UI only ever looks at `observe*`, and when a repository
 touches local, **only the affected observers** are recomputed.
 
-- **Item observers and list observers are separate** — registered through `observeItemQuery(id, …)` and `observeListQuery(key, …)`. Subscribing emits once immediately and returns an unsubscribe function.
+- **Item observers and list observers are separate** — registered through `observeItemQuery(id, …)` and `observeListQuery(key, …)`. Subscribing emits once immediately (unless the subscription ends first) and returns an unsubscribe function.
 - **A list observer key is built from the query** — `createListObserverKey(parts, …)` combines the scope key with the query parts. A different query is a different observer.
 - **Re-emission is scoped to what was affected** — a mutation does not re-emit everything.
     - `scheduleItemReemit(ids)` — only the observers for those ids
     - `scheduleListReemit(prefixes)` — only the list observers whose key starts with a prefix
     - `scheduleFullReemit()` — everything (a scope switch, a clear, and so on)
 - **Debounced flush** — re-emissions are collected on a 50ms timer and flushed at once (duplicate notifications are removed in the process).
+- **Nothing reaches a subscription after it ended** — the unsubscribe function is the end of delivery, including the first emit. That first emit can be a read still in flight, so it is checked against the live subscription when it lands rather than when it started. The case that needed it: a screen moves to another scope, its read there is out, and the move is undone (a refused cloud switch). The screen goes back to the old key and is answered from memory at once, and the abandoned key's read, landing after that, used to reach the same `setState` and replace the right answer with the abandoned scope's rows — home showed "no rooms" until something else wrote.
 
 ## Scope and cache slots
 

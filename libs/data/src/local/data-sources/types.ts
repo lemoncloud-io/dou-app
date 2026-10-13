@@ -295,6 +295,16 @@ export abstract class BaseLocalDataSource<TType extends CacheType = CacheType> {
         group.callbacks.set(observerId, callback as (value: never) => void);
         registry.set(key, group);
 
+        // The first emit is delivered only while this subscription is still live. Two of the paths
+        // below answer after a read, and the subscriber may have left by then — a screen whose scope
+        // moved on (a cloud switch rolled back, say) unsubscribes from the old key, subscribes to the
+        // new one and is answered from memory at once, and the old key's read, landing later, would
+        // otherwise overwrite that answer with the abandoned scope's rows. Re-emits are safe already:
+        // they iterate `callbacks` when they deliver, so a removed callback is simply not there.
+        const deliver = (value: unknown): void => {
+            if (group.callbacks.has(observerId)) callback(value as T);
+        };
+
         // The first emit goes to the newcomer alone — the others already have this value, and
         // re-delivering it would re-render every consumer on the key whenever one more mounts.
         //
@@ -305,10 +315,10 @@ export abstract class BaseLocalDataSource<TType extends CacheType = CacheType> {
         //     hooks on one screen) is exactly this case.
         //  3. Otherwise (the first subscriber for that key), read.
         if (group.hasValue) {
-            void this.safeNotify(async () => callback(group.value as T));
+            void this.safeNotify(async () => deliver(group.value));
         } else if (group.pending) {
             const pending = group.pending;
-            void this.safeNotify(async () => callback((await pending) as T));
+            void this.safeNotify(async () => deliver(await pending));
         } else {
             const pending = query();
             group.pending = pending;
@@ -324,7 +334,7 @@ export abstract class BaseLocalDataSource<TType extends CacheType = CacheType> {
                         group.value = value;
                         group.hasValue = true;
                     }
-                    callback(value);
+                    deliver(value);
                 } catch (error) {
                     // Merely swallowing the failure leaves every waiter on this key with no news (a
                     // screen stuck empty). Read again once, later — see INITIAL_QUERY_RETRY_DELAY_MS.
