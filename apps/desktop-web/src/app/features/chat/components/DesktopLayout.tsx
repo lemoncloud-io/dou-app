@@ -206,12 +206,17 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
         <ShellSidebarContext.Provider value={{ isDrawer, isOpen, open, close }}>
             <PanelShellContext.Provider value={panelShell}>
                 <div className="relative flex h-full bg-background">
-                    <SkipLinks
-                        onSidebar={() => {
-                            if (isDrawer) open();
-                            else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
-                        }}
-                    />
+                    {/* Not while the drawer is open: they sit outside its dialog, so Tab left
+                        the drawer for them, and their targets are in the inert chat, so they
+                        did nothing when pressed. */}
+                    {!drawerOpen && (
+                        <SkipLinks
+                            onSidebar={() => {
+                                if (isDrawer) open();
+                                else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
+                            }}
+                        />
+                    )}
                     {/* In a compact window the rails are part of the drawer. One dialog holds
                         them and the channel list, so a reader told that the dialog is modal
                         can still reach the cloud and place tiles. It is hidden rather than
