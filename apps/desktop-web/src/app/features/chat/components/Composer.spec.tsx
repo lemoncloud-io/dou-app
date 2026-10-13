@@ -92,6 +92,25 @@ describe('Composer paste', () => {
     });
 });
 
+describe('Composer empty code block', () => {
+    afterEach(cleanup);
+
+    // A code block with nothing in it still exports its fences; that is not a message.
+    it('neither keeps it as a draft nor offers to send it', async () => {
+        useComposerDraftStore.setState({ drafts: { E1: '```\n```' } });
+        const onSend = vi.fn();
+        const { container } = render(<Composer onSend={onSend} channelId="E1" />, { wrapper });
+        await settle();
+
+        expect(container.querySelector('[data-composer-input] code')).not.toBeNull();
+        expect(useComposerDraftStore.getState().drafts.E1).toBeUndefined();
+        const send = screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement;
+        expect(send.disabled).toBe(true);
+        await act(async () => fireEvent.click(send));
+        expect(onSend).not.toHaveBeenCalled();
+    });
+});
+
 describe('Composer send', () => {
     afterEach(cleanup);
     beforeEach(() => {

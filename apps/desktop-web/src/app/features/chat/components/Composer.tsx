@@ -19,11 +19,15 @@ import { shouldCaptureTyping } from '../utils';
 import type { Mentionable } from './MentionAutocomplete';
 import { AttachButton, ComposerAttachments } from './images';
 import {
+    $exportMessage,
     $exportWireMarkdown,
+    $hasMessageText,
     COMPOSER_NODES,
     COMPOSER_THEME,
     COMPOSER_TRANSFORMERS,
     ChannelDraftPlugin,
+    CodeFencePastePlugin,
+    CodeFenceShortcutPlugin,
     ComposerAutoLinkPlugin,
     ComposerActions,
     ComposerToolbar,
@@ -89,8 +93,7 @@ const ComposerInner = ({
     const handleChange = useCallback(
         (state: EditorState) => {
             state.read(() => {
-                const markdown = $exportWireMarkdown();
-                if (markdown.trim()) setDraft(channelId, markdown);
+                if ($hasMessageText()) setDraft(channelId, $exportWireMarkdown());
                 else clearDraft(channelId);
             });
         },
@@ -98,7 +101,7 @@ const ComposerInner = ({
     );
 
     const submit = useCallback(() => {
-        const markdown = editor.getEditorState().read($exportWireMarkdown).trim();
+        const markdown = editor.getEditorState().read($exportMessage);
         if (!markdown && attachments.length === 0) return;
         onSend(
             markdown,
@@ -245,6 +248,8 @@ const ComposerInner = ({
             <HistoryPlugin />
             <OnChangePlugin onChange={handleChange} ignoreSelectionChange />
             <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />
+            <CodeFenceShortcutPlugin />
+            <CodeFencePastePlugin />
             <MentionsPlugin mentionables={mentionables} />
             <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={submit} />

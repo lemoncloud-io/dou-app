@@ -305,3 +305,49 @@ describe('MessageEditor', () => {
         });
     });
 });
+
+describe('MessageEditor code blocks', () => {
+    afterEach(cleanup);
+
+    // One backtick per update, as typing makes them; the fence shortcut keys on that.
+    const typeFence = async () => {
+        await typeAtEnd('``');
+        await typeAtEnd('`');
+    };
+
+    it('opens a code block on a typed ``` and saves it with Enter, which still saves inside one', async () => {
+        const { onSave } = await open('x');
+        await clearAll();
+        await typeFence();
+        await typeAtEnd('ls');
+
+        await pressEnter();
+
+        expect(onSave).toHaveBeenCalledWith('```\nls\n```');
+    });
+
+    it('breaks the line inside a code block on Shift+Enter instead of saving', async () => {
+        const { onSave } = await open('x');
+        await clearAll();
+        await typeFence();
+        await typeAtEnd('ls');
+
+        await pressEnter({ shiftKey: true });
+        await typeAtEnd('pwd');
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(exported()).toBe('```\nls\npwd\n```');
+    });
+
+    // An empty code block still exports its fences; that is not a message to save.
+    it('treats a code block with nothing in it as empty', async () => {
+        const { onSave, onCancel } = await open('x');
+        await clearAll();
+        await typeFence();
+
+        expect(saveButton().disabled).toBe(true);
+        await pressEnter();
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onCancel).toHaveBeenCalled();
+    });
+});

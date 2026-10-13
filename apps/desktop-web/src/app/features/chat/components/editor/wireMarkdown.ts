@@ -1,7 +1,7 @@
 import { $isCodeNode } from '@lexical/code-core';
 import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown';
 import { $dfs } from '@lexical/utils';
-import { $isTextNode, type TextNode } from 'lexical';
+import { $getRoot, $isTextNode, type TextNode } from 'lexical';
 
 import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { COMPOSER_TRANSFORMERS } from './editorConfig';
@@ -138,3 +138,12 @@ export const $importWireMarkdown = (wire: string, mentionNames?: readonly string
 /** The editor's document as a wire string. Call inside `editor.read` or `editor.update`. */
 export const $exportWireMarkdown = (): string =>
     mapOutsideFences($convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true), stripExportEscapes);
+
+/**
+ * Whether the document holds anything to send. Judged on the text, not the wire: a code block with
+ * nothing in it still exports its fences, and an empty fenced block is not a message.
+ */
+export const $hasMessageText = (): boolean => $getRoot().getTextContent().trim().length > 0;
+
+/** The document as the message to send or save — trimmed, and empty when it holds no text. */
+export const $exportMessage = (): string => ($hasMessageText() ? $exportWireMarkdown().trim() : '');

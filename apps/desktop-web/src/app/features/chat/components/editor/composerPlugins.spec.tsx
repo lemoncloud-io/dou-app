@@ -1,28 +1,38 @@
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render } from '@testing-library/react';
 
-import { $createCodeNode } from '@lexical/code-core';
+import { $createCodeNode, $isCodeNode } from '@lexical/code-core';
 import { $isAutoLinkNode } from '@lexical/link';
 import { $convertToMarkdownString } from '@lexical/markdown';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import {
     $createParagraphNode,
     $createTextNode,
     $getRoot,
+    $getSelection,
+    $isRangeSelection,
+    COMMAND_PRIORITY_LOW,
+    KEY_ARROW_DOWN_COMMAND,
+    PASTE_COMMAND,
+    UNDO_COMMAND,
     type ElementNode,
     type LexicalEditor,
     type TextFormatType,
 } from 'lexical';
 
-import { ComposerAutoLinkPlugin } from './composerPlugins';
+import { CodeFencePastePlugin, CodeFenceShortcutPlugin, ComposerAutoLinkPlugin } from './composerPlugins';
 import { COMPOSER_NODES, COMPOSER_THEME, COMPOSER_TRANSFORMERS } from './editorConfig';
+import { $createMentionNode } from './MentionNode';
+import { $exportWireMarkdown } from './wireMarkdown';
 
-const mountEditor = (): LexicalEditor => {
+const mountEditor = (plugins: ReactNode = <ComposerAutoLinkPlugin />): LexicalEditor => {
     let captured: LexicalEditor | undefined;
     const Capture = () => {
         [captured] = useLexicalComposerContext();
@@ -40,7 +50,7 @@ const mountEditor = (): LexicalEditor => {
             }}
         >
             <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
-            <ComposerAutoLinkPlugin />
+            {plugins}
             <Capture />
         </LexicalComposer>
     );
@@ -151,5 +161,217 @@ describe('ComposerAutoLinkPlugin', () => {
 
             expect(open).not.toHaveBeenCalled();
         });
+    });
+});
+
+/**
+ * One keystroke per update, as typing produces them — the shortcut keys on that shape. Async: the
+ * shortcut's own update lands on the next microtask, as it does after a real keystroke.
+ */
+const typeKeys = async (editor: LexicalEditor, keys: string) => {
+    for (const key of keys) {
+        await act(async () =>
+            editor.update(
+                () => {
+                    const selection = $getSelection();
+                    if (!$isRangeSelection(selection)) throw new Error('no caret');
+                    if (key === '\n') selection.insertLineBreak();
+                    else selection.insertText(key);
+                },
+                { discrete: true }
+            )
+        );
+    }
+};
+
+const startEmpty = (editor: LexicalEditor) =>
+    act(() =>
+        editor.update(
+            () => {
+                const root = $getRoot();
+                root.clear();
+                root.append($createParagraphNode());
+                root.selectEnd();
+            },
+            { discrete: true }
+        )
+    );
+
+const wire = (editor: LexicalEditor): string => editor.getEditorState().read($exportWireMarkdown);
+
+const blockTypes = (editor: LexicalEditor): string[] =>
+    editor.getEditorState().read(() =>
+        $getRoot()
+            .getChildren()
+            .map(node => node.getType())
+    );
+
+const caretInCode = (editor: LexicalEditor): boolean =>
+    editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        return $isRangeSelection(selection) && $isCodeNode(selection.anchor.getNode().getTopLevelElement());
+    });
+
+describe('CodeFenceShortcutPlugin', () => {
+    const mount = () => {
+        const editor = mountEditor(
+            <>
+                <HistoryPlugin />
+                <CodeFenceShortcutPlugin />
+            </>
+        );
+        startEmpty(editor);
+        return editor;
+    };
+
+    it('turns ``` on an empty line into a code block the moment the third backtick lands', async () => {
+        const editor = mount();
+        await typeKeys(editor, '```');
+
+        expect(blockTypes(editor)).toEqual(['code']);
+        expect(caretInCode(editor)).toBe(true);
+        await typeKeys(editor, 'ls');
+        expect(wire(editor)).toBe('```\nls\n```');
+    });
+
+    it('keeps the lines above a fence typed after Shift+Enter as text', async () => {
+        const editor = mount();
+        await typeKeys(editor, 'run this:\n```');
+
+        expect(blockTypes(editor)).toEqual(['paragraph', 'code']);
+        expect(caretInCode(editor)).toBe(true);
+        await typeKeys(editor, 'git clone x');
+        expect(wire(editor)).toBe('run this:\n```\ngit clone x\n```');
+    });
+
+    it('leaves backticks typed after other text on the same line alone', async () => {
+        const editor = mount();
+        await typeKeys(editor, 'a```');
+
+        expect(blockTypes(editor)).toEqual(['paragraph']);
+        expect(wire(editor)).toBe('a```');
+    });
+
+    it('leaves backticks typed in front of a mention on the same line alone', async () => {
+        const editor = mount();
+        act(() =>
+            editor.update(
+                () => {
+                    const paragraph = $createParagraphNode().append($createMentionNode('@alice'));
+                    $getRoot().clear().append(paragraph);
+                    paragraph.select(0, 0);
+                },
+                { discrete: true }
+            )
+        );
+        await typeKeys(editor, '```');
+
+        expect(blockTypes(editor)).toEqual(['paragraph']);
+    });
+
+    it('brings back the literal backticks on undo', async () => {
+        const editor = mount();
+        await typeKeys(editor, '```');
+        await act(async () => {
+            editor.dispatchCommand(UNDO_COMMAND, undefined);
+        });
+
+        expect(blockTypes(editor)).toEqual(['paragraph']);
+        expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe('```');
+    });
+
+    it('does not fire on text that arrives in one update, like a loaded draft', async () => {
+        const editor = mount();
+        typeInto(editor, '```');
+
+        expect(blockTypes(editor)).toEqual(['paragraph']);
+    });
+
+    it('leaves a trailing code block on ArrowDown into a new line below it', async () => {
+        const editor = mount();
+        await typeKeys(editor, '```ls');
+        await act(async () => {
+            editor.dispatchCommand(KEY_ARROW_DOWN_COMMAND, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        });
+
+        expect(blockTypes(editor)).toEqual(['code', 'paragraph']);
+        expect(caretInCode(editor)).toBe(false);
+        await typeKeys(editor, 'done');
+        expect(wire(editor)).toBe('```\nls\n```\ndone');
+    });
+});
+
+describe('CodeFencePastePlugin', () => {
+    const mount = () => {
+        const editor = mountEditor(<CodeFencePastePlugin />);
+        startEmpty(editor);
+        return editor;
+    };
+
+    /**
+     * Whether the paste was passed on to the editor's own handler. That handler needs a real
+     * clipboard jsdom does not have, so a catcher registered after the plugin stands in for it.
+     */
+    const paste = async (editor: LexicalEditor, text: string, types = ['text/plain']) => {
+        const event = {
+            clipboardData: { types, getData: (type: string) => (type === 'text/plain' ? text : '') },
+            preventDefault: vi.fn(),
+        } as unknown as ClipboardEvent;
+        let passedOn = false;
+        const unregister = editor.registerCommand(
+            PASTE_COMMAND,
+            () => {
+                passedOn = true;
+                return true;
+            },
+            COMMAND_PRIORITY_LOW
+        );
+        await act(async () => {
+            editor.dispatchCommand(PASTE_COMMAND, event);
+        });
+        unregister();
+        return passedOn;
+    };
+
+    it('pastes the fenced part as a code block and the rest as text, and sends the fence once', async () => {
+        const editor = mount();
+        expect(await paste(editor, 'run:\n```sh\ngit clone x\n```\nthen')).toBe(false);
+
+        expect(blockTypes(editor)).toEqual(['paragraph', 'code', 'paragraph']);
+        expect(wire(editor)).toBe('run:\n```sh\ngit clone x\n```\nthen');
+    });
+
+    it('keeps a multi-line body as lines of one block and leaves the caret below it', async () => {
+        const editor = mount();
+        await paste(editor, '```\na\nb\n```');
+
+        expect(blockTypes(editor)).toEqual(['code', 'paragraph']);
+        expect(caretInCode(editor)).toBe(false);
+        expect(wire(editor).trim()).toBe('```\na\nb\n```');
+    });
+
+    it('leaves text with no fence to the editor', async () => {
+        const editor = mount();
+        expect(await paste(editor, 'just `code` and text')).toBe(true);
+        expect(blockTypes(editor)).toEqual(['paragraph']);
+    });
+
+    it('leaves a copy that carries HTML to the editor', async () => {
+        const editor = mount();
+        expect(await paste(editor, '```\nx\n```', ['text/plain', 'text/html'])).toBe(true);
+        expect(blockTypes(editor)).toEqual(['paragraph']);
+    });
+
+    it('leaves a paste inside a code block raw', async () => {
+        const editor = mountEditor(
+            <>
+                <CodeFenceShortcutPlugin />
+                <CodeFencePastePlugin />
+            </>
+        );
+        startEmpty(editor);
+        await typeKeys(editor, '```');
+        expect(await paste(editor, '```\nx\n```')).toBe(true);
+        expect(blockTypes(editor)).toEqual(['code']);
     });
 });
