@@ -3506,17 +3506,17 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@0.26.813":
-  version "0.26.813"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.813.tgz#285f6d31e4bd504fe57c3828d0e02eb03b583dc4"
-  integrity sha512-oJgy2zkvZUIvkknJPu6mM2jOLBMP3VBVMU0V5hMSQN1bccEZF+itrcTcTyvKvQCBRge6MJug+c+jm96LVI34Lw==
+"@lemoncloud/chatic-sockets-api@0.26.906":
+  version "0.26.906"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.906.tgz#f1a19ae9fa64773044ff02e43becb50dc2ac86be"
+  integrity sha512-sPYQcdBB3D+HlSgjzRnaUpMQBkPRim8pkEXdeRjz7ToBfZteY4WhETo/9Woxr56gdMH0hlEjSdU05n5+S6QM1g==
   dependencies:
-    lemon-model "^1.2.2"
+    lemon-model "^1.5.0"
 
-"@lemoncloud/chatic-sockets-lib@0.5.4":
-  version "0.5.4"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.5.4.tgz#fc63a3838b92284c3c35f5406a6298552c5d1a14"
-  integrity sha512-KwM6FrTPVf+if7aKi6agde9i8Ra8Do7akL+plvrOuakbqPSVqVpFb2K31nq//AM80khpo5Z/gYMLSHXkAyYheg==
+"@lemoncloud/chatic-sockets-lib@0.5.7":
+  version "0.5.7"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.5.7.tgz#911288ad815c18a90e2b86a767ea32d61c9be93b"
+  integrity sha512-kLFAI8KnZ9ViUaBy9KGmWdeetIJJe+XyE6aNyvxnueX9nPpdmcGYr7fC6BzDkq3I+iR4YBvwfzHLLbThbEsR+Q==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"
@@ -15210,7 +15210,7 @@ lazy-val@^1.0.5:
   resolved "https://registry.yarnpkg.com/lazy-val/-/lazy-val-1.0.5.tgz#6cf3b9f5bc31cee7ee3e369c0832b7583dcd923d"
   integrity sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==
 
-lemon-model@1.5.1, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.2.2, lemon-model@^1.5.1:
+lemon-model@1.5.1, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.5.0, lemon-model@^1.5.1:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.5.1.tgz#de4f8c5c41ceacf3345268ea545ebec2ee169253"
   integrity sha512-Ie3y3PooWk/Sj1HOAuhzYi5bd1Yr30YDkKU8UYl/tuVOiDTCEw2D6cK6P1p1zLTjMKqCirdWoYdDwQ+ufbHKgg==
