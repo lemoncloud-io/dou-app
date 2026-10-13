@@ -15,7 +15,10 @@ const session = vi.hoisted(() => ({
     signOutGuest: vi.fn(),
 }));
 
-vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: vi.fn(), warn: session.warn } }));
+vi.mock('@chatic/bridges', () => ({
+    isNative: () => true,
+    logger: { error: vi.fn(), warn: session.warn, info: vi.fn() },
+}));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         boot: { startWebTransportInit: session.startWebTransportInit },
@@ -255,6 +258,24 @@ describe('useSocialLogin.start', () => {
                 linkCurrentSession: true,
             });
             expect(session.toast).not.toHaveBeenCalled();
+        });
+
+        // A browser tab restored or reloaded on the hand-off page sends the link it already sent.
+        it('is ignored without a word when it comes again, and leaves a newer start alone', async () => {
+            startRecord();
+            session.createCredentialsByProvider.mockResolvedValue(undefined);
+            const { result } = renderHook(() => useSocialLogin());
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
+            const newer = { provider: 'google', intent: 'login' as const, startedAt: Date.now(), nonce: 'n2' };
+            saveOAuthLoginStart(newer);
+            // A successful login reloads the app, so the repeat meets a fresh hook.
+            const reloaded = renderHook(() => useSocialLogin()).result;
+
+            await act(() => reloaded.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
+
+            expect(session.createCredentialsByProvider).toHaveBeenCalledTimes(1);
+            expect(session.toast).not.toHaveBeenCalled();
+            expect(takeOAuthLoginStart()).toEqual(newer);
         });
 
         it.each([

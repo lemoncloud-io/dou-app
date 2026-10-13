@@ -15,6 +15,8 @@ import {
     ensureDeviceSession,
     evaluateOAuthDeeplink,
     isAccountMadeSince,
+    isUsedOAuthNonce,
+    rememberUsedOAuthNonce,
     saveOAuthLoginStart,
     saveSignInNotice,
     takeOAuthLoginStart,
@@ -300,7 +302,14 @@ export const useSocialLogin = () => {
         async (payload: OAuthDeeplinkPayload, { notifyFailure = false } = {}): Promise<OAuthStartIntent | false> => {
             // A second delivery of a link already being exchanged must not consume a record it has no claim on.
             if (completingRef.current) return false;
+            // A link whose start was already used is the same link sent again, not someone else's: say
+            // nothing, and leave whatever newer start is waiting for its own link.
+            if (isUsedOAuthNonce(payload.nonce)) {
+                logger.info('AUTH', '[useSocialLogin] ignored a repeat of a used OAuth deeplink');
+                return false;
+            }
             const start = takeOAuthLoginStart();
+            if (start) rememberUsedOAuthNonce(start.nonce);
             const verdict = evaluateOAuthDeeplink(start, payload, Date.now());
             const attempts = useOAuthAttemptStore.getState();
             if (!verdict.ok) {

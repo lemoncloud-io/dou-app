@@ -21,6 +21,9 @@ import { buildAppDeeplink, buildOAuthDeeplink } from '../utils';
  *   the app via the `chatic://oauth` deeplink, with a manual button as fallback
  *   for when the auto-jump is blocked.
  */
+/** The nonce whose link this browser tab has already sent to the app. */
+const HANDOFF_SENT_KEY = 'chatic-oauth-handoff-sent';
+
 export const OAuthResponsePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -50,6 +53,10 @@ export const OAuthResponsePage = () => {
         }
         const url = buildOAuthDeeplink(provider, code, nonce);
         setDeeplink(url);
+        // Once per sign-in: a tab reloaded or restored on this page would otherwise send the used link
+        // again, and the app would have to tell it apart from a link it never started. The button stays.
+        if (sessionStorage.getItem(HANDOFF_SENT_KEY) === nonce) return;
+        sessionStorage.setItem(HANDOFF_SENT_KEY, nonce);
         window.location.replace(url);
     }, [isComplete, provider, code, nonce, completeFromHandoff, navigate]);
 

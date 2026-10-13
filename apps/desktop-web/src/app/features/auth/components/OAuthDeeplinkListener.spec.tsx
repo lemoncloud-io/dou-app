@@ -150,8 +150,9 @@ describe('OAuthDeeplinkListener', () => {
             expect.objectContaining({ variant: 'destructive', description: i18n.t('auth.social.failed') })
         );
 
-        started();
-        await deliver('chatic://oauth?provider=google&code=good&nonce=n1');
+        // Every start draws a new nonce.
+        started({ nonce: 'n2' });
+        await deliver('chatic://oauth?provider=google&code=good&nonce=n2');
 
         expect(session.createCredentialsByProvider).toHaveBeenLastCalledWith('google', 'good', {
             linkCurrentSession: true,
