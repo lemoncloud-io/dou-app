@@ -278,7 +278,11 @@ export const ThreadPage = () => {
                   userId ? nameOfUser(userId) : undefined,
               ]
             : undefined;
-        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames });
+        // A mention opens the member it names, by the same row the list offers.
+        const people = mentionCandidates
+            .filter(row => !row.everyone)
+            .map(row => ({ id: row.id, name: row.label, avatar: row.thumbnail }));
+        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames, people });
     }, [userId, sessionUid, memberById, profileMap, isGroupChat, mentionCandidates, nameOfUser]);
 
     const toClientView = useMemo(
@@ -487,6 +491,9 @@ export const ThreadPage = () => {
                                 <MessageText
                                     text={messagePlainText(message.content)}
                                     mentions={mentionMarksFor(message, mentionViewer)}
+                                    onMentionClick={person =>
+                                        openMemberProfile({ id: person.id, name: person.name, avatar: person.avatar })
+                                    }
                                 />
                             </p>
                         )

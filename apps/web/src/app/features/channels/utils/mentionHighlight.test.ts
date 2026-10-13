@@ -77,6 +77,7 @@ describe('mentionViewerOf', () => {
             ids: ['cloud-7', 'acct-1'],
             tokens: ['@레인', ...GROUP_MENTION_TOKENS],
             roomTokens: [],
+            people: new Map(),
         });
         expect(mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: [] }).ids).toEqual(['me']);
     });
@@ -92,16 +93,25 @@ describe('mentionViewerOf', () => {
                 .roomTokens
         ).toEqual(['@Minsu', '@레인', ...GROUP_MENTION_TOKENS]);
     });
+
+    it('finds each member by their @name, whatever its case', () => {
+        const minsu = { id: 'u2', name: 'Minsu' };
+        const viewer = mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: [], people: [minsu] });
+
+        expect(viewer.people.get('@minsu')).toBe(minsu);
+    });
 });
 
 describe('mentionMarksFor', () => {
-    const viewer = { ids: ['me'], tokens: ['@레인'], roomTokens: ['@레인', '@Minsu'] };
+    const people = new Map([['@minsu', { id: 'u2', name: 'Minsu' }]]);
+    const viewer = { ids: ['me'], tokens: ['@레인'], roomTokens: ['@레인', '@Minsu'], people };
 
     it("draws the room's words on any message, and mine louder when the record calls me", () => {
         expect(mentionMarksFor({ mention$: { userIds: ['me'] } }, viewer)).toEqual({
             words: ['@레인', '@Minsu', '@레인'],
             self: ['@레인'],
             own: false,
+            people,
         });
         expect(mentionMarksFor({ mention$: { userIds: ['u2'] } }, viewer)?.self).toEqual([]);
     });
@@ -111,11 +121,12 @@ describe('mentionMarksFor', () => {
             words: ['@레인', '@Minsu'],
             self: [],
             own: true,
+            people,
         });
     });
 
     it('draws nothing for an unknown reader, or outside a group room with no mention of me', () => {
         expect(mentionMarksFor({ mention$: { all: true } }, undefined)).toBeUndefined();
-        expect(mentionMarksFor({}, { ids: ['me'], tokens: ['@레인'], roomTokens: [] })).toBeUndefined();
+        expect(mentionMarksFor({}, { ids: ['me'], tokens: ['@레인'], roomTokens: [], people })).toBeUndefined();
     });
 });

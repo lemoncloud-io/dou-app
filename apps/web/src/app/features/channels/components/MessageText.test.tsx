@@ -76,16 +76,17 @@ describe('MessageText', () => {
             words: ['@레인', '@Minsu', '@channel'],
             self: [],
             own: false,
+            people: new Map([['@minsu', { id: 'u2', name: 'Minsu' }]]),
             ...fields,
         });
         const mentionSpan = (container: HTMLElement, word: string) =>
-            Array.from(container.querySelectorAll('span')).find(span => span.textContent === word);
+            Array.from(container.querySelectorAll('span, button')).find(node => node.textContent === word);
 
         it('draws every mention word and leaves the rest as text', () => {
             const { container } = render(<MessageText text="hi @Minsu and @channel" mentions={marks()} />);
 
-            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary-ink');
-            expect(mentionSpan(container, '@channel')).toHaveClass('text-primary-ink');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-brand-ink');
+            expect(mentionSpan(container, '@channel')).toHaveClass('text-brand-ink');
             expect(container).toHaveTextContent('hi @Minsu and @channel');
         });
 
@@ -95,14 +96,30 @@ describe('MessageText', () => {
             );
 
             expect(mentionSpan(container, '@레인')).toHaveClass('bg-warning/30');
-            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary-ink');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-brand-ink');
         });
 
-        // My bubble is dark; the shared mark is drawn for a light one.
-        it('draws the mentions on my own message in a mark that reads on my bubble', () => {
+        // My bubble is dark; the blue of a light bubble would not read on it.
+        it('draws the mentions on my own message in a colour that reads on my bubble', () => {
             const { container } = render(<MessageText text="@Minsu hello" mentions={marks({ own: true })} />);
 
-            expect(mentionSpan(container, '@Minsu')).toHaveClass('bg-white/20');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary');
+        });
+
+        it('opens the member a mention names on a tap, and nothing for an everyone word', () => {
+            const onMentionClick = jest.fn();
+            render(<MessageText text="@Minsu @channel" mentions={marks()} onMentionClick={onMentionClick} />);
+
+            fireEvent.click(screen.getByRole('button', { name: '@Minsu' }));
+
+            expect(onMentionClick).toHaveBeenCalledWith({ id: 'u2', name: 'Minsu' });
+            expect(screen.queryByRole('button', { name: '@channel' })).not.toBeInTheDocument();
+        });
+
+        it('draws a mention as text when nothing opens it', () => {
+            render(<MessageText text="@Minsu" mentions={marks()} />);
+
+            expect(screen.queryByRole('button')).not.toBeInTheDocument();
         });
 
         // A name inside a link or a code span belongs to that link or that code.

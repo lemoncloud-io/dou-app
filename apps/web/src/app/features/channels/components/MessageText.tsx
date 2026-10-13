@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { MSG_MENTION_CLASS, MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
+import { MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
 import { CodeBlock, InlineCode } from '@chatic/web-ui-kit';
 
-import { type MentionMarks, splitMentionRuns } from '../utils/mentionHighlight';
+import { type MentionMarks, type MentionPerson, splitMentionRuns } from '../utils/mentionHighlight';
 import { tokenizeMessage } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
@@ -26,31 +26,56 @@ export interface MessageTextProps {
      * link or a code span is part of that link or that code.
      */
     mentions?: MentionMarks;
+    /** A tap on a mention of a member. Without it a mention is drawn but opens nothing. */
+    onMentionClick?: (person: MentionPerson) => void;
 }
 
-/** A mention on my own bubble: the bubble is dark, and the shared marks are drawn for a light one. */
-const OWN_MENTION_CLASS = 'rounded bg-white/20 px-1 font-medium';
-
 /**
- * Plain text, with its mentions drawn the way the desktop's message view draws them (the classes are
- * `@chatic/block-kit`'s): a mention of me louder than a mention of anyone else.
+ * A mention is coloured text with no chip, the way a phone's chat draws one, in DoU's brand colours:
+ * the brand lime on my own dark bubble, and on a light bubble the brand navy, since lime text does not
+ * read on white — lime again in dark mode, where the bubble is dark. A mention of me keeps the
+ * desktop's louder highlight (`MSG_MENTION_SELF_CLASS`, from `@chatic/block-kit`), so the eye finds it
+ * among the others.
  */
-const PlainText = ({ value, mentions }: { value: string; mentions?: MentionMarks }) => {
+const MENTION_CLASS = 'font-semibold text-brand-ink dark:text-primary';
+const OWN_MENTION_CLASS = 'font-semibold text-primary';
+
+interface PlainTextProps {
+    value: string;
+    mentions?: MentionMarks;
+    onMentionClick?: (person: MentionPerson) => void;
+}
+
+/** Plain text, with its mentions drawn — a mention of me louder than a mention of anyone else. */
+const PlainText = ({ value, mentions, onMentionClick }: PlainTextProps) => {
     if (!mentions?.words.length) return <>{value}</>;
     const self = new Set(mentions.self.map(word => word.toLowerCase()));
     const classOf = (word: string) =>
-        self.has(word.toLowerCase()) ? MSG_MENTION_SELF_CLASS : mentions.own ? OWN_MENTION_CLASS : MSG_MENTION_CLASS;
+        self.has(word.toLowerCase()) ? MSG_MENTION_SELF_CLASS : mentions.own ? OWN_MENTION_CLASS : MENTION_CLASS;
     return (
         <>
-            {splitMentionRuns(value, mentions.words).map((run, index) =>
-                run.mention ? (
+            {splitMentionRuns(value, mentions.words).map((run, index) => {
+                if (!run.mention) return <Fragment key={index}>{run.value}</Fragment>;
+                const person = onMentionClick ? mentions.people.get(run.value.toLowerCase()) : undefined;
+                return person ? (
+                    <button
+                        key={index}
+                        type="button"
+                        className={`inline ${classOf(run.value)}`}
+                        onClick={event => {
+                            // The bubble's own taps stay the bubble's.
+                            event.stopPropagation();
+                            onMentionClick?.(person);
+                        }}
+                    >
+                        {run.value}
+                    </button>
+                ) : (
                     <span key={index} className={classOf(run.value)}>
                         {run.value}
                     </span>
-                ) : (
-                    <Fragment key={index}>{run.value}</Fragment>
-                )
-            )}
+                );
+            })}
         </>
     );
 };
@@ -71,6 +96,7 @@ export const MessageText = ({
     onUrlClick = openExternalUrl,
     renderCodeBlock,
     mentions,
+    onMentionClick,
 }: MessageTextProps) => (
     <>
         {tokenizeMessage(text, { truncated }).map((token, index) => {
@@ -101,7 +127,7 @@ export const MessageText = ({
                     <CodeBlock key={index} code={token.value} lang={token.lang} />
                 );
             }
-            return <PlainText key={index} value={token.value} mentions={mentions} />;
+            return <PlainText key={index} value={token.value} mentions={mentions} onMentionClick={onMentionClick} />;
         })}
     </>
 );

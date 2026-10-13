@@ -43,8 +43,9 @@ message of a 1:1 is addressed to the other person.
    uses the same rule as the push (`isMentioningViewer`, in `libs/data` so the desktop can take it
    next): everyone, or one of the reader's ids — the room-cloud uid and the account uid, because the
    record holds the room's member ids — on someone else's message. Separately, every member's `@name`
-   and every everyone word in a group room is drawn as a mention on any message, the desktop's plain
-   mention mark: that says how the text is written, not whom it calls, so it may read the text.
+   and every everyone word in a group room is drawn as a mention on any message — coloured text, with
+   a tap on a member's opening their profile: that says how the text is written, not whom it calls,
+   so it may read the text.
 3. **The phone's composer gets the `@` list,** inside the composer bar right above the field, in group
    rooms only. A 1:1 always notifies and has one person to call; a self chat has nobody. Typing `@` at
    the start of a word opens it. A backspace at the end of a picked name takes the whole name and the

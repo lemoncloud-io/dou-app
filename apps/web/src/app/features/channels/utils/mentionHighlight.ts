@@ -69,16 +69,32 @@ interface MentionViewerSources {
      * chat have no `@` list, so an `@name` in them is just text.
      */
     memberNames?: ReadonlyArray<string | null | undefined>;
+    /** The members a mention can open, by the name the list writes them with. Me excluded. */
+    people?: ReadonlyArray<MentionPerson>;
+}
+
+/** A member a mention names — enough to open their profile from it. */
+export interface MentionPerson {
+    id: string;
+    name: string;
+    avatar?: string;
 }
 
 /**
  * Me in the room, as a row needs me to draw mentions: every id I go by here, the words I am called,
  * and the words every member is mentioned by.
  */
-export const mentionViewerOf = ({ roomUid, sessionUid, names, memberNames }: MentionViewerSources): MentionViewer => ({
+export const mentionViewerOf = ({
+    roomUid,
+    sessionUid,
+    names,
+    memberNames,
+    people = [],
+}: MentionViewerSources): MentionViewer => ({
     ids: [...new Set([roomUid, sessionUid].filter((id): id is string => !!id))],
     tokens: mentionTokensOf(names),
     roomTokens: memberNames ? mentionTokensOf([...memberNames, ...names]) : [],
+    people: new Map(people.map(person => [`@${person.name.trim()}`.toLowerCase(), person])),
 });
 
 /** What `mentionViewerOf` builds. */
@@ -88,6 +104,8 @@ export interface MentionViewer {
     tokens: readonly string[];
     /** Every member's name after `@`, mine included, and the everyone words. Empty outside a group room. */
     roomTokens: readonly string[];
+    /** The member each `@name` (lower-cased) opens. */
+    people: ReadonlyMap<string, MentionPerson>;
 }
 
 /** How one message's mentions are drawn — what `mentionMarksFor` answers. */
@@ -98,6 +116,8 @@ export interface MentionMarks {
     self: readonly string[];
     /** The message is mine: my bubble is dark, so its mentions take a mark that reads on it. */
     own: boolean;
+    /** The member each `@name` (lower-cased) opens; an everyone word and my own name open nothing. */
+    people: ReadonlyMap<string, MentionPerson>;
 }
 
 /**
@@ -114,5 +134,5 @@ export const mentionMarksFor = (
     const self = !message.isOwner && isMentioningViewer(message, viewer.ids) ? viewer.tokens : [];
     const words = [...viewer.roomTokens, ...self];
     if (!words.length) return undefined;
-    return { words, self, own: !!message.isOwner };
+    return { words, self, own: !!message.isOwner, people: viewer.people };
 };

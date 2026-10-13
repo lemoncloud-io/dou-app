@@ -182,20 +182,26 @@ sheet are all withheld; the sheet especially, since Copy would hand the deleted 
 room draws them by, mine included — and every everyone word (`@channel`, `@here`, `@everyone`) is
 drawn as a mention, on anyone's message: the row hands
 [`MessageText`](../../../src/app/features/channels/components/MessageText.tsx) the room's words from
-[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts), and it
-draws them with `MSG_MENTION_CLASS`, the mention mark the desktop's message view uses (defined in
-`@chatic/block-kit`). That mark is drawn for a light bubble, so on my own dark bubble a mention takes a
-light one of its own. This says how the text is written, not whom it calls. A mention **of me** is
-drawn louder, with `MSG_MENTION_SELF_CLASS`, and only when the message's `mention$` names one of my
-ids — my uid in the room's cloud, or the account's — or calls everyone (`isMentioningViewer`, from
-`@chatic/data`), the record the push reads too. The text is never read to decide that: the record is
-what the sender picked in their composer, filtered to the room's members by the server, so an `@name`
-typed by hand or an e-mail address (`ops@here.io`) calls nobody. My names are every name a sender's
-list could have shown me under — my place nick, my nick, my account name — since the text holds
-whichever one they saw. My own message never calls me, even one calling everyone. Mentions are marked
-in plain text only, never inside a link or a code span, by the rule the composer counts a pick by
-(below), so `@레인님` marks `@레인`. A 1:1 and a self chat draw no mentions: they have no `@` list, so
-an `@name` there is plain text. A thread's root follows the same rule.
+[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts). A mention
+is coloured text with no chip, the way a phone's chat draws one, in DoU's brand colours — semibold
+brand lime (`primary`) on my own dark bubble, brand navy (`brand-ink`) on a light bubble, since lime
+text does not read on white, and lime again on the dark bubble of dark mode. This says how the text is written, not whom it calls. A
+mention **of me** is drawn louder, with the desktop's self-mention highlight (`MSG_MENTION_SELF_CLASS`,
+from `@chatic/block-kit`), and only when the message's `mention$` names one of my ids — my uid in the
+room's cloud, or the account's — or calls everyone (`isMentioningViewer`, from `@chatic/data`), the
+record the push reads too. The text is never read to decide that: the record is what the sender
+picked in their composer, filtered to the room's members by the server, so an `@name` typed by hand
+or an e-mail address (`ops@here.io`) calls nobody. My names are every name a sender's list could have
+shown me under — my place nick, my nick, my account name — since the text holds whichever one they
+saw. My own message never calls me, even one calling everyone.
+
+**A tap on a member's mention opens their profile** — the sheet their avatar opens
+([Opening a person](#opening-a-person)), on anyone's message, mine included. The room's `@` list says
+which member a name is (`MentionViewer.people`); an everyone word and my own name open nothing, and
+like a link, a mention does not open after a hold that brought up the action sheet. Mentions are
+marked in plain text only, never inside a link or a code span, by the rule the composer counts a pick
+by (below), so `@레인님` marks `@레인`. A 1:1 and a self chat draw no mentions: they have no `@` list,
+so an `@name` there is plain text. A thread's root follows the same rule.
 
 ## Opening a person
 

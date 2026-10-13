@@ -934,17 +934,18 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             ids: ['me-cloud', 'me'],
             tokens: ['@레인', '@channel'],
             roomTokens: ['@레인', '@Minsu', '@channel'],
+            people: new Map([['@minsu', { id: 'u2', name: 'Minsu', avatar: 'https://example.test/minsu.png' }]]),
         };
         const mentioning = (fields: Partial<ClientChatView>) =>
             ({ ...message, content: '@레인 @Minsu 확인해 줘', ...fields }) as ClientChatView;
-        const mark = (word: string) => screen.queryByText(word, { selector: 'span' });
+        const mark = (word: string) => screen.queryByText(word, { selector: 'span, button' });
 
         // How it is written, not whom it calls: a member's name after `@` reads as a mention.
         it("draws every member's mention, with no record at all", () => {
             render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
 
-            expect(mark('@Minsu')).toHaveClass('text-primary-ink');
-            expect(mark('@레인')).toHaveClass('text-primary-ink');
+            expect(mark('@Minsu')).toHaveClass('text-brand-ink');
+            expect(mark('@레인')).toHaveClass('text-brand-ink');
         });
 
         // The record decides whether it calls me, not the text: the sender picked me in their composer.
@@ -958,7 +959,7 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             );
 
             expect(mark('@레인')).toHaveClass('bg-warning/30');
-            expect(mark('@Minsu')).toHaveClass('text-primary-ink');
+            expect(mark('@Minsu')).toHaveClass('text-brand-ink');
         });
 
         // My own message does not call me out; its mentions take the mark that reads on my dark bubble.
@@ -971,8 +972,29 @@ describe('ChannelMessageRow — opening the sender profile', () => {
                 />
             );
 
-            expect(mark('@레인')).toHaveClass('bg-white/20');
+            expect(mark('@레인')).toHaveClass('text-primary');
             expect(mark('@레인')).not.toHaveClass('bg-warning/30');
+        });
+
+        // The profile the member's avatar opens.
+        it("opens the named member's profile on a tap of their mention", () => {
+            const onOpenProfile = jest.fn();
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={mentioning({})}
+                    mentionViewer={viewer}
+                    onOpenProfile={onOpenProfile}
+                />
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: '@Minsu' }));
+
+            expect(onOpenProfile).toHaveBeenCalledWith({
+                id: 'u2',
+                name: 'Minsu',
+                avatar: 'https://example.test/minsu.png',
+            });
         });
 
         it('draws nothing when the row is not told who is reading', () => {

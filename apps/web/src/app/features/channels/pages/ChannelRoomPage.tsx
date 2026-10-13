@@ -335,7 +335,11 @@ export const ChannelRoomPage = () => {
                   userId ? nameOfUser(userId) : undefined,
               ]
             : undefined;
-        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames });
+        // A mention opens the member it names, by the same row the list offers.
+        const people = mentionCandidates
+            .filter(row => !row.everyone)
+            .map(row => ({ id: row.id, name: row.label, avatar: row.thumbnail }));
+        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames, people });
     }, [userId, sessionUid, memberById, profileMap, isGroupChat, mentionCandidates, nameOfUser]);
     // `myJoin` (above, from the join cache stream) is NOT `channel.$join`, which is a projection that
     // lags the cache. The DM title reads the nick off it, so a rename in settings has to land here
