@@ -21,8 +21,9 @@ interface SidebarHeaderProps {
     onOpenSaved: () => void;
     /** Open the device-local mentions inbox (Activity) trailing pane. */
     onOpenActivity: () => void;
-    /** The active cloud — scopes the Threads dot to its threads. */
+    /** The active cloud and place — scope the Threads dot to the threads the pane lists. */
     cloudId: string;
+    placeId?: string;
     /** Open the device-local Threads trailing pane. */
     onOpenThreads: () => void;
 }
@@ -68,12 +69,13 @@ export const SidebarHeader = ({
     onOpenSaved,
     onOpenActivity,
     cloudId,
+    placeId,
     onOpenThreads,
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
     // Select the boolean, not the count — the dot only re-renders on false↔true.
     const hasMentionUnread = useMentionsStore(s => unreadMentionCount(s.items) > 0);
-    const hasThreadUnread = useMyThreadsStore(s => hasUnreadThread(s.threads, cloudId));
+    const hasThreadUnread = useMyThreadsStore(s => hasUnreadThread(s.threads, cloudId, placeId));
     const showPlaceSkeleton = isLoading && !placeName && !isDefaultMode;
 
     return (

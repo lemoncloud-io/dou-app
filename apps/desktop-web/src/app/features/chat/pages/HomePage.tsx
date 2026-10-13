@@ -150,12 +150,11 @@ export const HomePage = () => {
     const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
     // With no place left the session's site id is not read at all: after the cloud's last place is
     // deleted it still names that place, and its cached channels would be listed in place of the 1:1s.
-    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(
-        hasNoPlace ? undefined : (selectedSiteId ?? undefined),
-        {
-            whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
-        }
-    );
+    // The Threads pane and its sidebar dot are scoped by the same place as the list.
+    const listedPlaceId = hasNoPlace ? undefined : (selectedSiteId ?? undefined);
+    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(listedPlaceId, {
+        whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
+    });
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);
@@ -791,6 +790,7 @@ export const HomePage = () => {
                             onOpenSaved={openSaved}
                             onOpenActivity={openActivity}
                             cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                            placeId={listedPlaceId}
                             onOpenThreads={openThreads}
                         />
                         <div className="flex-1 overflow-y-auto scrollbar-hide">
@@ -875,9 +875,8 @@ export const HomePage = () => {
                     ) : threadsOpen ? (
                         <MyThreadsPanel
                             cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                            placeId={listedPlaceId}
                             channels={channels}
-                            places={places}
-                            currentPlaceId={selectedPlaceId ?? undefined}
                             onSelect={jumpToSaved}
                         />
                     ) : undefined

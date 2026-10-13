@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
-import type { DomainChannel, DomainPlace } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
@@ -43,20 +43,10 @@ const CHANNELS = [
     { id: 'C1', name: 'general' },
     { id: 'D1', name: 'Ada', stereo: 'dm' },
 ] as DomainChannel[];
-const PLACES = [
-    { id: 'P1', name: 'Team' },
-    { id: 'P2', name: 'Studio' },
-] as DomainPlace[];
 
-const renderPanel = (onSelect = vi.fn()) =>
+const renderPanel = (onSelect = vi.fn(), placeId: string | null = 'P1') =>
     render(
-        <MyThreadsPanel
-            cloudId="cloud-a"
-            channels={CHANNELS}
-            places={PLACES}
-            currentPlaceId="P1"
-            onSelect={onSelect}
-        />,
+        <MyThreadsPanel cloudId="cloud-a" channels={CHANNELS} placeId={placeId ?? undefined} onSelect={onSelect} />,
         { wrapper }
     );
 
@@ -74,10 +64,17 @@ describe('MyThreadsPanel', () => {
     });
 
     it('says what will show up here when there is nothing yet, and that the list is per device', () => {
-        renderPanel();
+        renderPanel(vi.fn(), null);
 
         expect(screen.getByText('No threads yet')).toBeTruthy();
         expect(screen.getByText('Threads seen on this device only.')).toBeTruthy();
+    });
+
+    it("says the empty list is this place's, since another place may hold threads", () => {
+        renderPanel();
+
+        expect(screen.getByText('No threads in this place yet')).toBeTruthy();
+        expect(screen.queryByText('No threads yet')).toBeNull();
     });
 
     it('says the cache is still being read rather than that there is nothing', () => {
@@ -89,7 +86,7 @@ describe('MyThreadsPanel', () => {
         expect(screen.queryByText('No threads yet')).toBeNull();
     });
 
-    it("lists the active cloud's threads, most recent activity first, with the last reply", () => {
+    it("lists the active place's threads, most recent activity first, with the last reply", () => {
         store(
             thread({ rootNo: '1', rootPreview: 'older', lastActivityAt: 1 }),
             thread({ rootNo: '5', rootPreview: 'newer', lastActivityAt: 9 }),
@@ -115,23 +112,42 @@ describe('MyThreadsPanel', () => {
         expect(screen.getByText('New reply')).toBeTruthy();
     });
 
-    it('names who started the thread and where it lives, from what was kept for another place', () => {
+    it("leaves another place's channel threads out, and keeps a 1:1's and the Self Channel's", () => {
         store(
-            thread({
-                channelId: 'C9',
-                placeId: 'P2',
-                rootOwnerName: 'Ada',
-                channelKind: 'channel',
-                channelName: 'design',
-            })
+            thread({ rootNo: '1', rootPreview: 'here' }),
+            thread({ channelId: 'C9', placeId: 'P2', rootNo: '2', rootPreview: 'elsewhere' }),
+            thread({ channelId: 'S1', placeId: undefined, rootNo: '3', rootPreview: 'note to self' }),
+            thread({ channelId: 'D9', placeId: 'P2', channelKind: 'dm', rootNo: '4', rootPreview: 'one to one' })
         );
+
+        renderPanel();
+
+        expect(screen.getByText('here')).toBeTruthy();
+        expect(screen.getByText('note to self')).toBeTruthy();
+        expect(screen.getByText('one to one')).toBeTruthy();
+        expect(screen.queryByText('elsewhere')).toBeNull();
+    });
+
+    it("lists the whole cloud's threads when no place is selected", () => {
+        store(
+            thread({ rootNo: '1', rootPreview: 'here' }),
+            thread({ channelId: 'C9', placeId: 'P2', rootNo: '2', rootPreview: 'elsewhere' })
+        );
+
+        renderPanel(vi.fn(), null);
+
+        expect(screen.getByText('here')).toBeTruthy();
+        expect(screen.getByText('elsewhere')).toBeTruthy();
+    });
+
+    it('names who started the thread and where it lives, from what was kept for a channel not loaded', () => {
+        store(thread({ channelId: 'C9', rootOwnerName: 'Ada', channelKind: 'channel', channelName: 'design' }));
 
         renderPanel();
 
         const row = screen.getByRole('button', { name: /root/ });
         expect(within(row).getByText('Ada')).toBeTruthy();
         expect(within(row).getByText('design')).toBeTruthy();
-        expect(within(row).getByText('· Studio')).toBeTruthy();
     });
 
     it('marks a channel with # but not a DM', () => {
@@ -163,10 +179,12 @@ describe('MyThreadsPanel', () => {
         expect(document.activeElement).toBe(screen.getByRole('button', { name: /next/ }));
     });
 
-    it("marks every one of the cloud's threads read, and offers it only while one is unread", () => {
+    it("marks every one of the place's threads read, and offers it only while one is unread", () => {
+        const elsewhere = thread({ channelId: 'C9', placeId: 'P2', rootNo: '3', lastReplyNo: 4, seenReplyNo: 1 });
         store(
             thread({ rootNo: '1', lastReplyNo: 3, seenReplyNo: 2 }),
-            thread({ rootNo: '2', lastReplyNo: 5, seenReplyNo: 1 })
+            thread({ rootNo: '2', lastReplyNo: 5, seenReplyNo: 1 }),
+            elsewhere
         );
 
         renderPanel();
@@ -174,20 +192,21 @@ describe('MyThreadsPanel', () => {
 
         expect(screen.queryByText('New reply')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Mark all read' })).toBeNull();
+        expect(useMyThreadsStore.getState().threads['cloud-a:C9:3']).toBe(elsewhere);
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close threads' }));
     });
 
-    it('opens the thread in its channel and place, and remembers the row it was opened from', () => {
+    it('opens the thread with its channel and recorded place, and remembers the row it was opened from', () => {
         const onSelect = vi.fn();
-        store(thread({ channelId: 'C9', placeId: 'P2', rootNo: '42', rootPreview: 'go here' }));
+        store(thread({ channelId: 'D9', placeId: 'P2', channelKind: 'dm', rootNo: '42', rootPreview: 'go here' }));
 
         renderPanel(onSelect);
         fireEvent.click(screen.getByRole('button', { name: /go here/ }));
 
-        expect(onSelect).toHaveBeenCalledWith('C9', undefined, 'P2', '42');
+        expect(onSelect).toHaveBeenCalledWith('D9', undefined, 'P2', '42');
         expect(useMyThreadsPanelStore.getState()).toMatchObject({
-            openedKey: 'cloud-a:C9:42',
-            backKey: 'cloud-a:C9:42',
+            openedKey: 'cloud-a:D9:42',
+            backKey: 'cloud-a:D9:42',
         });
     });
 
