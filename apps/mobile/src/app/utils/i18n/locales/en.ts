@@ -27,6 +27,11 @@ export const en = {
         errorMessage: 'The link may have expired or is no longer valid.',
         goHome: 'Go to Home',
     },
+    webview: {
+        loadTitle: 'Unable to load DoU',
+        loadMessage: 'Check your connection and try again.',
+        retry: 'Try again',
+    },
     notification: {
         channel: {
             chat: 'New Messages',

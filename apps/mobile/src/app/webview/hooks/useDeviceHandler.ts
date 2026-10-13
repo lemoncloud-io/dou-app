@@ -12,7 +12,16 @@ export const useDeviceHandler = () => {
 
     const handleOpenSettings = useCallback(
         async (_message: WebMessageData<'OpenSettings'>) => {
-            await deviceService.openSettings();
+            // A "go to Settings" button that silently does nothing strands a reader
+            // whose permission is BLOCKED, since Settings is the only way back.
+            const opened = await deviceService.openSettings();
+            if (!opened) {
+                return {
+                    type: 'OnOpenSettings' as const,
+                    success: false,
+                    error: { code: 'SETTINGS_ERROR', message: 'Could not open the system settings.' },
+                };
+            }
             return { type: 'OnOpenSettings' as const, success: true };
         },
         [deviceService]
@@ -43,6 +52,11 @@ export const useDeviceHandler = () => {
     const handleOpenDocument = useCallback(
         async (message: WebMessageData<'OpenDocument'>) => {
             const data = message.data;
+            const readError = (name: string | null) => ({
+                type: 'OnOpenDocument' as const,
+                success: false as const,
+                error: { code: 'DOC_READ_ERROR', message: `Could not read the file: ${name ?? 'unnamed'}` },
+            });
             try {
                 const results = await deviceService.openDocument(data.allowMultiSelection);
 
@@ -59,6 +73,12 @@ export const useDeviceHandler = () => {
                         return { uri: doc.uri, name: doc.name, type: doc.type, size: doc.size, base64 };
                     })
                 );
+                // A failed read used to ride along as success with base64 undefined —
+                // the upload then had nothing to send and no message to show.
+                if (data.includeBase64) {
+                    const unread = documents.find(doc => doc.base64 === undefined);
+                    if (unread) return readError(unread.name);
+                }
                 return { type: 'OnOpenDocument' as const, success: true, data: { documents } };
             } catch (e: any) {
                 logger.error('DEVICE', 'OpenDocument error', e);

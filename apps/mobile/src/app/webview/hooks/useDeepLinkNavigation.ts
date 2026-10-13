@@ -18,6 +18,11 @@ export interface UseDeepLinkNavigationResult {
     handleDismissError: () => void;
 }
 
+// A cold-start native link can arrive before the navigator mounts: retry for ~2s rather than
+// drop it. Web routes need nothing like this — the bridge buffers OnNavigate until WebAppReady.
+const NATIVE_ROUTE_RETRY_MS = 250;
+const MAX_NATIVE_ROUTE_ATTEMPTS = 8;
+
 /**
  * Single owner of inbound navigation into the WebView. Captures OS deep links / invite links (via
  * the deeplink service) and notification taps, resolves each to a routing decision, and converges
@@ -45,6 +50,12 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
 
         // Guards against dispatching a captured cold-start intent after the hook unmounts.
         let disposed = false;
+        // A cold start is launched by ONE intent, but both lookups can answer: a push tap carries
+        // the same link the OS deep link lookup reports. The first navigation wins; the second is
+        // a duplicate that would push the room twice.
+        let coldStartNavigated = false;
+        // A queued native route's retry timer, so unmount cancels it.
+        let nativeRetryTimer: ReturnType<typeof setTimeout> | undefined;
 
         // Emit a WEBVIEW_URL-relative path to the web. Shared by every inbound navigation source.
         const emitNavigate = (path: string, perfTrace?: HandedOverPerfTrace) => {
@@ -77,9 +88,16 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         // Apply a native (target=native) route imperatively. Web routes never reach here. Note the
         // Debug/Modal screens are not currently registered in the navigator, so this mirrors the prior
         // (linking-driven) behavior for those routes rather than introducing new navigation.
-        const applyNativeRoute = (state: NativeRouteState) => {
+        // A cold-start link can arrive before the navigator mounts: retry briefly rather than drop
+        // it, the way the bridge buffers OnNavigate until WebAppReady for web routes.
+        const applyNativeRoute = (state: NativeRouteState, attempt = 0) => {
+            if (disposed) return;
             if (!navigationRef.isReady()) {
-                logger.warn('DEEPLINK', '[useDeepLinkNavigation] navigationRef not ready for native route');
+                if (attempt >= MAX_NATIVE_ROUTE_ATTEMPTS) {
+                    logger.warn('DEEPLINK', '[useDeepLinkNavigation] navigationRef never ready; native route dropped');
+                    return;
+                }
+                nativeRetryTimer = setTimeout(() => applyNativeRoute(state, attempt + 1), NATIVE_ROUTE_RETRY_MS);
                 return;
             }
             try {
@@ -97,6 +115,14 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 setDeepLinkError(true);
                 setDeepLinkErrorReason(resolution.error);
                 return;
+            }
+            // An invalid link consumes nothing: the tap lookup may still hold the real intent.
+            if (isColdStart) {
+                if (coldStartNavigated) {
+                    logger.info('DEEPLINK', '[useDeepLinkNavigation] Duplicate cold-start navigation dropped');
+                    return;
+                }
+                coldStartNavigated = true;
             }
             if (resolution.kind === 'native') {
                 applyNativeRoute(resolution.state);
@@ -127,18 +153,42 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 );
                 return;
             }
+            // A tap that resolves to nothing consumes nothing: the link lookup may still deliver.
+            if (isColdStart) {
+                if (coldStartNavigated) {
+                    logger.info('DEEPLINK', '[useDeepLinkNavigation] Duplicate cold-start navigation dropped');
+                    return;
+                }
+                coldStartNavigated = true;
+            }
             emitNavigate(path, handOverRoomOpenTrace(path, 'push_tap', isColdStart));
         };
 
         // --- Cold start capture (app launched by a deep link or a notification tap) ---
-        deeplinkService.getInitialUrl().then(url => {
-            if (!disposed && url) dispatchDeepLink(url, true);
-        });
-        notificationService.getInitialNotification().then(remoteMessage => {
-            if (!disposed && remoteMessage) {
-                dispatchPushTap(remoteMessage.data as PushNavigationData | undefined, true, remoteMessage.messageId);
-            }
-        });
+        // Either native lookup rejects on some OEM builds / a torn-down bridge; a rejection is
+        // "no intent from this source", never a reason to break the other source.
+        deeplinkService
+            .getInitialUrl()
+            .then(url => {
+                if (!disposed && url) dispatchDeepLink(url, true);
+            })
+            .catch(err => {
+                logger.warn('DEEPLINK', '[useDeepLinkNavigation] Cold-start link lookup failed', err);
+            });
+        notificationService
+            .getInitialNotification()
+            .then(remoteMessage => {
+                if (!disposed && remoteMessage) {
+                    dispatchPushTap(
+                        remoteMessage.data as PushNavigationData | undefined,
+                        true,
+                        remoteMessage.messageId
+                    );
+                }
+            })
+            .catch(err => {
+                logger.warn('DEEPLINK', '[useDeepLinkNavigation] Cold-start notification lookup failed', err);
+            });
 
         // --- Warm capture (deep link / tap arriving while the app is already running) ---
         const unsubscribeDeepLink = deeplinkService.subscribe(url => {
@@ -150,6 +200,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
 
         return () => {
             disposed = true;
+            if (nativeRetryTimer) clearTimeout(nativeRetryTimer);
             unsubscribeDeepLink();
             unsubscribeOnOpened();
         };

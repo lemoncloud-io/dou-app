@@ -15,11 +15,13 @@ import type { ContactsReadResult, IDeviceService } from './types';
 export class DeviceService implements IDeviceService {
     constructor(private readonly logger: ILogService) {}
 
-    async openSettings(): Promise<void> {
+    async openSettings(): Promise<boolean> {
         try {
             await Linking.openSettings();
+            return true;
         } catch (error) {
             this.logger.error('DEVICE', 'Failed to open settings', error);
+            return false;
         }
     }
 
@@ -174,8 +176,11 @@ export class DeviceService implements IDeviceService {
                         this.logger.info('DEVICE', 'Photo library cancelled');
                         resolve([]);
                     } else if (response.errorCode === 'permission') {
+                        // Cancel stays an empty pick, but a denial must not: [] is
+                        // indistinguishable from "chose nothing", so the web cannot react to it.
+                        // The camera path already rejects here; match it.
                         this.logger.error('DEVICE', 'Photo library permission denied');
-                        resolve([]);
+                        reject(new Error(response.errorMessage ?? 'Photo library permission denied'));
                     } else if (response.errorCode) {
                         this.logger.error('DEVICE', 'Photo library error', response.errorMessage);
                         reject(new Error(response.errorMessage));

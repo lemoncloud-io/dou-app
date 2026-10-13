@@ -12,6 +12,10 @@ import { Platform } from 'react-native';
 import type { IOAuthService } from './types';
 import type { ILogService } from '../log';
 
+/** Whether a failed Apple sheet means the user dismissed it (cancel, not an error). */
+const isAppleCancel = (error: unknown): boolean =>
+    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === appleAuth.Error.CANCELED;
+
 export class OAuthService implements IOAuthService {
     constructor(private readonly logger: ILogService) {
         // Initialize Google sign-in configuration
@@ -25,20 +29,19 @@ export class OAuthService implements IOAuthService {
         return Platform.OS === 'ios' ? 'ios' : 'android';
     }
 
+    /**
+     * Native sign-in sheet. Resolves `null` ONLY when the user cancels — every genuine
+     * failure throws, so the bridge reports it as `success: false` (OAUTH_LOGIN_ERROR)
+     * instead of the cancel-shaped `result: null` the web reads as a dismiss.
+     */
     async login(provider: OAuthLoginProvider): Promise<OAuthTokenResult | null> {
-        try {
-            switch (provider) {
-                case 'google':
-                    return await this.signInWithGoogle();
-                case 'apple':
-                    return await this.signInWithApple();
-                default:
-                    this.logger.error('OAUTH', `Not supported type (${provider})`);
-                    return null;
-            }
-        } catch (err) {
-            this.logger.error('OAUTH', `Failed to get oauth token (${provider})`, err);
-            return null;
+        switch (provider) {
+            case 'google':
+                return await this.signInWithGoogle();
+            case 'apple':
+                return await this.signInWithApple();
+            default:
+                throw new Error(`Not supported type (${provider})`);
         }
     }
 
@@ -79,10 +82,7 @@ export class OAuthService implements IOAuthService {
                 const idToken: string | null = userInfo.data.idToken;
 
                 if (!idToken) {
-                    this.logger.error('OAUTH', 'Google Sign-In failed: No idToken found in success response', {
-                        userInfo,
-                    });
-                    return null;
+                    throw new Error('Google Sign-In failed: No idToken found in success response');
                 }
 
                 this.logger.info('OAUTH', 'Google Sign-In Success');
@@ -97,11 +97,12 @@ export class OAuthService implements IOAuthService {
                 };
             }
 
-            this.logger.warn('OAUTH', 'Google Sign-In returned unknown type', { userInfo });
-            return null;
-        } catch (error: any) {
+            throw new Error('Google Sign-In returned unknown type');
+        } catch (error: unknown) {
+            // Cancel already returned null above; anything reaching here is a genuine
+            // failure and rethrows so the bridge reports it instead of the same null.
             this.logger.error('OAUTH', 'Google Sign-In Error', error);
-            return null;
+            throw error instanceof Error ? error : new Error(String(error));
         }
     }
 
@@ -118,8 +119,7 @@ export class OAuthService implements IOAuthService {
                 this.logger.info('OAUTH', 'Apple Sign-In Success');
 
                 if (!response.identityToken) {
-                    this.logger.error('OAUTH', 'Apple Sign-In failed: No identityToken found');
-                    return null;
+                    throw new Error('Apple Sign-In failed: No identityToken found');
                 }
 
                 return {
@@ -133,15 +133,16 @@ export class OAuthService implements IOAuthService {
                     authorizationCode: response.authorizationCode ?? undefined,
                 };
             }
-            this.logger.warn('OAUTH', 'Apple Sign-In credential state invalid', { credentialState });
-            return null;
-        } catch (error: any) {
-            if (error.code === appleAuth.Error.CANCELED) {
+            throw new Error(`Apple Sign-In credential state invalid: ${String(credentialState)}`);
+        } catch (error: unknown) {
+            // The sheet's own cancel reads as null (the web's dismiss path); anything
+            // else rethrows so the bridge reports a failure instead of the same null.
+            if (isAppleCancel(error)) {
                 this.logger.info('OAUTH', 'Apple Sign-In cancelled by user');
                 return null;
             }
             this.logger.error('OAUTH', 'Apple Sign-In Error', error);
-            return null;
+            throw error instanceof Error ? error : new Error(String(error));
         }
     }
 }

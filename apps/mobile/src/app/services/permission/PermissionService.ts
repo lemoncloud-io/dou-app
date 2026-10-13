@@ -7,8 +7,9 @@ import {
     requestNotifications,
     RESULTS,
     type Permission,
+    type PermissionStatus as PermissionResult,
 } from 'react-native-permissions';
-import type { AppPermissionType, IPermissionService } from './types';
+import type { AppPermissionType, IPermissionService, RequestedPermissionStatus } from './types';
 import type { ILogService } from '../log';
 
 const PERMISSION_MAP: Record<Exclude<AppPermissionType, 'NOTIFICATIONS'>, Permission | null> = {
@@ -37,6 +38,15 @@ const PERMISSION_MAP: Record<Exclude<AppPermissionType, 'NOTIFICATIONS'>, Permis
     }),
 };
 
+// The blocked state is read from the request's own answer: on Android the library's `check` never
+// reports BLOCKED (it only knows granted or not), while `request` does, once the OS stops showing
+// the prompt. LIMITED (iOS photo library) is usable access.
+const toRequestedStatus = (result: PermissionResult): RequestedPermissionStatus => {
+    if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) return 'GRANTED';
+    if (result === RESULTS.BLOCKED) return 'BLOCKED';
+    return 'DENIED';
+};
+
 export class PermissionService implements IPermissionService {
     constructor(private readonly logger: ILogService) {}
 
@@ -56,39 +66,35 @@ export class PermissionService implements IPermissionService {
 
             const result = await check(permission);
             this.logger.info('PERMISSION', `Check ${type}: ${result}`);
-            return result === RESULTS.GRANTED;
+            // LIMITED (iOS photo library) is usable access: the request path already treats it
+            // as granted, and reporting it denied here turns a Limited grant into a dead end.
+            return result === RESULTS.GRANTED || result === RESULTS.LIMITED;
         } catch (error) {
             this.logger.error('PERMISSION', `Check failed: ${type}`, error);
             return false;
         }
     }
 
-    async request(type: AppPermissionType): Promise<boolean> {
+    async request(type: AppPermissionType): Promise<RequestedPermissionStatus> {
         try {
-            if (type === 'NOTIFICATIONS') {
-                const { status } = await requestNotifications(['alert', 'sound', 'badge']);
-                this.logger.info('PERMISSION', `Request ${type}: ${status}`);
-
-                if (status === RESULTS.BLOCKED) {
-                    this.logger.warn('PERMISSION', `Request blocked: ${type}`);
-                    return false;
-                }
-                return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
-            }
-
-            const permission: Permission | null = PERMISSION_MAP[type];
-            if (!permission) {
-                this.logger.warn('PERMISSION', `Permission not supported on this platform: ${type}`);
-                return true;
-            }
-
-            const result = await request(permission);
+            const result =
+                type === 'NOTIFICATIONS'
+                    ? (await requestNotifications(['alert', 'sound', 'badge'])).status
+                    : await this.requestMapped(type);
             this.logger.info('PERMISSION', `Request ${type}: ${result}`);
-
-            return result === RESULTS.GRANTED || result === RESULTS.LIMITED;
+            return toRequestedStatus(result);
         } catch (error) {
             this.logger.error('PERMISSION', `Request failed: ${type}`, error);
-            return false;
+            return 'DENIED';
         }
+    }
+
+    private async requestMapped(type: Exclude<AppPermissionType, 'NOTIFICATIONS'>): Promise<PermissionResult> {
+        const permission: Permission | null = PERMISSION_MAP[type];
+        if (!permission) {
+            this.logger.warn('PERMISSION', `Permission not supported on this platform: ${type}`);
+            return RESULTS.GRANTED;
+        }
+        return request(permission);
     }
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
 import { View } from 'react-native';
 import type { WebAppReadyPayload } from '@chatic/app-messages';
@@ -6,7 +6,7 @@ import type { WebAppReadyPayload } from '@chatic/app-messages';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { useDeepLinkNavigation } from '../../../webview/hooks/useDeepLinkNavigation';
 import { AppWebView } from '../../../webview';
-import { DeepLinkErrorView } from '../../core/components';
+import { DeepLinkErrorView, WebViewErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
 import { bootMetricsService, bootSplashService, logger } from '../../../services';
@@ -32,6 +32,14 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const { backgroundColor } = useResolvedTheme();
     const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
+    const requestWebViewReload = useDebugRuntimeStore(state => state.requestWebViewReload);
+    // A failed page load used to leave the mounted WebView blank: the splash lifted,
+    // the debug store recorded the error, and the reader stared at nothing with no retry.
+    const [webViewError, setWebViewError] = useState<string | null>(null);
+    // The reload remounts the WebView by key, so the error clears with the retry itself.
+    useEffect(() => {
+        setWebViewError(null);
+    }, [webViewReloadToken]);
 
     // Custom zip restore gate: if a persisted localRoot exists, hold off mounting the WebView until
     // the local server comes up (loading localhost before the server starts means a blank screen —
@@ -65,6 +73,10 @@ export const MainScreen = ({ route }: MainScreenProps) => {
 
     if (deepLinkError) {
         return <DeepLinkErrorView onGoHome={handleDismissError} reason={deepLinkErrorReason} />;
+    }
+
+    if (webViewError) {
+        return <WebViewErrorView reason={webViewError} onRetry={requestWebViewReload} />;
     }
 
     return (
@@ -120,6 +132,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                         isLoading: false,
                         lastError: event.nativeEvent.description,
                     });
+                    setWebViewError(event.nativeEvent.description);
                     bootSplashService.onLoadFailed();
                 }}
             />

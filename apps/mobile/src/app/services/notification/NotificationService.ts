@@ -79,35 +79,41 @@ export class NotificationService implements INotificationService {
      * - `dou_cloud`: cloud file sync (high importance)
      */
     async createNotificationChannel() {
-        await notifee.createChannel({
-            id: 'dou_chat',
-            name: t('notification.channel.chat'),
-            importance: AndroidImportance.HIGH,
-            sound: 'default',
-        });
-        await notifee.createChannel({
-            id: 'dou_chat_muted',
-            name: t('notification.channel.chat'),
-            importance: AndroidImportance.LOW,
-        });
+        // A channel create touches OEM-specific Notifee paths; a failure must not take down the
+        // caller (App.tsx fires this without awaiting on launch).
+        try {
+            await notifee.createChannel({
+                id: 'dou_chat',
+                name: t('notification.channel.chat'),
+                importance: AndroidImportance.HIGH,
+                sound: 'default',
+            });
+            await notifee.createChannel({
+                id: 'dou_chat_muted',
+                name: t('notification.channel.chat'),
+                importance: AndroidImportance.LOW,
+            });
 
-        await notifee.createChannel({
-            id: 'dou_notice',
-            name: t('notification.channel.notice'),
-            importance: AndroidImportance.DEFAULT,
-        });
+            await notifee.createChannel({
+                id: 'dou_notice',
+                name: t('notification.channel.notice'),
+                importance: AndroidImportance.DEFAULT,
+            });
 
-        await notifee.createChannel({
-            id: 'dou_marketing',
-            name: t('notification.channel.marketing'),
-            importance: AndroidImportance.LOW,
-        });
+            await notifee.createChannel({
+                id: 'dou_marketing',
+                name: t('notification.channel.marketing'),
+                importance: AndroidImportance.LOW,
+            });
 
-        await notifee.createChannel({
-            id: 'dou_cloud',
-            name: t('notification.channel.cloud'),
-            importance: AndroidImportance.HIGH,
-        });
+            await notifee.createChannel({
+                id: 'dou_cloud',
+                name: t('notification.channel.cloud'),
+                importance: AndroidImportance.HIGH,
+            });
+        } catch (e) {
+            this.logger.error('NOTIFICATION', 'Create channel error.', e);
+        }
     }
 
     /**
@@ -199,22 +205,30 @@ export class NotificationService implements INotificationService {
     async getInitialNotification(): Promise<FirebaseMessagingTypes.RemoteMessage | null> {
         this.clearBadge();
 
-        if (Platform.OS === 'ios') {
-            const apnsInitial = await PushNotificationIOS.getInitialNotification();
-            if (apnsInitial) {
-                // Normalize-map the APNs notification object into the standard FCM RemoteMessage shape
-                return {
-                    notification: {
-                        title: apnsInitial.getTitle(),
-                        body: apnsInitial.getMessage(),
-                    },
-                    data: apnsInitial.getData() as Record<string, string>,
-                    sentTime: Date.now(),
-                } as FirebaseMessagingTypes.RemoteMessage;
+        // Cold start is exactly when the native push modules throw (uninitialized FCM on some
+        // OEM builds, a torn-down iOS bridge). A throw here must resolve to "no tap" rather than
+        // abort the tap routing the caller runs next — every sibling method already guards this way.
+        try {
+            if (Platform.OS === 'ios') {
+                const apnsInitial = await PushNotificationIOS.getInitialNotification();
+                if (apnsInitial) {
+                    // Normalize-map the APNs notification object into the standard FCM RemoteMessage shape
+                    return {
+                        notification: {
+                            title: apnsInitial.getTitle(),
+                            body: apnsInitial.getMessage(),
+                        },
+                        data: apnsInitial.getData() as Record<string, string>,
+                        sentTime: Date.now(),
+                    } as FirebaseMessagingTypes.RemoteMessage;
+                }
             }
-        }
 
-        return messaging().getInitialNotification();
+            return await messaging().getInitialNotification();
+        } catch (e) {
+            this.logger.error('NOTIFICATION', 'Get initial notification error.', e);
+            return null;
+        }
     }
 
     /**

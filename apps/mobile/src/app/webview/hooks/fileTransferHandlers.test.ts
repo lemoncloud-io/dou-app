@@ -212,6 +212,22 @@ describe('createFileTransferHandlers', () => {
                 error: { code: 'SOURCE', message: 'disk full' },
             });
         });
+
+        it('rejects an over-limit payload as TOO_LARGE without touching native', async () => {
+            // Just over the 64MB decoded cap (base64 inflates 4/3; +3 bytes to cross the quantum).
+            const big = 'A'.repeat(Math.ceil((64 * 1024 * 1024 + 3) / 3) * 4);
+
+            const reply = await handlers().handleWriteTempFile(
+                message('WriteTempFile', { base64: big, fileName: 'huge.jpg' })
+            );
+
+            expect(fileManager.writeTempFile).not.toHaveBeenCalled();
+            expect(reply).toEqual({
+                type: 'OnWriteTempFile',
+                success: false,
+                error: { code: 'TOO_LARGE', message: expect.any(String) },
+            });
+        });
     });
 
     describe('state events', () => {
