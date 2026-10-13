@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - root@0.90.2, @chatic/web@0.67.2
+
+### Bug Fixes
+
+- (web) leave a room I am not in by rewinding onto home, not by stacking a second home
+
 ## [2026-10-13] - No version updates
 
 ### Bug Fixes
