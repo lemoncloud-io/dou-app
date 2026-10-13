@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-13] - No version updates
+
+### Bug Fixes
+
+- (data) stop a first read from reaching a subscription that already ended
+
 ## [2026-10-12] - No version updates
 
 ### Bug Fixes
