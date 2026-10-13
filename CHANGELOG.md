@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-13] - root@0.96.0, @chatic/web@0.70.0
+
+### Features
+
+- (web) chip the mentions on a thread root, which has no bubble behind them
+- (web,desktop-web) write the everyone mention in the UI's language, not as @channel
+
 ## [2026-10-13] - No version updates
 
 ### Features
