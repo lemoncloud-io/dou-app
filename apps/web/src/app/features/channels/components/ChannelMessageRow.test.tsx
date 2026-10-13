@@ -929,4 +929,49 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         expect(avatarButton()).not.toBeInTheDocument();
         expect(screen.getByText('친구').tagName).toBe('SPAN');
     });
+    describe('a mention of the reader', () => {
+        const viewer = { ids: ['me-cloud', 'me'], tokens: ['@레인', '@channel'] };
+        const mentioning = (fields: Partial<ClientChatView>) =>
+            ({ ...message, content: '@레인 확인해 줘', ...fields }) as ClientChatView;
+        const highlighted = () => screen.queryByText('@레인', { selector: 'span' });
+
+        // The record decides, not the text: the sender picked me in their composer.
+        it('draws my name louder when the record names one of my ids', () => {
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={mentioning({ mention$: { userIds: ['me-cloud'] } })}
+                    mentionViewer={viewer}
+                />
+            );
+
+            expect(highlighted()).toHaveClass('bg-warning/30');
+        });
+
+        it('draws nothing when the text names me but the record does not', () => {
+            render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
+
+            expect(highlighted()).not.toBeInTheDocument();
+            expect(screen.getByText('@레인 확인해 줘')).toBeInTheDocument();
+        });
+
+        // My own message does not call me out, and the highlight would not read on my dark bubble.
+        it('draws nothing on my own message, even one calling everyone', () => {
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={mentioning({ isOwner: true, mention$: { all: true } })}
+                    mentionViewer={viewer}
+                />
+            );
+
+            expect(highlighted()).not.toBeInTheDocument();
+        });
+
+        it('draws nothing when the row is not told who is reading', () => {
+            render(<ChannelMessageRow {...baseProps} message={mentioning({ mention$: { all: true } })} />);
+
+            expect(highlighted()).not.toBeInTheDocument();
+        });
+    });
 });

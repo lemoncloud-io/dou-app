@@ -6,7 +6,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
+import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useActivePlaceName } from '../../../hooks';
@@ -18,6 +18,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { JoinNickDialog } from '../components/JoinNickDialog';
+import { NotifyModeSheet } from '../components/NotifyModeSheet';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import {
     useChannel,
@@ -38,6 +39,7 @@ import {
     removalActionFor,
     resolveChannelAvatar,
 } from '../lib';
+import { NOTIFY_LEVEL_LABEL_KEY, type NotifyLevel, notifyLevelOf, notifyLevelsFor } from '../utils/notifyLevel';
 import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
 import { getRoomDistance } from '../utils/roomDistance';
@@ -74,8 +76,8 @@ export const ChannelSettingsPage = () => {
     const { channel, isError } = useChannel(channelId ?? null);
     const activePlaceName = useActivePlaceName();
 
-    // One join subscription for the screen: the member rows' read-state and my own row (the notify
-    // toggle, my nick) are two readings of the same cache list — see useChannelJoins.
+    // One join subscription for the screen: the member rows' read-state and my own row (the
+    // notification level, my nick) are two readings of the same cache list — see useChannelJoins.
     const { joins, myJoin } = useChannelJoins(channelId ?? null);
 
     const { members, isLoading: isMembersLoading } = useChannelMembers({
@@ -132,37 +134,43 @@ export const ChannelSettingsPage = () => {
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
     const { updateJoin } = useJoinMutations();
 
-    // Chat-notification toggle backed by join.update (ADR-0025). The mute state
-    // lives on my join row (`notify`), not the channel — so read it from the join
-    // cache stream, not the channel's embedded `$join` (a lagging projection).
-    // 'none' means muted, anything else means on. apps/web has no client-side
-    // notifier, so we trust the server value and keep a local optimistic mirror
-    // for instant feedback (updateJoin's optimistic write lands on the join cache
-    // too, so this reconciles from the same source).
-    const serverNotify = myJoin?.notify;
-    const [notifyEnabled, setNotifyEnabled] = useState(serverNotify !== 'none');
+    // Room notification level backed by join.update. The level lives on my join row (`notify`), not
+    // the channel — so read it from the join cache stream, not the channel's embedded `$join` (a
+    // lagging projection). apps/web has no client-side notifier, so we trust the server value and
+    // keep a local optimistic mirror for instant feedback (updateJoin's optimistic write lands on the
+    // join cache too, so this reconciles from the same source).
+    //
+    // The stereo is read inline because `isDmChat` is derived after the early returns below, and a
+    // 1:1 changes what a stored value means (see notifyLevelOf).
+    const serverNotifyLevel = notifyLevelOf(myJoin?.notify, channel?.stereo === 'dm');
+    const [notifyLevel, setNotifyLevel] = useState<NotifyLevel>(serverNotifyLevel);
+    const [isNotifySheetOpen, setIsNotifySheetOpen] = useState(false);
 
-    // Reconcile with the join stream once it hydrates (or changes from another
-    // device). myJoin is null on first render, so this seeds it too.
+    // Reconcile with the join stream once it hydrates (or changes from another device). myJoin is
+    // null on first render, so this seeds it too. Keyed on the derived level rather than the raw
+    // value so that the channel arriving after the join row still corrects a 1:1 stored as
+    // `mention`, which reads as a group's "Mentions only" until the stereo is known.
     useEffect(() => {
-        setNotifyEnabled(serverNotify !== 'none');
-    }, [serverNotify]);
+        setNotifyLevel(serverNotifyLevel);
+    }, [serverNotifyLevel]);
 
-    const handleNotifyChange = async (next: boolean) => {
-        if (!channelId) return;
+    const handleNotifySelect = async (next: NotifyLevel) => {
+        // Re-picking the level already shown is not a change; writing it anyway would also turn a
+        // 1:1's stored `mention` into `all` without the user having changed anything.
+        if (!channelId || next === notifyLevel) return;
 
-        const previous = notifyEnabled;
-        setNotifyEnabled(next); // optimistic — revert on failure below
+        const previous = notifyLevel;
+        setNotifyLevel(next); // optimistic — revert on failure below
         try {
             // ChannelUpdateJoinInput types only channelId/notify; the engine resolves
             // the join row from channelId + userId at write time, so pass userId via a cast.
             await updateJoin({
                 channelId,
                 userId: myJoin?.userId ?? userId,
-                notify: next ? 'all' : 'none',
+                notify: next,
             } as never);
         } catch (error) {
-            setNotifyEnabled(previous);
+            setNotifyLevel(previous);
             logger.error('CHAT', 'Failed to update room notification', { error, data: { channelId } });
             toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' });
         }
@@ -418,12 +426,14 @@ export const ChannelSettingsPage = () => {
                         <ListRow
                             title={t('chat.settings.roomNotification')}
                             trailing={
-                                <Switch
-                                    checked={notifyEnabled}
-                                    onCheckedChange={handleNotifyChange}
-                                    label={t('chat.settings.roomNotification')}
-                                />
+                                <span className="flex items-center gap-1">
+                                    <span className="text-[14px] text-description">
+                                        {t(NOTIFY_LEVEL_LABEL_KEY[notifyLevel])}
+                                    </span>
+                                    <IconChevronRight className="size-[18px] text-description" />
+                                </span>
                             }
+                            onClick={() => setIsNotifySheetOpen(true)}
                         />
 
                         {/* Room members */}
@@ -464,6 +474,13 @@ export const ChannelSettingsPage = () => {
             </div>
 
             {/* Dialogs */}
+            <NotifyModeSheet
+                open={isNotifySheetOpen}
+                onOpenChange={setIsNotifySheetOpen}
+                value={notifyLevel}
+                levels={notifyLevelsFor(isDmChat)}
+                onSelect={handleNotifySelect}
+            />
             <UpdateChannelDialog
                 open={activeDialog === 'update'}
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}

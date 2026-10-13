@@ -855,6 +855,11 @@
             "roomMembers": "Room Members",
             "roomSettingsGroup": "Chat Settings",
             "roomNotification": "Chat Notifications",
+            "notifyMode": {
+                "all": "All messages",
+                "mention": "Mentions only",
+                "none": "Off"
+            },
             "addFriend": "Add Friend",
             "badge": {
                 "owner": "Owner",
@@ -941,6 +946,12 @@
             "newReplyCount_one": "{{count}} new comment",
             "newReplyCount_other": "{{count}} new comments",
             "rootOutsideJoinWindow": "That message is from before you rejoined, so it isn't shown here. It is still on the other participant's screen."
+        },
+        "mention": {
+            "listLabel": "People to mention",
+            "everyone": "Everyone",
+            "everyoneHint": "Mention everyone in this chat",
+            "open": "Mention someone"
         },
         "unknownUser": "Unknown user",
         "me": "You",

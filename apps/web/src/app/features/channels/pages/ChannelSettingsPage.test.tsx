@@ -88,8 +88,9 @@ jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     },
 }));
 
-// web-ui-kit stubs — ListRow exposes onClick as a button so rows are clickable/queryable;
-// Switch forwards its controlled toggle so the notification state can be exercised.
+// web-ui-kit stubs — ListRow exposes onClick as a button so rows are clickable/queryable. The
+// notification sheet is the real NotifyModeSheet over these BottomSheet/SheetOption stubs: the sheet
+// renders only while open, and each option is a radio carrying its checked state and its pick.
 jest.mock('@chatic/web-ui-kit', () => ({
     ListRow: ({ title, leading, trailing, onClick, destructive }: any) => {
         const body = (
@@ -108,8 +109,15 @@ jest.mock('@chatic/web-ui-kit', () => ({
         );
     },
     GroupLabel: ({ label }: any) => <p>{label}</p>,
-    Switch: ({ checked, onCheckedChange, label }: any) => (
-        <button type="button" role="switch" aria-checked={checked} onClick={() => onCheckedChange?.(!checked)}>
+    IconChevronRight: () => <span data-testid="chevron" />,
+    BottomSheet: ({ open, title, children }: any) =>
+        open ? (
+            <div role="dialog" aria-label={title}>
+                {children}
+            </div>
+        ) : null,
+    SheetOption: ({ label, selected, onSelect }: any) => (
+        <button type="button" role="radio" aria-checked={!!selected} onClick={onSelect}>
             {label}
         </button>
     ),
@@ -203,7 +211,7 @@ const MEMBERS = {
 beforeEach(() => {
     jest.clearAllMocks();
     membersValue = MEMBERS;
-    myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → on
+    myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → All messages
     dmPeerValue = null;
     profileProps = undefined;
     placeCreateProps = undefined;
@@ -443,43 +451,148 @@ describe('ChannelSettingsPage', () => {
         expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite', { state: { roomDistance: 2 } });
     });
 
-    it('알림 토글 초기값: 내 join의 notify가 없으면 on, "none"이면 off로 파생된다', () => {
-        channelValue = OWNER_CHANNEL;
-        myJoinValue = { userId: 'me' }; // no notify → on
-        const { unmount } = render(<ChannelSettingsPage />);
-        expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
-        unmount();
+    // The per-room level lives on my join row (`notify`): a row showing the level, and a sheet to
+    // pick another. Groups offer three levels; a 1:1 offers two, because the server delivers a 1:1
+    // stored as `mention` exactly like `all`.
+    describe('room notification level', () => {
+        /** The notification row — the stub ListRow renders a tappable row as one button. */
+        const notifyRow = () => screen.getByText('chat.settings.roomNotification').closest('button') as HTMLElement;
+        const openSheet = () => fireEvent.click(notifyRow());
+        const optionLabels = () => screen.getAllByRole('radio').map(option => option.textContent);
+        const pick = async (level: string) => {
+            await act(async () => {
+                fireEvent.click(screen.getByRole('radio', { name: `chat.settings.notifyMode.${level}` }));
+            });
+        };
 
-        myJoinValue = { userId: 'me', notify: 'none' };
-        render(<ChannelSettingsPage />);
-        expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-    });
+        it.each([
+            [undefined, 'all'],
+            ['', 'all'],
+            ['all', 'all'],
+            ['mention', 'mention'],
+            ['none', 'none'],
+        ])('shows a stored notify of %p as the %s label in a group', (notify, level) => {
+            channelValue = OWNER_CHANNEL;
+            myJoinValue = { userId: 'me', notify };
+            render(<ChannelSettingsPage />);
 
-    it('알림 토글을 끄면 updateJoin이 notify="none"으로 호출된다', async () => {
-        channelValue = OWNER_CHANNEL;
-        render(<ChannelSettingsPage />);
-
-        await act(async () => {
-            fireEvent.click(screen.getByRole('switch'));
+            expect(notifyRow()).toHaveTextContent(`chat.settings.notifyMode.${level}`);
+            expect(notifyRow()).toContainElement(screen.getByTestId('chevron'));
         });
 
-        expect(updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', userId: 'me', notify: 'none' });
-        expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-    });
+        it('opens a sheet with all three levels in a group, the current one checked', () => {
+            channelValue = OWNER_CHANNEL;
+            myJoinValue = { userId: 'me', notify: 'mention' };
+            render(<ChannelSettingsPage />);
 
-    it('updateJoin 실패 시 토글을 원복하고 실패 toast를 띄운다', async () => {
-        updateJoin.mockRejectedValueOnce(new Error('boom'));
-        channelValue = OWNER_CHANNEL;
-        render(<ChannelSettingsPage />);
+            expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+            openSheet();
 
-        await act(async () => {
-            fireEvent.click(screen.getByRole('switch'));
+            expect(screen.getByRole('radiogroup', { name: 'chat.settings.roomNotification' })).toBeInTheDocument();
+            expect(optionLabels()).toEqual([
+                'chat.settings.notifyMode.all',
+                'chat.settings.notifyMode.mention',
+                'chat.settings.notifyMode.none',
+            ]);
+            expect(screen.getByRole('radio', { name: 'chat.settings.notifyMode.mention' })).toHaveAttribute(
+                'aria-checked',
+                'true'
+            );
         });
 
-        await waitFor(() => expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true'));
-        expect(toast).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
-        );
+        // Shown as what the server does with it, and offered without the level that would mean the
+        // same thing — but opening the screen must not rewrite what is stored.
+        it('shows a 1:1 stored as mention as All messages and offers only two levels', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            myJoinValue = { userId: 'me', notify: 'mention' };
+            render(<ChannelSettingsPage />);
+
+            expect(notifyRow()).toHaveTextContent('chat.settings.notifyMode.all');
+            openSheet();
+
+            expect(optionLabels()).toEqual(['chat.settings.notifyMode.all', 'chat.settings.notifyMode.none']);
+            expect(screen.getByRole('radio', { name: 'chat.settings.notifyMode.all' })).toHaveAttribute(
+                'aria-checked',
+                'true'
+            );
+            expect(updateJoin).not.toHaveBeenCalled();
+        });
+
+        // The join row can land before the channel does; until the stereo is known a 1:1's `mention`
+        // reads as a group's, and the arriving channel has to correct it.
+        it('corrects a 1:1 stored as mention once the channel arrives after the join row', () => {
+            channelValue = { channel: undefined, isError: false };
+            myJoinValue = { userId: 'me', notify: 'mention' };
+            const { rerender } = render(<ChannelSettingsPage />);
+            expect(notifyRow()).toHaveTextContent('chat.settings.notifyMode.mention');
+
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            rerender(<ChannelSettingsPage />);
+
+            expect(notifyRow()).toHaveTextContent('chat.settings.notifyMode.all');
+        });
+
+        it.each(['mention', 'none'])('writes exactly the picked level (%s) and closes the sheet', async level => {
+            channelValue = OWNER_CHANNEL;
+            render(<ChannelSettingsPage />);
+
+            openSheet();
+            await pick(level);
+
+            expect(updateJoin).toHaveBeenCalledTimes(1);
+            expect(updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', userId: 'me', notify: level });
+            expect(notifyRow()).toHaveTextContent(`chat.settings.notifyMode.${level}`);
+            expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+        });
+
+        it('writes nothing when the level already shown is picked again', async () => {
+            channelValue = OWNER_CHANNEL;
+            myJoinValue = { userId: 'me', notify: 'mention' };
+            render(<ChannelSettingsPage />);
+
+            openSheet();
+            await pick('mention');
+
+            expect(updateJoin).not.toHaveBeenCalled();
+            expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+        });
+
+        // Re-picking "All messages" in a 1:1 stored as `mention` is not a change either — writing it
+        // would rewrite the stored value behind the user's back.
+        it('writes nothing when a 1:1 stored as mention re-picks All messages', async () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            myJoinValue = { userId: 'me', notify: 'mention' };
+            render(<ChannelSettingsPage />);
+
+            openSheet();
+            await pick('all');
+
+            expect(updateJoin).not.toHaveBeenCalled();
+        });
+
+        it('reverts the shown level and toasts when the write fails', async () => {
+            updateJoin.mockRejectedValueOnce(new Error('boom'));
+            channelValue = OWNER_CHANNEL;
+            render(<ChannelSettingsPage />);
+
+            openSheet();
+            await pick('none');
+
+            await waitFor(() => expect(notifyRow()).toHaveTextContent('chat.settings.notifyMode.all'));
+            expect(toast).toHaveBeenCalledWith(
+                expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
+            );
+        });
+
+        it('draws no notification row in a self chat', () => {
+            channelValue = SELF_CHANNEL;
+            render(<ChannelSettingsPage />);
+
+            expect(screen.queryByText('chat.settings.roomNotification')).not.toBeInTheDocument();
+        });
     });
 
     it('멤버 항목을 탭하면 프로필이 열리고, 소유자가 일반 멤버를 볼 때 canKick=true', () => {

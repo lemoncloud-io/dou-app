@@ -11,6 +11,7 @@ import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
 import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { mentionWordsFor, type MentionViewer } from '../utils/mentionHighlight';
 import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 import { MessageAttachment } from './MessageAttachment';
@@ -90,6 +91,11 @@ export interface ChannelMessageRowProps {
      * from. Absent leaves both inert.
      */
     onOpenProfile?: (sender: MessageSender) => void;
+    /**
+     * Who is reading, for drawing a mention of them. Absent draws no mention at all — a surface that
+     * does not know its reader cannot tell a mention of them from one of anybody else.
+     */
+    mentionViewer?: MentionViewer;
 }
 
 /**
@@ -144,9 +150,11 @@ export const ChannelMessageRow = ({
     onOpenThread,
     edit,
     onOpenProfile,
+    mentionViewer,
 }: ChannelMessageRowProps) => {
     const { t } = useTranslation();
     const mine = message.isOwner;
+    const mentionTokens = mentionWordsFor(message, mentionViewer);
     const content = message.content ?? '';
     // A message another client soft-deleted. The row keeps its place — vanishing mid-read
     // leaves no account of what happened — but nothing of the original survives on screen:
@@ -551,6 +559,7 @@ export const ChannelMessageRow = ({
                                                     renderCodeBlock={(code, lang) => (
                                                         <MessageCodeBlock code={code} lang={lang} />
                                                     )}
+                                                    mentions={mentionTokens}
                                                 />
                                                 {isLong && '...'}
                                             </>

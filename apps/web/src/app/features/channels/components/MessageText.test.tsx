@@ -70,4 +70,30 @@ describe('MessageText', () => {
 
         expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.com/very/long/pa');
     });
+    describe('mentions of me', () => {
+        const mentionSpans = (container: HTMLElement) =>
+            Array.from(container.querySelectorAll('span')).map(span => span.textContent);
+
+        it('draws the given words louder and leaves the rest as text', () => {
+            const { container } = render(<MessageText text="hi @레인 and @channel" mentions={['@레인', '@channel']} />);
+
+            expect(mentionSpans(container)).toEqual(['@레인', '@channel']);
+            expect(container).toHaveTextContent('hi @레인 and @channel');
+        });
+
+        // A name inside a link or a code span belongs to that link or that code.
+        it('does not mark a word inside a link or a code span', () => {
+            const { container } = render(
+                <MessageText text="`@레인` https://x.test/@레인 @레인" mentions={['@레인']} />
+            );
+
+            expect(mentionSpans(container)).toEqual(['@레인']);
+        });
+
+        it('marks nothing without words to mark', () => {
+            const { container } = render(<MessageText text="hi @레인" />);
+
+            expect(container.querySelectorAll('span')).toHaveLength(0);
+        });
+    });
 });

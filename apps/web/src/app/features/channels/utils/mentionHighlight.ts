@@ -1,0 +1,92 @@
+import { isMentioningViewer, type DomainChat } from '@chatic/data';
+
+import { escapeRegExp, EVERYONE_ALIASES } from './mentionInput';
+
+/**
+ * The words a message that mentions me is highlighted on.
+ *
+ * Whether a message mentions me is never decided here — that is the message's mention record
+ * (`isMentioningViewer`), which the sender's composer filled. This only says which words of an
+ * already-matching message to draw louder: my names as other people would have written them, and the
+ * words that call everyone.
+ */
+
+/** The words readers treat as calling everyone in the room — the composer's everyone row answers them. */
+export const GROUP_MENTION_TOKENS: readonly string[] = EVERYONE_ALIASES.map(word => `@${word}`);
+
+/**
+ * `@` + each of my names, then the everyone words. My names are every name a sender's list could
+ * have shown me under — my place nick, my nick, my account name — since the text holds whichever
+ * one the sender saw.
+ */
+export const selfMentionTokens = (names: ReadonlyArray<string | null | undefined>): string[] => {
+    const own = [...new Set(names.map(name => name?.trim()).filter((name): name is string => !!name))];
+    return [...own.map(name => `@${name}`), ...GROUP_MENTION_TOKENS];
+};
+
+/** One run of a message's text, and whether it is a highlighted mention word. */
+export interface MentionRun {
+    value: string;
+    mention: boolean;
+}
+
+/**
+ * Splits plain text into runs, marking each whole-word, case-insensitive occurrence of a token.
+ *
+ * A token counts only at the start of the text or after whitespace, and not when a Latin letter, a
+ * digit, `_` or `-` follows (`@Min` is not marked inside `@Minsu` or `@Min-jun`, nor inside `ops@Min`)
+ * — the same rule the composer counts a pick by, so a Korean particle after the name (`@레인님`) still
+ * marks it. The whitespace before it is kept in the run in front. No lookbehind: older WebKit, which
+ * some shells still run, rejects the pattern.
+ */
+export const splitMentionRuns = (text: string, tokens: readonly string[]): MentionRun[] => {
+    const words = [...new Set(tokens.filter(Boolean))].sort((a, b) => b.length - a.length).map(escapeRegExp);
+    if (!text || words.length === 0) return text ? [{ value: text, mention: false }] : [];
+
+    const pattern = new RegExp(`(^|\\s)(${words.join('|')})(?![A-Za-z0-9_-])`, 'giu');
+    const runs: MentionRun[] = [];
+    let cursor = 0;
+    for (const match of text.matchAll(pattern)) {
+        const lead = match[1];
+        const start = (match.index ?? 0) + lead.length;
+        if (start > cursor) runs.push({ value: text.slice(cursor, start), mention: false });
+        runs.push({ value: match[2], mention: true });
+        cursor = start + match[2].length;
+    }
+    if (cursor < text.length) runs.push({ value: text.slice(cursor), mention: false });
+    return runs;
+};
+
+interface MentionViewerSources {
+    /** My uid in the room's cloud — the id space of the room's member list, and of a mention record. */
+    roomUid: string | null | undefined;
+    /** The account's uid, which the room's cloud may not use. */
+    sessionUid: string | null | undefined;
+    /** My names in the room: the place profile's nick, then the member row's nick and name. */
+    names: ReadonlyArray<string | null | undefined>;
+}
+
+/** Me, as a row needs me to tell a mention of me: every id I go by here, and the words I am called. */
+export const mentionViewerOf = ({ roomUid, sessionUid, names }: MentionViewerSources): MentionViewer => ({
+    ids: [...new Set([roomUid, sessionUid].filter((id): id is string => !!id))],
+    tokens: selfMentionTokens(names),
+});
+
+/** Me as a mention needs me — what `mentionViewerOf` builds. */
+export interface MentionViewer {
+    ids: readonly string[];
+    tokens: readonly string[];
+}
+
+/**
+ * The words to draw louder in a message, or nothing.
+ *
+ * Whether the message calls me is its record, never its text. My own message is never drawn as a
+ * mention, even one calling everyone: it does not call me out, and on my dark bubble the highlight
+ * would not read.
+ */
+export const mentionWordsFor = (
+    message: Pick<DomainChat, 'mention$'> & { isOwner?: boolean },
+    viewer: MentionViewer | undefined
+): readonly string[] | undefined =>
+    viewer && !message.isOwner && isMentioningViewer(message, viewer.ids) ? viewer.tokens : undefined;

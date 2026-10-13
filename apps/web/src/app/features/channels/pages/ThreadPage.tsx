@@ -14,6 +14,11 @@ import { ChannelMessageRow, type MessageSender } from '../components/ChannelMess
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useComposerDraft } from '../hooks/useComposerDraft';
+import { useMentionComposer } from '../hooks/useMentionComposer';
+import { MentionButton } from '../components/MentionButton';
+import { MentionSuggestions } from '../components/MentionSuggestions';
+import { mentionViewerOf, mentionWordsFor } from '../utils/mentionHighlight';
+import { buildMentionCandidates } from '../utils/mentionInput';
 import { useSendImages } from '../hooks/useSendImages';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ReactionChips } from '../components/ReactionChips';
@@ -34,7 +39,7 @@ import {
     useChats,
     useReactions,
 } from '../hooks';
-import { profilePlaceOf } from '../lib';
+import { channelKindOf, profilePlaceOf } from '../lib';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
@@ -102,6 +107,9 @@ export const ThreadPage = () => {
     const [profileOpen, setProfileOpen] = useState(false);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    // The mention composer's way to put back the picks of a caption that came back unsent. The attach
+    // flow is set up before the composer is, so it reaches the composer through this ref.
+    const restoreCaptionPicksRef = useRef<(() => void) | null>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const {
         headerRef,
@@ -193,7 +201,10 @@ export const ThreadPage = () => {
         // below does once the composer has settled.
         onComposerSlide: sliding => followComposer(sliding ? height => clearComposer(listRef.current, height) : null),
         // Same as the room: a caption whose photos all failed the check comes back to an empty field.
-        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
+        onUnsentText: text => {
+            setContent(current => (current.trim() ? current : text));
+            restoreCaptionPicksRef.current?.();
+        },
     });
     // Reactions fold from the UNFILTERED window — the events are hidden rows in it.
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
@@ -228,6 +239,42 @@ export const ThreadPage = () => {
         [profileMap, memberById]
     );
 
+    // The room's `@` lookup, on the room's terms: a group room's alone, the same rows the room offers.
+    const isGroupChat = !!channel && channelKindOf(channel.stereo) === 'group';
+    const mentionCandidates = useMemo(
+        () =>
+            isGroupChat
+                ? buildMentionCandidates({
+                      memberIds: activeMemberIds,
+                      me: userId,
+                      nameOf: nameOfUser,
+                      avatarOf: avatarOfUser,
+                      unknownLabel: t('chat.unknownUser'),
+                      everyoneKeyword: t('chat.mention.everyone'),
+                  })
+                : [],
+        [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
+    );
+    const mentionComposer = useMentionComposer({
+        enabled: isGroupChat,
+        candidates: mentionCandidates,
+        content,
+        setContent,
+        inputRef,
+        scope: draftScope,
+    });
+    useEffect(() => {
+        restoreCaptionPicksRef.current = mentionComposer.restoreClearedPicks;
+    }, [mentionComposer.restoreClearedPicks]);
+
+    // Me as a mention needs me — the room's rule: both of my ids, and every name I could be written by.
+    const { userId: sessionUid } = runtime.session.useSessionIdentity();
+    const mentionViewer = useMemo(() => {
+        const me = userId ? memberById.get(userId) : undefined;
+        const names = [userId ? profileMap.get(userId)?.nick : undefined, me?.nick, me?.name];
+        return mentionViewerOf({ roomUid: userId, sessionUid, names });
+    }, [userId, sessionUid, memberById, profileMap]);
+
     const toClientView = useMemo(
         () =>
             (chat: DomainChat): ClientChatView => ({
@@ -261,19 +308,28 @@ export const ThreadPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Read at the press, and forgotten only once something is sent — see the room's handleSend.
+        const mention = mentionComposer.mentionFor(trimmed);
         // Photos picked in the attach panel take the press, with the text as their caption — see the
         // room's handleSend. The panel only opens once the root is loaded, so they reply to it.
-        if (attach.sendReady && attach.sendPicked(trimmed)) {
+        if (attach.sendReady && attach.sendPicked(trimmed, mention)) {
+            mentionComposer.clearPicks();
             setContent('');
             return;
         }
         // No root, no reply — the send needs the root's full id (bare chatNo 404s).
         if (!trimmed || !stableChannelId || !thread.root?.id) return;
 
+        mentionComposer.clearPicks();
         setContent('');
         // The reply belongs to the root's cloud, read at the press — see the room's handleSend.
         const cid = toCloudId(thread.root.cid || threadCid);
-        sendMessage(cid, { channelId: stableChannelId, content: trimmed, parentId: thread.root.id })
+        sendMessage(cid, {
+            channelId: stableChannelId,
+            content: trimmed,
+            parentId: thread.root.id,
+            ...(mention ? { mention } : {}),
+        })
             .then(newChat => {
                 // Replies consume channel chatNos; advance the read cursor like a room send.
                 if (newChat?.chatNo) void readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo });
@@ -422,7 +478,10 @@ export const ThreadPage = () => {
                     ) : (
                         hasMessageText(message) && (
                             <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
-                                <MessageText text={messagePlainText(message.content)} />
+                                <MessageText
+                                    text={messagePlainText(message.content)}
+                                    mentions={mentionWordsFor(message, mentionViewer)}
+                                />
                             </p>
                         )
                     )}
@@ -449,6 +508,7 @@ export const ThreadPage = () => {
         <ChannelMessageRow
             key={message.id}
             message={message}
+            mentionViewer={mentionViewer}
             showProfileAndName={!message.isOwner}
             showTimeAndStatus
             ownerDisplayName={message.ownerName}
@@ -563,9 +623,11 @@ export const ThreadPage = () => {
             >
                 {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
                 {attach.strip}
+                {/* The room's rule: the `@` list right above the field, inside the measured bar. */}
+                <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
                 <MessageInput
                     value={content}
-                    onChange={setContent}
+                    onChange={mentionComposer.onChange}
                     onSend={handleSend}
                     sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
@@ -575,7 +637,18 @@ export const ThreadPage = () => {
                     // is outside my window: a reply needs the root's full id, so `handleSend`
                     // would drop what was typed without saying anything.
                     disabled={editing.isEditing || rootOutsideJoinWindow}
-                    leadingSlot={attach.button}
+                    leadingSlot={
+                        <>
+                            {attach.button}
+                            {isGroupChat && (
+                                <MentionButton
+                                    open={mentionComposer.suggestions.length > 0}
+                                    onClick={mentionComposer.openList}
+                                    disabled={editing.isEditing || rootOutsideJoinWindow}
+                                />
+                            )}
+                        </>
+                    }
                 />
             </div>
             {attach.overlays}

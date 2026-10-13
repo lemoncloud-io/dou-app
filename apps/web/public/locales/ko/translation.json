@@ -855,6 +855,11 @@
             "roomMembers": "방 친구",
             "roomSettingsGroup": "대화방 설정",
             "roomNotification": "대화방 알림",
+            "notifyMode": {
+                "all": "모든 메시지",
+                "mention": "멘션만",
+                "none": "끔"
+            },
             "addFriend": "친구 추가",
             "badge": {
                 "owner": "방장",
@@ -941,6 +946,12 @@
             "newReplyCount_one": "새 댓글 {{count}}개",
             "newReplyCount_other": "새 댓글 {{count}}개",
             "rootOutsideJoinWindow": "다시 참여하기 전의 메시지라 볼 수 없어요. 상대방 화면에는 그대로 남아 있습니다."
+        },
+        "mention": {
+            "listLabel": "멘션할 사람",
+            "everyone": "모두에게",
+            "everyoneHint": "대화방의 모든 사람을 불러요",
+            "open": "멘션할 사람 고르기"
         },
         "unknownUser": "알 수 없는 사용자",
         "me": "나",

@@ -1,7 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 
+import { MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
 import { CodeBlock, InlineCode } from '@chatic/web-ui-kit';
 
+import { splitMentionRuns } from '../utils/mentionHighlight';
 import { tokenizeMessage } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
@@ -19,7 +21,33 @@ export interface MessageTextProps {
      * a copy affordance would be redundant (the expand dialog), leaving the block read-only.
      */
     renderCodeBlock?: (code: string, lang: string | undefined, key: number) => ReactNode;
+    /**
+     * Words to draw as a mention of me — given only for a message that mentions me. Marked in plain
+     * text alone: a name inside a link or a code span is part of that link or that code.
+     */
+    mentions?: readonly string[];
 }
+
+/**
+ * Plain text, with the words that call me drawn in the self-mention highlight the desktop's message view
+ * uses (`MSG_MENTION_SELF_CLASS`, from `@chatic/block-kit`).
+ */
+const PlainText = ({ value, mentions }: { value: string; mentions?: readonly string[] }) => {
+    if (!mentions?.length) return <>{value}</>;
+    return (
+        <>
+            {splitMentionRuns(value, mentions).map((run, index) =>
+                run.mention ? (
+                    <span key={index} className={MSG_MENTION_SELF_CLASS}>
+                        {run.value}
+                    </span>
+                ) : (
+                    <Fragment key={index}>{run.value}</Fragment>
+                )
+            )}
+        </>
+    );
+};
 
 /**
  * Message body — plain text, tappable URLs, and code.
@@ -31,7 +59,13 @@ export interface MessageTextProps {
  * Which runs are code is decided by `tokenizeMessage`, which resolves code before URLs — so a link
  * inside a code span renders as literal text here without this component knowing why.
  */
-export const MessageText = ({ text, truncated, onUrlClick = openExternalUrl, renderCodeBlock }: MessageTextProps) => (
+export const MessageText = ({
+    text,
+    truncated,
+    onUrlClick = openExternalUrl,
+    renderCodeBlock,
+    mentions,
+}: MessageTextProps) => (
     <>
         {tokenizeMessage(text, { truncated }).map((token, index) => {
             if (token.type === 'url') {
@@ -61,7 +95,7 @@ export const MessageText = ({ text, truncated, onUrlClick = openExternalUrl, ren
                     <CodeBlock key={index} code={token.value} lang={token.lang} />
                 );
             }
-            return <Fragment key={index}>{token.value}</Fragment>;
+            return <PlainText key={index} value={token.value} mentions={mentions} />;
         })}
     </>
 );

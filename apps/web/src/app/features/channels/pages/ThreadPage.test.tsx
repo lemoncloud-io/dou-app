@@ -9,6 +9,9 @@ let mockChats: DomainChat[] = [];
 let mockIsLoading = false;
 let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' };
 let mockMyJoin: { joinedNo?: number } | null = null;
+// The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
+let mockActiveMemberIds: string[] = [];
+let mockMembers: { id: string; name?: string }[] = [];
 let mockChatParams: unknown = null;
 let mockHasMore = false;
 let mockCanLoadMore = true;
@@ -49,9 +52,10 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady }: any) => (
+    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady, leadingSlot }: any) => (
         <div data-testid="composer" data-disabled={String(!!disabled)}>
             {placeholder}
+            {leadingSlot}
             <textarea
                 data-testid="composer-input"
                 ref={inputRef}
@@ -59,6 +63,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
                 onChange={e => onChange(e.target.value)}
             />
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend?.('hello')} />
+            {/* Sends what is in the field, for the cases where the text itself is what is checked. */}
+            <button data-testid="send-typed" onClick={() => onSend?.(value)} />
         </div>
     ),
     ImageAvatar: ({ src }: any) => <img data-testid="root-avatar" src={src} alt="" />,
@@ -131,8 +137,8 @@ jest.mock('../components/ChatImageAttach', () => ({
 // The barrel is mocked to keep `@chatic/assets` out of jest; `profilePlaceOf` is a pure rule, so
 // the real one is used rather than a stub that could disagree with it.
 jest.mock('../lib', () => ({
+    ...jest.requireActual('../lib/channelStereoPolicy'),
     resolveChannelAvatar: () => ({ src: undefined }),
-    profilePlaceOf: jest.requireActual('../lib/channelStereoPolicy').profilePlaceOf,
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
 const mockFollowFooter = jest.fn();
@@ -148,8 +154,13 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
     // The room and the thread are two screens of the same channel, so they share the same single join observation.
-    useChannelJoins: () => ({ joins: [], myJoin: mockMyJoin, activeMemberIds: [], cursorByUser: new Map() }),
-    useChannelMembers: () => ({ members: [] }),
+    useChannelJoins: () => ({
+        joins: [],
+        myJoin: mockMyJoin,
+        activeMemberIds: mockActiveMemberIds,
+        cursorByUser: new Map(),
+    }),
+    useChannelMembers: () => ({ members: mockMembers }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => '개발 모임방',
     useChatMutations: () => ({ sendMessage: mockSendMessage, readMessage: jest.fn() }),
@@ -207,6 +218,8 @@ beforeEach(() => {
     mockIsLoading = false;
     mockChannel = { id: 'ch1', stereo: 'group' };
     mockMyJoin = null;
+    mockActiveMemberIds = [];
+    mockMembers = [];
     mockChatParams = null;
     mockHasMore = false;
     mockCanLoadMore = true;
@@ -488,7 +501,7 @@ describe('ThreadPage — photos from the attach panel', () => {
         expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
         fireEvent.click(screen.getByTestId('send'));
 
-        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(mockSendMessage).not.toHaveBeenCalled();
         expect(field().value).toBe('');
     });
@@ -501,7 +514,7 @@ describe('ThreadPage — photos from the attach panel', () => {
 
         fireEvent.click(screen.getByTestId('send'));
 
-        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(mockSendMessage).not.toHaveBeenCalled();
         expect(field().value).toBe('');
     });
@@ -568,6 +581,64 @@ describe('ThreadPage — photos from the attach panel', () => {
         act(() => mockAttachInputs.at(-1)?.onUnsentText?.('caption'));
 
         expect(field().value).toBe('caption');
+    });
+});
+
+describe('ThreadPage — mentions', () => {
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+
+    // The room's lookup, in its thread: the picked member goes with the reply, under the root.
+    it('sends the member picked from the list with the reply', async () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-a' })];
+        mockActiveMemberIds = ['peer', 'me'];
+        mockMembers = [
+            { id: 'peer', name: 'Minsu' },
+            { id: 'me', name: 'Me' },
+        ];
+        render(<ThreadPage />);
+
+        fireEvent.change(field(), { target: { value: '@mi' } });
+        fireEvent.click(screen.getByRole('option', { name: 'Minsu' }));
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('send-typed'));
+        });
+
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-a', {
+            channelId: 'ch1',
+            content: '@Minsu',
+            parentId: 'ch1:7',
+            mention: { userIds: ['peer'] },
+        });
+    });
+
+    it('opens the list from the @ button too', () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-a' })];
+        mockActiveMemberIds = ['peer', 'me'];
+        mockMembers = [
+            { id: 'peer', name: 'Minsu' },
+            { id: 'me', name: 'Me' },
+        ];
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'chat.mention.open' }));
+
+        expect(field().value).toBe('@');
+        expect(screen.getByRole('option', { name: 'Minsu' })).toBeInTheDocument();
+    });
+
+    it('offers no list in a 1:1 thread, and no button for one', () => {
+        mockChannel = { id: 'ch1', stereo: 'dm', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-a' })];
+        mockActiveMemberIds = ['peer', 'me'];
+        mockMembers = [{ id: 'peer', name: 'Minsu' }];
+        render(<ThreadPage />);
+
+        fireEvent.change(field(), { target: { value: '@' } });
+
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'chat.mention.open' })).not.toBeInTheDocument();
     });
 });
 
@@ -745,7 +816,7 @@ describe('ThreadPage — the composer draft', () => {
 
         fireEvent.click(screen.getByTestId('send'));
 
-        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(drafts()).toEqual({});
     });
 });

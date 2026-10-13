@@ -178,6 +178,21 @@ edit, so it opens only once persisted, when a reaction, a thread and delete appl
 sheet are all withheld; the sheet especially, since Copy would hand the deleted text back.
 `apps/web` can render a tombstone and cannot create one.
 
+**A mention of me.** A message calls me when its `mention$` names one of my ids — my uid in the room's
+cloud, or the account's — or calls everyone (`isMentioningViewer`, from `@chatic/data`). The text is
+never read to decide it: the record is what the sender picked in their composer, filtered to the
+room's members by the server, so an `@name` typed by hand or an e-mail address (`ops@here.io`) calls
+nobody. When such a message is not mine, the row hands
+[`MessageText`](../../../src/app/features/channels/components/MessageText.tsx) my names and the everyone
+words (`@channel`, `@here`, `@everyone`, from
+[`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts)), and it
+draws them with `MSG_MENTION_SELF_CLASS`, the self-mention highlight the desktop's message view uses
+(defined in `@chatic/block-kit`). They are marked in plain text only, never inside a link or a code
+span, by the rule the composer counts a pick by (below), so `@레인님` marks `@레인`. My names are every name a sender's list
+could have shown me under — my place nick, my nick, my account name — since the text holds whichever
+one they saw. My own message is never highlighted, even one calling everyone: it does not call me out,
+and the highlight would not read on my dark bubble. A thread's root follows the same rule.
+
 ## Opening a person
 
 A sender's avatar and the name above it open that person's profile full-screen. This is
@@ -269,7 +284,8 @@ and linkifying their text widens it.
 [`messageTokens.ts`](../../../src/app/features/channels/utils/messageTokens.ts) splits a body into
 four token kinds: `text`, `url`, `code` (inline backticks) and `codeBlock` (triple-backtick fences).
 Bold, italics, headings, lists, quotes and link syntax stay literal. Widening that set is a product
-decision, not a refactor.
+decision, not a refactor. An `@name` is text too; the one thing drawn on top of it is the highlight of
+a mention of me (see [A message row](#a-message-row)), which only marks words inside `text` tokens.
 
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched
@@ -310,6 +326,66 @@ primary pointer is not `(hover: hover) and (pointer: fine)`.
 
 The composer is disabled outright when the DM peer is gone — see
 [dm-and-self-chat.md](./dm-and-self-chat.md).
+
+### Mentions
+
+A group room's composer looks people up as `@` is typed —
+[`useMentionComposer`](../../../src/app/features/channels/hooks/useMentionComposer.ts) holds the state,
+[`MentionSuggestions`](../../../src/app/features/channels/components/MentionSuggestions.tsx) draws the
+list, [`MentionButton`](../../../src/app/features/channels/components/MentionButton.tsx) is the `@`
+button, and [`utils/mentionInput.ts`](../../../src/app/features/channels/utils/mentionInput.ts) holds
+the rules. The room and the thread wire it the same way.
+
+- **An `@` at the start of the text or after whitespace opens the list**, so an e-mail address does
+  not. What follows it, up to the caret, filters the rows (case-insensitive, anywhere in the name); a
+  space closes it, so a name with a space in it is found by its first word. A lone Hangul consonant or
+  vowel at the end is left out of the filter: each syllable starts as one (`@민ㅅ` on the way to
+  `@민수`), and matching it would empty the list at every other keystroke.
+- **The `@` button opens the same list.** It sits beside the attach button, in group rooms only, for
+  the person who would rather tap a name than type the start of one. It writes an `@` at the caret —
+  apart from the word before it, which would otherwise make it an e-mail — or at the end of the text
+  when the field has no focus, focuses the field, and opens the list. With the caret already in an
+  `@` word it reopens that one instead of writing another. Its press keeps the field's caret and
+  keyboard, as every press on the composer's chrome does.
+- **The list follows the caret, not only the typing.** A tap or an arrow key that moves the caret into
+  an `@` word opens it and out of one closes it; leaving the field closes it. A pick is worked out
+  again from where the caret is at the tap, and replaces the whole `@` word the caret is in, so a pick
+  in `@Mi|nsu` leaves no `nsu` behind.
+- **The list sits inside the composer bar, right above the field**, not in a sheet: a sheet would take
+  the keyboard away while the name is still being typed. Inside the bar it rides up with the keyboard
+  and the message list clears it by the bar's measured height, as it clears the picked-photo strip.
+  Its rows cancel `mousedown`, so a tap keeps the field focused (in WebKit the focus moves there), and
+  `pointerdown` for a mouse only: on touch, cancelling it would stop the list panning. The thread's bar
+  does not cancel them itself.
+- **The rows** are "Everyone" first, which writes `@channel`, then the room's active members other than
+  me, by the name every row in the room draws them by, sorted by that name. A member with no name yet
+  is left out: there is nothing to write.
+- **A pick writes `@name ` and remembers who it means.** At the send, the picks whose `@name` is still
+  in the text go with the message as `mention: { userIds, all }`; a name deleted before the send, and
+  an `@name` typed by hand, call nobody. No pick left means no `mention` field at all. The server keeps
+  what was picked, filtered to the room's members, as the message's `mention$` — the record a reader's
+  phone is notified by when they set the room to "Mentions only" (see
+  [channel-settings.md](./channel-settings.md)), and the one the row reads above.
+- **A name is still in the text** when it follows an `@` that starts a word and does not run on into
+  more of a name: a Latin letter, a digit, `_` or `-` after it runs it on (`@Min` is not in `@Minsu` or
+  `@Min-jun`), anything else ends it — a Korean particle or honorific (`@민수님`, `@민수가`) or
+  punctuation. Where one name in the room starts another (`민`, `민수`), the longest one the text holds
+  is the one it names, so `@민수` never counts as a pick of `민`.
+- **A press reads the picks; only a send forgets them.** A press that sends nothing leaves them in
+  place, and a caption that comes back to the field because its photos were all refused gets its picks
+  back with it.
+- **Not yet end to end.** Until the socket service forwards `mention` on `chat.send`, the field stops
+  there: the message is delivered and calls nobody. The desktop's composer does not send it yet either,
+  so a mention written on the desktop calls nobody on the phone. Nothing here changes when either
+  starts.
+- **Not in a 1:1 or a self chat.** A 1:1 notifies every message whatever its level, and has one person
+  to call; a self chat has nobody.
+- **A caption carries the mention** like the text: photos sent with the field's text take it on the one
+  message that carries the text (`sendPicked(text, mention)`). A failed send keeps it on its row, so a
+  retry sends it again.
+- **The picks are not drafted.** They live with the open composer: leaving the conversation keeps the
+  text (below) but forgets who its names meant, so a draft sent later calls nobody. Keeping them would
+  mean storing member ids beside every unsent text, for a case that is rare and costs only the call.
 
 ### The composer's draft
 
@@ -430,8 +506,13 @@ pin always won.
   `ChannelRoomPage.profile.test.tsx` (the sheet's props, the 1:1 header, the group stack's navigation,
   never my own profile) and `ThreadPage.profile.test.tsx`. The header hooks themselves are covered in
   the kit's `ChatRoomHeader.test.tsx`.
-- A webhook message is indistinguishable from a user message for unread and push purposes, so the
-  client does nothing special for it; `isSystem` is `stereo === 'system'` alone, which is why it
+- Mentions are pinned by `mentionInput.test.ts`, `mentionHighlight.test.ts`,
+  `useMentionComposer.test.ts`, `MentionSuggestions.test.tsx`, `MentionButton.test.tsx`, the `mentions`
+  cases of `ChannelRoomPage.test.tsx` and `ThreadPage.test.tsx`, and `mention.test.ts` in `libs/data`.
+- A webhook message is indistinguishable from a user message for unread purposes, and for push in a
+  room on All messages; it carries no `mention$`, so a room on Mentions only is not pushed for it
+  ([channel-settings.md](./channel-settings.md#the-notification-level)). The client does nothing
+  special for it; `isSystem` is `stereo === 'system'` alone, which is why it
   draws as an ordinary bubble.
 - The room suite:
 

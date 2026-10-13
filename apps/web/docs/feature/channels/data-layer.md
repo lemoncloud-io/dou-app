@@ -12,8 +12,11 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel. Twelve stay out of it
+One hook per file under `features/channels/hooks/`, exported from one barrel. Fifteen stay out of it
 and are imported by path from the components that use them: `useSendImages` (see [Writes](#writes)); the
+composer's two, `useComposerDraft`, its unsent text, and `useMentionComposer`, its `@` lookup (both
+in [chat-room.md § The composer](./chat-room.md#the-composer)); `useStackIn`, the entrance a row I just
+sent plays (`StackInRow`); the
 photo grid's three, `usePhotoPicker` and the two choices it remembers, `usePhotoGridColumns` and
 `usePhotoSendGrouping`; the attach panel's two, `useKeyboardMemory`, which sizes it, and
 `useAttachPanelSlot`, which hands the place under the composer between it and the keyboard (all from
@@ -26,7 +29,7 @@ into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMem
 mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
 `use*Mutations` write hooks, and `useSendImages`.
 
-40 hooks, 34 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which six have none:
+43 hooks, 36 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which seven have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \
@@ -244,9 +247,10 @@ Worth knowing before you call them:
   The caller reads `cid` when the user presses send: the room uses the channel row's `cid` (the
   selection only until the row has loaded), the thread the root's.
 - **A retry goes back where the message was sent.** `retryMessage(row)` deletes the failed row from
-  `row.cid`'s partition and resends to `row.cid`, carrying `parentId` and `contentType` across
-  (`toResendPayload`, which also rebuilds a bare-chatNo `parentId` into `<channelId>:<chatNo>`). A
-  retry that dropped them would turn a failed thread reply into a top-level message. Today only the
+  `row.cid`'s partition and resends to `row.cid`, carrying `parentId`, `contentType` and the mention
+  (`mention$` turned back into `mention`) across (`toResendPayload`, which also rebuilds a bare-chatNo
+  `parentId` into `<channelId>:<chatNo>`). A retry that dropped them would turn a failed thread reply
+  into a top-level message, or a mention into a message that calls no one. Today only the
   room retries, and the room shows no replies, so that half is latent until a thread offers a retry.
   The payload is checked before the delete, so a row the send would refuse is kept, not removed.
 - **`deleteMessage(cid, id)` is a cache delete** — the ✕ beside a failed send, addressed to the
