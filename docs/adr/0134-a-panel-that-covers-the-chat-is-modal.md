@@ -19,7 +19,10 @@ keyboard user stayed in the feed behind it. The panels also opened at three diff
    closes the panel.
 2. **The covering panel takes focus**, unless its own content already did (the thread's reply box).
 3. **Closing returns focus to what opened the panel.** The opener is read on the panel's first render,
-   before any effect can move focus.
+   before any effect can move focus. Only focus the panel took with it is returned: when focus already
+   sits on a live element outside the closing panel, the panel replacing it put it there, and taking
+   it back stranded the reader (a thread opened from the Threads list focuses its back button). For
+   the same reason a channel switch does not pull focus out of an open panel into the room's box.
 4. **All panels open at one width, `PANEL_WIDTH` (360px).** Each kind still remembers its own drag.
 
 ## Alternatives

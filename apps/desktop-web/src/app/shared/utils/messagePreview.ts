@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 
-import { chatAttachmentSummary, type ChatAttachmentKind, type DomainChat } from '@chatic/data';
+import { chatAttachmentFormat, chatAttachmentSummary, type ChatAttachmentKind, type DomainChat } from '@chatic/data';
 
 import { messagePlainText } from './messagePlainText';
 
@@ -29,4 +29,16 @@ export const messagePreview = (chat: Pick<DomainChat, 'content' | 'upload$$' | '
     if (text) return text;
     const attachments = chatAttachmentSummary(chat);
     return attachments ? attachmentLabel(attachments) : '';
+};
+
+/**
+ * A reply as one line before the server has it — the composer's text and files, not a chat row. Its
+ * text when it has any; otherwise what it carries, by the same kinds a sent message reads as.
+ */
+export const outgoingMessagePreview = (content: string, files: File[]): string => {
+    const text = messagePlainText(content).trim();
+    if (text || files.length === 0) return text;
+    const kinds = new Set(files.map(file => chatAttachmentFormat(file)?.kind ?? 'file'));
+    const kind: ChatAttachmentKind = kinds.size === 1 ? ([...kinds][0] as ChatAttachmentKind) : 'mixed';
+    return attachmentLabel({ kind, count: files.length });
 };

@@ -38,7 +38,8 @@ message of a 1:1 is addressed to the other person.
 1. **A mention is what the sender picked, carried with the message.** The composer remembers who each
    picked `@name` means, and at the send the picks whose `@name` is still in the text go out as
    `mention`. An `@name` typed by hand, a name deleted before the send, and an e-mail address call
-   nobody. Everyone is a row in the list (writing `@channel`), not a word read out of the text.
+   nobody. Everyone is a row in the list (writing `@channel` when decided; since then the UI language's
+   word, `@전체` or `@all`), not a word read out of the text.
 2. **Every "did this call me" check reads `mention$`.** The push, the home preview's "@me" and the
    phone's brand-lime highlight for a mention of me use the same rule (`isMentioningViewer`, in
    `libs/data` so the desktop can take it next): everyone, or one of the reader's ids — the room-cloud

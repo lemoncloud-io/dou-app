@@ -16,12 +16,12 @@ import {
     useMentionsPanelStore,
     useMentionsStore,
     type MentionItem,
-    formatShortDate,
+    formatListTime,
     PANE_HEADER,
     PANEL_TITLE,
 } from '../../../shared';
 
-const formatMentionAt = formatShortDate;
+const formatMentionAt = formatListTime;
 
 interface MentionRowProps {
     item: MentionItem;

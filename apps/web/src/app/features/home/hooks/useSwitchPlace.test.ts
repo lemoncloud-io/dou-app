@@ -15,6 +15,7 @@ jest.mock('@chatic/app-runtime', () => ({
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
             useSessionSelection: jest.fn(),
+            clearSiteSelection: jest.fn(),
         },
     },
 }));
@@ -98,6 +99,16 @@ describe('useSwitchPlace — stale stored selection', () => {
         expect(switchSiteMock).toHaveBeenCalledWith('p1');
     });
 
+    // Leaving the place on screen drops its row once the server has answered — the same shape as a
+    // prune, so the same fallback carries the user to a place they are still in.
+    it('moves to the first remaining place after the place on screen is left', () => {
+        setSession('left', false, 'cloud-a');
+        const { rerender } = render({ places: [place('a'), place('left'), place('b')], isPlacesLoading: false });
+        rerender({ places: [place('a'), place('b')], isPlacesLoading: false });
+        expect(switchSiteMock).toHaveBeenCalledTimes(1);
+        expect(switchSiteMock).toHaveBeenCalledWith('a');
+    });
+
     it('ignores a selection the list never carried (a switch into a place not cached yet)', () => {
         setSession('fresh', false, 'cloud-a');
         const { rerender } = render(pruned);
@@ -112,11 +123,31 @@ describe('useSwitchPlace — stale stored selection', () => {
         expect(switchSiteMock).not.toHaveBeenCalled();
     });
 
-    it('keeps the selection when the list is empty', () => {
+    // The last place of the cloud was left: nothing to switch to, so the selection is emptied
+    // and no switch is asked for.
+    it('empties the selection without a switch once the last place has gone', () => {
         setSession('stale', false, 'cloud-a');
         const { rerender } = render(withStale);
         rerender({ places: [], isPlacesLoading: false });
         expect(switchSiteMock).not.toHaveBeenCalled();
+        expect(runtime.session.clearSiteSelection).toHaveBeenCalledTimes(1);
+        // Once per stale id, as for the switch.
+        rerender({ places: [], isPlacesLoading: false });
+        expect(runtime.session.clearSiteSelection).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a selection the empty list never carried', () => {
+        setSession('fresh', false, 'cloud-a');
+        render({ places: [], isPlacesLoading: false });
+        expect(runtime.session.clearSiteSelection).not.toHaveBeenCalled();
+        expect(switchSiteMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the selection while an empty list is still loading', () => {
+        setSession('stale', false, 'cloud-a');
+        const { rerender } = render(withStale);
+        rerender({ places: [], isPlacesLoading: true });
+        expect(runtime.session.clearSiteSelection).not.toHaveBeenCalled();
     });
 
     it('does not fall back while a switch started elsewhere is in flight', () => {

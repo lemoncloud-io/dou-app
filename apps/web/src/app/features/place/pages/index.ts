@@ -3,3 +3,4 @@ export { PlaceDetailPage } from './PlaceDetailPage';
 export { PlaceSettingsHubPage } from './PlaceSettingsHubPage';
 export { PlaceProfilePage } from './PlaceProfilePage';
 export { PlaceChannelManagePage } from './PlaceChannelManagePage';
+export { PlaceMembersPage } from './PlaceMembersPage';

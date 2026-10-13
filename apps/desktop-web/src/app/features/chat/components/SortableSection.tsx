@@ -1,23 +1,16 @@
-import { useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 
 import { useSidebarSectionsStore } from '../stores';
+import { SortableList, type SortableItem } from './SortableList';
 
-export interface SectionItem {
-    /** Stable unique key — `<section prefix>:<channel id>`; also the sortable id. */
-    key: string;
-    node: ReactNode;
+/** A section row. Its `key` is `<section prefix>:<channel id>`. */
+export interface SectionItem extends SortableItem {
     /** Stays visible while the section is folded: the open channel, or one with unread. */
     keepWhenCollapsed: boolean;
-    /** A row with no order of its own to keep (a person with no 1:1 yet) is never picked up. */
-    dragDisabled?: boolean;
 }
 
 interface SortableSectionProps {
@@ -35,49 +28,6 @@ interface SortableSectionProps {
 }
 
 /**
- * A drop that ends anywhere still counts as a drag: the click browsers fire on
- * pointer-up must not select the row underneath. The flag lives per section and
- * self-clears on a timeout — when the release lands off the originating row the
- * post-drag click fires on the down/up common ancestor, not the row wrapper, so
- * nothing else would clear it and the NEXT legitimate click would be swallowed
- * (review-03 P1). The click is dispatched before timers run, so `setTimeout(…, 0)`
- * is late enough.
- */
-
-const SortableRow = ({
-    itemKey,
-    disabled,
-    justDraggedRef,
-    children,
-}: {
-    itemKey: string;
-    disabled: boolean;
-    justDraggedRef: React.RefObject<boolean>;
-    children: ReactNode;
-}) => {
-    const { listeners, setNodeRef, transform, transition } = useSortable({ id: itemKey, disabled });
-    return (
-        // The row button inside keeps its own onClick; this wrapper only carries the
-        // pointer listeners. No `attributes`/`tabIndex`: keyboard drag is deliberately
-        // not supported (Alt+Shift+↑/↓ instead), so the wrapper must not join tab order.
-        <div
-            ref={setNodeRef}
-            {...listeners}
-            style={{ transform: CSS.Translate.toString(transform), transition }}
-            className={cn(disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing')}
-            onClickCapture={event => {
-                if (!justDraggedRef.current) return;
-                event.stopPropagation();
-                event.preventDefault();
-                justDraggedRef.current = false;
-            }}
-        >
-            {children}
-        </div>
-    );
-};
-
-/**
  * Collapsible, drag-reorderable sidebar section (Figma: chevron · 16px semibold title ·
  * optional action). One `DndContext` per section, so a cross-section drop is impossible by
  * construction (decided: cross-section drop would imply favorite semantics).
@@ -89,26 +39,7 @@ const SortableRow = ({
 export const SortableSection = ({ id, title, action, items, dragDisabled, onReorder }: SortableSectionProps) => {
     const isCollapsed = useSidebarSectionsStore(s => !!s.collapsed[id]);
     const toggle = useSidebarSectionsStore(s => s.toggle);
-    const justDraggedRef = useRef(false);
-    // 5px before a press becomes a drag: a click (no move) selects, a small accidental
-    // jitter does not reorder (dnd-kit #172).
-    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
     const visible = isCollapsed ? items.filter(item => item.keepWhenCollapsed) : items;
-    const rowDragDisabled = !!dragDisabled || isCollapsed;
-    const sortableKeys = visible.map(item => item.key);
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        justDraggedRef.current = true;
-        setTimeout(() => {
-            justDraggedRef.current = false;
-        }, 0);
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-        const from = sortableKeys.indexOf(String(active.id));
-        const to = sortableKeys.indexOf(String(over.id));
-        if (from < 0 || to < 0) return;
-        onReorder?.(arrayMove(sortableKeys, from, to));
-    };
 
     return (
         <section className="flex flex-col gap-1">
@@ -132,27 +63,12 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                 {action}
             </div>
             {visible.length > 0 && (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext items={sortableKeys} strategy={verticalListSortingStrategy}>
-                        <div className="flex flex-col gap-2">
-                            {visible.map(item => (
-                                <SortableRow
-                                    key={item.key}
-                                    itemKey={item.key}
-                                    disabled={rowDragDisabled || !!item.dragDisabled}
-                                    justDraggedRef={justDraggedRef}
-                                >
-                                    {item.node}
-                                </SortableRow>
-                            ))}
-                        </div>
-                    </SortableContext>
-                </DndContext>
+                <SortableList
+                    items={visible}
+                    disabled={!!dragDisabled || isCollapsed}
+                    className="flex flex-col gap-2"
+                    onReorder={onReorder}
+                />
             )}
         </section>
     );

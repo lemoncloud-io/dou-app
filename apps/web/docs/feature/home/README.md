@@ -204,6 +204,17 @@ would otherwise retry on every settle. What it does not cover is a row that was 
 begin with — a cache wipe _and_ a deletion while the app was closed — which is left to the user's
 tap, as before.
 
+**A place that leaves the list for another reason** — the owner removed the user, or deleted it (the
+list drops a row stamped `deletedAt`), or the owner deleted it from this device — goes through the
+same fallback: the selected id was in the list and is not any more, so home switches to the first
+place left. When none is left there is nothing to switch to: the selection is emptied with
+`runtime.session.clearSiteSelection()`, which asks for no switch, and home shows the cloud with no
+place (the empty Place section, the no-place empty state and the cloud's notes to self). The same
+seen-then-gone rule guards it, so an empty list nobody has seen a selection in clears nothing. A user
+who leaves a place themselves does not take this path: the leave ends on a notice that sends them to
+DoU Home (see [place/README.md](../place/README.md#members-and-leaving)), and so does the notice for
+a place its owner deleted.
+
 `CloudSessionSheet` has three collapsible sections: the synthetic relay row (selecting it calls
 `logoutCloudSession`), owned clouds with the active one pinned to the top, and invited clouds. Add-a-
 cloud is a **footer**, so it survives collapsing. A row either enters its cloud or explains itself,

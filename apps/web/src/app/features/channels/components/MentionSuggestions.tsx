@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DefaultAvatar, ImageAvatar } from '@chatic/web-ui-kit';
 
-import { EVERYONE_MENTION, type MentionCandidate } from '../utils/mentionInput';
+import type { MentionCandidate } from '../utils/mentionInput';
 
 const AVATAR_SIZE = 32;
 
@@ -67,7 +67,7 @@ export const MentionSuggestions = ({ candidates, onPick }: MentionSuggestionsPro
                         </span>
                         {candidate.everyone && (
                             <span className="block truncate text-[13px] leading-[1.4] text-description">
-                                {`@${EVERYONE_MENTION} · ${t('chat.mention.everyoneHint')}`}
+                                {`@${candidate.label} · ${t('chat.mention.everyoneHint')}`}
                             </span>
                         )}
                     </span>

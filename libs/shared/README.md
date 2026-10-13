@@ -37,14 +37,15 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
 2. **No network, no cache, no domain model.** Nothing here fetches, maps or stores a server entity.
    The moment a helper needs a repository it belongs to the feature that owns the repository.
 3. **`preferences/` validates the product shape; `@chatic/config` validates only JSON.** The registry
-   in `libs/config/src/registry/ui.ts` declares `ui.pinnedChannels` and `ui.channelOrder` as
-   `type: 'json'`, and that check ends at "this parses". That a value must be a map of `cid:sid` keys
-   to non-empty id arrays is knowledge this lib holds, applied to the already-decoded value.
+   in `libs/config/src/registry/ui.ts` declares `ui.pinnedChannels`, `ui.channelOrder` and
+   `ui.railOrder` as `type: 'json'`, and that check ends at "this parses". That a value must be a map
+   of `cid:sid` keys to non-empty id arrays (or, for the rail order, cloud ids and place ids per
+   cloud) is knowledge this lib holds, applied to the already-decoded value.
 4. **A per-place key is `<cid>:<sid>`, and a half-formed one is never written.** A site id is unique
    only inside its cloud, so a bare place id would let one cloud inherit another's pins.
    `placeScopeKey` returns `null` when either half is unknown and every writer no-ops on `null`.
-5. **Stored input degrades; it never throws.** `normalizePinnedChannels` and `normalizeChannelOrder`
-   drop what they do not recognise, so a corrupt or hand-edited record costs the user their pins, not
+5. **Stored input degrades; it never throws.** `normalizePinnedChannels`, `normalizeChannelOrder` and
+   `normalizeRailOrder` drop what they do not recognise, so a corrupt or hand-edited record costs the user their pins, not
    the sidebar.
 6. **Never touch `import.meta`.** It is a _parse_ error under the CommonJS transform ts-jest uses, and
    one occurrence anywhere in the tree makes the whole barrel unimportable from every jest suite that
@@ -207,7 +208,7 @@ libs/shared/src/
 ├── consts/           STORE_URLS, and ERROR_MESSAGES inline in index.ts
 ├── hooks/            7 hook modules + index
 ├── phone/            phone-number parsing (libphonenumber-js) + OTP expiry countdown — NOT in the barrel
-├── preferences/      pinnedChannels · channelOrder · placeScope + index
+├── preferences/      pinnedChannels · channelOrder · railOrder · placeScope + index
 ├── types/            index.ts and nothing else — four declarations, no reader
 └── utils/            5 single-purpose helpers + index
 ```

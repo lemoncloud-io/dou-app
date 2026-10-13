@@ -15,6 +15,7 @@ import {
     useDesktopNotifications,
     useDeviceTokenRegistration,
     useMentionCapture,
+    useMyThreadsCapture,
     usePlaceUnreadCounts,
     useRefreshOnPush,
     useChatOutbox,
@@ -50,6 +51,8 @@ const DesktopNotifications = () => {
     useCrossCloudPushBadge();
     // Capture @me messages across all channels into the device-local Activity inbox.
     useMentionCapture();
+    // Feed replies in background channels into the device-local Threads list.
+    useMyThreadsCapture();
     // A push means new activity the v2 socket won't stream for background channels — re-pull the
     // active cloud's channels so the unread badges update at push time, not 60s later.
     useRefreshOnPush();

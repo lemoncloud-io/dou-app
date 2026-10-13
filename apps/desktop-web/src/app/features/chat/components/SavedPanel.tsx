@@ -15,12 +15,12 @@ import {
     useSavedItemsStore,
     useSavedPanelStore,
     type SavedItem,
-    formatShortDate,
+    formatListTime,
     PANE_HEADER,
     PANEL_TITLE,
 } from '../../../shared';
 
-const formatSavedAt = formatShortDate;
+const formatSavedAt = formatListTime;
 
 interface SavedRowProps {
     item: SavedItem;

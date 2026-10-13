@@ -1,5 +1,6 @@
 import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
 
+import { channelNotifyMode, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import { computeChannelUnread } from './channelUnread';
 import { listingPlaces } from './cloudDmPlaces';
 
@@ -12,6 +13,11 @@ import { listingPlaces } from './cloudDmPlaces';
  * rebuild it), so the dot on a place matches its Direct messages section. That makes the
  * per-place numbers overlap, which is why the total is summed per channel rather than per place:
  * one unread 1:1 listed in two places is still one conversation to read.
+ *
+ * A channel on any notify mode but "all" counts nowhere here. Its own row still shows its unread,
+ * but a place or cloud dot says "something here wants you", and a channel told to stay quiet does
+ * not. A mention there is still captured into the Mentions entry while the app is running, whatever
+ * the mode; one that arrived while it was closed lights nothing here.
  */
 export const placeUnreadCounts = (
     channels: readonly DomainChannel[],
@@ -19,10 +25,12 @@ export const placeUnreadCounts = (
         myUid,
         dmPlaces,
         readCursors,
+        notifyPrefs,
     }: {
         myUid: string | null;
         dmPlaces: ReadonlyMap<string, readonly string[]>;
         readCursors: Record<string, number>;
+        notifyPrefs: ChannelNotifyPrefs;
     }
 ): { byPlace: Record<string, number>; total: number } => {
     const byPlace: Record<string, number> = {};
@@ -31,6 +39,7 @@ export const placeUnreadCounts = (
         // A room with no place was never counted; a 1:1 is placed by the rule instead of its stamp.
         const places = listingPlaces(channel, dmPlaces);
         if (!isCloudWideChannel(channel) && places.length === 0) continue;
+        if (channelNotifyMode(notifyPrefs, channel.id ?? '', channel.$join?.notify) !== 'all') continue;
         // Read boundary: the channel's own `$join` (chatNo + the metaNo snapshot that nets
         // system messages out), with the local cursor clearing the badge on read.
         const unread = computeChannelUnread(channel, myUid, readCursors[channel.id ?? '']);

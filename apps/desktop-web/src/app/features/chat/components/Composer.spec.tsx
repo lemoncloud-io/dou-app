@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import i18next from 'i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -41,6 +42,23 @@ describe('Composer autoFocus', () => {
         await settle();
         expect(document.activeElement).toBe(field);
         field.remove();
+    });
+});
+
+describe('Composer format row', () => {
+    afterEach(cleanup);
+
+    // A format that was on drew exactly what hover draws, so the row never showed it.
+    it('draws a format that is on apart from one that is off', async () => {
+        render(<Composer onSend={() => undefined} channelId="C-format" autoFocus />, { wrapper });
+        await settle();
+        const bold = screen.getByRole('button', { name: i18next.t('chat.composer.format.bold') });
+        const italic = screen.getByRole('button', { name: i18next.t('chat.composer.format.italic') });
+        expect(bold.getAttribute('aria-pressed')).toBe('false');
+        fireEvent.click(bold);
+        await waitFor(() => expect(bold.getAttribute('aria-pressed')).toBe('true'));
+        expect(bold.className).toContain('ring-control-border');
+        expect(italic.className).not.toContain('ring-control-border');
     });
 });
 

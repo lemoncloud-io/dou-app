@@ -7,6 +7,7 @@ import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2, User } from 'l
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
+import { applyChannelOrder, usePlaceOrder } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog, useSendInviteStore } from '../../channels';
@@ -38,6 +39,7 @@ import {
     useDisplayProfile,
     useScrollOverflow,
 } from '../../../shared';
+import { SortableList } from './SortableList';
 
 interface PlaceRailProps {
     places: DomainPlace[];
@@ -296,6 +298,15 @@ export const PlaceRail = ({
     const tapRef = useRef({ count: 0, last: 0 });
     const placeScroll = useScrollOverflow<HTMLDivElement>();
 
+    // The order the user dragged the tiles into, kept per cloud: a place id means nothing outside
+    // its cloud. Every place on the rail is the active cloud's, so the first one names it.
+    const { storedIds, set: setStoredOrder } = usePlaceOrder(places[0]?.cid ?? null);
+    const placeById = new Map(places.map(place => [place.id, place]));
+    const ordered = applyChannelOrder(
+        places.map(place => place.id),
+        storedIds
+    ).flatMap(id => placeById.get(id) ?? []);
+
     // At the cap the tile stays and the click says why: a tile that vanished would only raise
     // "where did it go". More room is another cloud, and those are made in the mobile app.
     const onCreateTile = () => {
@@ -341,31 +352,45 @@ export const PlaceRail = ({
                         />
                     ) : (
                         <>
-                            {places.map(place => (
-                                <PlaceTile
-                                    key={place.id}
-                                    id={place.id}
-                                    name={place.name ?? place.id}
-                                    thumbnail={place.thumbnail}
-                                    isActive={place.id === selectedPlaceId}
-                                    unread={unreadByPlace[place.id] ?? 0}
-                                    unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
-                                    isSwitching={isSwitching}
-                                    onSelect={onSelectPlace}
-                                    menu={
-                                        // The relay subscription row shares the list and is nobody's
-                                        // to edit or delete, so it gets no menu.
-                                        canManagePlaces && isManagedPlace(place) && (onEditPlace || onDeletePlace) ? (
-                                            <PlaceTileMenu
-                                                place={place}
-                                                disabled={isSwitching}
-                                                onEditPlace={onEditPlace}
-                                                onDeletePlace={onDeletePlace ? () => askToDelete(place) : undefined}
+                            {ordered.length > 0 && (
+                                <SortableList
+                                    items={ordered.map(place => ({
+                                        key: place.id,
+                                        node: (
+                                            <PlaceTile
+                                                id={place.id}
+                                                name={place.name ?? place.id}
+                                                thumbnail={place.thumbnail}
+                                                isActive={place.id === selectedPlaceId}
+                                                unread={unreadByPlace[place.id] ?? 0}
+                                                unreadLabel={t('rail.placeUnread', { name: place.name ?? place.id })}
+                                                isSwitching={isSwitching}
+                                                onSelect={onSelectPlace}
+                                                menu={
+                                                    // The relay subscription row shares the list and is nobody's
+                                                    // to edit or delete, so it gets no menu.
+                                                    canManagePlaces &&
+                                                    isManagedPlace(place) &&
+                                                    (onEditPlace || onDeletePlace) ? (
+                                                        <PlaceTileMenu
+                                                            place={place}
+                                                            disabled={isSwitching}
+                                                            onEditPlace={onEditPlace}
+                                                            onDeletePlace={
+                                                                onDeletePlace ? () => askToDelete(place) : undefined
+                                                            }
+                                                        />
+                                                    ) : undefined
+                                                }
                                             />
-                                        ) : undefined
-                                    }
+                                        ),
+                                    }))}
+                                    // A drag that ends mid-switch would redraw the rail under the handshake.
+                                    disabled={isSwitching}
+                                    className="flex flex-col items-stretch gap-4"
+                                    onReorder={setStoredOrder}
                                 />
-                            ))}
+                            )}
                             {/* After the list, where a new place will land. A switch in flight locks
                                 it with the tiles: the dialog ends in a switch of its own. */}
                             {canManagePlaces && onCreatePlace && (

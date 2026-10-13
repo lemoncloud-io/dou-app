@@ -953,7 +953,8 @@
         "mention": {
             "listLabel": "People to mention",
             "everyone": "Everyone",
-            "everyoneHint": "Mention everyone in this chat"
+            "everyoneHint": "Mention everyone in this chat",
+            "everyoneWord": "all"
         },
         "unknownUser": "Unknown user",
         "me": "You",
@@ -1137,7 +1138,59 @@
         "channelSort": "Sort Chats",
         "channelManage": "Manage Chats",
         "ownerOnly": "Only the owner can change this",
-        "comingSoon": "Coming soon"
+        "comingSoon": "Coming soon",
+        "members": "Members",
+        "networkError": "Check your connection and try again."
+    },
+    "placeLeave": {
+        "dialog": {
+            "title": "Leave this place?",
+            "description": "Leaving the place also takes you out of every chat room you're in. To join again, you'll need a new invite.",
+            "confirm": "Leave"
+        },
+        "denied": "You can't leave this place.",
+        "failed": "Couldn't leave the place. Try again.",
+        "doneTitle": "You left the place.\nTaking you to DoU Home."
+    },
+    "placeMembers": {
+        "title": "Members",
+        "count": "Members {{count}}",
+        "loading": "Loading members",
+        "loadFailed": "Couldn't load the members",
+        "retry": "Try again",
+        "notMember": "You're not a member of this place.",
+        "badge": {
+            "me": "You"
+        },
+        "remove": "Remove",
+        "removeDialog": {
+            "title": "Remove {{name}}?",
+            "description": "They'll leave every group chat in this place. They can come back if invited again.",
+            "confirm": "Remove"
+        },
+        "removed": "Removed {{name}} from the place.",
+        "removeDenied": "You can't remove this member.",
+        "removeFailed": "Couldn't remove the member. Try again."
+    },
+    "placeDelete": {
+        "dialog": {
+            "title": "Delete this place?",
+            "description": "Once the place is deleted, no one in it can reach the place or its chat rooms any more. This can't be undone.",
+            "confirm": "Delete"
+        },
+        "rooms": {
+            "title": "Chat rooms in this place",
+            "label": "Rooms",
+            "count": "{{count}}",
+            "members": "Members"
+        },
+        "done": "Place deleted.",
+        "denied": "You can't delete this place.",
+        "failed": "Couldn't delete the place. Try again."
+    },
+    "placeDeleted": {
+        "title": "This place was deleted",
+        "description": "The owner deleted this place, so you can no longer take part. Its chat rooms and messages are no longer available, so you'll be taken to DoU Home."
     },
     "channelSort": {
         "title": "Sort Chats",
@@ -1151,7 +1204,9 @@
         "invitedNameLabel": "Invited Place Name",
         "descLabel": "Place Introduction",
         "createdAtLabel": "Date Created",
-        "ownerLabel": "Owner"
+        "ownerLabel": "Owner",
+        "leave": "Leave place",
+        "delete": "Delete place"
     },
     "placeEdit": {
         "title": "Place Profile",

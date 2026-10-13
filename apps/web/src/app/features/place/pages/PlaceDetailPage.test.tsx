@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainProfile } from '@chatic/data';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -8,7 +8,14 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 let mockPlace: Partial<MySiteView> | null = null;
 let mockOwner: Partial<DomainProfile> | null = null;
 let mockCloudId: string | null = 'default';
+let mockIsGuest = false;
+let mockChannels: Array<Record<string, unknown>> = [];
 const observeItem = jest.fn();
+const leavePlace = jest.fn((_id: string) => Promise.resolve({}));
+const deletePlace = jest.fn((_id: string) => Promise.resolve());
+const logoutCloudSession = jest.fn(() => Promise.resolve());
+const navigate = jest.fn();
+const toast = jest.fn();
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
@@ -16,10 +23,12 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
-            useRuntimeRepositories: () => ({ place: { observeItem } }),
+            useRuntimeRepositories: () => ({ place: { observeItem, leavePlace, deletePlace } }),
         },
         session: {
             useSessionSelection: () => ({ selectedCloudId: mockCloudId }),
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+            useSessionIdentity: () => ({ userId: 'me' }),
         },
     },
 }));
@@ -32,6 +41,11 @@ jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 // The owner lookup has its own gate (usePlaceOwnerProfile.test.ts); here only its RESULT matters.
 jest.mock('../hooks/usePlaceOwnerProfile', () => ({ usePlaceOwnerProfile: () => mockOwner }));
+jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() } }));
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
+jest.mock('../../../hooks', () => ({ useHomeChannels: () => ({ channels: mockChannels, isLoading: false }) }));
+jest.mock('../../../runtime/useLogoutCloudSession', () => ({ useLogoutCloudSession: () => ({ logoutCloudSession }) }));
 
 import { PlaceDetailPage } from './PlaceDetailPage';
 
@@ -43,6 +57,8 @@ beforeEach(() => {
     mockPlace = null;
     mockOwner = null;
     mockCloudId = 'default';
+    mockIsGuest = false;
+    mockChannels = [];
     // observeItem emits synchronously, the way the local data source does for a warm cache.
     observeItem.mockImplementation((_id: string, cb: (item: unknown) => void) => {
         cb(mockPlace);
@@ -260,5 +276,136 @@ describe('PlaceDetailPage — 플레이스 없음', () => {
         expect(screen.getByText('placeDetail.notFound')).toBeInTheDocument();
         expect(screen.queryByText('placeDetail.nameLabel')).not.toBeInTheDocument();
         expect(screen.queryByText('placeDetail.invitedNameLabel')).not.toBeInTheDocument();
+    });
+});
+
+describe('PlaceDetailPage — leaving and deleting', () => {
+    const rowButton = (label: string) => screen.getByText(label).closest('button') as HTMLButtonElement;
+
+    it('gives a member who is not the owner a Leave row, and no Delete', () => {
+        mockPlace = { id: 'p1', isOwner: false, name: 'Studio' };
+        render(<PlaceDetailPage />);
+
+        expect(rowButton('placeDetail.leave')).toBeInTheDocument();
+        expect(screen.queryByText('placeDetail.delete')).not.toBeInTheDocument();
+    });
+
+    it('gives the owner a Delete row, and no Leave', () => {
+        mockPlace = { id: 'p1', isOwner: true, name: 'Studio' };
+        render(<PlaceDetailPage />);
+
+        expect(rowButton('placeDetail.delete')).toBeInTheDocument();
+        expect(screen.queryByText('placeDetail.leave')).not.toBeInTheDocument();
+    });
+
+    it("has neither on the relay's own place nor for a guest", () => {
+        mockPlace = { id: '0000', name: 'default' };
+        const { unmount } = render(<PlaceDetailPage />);
+        expect(screen.queryByText('placeDetail.leave')).not.toBeInTheDocument();
+        expect(screen.queryByText('placeDetail.delete')).not.toBeInTheDocument();
+        unmount();
+
+        mockIsGuest = true;
+        mockPlace = { id: 'p1', isOwner: false, name: 'Studio' };
+        render(<PlaceDetailPage />);
+        expect(screen.queryByText('placeDetail.leave')).not.toBeInTheDocument();
+    });
+
+    it('leaves once confirmed, says it is done, and goes to DoU Home on OK', async () => {
+        mockPlace = { id: 'p1', isOwner: false, name: 'Studio' };
+        // The observer the cache drives: the leave deletes the row, which emits null.
+        let emit: (item: unknown) => void = () => undefined;
+        observeItem.mockImplementation((_id: string, cb: (item: unknown) => void) => {
+            emit = cb;
+            cb(mockPlace);
+            return jest.fn();
+        });
+        leavePlace.mockImplementationOnce(async () => {
+            emit(null);
+            return {};
+        });
+        render(<PlaceDetailPage />);
+
+        fireEvent.click(rowButton('placeDetail.leave'));
+        await act(async () => {
+            fireEvent.click(screen.getByText('placeLeave.dialog.confirm'));
+        });
+
+        expect(leavePlace).toHaveBeenCalledWith('p1');
+        // The leave drops the row from the cache; the screen keeps the place under the notice.
+        expect(screen.getByRole('heading', { name: 'placeLeave.doneTitle' })).toBeInTheDocument();
+        expect(screen.queryByText('placeDetail.notFound')).not.toBeInTheDocument();
+        // Nothing moves until the notice is acknowledged.
+        expect(logoutCloudSession).not.toHaveBeenCalled();
+        await act(async () => {
+            fireEvent.click(screen.getByText('common.confirm'));
+        });
+        expect(logoutCloudSession).toHaveBeenCalledTimes(1);
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('stays and says why when the leave fails', async () => {
+        mockPlace = { id: 'p1', isOwner: false, name: 'Studio' };
+        leavePlace.mockRejectedValueOnce(new Error('403 FORBIDDEN - owner cannot leave'));
+        render(<PlaceDetailPage />);
+
+        fireEvent.click(rowButton('placeDetail.leave'));
+        await act(async () => {
+            fireEvent.click(screen.getByText('placeLeave.dialog.confirm'));
+        });
+
+        expect(toast).toHaveBeenCalledWith({ title: 'placeLeave.denied', variant: 'destructive' });
+        expect(screen.queryByText('placeLeave.doneTitle')).not.toBeInTheDocument();
+        expect(logoutCloudSession).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it("lists the place's group rooms with their member counts in the delete confirm", () => {
+        mockPlace = { id: 'p1', isOwner: true, name: 'Studio' };
+        mockChannels = [
+            { id: 'g1', stereo: 'public', name: 'Design', memberNo: 20 },
+            { id: 'g2', stereo: 'private', name: 'Ops', memberIds: ['a', 'b', 'c'] },
+            { id: 's1', stereo: 'self', name: '' },
+        ];
+        render(<PlaceDetailPage />);
+
+        fireEvent.click(rowButton('placeDetail.delete'));
+
+        expect(screen.getByText('placeDelete.dialog.title')).toBeInTheDocument();
+        expect(screen.getByText('Design')).toBeInTheDocument();
+        expect(screen.getByText('Ops')).toBeInTheDocument();
+        expect(screen.getByText('20')).toBeInTheDocument();
+        expect(screen.getByText('3')).toBeInTheDocument();
+        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    });
+
+    it('deletes once confirmed, says so and goes home', async () => {
+        mockPlace = { id: 'p1', isOwner: true, name: 'Studio' };
+        render(<PlaceDetailPage />);
+
+        fireEvent.click(rowButton('placeDetail.delete'));
+        await act(async () => {
+            fireEvent.click(screen.getByText('placeDelete.dialog.confirm'));
+        });
+
+        expect(deletePlace).toHaveBeenCalledWith('p1');
+        expect(toast).toHaveBeenCalledWith({ title: 'placeDelete.done' });
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+        // Deleting does not leave the cloud: home moves to the cloud's next place.
+        expect(logoutCloudSession).not.toHaveBeenCalled();
+    });
+
+    it('keeps the place and says why when the delete fails', async () => {
+        mockPlace = { id: 'p1', isOwner: true, name: 'Studio' };
+        deletePlace.mockRejectedValueOnce(new Error('500 INTERNAL'));
+        render(<PlaceDetailPage />);
+
+        fireEvent.click(rowButton('placeDetail.delete'));
+        await act(async () => {
+            fireEvent.click(screen.getByText('placeDelete.dialog.confirm'));
+        });
+
+        expect(toast).toHaveBeenCalledWith({ title: 'placeDelete.failed', variant: 'destructive' });
+        expect(navigate).not.toHaveBeenCalled();
     });
 });

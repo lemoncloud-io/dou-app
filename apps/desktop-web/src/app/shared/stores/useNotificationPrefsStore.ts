@@ -32,6 +32,9 @@ interface NotificationPrefsState {
     setQuietHours: (quietHours: QuietHours | null) => void;
 }
 
+/** The slice of the preferences that decides a channel's notify mode. */
+export type ChannelNotifyPrefs = Pick<NotificationPrefsState, 'channelNotify' | 'mutedChannels'>;
+
 /**
  * Resolve a channel's effective notify mode: local pref, then the server's
  * join.notify (set from another device), then the legacy mute map. Every read
@@ -39,7 +42,7 @@ interface NotificationPrefsState {
  * suppression cannot drift.
  */
 export const channelNotifyMode = (
-    state: Pick<NotificationPrefsState, 'channelNotify' | 'mutedChannels'>,
+    state: ChannelNotifyPrefs,
     channelId: string,
     joinNotify?: ChannelNotifyMode | ''
 ): ChannelNotifyMode => {

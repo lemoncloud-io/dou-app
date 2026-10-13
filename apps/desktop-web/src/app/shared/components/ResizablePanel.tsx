@@ -69,11 +69,16 @@ export const ResizablePanel = ({ storageKey, resizeLabel, className, onClose, ch
     // An opener that has left the page hands focus to the room's message box instead: a panel
     // shown again under a closed profile recorded the profile's close button, and the popover
     // that opened the profile went with the panel under it.
+    // Only focus the panel took with it is given back. Focus already on a live element outside —
+    // the panel that replaced this one put it there, as a thread opened from the Threads list
+    // puts it on its back button — is where the reader is, and taking it back stranded them.
     const [opener] = useState(() =>
         typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
     );
     useEffect(
         () => () => {
+            const active = document.activeElement;
+            if (active && active !== document.body && active !== opener && active.isConnected) return;
             if (opener?.isConnected) opener.focus();
             else focusComposerIfDropped();
         },
@@ -90,6 +95,7 @@ export const ResizablePanel = ({ storageKey, resizeLabel, className, onClose, ch
         <aside
             ref={resize.panelRef}
             tabIndex={-1}
+            data-trailing-panel
             style={{ width: resize.width }}
             className={cn(
                 'absolute inset-y-0 right-0 z-drawer outline-none flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none',

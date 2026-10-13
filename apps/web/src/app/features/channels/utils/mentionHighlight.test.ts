@@ -29,6 +29,15 @@ describe('splitMentionRuns', () => {
         ]);
     });
 
+    // The everyone pick writes `@all` or `@전체` by the sender's language; a reader in either marks both.
+    it('marks the everyone word of either language, and not a longer word starting with it', () => {
+        expect(
+            splitMentionRuns('@all @전체님 @allison', tokens)
+                .filter(run => run.mention)
+                .map(run => run.value)
+        ).toEqual(['@all', '@전체']);
+    });
+
     it('matches regardless of case, keeping the text as written', () => {
         expect(splitMentionRuns('@HERE now', tokens)).toEqual([
             { value: '@HERE', mention: true },
@@ -99,6 +108,18 @@ describe('mentionViewerOf', () => {
         const viewer = mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: [], people: [minsu] });
 
         expect(viewer.people.get('@minsu')).toBe(minsu);
+    });
+
+    // `@All` in the text calls everyone; it cannot also be a tap on a member who happens to be named so.
+    it('opens no member for a name that is an everyone word', () => {
+        const people = [
+            { id: 'u5', name: 'All' },
+            { id: 'u6', name: '전체' },
+            { id: 'u7', name: 'Allison' },
+        ];
+        const viewer = mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: [], people });
+
+        expect([...viewer.people.keys()]).toEqual(['@allison']);
     });
 });
 

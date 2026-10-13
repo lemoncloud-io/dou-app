@@ -2,6 +2,7 @@ import type { PlaceSocketDomainGateway } from '../gateways';
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
+import type { PlaceLeaveResult } from '@lemoncloud/chatic-sockets-api/dist/lib/place/types';
 import type { DomainListResult, DomainPlace } from '../../domain';
 import { createDomainListResult, toDomainPlace } from '../../domain';
 import type { DataContext } from '../../repositories/types';
@@ -9,6 +10,8 @@ import type { DataContext } from '../../repositories/types';
 export type PlaceCreateInput = Parameters<PlaceSocketDomainGateway['create']>[0];
 export type PlaceUpdateInput = Parameters<PlaceSocketDomainGateway['update']>[0];
 export type PlaceDeleteInput = Parameters<PlaceSocketDomainGateway['delete']>[0];
+export type PlaceLeaveInput = Parameters<PlaceSocketDomainGateway['leave']>[0];
+export type { PlaceLeaveResult };
 
 export interface IPlaceSocketDataSource {
     /** Requests the places (= sites) a user can reach and returns them as domain models. */
@@ -19,6 +22,14 @@ export interface IPlaceSocketDataSource {
     updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace>;
     /** Requests deletion of a place. The contract does not say what the answer holds, so it is dropped. */
     deletePlace(payload: PlaceDeleteInput): Promise<void>;
+    /**
+     * `place.leave` — I leave the place, or with `userId` its owner removes that member. Unlike the
+     * delete, the answer is returned as it came: its `leftChannelIds` are what the caller clears from
+     * the cache.
+     */
+    leavePlace(payload: PlaceLeaveInput): Promise<PlaceLeaveResult>;
+    /** `place.get` — one place as the server has it now. Rejects with 404 for a deleted place. */
+    getPlace(id: string, context: DataContext): Promise<DomainPlace>;
 }
 
 /**
@@ -60,5 +71,14 @@ export class PlaceSocketDataSource implements IPlaceSocketDataSource {
 
     public async deletePlace(payload: PlaceDeleteInput): Promise<void> {
         await this.gateway.delete(payload);
+    }
+
+    public async leavePlace(payload: PlaceLeaveInput): Promise<PlaceLeaveResult> {
+        return this.gateway.leave<PlaceLeaveResult>(payload);
+    }
+
+    public async getPlace(id: string, context: DataContext): Promise<DomainPlace> {
+        const remote = await this.gateway.get<MySiteView>({ id });
+        return toDomainPlace((remote || {}) as MySiteView, context);
     }
 }

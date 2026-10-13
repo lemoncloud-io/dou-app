@@ -1,5 +1,62 @@
 # Changelog
 
+## [2026-10-13] - root@0.99.0, @chatic/web@0.71.0
+
+### Features
+
+- (web) leave and delete a place from its information screen, per the design (ADR-0197)
+- (web) let a member leave a place and its owner remove members (ADR-0197)
+- (app-runtime) clear the place selection without a switch
+- (data,app-runtime) leave a place and remove a member through place.leave
+
+### Bug Fixes
+
+- (data,app-runtime) drop deleted places from the list and tell a deleted place apart
+
+## [2026-10-13] - root@0.98.0, @chatic/desktop-web@0.28.0
+
+### Features
+
+- (desktop-web) reorder the place rail by dragging its tiles
+- (desktop-web) reorder the cloud rail by dragging its tiles
+
+### Bug Fixes
+
+- (desktop-web) offer no skip links while the sidebar drawer is open
+
+### Other
+
+- test: (desktop-web) cover the click after a rail drag on the place rail
+
+## [2026-10-13] - root@0.97.0, @chatic/desktop-web@0.27.0
+
+### Features
+
+- (desktop-web) list the threads I take part in, in a Threads pane
+
+### Documentation
+
+- record the device-local thread list on desktop (ADR-0196)
+
+## [2026-10-13] - root@0.96.2, @chatic/desktop-web@0.26.2
+
+### Bug Fixes
+
+- (desktop-web) keep a muted channel off the place and cloud dots
+
+## [2026-10-13] - root@0.96.1, @chatic/desktop-web@0.26.1
+
+### Bug Fixes
+
+- (desktop-web) keep the composer and shell usable in a narrow window
+
+## [2026-10-13] - root@0.96.0, @chatic/web@0.70.0
+
+### Features
+
+- (web) chip the mentions on a thread root, which has no bubble behind them
+- (web,desktop-web) write the everyone mention in the UI's language, not as @channel
+
 ## [2026-10-13] - No version updates
 
 ### Features

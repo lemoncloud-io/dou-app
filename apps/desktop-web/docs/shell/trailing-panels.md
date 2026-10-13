@@ -1,13 +1,13 @@
 # Trailing panels
 
-The thread, Mentions, Saved, channel settings, profile and debug panels all sit on the right of the
+The thread, Threads list, Mentions, Saved, channel settings, profile and debug panels all sit on the right of the
 chat, one at a time. `HomePage` picks which one is open and passes it to `DesktopLayout` as `panel`.
 Each panel is built on `ResizablePanel` (`shared/components/ResizablePanel.tsx`).
 
 ## One owner, except the profile
 
-`useTrailingPanelOwners` (`features/chat/hooks/`) holds the rule. Thread, settings, Saved and Mentions
-are exclusive: opening one closes the others, and the last one opened wins.
+`useTrailingPanelOwners` (`features/chat/hooks/`) holds the rule. Thread, settings, Saved, Mentions and
+the Threads list ([my-threads](../chat/my-threads.md)) are exclusive: opening one closes the others, and the last one opened wins.
 
 The profile stacks instead. It opens from inside another panel, a mention in a thread or a member in
 the settings list, to check who someone is. So it shows over that panel without closing it, and
@@ -36,7 +36,7 @@ lies over the chat, and then it acts as the modal layer it looks like. ADR-0134 
   `PanelShellContext`. A panel without an `onClose` (none today) would leave the scrim inert to
   clicks.
 - The panel takes focus (the `<aside>` itself), unless its content already took it, as the thread's
-  reply box does.
+  reply box does — or its back button, for a thread opened from the Threads list.
 
 Before this, the chat under a covering panel stayed live, in the tab order and clickable, with about
 218px of it showing at 1024px.
@@ -53,11 +53,27 @@ Supplying `onClose` buys the whole contract, at any width:
 - If that element has left the page by then, focus goes to the room's message box. A thread shown
   again under a closed profile recorded the profile's close button as its opener, and closing the
   thread later left focus on `<body>`.
+- Only focus the panel took with it is given back. When focus already sits on a live element outside
+  the closing panel, the panel replacing it put it there, and it stays: a thread opened from the
+  Threads list focuses its back button, and the list closing under it used to pull focus away to the
+  list's own opener.
+- A channel switch does not pull focus out of an open trailing panel either. The room's message box
+  takes focus on a switch, but a thread opened from the Threads list into another channel can mount
+  before that switch lands.
 
 ## The sidebar drawer
 
 Below `NARROW_SHELL_WIDTH` (860px) the sidebar is a drawer beside the rails: `role="dialog"`,
 `aria-modal`, with the chat `inert` and a scrim behind it. Picking a channel closes it.
+
+Below `COMPACT_SHELL_WIDTH` (480px) the rails join the drawer: they are not drawn while it is shut,
+and open with it, with the channel list taking the width that is left beside them. Rails and list
+are one dialog there, so the cloud and place tiles stay reachable to a screen reader that keeps to a
+modal dialog. That drawer fills the window, so it has no scrim and closes by its close button, by
+Escape, or by picking a channel. It is hidden rather than removed while shut, because the rails own
+dialogs (rename, delete, sign out) that must outlive it. Docked, two rails are 136px, which at 320px left the conversation too narrow for its own
+header and composer. The desktop window cannot be made this narrow, so in the app this is what a
+window zoomed far in gets.
 
 ## Opening a panel on a section
 

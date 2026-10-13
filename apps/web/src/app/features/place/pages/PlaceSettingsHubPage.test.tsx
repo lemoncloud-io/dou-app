@@ -5,6 +5,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 let mockPlace: Partial<MySiteView> | null = null;
+let mockPlaceId = 'p1';
+let mockIsGuest = false;
 const navigate = jest.fn();
 const observeItem = jest.fn();
 
@@ -15,9 +17,12 @@ jest.mock('@chatic/app-runtime', () => ({
         data: {
             useRuntimeRepositories: () => ({ place: { observeItem } }),
         },
+        session: {
+            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
+        },
     },
 }));
-jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
+jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: mockPlaceId }) }));
 // The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../components/ChannelSortSheet', () => ({ ChannelSortSheet: () => <div>sort-sheet</div> }));
@@ -27,6 +32,8 @@ import { PlaceSettingsHubPage } from './PlaceSettingsHubPage';
 beforeEach(() => {
     jest.clearAllMocks();
     mockPlace = null;
+    mockPlaceId = 'p1';
+    mockIsGuest = false;
     observeItem.mockImplementation((_id: string, cb: (item: unknown) => void) => {
         cb(mockPlace);
         return jest.fn();
@@ -86,5 +93,42 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
 
         fireEvent.click(rowButton('placeSettings.placeDetail'));
         expect(navigate).toHaveBeenCalledWith('/place/p1/settings/detail');
+    });
+});
+
+describe('PlaceSettingsHubPage — members', () => {
+    it('shows a member of the place the Members row, which opens the member screen', () => {
+        mockPlace = { id: 'p1', isOwner: false };
+        render(<PlaceSettingsHubPage />);
+
+        fireEvent.click(rowButton('placeSettings.members'));
+
+        expect(navigate).toHaveBeenCalledWith('/place/p1/settings/members');
+    });
+
+    it("has no Members row on the relay's own place", () => {
+        mockPlaceId = '0000';
+        mockPlace = { id: '0000' };
+        render(<PlaceSettingsHubPage />);
+
+        expect(screen.queryByText('placeSettings.members')).not.toBeInTheDocument();
+    });
+
+    it('has no Members row for a guest', () => {
+        mockIsGuest = true;
+        mockPlace = { id: 'p1', isOwner: false };
+        render(<PlaceSettingsHubPage />);
+
+        expect(screen.queryByText('placeSettings.members')).not.toBeInTheDocument();
+    });
+});
+
+// Leaving moved to the place information screen; the hub must not offer it any more.
+describe('PlaceSettingsHubPage — no leave row', () => {
+    it('offers no Leave, even to a member who is not the owner', () => {
+        mockPlace = { id: 'p1', isOwner: false };
+        render(<PlaceSettingsHubPage />);
+
+        expect(screen.queryByText('placeDetail.leave')).not.toBeInTheDocument();
     });
 });

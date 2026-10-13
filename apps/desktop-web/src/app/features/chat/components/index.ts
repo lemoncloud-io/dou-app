@@ -24,6 +24,7 @@ export * from './QuickSwitcher';
 export * from './LinkPreviewCard';
 export * from './SavedPanel';
 export * from './MentionsPanel';
+export * from './MyThreadsPanel';
 export * from './NotificationSnoozeButton';
 export * from './ReactionBar';
 export * from './ReadReceipt';

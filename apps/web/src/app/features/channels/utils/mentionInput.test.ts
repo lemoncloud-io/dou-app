@@ -3,7 +3,6 @@ import {
     buildMentionCandidates,
     EVERYONE_CANDIDATE_ID,
     collectMention,
-    EVERYONE_MENTION,
     filterMentionCandidates,
     findMentionQuery,
     type MentionCandidate,
@@ -137,15 +136,15 @@ describe('removeWholeMention', () => {
 
 describe('collectMention', () => {
     const minsu = { label: 'Minsu', userId: 'u2' };
-    const everyone = { label: EVERYONE_MENTION, everyone: true };
+    const everyone = { label: '전체', everyone: true };
 
     it('sends the picks still in the text', () => {
-        expect(collectMention('@Minsu @channel look', [minsu, everyone])).toEqual({ userIds: ['u2'], all: true });
+        expect(collectMention('@Minsu @전체 look', [minsu, everyone])).toEqual({ userIds: ['u2'], all: true });
     });
 
     // A pick whose name was deleted, or an @name typed by hand, mentions nobody.
     it('drops a pick whose name was deleted, and sends nothing when none is left', () => {
-        expect(collectMention('@channel look', [minsu, everyone])).toEqual({ all: true });
+        expect(collectMention('@전체 look', [minsu, everyone])).toEqual({ all: true });
         expect(collectMention('@Minsu typed by hand', [])).toBeUndefined();
         expect(collectMention('look', [minsu])).toBeUndefined();
     });
@@ -164,7 +163,7 @@ describe('collectMention', () => {
 
 describe('filterMentionCandidates', () => {
     const rows: MentionCandidate[] = [
-        { id: '@everyone', label: EVERYONE_MENTION, everyone: true, keywords: ['모두에게'] },
+        { id: '@everyone', label: 'all', everyone: true, keywords: ['Everyone'] },
         { id: 'u2', label: 'Minsu' },
         { id: 'u3', label: '레인' },
     ];
@@ -184,9 +183,12 @@ describe('filterMentionCandidates', () => {
         expect(filterMentionCandidates(rows, 'ㄹ').map(row => row.id)).toEqual(['@everyone', 'u2', 'u3']);
     });
 
+    // The row writes one language's word, but the other language's word and the older ones still find it.
     it('finds the everyone row by any of its names, the localized one included', () => {
         expect(filterMentionCandidates(rows, 'here').map(row => row.id)).toEqual(['@everyone']);
-        expect(filterMentionCandidates(rows, '모두').map(row => row.id)).toEqual(['@everyone']);
+        expect(filterMentionCandidates(rows, 'channel').map(row => row.id)).toEqual(['@everyone']);
+        expect(filterMentionCandidates(rows, '전').map(row => row.id)).toEqual(['@everyone']);
+        expect(filterMentionCandidates(rows, 'every').map(row => row.id)).toEqual(['@everyone']);
     });
 });
 
@@ -200,6 +202,7 @@ describe('buildMentionCandidates', () => {
             avatarOf: id => (id === 'u2' ? 'https://example.test/u2.png' : undefined),
             unknownLabel: 'unknown',
             everyoneKeyword: '모두에게',
+            everyoneLabel: '전체',
         });
 
     it('puts everyone first, then the other members by name, without me', () => {
@@ -215,7 +218,7 @@ describe('buildMentionCandidates', () => {
         expect(build(['u4']).map(row => row.id)).toEqual([EVERYONE_CANDIDATE_ID]);
     });
 
-    it('lets the everyone row answer its localized title', () => {
-        expect(build([])[0]).toMatchObject({ everyone: true, label: EVERYONE_MENTION, keywords: ['모두에게'] });
+    it("writes the UI language's word for everyone and answers its localized title", () => {
+        expect(build([])[0]).toMatchObject({ everyone: true, label: '전체', keywords: ['모두에게'] });
     });
 });

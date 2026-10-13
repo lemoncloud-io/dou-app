@@ -71,6 +71,7 @@ export const ROUTES = {
         settingsEdit: (placeId: string) => `/place/${placeId}/settings/edit`,
         settingsProfile: (placeId: string) => `/place/${placeId}/settings/profile`,
         settingsChannels: (placeId: string) => `/place/${placeId}/settings/channels`,
+        settingsMembers: (placeId: string) => `/place/${placeId}/settings/members`,
     },
 
     // ── Search (Private) ─────────────────────────────────────────

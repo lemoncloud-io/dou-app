@@ -27,6 +27,8 @@ export interface MessageTextProps {
     mentions?: MentionMarks;
     /** A tap on a mention of a member. Without it a mention is drawn but opens nothing. */
     onMentionClick?: (person: MentionPerson) => void;
+    /** The text sits on the page, not in a bubble — a thread's root. See `PAGE_MENTION_CLASS`. */
+    onPage?: boolean;
 }
 
 /**
@@ -38,19 +40,33 @@ export interface MessageTextProps {
 const MENTION_CLASS = 'font-semibold text-brand-ink dark:text-primary';
 const OWN_MENTION_CLASS = 'font-semibold text-primary';
 const SELF_MENTION_CLASS = 'rounded bg-primary/40 px-1 font-semibold text-brand-ink dark:text-foreground';
+/**
+ * Text with no bubble behind it — a thread's root, drawn on the page's white — has nothing to set a
+ * coloured word apart from the body around it, and my own root has no dark bubble for lime text to
+ * read on. There every mention takes a chip, a paler one than a mention of me so that one still reads
+ * louder.
+ */
+const PAGE_MENTION_CLASS = 'rounded bg-primary/20 px-1 font-semibold text-brand-ink dark:text-foreground';
 
 interface PlainTextProps {
     value: string;
     mentions?: MentionMarks;
     onMentionClick?: (person: MentionPerson) => void;
+    onPage?: boolean;
 }
 
 /** Plain text, with its mentions drawn — a mention of me louder than a mention of anyone else. */
-const PlainText = ({ value, mentions, onMentionClick }: PlainTextProps) => {
+const PlainText = ({ value, mentions, onMentionClick, onPage }: PlainTextProps) => {
     if (!mentions?.words.length) return <>{value}</>;
     const self = new Set(mentions.self.map(word => word.toLowerCase()));
     const classOf = (word: string) =>
-        self.has(word.toLowerCase()) ? SELF_MENTION_CLASS : mentions.own ? OWN_MENTION_CLASS : MENTION_CLASS;
+        self.has(word.toLowerCase())
+            ? SELF_MENTION_CLASS
+            : onPage
+              ? PAGE_MENTION_CLASS
+              : mentions.own
+                ? OWN_MENTION_CLASS
+                : MENTION_CLASS;
     return (
         <>
             {splitMentionRuns(value, mentions.words).map((run, index) => {
@@ -96,6 +112,7 @@ export const MessageText = ({
     renderCodeBlock,
     mentions,
     onMentionClick,
+    onPage,
 }: MessageTextProps) => (
     <>
         {tokenizeMessage(text, { truncated }).map((token, index) => {
@@ -126,7 +143,15 @@ export const MessageText = ({
                     <CodeBlock key={index} code={token.value} lang={token.lang} />
                 );
             }
-            return <PlainText key={index} value={token.value} mentions={mentions} onMentionClick={onMentionClick} />;
+            return (
+                <PlainText
+                    key={index}
+                    value={token.value}
+                    mentions={mentions}
+                    onMentionClick={onMentionClick}
+                    onPage={onPage}
+                />
+            );
         })}
     </>
 );
