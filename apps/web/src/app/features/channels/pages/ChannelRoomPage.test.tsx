@@ -396,7 +396,7 @@ describe('ChannelRoomPage — mentions', () => {
         const listbox = screen.getByRole('listbox', { name: 'chat.mention.listLabel' });
         expect(listbox).toBeInTheDocument();
         expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
-            'chat.mention.everyone@channel · chat.mention.everyoneHint',
+            'chat.mention.everyone@chat.mention.everyoneWord · chat.mention.everyoneHint',
             'Minsu',
         ]);
 

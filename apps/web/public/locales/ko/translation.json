@@ -953,7 +953,8 @@
         "mention": {
             "listLabel": "멘션할 사람",
             "everyone": "모두에게",
-            "everyoneHint": "대화방의 모든 사람을 불러요"
+            "everyoneHint": "대화방의 모든 사람을 불러요",
+            "everyoneWord": "전체"
         },
         "unknownUser": "알 수 없는 사용자",
         "me": "나",

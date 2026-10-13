@@ -181,8 +181,8 @@ sheet are all withheld; the sheet especially, since Copy would hand the deleted 
 `apps/web` can render a tombstone and cannot create one.
 
 **Mentions in a message.** In a group room every `@name` of a member — by the name every row in the
-room draws them by, mine included — and every everyone word (`@channel`, `@here`, `@everyone`) is
-drawn as a mention, on anyone's message: the row hands
+room draws them by, mine included — and every everyone word (`@all`, `@전체`, and the older
+`@channel`, `@here`, `@everyone`) is drawn as a mention, on anyone's message: the row hands
 [`MessageText`](../../../src/app/features/channels/components/MessageText.tsx) the room's words from
 [`utils/mentionHighlight.ts`](../../../src/app/features/channels/utils/mentionHighlight.ts). Every
 mention is drawn in DoU's brand colours. Anyone else's is coloured text with no chip, the way a phone's
@@ -204,7 +204,11 @@ which member a name is (`MentionViewer.people`); an everyone word and my own nam
 like a link, a mention does not open after a hold that brought up the action sheet. Mentions are
 marked in plain text only, never inside a link or a code span, by the rule the composer counts a pick
 by (below), so `@레인님` marks `@레인`. A 1:1 and a self chat draw no mentions: they have no `@` list,
-so an `@name` there is plain text. A thread's root follows the same rule.
+so an `@name` there is plain text. A thread's root follows the same rule, with one difference: it
+is drawn on the page, not in a bubble, so every mention in it takes a pale lime chip behind navy text
+— coloured text alone does not stand out from the body on white, and on my own root the lime meant
+for my dark bubble would not read at all. A mention of me keeps its stronger chip there, so it still
+reads louder.
 
 ## Opening a person
 
@@ -367,9 +371,14 @@ the rules. The room and the thread wire it the same way.
   Its rows cancel `mousedown`, so a tap keeps the field focused (in WebKit the focus moves there), and
   `pointerdown` for a mouse only: on touch, cancelling it would stop the list panning. The thread's bar
   does not cancel them itself.
-- **The rows** are "Everyone" first, which writes `@channel`, then the room's active members other than
-  me, by the name every row in the room draws them by, sorted by that name. A member with no name yet
-  is left out: there is nothing to write.
+- **The rows** are "Everyone" first, then the room's active members other than me, by the name every
+  row in the room draws them by, sorted by that name. A member with no name yet is left out: there is
+  nothing to write. The everyone row writes the UI language's word — `@전체` in Korean, `@all` in
+  English (`chat.mention.everyoneWord`) — and is found by either word, by its title ("모두에게",
+  "Everyone"), and by `channel`, `here` and `everyone`. Readers mark every one of those words in any
+  language: the sender's language picked the word, not the reader's, and `@channel` is what the row
+  wrote before. What a mention calls is the pick, not the word, so the change of word changes no
+  notification.
 - **A pick writes `@name ` and remembers who it means.** At the send, the picks whose `@name` is still
   in the text go with the message as `mention: { userIds, all }`; a name deleted before the send, and
   an `@name` typed by hand, call nobody. No pick left means no `mention` field at all. The server keeps

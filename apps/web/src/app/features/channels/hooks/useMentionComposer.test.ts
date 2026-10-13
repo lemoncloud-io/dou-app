@@ -2,10 +2,10 @@ import { useRef, useState } from 'react';
 
 import { act, renderHook } from '@testing-library/react';
 
-import { EVERYONE_MENTION, type MentionCandidate } from '../utils/mentionInput';
+import type { MentionCandidate } from '../utils/mentionInput';
 import { useMentionComposer } from './useMentionComposer';
 
-const EVERYONE: MentionCandidate = { id: '@everyone', label: EVERYONE_MENTION, everyone: true };
+const EVERYONE: MentionCandidate = { id: '@everyone', label: '전체', everyone: true };
 const MINSU: MentionCandidate = { id: 'u2', label: 'Minsu' };
 const RAIN: MentionCandidate = { id: 'u3', label: '레인' };
 const CANDIDATES = [EVERYONE, MINSU, RAIN];

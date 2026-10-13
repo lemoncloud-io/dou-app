@@ -106,6 +106,19 @@ describe('MessageText', () => {
             expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary');
         });
 
+        // A thread's root sits on the page's white, with no bubble behind it — and on my own root,
+        // lime text would not read at all.
+        it('puts a chip behind every mention on text drawn on the page, mine still louder', () => {
+            const { container } = render(
+                <MessageText text="@레인 @Minsu @channel" mentions={marks({ self: ['@레인'], own: true })} onPage />
+            );
+
+            expect(mentionSpan(container, '@레인')).toHaveClass('bg-primary/40');
+            expect(mentionSpan(container, '@Minsu')).toHaveClass('bg-primary/20', 'text-brand-ink');
+            expect(mentionSpan(container, '@Minsu')).not.toHaveClass('text-primary');
+            expect(mentionSpan(container, '@channel')).toHaveClass('bg-primary/20');
+        });
+
         it('opens the member a mention names on a tap, and nothing for an everyone word', () => {
             const onMentionClick = jest.fn();
             render(<MessageText text="@Minsu @channel" mentions={marks()} onMentionClick={onMentionClick} />);

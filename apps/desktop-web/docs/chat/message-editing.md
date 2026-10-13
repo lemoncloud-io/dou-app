@@ -44,11 +44,11 @@ is open, Enter and Tab pick and Escape closes only the list.
 A chip is how the editor shows a mention, nothing more: the stored text is the plain `@name`, which is
 also all the message view needs to render a mention and open the profile on click. So when the editor
 opens a message, `@name` becomes a chip again (one Backspace removes it whole) only where the name is
-exactly a member's display name or a group token (`@channel`, `@here`, `@everyone`), longest name
-first, at a word start (so `medium.com/@Ada` stays a link) and with no token character right after
-it. `@Adalyn` stays text when only `Ada` is on the roster, and so does `@Ada.` at the end of a
-sentence, because `.` and `-` count as token characters, as they do in the message view. A mention
-inside code is never a chip. A name that does not match is simply text; saving it is
+exactly a member's display name or a group token (`@channel`, `@here`, `@everyone`, and the `@all` and
+`@전체` the phone's everyone pick writes), longest name first, at a word start (so `medium.com/@Ada`
+stays a link) and with no token character right after it. `@Adalyn` stays text when only `Ada` is on
+the roster, and so does `@Ada.` at the end of a sentence, because `.` and `-` count as token
+characters, as they do in the message view. A mention inside code is never a chip. A name that does not match is simply text; saving it is
 unaffected either way. The roster is read once with the content, like the text, so members who load
 after the editor opened do not turn earlier `@name` text into chips.
 
