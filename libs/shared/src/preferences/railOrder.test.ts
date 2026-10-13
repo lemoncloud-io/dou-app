@@ -5,7 +5,7 @@ import { renderHook } from '@testing-library/react';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
 
-import { normalizeRailOrder, useCloudOrder } from './railOrder';
+import { normalizeRailOrder, useCloudOrder, usePlaceOrder } from './railOrder';
 
 jest.mock('@chatic/config', () => ({
     config: { get: jest.fn(), set: jest.fn() },
@@ -86,5 +86,53 @@ describe('useCloudOrder', () => {
             { clouds: ['b', 'a'], places: { a: ['p1'] } },
             { lane: 'local' }
         );
+    });
+});
+
+describe('usePlaceOrder', () => {
+    it('reads the place order of the cloud it is given, and no other', () => {
+        mockUseConfigValue.mockReturnValue({ places: { a: ['p2', 'p1'], b: ['p9'] } });
+
+        expect(renderHook(() => usePlaceOrder('a')).result.current.storedIds).toEqual(['p2', 'p1']);
+        expect(renderHook(() => usePlaceOrder('c')).result.current.storedIds).toEqual([]);
+    });
+
+    it('writes one cloud’s place order and keeps the cloud order and the other clouds’ places', () => {
+        mockUseConfigValue.mockReturnValue(undefined);
+        mockGet.mockReturnValue({ clouds: ['b', 'a'], places: { a: ['p1', 'p2'], b: ['p9'] } });
+
+        const { result } = renderHook(() => usePlaceOrder('a'));
+        result.current.set(['p2', 'p1']);
+
+        expect(mockSet).toHaveBeenCalledWith(
+            'ui.railOrder',
+            { clouds: ['b', 'a'], places: { a: ['p2', 'p1'], b: ['p9'] } },
+            { lane: 'local' }
+        );
+    });
+
+    it('keeps a stored place that is not on the rail when the others are reordered', () => {
+        mockUseConfigValue.mockReturnValue(undefined);
+        mockGet.mockReturnValue({ places: { a: ['p1', 'late', 'p2'] } });
+
+        const { result } = renderHook(() => usePlaceOrder('a'));
+        result.current.set(['p2', 'p1']);
+
+        expect(mockSet).toHaveBeenCalledWith(
+            'ui.railOrder',
+            { clouds: [], places: { a: ['p2', 'p1', 'late'] } },
+            { lane: 'local' }
+        );
+    });
+
+    // Before the cloud is known there is no key to write under.
+    it('reads nothing and writes nothing without a cloud', () => {
+        mockUseConfigValue.mockReturnValue({ places: { a: ['p1'] } });
+
+        const { result } = renderHook(() => usePlaceOrder(null));
+        result.current.set(['p1']);
+
+        expect(result.current.storedIds).toEqual([]);
+        expect(mockSet).not.toHaveBeenCalled();
     });
 });

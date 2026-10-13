@@ -8,6 +8,10 @@ import i18next from 'i18next';
 import type { DomainPlace } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+import type * as DndCore from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import type * as ChaticShared from '@chatic/shared';
+
 import type * as SharedModule from '../../../shared';
 import type * as ConfirmDialogModule from '../../channels/components/ConfirmDialog';
 import type * as SendInviteStoreModule from '../../channels/stores/useSendInviteStore';
@@ -39,6 +43,28 @@ vi.mock('../../channels', async () => ({
         await vi.importActual<typeof SendInviteStoreModule>('../../channels/stores/useSendInviteStore')
     ).useSendInviteStore,
 }));
+// The stored order rides the shared `ui.railOrder` hook; stub the config store out of the render.
+const placeOrder = vi.hoisted(() => ({ byCloud: {} as Record<string, string[]>, set: vi.fn(), cloudId: '' }));
+vi.mock('@chatic/shared', async () => ({
+    ...(await vi.importActual<typeof ChaticShared>('@chatic/shared')),
+    usePlaceOrder: (cloudId: string | null) => {
+        placeOrder.cloudId = cloudId ?? '';
+        return { storedIds: placeOrder.byCloud[cloudId ?? ''] ?? [], set: placeOrder.set };
+    },
+}));
+// jsdom lays nothing out, so a pointer drag cannot be played. The list's own drag-end handler is
+// what decides the new order, and it is taken from the context it was given to.
+const dnd = vi.hoisted(() => ({ end: undefined as ((event: DragEndEvent) => void) | undefined }));
+vi.mock('@dnd-kit/core', async () => {
+    const actual = await vi.importActual<typeof DndCore>('@dnd-kit/core');
+    return {
+        ...actual,
+        DndContext: (props: ComponentProps<typeof DndCore.DndContext>) => {
+            dnd.end = props.onDragEnd;
+            return <actual.DndContext {...props} />;
+        },
+    };
+});
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
 import '../../../../i18n';
@@ -89,7 +115,11 @@ const renderRail = (props: Partial<ComponentProps<typeof PlaceRail>> = {}) => {
 
 const createTile = () => screen.queryByRole('button', { name: i18next.t('place.create.open') });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    placeOrder.byCloud = {};
+    dnd.end = undefined;
+});
 
 describe('PlaceRail new place tile', () => {
     it('opens place creation from the tile after the places', () => {
@@ -295,5 +325,58 @@ describe('PlaceRail place delete', () => {
         renderRail({ isSwitching: true });
         askToDelete();
         expect(confirmation()).toBeNull();
+    });
+});
+
+describe('PlaceRail order', () => {
+    const three = [
+        { id: 'p1', name: 'Design', cid: 'mine' },
+        { id: 'p2', name: 'Sales', cid: 'mine' },
+        { id: 'p3', name: 'Ops', cid: 'mine' },
+    ] as DomainPlace[];
+    const placeNames = () =>
+        screen
+            .getAllByRole('button')
+            .map(button => button.getAttribute('aria-label'))
+            .filter(name => ['Design', 'Sales', 'Ops', i18next.t('place.create.open')].includes(name ?? ''));
+    const drop = (active: string, over: string | null) =>
+        act(() => dnd.end?.({ active: { id: active }, over: over ? { id: over } : null } as DragEndEvent));
+
+    it('draws the places in the order stored for their cloud, with the new place tile last', () => {
+        placeOrder.byCloud = { mine: ['p3', 'p1'], other: ['p2', 'p1', 'p3'] };
+        renderRail({ places: three, selectedPlaceId: 'p1' });
+        expect(placeOrder.cloudId).toBe('mine');
+        expect(placeNames()).toEqual(['Ops', 'Design', 'Sales', i18next.t('place.create.open')]);
+    });
+
+    it('stores the new order when a tile is dropped on another', () => {
+        renderRail({ places: three, selectedPlaceId: 'p1' });
+        drop('p3', 'p1');
+        expect(placeOrder.set).toHaveBeenCalledWith(['p3', 'p1', 'p2']);
+    });
+
+    it('never offers the new place tile as a place to drop on', () => {
+        renderRail({ places: three, selectedPlaceId: 'p1' });
+        drop('p3', 'create-place');
+        expect(placeOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('has nothing to drag on Home, which has one fixed tile', () => {
+        renderRail({ isDefaultMode: true, places: [] });
+        expect(dnd.end).toBeUndefined();
+    });
+
+    it('swallows the click that ends a drag', () => {
+        const onSelectPlace = vi.fn();
+        renderRail({ places: three, selectedPlaceId: 'p1', onSelectPlace });
+        drop('p3', 'p1');
+        fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+        expect(onSelectPlace).not.toHaveBeenCalled();
+    });
+
+    it('shows the tiles as not draggable while a switch is in flight', () => {
+        renderRail({ places: three, selectedPlaceId: 'p1', isSwitching: true });
+        const row = screen.getByRole('button', { name: 'Sales' }).closest('div[class*="cursor-"]');
+        expect(row?.className).toMatch(/cursor-default/);
     });
 });

@@ -76,3 +76,25 @@ export const useCloudOrder = () => {
 
     return { storedIds, set };
 };
+
+/**
+ * Read/write the stored place order of one cloud. `cloudId` null (the cloud is not settled yet)
+ * yields an empty list and turns the writer into a no-op.
+ */
+export const usePlaceOrder = (cloudId: string | null) => {
+    const raw = useConfigValue<unknown>('ui.railOrder');
+    const storedIds = useMemo(() => (cloudId ? (normalizeRailOrder(raw).places[cloudId] ?? []) : []), [raw, cloudId]);
+
+    const set = useCallback(
+        (placeIds: string[]) => {
+            if (!cloudId) return;
+            writeRailOrder(current => ({
+                ...current,
+                places: { ...current.places, [cloudId]: keepUnshown(current.places[cloudId] ?? [], placeIds) },
+            }));
+        },
+        [cloudId]
+    );
+
+    return { storedIds, set };
+};

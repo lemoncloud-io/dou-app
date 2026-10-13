@@ -8,6 +8,22 @@ default cloud has no places to choose between.
 The tiles come from the place cache (`usePlaces`), which the runtime's background sync keeps
 current. Nothing on the rail fetches.
 
+## Order
+
+The place tiles can be dragged into any order, as the cloud tiles can (see
+[`cloud-rail.md`](./cloud-rail.md) § Order for the drag itself and for why the order is this
+device's own). The **New place** tile stays after the list and is not one of the tiles that move,
+and Home's single tile has nothing to be ordered against.
+
+The order is kept per cloud, in the same local record (`ui.railOrder`, `usePlaceOrder`): a place
+id means nothing outside its cloud, and the rail lists one cloud's places at a time. A place the
+stored order does not name yet is drawn after the ones it does. A stored place that is not on the
+rail keeps its position through a drag, because the place cache can be behind for a moment.
+
+Only the rail reads the order. The place the session enters when its own is gone
+(`placeToEnter`) is still the one last open in that cloud, and failing that the first one the
+cache lists, not the first tile.
+
 ## Making a place
 
 After the last place tile there is a **New place** tile, when the account can make one here.
