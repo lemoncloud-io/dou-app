@@ -1,9 +1,8 @@
 import { config } from '@chatic/config';
 
 /**
- * Phone-number sign-in is off in production for the reason Google sign-in is: the backend restores
- * only the clouds an account owns, so someone signing in here would not find the clouds they were
- * invited into. Read per call — `config.get()` answers nothing until boot has run `config.init()`.
+ * Phone-number sign-in: on in every build, behind a registry key for the same reason as social
+ * sign-in. Read per call — `config.get()` answers nothing until boot has run `config.init()`.
  */
 export const isPhoneLoginEnabled = (): boolean => config.get<boolean>('feature.auth.phoneLogin') !== false;
 

@@ -200,8 +200,8 @@ The same check guards the hand-off page when the relay's return lands inside the
   receives the code, and nothing in this repository keeps it from exchanging that code itself: the
   nonce is checked only inside this app and never reaches the server, so it proves nothing to a party
   that does not need it. Nothing here bounds what that costs. Closing it needs the relay to use a code up on its first
-  exchange and to bind it to a challenge sent when the login starts. It is accepted for now
-  because Google sign-in is on only in the dev channel.
+  exchange and to bind it to a challenge sent when the login starts. It is accepted, with
+  Google sign-in on in production; see "On in production".
 - **A link that lands mid-sign-in.** Someone opening a link while the person is in the browser uses up
   the record. The real link then finds none and is refused; the person starts again. It costs that
   attempt and cannot complete one.
@@ -263,14 +263,18 @@ The route is registered on both sides of the router's signed-in switch, because 
 step 1 flips it while the form is open. There is no development bypass code on desktop; a code
 always arrives by text. The number and the code stay in the request body and are never logged.
 
-## Not on in production
+## On in production
 
-`feature.auth.phoneLogin` is off in production: a phone sign-in has not yet been shown to keep
-the clouds a person was invited into as a guest.
+Both `feature.auth.socialLogin` and `feature.auth.phoneLogin` are on in every build, production
+included. They stay `server`-writable, which is the declared way to turn one off without a release
+once a remote lane is wired; until then rolling back is a one-line registry change and a web deploy.
 
-`feature.auth.socialLogin` is off in production. Turning it on waits for three things: a real sign-in
-on the dev channel showing that a guest invited to a cloud can still enter it after signing in with
-Google (the exchange above is what is meant to keep that link; it has not been tried on a device yet),
-a real sign-in confirming that the account is the same user as on mobile (the nonce round trip is
-confirmed on the dev channel; the same user is not), and a decision on the scheme-claim risk above —
-accepted, or closed at the relay.
+Google was held to the dev channel until three things were known. Two were shown on the dev channel:
+a guest invited to a cloud signed in with Google and could still enter the cloud, and a Google account
+linked on mobile signed into that same account. The third, another app claiming the protocol scheme
+(see "What this does not stop"), is not closed: it is accepted, and closing it is relay work, a code
+used up on its first exchange and bound to a challenge sent when the sign-in starts.
+
+Phone sign-in was held for the same invited-cloud question. Signing into an existing account by
+phone and linking Google onto it were shown on the dev channel; a guest who was invited to a cloud
+and then signs in by phone has not been tried on a device yet.
