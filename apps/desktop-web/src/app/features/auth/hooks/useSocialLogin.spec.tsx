@@ -406,7 +406,9 @@ describe('useSocialLogin.start', () => {
 
             await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'auth2:x', nonce: 'n1' }));
 
-            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'auth2:x');
+            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('google', 'auth2:x', {
+                linkCurrentSession: true,
+            });
             expect(session.verifySocialAccount).not.toHaveBeenCalled();
             vi.unstubAllGlobals();
         });
