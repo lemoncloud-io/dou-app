@@ -55,11 +55,21 @@ export const useDesktopInviteMutations = () => {
         return inviteRepository.list();
     }, [inviteRepository]);
 
+    /**
+     * A place invite comes back from `user.invite`, which puts the link in `Location` rather than the
+     * `deeplink` that `invite.create` answers with. It is read into `deeplink` here, so callers handle
+     * both kinds of invite the same way; without it every place invite was reported as having no link.
+     */
     const requestPlaceInvite = useCallback(
         ({ phone, name }: { phone: string; name: string }): Promise<MyInviteView> => {
             if (!phone) return Promise.reject(new Error('phone is required'));
             if (!name.trim()) return Promise.reject(new Error('name is required'));
-            return run(() => userRepository.requestInvite({ phone, name }));
+            return run(async () => {
+                const view = await userRepository.requestInvite({ phone, name });
+                const location = (view as { Location?: unknown }).Location;
+                if (view.deeplink || typeof location !== 'string' || !location) return view;
+                return { ...view, deeplink: location };
+            });
         },
         [userRepository, run]
     );

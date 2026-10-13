@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const createInvite = vi.fn(async () => ({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' }));
-const requestPlaceInvite = vi.fn(async () => ({ id: 'inv-p', deeplink: 'https://dou.example/p/xyz' }));
+// `user.invite` answers with the link in `Location`, not `deeplink`.
+const requestPlaceInvite = vi.fn(async () => ({ id: 'inv-p', Location: 'https://dou.example/p/xyz' }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -54,7 +55,7 @@ describe('SendInviteDialog', () => {
         cleanup();
         vi.clearAllMocks();
         createInvite.mockResolvedValue({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' });
-        requestPlaceInvite.mockResolvedValue({ id: 'inv-p', deeplink: 'https://dou.example/p/xyz' });
+        requestPlaceInvite.mockResolvedValue({ id: 'inv-p', Location: 'https://dou.example/p/xyz' });
         useSendInviteStore.getState().close();
         useInviteWaitingStore.getState().close();
         useInviteLinkStore.getState().close();
