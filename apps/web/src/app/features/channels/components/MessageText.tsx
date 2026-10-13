@@ -112,7 +112,7 @@ export const MessageText = ({
                             onUrlClick(token.value);
                         }}
                     >
-                        {token.value}
+                        {token.label ?? token.value}
                     </a>
                 );
             }

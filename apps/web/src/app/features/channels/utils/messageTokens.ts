@@ -1,10 +1,10 @@
 /**
  * Splits message text into plain runs, URL runs, and code runs.
  *
- * NOT markdown. The only markup understood here is inline backticks and triple-backtick fences —
- * bold, italics, headings, lists, quotes and link syntax are all still plain text. Widening that
- * list is a product decision (ADR-0055 widened it once, for code), not something to slip in while
- * touching this file.
+ * NOT markdown. The only markup understood here is inline backticks, triple-backtick fences and
+ * labelled links (`[words](https://…)`, which the desktop composer's link dialog sends) — bold,
+ * italics, headings, lists and quotes are all still plain text. Widening that list is a product
+ * decision, not something to slip in while touching this file.
  *
  * Code is resolved BEFORE URLs, so a `https://…` inside a code span stays literal: it is not
  * linked, and `extractFirstUrl` does not offer it to the unfurl card. That ordering is the point,
@@ -13,11 +13,18 @@
 
 export type MessageToken =
     | { type: 'text'; value: string }
-    | { type: 'url'; value: string }
+    | { type: 'url'; value: string; label?: string }
     | { type: 'code'; value: string }
     | { type: 'codeBlock'; value: string; lang?: string };
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
+
+/**
+ * `[words](address)`: words with no brackets or line breaks, an http(s) address that starts with a
+ * host character and holds no spaces or parentheses — so `[x] done (see notes)` and
+ * `[x](javascript:…)` stay text. The same rule as the desktop reader's.
+ */
+const LABELLED_LINK_PATTERN = /\[([^[\]\n]+)\]\((https?:\/\/[^\s()/?#][^\s()]*)\)/g;
 
 /** Punctuation that ends a sentence far more often than it ends a URL. */
 const TRAILING_PUNCTUATION = new Set(['.', ',', ';', ':', '!', '?', "'", '"', '·', '…']);
@@ -170,7 +177,7 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
     return segments;
 };
 
-/** Pass 3 — URLs, over one run of non-code text. */
+/** Pass 3b — bare URLs, over one run of non-code, non-link text. */
 const tokenizeUrls = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
     const tokens: MessageToken[] = [];
     let last = 0;
@@ -194,14 +201,36 @@ const tokenizeUrls = (text: string, dropTrailingUrl: boolean): MessageToken[] =>
     return tokens;
 };
 
-/** Pass 2 — inline backticks, then hand the leftovers to the URL pass. */
+/**
+ * Pass 3a — labelled links, ahead of bare URLs so the address inside one is not read again. The
+ * pattern needs the closing `)`, so a link cut off by truncation is never matched as one.
+ */
+const tokenizeLinks = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
+    const tokens: MessageToken[] = [];
+    let last = 0;
+    let match: RegExpExecArray | null;
+
+    LABELLED_LINK_PATTERN.lastIndex = 0;
+    while ((match = LABELLED_LINK_PATTERN.exec(text)) !== null) {
+        const [whole, label, url] = match as unknown as [string, string, string];
+        if (!isLinkable(url)) continue;
+        if (match.index > last) tokens.push(...tokenizeUrls(text.slice(last, match.index), false));
+        tokens.push({ type: 'url', value: url, label });
+        last = match.index + whole.length;
+    }
+
+    if (last < text.length) tokens.push(...tokenizeUrls(text.slice(last), dropTrailingUrl));
+    return tokens;
+};
+
+/** Pass 2 — inline backticks, then hand the leftovers to the link passes. */
 const tokenizeInline = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
     const tokens: MessageToken[] = [];
     let last = 0;
     let match: RegExpExecArray | null;
 
     const pushText = (value: string, isFinal: boolean) => {
-        if (value) tokens.push(...tokenizeUrls(value, dropTrailingUrl && isFinal));
+        if (value) tokens.push(...tokenizeLinks(value, dropTrailingUrl && isFinal));
     };
 
     INLINE_CODE_PATTERN.lastIndex = 0;
@@ -248,9 +277,14 @@ const firstNonEmptyLine = (value: string): string => value.split('\n').find(line
  *
  * The home row has nowhere to render a code block, so markup characters would just read as noise
  * there. Backticks are stripped and a fenced block collapses to its first line — no badge, no
- * monospace, nothing that would complicate the row or tangle with the blur-preview setting.
+ * monospace, nothing that would complicate the row or tangle with the blur-preview setting. A
+ * labelled link reads as its words.
  */
 export const toPlainPreview = (text: string): string =>
     tokenizeMessage(text)
-        .map(token => (token.type === 'codeBlock' ? firstNonEmptyLine(token.value) : token.value))
+        .map(token => {
+            if (token.type === 'codeBlock') return firstNonEmptyLine(token.value);
+            if (token.type === 'url') return token.label ?? token.value;
+            return token.value;
+        })
         .join('');

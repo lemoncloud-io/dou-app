@@ -12,6 +12,12 @@ anchors. If the two drifted, the composer would mark text as a link that readers
 plain text, or the other way round. `www.example.com` with no scheme, for example, is a link on
 neither side.
 
+A labelled link (`[words](address)`, from the link button) has its own source next to it,
+`LABELLED_LINK_SOURCE`. `RichText` tries it before the bare URL so the address inside one is not read
+twice, and `stripMarkdown` uses it to reduce the link to its words in previews. The composer side is
+Lexical's `LinkNode` and `LINK` transformer, used for reading and writing the message only — see
+[composer.md](./composer.md#links).
+
 ## Code stays unlinked
 
 `RichText` does not link inside code, so the composer does not either:

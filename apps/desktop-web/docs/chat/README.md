@@ -8,6 +8,8 @@ stores in `src/app/shared/`.
 
 - [direct-messages.md](./direct-messages.md) — cloud 1:1s: where they are listed, how one is started
   and opened, and how the other person is named and pictured.
+- [composer.md](./composer.md) — the composer's three rows, and how a code block is opened, left and
+  pasted when Enter sends.
 - [composer-links.md](./composer-links.md) — a URL typed into the composer shows as a link, and
   why the composer and the message view cannot disagree about what a link is.
 - [feed-windowing.md](./feed-windowing.md): which feed rows are mounted, how the reading position

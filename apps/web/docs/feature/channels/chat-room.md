@@ -296,8 +296,12 @@ and linkifying their text widens it.
 
 [`messageTokens.ts`](../../../src/app/features/channels/utils/messageTokens.ts) splits a body into
 four token kinds: `text`, `url`, `code` (inline backticks) and `codeBlock` (triple-backtick fences).
-Bold, italics, headings, lists, quotes and link syntax stay literal. Widening that set is a product
-decision, not a refactor. An `@name` is text too; the one thing drawn on top of it is the highlight of
+A `url` token may carry a `label`: `[words](https://…)` — what the desktop composer's link dialog
+sends — is drawn as the words linking to the address, the home preview shows the words, and the link
+card unfurls the address. The words hold no brackets or line breaks and the address must be http(s),
+start with a host and hold no spaces or parentheses, so
+`[x] done (see notes)` and `[x](javascript:…)` stay literal. Bold, italics, headings, lists and quotes
+stay literal. Widening that set is a product decision, not a refactor. An `@name` is text too; the one thing drawn on top of it is the highlight of
 a mention of me (see [A message row](#a-message-row)), which only marks words inside `text` tokens.
 
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to

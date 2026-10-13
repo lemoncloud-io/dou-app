@@ -305,3 +305,30 @@ describe('toPlainPreview — blank leading line', () => {
         expect(toPlainPreview('```\n```')).toBe('');
     });
 });
+
+describe('labelled links', () => {
+    it('reads [label](url) as one link carrying its label', () => {
+        expect(tokenizeMessage('see [the docs](https://example.com/a) here')).toEqual([
+            { type: 'text', value: 'see ' },
+            { type: 'url', value: 'https://example.com/a', label: 'the docs' },
+            { type: 'text', value: ' here' },
+        ]);
+    });
+
+    it('leaves a label pointing anywhere but http(s) as text', () => {
+        expect(urls('[x](javascript:alert(1))')).toEqual([]);
+    });
+
+    it('reads a labelled link with no host as text, as the desktop reader does', () => {
+        expect(urls('[x](https:///a)')).toEqual([]);
+    });
+
+    it('keeps a labelled link inside code literal', () => {
+        expect(urls('`[x](https://example.com)`')).toEqual([]);
+    });
+
+    it('unfurls the address and previews the label', () => {
+        expect(extractFirstUrl('[the docs](https://example.com/a)')).toBe('https://example.com/a');
+        expect(toPlainPreview('see [the docs](https://example.com/a)')).toBe('see the docs');
+    });
+});

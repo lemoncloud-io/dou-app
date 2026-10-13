@@ -13,15 +13,19 @@ import { $getRoot, $getSelection } from 'lexical';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
+    $exportMessage,
     $exportWireMarkdown,
     $importWireMarkdown,
     COMPOSER_NODES,
     COMPOSER_THEME,
     COMPOSER_TRANSFORMERS,
+    CodeFencePastePlugin,
+    CodeFenceShortcutPlugin,
     ComposerAutoLinkPlugin,
     ComposerEmojiButton,
     ComposerToolbar,
     FormatShortcutsPlugin,
+    LinkGuardPlugin,
     MentionsPlugin,
     SubmitPlugin,
 } from './editor';
@@ -62,7 +66,7 @@ const MessageEditorInner = ({
         const unregister = editor.registerUpdateListener(({ editorState }) => {
             const baseline = baselineRef.current;
             if (baseline === null) return;
-            const next = editorState.read($exportWireMarkdown).trim();
+            const next = editorState.read($exportMessage);
             setDirty(next !== '' && next !== baseline);
         });
         editor.update(() => {
@@ -83,7 +87,7 @@ const MessageEditorInner = ({
 
     // Enter and the Save button share this so the two can never drift.
     const save = useCallback(() => {
-        const next = editor.getEditorState().read($exportWireMarkdown).trim();
+        const next = editor.getEditorState().read($exportMessage);
         if (!next || next === baselineRef.current) onCancel();
         else onSave(next);
     }, [editor, onSave, onCancel]);
@@ -146,6 +150,9 @@ const MessageEditorInner = ({
             </span>
             <HistoryPlugin />
             <MarkdownShortcutPlugin transformers={COMPOSER_TRANSFORMERS} />
+            <CodeFenceShortcutPlugin />
+            <CodeFencePastePlugin />
+            <LinkGuardPlugin />
             <MentionsPlugin mentionables={mentionables} />
             <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={save} />
