@@ -5,7 +5,7 @@ import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { channelsByPlace, cloudDmPlaces, placeUnreadCounts } from '../utils';
-import { useKnownChannelsStore, useReadCursorStore } from '../stores';
+import { useKnownChannelsStore, useNotificationPrefsStore, useReadCursorStore } from '../stores';
 import { usePlaces } from './usePlaces';
 import { chatFrameChannelIdOf } from './useRefreshOnPush';
 import { isChannelReadLive } from './liveReadRegistry';
@@ -18,7 +18,8 @@ const isWindowActive = (): boolean =>
 
 /**
  * Per-place unread counts for the active cloud, keyed by place id, and their total. A 1:1 counts
- * in every place that lists it and once in the total (`placeUnreadCounts`).
+ * in every place that lists it and once in the total (`placeUnreadCounts`). A muted channel counts
+ * in neither.
  *
  * Fetches every channel of the active cloud into a flat in-memory list (`channel.fetchList`,
  * `hasSite: false`, with detail) and derives unread client-side — the pre-v2 desktop approach. It
@@ -42,6 +43,9 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
+    // Subscribed, so muting or unmuting a channel moves the dots without waiting for a refetch.
+    const channelNotify = useNotificationPrefsStore(s => s.channelNotify);
+    const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
     const { placeIds } = usePlaces();
 
     // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
@@ -126,7 +130,13 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     }, [fetched, dmPlaces, cloudId, myUid]);
 
     return useMemo(
-        () => placeUnreadCounts(channels, { myUid: myUid ?? null, dmPlaces, readCursors }),
-        [channels, myUid, dmPlaces, readCursors]
+        () =>
+            placeUnreadCounts(channels, {
+                myUid: myUid ?? null,
+                dmPlaces,
+                readCursors,
+                notifyPrefs: { channelNotify, mutedChannels },
+            }),
+        [channels, myUid, dmPlaces, readCursors, channelNotify, mutedChannels]
     );
 };

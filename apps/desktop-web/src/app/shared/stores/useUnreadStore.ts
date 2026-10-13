@@ -1,9 +1,15 @@
 import { create } from 'zustand';
 
 interface UnreadState {
-    /** Unread message count per place id, for the active cloud. A 1:1 counts in every place listing it. */
+    /**
+     * Unread message count per place id, for the active cloud. A 1:1 counts in every place listing it;
+     * a muted channel counts in none.
+     */
     byPlace: Record<string, number>;
-    /** The active cloud's unread messages, each channel counted once — not the sum of `byPlace`. */
+    /**
+     * The active cloud's unread messages, each channel counted once — not the sum of `byPlace`.
+     * Muted channels are left out.
+     */
     total: number;
     setUnread: (unread: { byPlace: Record<string, number>; total: number }) => void;
 }

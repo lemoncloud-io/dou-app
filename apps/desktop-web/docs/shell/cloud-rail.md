@@ -55,6 +55,15 @@ app does only to refresh an invited cloud's name.
 The active cloud's dot comes from the live socket. Another cloud's dot is a pending cross-cloud push
 (`useCrossCloudPushBadge`), the only signal the client has for it, and it carries no count.
 
+A muted channel — any notify mode but "all" — does not light the active cloud's dot, its place's
+dot, the window title or the OS badge (`placeUnreadCounts`). All four mean "something here wants
+you", and a channel told to stay quiet does not; its own sidebar row still shows its unread. They
+used to count it, so one muted channel kept its place and its cloud dotted with nothing to act on.
+The mode is the one the row's bell-off glyph reads (`channelNotifyMode`), so the dots follow a mute
+set on this device at once. A mention in a muted channel is still captured into the Mentions entry while the app is running,
+whatever the mode; one that arrived while the app was closed lights none of the four.
+The pending push on another cloud is not filtered this way: it is marked on any push that arrives.
+
 ## A failed switch
 
 `useCloudSwitchFlow` (`shared/hooks/useCloudSwitchFlow.ts`) switches with `switchCloud`, which rolls
