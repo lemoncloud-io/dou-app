@@ -29,7 +29,9 @@ ADR-0178 named three things Google waited on:
   started the sign-in, by a challenge sent at the start and checked at the exchange. That is server
   work with no date.
 
-Phone sign-in was held for the first of these, the invited-cloud question.
+Phone sign-in was held for the first of these, the invited-cloud question. On the dev channel a
+guest who joined a cloud by invite signed into an existing account by phone and could still enter
+the cloud after a reload.
 
 ## Decision
 
@@ -37,9 +39,6 @@ Phone sign-in was held for the first of these, the invited-cloud question.
    the keys stay, with their `server` lane, so the gate is a registry value rather than a constant.
 2. **The scheme-claim risk is accepted.** Google sign-in ships to production with it open. The relay
    change above is what closes it, and is requested from the server side.
-3. **Phone sign-in opens without the invited-cloud check on a device.** Signing into an existing
-   account by phone, and linking Google onto it, were checked on the dev channel; a guest who was
-   invited to a cloud and then signs in by phone was not.
 
 ## Alternatives
 
@@ -51,7 +50,8 @@ Phone sign-in was held for the first of these, the invited-cloud question.
 
 - An app on the same machine that claims `chatic://` can take a Google sign-in's code and sign in as
   that person. Nothing in the app bounds this; the relay change does.
-- If a phone sign-in turns out to drop a guest's invited clouds, the person loses access to clouds they
-  joined as a guest on that device. The mobile app's phone sign-in uses the same packet.
+- An invited cloud follows the guest session that signed in, not the account for good: the same
+  account signed in later from a fresh guest did not list it. This is the server's link record, which
+  the mobile sign-in leaves too, and is not changed here.
 - Rolling either back is a one-line registry change and a web deploy. A server-written value would
   do it without a deploy, but no remote fetcher is wired behind the `server` lane yet.

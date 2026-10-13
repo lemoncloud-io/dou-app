@@ -275,6 +275,9 @@ linked on mobile signed into that same account. The third, another app claiming 
 (see "What this does not stop"), is not closed: it is accepted, and closing it is relay work, a code
 used up on its first exchange and bound to a challenge sent when the sign-in starts.
 
-Phone sign-in was held for the same invited-cloud question. Signing into an existing account by
-phone and linking Google onto it were shown on the dev channel; a guest who was invited to a cloud
-and then signs in by phone has not been tried on a device yet.
+Phone sign-in was held for the same invited-cloud question. On the dev channel a guest who joined a
+cloud by invite signed into an existing account by phone and could still enter the cloud after a
+reload.
+
+The invited cloud follows the guest session that signs in, not the account for good: the same account
+signed in later from a fresh guest did not list it. Mobile sign-in leaves the same link record.
