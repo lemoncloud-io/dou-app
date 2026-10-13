@@ -83,7 +83,9 @@ jest.mock('../components/ChannelMessageRow', () => ({
 }));
 // The root is no longer a message row — it renders as the thread's subject (plain text, no
 // bubble), so its body and chips are stubbed separately from the reply rows above.
-jest.mock('../components/MessageText', () => ({ MessageText: ({ text }: any) => <>{text}</> }));
+jest.mock('../components/MessageText', () => ({
+    MessageText: ({ text, onPage }: any) => <span data-on-page={String(!!onPage)}>{text}</span>,
+}));
 jest.mock('../components/ReactionChips', () => ({
     ReactionChips: ({ tallies }: any) => <div data-testid="root-chips">{tallies?.length ?? 0}</div>,
 }));
@@ -609,6 +611,18 @@ describe('ThreadPage — mentions', () => {
             parentId: 'ch1:7',
             mention: { userIds: ['peer'] },
         });
+    });
+
+    // The root has no bubble behind it, so its mentions are drawn for the page, not for a bubble.
+    it("draws the root's text as sitting on the page", () => {
+        mockLocationState = { rootChat: chat({ content: '@Minsu 확인요' }) };
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('thread-root').querySelector('[data-on-page]')).toHaveAttribute(
+            'data-on-page',
+            'true'
+        );
     });
 
     it('offers no list in a 1:1 thread', () => {

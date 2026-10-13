@@ -495,6 +495,7 @@ export const ThreadPage = () => {
                                     onMentionClick={person =>
                                         openMemberProfile({ id: person.id, name: person.name, avatar: person.avatar })
                                     }
+                                    onPage
                                 />
                             </p>
                         )

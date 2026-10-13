@@ -204,7 +204,11 @@ which member a name is (`MentionViewer.people`); an everyone word and my own nam
 like a link, a mention does not open after a hold that brought up the action sheet. Mentions are
 marked in plain text only, never inside a link or a code span, by the rule the composer counts a pick
 by (below), so `@레인님` marks `@레인`. A 1:1 and a self chat draw no mentions: they have no `@` list,
-so an `@name` there is plain text. A thread's root follows the same rule.
+so an `@name` there is plain text. A thread's root follows the same rule, with one difference: it
+is drawn on the page, not in a bubble, so every mention in it takes a pale lime chip behind navy text
+— coloured text alone does not stand out from the body on white, and on my own root the lime meant
+for my dark bubble would not read at all. A mention of me keeps its stronger chip there, so it still
+reads louder.
 
 ## Opening a person
 
