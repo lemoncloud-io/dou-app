@@ -14,7 +14,7 @@ Make the screen that edits my profile (name and photo) in a place match the
 ## Context
 
 The target Figma: [DoU / "Edit my profile" (node 3186-24908)](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=3186-24908&m=dev).
-The screen is a centred title and subtitle (`This is the profile you use in <place>.`), an avatar with
+The screen is a centred title and subtitle (`This is the profile you use in {{place}}.`), an avatar with
 a plus badge, a name field (label\*, counter, description) and a Done CTA — the same layout as the
 creation screen.
 

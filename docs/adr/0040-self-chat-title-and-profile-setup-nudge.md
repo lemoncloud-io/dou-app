@@ -49,7 +49,7 @@ request writes (`join.nick → profile.nick → label`) is the self chain as it 
    **ADR-0039 excluded `\***1234` from the display name chain on the grounds that it does not read as a
    name, and that value leaks through this path.\*\*
 2. **The home place name is printed raw.** `useActivePlaceName()` returns `place.name` unprocessed, so
-   the backend value `default`/`#default` lands directly in the `<place>에 사용할 내 프로필을...` slot of
+   the backend value `default`/`#default` lands directly in the `{{place}}에 사용할 내 프로필을...` slot of
    Figma `3026-11374`.
 3. **The en label diverges.** `channelList.selfChannel` is ko `나와의 채팅` / en **`My Chat`**, while
    Figma and the request say `Self Chat`.
@@ -122,7 +122,7 @@ It is a pure wrapper around `PlaceProfileFormDialog`. `PlaceProfileForm` and `Pl
 not touched (`subtitle` is already there). Only two pieces of copy change.
 
 - `placeProfileCreate.title` — Figma inserted "내" (my), as
-  `<플레이스>에 사용할 **내** 프로필을 만들어 주세요`. That is adopted; the literal wording is the change.
+  `{{place}}에 사용할 **내** 프로필을 만들어 주세요`. That is adopted; the literal wording is the change.
 - `placeProfileCreate.exitDescription` — currently `"이름을 설정해야 DoU를 시작할 수 있어요!"`
   ("you must set a name before you can start DoU"). **After ADR-0039 took profile enforcement to zero,
   that sentence is false.** Abandoning the flow still leaves the app usable, so it is rewritten in the
