@@ -23,6 +23,7 @@ export const SignInNotice = () => {
     const signOut = useSignOutGuest();
     const notice = useSignInNoticeStore(s => s.notice);
     const pick = useSignInNoticeStore(s => s.pick);
+    const take = useSignInNoticeStore(s => s.take);
     const clear = useSignInNoticeStore(s => s.clear);
 
     // The store took what was in storage when the app loaded; this picks up one left since.
@@ -31,10 +32,9 @@ export const SignInNotice = () => {
     const name = account?.name && !isPlaceholderName(account.name) ? account.name : null;
     // Said once the relay connection is verified as the signed-in account, so the name is its own.
     useEffect(() => {
-        if (!notice || notice.isNew || !isRelayVerified) return;
+        if (!notice || notice.isNew || !isRelayVerified || !take()) return;
         toast({ description: name ? t('auth.social.signedInAs', { name }) : t('auth.social.signedIn') });
-        clear();
-    }, [notice, name, isRelayVerified, t, clear]);
+    }, [notice, name, isRelayVerified, t, take]);
 
     if (!notice?.isNew) return null;
     const close = clear;

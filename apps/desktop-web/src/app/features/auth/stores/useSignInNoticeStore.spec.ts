@@ -28,4 +28,11 @@ describe('useSignInNoticeStore', () => {
         useSignInNoticeStore.getState().clear();
         expect(selectNewAccountPending(useSignInNoticeStore.getState())).toBe(false);
     });
+
+    it('hands a notice over to one take only', () => {
+        useSignInNoticeStore.setState({ notice: { provider: 'google', isNew: false } });
+
+        expect(useSignInNoticeStore.getState().take()).toEqual({ provider: 'google', isNew: false });
+        expect(useSignInNoticeStore.getState().take()).toBeNull();
+    });
 });

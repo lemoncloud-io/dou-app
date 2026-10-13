@@ -7,6 +7,12 @@ interface SignInNoticeState {
     notice: SignInNoticeRecord | null;
     /** Take a notice left in storage since the store was made. Keeps the one held when there is none. */
     pick: () => void;
+    /**
+     * Hand over the held notice and forget it, in one step. Something said once (a toast) takes it
+     * this way: React's development double run calls the effect twice with the same render's
+     * `notice`, and only the first take gets it.
+     */
+    take: () => SignInNoticeRecord | null;
     clear: () => void;
 }
 
@@ -16,13 +22,18 @@ interface SignInNoticeState {
  * to be named. The first-run tips read it to stay closed until then: two dialogs at once put the tips
  * over the "not my account" stop.
  */
-export const useSignInNoticeStore = create<SignInNoticeState>(set => ({
+export const useSignInNoticeStore = create<SignInNoticeState>((set, get) => ({
     notice: takeSignInNotice(),
     pick: () => {
         // The take empties storage, so a second call (React's development double run, a remount)
         // reads nothing; that must not wipe the notice the first one read.
         const taken = takeSignInNotice();
         if (taken) set({ notice: taken });
+    },
+    take: () => {
+        const { notice } = get();
+        if (notice) set({ notice: null });
+        return notice;
     },
     clear: () => set({ notice: null }),
 }));

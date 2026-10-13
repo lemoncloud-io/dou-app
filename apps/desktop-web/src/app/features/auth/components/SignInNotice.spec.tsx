@@ -97,6 +97,18 @@ describe('SignInNotice', () => {
         expect(screen.getByRole('dialog').textContent).toContain(i18n.t('auth.social.newAccountBody'));
     });
 
+    // The store takes the notice when the app loads, so it is there on the first render.
+    it('names an existing account once when the effect runs twice, as it does in development', () => {
+        useSignInNoticeStore.setState({ notice: { provider: 'google', isNew: false } });
+        render(
+            <StrictMode>
+                <SignInNotice />
+            </StrictMode>
+        );
+
+        expect(state.toast).toHaveBeenCalledTimes(1);
+    });
+
     it('is not dismissed by Escape, so "not my account" stays in reach', () => {
         state.notice = { provider: 'google', isNew: true };
         render(<SignInNotice />);
