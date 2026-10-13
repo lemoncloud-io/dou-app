@@ -51,11 +51,11 @@ Ticking rows shows a bar with the count and three buttons:
   (`placeScopeKey`), so they are the pins the sidebar shows for that place. The star on a row toggles
   that one channel on its own.
 - **Mark selected read** does what a row's mark-as-read does, for each selected channel with a last
-  message: the local read cursor moves first, so the badge clears at once, and then the server's
-  `readChat` is written. A channel with no messages is skipped. If any server write fails, one
-  `sidebar.markReadFailed` toast is shown for the whole batch rather than one per row. The badges stay
-  cleared locally either way, so the toast is the only sign that the next roster sync may bring the
-  unread back.
+  message: the local read cursor moves first, so the badge clears at once, and then the read goes to
+  the channel's own cloud's `join.readChat` (`runtime.data.getCloudRepositories(cid)`), whose outbox resends it until
+  the server has it. A channel with no messages is skipped. Only a read the server refused for good
+  (the room left or gone) counts as failed, and one `sidebar.markReadFailed` toast is shown for the
+  whole batch rather than one per row; a read still waiting on the socket says nothing.
 - **Clear** drops the selection.
 
 Selection is not cleared by pinning or marking read, so the same set can be acted on twice.

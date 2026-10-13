@@ -12,6 +12,7 @@ import { ActiveScope, deriveSelectedContext } from '../session/scope';
 import { getCommittedCloudId, getUidInCloud } from '../session/store';
 import { createHttpDataSources } from './factories/httpFactory';
 import { createLocalDataSources } from './factories/localFactory';
+import { createRuntimeOutbox } from './factories/outboxFactory';
 import { createSocketDataSources } from './factories/socketFactory';
 import type { CacheAssemblyOptions, IDataManager } from './types';
 import { getSocketManager } from '../socket/runtime';
@@ -22,11 +23,16 @@ export class DataManager implements IDataManager {
     private readonly localDataSources: LocalDataSources;
     private readonly httpDataSources: HttpDataSources;
     private readonly scopedRepositories = new Map<string, DataRepositories>();
+    private readonly repositoryOptions: DataRepositoriesOptions;
 
-    constructor(
-        private readonly repositoryOptions?: DataRepositoriesOptions,
-        cacheOptions?: CacheAssemblyOptions
-    ) {
+    constructor(repositoryOptions?: DataRepositoriesOptions, cacheOptions?: CacheAssemblyOptions) {
+        // One state outbox for every graph this manager builds — the app graph and each cloud's — so a
+        // value set in one is the same queued value wherever it is set again. Its writes go out through
+        // the scoped graph of the cloud they name.
+        this.repositoryOptions = {
+            ...repositoryOptions,
+            outbox: repositoryOptions?.outbox ?? createRuntimeOutbox(cid => this.getScopedRepositories(cid)),
+        };
         const { socketDataSources } = createSocketDataSources();
         // Local sources get the SELECTED scope only — no `socketCid`. Their job is to key cache partitions
         // (`${type}:${cid}:${uid}:${id}`), and the bound-socket view is a repository-level judgement.
@@ -61,7 +67,7 @@ export class DataManager implements IDataManager {
             socketDataSources,
             localDataSources: this.localDataSources,
             context: scope,
-            options: repositoryOptions,
+            options: this.repositoryOptions,
             httpDataSources: this.httpDataSources,
         });
     }

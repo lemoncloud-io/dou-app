@@ -64,6 +64,53 @@ describe('createRepositories', () => {
         expect(missed).toEqual([]);
     });
 
+    describe('outbox', () => {
+        /** A graph whose join sources are real enough to carry one read. */
+        const buildWithJoin = (outbox?: { set: jest.Mock }) => {
+            const join = {
+                readChat: jest.fn().mockResolvedValue({ id: 'ch-1@user-a', chatNo: 9 }),
+            };
+            const joinLocal = {
+                cacheReadList: jest.fn().mockResolvedValue({ list: [] }),
+                cacheWrite: jest.fn().mockResolvedValue(undefined),
+            };
+            const repositories = createRepositories({
+                socketDataSources: new Proxy({ join }, { get: (target, key) => (target as any)[key] ?? {} }) as any,
+                localDataSources: new Proxy(
+                    { join: joinLocal },
+                    { get: (target, key) => (target as any)[key] ?? {} }
+                ) as any,
+                context: createContextProvider(),
+                httpDataSources: stubBundle<HttpDataSources>(),
+                options: outbox ? { outbox: outbox as any } : undefined,
+            });
+            return { repositories, join, joinLocal };
+        };
+
+        it('hands state writes to the injected outbox', async () => {
+            const outbox = { set: jest.fn(() => ({ delivered: Promise.resolve() })) };
+            const { repositories, join } = buildWithJoin(outbox);
+
+            await repositories.join.readChat({ channelId: 'ch-1', chatNo: 9 } as any);
+
+            expect(outbox.set).toHaveBeenCalledWith(
+                expect.objectContaining({ op: 'join.read', key: 'ch-1', value: 9 })
+            );
+            expect(join.readChat).not.toHaveBeenCalled();
+        });
+
+        it('without one, sends at once through its own graph', async () => {
+            const { repositories, join, joinLocal } = buildWithJoin();
+
+            const { delivered } = await repositories.join.readChat({ channelId: 'ch-1', chatNo: 9 } as any);
+            await delivered;
+
+            expect(join.readChat).toHaveBeenCalledWith({ channelId: 'ch-1', chatNo: 9 }, expect.anything());
+            // The answer is recorded like any join the server sends.
+            expect(joinLocal.cacheWrite).toHaveBeenLastCalledWith({ id: 'ch-1@user-a', chatNo: 9 }, expect.anything());
+        });
+    });
+
     it('gives withContext() the same catalogue', () => {
         const repositories = build();
 

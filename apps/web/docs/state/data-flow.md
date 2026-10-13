@@ -128,13 +128,18 @@ The registration mechanics (ref-counting, per-slot runtimes, plan cadence) are
 ## 4. Writing data — through a repository, always
 
 Direct socket `send` / `emit` is not a path the app has. Every write goes through a repository —
-`runtime.data.useRuntimeRepositories()`, except a chat send, which names its cloud
-(`runtime.data.sendChatInCloud`; see [feature/channels/data-layer.md](../feature/channels/data-layer.md)):
+`runtime.data.useRuntimeRepositories()`, except a chat send and a read mark, which name their cloud
+(`runtime.data.sendChatInCloud`, `runtime.data.getCloudRepositories(cid)`; see
+[feature/channels/data-layer.md](../feature/channels/data-layer.md)). A read mark, a notification
+setting and a room name are state writes: the repository writes them locally and queues the server
+half in the outbox, and returns once the local write is done
+([libs/data outbox](../../../../libs/data/docs/outbox/README.md)):
 
 | Action                                            | Repository method                                                                                    |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Send a message                                    | `runtime.data.sendChatInCloud(cid, { channelId, content })`                                          |
-| Mark read                                         | `repos.join.readChat({ channelId, chatNo })`                                                         |
+| Mark read                                         | `runtime.data.getCloudRepositories(cid).join.readChat({ channelId, chatNo })`                        |
+| Set my notification setting or room name          | `repos.join.updateJoin({ channelId, notify })` / `({ channelId, nick })`                             |
 | Create / edit / invite / leave / delete a channel | `repos.channel.createChannel` / `updateChannel` / `inviteChannel` / `leaveChannel` / `deleteChannel` |
 | Create / edit a place                             | `repos.place.createPlace` / `updatePlace`                                                            |
 | Edit a profile                                    | `repos.user.updateProfile(...)`, or for a place profile `useSetMyPlaceProfile` (not the repository)  |

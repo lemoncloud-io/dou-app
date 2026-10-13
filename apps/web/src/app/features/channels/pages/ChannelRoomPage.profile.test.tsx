@@ -39,6 +39,11 @@ jest.mock('@chatic/app-runtime', () => ({
         connection: {
             useRuntimeSocketState: () => ({ isVerified: true }),
         },
+        data: {
+            getCloudRepositories: () => ({
+                join: { readChat: () => Promise.resolve({ delivered: Promise.resolve() }) },
+            }),
+        },
     },
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
@@ -124,7 +129,6 @@ jest.mock('../hooks', () => ({
     useChatMutations: () => ({
         sendMessage: jest.fn(),
         retryMessage: jest.fn(),
-        readMessage: jest.fn(),
         deleteMessage: jest.fn(),
     }),
     useMessageEditing: () => ({

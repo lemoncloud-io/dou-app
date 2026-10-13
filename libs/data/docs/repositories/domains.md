@@ -59,11 +59,13 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Join
 
-`observeList` · `readChat` · `updateJoin` · `cache*`
+`observeList` · `readChat` · `updateJoin` · `sendRead` · `sendJoinUpdate` · `writeMyJoinLocally` · `cache*`
 
-- `updateJoin` goes through the first-class `JoinGateway` (`join.update`); marking read (`readChat`) is `chat.read`.
-- `readChat` — advances the read cursor optimistically, restored if remote fails. The unread count is not settled by the single `chat.read` result; it is settled as the join snapshot and the channel snapshot meet again.
-- `updateJoin` — edits the nick / notify / role metadata.
+- **My join's writes are state writes** ([outbox](../outbox/README.md)). `readChat` and `updateJoin` write locally at once, hand the write to the outbox and return a `WriteReceipt` once the local write is done; `receipt.delivered` settles when the server has it. Neither calls the socket. On the wire, a read is `chat.read` and a nick or notification change is `join.update` through the first-class `JoinGateway`.
+- `readChat` — moves my read cursor. A failure is **never** rolled back: the user has seen the messages whether or not the server heard yet, and restoring the old cursor put the unread badge back on a room just read. The unread count is not settled by the single `chat.read` result; it is settled as the join snapshot and the channel snapshot meet again.
+- `updateJoin` — sets my nick and/or notification setting, each its own outbox key so the two cannot overwrite each other. Only my own row: a `userId` that is not mine throws, and a row that is not cached throws as before. A refusal puts back the last accepted value.
+- `sendRead` · `sendJoinUpdate` · `writeMyJoinLocally` — the outbox's delivery and restore hooks: the socket half alone, and a local-only write. Screens do not call them.
+- **A cached read cursor never moves backwards.** `JoinLocalDataSource` keeps the stored cursor (`readNo`/`chatNo`, with the `metaNo` taken at it — the two only mean something as a pair) when a write carries an older one, and still takes every other field from that write. Answers arrive out of order: a join sync that left before a read was marked lands after it, and its older cursor would bring the badge back.
 - Read-state sync is handled by the external orchestrator: the join sync plan fetches `join.get` itself and pushes the result in through `cacheWrite` / `cacheDelete`, and `JoinRepository` owns the local cache of that result.
 
 ### Place

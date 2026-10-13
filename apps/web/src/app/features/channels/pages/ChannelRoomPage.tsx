@@ -97,6 +97,17 @@ const clearComposer = (list: HTMLElement | null, height: number) => {
     if (list) list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
 };
 
+/**
+ * A read of the room on screen, through that room's cloud — its join cache, its socket. The
+ * repository writes the cursor locally and hands the server half to the outbox; this resolves when
+ * the server has it.
+ */
+const readInRoomCloud = (cid: string, input: { channelId: string; chatNo: number }): Promise<void> =>
+    runtime.data
+        .getCloudRepositories(cid)
+        .join.readChat(input)
+        .then(receipt => receipt.delivered);
+
 export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
     // The overflow (⋯) menu's own navigate: it lets the menu finish leaving before the page
@@ -154,7 +165,6 @@ export const ChannelRoomPage = () => {
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
     // The place this reader is standing in. Only a cloud-wide room needs it — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
 
     // --- Data-fetching hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
@@ -460,7 +470,7 @@ export const ChannelRoomPage = () => {
     // Closes the `chat_room_sync` trace begun alongside it: the room showing its synced, latest page.
     useRoomSyncTrace({ channelId, rawChats });
 
-    const { sendMessage, retryMessage, readMessage, deleteMessage } = useChatMutations();
+    const { sendMessage, retryMessage, deleteMessage } = useChatMutations();
     const editing = useMessageEditing(stableChannelId);
     // The composer's lock, shared by the text field and the attach button: a photo sent into an
     // empty 1:1 would strand the same unread badge a text would.
@@ -581,11 +591,11 @@ export const ChannelRoomPage = () => {
     const lastChatNo = lastMessage?.isPending || lastMessage?.isFailed ? undefined : lastMessage?.chatNo;
 
     const { markSent } = useReadMarker({
+        cid: roomCid,
         channelId: stableChannelId,
         channelChatNo,
         lastChatNo,
-        isVerified,
-        readMessage,
+        markRead: readInRoomCloud,
     });
 
     // Auto-scroll to bottom is paused while a jump to this channel is pending — if both are alive

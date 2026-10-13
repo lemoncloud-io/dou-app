@@ -10,7 +10,7 @@ jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
 const updateChannel = jest.fn().mockResolvedValue({});
-const updateJoin = jest.fn().mockResolvedValue({});
+const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 
 // Stable channel reference — the real useChannel returns a memoized cache view, so the
 // seed effect (`useEffect([channel])`) must not re-run on every render.

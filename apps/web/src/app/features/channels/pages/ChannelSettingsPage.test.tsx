@@ -6,7 +6,7 @@ import { ChannelSettingsPage } from './ChannelSettingsPage';
 
 const leaveChannel = jest.fn().mockResolvedValue({});
 const deleteChannel = jest.fn().mockResolvedValue({});
-const updateJoin = jest.fn().mockResolvedValue({});
+const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 const navigate = jest.fn();
 const toast = jest.fn();
 
@@ -593,6 +593,22 @@ describe('ChannelSettingsPage', () => {
 
             expect(screen.queryByText('chat.settings.roomNotification')).not.toBeInTheDocument();
         });
+    });
+
+    it('says why when the server later refuses the notification change', async () => {
+        updateJoin.mockImplementationOnce(async () => ({ delivered: Promise.reject(new Error('403 FORBIDDEN')) }));
+        channelValue = OWNER_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('switch'));
+        });
+
+        await waitFor(() =>
+            expect(toast).toHaveBeenCalledWith(
+                expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
+            )
+        );
     });
 
     it('멤버 항목을 탭하면 프로필이 열리고, 소유자가 일반 멤버를 볼 때 canKick=true', () => {

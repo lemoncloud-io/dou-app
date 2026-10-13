@@ -56,7 +56,7 @@ jest.mock('../../../hooks', () => ({
 // useDmPeers.test.ts; here we inject its result so rows can be driven without the runtime.
 const mockDmPeers = new Map<string, { id: string; profileNick?: string; thumbnail?: string }>();
 // The swipe actions write through the same mutations the room's settings screen uses.
-const mockUpdateJoin = jest.fn().mockResolvedValue(undefined);
+const mockUpdateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 const mockLeaveChannel = jest.fn().mockResolvedValue(undefined);
 const mockDeleteChannel = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../channels/hooks', () => ({

@@ -137,6 +137,16 @@ export class FakeBackend {
         for (const [type, handler] of Object.entries(handlers)) table.set(type, handler);
     }
 
+    /**
+     * The handler the relay socket answers `type` with now, so a scenario can wrap it — hold the
+     * sign-in on a reconnect, say — rather than restate what it answers.
+     */
+    handlerOf(type: string): SocketHandler {
+        const handler = this.socketTables.get(E2E_ENDPOINTS.socket)?.get(type);
+        if (!handler) throw new Error(`handlerOf: no handler for ${type}`);
+        return handler;
+    }
+
     /** How many times the page has opened the relay socket. A reconnect is the second. */
     get connections(): number {
         return this.connectionCounts.get(E2E_ENDPOINTS.socket) ?? 0;

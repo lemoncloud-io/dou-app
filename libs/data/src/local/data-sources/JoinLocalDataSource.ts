@@ -13,6 +13,45 @@ import {
 export interface IJoinLocalDataSource
     extends ILocalDataSource<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>> {}
 
+/** The read position a join row carries — `readNo` and `chatNo` both track it. */
+const cursorOf = (join: Partial<DomainJoin> | null | undefined): number | undefined => {
+    if (!join) return undefined;
+    const { readNo, chatNo } = join;
+    if (readNo === undefined && chatNo === undefined) return undefined;
+    return Math.max(readNo ?? 0, chatNo ?? 0);
+};
+
+/**
+ * Merges `item` over `existing`, except that the read cursor never moves backwards.
+ *
+ * A read position only ever advances on the server, but answers reach this cache out of order: a
+ * join sync that left before the read was marked lands after it, and its older cursor would put the
+ * unread badge back on a room the user has just read. So when the incoming cursor is behind the one
+ * stored, the stored cursor is kept together with the `metaNo` snapshot taken at it (the two only mean
+ * something as a pair), while every other field — nick, notify, joined — still takes the new value.
+ */
+const mergeJoin = (existing: DomainJoin | null | undefined, item: Partial<DomainJoin>, id: string, cid: string) => {
+    const merged: DomainJoin = {
+        ...(existing ?? ({} as DomainJoin)),
+        ...item,
+        id,
+        cid,
+        channelId: item.channelId ?? existing?.channelId ?? '',
+        userId: item.userId ?? existing?.userId ?? '',
+        joined: item.joined ?? existing?.joined ?? 1,
+        readNo: item.readNo ?? existing?.readNo ?? 0,
+    };
+
+    const stored = cursorOf(existing);
+    const incoming = cursorOf(item);
+    if (stored !== undefined && incoming !== undefined && incoming < stored) {
+        merged.readNo = existing?.readNo ?? 0;
+        merged.chatNo = existing?.chatNo;
+        merged.metaNo = existing?.metaNo;
+    }
+    return merged;
+};
+
 /** Persists channel membership records and scopes observer invalidation by channel id. */
 export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements IJoinLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'join'>) {
@@ -73,16 +112,7 @@ export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements 
         const storage = this.storage(scope);
         const existing = await storage.load(id);
         const cid = scope.cid || 'default';
-        const merged: DomainJoin = {
-            ...(existing ?? ({} as DomainJoin)),
-            ...item,
-            id,
-            cid,
-            channelId: item.channelId ?? existing?.channelId ?? '',
-            userId: item.userId ?? existing?.userId ?? '',
-            joined: item.joined ?? existing?.joined ?? 1,
-            readNo: item.readNo ?? existing?.readNo ?? 0,
-        };
+        const merged = mergeJoin(existing, item, id, cid);
 
         await storage.save(id, merged);
         this.scheduleItemReemit([id], scope);
@@ -106,19 +136,7 @@ export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements 
         const storage = this.storage(scope);
         const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
 
-        const mergedList = validItems.map(item => {
-            const existing = existingById.get(item.id!);
-            return {
-                ...(existing ?? ({} as DomainJoin)),
-                ...item,
-                id: item.id!,
-                cid,
-                channelId: item.channelId ?? existing?.channelId ?? '',
-                userId: item.userId ?? existing?.userId ?? '',
-                joined: item.joined ?? existing?.joined ?? 1,
-                readNo: item.readNo ?? existing?.readNo ?? 0,
-            } as DomainJoin;
-        });
+        const mergedList = validItems.map(item => mergeJoin(existingById.get(item.id!), item, item.id!, cid));
 
         await storage.saveAll(mergedList);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
