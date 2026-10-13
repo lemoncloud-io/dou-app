@@ -10,8 +10,9 @@ import type { SocketKind } from '../types';
  *
  * Three invariants this must not break:
  *  - The status stays LEADING — getSocketErrorCode reads the message prefix, so this only appends.
- *  - The original object is rethrown, not wrapped, so its stack and carried fields (`errorCode`)
- *    survive; only `message` gains a suffix. Non-Error rejections pass through untouched.
+ *  - The original object is rethrown, not wrapped, so its stack and carried fields (`errorCode`, set
+ *    by the facade just before this runs) survive; only `message` gains a suffix. Non-Error
+ *    rejections pass through untouched.
  *  - Skipped when the message already names the type (the SDK's `408 REQUEST TIMEOUT - <type>[mid]`
  *    already does), which also makes it idempotent under any future re-annotating retry wrapper.
  */

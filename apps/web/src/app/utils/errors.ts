@@ -32,14 +32,19 @@ const describeEvent = (event: Event): string => {
 /**
  * HTTP status carried by a rejected socket request, or `undefined` when the failure is unclassified.
  *
- * The `:error` frame carries `errorCode`, but chatic-sockets-lib@0.4.9 does not put it on the Error
- * it rejects with — it only keeps the server's message, which is conventionally prefixed with the
- * status (`403 FORBIDDEN - …`), as are the client's own failures (`408 REQUEST TIMEOUT - …`). So
- * read a numeric `errorCode` property when a future release starts attaching one, and otherwise
- * recover the status from that prefix.
+ * A numeric `errorCode` carried on the Error comes first. chatic-sockets-lib drops the `:error`
+ * frame's `errorCode` when it rejects, and the runtime's `SocketManager` puts it back on every request
+ * made through its facade — the only source of a status for a server answer whose message does not
+ * begin with one (a parameter check, `@chatNo[999] is invalid - …`, is coded 400). Otherwise the
+ * status is recovered from the message prefix, which is how the client's own failures are written
+ * (`408 REQUEST TIMEOUT - …`, `503 SOCKET NOT CONNECTED - …`) and how a server message that does
+ * begin with its status reads (`403 FORBIDDEN - …`).
+ *
+ * The runtime keeps the same parser (`libs/app-runtime/src/socket/utils/socketErrorCode.ts`), and so
+ * does desktop-web (`socketErrorStatus`); a change to one belongs in the others.
  *
  * This exists so callers branch on the code and never on the wording: server messages are not a
- * contract and are localized/reworded freely. See relay-server-invite/05-client-guide.md §error codes.
+ * contract and are localized/reworded freely.
  */
 export const getSocketErrorCode = (error: unknown): number | undefined => {
     const carried = (error as { errorCode?: unknown } | null)?.errorCode;

@@ -26,6 +26,7 @@ import type {
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
+import { type ErrorCodeLedger, createErrorCodeLedger } from './utils/errorCodeLedger';
 import { getSocketErrorCode } from './utils/socketErrorCode';
 import { RELAY_SLOT, kindOf, slotKeyOf } from './utils/slotKey';
 
@@ -52,6 +53,8 @@ interface ClientEntry {
     connState: ClientSocketState;
     /** `connected` transitions since bind — reconnect-churn telemetry (2026-08 session audit §7 Phase 0). */
     connectCount: number;
+    /** This slot's server error answers, so a rejected request gets its `errorCode` back. */
+    errorCodes: ErrorCodeLedger;
     unsubscribes: Array<() => void>;
 }
 
@@ -132,6 +135,7 @@ export class SocketManager implements ISocketManager {
             authenticated: false,
             connState: client.state,
             connectCount: 0,
+            errorCodes: createErrorCodeLedger(),
             unsubscribes: [],
         };
         this.entries.set(key, entry);
@@ -194,19 +198,19 @@ export class SocketManager implements ISocketManager {
         // Labels stay `relay`/`cloud`: failure messages are read by people, and the slot's cloud id
         // is carried in the reporter's data instead.
         const kind = kindOf(key);
-        const requireSlot = (action: string): ClientSocketV2 => {
-            const client = this.entries.get(key)?.client;
-            if (!client) {
+        const requireSlot = (action: string): ClientEntry => {
+            const entry = this.entries.get(key);
+            if (!entry) {
                 throw new Error(`[SocketManager] no ${kind} slot bound for ${action}`);
             }
-            return client;
+            return entry;
         };
         return {
             // requireSlot stays OUTSIDE the promise chain: an unbound slot must keep throwing
             // synchronously (no silent fallback — see SocketManager.test.ts), so this is deliberately
             // not an async arrow.
             request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> => {
-                const client = requireSlot(`request(${type})`);
+                const { client, errorCodes } = requireSlot(`request(${type})`);
                 const settle = this.timeRequest(kind, type);
                 return (client.request(type as any, data as any, options) as Promise<T>).then(
                     value => {
@@ -215,6 +219,9 @@ export class SocketManager implements ISocketManager {
                         return value;
                     },
                     error => {
+                        // The code goes on first: the observer, the reporter and the caller all
+                        // classify by it, and the annotator below changes the text it is matched by.
+                        errorCodes.attach(error);
                         settle(error);
                         // Annotated BEFORE it is reported, so the entry's `error` carries the
                         // caller's name too. The annotator only appends, so the leading status the
@@ -226,7 +233,7 @@ export class SocketManager implements ISocketManager {
                 );
             },
             send: <T = unknown>(type: string | SocketMessage<T>, data?: T): void => {
-                const client = requireSlot('send()');
+                const { client } = requireSlot('send()');
                 const name = typeof type === 'string' ? type : type.type;
                 try {
                     if (typeof type === 'string') {
@@ -431,6 +438,9 @@ export class SocketManager implements ISocketManager {
         const client = this.requireActiveClient(`request(${type})`);
         // requireActiveClient has just proven an active slot exists.
         const key = this.getActiveKey()!;
+        // Captured now: the slot's ledger is the one that sees this request's answer, even if the
+        // active pointer moves before it settles.
+        const errorCodes = this.entries.get(key)?.errorCodes;
         const settle = this.timeRequest(kindOf(key), type);
         try {
             const value = (await client.request(type as any, data as any, options)) as T;
@@ -438,6 +448,8 @@ export class SocketManager implements ISocketManager {
             socketFailureReporter.recordSuccess(key);
             return value;
         } catch (error) {
+            // Before anything reads the code — and before the annotator changes the matched text.
+            errorCodes?.attach(error);
             settle(error);
             const annotated = annotateSocketError(error, kindOf(key), 'request', type);
             socketFailureReporter.recordFailure(key, 'request', type, annotated);
@@ -698,6 +710,11 @@ export class SocketManager implements ISocketManager {
                 logger.error('SOCKET', '[SocketManager] Socket error', fields);
             })
         );
+
+        // Every frame, not only errors: the ledger keeps the `*:error` answers to requests. The SDK
+        // runs these listeners right after it rejects the request, so the answer is recorded before
+        // the rejection reaches the facade's catch.
+        entry.unsubscribes.push(entry.client.onMessage(event => entry.errorCodes.observe(event?.message)));
 
         this.bindReconnectDiagnostics(key, entry);
     }

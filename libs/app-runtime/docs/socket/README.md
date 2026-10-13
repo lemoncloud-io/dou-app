@@ -16,14 +16,14 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              42 source files, 34 tests
-├── SocketManager.ts   884 lines   the class. Nothing else is exported from this file
+socket/                              43 source files, 35 tests
+├── SocketManager.ts   913 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
-├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode
+├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger
 ├── auth/          21 files        → docs/auth/
 └── sync/          11 files        → docs/sync/
 
@@ -207,7 +207,7 @@ slot notification alone: its runtimes, and the targets on them, follow slots, no
 
 `setRequestObserver(observer)` hands every request made through the manager — the active facade's
 and every scoped client's — to `observer` as it settles: its `type`, the slot's `kind`, its `outcome`
-(`ok`, or the leading status it was rejected with, else `error`) and its round trip on the page's
+(`ok`, or the status it was rejected with as `getSocketErrorCode` reads it, else `error`) and its round trip on the page's
 monotonic clock. With no observer, a request reads no clock. The web sets one to record
 `socket_request` samples; the sampling and the caps are the web's (`observeSocketRequests`).
 
@@ -259,6 +259,26 @@ already contains the type — which makes it idempotent. Without it, the SDK's
 `503 SOCKET NOT CONNECTED - WebSocketTransport.send()` is identical for every caller, and a minified
 production stack cannot say which request raced a closing socket.
 
+**A server refusal gets its status back before anything reads it.** The server answers a failed
+request with `{type: '<type>:error', mid, error, errorCode}`, and chatic-sockets-lib rejects the
+request with ``new Error(`${error} - ${type}`)`` — the `errorCode` is dropped. The server writes a
+status into the text only when the failure began as one (`403 FORBIDDEN - …`); a parameter check is
+`@chatNo[999] is invalid - …`, which it codes 400 but which has nothing in front to parse. Every
+client-made failure (`499`, `503`, `408`) is prefixed, so before this the one kind of failure that
+read as unclassified was the one the server decided.
+
+So each slot keeps an `errorCodeLedger`, fed by that slot client's `onMessage`: a `*:error` frame that
+answers a request (it has a `mid`) with a numeric `errorCode` is remembered under the exact text the
+SDK rejects with. In the facade's catch — of the active facade and of every scoped client — the code is
+set on the rejected Error as `errorCode`, first, before the request observer, the failure reporter
+and the annotator see it; `getSocketErrorCode` reads a carried code ahead of the prefix. The text is
+the key because the SDK hands back nothing else that ties a rejection to its frame: `request()` takes
+no `mid`, and the Error carries none. The SDK runs `onMessage` listeners synchronously right after it
+rejects, and the catch resumes in a microtask, so the frame is always seen first. Both of those are
+the SDK's behaviour, not its contract; `errorCodeLedger.test.ts` drives the real client over a fake
+socket so an upgrade that changes either fails a test. If one does change, the ledger finds no match
+and the failure reads as it did before — never a code on the wrong request.
+
 `socketFailureReporter` turns those rejections into log entries, which they previously never produced
 at all: a server's `*:error` frame settles the pending promise and calls no emitter, so whether
 anything was recorded depended on who happened to catch it. The classification exists for volume, not
@@ -269,6 +289,9 @@ for interest:
 | `unavailable` | 503 · 499     | Folded into a per-slot streak: the 1st warns, the 5th errors, the rest are silent        |
 | `timeout`     | 408           | One `warn` each — the request was accepted and never answered, and a retry may well work |
 | `server`      | anything else | One `error` each: a decision the server made about one request                           |
+
+`server` includes a rejection with no status at all (`code` is `undefined`, logged as `unclassified`)
+— now only a server answer with no `errorCode`, or a rejection that is not an Error.
 
 One `server` answer is not a failure and is recorded at `info` instead: **`profile.get` 404**. A
 profile exists per place and only once its owner has opened that place (`profile.get-mine` creates

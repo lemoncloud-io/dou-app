@@ -1,6 +1,6 @@
 # ADR-0042: Migrate wholesale to the unified account linking path (`auth.link-account`)
 
-> Status: Accepted · Decided: 2026-08-03 · §9-a superseded and §9's browser copy amended by [ADR-0163](./0163-phone-sign-in-opens-in-production-below-social.md)
+> Status: Accepted · Decided: 2026-08-03 · §9-a superseded and §9's browser copy amended by [ADR-0163](./0163-phone-sign-in-opens-in-production-below-social.md) · the `errorCode` non-goal superseded by [ADR-0194](./0194-the-app-recovers-a-socket-refusals-error-code.md)
 > Follows: [ADR-0089](./0089-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0034](./0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)
 
 > **Naming note (2026-09-01):** the `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·

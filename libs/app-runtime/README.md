@@ -165,7 +165,7 @@ libs/app-runtime/src/
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
 ├── session/          55 files — store (12) · auth (10) · scope (3) · hooks (30)
-├── socket/           38 files — SocketManager (7) + utils (3) + auth wiring (19) + sync (9)
+├── socket/           39 files — SocketManager (7) + utils (4) + auth wiring (19) + sync (9)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
 ├── data/             21 files — DataManager, 3 factories, cache routing, cloud-addressed sends, outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record
