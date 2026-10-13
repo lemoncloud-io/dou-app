@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
-import type { MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -25,9 +25,32 @@ import { ROUTES } from '../../../routes/paths';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
 import { NoticeList, PlanProductCard, PolicyFooter, PurchaseDoneDialog } from '../components';
 import { POLICY_BASE_URL } from '../consts';
-import { usePlanCatalog, usePlanOptions, usePlanPrice, useRestorePurchases, useTierPurchase } from '../hooks';
-import { formatDate, keepCandidates, needsKeepChoice, planDisplayName, stripPlanId } from '../lib';
+import {
+    usePlanCatalog,
+    usePlanOptions,
+    usePlanPrice,
+    useRestorePurchases,
+    useTierPurchase,
+    type PlanOption,
+} from '../hooks';
+import {
+    formatDate,
+    keepCandidates,
+    needsKeepChoice,
+    planDisplayName,
+    stripPlanId,
+    type SubscriptionState,
+} from '../lib';
 import { PageState } from '../types';
+
+/** What this screen states about a purchase: the tier picked, and the subscription it changes. */
+interface PurchaseTerms {
+    option: PlanOption;
+    replaceablePlan: ProductView | undefined;
+    state: SubscriptionState;
+    /** The clouds a downgrade would have to choose among, counted before the relay applies anything. */
+    keepCandidateCount: number;
+}
 
 /**
  * "구독 정보" before a purchase — what a tier change will do, shown BEFORE the store sheet opens
@@ -51,7 +74,7 @@ export const SubscriptionConfirmPage = () => {
     const isKo = i18n.language.startsWith('ko');
 
     const { data: membership } = useMembershipInfo();
-    const { summary, replaceablePlan, isIOS, isOnMobileApp } = usePlanCatalog();
+    const { summary, replaceablePlan: liveReplaceablePlan, isIOS, isOnMobileApp } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const priceOf = usePlanPrice();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
@@ -60,16 +83,34 @@ export const SubscriptionConfirmPage = () => {
     const requestAddCloud = useAddCloudRequest(s => s.requestAddCloud);
 
     const [done, setDone] = useState<MembershipView | null>(null);
+    // The terms as they stood when the person tapped to buy, held until the purchase fails or is
+    // cancelled. A purchase changes the very facts this screen is derived from: it resolves only
+    // after the membership has been read again, and by then the tier is the account's own — its
+    // option no longer selectable, the plan being replaced the new one, the trial spent. Read live,
+    // the guard below would send the person to the plan list before the confirmation could show, and
+    // the confirmation would describe a change from the new plan to itself.
+    const [purchasing, setPurchasing] = useState<PurchaseTerms | null>(null);
 
     const requested = stripPlanId(params.get('plan'));
-    const option = options.find(o => stripPlanId(o.plan.id) === requested);
+    const liveOption = options.find(o => stripPlanId(o.plan.id) === requested);
 
-    // A missing, unknown or unpickable plan (a stale link, a tier that changed under the user) sends
-    // them back to choose again rather than offering a purchase the rules refuse.
-    if (!isLoading && !done && (!option || !option.isSelectable)) {
+    // A missing, unknown or unpickable plan (a stale link, a tier that changed under the user, a tier
+    // the account already holds) sends them back to choose again rather than offering a purchase the
+    // rules refuse. A purchase under way is not judged again here — it was judged when it started.
+    if (!isLoading && !purchasing && (!liveOption || !liveOption.isSelectable)) {
         return <Navigate to={ROUTES.subscription.plans} replace />;
     }
-    if (!option) {
+    const terms: PurchaseTerms | null =
+        purchasing ??
+        (liveOption
+            ? {
+                  option: liveOption,
+                  replaceablePlan: liveReplaceablePlan,
+                  state: summary.state,
+                  keepCandidateCount: keepCandidates(cloudsData?.list ?? []).length,
+              }
+            : null);
+    if (!terms) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <IconSpinner className="size-6 animate-spin text-muted-foreground" />
@@ -77,6 +118,7 @@ export const SubscriptionConfirmPage = () => {
         );
     }
 
+    const { option, replaceablePlan } = terms;
     const plan = option.plan;
     const kind = option.kind as 'new' | 'upgrade' | 'downgrade';
     const price = option.displayPrice;
@@ -85,7 +127,7 @@ export const SubscriptionConfirmPage = () => {
     const currentPrice = priceOf(replaceablePlan);
     // Only the entry tier for someone who never subscribed carries a trial; the store has the last
     // word on eligibility either way.
-    const trialDays = kind === 'new' && summary.state === 'none' ? (plan.trialDays ?? 0) : 0;
+    const trialDays = kind === 'new' && terms.state === 'none' ? (plan.trialDays ?? 0) : 0;
     const validUntil = formatDate(membership?.validUntil);
     const isProcessing = pageState === PageState.Purchasing || pageState === PageState.Fetching;
 
@@ -160,10 +202,12 @@ export const SubscriptionConfirmPage = () => {
 
     const handleBuy = async () => {
         if (isBlocked || !price) return;
+        setPurchasing(terms);
         try {
             const native = await resolveNativeProduct(plan);
             setDone(await purchaseTier(plan, native));
         } catch (e) {
+            setPurchasing(null);
             const code = (e as { code?: string })?.code;
             if (code === 'user-cancelled') return;
             // The store already holds an entitlement this account never got attached to — recover
@@ -190,9 +234,9 @@ export const SubscriptionConfirmPage = () => {
     };
 
     // After a downgrade the clouds that will not fit have to be chosen; after a purchase the new
-    // allowance is there to be used. The cloud count is read now, before the relay has applied
-    // anything, which is the number the choice is about.
-    const owesKeepChoice = needsKeepChoice(keepCandidates(cloudsData?.list ?? []).length, plan.maxClouds);
+    // allowance is there to be used. The cloud count is the one frozen with the terms, before the
+    // relay has applied anything, which is the number the choice is about.
+    const owesKeepChoice = needsKeepChoice(terms.keepCandidateCount, plan.maxClouds);
     const primary =
         kind === 'downgrade'
             ? owesKeepChoice

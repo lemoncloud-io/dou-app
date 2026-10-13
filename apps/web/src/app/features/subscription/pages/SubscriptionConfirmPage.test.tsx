@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { SubscriptionConfirmPage } from './SubscriptionConfirmPage';
 import { usePlanCatalog, usePlanOptions, usePlanPrice, useRestorePurchases, useTierPurchase } from '../hooks';
@@ -27,9 +27,15 @@ const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 
 let mockParams = new URLSearchParams();
+// Records every redirect: the mock leaves the page mounted, so one that flashed and went would not
+// be in the final DOM.
+const mockRedirect = jest.fn();
 jest.mock('react-router-dom', () => ({
     useSearchParams: () => [mockParams],
-    Navigate: ({ to }: { to: string }) => <div data-testid="redirect">{to}</div>,
+    Navigate: ({ to }: { to: string }) => {
+        mockRedirect(to);
+        return <div data-testid="redirect">{to}</div>;
+    },
 }));
 jest.mock('../../../bridge', () => ({ appBridge: { openURL: jest.fn() } }));
 jest.mock('../consts', () => ({ POLICY_BASE_URL: 'https://policy.example' }));
@@ -60,9 +66,11 @@ const show = ({
     price = '₩8,800',
     isIOS = true,
     clouds = [],
+    selectable = kind !== 'blocked',
 }: {
     plan: typeof tier1;
     kind: string;
+    selectable?: boolean;
     state?: string;
     current?: typeof tier1;
     price?: string;
@@ -77,7 +85,7 @@ const show = ({
         isOnMobileApp: true,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({
-        options: [{ plan, kind, isSelectable: kind !== 'blocked', isCurrent: false, displayPrice: price }],
+        options: [{ plan, kind, isSelectable: selectable, isCurrent: kind === 'current', displayPrice: price }],
         isLoading: false,
     });
     (usePlanPrice as jest.Mock).mockReturnValue(() => '₩17,600');
@@ -90,7 +98,24 @@ const show = ({
     });
     (useClouds as jest.Mock).mockReturnValue({ data: { list: clouds } });
     (useMembershipInfo as jest.Mock).mockReturnValue({ data: { validFrom: 1, validUntil: 2, platform: 'apple' } });
-    render(<SubscriptionConfirmPage />);
+    return render(<SubscriptionConfirmPage />);
+};
+
+/**
+ * What the screen's hooks read once the purchase has been checked and the membership read again:
+ * the tier just bought is the account's own, so it is no longer one to buy, and nothing is in trial.
+ */
+const afterRefetch = (plan: typeof tier1) => {
+    (usePlanCatalog as jest.Mock).mockReturnValue({
+        summary: { state: 'active' },
+        replaceablePlan: plan,
+        isIOS: true,
+        isOnMobileApp: true,
+    });
+    (usePlanOptions as jest.Mock).mockReturnValue({
+        options: [{ plan, kind: 'current', isSelectable: false, isCurrent: true, displayPrice: '₩8,800' }],
+        isLoading: false,
+    });
 };
 
 const K = 'mypage.subscription';
@@ -199,6 +224,43 @@ describe('Subscription confirm — scenarios', () => {
 
         expect(screen.getByText(`${K}.confirm.unavailable`)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: `${K}.subscribe` })).toBeDisabled();
+    });
+
+    // The purchase resolves only after the membership has been read again, so the screen re-renders
+    // with the tier already the account's own while the purchase is still under way.
+    it('a purchase that lands the tier still shows its confirmation, with the terms that were bought', async () => {
+        const { rerender } = show({ plan: tier1, kind: 'new', state: 'none' });
+        purchaseTier.mockImplementationOnce(async () => {
+            afterRefetch(tier1);
+            act(() => rerender(<SubscriptionConfirmPage />));
+            return membership;
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.cloudGuide.ctaWithTrial:7` }));
+
+        expect(await screen.findByRole('dialog', { name: `${K}.done.newTitle` })).toBeInTheDocument();
+        expect(mockRedirect).not.toHaveBeenCalled();
+        // A first purchase with its trial — not a change from the new plan to itself.
+        expect(screen.getByText(`${K}.info.trialEndsOn`)).toBeInTheDocument();
+    });
+
+    it('after a cancelled purchase the plan is judged again, live', async () => {
+        const { rerender } = show({ plan: tier2, kind: 'upgrade', current: tier1 });
+        purchaseTier.mockImplementationOnce(async () => {
+            afterRefetch(tier2);
+            act(() => rerender(<SubscriptionConfirmPage />));
+            throw { code: 'user-cancelled' };
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.subscribe` }));
+
+        expect(await screen.findByTestId('redirect')).toHaveTextContent(ROUTES.subscription.plans);
+    });
+
+    it('a plan the account already holds goes back to the picker', () => {
+        show({ plan: tier1, kind: 'current', current: tier1, selectable: false });
+
+        expect(screen.getByTestId('redirect')).toHaveTextContent(ROUTES.subscription.plans);
     });
 
     it('a plan the rules refuse goes back to the picker', () => {
