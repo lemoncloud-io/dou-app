@@ -17,7 +17,8 @@ export interface SwitchPlaceResult {
  * Place switching on the runtime session. switchSite() owns the optimistic sid pre-apply,
  * commit, and rollback-on-failure (see testbed ChatHomePage handleSiteClick), so this hook
  * only forwards the click, auto-selects the first place when none is active yet, and leaves a
- * stored selection whose place has been pruned from the list (see below).
+ * stored selection whose place has been pruned from the list (see below) — for the first place left,
+ * or, when the cloud has none left, by emptying the selection without a switch.
  *
  * `isPlacesLoading` is the list's own "still unknown" flag (useActiveCloudPlaces). It gates the
  * stale-selection fallback only.
@@ -66,7 +67,7 @@ export const useSwitchPlace = (places: DomainPlace[], isPlacesLoading: boolean):
         if (isSelectedInList) seenSelectedIdRef.current = selectedSiteId;
     }, [isSelectedInList, selectedSiteId]);
     useEffect(() => {
-        if (!selectedSiteId || isSelectedInList || isPlacesLoading || places.length === 0) return;
+        if (!selectedSiteId || isSelectedInList || isPlacesLoading) return;
         // The relay has exactly one place and it is auto-selected; there is nothing to fall
         // back across, and its list is not the place-management surface a cloud's is.
         if (selectedCloudId === 'default') return;
@@ -76,6 +77,14 @@ export const useSwitchPlace = (places: DomainPlace[], isPlacesLoading: boolean):
         // effect would otherwise retry on every settle.
         if (fallbackFromRef.current === selectedSiteId) return;
         fallbackFromRef.current = selectedSiteId;
+        // The place went and none is left in this cloud — the user left the last one. There is
+        // nowhere to switch to, so the selection is emptied without a switch and home shows the
+        // cloud with no place. The cloud is not left for another one: its 1:1 rooms and notes to
+        // self are still the user's. A place that comes back later is auto-selected above.
+        if (places.length === 0) {
+            runtime.session.clearSiteSelection();
+            return;
+        }
         switchSite(places[0].id).catch(error => {
             logger.warn('PLACE', '[useSwitchPlace] fallback from a pruned place failed', {
                 error,

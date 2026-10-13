@@ -167,6 +167,7 @@ jest.mock('../components', () => ({
         title,
         open,
         onOpenChange,
+        onOpenPlaceInfo,
     }: {
         isPro?: boolean;
         onCreateGroup?: () => void;
@@ -175,6 +176,7 @@ jest.mock('../components', () => ({
         title?: string;
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
+        onOpenPlaceInfo?: () => void;
     }) => (
         <div
             data-testid={title ? 'self-chat-list' : 'channel-list'}
@@ -186,6 +188,7 @@ jest.mock('../components', () => ({
                 <button data-testid="create-direct" onClick={onCreateOneOnOne} />
             )}
             <button data-testid={title ? 'self-chat-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
+            {onOpenPlaceInfo && <button data-testid="open-place-info" onClick={onOpenPlaceInfo} />}
         </div>
     ),
     CloudPromoBanner: ({ onAddCloud }: { onAddCloud?: () => void }) => (
@@ -420,6 +423,16 @@ describe('HomePage — cloud mode', () => {
 
         expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
     });
+
+    // The empty room list's "you can leave this place" link opens the active place's settings hub,
+    // where the Leave row is — the link is unchanged, the hub is what gained the row.
+    it("points the empty room list's leave hint at the active place's settings hub", () => {
+        render(<HomePage />);
+
+        fireEvent.click(screen.getByTestId('open-place-info'));
+
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settings('site-1'));
+    });
 });
 
 // The fold of each section comes from the stored record, not from the section itself — that is
@@ -489,6 +502,18 @@ describe('HomePage — no place selected yet', () => {
 
         expect(screen.getByTestId('empty-state')).toBeInTheDocument();
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    // Where the last place of a cloud leaves the user: the cloud stays, and so does its self chat,
+    // which belongs to the account rather than to any place.
+    it('keeps the cloud self chat on a cloud with no place left', () => {
+        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
+
+        render(<HomePage />);
+
+        expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+        expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
+        expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
     });
 
     it('shows neither once a place is selected — the channel list owns the slot', () => {

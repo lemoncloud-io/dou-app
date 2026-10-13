@@ -204,6 +204,15 @@ would otherwise retry on every settle. What it does not cover is a row that was 
 begin with — a cache wipe _and_ a deletion while the app was closed — which is left to the user's
 tap, as before.
 
+**Leaving the place on screen** goes through the same fallback. The leave drops the place's row from
+the cache once the server has answered, which from here looks exactly like a prune: the selected id
+was in the list and is not any more, so home switches to the first place left. When none is left —
+the user left the cloud's last place — there is nothing to switch to: the selection is emptied with
+`runtime.session.clearSiteSelection()`, which asks for no switch, and home shows the cloud with no
+place (the empty Place section, the no-place empty state and the cloud's notes to self). The cloud is
+not left for another one, and a place that appears later is auto-selected as usual. The same
+seen-then-gone rule guards it, so an empty list nobody has seen a selection in clears nothing.
+
 `CloudSessionSheet` has three collapsible sections: the synthetic relay row (selecting it calls
 `logoutCloudSession`), owned clouds with the active one pinned to the top, and invited clouds. Add-a-
 cloud is a **footer**, so it survives collapsing. A row either enters its cloud or explains itself,

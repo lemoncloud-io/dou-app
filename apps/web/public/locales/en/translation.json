@@ -1137,7 +1137,41 @@
         "channelSort": "Sort Chats",
         "channelManage": "Manage Chats",
         "ownerOnly": "Only the owner can change this",
-        "comingSoon": "Coming soon"
+        "comingSoon": "Coming soon",
+        "members": "Members",
+        "leavePlace": "Leave place",
+        "networkError": "Check your connection and try again."
+    },
+    "placeLeave": {
+        "dialog": {
+            "title": "Leave {{name}}?",
+            "description": "You'll leave every group chat in this place. Your 1:1 chats and notes to self stay. You'll need a new invite to come back.",
+            "confirm": "Leave"
+        },
+        "done": "You left the place.",
+        "denied": "You can't leave this place.",
+        "failed": "Couldn't leave the place. Try again."
+    },
+    "placeMembers": {
+        "title": "Members",
+        "count": "Members {{count}}",
+        "loading": "Loading members",
+        "loadFailed": "Couldn't load the members",
+        "retry": "Try again",
+        "notMember": "You're not a member of this place.",
+        "badge": {
+            "owner": "Owner",
+            "me": "You"
+        },
+        "remove": "Remove",
+        "removeDialog": {
+            "title": "Remove {{name}}?",
+            "description": "They'll leave every group chat in this place. They can come back if invited again.",
+            "confirm": "Remove"
+        },
+        "removed": "Removed {{name}} from the place.",
+        "removeDenied": "You can't remove this member.",
+        "removeFailed": "Couldn't remove the member. Try again."
     },
     "channelSort": {
         "title": "Sort Chats",

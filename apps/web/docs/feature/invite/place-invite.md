@@ -122,8 +122,10 @@ state `ChannelEmptyState variant="invited"` already drew.
 
 - **An unaccepted invite cannot be taken back.** The member row exists from the moment of issue, and
   the cloud invite lane has neither a list of sent invites nor a cancel.
-- **The recipient cannot leave.** The empty state says they can, and the place settings hub has no
-  leave action yet.
+- **A pending invitee shows on the place's member screen** like any other member, so the owner can
+  remove them there — see [place/README.md](../place/README.md#members-and-leaving). Whether that
+  also voids the unaccepted invite on the server has not been checked. The recipient leaves from the
+  place settings hub, which the empty state's link opens.
 
 ## How to verify
 

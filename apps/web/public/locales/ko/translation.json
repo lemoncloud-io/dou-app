@@ -1137,7 +1137,41 @@
         "channelSort": "채팅방 정렬",
         "channelManage": "채팅방 관리",
         "ownerOnly": "오너만 변경할 수 있어요",
-        "comingSoon": "준비 중이에요"
+        "comingSoon": "준비 중이에요",
+        "members": "멤버",
+        "leavePlace": "플레이스 나가기",
+        "networkError": "연결 상태를 확인하고 다시 시도해 주세요."
+    },
+    "placeLeave": {
+        "dialog": {
+            "title": "'{{name}}' 플레이스를 나갈까요?",
+            "description": "이 플레이스의 그룹 채팅방에서 모두 나가요. 1:1 대화와 나와의 채팅은 그대로 남아요. 다시 초대받아야 들어올 수 있어요.",
+            "confirm": "나가기"
+        },
+        "done": "플레이스에서 나갔어요.",
+        "denied": "이 플레이스는 나갈 수 없어요.",
+        "failed": "플레이스를 나가지 못했어요. 다시 시도해 주세요."
+    },
+    "placeMembers": {
+        "title": "멤버",
+        "count": "멤버 {{count}}",
+        "loading": "멤버를 불러오는 중이에요",
+        "loadFailed": "멤버를 불러오지 못했어요",
+        "retry": "다시 시도",
+        "notMember": "이 플레이스의 멤버가 아니에요.",
+        "badge": {
+            "owner": "오너",
+            "me": "나"
+        },
+        "remove": "내보내기",
+        "removeDialog": {
+            "title": "'{{name}}'님을 내보낼까요?",
+            "description": "이 플레이스의 모든 그룹 채팅방에서 나가게 돼요. 다시 초대되면 돌아올 수 있어요.",
+            "confirm": "내보내기"
+        },
+        "removed": "'{{name}}'님을 내보냈어요.",
+        "removeDenied": "이 멤버는 내보낼 수 없어요.",
+        "removeFailed": "내보내지 못했어요. 다시 시도해 주세요."
     },
     "channelSort": {
         "title": "채팅방 정렬",
