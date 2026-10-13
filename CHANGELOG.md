@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-10-13] - root@0.92.0, @chatic/desktop-web@0.24.0
+
+### Features
+
+- (config) turn desktop Google and phone sign-in on in production
+- (desktop-web) one guest card on the hub, calmer phone button
+- (desktop-web) tidy the phone sign-in form's edges
+- (desktop-web) say who a Google sign-in landed as, name new accounts
+- (desktop-web) keep a failed Google link on the account hub card
+- (desktop-web) wait for the browser after starting a Google sign-in
+- (desktop-web) link Google to a signed-in account from the hub
+- (desktop-web) put phone sign-in ahead of Google
+- (desktop-web) sign in with a phone number on desktop
+- (desktop-web) add the phone-number sign-in state machine
+- (desktop-web) show how the account signs in on the account hub
+- (desktop-web,app-runtime,data,http) link the guest on OAuth login
+
+### Bug Fixes
+
+- (desktop-web) show the signed-in toast once
+- (desktop-web) show the new-account stop before the first-run tips
+- (desktop-web) close the races around a pending Google sign-in
+- (desktop-web) point a failed browser hand-off back to the app
+- (desktop-web) wait for the relay socket before the first phone send
+- (desktop-web) let an edited code resubmit after a failed check
+- (desktop-web) show a UUID-named account as unnamed on the hub
+
+### Documentation
+
+- (desktop-web) record the phone sign-in invited-cloud check
+
+### Refactor
+
+- (shared) move phone-number helpers into @chatic/shared/phone
+- (desktop-web) give the Welcome sign-up note a generated id
+- (web,app-runtime) remove the web OAuth callback page
+
+### Other
+
+- test: (desktop-web) expect the guest link option on a signed-in login
+
 ## [2026-10-13] - root@0.91.0, @chatic/web@0.68.0
 
 ### Features
