@@ -284,6 +284,7 @@ export const en = {
     'snooze.activeQuiet': 'Muted by quiet hours',
     'myThreads.title': 'Threads',
     'myThreads.empty': 'No threads yet',
+    'myThreads.emptyInPlace': 'No threads in this place yet',
     'myThreads.emptyHint': 'Reply in a thread, or get a reply to your message, and it gathers here.',
     'myThreads.deviceLocal': 'Threads seen on this device only.',
     'myThreads.newReply': 'New reply',

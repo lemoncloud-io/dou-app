@@ -1,17 +1,19 @@
 # My threads
 
 The sidebar's **Threads** row opens a trailing pane listing the threads the user takes part in — a
-thread they replied in, or one whose root they wrote — most recently active first. A row opens that
-thread in the thread panel, switching channel or place first when it lives elsewhere.
+thread they replied in, or one whose root they wrote — most recently active first. A group channel's
+threads are listed in its place only; a 1:1's and the Self Channel's belong to the cloud and are listed
+in every place of it. A row opens that thread in the thread panel, switching channel — and, for a 1:1
+listed elsewhere, place — first.
 
 ## The pane
 
 - **A row** names who started the thread, the channel (`#` only for a named channel — a DM reads as
-  its person, the Self Channel as "You") and, outside the current place, the place. A DM's person is
-  resolved live, so a DM row from another place, whose channel is not loaded, names no channel. Under
-  it: the root, then the newest reply. A loaded channel is labelled the way every surface labels it;
-  another place's channel is not loaded, so the row uses the name kept when the thread was last
-  recorded. The time is the clock time today and the date before (`formatListTime`, shared with
+  its person, the Self Channel as "You"). Under it: the root, then the newest reply. A loaded channel
+  is labelled the way every surface labels it; one that is not loaded — a 1:1 the active place does
+  not list — uses what was kept when the thread was last recorded, and a DM's person is resolved
+  live, so that row names no channel. The
+  time is the clock time today and the date before (`formatListTime`, shared with
   Mentions and Saved).
 - **Opening a row** marks it as the one opened and opens its thread, which takes the list's place in
   the trailing slot once it is there. The list is not closed first: while another channel loads, focus
@@ -20,8 +22,9 @@ thread in the thread panel, switching channel or place first when it lives elsew
   Back reopens the list at the scroll offset it was left at, with focus on that row. Both are in
   memory only (`useMyThreadsPanelStore`).
 - **Remove** (on hover) drops a thread; a later reply in it can list it again. **Mark all read**
-  clears the active cloud's unread threads and shows only while one is unread.
-- **Empty** says why it may be empty — that the list is this device's — and, while the first launch is
+  clears the unread threads the pane lists — the active place's — and shows only while one is unread.
+- **Empty** says why it may be empty — that the list is this device's, and this place's when one
+  scopes it, since another place may hold threads — and, while the first launch is
   still reading the cache, that it is looking rather than that there is nothing.
 
 ## Why the list is this device's own
@@ -32,9 +35,13 @@ localStorage (`useMyThreadsStore`, key `chatic-my-threads`), like the Mentions i
 follow the account to another device, and logout clears it. The pane says so in its first line.
 
 Entries are keyed by cloud, channel and root chatNo. Channel ids are per-cloud sequences, so two
-clouds can each have a `5`; the cloud in the key keeps their threads apart, and the pane and the
-sidebar dot read the active cloud's only. The list keeps the 100 most recently active threads across
-all clouds — a storage bound, so a busy cloud can push a quiet one's threads out.
+clouds can each have a `5`; the cloud in the key keeps their threads apart. The pane, **Mark all
+read** and the sidebar dot all read the same scope (`isThreadIn`): the active cloud, narrowed to the
+place the channel list is read for — the session's selected site, unless the cloud has no place left.
+The Default Cloud usually has none, and then lists the whole cloud's. A 1:1's `sid` is where its
+creator stood, not where it lives, so the place never narrows a 1:1's — the relay's included — or the
+Self Channel's thread. The list keeps the 100 most recently active threads across
+all clouds and places — a storage bound, so a busy cloud can push a quiet one's threads out.
 
 ## How a thread gets in
 
