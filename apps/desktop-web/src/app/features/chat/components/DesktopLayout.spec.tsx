@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import i18next from 'i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -159,6 +160,15 @@ describe('DesktopLayout compact window', () => {
         fireEvent.keyDown(document, { key: 'Escape' });
         expect(inertWhenFocused).toEqual([false]);
         expect(document.activeElement).toBe(opener);
+    });
+
+    // They sit outside the drawer's dialog and point into the chat, which is inert under it.
+    it('offers no skip links while the drawer is open', () => {
+        renderShellAt(640);
+        const skip = () => screen.queryByRole('button', { name: i18next.t('shell.skip.composer') });
+        expect(skip()).not.toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'open' }));
+        expect(skip()).toBeNull();
     });
 
     it('keeps the rails docked while only the sidebar is a drawer', () => {

@@ -50,6 +50,27 @@ catalog's. With no cached name the catalog's name stands, and an invited cloud k
 its own cache row. The cache row is overwritten when `cloud.get` runs for that cloud, which the
 app does only to refresh an invited cloud's name.
 
+## Order
+
+The tiles can be dragged into any order (`SortableList`, the same drag the sidebar's channel rows
+use). Home is the way back from every cloud, so it stays first and is not one of the tiles that
+move; the reload tile stays last. A press that moves less than 5px is still a click, and the click
+that ends a drag selects nothing. No drag starts while a switch is in flight.
+
+The order is a preference of this device, not of the account: it is stored in the local config
+record `ui.railOrder` (`useCloudOrder`, `@chatic/shared`) and nothing is sent to the server, so
+another device and the mobile app keep their own. A cloud the stored order does not name yet is
+drawn after the ones it does. A stored id whose cloud is not on the rail is skipped but kept: the
+rail can be showing part of its list (see the reload tile below), and a drag in that state must
+not cost the missing clouds their place. Each one stays after the cloud it followed. Logging out
+clears the record with the rest of the account's preferences.
+
+Only the rail reads the order. The account pages and the cloud sessions kept in the background
+list the clouds as the sources give them. An untitled cloud keeps its number when its tile is
+moved: the numbers are given in the sources' order, not the rail's.
+
+Reordering has no keyboard path yet.
+
 ## Unread
 
 The active cloud's dot comes from the live socket. Another cloud's dot is a pending cross-cloud push

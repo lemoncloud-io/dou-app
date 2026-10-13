@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
+import { applyChannelOrder, useCloudOrder } from '@chatic/shared';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -35,6 +36,7 @@ import {
     useRemoveCloud,
 } from '../../../shared';
 import { RenameCloudDialog } from './RenameCloudDialog';
+import { SortableList } from './SortableList';
 
 /**
  * Only the active, open cloud of yours can be renamed here: `cloud.update` goes out on the active
@@ -135,9 +137,118 @@ export const CloudRail = ({
     const scroll = useScrollOverflow<HTMLDivElement>();
     // An id on a tile reads as noise; a cloud without a real name is "Untitled", numbered when
     // there are several so neither the tiles nor their labels read the same.
+    // Named from the list as the sources give it, so a tile's number is part of its cloud and does
+    // not change when the tile is dragged.
     const tiles = cloudTiles(clouds, ordinal =>
         ordinal ? t('cloud.untitledNumbered', { number: ordinal }) : t('cloud.untitled')
     );
+    const tileByCloud = new Map(clouds.map((cloud, index) => [cloud.id, tiles[index]]));
+
+    // The order the user dragged the tiles into. Home is the way back from every cloud, so it is
+    // drawn first whatever was stored and is not one of the tiles that move.
+    const { storedIds, set: setStoredOrder } = useCloudOrder();
+    const home = clouds.find(cloud => cloud.kind === 'home');
+    const movable = clouds.filter(cloud => cloud.kind !== 'home');
+    const cloudById = new Map(movable.map(cloud => [cloud.id, cloud]));
+    const ordered = applyChannelOrder(
+        movable.map(cloud => cloud.id),
+        storedIds
+    ).flatMap(id => cloudById.get(id) ?? []);
+
+    const renderTile = (cloud: RailCloud) => {
+        const { label, initial } = tileByCloud.get(cloud.id) ?? { label: cloud.id, initial: '?' };
+        const isActive = cloud.id === activeCloudId;
+        const isInactive = !!cloud.status && cloud.status !== 'active';
+        const isLapsed = isLapsedCloud(cloud);
+        const renamable = canRename(cloud, activeCloudId);
+        const removable = canDelete(cloud);
+        // A cloud that cannot be opened as it is says why before the click fails.
+        const statusKey = cloud.status ? STATUS_KEY[cloud.status] : undefined;
+        const tileLabel = statusKey ? t('cloud.statusLabel', { name: label, status: t(statusKey) }) : label;
+        // Only a subscription reopens a lapsed cloud, and that is bought in the
+        // mobile app, so the hint and the click both say where to go.
+        const hintLabel = isLapsed ? `${tileLabel}\n${t('mobileApp.planAndCloud')}` : tileLabel;
+        const select = () => {
+            if (!isLapsed) {
+                onSelectCloud(cloud.id);
+                return;
+            }
+            // A switch here was refused and offered a Try again that could never work.
+            toast({ title: t('cloud.lapsed.title'), description: <MobileAppPointer /> });
+        };
+        return (
+            <ContextMenu>
+                <ContextMenuTrigger asChild>
+                    {/* Plain wrapper, as on the channel rows: composing the Radix
+                    trigger onto Hint's own trigger drops onContextMenu. */}
+                    <div className="contents">
+                        <Hint label={hintLabel}>
+                            <button
+                                onClick={select}
+                                disabled={isSwitching}
+                                aria-label={tileLabel}
+                                aria-current={isActive ? 'true' : undefined}
+                                className={cn(
+                                    'relative flex h-12 w-12 items-center justify-center rounded-[14px] font-bold',
+                                    Array.from(initial).length > 1 ? 'text-lead' : 'text-headline',
+                                    'transition-colors duration-150 ease-tactile tactile focus-ring',
+                                    // Figma Icon Rail: the active cloud is a black tile with a
+                                    // lime ring and lime initial; the others sit quiet on the rail.
+                                    isActive
+                                        ? 'border-2 border-primary bg-tile-active text-primary'
+                                        : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
+                                    // A cloud that cannot be opened reads as set aside, not
+                                    // faded out: a dashed edge and muted ink at full opacity
+                                    // stay legible, where 50% opacity left the initial at
+                                    // well under text contrast.
+                                    !isActive &&
+                                        isInactive &&
+                                        'border-dashed border-muted-foreground text-muted-foreground',
+                                    // Block a second switch mid-handshake; dim non-active icons for feedback.
+                                    isSwitching && 'cursor-not-allowed',
+                                    isSwitching && !isActive && 'opacity-40'
+                                )}
+                            >
+                                {initial}
+                                {/* Active tile: live socket unread. Other tiles: a pending
+                    cross-cloud push (the only unread signal available for them). */}
+                                {((isActive && hasUnread) || (!isActive && !!badgedClouds?.[cloud.id])) && (
+                                    <span
+                                        aria-hidden
+                                        className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread"
+                                    />
+                                )}
+                            </button>
+                        </Hint>
+                    </div>
+                </ContextMenuTrigger>
+                {/* Removing a workspace used to be a 16px badge in the tile's
+                top-right — the same corner that means unread, one mispress
+                from switching into the cloud it would remove. It lives in
+                the tile's own menu now, which the Menu key opens too. */}
+                {(renamable || removable) && (
+                    <ContextMenuContent className="w-52">
+                        {renamable && (
+                            <ContextMenuItem disabled={isSwitching} onSelect={() => setPendingRename(cloud)}>
+                                <Pencil size={14} aria-hidden />
+                                {t('cloud.rename.action')}
+                            </ContextMenuItem>
+                        )}
+                        {removable && (
+                            <ContextMenuItem
+                                disabled={isSwitching}
+                                onSelect={() => setPendingRemove(cloud)}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 size={14} aria-hidden />
+                                {t('cloud.remove.action')}
+                            </ContextMenuItem>
+                        )}
+                    </ContextMenuContent>
+                )}
+            </ContextMenu>
+        );
+    };
 
     return (
         <div className="flex h-full w-full flex-col items-center">
@@ -155,106 +266,16 @@ export const CloudRail = ({
                             {t('cloud.empty')}
                         </span>
                     )}
-                    {clouds.map((cloud, index) => {
-                        const { label, initial } = tiles[index];
-                        const isActive = cloud.id === activeCloudId;
-                        const isInactive = !!cloud.status && cloud.status !== 'active';
-                        const isLapsed = isLapsedCloud(cloud);
-                        const renamable = canRename(cloud, activeCloudId);
-                        const removable = canDelete(cloud);
-                        // A cloud that cannot be opened as it is says why before the click fails.
-                        const statusKey = cloud.status ? STATUS_KEY[cloud.status] : undefined;
-                        const tileLabel = statusKey
-                            ? t('cloud.statusLabel', { name: label, status: t(statusKey) })
-                            : label;
-                        // Only a subscription reopens a lapsed cloud, and that is bought in the
-                        // mobile app, so the hint and the click both say where to go.
-                        const hintLabel = isLapsed ? `${tileLabel}\n${t('mobileApp.planAndCloud')}` : tileLabel;
-                        const select = () => {
-                            if (!isLapsed) {
-                                onSelectCloud(cloud.id);
-                                return;
-                            }
-                            // A switch here was refused and offered a Try again that could never work.
-                            toast({ title: t('cloud.lapsed.title'), description: <MobileAppPointer /> });
-                        };
-                        return (
-                            <ContextMenu key={cloud.id}>
-                                <ContextMenuTrigger asChild>
-                                    {/* Plain wrapper, as on the channel rows: composing the Radix
-                                    trigger onto Hint's own trigger drops onContextMenu. */}
-                                    <div className="contents">
-                                        <Hint label={hintLabel}>
-                                            <button
-                                                onClick={select}
-                                                disabled={isSwitching}
-                                                aria-label={tileLabel}
-                                                aria-current={isActive ? 'true' : undefined}
-                                                className={cn(
-                                                    'relative flex h-12 w-12 items-center justify-center rounded-[14px] font-bold',
-                                                    Array.from(initial).length > 1 ? 'text-lead' : 'text-headline',
-                                                    'transition-colors duration-150 ease-tactile tactile focus-ring',
-                                                    // Figma Icon Rail: the active cloud is a black tile with a
-                                                    // lime ring and lime initial; the others sit quiet on the rail.
-                                                    isActive
-                                                        ? 'border-2 border-primary bg-tile-active text-primary'
-                                                        : 'border border-hairline bg-background text-rail-foreground hover:border-primary/60',
-                                                    // A cloud that cannot be opened reads as set aside, not
-                                                    // faded out: a dashed edge and muted ink at full opacity
-                                                    // stay legible, where 50% opacity left the initial at
-                                                    // well under text contrast.
-                                                    !isActive &&
-                                                        isInactive &&
-                                                        'border-dashed border-muted-foreground text-muted-foreground',
-                                                    // Block a second switch mid-handshake; dim non-active icons for feedback.
-                                                    isSwitching && 'cursor-not-allowed',
-                                                    isSwitching && !isActive && 'opacity-40'
-                                                )}
-                                            >
-                                                {initial}
-                                                {/* Active tile: live socket unread. Other tiles: a pending
-                                    cross-cloud push (the only unread signal available for them). */}
-                                                {((isActive && hasUnread) ||
-                                                    (!isActive && !!badgedClouds?.[cloud.id])) && (
-                                                    <span
-                                                        aria-hidden
-                                                        className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread"
-                                                    />
-                                                )}
-                                            </button>
-                                        </Hint>
-                                    </div>
-                                </ContextMenuTrigger>
-                                {/* Removing a workspace used to be a 16px badge in the tile's
-                                top-right — the same corner that means unread, one mispress
-                                from switching into the cloud it would remove. It lives in
-                                the tile's own menu now, which the Menu key opens too. */}
-                                {(renamable || removable) && (
-                                    <ContextMenuContent className="w-52">
-                                        {renamable && (
-                                            <ContextMenuItem
-                                                disabled={isSwitching}
-                                                onSelect={() => setPendingRename(cloud)}
-                                            >
-                                                <Pencil size={14} aria-hidden />
-                                                {t('cloud.rename.action')}
-                                            </ContextMenuItem>
-                                        )}
-                                        {removable && (
-                                            <ContextMenuItem
-                                                disabled={isSwitching}
-                                                onSelect={() => setPendingRemove(cloud)}
-                                                className="text-destructive focus:text-destructive"
-                                            >
-                                                <Trash2 size={14} aria-hidden />
-                                                {t('cloud.remove.action')}
-                                            </ContextMenuItem>
-                                        )}
-                                    </ContextMenuContent>
-                                )}
-                            </ContextMenu>
-                        );
-                    })}
+                    {home && renderTile(home)}
+                    {ordered.length > 0 && (
+                        <SortableList
+                            items={ordered.map(cloud => ({ key: cloud.id, node: renderTile(cloud) }))}
+                            // A drag that ends mid-switch would redraw the rail under the handshake.
+                            disabled={isSwitching}
+                            className="flex flex-col items-center gap-3"
+                            onReorder={setStoredOrder}
+                        />
+                    )}
                     {isCatalogError && (
                         // The same quiet tile as a cloud that cannot be opened, with the reload icon:
                         // owned clouds that did not load would otherwise just be missing.

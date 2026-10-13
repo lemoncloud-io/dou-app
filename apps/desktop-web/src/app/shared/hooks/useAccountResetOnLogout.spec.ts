@@ -35,6 +35,14 @@ describe('useAccountResetOnLogout', () => {
         expect(clearConfigKey).toHaveBeenCalledWith('ui.channelOrder', { lane: 'local' });
     });
 
+    it('clears the rail order, which names the clouds and places of the account leaving', async () => {
+        const { result } = renderHook(() => useAccountResetOnLogout());
+
+        await result.current.resetAccount();
+
+        expect(clearConfigKey).toHaveBeenCalledWith('ui.railOrder', { lane: 'local' });
+    });
+
     it('마이그레이션 전일 수 있는 레거시 즐겨찾기 키도 지운다 — 다음 계정 누수 방지', async () => {
         localStorage.setItem(
             'chatic-favorite-channels',

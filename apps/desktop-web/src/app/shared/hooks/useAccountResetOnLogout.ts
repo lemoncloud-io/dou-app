@@ -51,6 +51,8 @@ export const useAccountResetOnLogout = () => {
         // would leave the in-memory value alive right up until the reload.
         config.clear('ui.pinnedChannels', { lane: 'local' });
         config.clear('ui.channelOrder', { lane: 'local' });
+        // The rail order names this account's clouds and places.
+        config.clear('ui.railOrder', { lane: 'local' });
         // Channel and chat caches are uid-isolated, so clearing them is hygiene. The cloud cache is
         // not: it is one global partition shared by every account on this profile, so this clear is
         // what keeps one account's cloud names from showing for the next. Best-effort: the rejection

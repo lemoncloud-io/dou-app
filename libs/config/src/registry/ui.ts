@@ -91,6 +91,15 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'local',
     },
+    'ui.railOrder': {
+        title: 'Rail tile order',
+        description: "The order of the cloud tiles and of each cloud's place tiles (changed by dragging).",
+        type: 'json',
+        defaultValue: {},
+        surface: 'internal',
+        writableBy: ['local'],
+        persist: 'local',
+    },
     'ui.photoGridColumns': {
         title: 'Photo grid columns',
         description: "The in-app photo picker's column count (2–5), changed by pinching the grid.",
