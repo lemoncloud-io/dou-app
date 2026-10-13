@@ -27,9 +27,11 @@ import { ChannelMessageRow, type MessageSender } from '../components/ChannelMess
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useComposerDraft } from '../hooks/useComposerDraft';
+import { useMentionComposer } from '../hooks/useMentionComposer';
 import { useSendImages } from '../hooks/useSendImages';
 import { isPendingImageChat } from '../utils/imageTiles';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { MentionSuggestions } from '../components/MentionSuggestions';
 import { DmInviteFooter } from '../components/DmInviteFooter';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
@@ -69,6 +71,8 @@ import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { canModifyMessage } from '@chatic/data';
 import { messagePlainText } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
+import { mentionViewerOf } from '../utils/mentionHighlight';
+import { buildMentionCandidates } from '../utils/mentionInput';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
@@ -129,6 +133,9 @@ export const ChannelRoomPage = () => {
     const [floatingDate, setFloatingDate] = useState('');
     const [showFloatingDate, setShowFloatingDate] = useState(false);
     const floatingHideTimerRef = useRef<number | null>(null);
+    // The mention composer's way to put back the picks of a caption that came back unsent. The attach
+    // flow is set up before the composer is, so it reaches the composer through this ref.
+    const restoreCaptionPicksRef = useRef<(() => void) | null>(null);
 
     // Ref for DOM access (the scroll container ref is owned by useChatScroll)
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -285,6 +292,55 @@ export const ChannelRoomPage = () => {
     // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
     // from the site profile only. Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
+
+    // The `@` lookup is a group room's alone: a 1:1 always notifies and has one person to call, and a
+    // self chat has nobody to call. Members are the active ones other than me, under the name every
+    // row in this room draws them by — which is what the text will read after the pick.
+    const mentionCandidates = useMemo(
+        () =>
+            isGroupChat
+                ? buildMentionCandidates({
+                      memberIds: activeMemberIds,
+                      me: userId,
+                      nameOf: nameOfUser,
+                      avatarOf: avatarOfUser,
+                      unknownLabel: t('chat.unknownUser'),
+                      everyoneKeyword: t('chat.mention.everyone'),
+                  })
+                : [],
+        [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
+    );
+    const mentionComposer = useMentionComposer({
+        enabled: isGroupChat,
+        candidates: mentionCandidates,
+        content,
+        setContent,
+        inputRef,
+        scope: channelId || 'default',
+    });
+    useEffect(() => {
+        restoreCaptionPicksRef.current = mentionComposer.restoreClearedPicks;
+    }, [mentionComposer.restoreClearedPicks]);
+
+    // Me as a mention needs me: my uid in this room's cloud (what the room's member ids are) and the
+    // account's, and every name a sender's list could have shown me under.
+    const { userId: sessionUid } = runtime.session.useSessionIdentity();
+    const mentionViewer = useMemo(() => {
+        const me = userId ? memberById.get(userId) : undefined;
+        const names = [userId ? profileMap.get(userId)?.nick : undefined, me?.nick, me?.name];
+        // Every member's `@name` is drawn as a mention, by the name the list writes it with.
+        const memberNames = isGroupChat
+            ? [
+                  ...mentionCandidates.filter(row => !row.everyone).map(row => row.label),
+                  userId ? nameOfUser(userId) : undefined,
+              ]
+            : undefined;
+        // A mention opens the member it names, by the same row the list offers.
+        const people = mentionCandidates
+            .filter(row => !row.everyone)
+            .map(row => ({ id: row.id, name: row.label, avatar: row.thumbnail }));
+        return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames, people });
+    }, [userId, sessionUid, memberById, profileMap, isGroupChat, mentionCandidates, nameOfUser]);
     // `myJoin` (above, from the join cache stream) is NOT `channel.$join`, which is a projection that
     // lags the cache. The DM title reads the nick off it, so a rename in settings has to land here
     // immediately or the header disagrees with every other surface.
@@ -425,7 +481,10 @@ export const ChannelRoomPage = () => {
         onComposerSlide: sliding =>
             followComposer(sliding ? height => clearComposer(messagesEndRef.current, height) : null),
         // A caption whose photos all failed the check comes back, unless something new was typed since.
-        onUnsentText: text => setContent(current => (current.trim() ? current : text)),
+        onUnsentText: text => {
+            setContent(current => (current.trim() ? current : text));
+            restoreCaptionPicksRef.current?.();
+        },
     });
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
@@ -623,21 +682,27 @@ export const ChannelRoomPage = () => {
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
+        // Read at the press, before the field clears: who the text's names mean goes with this message.
+        // The picks are forgotten only once something is actually sent — a press that sends nothing
+        // keeps them for the next one.
+        const mention = mentionComposer.mentionFor(trimmed);
         // Photos picked in the attach panel take the press — the panel open, or closed with them waiting
         // above the field — and what is typed goes in their message as its caption rather than as a
         // message of its own.
-        if (attach.sendReady && attach.sendPicked(trimmed)) {
+        if (attach.sendReady && attach.sendPicked(trimmed, mention)) {
+            mentionComposer.clearPicks();
             setContent('');
             return;
         }
         if (!trimmed || !stableChannelId) return;
 
+        mentionComposer.clearPicks();
         setContent('');
 
         // Read now, at the press: the cloud the user was looking at when they sent is the one the
         // message is for, whatever the selection does while it is in flight.
         const cid = roomCid;
-        sendMessage(cid, { channelId: stableChannelId, content: trimmed })
+        sendMessage(cid, { channelId: stableChannelId, content: trimmed, ...(mention ? { mention } : {}) })
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
                     markSent(newChat.chatNo);
@@ -1224,6 +1289,7 @@ export const ChannelRoomPage = () => {
                                                     >
                                                         <ChannelMessageRow
                                                             message={message}
+                                                            mentionViewer={mentionViewer}
                                                             showProfileAndName={showProfileAndName}
                                                             showTimeAndStatus={showTimeAndStatus}
                                                             ownerDisplayName={ownerDisplayName}
@@ -1339,9 +1405,12 @@ export const ChannelRoomPage = () => {
                     clears — carries them, and they ride up with the keyboard as the pill does. Always
                     rendered: the row folds itself away when it empties. */}
                 {attach.strip}
+                {/* Right above the field, inside the measured bar like the strip: it rides up with the
+                    keyboard and the list clears it, and the keyboard stays up while a name is picked. */}
+                <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
                 <MessageInput
                     value={content}
-                    onChange={setContent}
+                    onChange={mentionComposer.onChange}
                     onSend={handleSend}
                     sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}

@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DomainChat, DomainJoin } from '@chatic/data';
+import type { ChatMentionBody, DomainChat, DomainJoin } from '@chatic/data';
+import { toMentionBody } from '@chatic/data';
 
 import { beginChatSendTrace } from '../../../runtime/perf';
 
@@ -15,6 +16,8 @@ interface SendMessageInput {
     parentId?: string;
     /** Only a resend sets this: it carries the failed row's own content type across. */
     contentType?: DomainChat['contentType'];
+    /** Who the text calls out, as picked in the composer. Absent when nobody was picked. */
+    mention?: ChatMentionBody;
 }
 
 interface ReadMessageInput {
@@ -28,15 +31,18 @@ interface ReadMessageInput {
  * message from the one they pressed send on.
  *
  * Rows stranded by the old chatNo-send bug hold a bare chatNo in `parentId`, and the server 404s it,
- * so those are rebuilt into the full `<channelId>:<chatNo>` id.
+ * so those are rebuilt into the full `<channelId>:<chatNo>` id. The mention is carried across too: a
+ * resend that dropped it would reach everyone set to "mentions only" as a message that calls no one.
  */
 export const toResendPayload = (row: DomainChat): SendMessageInput => {
     const parentId = row.parentId && !row.parentId.includes(':') ? `${row.channelId}:${row.parentId}` : row.parentId;
+    const mention = toMentionBody(row.mention$);
     return {
         channelId: row.channelId,
         content: row.content ?? '',
         ...(row.contentType ? { contentType: row.contentType } : {}),
         ...(parentId ? { parentId } : {}),
+        ...(mention ? { mention } : {}),
     };
 };
 

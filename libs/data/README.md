@@ -106,7 +106,7 @@ sequenceDiagram
 ```text
 libs/data/src/
 ├── index.ts          public barrel (9 lines of export *)
-├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, and chatMedia.ts — the media/file split of a message's uploads)
+├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — and mention.ts — the mention a send carries and whether a message calls its reader)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
 │   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports
@@ -146,7 +146,7 @@ await getRepositories().report.uploadLogBatch(body);
 
 Three rules hold.
 
-1. **Import types, and pure functions that hold no data of their own** (`DomainChat`, `DataContext`, …; the shared predicates `isInJoinWindow` / `isMessageEdited`; `sendImageMessage`, which runs only on the ports its caller binds). Anything that reaches storage or the network is reached through a repository, and paths inside the barrel stay closed.
+1. **Import types, and pure functions that hold no data of their own** (`DomainChat`, `DataContext`, …; the shared predicates `isInJoinWindow` / `isMessageEdited` / `isMentioningViewer`; `sendImageMessage`, which runs only on the ports its caller binds). Anything that reaches storage or the network is reached through a repository, and paths inside the barrel stay closed.
 2. **Read through `observe*` and nothing else.** Rendering what `refresh*` returns breaks principle 1.
 3. **`refresh*` and `cache*` belong to the sync orchestrator.** A UI calling them directly can collide with sync timing. Where it is necessary, call them only from a user-event path.
 

@@ -1,10 +1,6 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
-// The send input comes from `-lib`, not `-api`: both export a `ChatSendInput`, and only `-lib`'s
-// carries `uploadIds`. Taking the `-api` one compiles just as well and silently drops attachments
-// from every caller's type.
-import type { ChatSendInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
-import type { DomainChat } from '../../domain';
+import type { ChatSendPayload, DomainChat } from '../../domain';
 import { toDomainChat } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { ChatSocketDomainGateway } from '../gateways';
@@ -24,7 +20,7 @@ export interface ChatFeedDomainResult {
 
 export interface IChatSocketDataSource {
     /** Sends a new message to the server and returns it as a domain model. */
-    sendChat(payload: ChatSendInput, context: DataContext): Promise<DomainChat>;
+    sendChat(payload: ChatSendPayload, context: DataContext): Promise<DomainChat>;
     /** Requests a room's earlier messages (the feed) and returns them as domain models. */
     fetchChat(payload: ChatFeedInput, context: DataContext): Promise<ChatFeedDomainResult>;
     /** Reads a single chat entity. */
@@ -45,7 +41,7 @@ export interface IChatSocketDataSource {
 export class ChatSocketDataSource implements IChatSocketDataSource {
     constructor(private readonly gateway: ChatSocketDomainGateway) {}
 
-    public async sendChat(payload: ChatSendInput, context: DataContext): Promise<DomainChat> {
+    public async sendChat(payload: ChatSendPayload, context: DataContext): Promise<DomainChat> {
         const remote = await this.gateway.send<ChatView>(payload);
         return toDomainChat((remote || {}) as ChatView, context);
     }

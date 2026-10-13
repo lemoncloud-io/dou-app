@@ -1,9 +1,8 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
-// `-lib`'s send input is the one that carries `uploadIds` (see ChatSocketDataSource).
-import type { ChatSendInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatQueryOptions } from '@chatic/app-messages';
 import { logger } from '@chatic/bridges';
-import type { DomainChat, DomainLastChat, DomainListResult } from '../domain';
+import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
+import { toMentionBody, toMentionRecord } from '../domain';
 import type { IChatLocalDataSource } from '../local/data-sources';
 import type {
     ChatDeleteInput,
@@ -55,7 +54,7 @@ export interface IChatRepository extends DisposableRepository {
 
     refreshList(query: ChatFeedInput, options?: ChatRefreshOptions): Promise<ChatRefreshResult>;
     getChat(payload: ChatGetInput): Promise<DomainChat>;
-    sendChat(payload: ChatSendInput): Promise<DomainChat>;
+    sendChat(payload: ChatSendPayload): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
     deleteChat(payload: ChatDeleteInput): Promise<DomainChat>;
     setReaction(payload: ChatReactionInput): Promise<DomainChat>;
@@ -107,6 +106,11 @@ export interface PendingImageChatInput {
      * of files alone. Left out on a rewrite of the same row, which keeps the text the row holds.
      */
     content?: string;
+    /**
+     * Who the text calls out, as the composer picked it. Left out on a rewrite of the same row, which
+     * keeps the mention the row holds — like the text, it belongs to the message the user sent.
+     */
+    mention?: ChatMentionBody;
     /** Re-arm this row (a retry) rather than create one. */
     pendingId?: string;
 }
@@ -207,7 +211,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return domainChat;
     }
 
-    public async sendChat(payload: ChatSendInput): Promise<DomainChat> {
+    public async sendChat(payload: ChatSendPayload): Promise<DomainChat> {
         this.assertRequiredString(payload.channelId, 'channelId');
         const requestRef = `chat-send-${Date.now()}`;
         const requestContext = this.getRequestContext();
@@ -279,6 +283,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                     upload$$: slots,
                     // The write merges, so a rewrite that names no text keeps the row's own.
                     ...(input.content !== undefined ? { content: input.content.trim() } : {}),
+                    ...(input.mention !== undefined ? { mention$: toMentionRecord(input.mention) } : {}),
                     updatedAtMs: Date.now(),
                 },
                 requestContext
@@ -297,6 +302,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                 // On the row from the start, so the pending message shows its text while the files go up.
                 content: input.content?.trim() ?? '',
                 ...(input.parentId ? { parentId: input.parentId } : {}),
+                ...(input.mention ? { mention: input.mention } : {}),
             },
             id,
             this.getNormalizedContext(requestContext)
@@ -318,12 +324,15 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         const pending = await this.chatLocalDataSource.cacheRead(pendingId, requestContext);
         if (!pending) throw new Error(`[ChatRepository] pending image chat ${pendingId} is gone`);
 
-        const payload: ChatSendInput = {
+        // The row's own mention, for the same reason as its text: a retry sends what was written.
+        const mention = toMentionBody(pending.mention$);
+        const payload: ChatSendPayload = {
             channelId: pending.channelId,
             // The row's own text, not the caller's: a retry sends the text it was written with.
             content: pending.content ?? '',
             uploadIds: input.uploadIds,
             ...(pending.parentId ? { parentId: pending.parentId } : {}),
+            ...(mention ? { mention } : {}),
         };
         const remote = await this.chatSocketDataSource.sendChat(payload, normalizedContext);
         const sent = await this.replaceOptimisticChat(pendingId, remote, requestContext);
@@ -512,8 +521,11 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     }
 
     // Optimistic chats are built as domain literals (no mapper); cacheWrite fills any remaining defaults.
-    private createOptimisticChat(payload: ChatSendInput, id: string, normalizedContext: DataContext): DomainChat {
+    private createOptimisticChat(payload: ChatSendPayload, id: string, normalizedContext: DataContext): DomainChat {
         const now = Date.now();
+        // The row is the only copy of a send that fails, and a resend is rebuilt from it — so it keeps
+        // the mention the send carried, in the stored record's shape.
+        const mention$ = toMentionRecord(payload.mention);
         return {
             id,
             tempId: id,
@@ -523,6 +535,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             content: payload.content,
             contentType: payload.contentType ?? 'text',
             parentId: payload.parentId,
+            ...(mention$ ? { mention$ } : {}),
             ownerId: normalizedContext.uid,
             createdAt: now,
             updatedAt: now,

@@ -199,6 +199,8 @@ open. The caption is the photo message's own text (`sendImages`'s
 `content`): one message carrying the words and the photos, which the mobile and the desktop feed both
 already draw. With "묶어 보내기" off it rides on the first message only
 ([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+The caption's mention — whoever was picked from the `@` list ([chat-room.md § Mentions](./chat-room.md#mentions))
+— goes with it (`sendPicked(text, mention)`), on the message that carries the text.
 The grid's and the editor's "N장 보내기" send the photos alone and leave the text in the composer;
 sending from either closes the panel too. A caption whose pick turned out to have nothing that passed
 the check goes back into the field (`onUnsentText`), unless something new was typed meanwhile.

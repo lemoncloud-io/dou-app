@@ -7,3 +7,4 @@ export * from './messageEdit';
 export * from './chatAttachments';
 export * from './chatImages';
 export * from './chatMedia';
+export * from './mention';

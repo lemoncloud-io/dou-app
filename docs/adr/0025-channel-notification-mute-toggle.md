@@ -1,6 +1,6 @@
 # ADR-0025: Mute notifications per chat room — wire the toggle to join.update notify (apps/web)
 
-> Status: Accepted · Decided: 2026-07-20
+> Status: Accepted (the settings switch — its on/off reading of `notify`, its `all`/`none` write and the out-of-scope `notify = 'mention'` — is Superseded by [ADR-0191](./0191-mentions-travel-with-the-message-and-the-phone-picks-a-notification-level.md), which gives the phone notification levels; the join-cache source, the optimistic mirror and the failure toast stand) · Decided: 2026-07-20
 
 Related ADRs:
 [[0015-channel-settings-ui-refresh]](./0015-channel-settings-ui-refresh.md) (introduced the toggle, UI-only),
@@ -50,7 +50,7 @@ Wire the notification switch on `ChannelSettingsPage` to `join.update` for real.
 - On toggle, call `useJoinMutations.updateJoin`
   (`apps/web/src/app/features/channels/hooks/useJoinMutations.ts`) with
   `{ channelId, userId, notify: on ? 'all' : 'none' }`. `userId` is `myJoin?.userId ?? the session
-  userId`. (`ChannelUpdateJoinInput` does not type `userId`, so it is passed through a cast, exactly as
+userId`. (`ChannelUpdateJoinInput` does not type `userId`, so it is passed through a cast, exactly as
   desktop does — the engine resolves the join row from `channelId + userId`.)
 - Handle the immediate UI update with **component-level optimistic state**. On failure, revert the
   switch and raise a destructive toast (the same pattern as the existing `handleLeaveRoom` /

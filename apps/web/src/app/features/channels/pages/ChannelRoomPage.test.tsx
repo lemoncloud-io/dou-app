@@ -10,6 +10,9 @@ let mockChannel: Partial<DomainChannel> | null = null;
 let mockMessages: Partial<ClientChatView>[] = [];
 let mockSelectedCloudId = 'cloud-a';
 let mockChannelId = 'ch1';
+// The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
+let mockActiveMemberIds: string[] = [];
+let mockMembers: { id: string; name?: string }[] = [];
 const mockSendMessage = jest.fn();
 const mockRetryMessage = jest.fn();
 const mockDeleteMessage = jest.fn();
@@ -65,6 +68,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
                 onChange={e => onChange(e.target.value)}
             />
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
+            {/* Sends what is in the field, for the cases where the text itself is what is checked. */}
+            <button data-testid="send-typed" onClick={() => onSend(value)} />
         </>
     ),
 }));
@@ -165,8 +170,8 @@ jest.mock('../hooks', () => ({
     useRoomOpenTrace: () => undefined,
     useRoomSyncTrace: () => undefined,
     useChannel: () => ({ channel: mockChannel, isLoading: false, isError: false, isForbidden: false }),
-    useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
-    useChannelMembers: () => ({ members: [] }),
+    useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: mockActiveMemberIds, cursorByUser: new Map() }),
+    useChannelMembers: () => ({ members: mockMembers }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => 'room',
     useChatMutations: () => ({
@@ -235,6 +240,8 @@ beforeEach(() => {
     mockSelectedCloudId = 'cloud-a';
     mockChannelId = 'ch1';
     mockEnterStack.mockReset();
+    mockActiveMemberIds = [];
+    mockMembers = [];
     // The composer's draft store is the real one: each case starts with no draft anywhere.
     useComposerDraftStore.setState({ texts: {}, held: {} });
     mockSendMessage.mockReset().mockResolvedValue({ chatNo: 3 });
@@ -369,6 +376,90 @@ describe('ChannelRoomPage — leaving a room I am not in', () => {
     });
 });
 
+describe('ChannelRoomPage — mentions', () => {
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+    const type = (value: string) => fireEvent.change(field(), { target: { value } });
+
+    beforeEach(() => {
+        // I am uid-b in the room's cloud; Minsu is the other active member.
+        mockActiveMemberIds = ['peer', 'uid-b'];
+        mockMembers = [
+            { id: 'peer', name: 'Minsu' },
+            { id: 'uid-b', name: 'Me' },
+        ];
+    });
+
+    it('lists everyone and the other members for an @, and sends the picked one with the text', async () => {
+        render(<ChannelRoomPage />);
+
+        type('hi @');
+        const listbox = screen.getByRole('listbox', { name: 'chat.mention.listLabel' });
+        expect(listbox).toBeInTheDocument();
+        expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+            'chat.mention.everyone@channel · chat.mention.everyoneHint',
+            'Minsu',
+        ]);
+
+        fireEvent.click(screen.getByRole('option', { name: 'Minsu' }));
+        expect(field().value).toBe('hi @Minsu ');
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('send-typed'));
+        });
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', {
+            channelId: 'ch1',
+            content: 'hi @Minsu',
+            mention: { userIds: ['peer'] },
+        });
+    });
+
+    // An @name typed by hand is text, not a mention: only a pick from the list calls someone.
+    it('sends no mention for a name typed by hand', async () => {
+        render(<ChannelRoomPage />);
+
+        type('hi @Minsu');
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('send-typed'));
+        });
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hi @Minsu' });
+    });
+
+    // The picks go with the caption; a caption whose photos were all refused comes back still calling them.
+    it('sends the mention with a caption, and keeps it for a caption that comes back unsent', async () => {
+        mockSendPicked.mockReset().mockReturnValue(true);
+        mockAttachReady = true;
+        render(<ChannelRoomPage />);
+
+        type('@');
+        fireEvent.click(screen.getByRole('option', { name: 'Minsu' }));
+        fireEvent.click(screen.getByTestId('send-typed'));
+        expect(mockSendPicked).toHaveBeenCalledWith('@Minsu', { userIds: ['peer'] });
+        expect(field().value).toBe('');
+
+        mockAttachReady = false;
+        act(() => mockAttachInput.onUnsentText?.('@Minsu'));
+        expect(field().value).toBe('@Minsu');
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('send-typed'));
+        });
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', {
+            channelId: 'ch1',
+            content: '@Minsu',
+            mention: { userIds: ['peer'] },
+        });
+    });
+
+    // A 1:1 always notifies and has one person to call, so it has no list.
+    it('offers no list in a 1:1', () => {
+        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'dm', memberIds: ['peer', 'uid-b'] };
+        render(<ChannelRoomPage />);
+
+        type('@');
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+});
+
 describe('ChannelRoomPage — photos', () => {
     const failedImageRow = () =>
         failedRow({ content: '', upload$$: [{ localStatus: 'failed', localThumbUrl: 'blob:1' }] } as never);
@@ -396,7 +487,7 @@ describe('ChannelRoomPage — photos', () => {
         expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
         fireEvent.click(screen.getByTestId('send'));
 
-        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(mockSendMessage).not.toHaveBeenCalled();
         expect(field().value).toBe('');
     });
@@ -411,7 +502,7 @@ describe('ChannelRoomPage — photos', () => {
         expect(screen.getByTestId('send')).toHaveAttribute('data-send-ready', 'true');
         fireEvent.click(screen.getByTestId('send'));
 
-        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(mockSendMessage).not.toHaveBeenCalled();
         expect(field().value).toBe('');
     });
@@ -624,7 +715,7 @@ describe('ChannelRoomPage — the composer draft', () => {
 
         fireEvent.click(screen.getByTestId('send'));
 
-        expect(mockSendPicked).toHaveBeenCalledWith('hello');
+        expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(drafts()).toEqual({});
     });
 });

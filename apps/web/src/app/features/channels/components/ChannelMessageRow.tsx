@@ -11,6 +11,7 @@ import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
 import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { mentionMarksFor, type MentionPerson, type MentionViewer } from '../utils/mentionHighlight';
 import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 import { MessageAttachment } from './MessageAttachment';
@@ -90,6 +91,11 @@ export interface ChannelMessageRowProps {
      * from. Absent leaves both inert.
      */
     onOpenProfile?: (sender: MessageSender) => void;
+    /**
+     * Who is reading and who is in the room, for drawing mentions. Absent draws none — a surface that
+     * does not know its reader cannot tell a mention of them from one of anybody else.
+     */
+    mentionViewer?: MentionViewer;
 }
 
 /**
@@ -144,9 +150,11 @@ export const ChannelMessageRow = ({
     onOpenThread,
     edit,
     onOpenProfile,
+    mentionViewer,
 }: ChannelMessageRowProps) => {
     const { t } = useTranslation();
     const mine = message.isOwner;
+    const mentionMarks = mentionMarksFor(message, mentionViewer);
     const content = message.content ?? '';
     // A message another client soft-deleted. The row keeps its place — vanishing mid-read
     // leaves no account of what happened — but nothing of the original survives on screen:
@@ -285,6 +293,14 @@ export const ChannelMessageRow = ({
         if (longPressFiredRef.current) return;
         openExternalUrl(url);
     };
+    // A mention opens the member it names — the profile their avatar opens — and, like a link, not
+    // after a hold that opened the action sheet.
+    const handleMentionClick = onOpenProfile
+        ? (person: MentionPerson) => {
+              if (longPressFiredRef.current) return;
+              onOpenProfile({ id: person.id, name: person.name, avatar: person.avatar });
+          }
+        : undefined;
     // The same swallow for the image tiles, whose tap opens the viewer: a hold that opened the
     // action sheet must not also open the photo behind it. Caught on the way down, before the
     // tile's own handler.
@@ -551,6 +567,8 @@ export const ChannelMessageRow = ({
                                                     renderCodeBlock={(code, lang) => (
                                                         <MessageCodeBlock code={code} lang={lang} />
                                                     )}
+                                                    mentions={mentionMarks}
+                                                    onMentionClick={handleMentionClick}
                                                 />
                                                 {isLong && '...'}
                                             </>

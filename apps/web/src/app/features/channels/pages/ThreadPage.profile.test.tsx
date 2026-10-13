@@ -72,8 +72,8 @@ jest.mock('../components/ChatImageAttach', () => ({
     }),
 }));
 jest.mock('../lib', () => ({
+    ...jest.requireActual('../lib/channelStereoPolicy'),
     resolveChannelAvatar: () => ({ src: undefined }),
-    profilePlaceOf: jest.requireActual('../lib/channelStereoPolicy').profilePlaceOf,
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({

@@ -3,8 +3,8 @@
 [`ChannelSettingsPage`](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx) is the
 room's settings screen and the four dialogs it opens. One page serves group rooms, 1:1 rooms and the
 self chat: the sections it draws and the dialog a row opens are branches inside it, not separate
-screens. Everything visual is `@chatic/web-ui-kit` — `ListRow`, `GroupLabel`, `Switch`,
-`StatusBadge`, `Divider`, the avatars and `ModalTopBar`.
+screens. Everything visual is `@chatic/web-ui-kit` — `ListRow`, `GroupLabel`, `BottomSheet` and
+`SheetOption`, `StatusBadge`, `Divider`, the avatars and `ModalTopBar`.
 
 What varies by stereo — the title chain, the avatar rule, the peer, the re-invite CTA — is decided
 by shared derivations documented in [dm-and-self-chat.md](./dm-and-self-chat.md). This document is
@@ -13,45 +13,77 @@ the screen: its sections, its writes, and the dialogs.
 ## Layout
 
 Six dialogs sit beside the page — the member row and its profile sheet, the room-name dialog
-(groups), the join-nick dialog (self and DM), a confirm, and my own place-profile editor.
+(groups), the join-nick dialog (self and DM), a confirm, and my own place-profile editor — plus
+`NotifyModeSheet`, the notification level picker.
 `PlaceProfileCreateDialog` is the one that is not local: it lives in `ui/components`, because
 creating a place profile is not a channel concern and this screen only opens it.
 
 ## The sections
 
-| Section         | Group                                | 1:1                             | Self chat                 |
-| --------------- | ------------------------------------ | ------------------------------- | ------------------------- |
-| Room name row   | `UpdateChannelDialog`                | `JoinNickDialog` (`dm`)         | `JoinNickDialog` (`self`) |
-| Chat settings   | notification switch                  | notification switch             | —                         |
-| Room members    | add-friend row (owner) + member list | member list, departed peer kept | member list (me alone)    |
-| Destructive row | owner: delete · member: leave        | leave, for both sides           | —                         |
+| Section         | Group                                   | 1:1                             | Self chat                 |
+| --------------- | --------------------------------------- | ------------------------------- | ------------------------- |
+| Room name row   | `UpdateChannelDialog`                   | `JoinNickDialog` (`dm`)         | `JoinNickDialog` (`self`) |
+| Chat settings   | notification level: all · mention · off | notification level: all · off   | —                         |
+| Room members    | add-friend row (owner) + member list    | member list, departed peer kept | member list (me alone)    |
+| Destructive row | owner: delete · member: leave           | leave, for both sides           | —                         |
 
-Three rules behind that table:
+Four rules behind that table:
 
 - **A DM has no delete and no add-friend.** Re-inviting needs the room to still exist, so letting
   the inviter erase it would take away the only way back; and a 1:1 is a fixed pairing, so there is
   nobody to add. The ownership branch used everywhere else does not apply here.
 - **A self chat has nothing to notify, leave or delete.** Its only member is me.
+- **A 1:1 has no "Mentions only".** The server delivers every message of a 1:1 stored as `mention`,
+  so the level would behave exactly like "All messages" — see
+  [the notification level](#the-notification-level).
 - **A departed member is dropped from a group and kept in a DM**, with a "left the room" subtitle.
   In a group a pile of departed members is noise; in a DM that person _is_ the room.
 
 ## Writes
 
-The notification toggle and my private name write `join.update`; the room's shared name and photo
+The notification level and my private name write `join.update`; the room's shared name and photo
 write `channel.update`; a kick and a leave are both `leaveChannel` (with and without a `userId`); a
 delete is `deleteChannel`. Leaving or deleting replaces the route with the root.
 
-### The notification toggle
+### The notification level
 
-The mute state lives on **my join row** (`notify`), not on the channel. `'none'` is muted, anything
-else is on. The screen reads it from `useChannelJoins().myJoin` — never `channel.$join`, which lags
-— and keeps a local optimistic mirror for instant feedback, reverting it and toasting on failure.
-The repository's own optimistic write lands on the same join cache, so the mirror and the stream
-reconcile from one source.
+The level lives on **my join row** (`notify`), not on the channel. The server's values are
+`'' | 'all' | 'mention' | 'none'`, with `''` and a missing value both meaning "all". The row shows
+the level in effect as text with a chevron; tapping it opens `NotifyModeSheet`, a bottom sheet of
+radio options, and picking one writes it and closes the sheet at once.
+
+| Room  | Levels offered                     |
+| ----- | ---------------------------------- |
+| Group | All messages · Mentions only · Off |
+| 1:1   | All messages · Off                 |
+
+**Mentions only** pushes a message only when its mention record names me or calls everyone — what the
+sender picked from their composer's `@` list ([chat-room.md § Mentions](./chat-room.md#mentions)),
+never an `@name` read out of the text. The server decides it, so the phone needs nothing of its own.
+A webhook message carries no record, so a room on Mentions only gets no webhook alarm; a room that
+should ring for those is set to All messages. Off silences mentions too. Only a message carrying a
+record can wake a room on Mentions only — today that is a phone's, once the socket service forwards
+it; the desktop does not send one yet (see [chat-room.md § Mentions](./chat-room.md#mentions)).
+
+A 1:1 drops "Mentions only" because the server treats `mention` there as `all`: offering it would
+let the user pick a level that changes nothing. A 1:1 whose stored value is already `mention` is
+**shown** as "All messages", which is how it is delivered, and the stored value is left as it is —
+opening the screen writes nothing, and neither does re-picking the level already shown.
+
+Reading it: `notifyLevelOf(notify, isDm)` in `utils/notifyLevel.ts` maps the stored value to a level —
+`none` is Off, `mention` is Mentions only outside a 1:1, and everything else, an unknown value
+included, is All messages (showing a room as silent when it still notifies would hide messages).
+The input is `useChannelJoins().myJoin` — never `channel.$join`, which lags. The screen keeps a
+local optimistic mirror for instant feedback, reverting it and toasting on failure; the
+repository's own optimistic write lands on the same join cache, so the mirror and the stream
+reconcile from one source. The mirror re-syncs on the **derived level**, not the raw value, so a
+channel that arrives after the join row still corrects a 1:1's `mention`.
 
 There is no local preference store for this, deliberately: `apps/web` has no client-side notifier,
-so the server value is the only truth there is. The toggle is binary — the contract's `mention`
-tier is not exposed on mobile.
+so the server value is the only truth there is.
+
+The home list is unchanged by the levels: its swipe action still toggles between Off and All
+messages, and its bell-off glyph marks Off only — a room on Mentions only is not drawn as muted.
 
 ### A kick is a leave with a target
 
@@ -143,8 +175,8 @@ items because the design has them, and a toast manages the expectation better th
 
 ## What not to do
 
-- **Do not read `channel.$join` for anything that must reflect a write.** The notify toggle and the
-  title both read the join cache through `myJoin`.
+- **Do not read `channel.$join` for anything that must reflect a write.** The notification level and
+  the title both read the join cache through `myJoin`.
 - **Do not invent a title or an avatar rule here.** `useChannelTitle` and `resolveChannelAvatar` are
   shared with the room header, the home list and place channel management; a fourth answer is how
   the same room ends up with two names.
@@ -155,12 +187,16 @@ items because the design has them, and a toast manages the expectation better th
 ## Notes for implementers and tests
 
 - Hooks that must run before the `isError` early return are called above it — the DM peer, the
-  title, the invite state — with the plain stereo flags derived after it.
+  title, the invite state, the notification level's mirror and the sheet's open flag — with the
+  plain stereo flags derived after it.
 - `ChannelUpdateJoinInput` types only `channelId` and `notify`; the engine resolves the join row
-  from `channelId + userId` at write time, which is why the toggle passes `userId` through a cast.
+  from `channelId + userId` at write time, which is why the level write passes `userId` through a
+  cast.
 - `ChannelSettingsPage.test.tsx` is the widest test in the feature: the three stereos' section sets,
-  which dialog each name row opens, the kick gating, the notify toggle's initial value and failure
-  path, and the profile-prompt row.
+  which dialog each name row opens, the kick gating, the notification level (the label each stored
+  value shows, the levels each room offers, the no-op re-pick and the failure path), and the
+  profile-prompt row. The level mapping itself is tested in `notifyLevel.test.ts` and the sheet in
+  `NotifyModeSheet.test.tsx`.
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels

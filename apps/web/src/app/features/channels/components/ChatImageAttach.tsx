@@ -17,6 +17,7 @@ import {
     CHAT_IMAGE_TYPES,
     type ChatAttachmentJudgement,
     type ChatAttachmentSource,
+    type ChatMentionBody,
     IMAGE_MESSAGE_SLOT_MAX,
     judgeChatAttachments,
     judgeChatImages,
@@ -151,8 +152,9 @@ interface ChatImageAttach {
     /**
      * Sends the pick and the waiting files as one message with `text` as its caption, and closes the
      * panel if it is open. False when there was nothing to send — the page then sends its text as usual.
+     * `mention` is who the caption calls out, as the composer picked it; it travels with the caption.
      */
-    sendPicked: (text: string) => boolean;
+    sendPicked: (text: string, mention?: ChatMentionBody) => boolean;
     /**
      * The composer's field took focus: the keyboard takes the panel's place (`useAttachPanelSlot`). The
      * pick stays, in `strip`.
@@ -351,12 +353,15 @@ export const useChatImageAttach = ({
             {
                 separately = false,
                 caption = '',
+                mention,
                 ...judging
             }: Parameters<typeof judge>[1] & {
                 /** The grid's "one message each". */
                 separately?: boolean;
                 /** What was typed when the composer's send button sent the pick. */
                 caption?: string;
+                /** Who the caption calls out — it has no meaning without the caption. */
+                mention?: ChatMentionBody;
             } = {}
         ) => {
             const accepted = judge(items, judging);
@@ -369,6 +374,7 @@ export const useChatImageAttach = ({
             // A single item is the same message either way, so it goes exactly as any other pick does.
             if (separately && accepted.length > 1) options.separately = true;
             if (caption) options.content = caption;
+            if (caption && mention) options.mention = mention;
             const sending =
                 options.separately || options.content ? sendImages(accepted, options) : sendImages(accepted);
             sending.catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
@@ -542,7 +548,7 @@ export const useChatImageAttach = ({
     // Judged like any pick, since the grid now lists videos too; what the shell would not keep is
     // reported the way its own picker's refusals are. The grouping is read at the press: what the box
     // says then is what the person chose. Whichever button sent it, the panel the pick lives in closes.
-    const sendPick = (caption = '') => {
+    const sendPick = (caption = '', mention?: ChatMentionBody) => {
         if (picker.preparing) return;
         const separately = !grouping.grouped;
         hidePanel();
@@ -554,6 +560,7 @@ export const useChatImageAttach = ({
                     editFailed: picked.editFailed,
                     separately,
                     caption,
+                    mention,
                 })
             )
             .catch(() => {
@@ -565,13 +572,13 @@ export const useChatImageAttach = ({
     // The composer's send button, with the field's text as the caption — from the open panel or from
     // the row above the composer alike. The grid's and the editor's buttons send the photos alone and
     // leave the text, and the waiting files, where they are.
-    const sendPicked = (text: string): boolean => {
+    const sendPicked = (text: string, mention?: ChatMentionBody): boolean => {
         if (!sendReady) return false;
         const caption = text.trim();
         const waiting = heldRef.current;
         const sentFrom = scopeRef.current;
         if (waiting.length === 0) {
-            sendPick(caption);
+            sendPick(caption, mention);
             return true;
         }
         const withPick = picker.picked.length > 0;
@@ -602,6 +609,7 @@ export const useChatImageAttach = ({
                     refusedByShell: [...picked.refused, ...read.refused],
                     editFailed: picked.editFailed,
                     caption,
+                    mention,
                 });
             })
             .catch(() => {

@@ -181,6 +181,13 @@ describe('toResendPayload', () => {
         expect(toResendPayload(chat({ channelId: 'c1', content: 'hi', parentId: '4' })).parentId).toBe('c1:4');
     });
 
+    // A resend that dropped the mention would reach "mentions only" members as a message calling no one.
+    it('carries the mention across, turning a chat.sync 1 for everyone back into true', () => {
+        const row = chat({ channelId: 'c1', content: '@Min hi', mention$: { userIds: ['u2'], all: 1 as never } });
+
+        expect(toResendPayload(row).mention).toEqual({ userIds: ['u2'], all: true });
+    });
+
     it('leaves out the fields a top-level plain message never had', () => {
         expect(toResendPayload(chat({ channelId: 'c1', content: 'hi' }))).toEqual({ channelId: 'c1', content: 'hi' });
     });

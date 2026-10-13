@@ -1,7 +1,5 @@
-import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
-
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DataRepositories, DomainChat } from '@chatic/data';
+import type { ChatSendPayload, DataRepositories, DomainChat } from '@chatic/data';
 
 import { backgroundClouds } from '../socket/backgroundClouds';
 import { getSocketManager } from '../socket/runtime';
@@ -70,5 +68,5 @@ export const waitForCloudSocket = (cid: string, timeoutMs: number = CLOUD_SOCKET
  * slot until the ack (see `runInCloud`). Failure behaves like the app graph's `sendChat`: the
  * optimistic row stays in `cid`'s partition marked failed, and the error is rethrown.
  */
-export const sendChatInCloud = (cid: string, payload: ChatSendInput): Promise<DomainChat> =>
+export const sendChatInCloud = (cid: string, payload: ChatSendPayload): Promise<DomainChat> =>
     runInCloud(cid, repositories => repositories.chat.sendChat(payload));
