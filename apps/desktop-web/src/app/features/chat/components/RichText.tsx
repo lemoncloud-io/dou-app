@@ -178,13 +178,17 @@ interface RichTextProps {
  */
 export const RichText = ({ content, selfNames, resolveMention }: RichTextProps): ReactNode => {
     if (!content) return null;
-    return splitFences(content).map((segment, idx) =>
-        segment.type === 'code' ? (
-            <span key={idx} className={MSG_CODE_BLOCK_CLASS}>
-                {segment.value}
-            </span>
-        ) : (
-            <Fragment key={idx}>{renderQuoteRuns(segment.value, String(idx), selfNames, resolveMention)}</Fragment>
-        )
-    );
+    return splitFences(content).map((segment, idx, segments) => {
+        if (segment.type === 'code') {
+            return (
+                <span key={idx} className={MSG_CODE_BLOCK_CLASS}>
+                    {segment.value}
+                </span>
+            );
+        }
+        // A block already ends its line, so the newline that follows its closing fence is the
+        // same line break; rendering it too left an empty line under every block.
+        const text = segments[idx - 1]?.type === 'code' ? segment.value.replace(/^\r?\n/, '') : segment.value;
+        return <Fragment key={idx}>{renderQuoteRuns(text, String(idx), selfNames, resolveMention)}</Fragment>;
+    });
 };

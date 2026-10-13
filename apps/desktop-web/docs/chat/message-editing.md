@@ -7,8 +7,8 @@ and the editor is `editor/wireMarkdown.ts`, and the composer's parts are reused 
 
 ## What the editor is
 
-The composer's formatting, built from the same pieces: the four format buttons (bold, italic,
-strikethrough, code) with their shortcuts, markdown typing shortcuts, links, and the emoji picker. It
+The composer's formatting, built from the same pieces: the format buttons (bold, italic,
+strikethrough, code, link, quote, code block) with their shortcuts, markdown typing shortcuts, links, and the emoji picker. It
 is a separate component, not a mode of the composer, because the composer is tied to a channel's
 unsent draft, the image tray and type-to-compose, none of which belong to an edit. There is no attach
 button: updating a message takes text only, so a message's pictures and files are untouched and are

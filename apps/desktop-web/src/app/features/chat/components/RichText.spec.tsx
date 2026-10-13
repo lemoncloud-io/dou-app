@@ -36,4 +36,14 @@ describe('RichText fenced code', () => {
         expect(codeBlocks(container)).toEqual(['**not bold**']);
         expect(textsOf(container, MSG_BOLD_CLASS)).toEqual(['bold']);
     });
+
+    it('starts the text after a block on the next line, not one line further down', () => {
+        const container = renderText('```\nls\n```\ndone');
+        expect(container.textContent).toBe('lsdone');
+    });
+
+    it('keeps a blank line the writer left after a block', () => {
+        const container = renderText('```\nls\n```\n\ndone');
+        expect(container.textContent).toBe('ls\ndone');
+    });
 });

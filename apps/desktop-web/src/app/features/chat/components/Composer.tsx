@@ -29,7 +29,8 @@ import {
     CodeFencePastePlugin,
     CodeFenceShortcutPlugin,
     ComposerAutoLinkPlugin,
-    ComposerActions,
+    ComposerEmojiButton,
+    ComposerSendButton,
     ComposerToolbar,
     FormatShortcutsPlugin,
     MentionsPlugin,
@@ -194,54 +195,52 @@ const ComposerInner = ({
                     'focus-within:border-focus-border focus-within:shadow-[0_0_0_0.5px_hsl(var(--focus-border))]'
                 )}
             >
-                <div className={cn('flex items-center gap-2 py-3', compact ? 'px-3' : 'px-5')}>
-                    {onAddFiles && <AttachButton onFiles={onAddFiles} />}
+                {/* Slack's three rows: formats above the text, the message's own actions
+                    (attach, emoji, send) along the bottom where the eye ends up after typing. */}
+                <div className={cn('pt-2', compact ? 'px-2' : 'px-4')}>
                     <ComposerToolbar />
-                    {/* The newline key is the one thing people get wrong in a chat box; say it
-                        while it matters (there is text) and stay out of the way otherwise. */}
-                    {hasText && (
-                        <span className="ml-auto hidden text-micro text-muted-foreground animate-fade-in sm:block">
-                            {t('chat.composer.newlineHint')}
-                        </span>
+                </div>
+                <div className={cn('flex flex-col gap-4 py-1', compact ? 'px-3' : 'px-5')}>
+                    <div className="relative">
+                        <RichTextPlugin
+                            contentEditable={
+                                <ContentEditable
+                                    aria-label={placeholderText}
+                                    // Lets the empty-channel intro hand focus to the composer.
+                                    data-composer-input=""
+                                    className="max-h-40 min-h-[34px] overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-1.5 text-body text-foreground outline-none"
+                                />
+                            }
+                            placeholder={
+                                // One line, cut short if it has to be: a wrapped placeholder
+                                // makes an empty box look like it already holds two lines.
+                                <div className="pointer-events-none absolute inset-x-0 top-1.5 truncate text-body text-placeholder">
+                                    {placeholderText}
+                                </div>
+                            }
+                            ErrorBoundary={LexicalErrorBoundary}
+                        />
+                    </div>
+                    {onRemoveAttachment && (
+                        <ComposerAttachments
+                            attachments={attachments}
+                            onRemove={onRemoveAttachment}
+                            onEmptied={focusInput}
+                        />
                     )}
                 </div>
-                <div aria-hidden className="h-px w-full bg-input" />
-                <div className={cn('flex items-end', compact ? 'gap-3 px-3 py-3' : 'gap-6 px-5 py-4')}>
-                    <div className="flex min-w-0 flex-1 flex-col gap-4">
-                        <div className="relative">
-                            <RichTextPlugin
-                                contentEditable={
-                                    <ContentEditable
-                                        aria-label={placeholderText}
-                                        // Lets the empty-channel intro hand focus to the composer.
-                                        data-composer-input=""
-                                        className="max-h-40 min-h-[34px] overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-1.5 text-body text-foreground outline-none"
-                                    />
-                                }
-                                placeholder={
-                                    // One line, cut short if it has to be: a wrapped placeholder
-                                    // makes an empty box look like it already holds two lines.
-                                    <div className="pointer-events-none absolute inset-x-0 top-1.5 truncate text-body text-placeholder">
-                                        {placeholderText}
-                                    </div>
-                                }
-                                ErrorBoundary={LexicalErrorBoundary}
-                            />
-                        </div>
-                        {onRemoveAttachment && (
-                            <ComposerAttachments
-                                attachments={attachments}
-                                onRemove={onRemoveAttachment}
-                                onEmptied={focusInput}
-                            />
+                <div className={cn('flex items-center gap-2 pb-2', compact ? 'px-2' : 'px-4')}>
+                    {onAddFiles && <AttachButton onFiles={onAddFiles} />}
+                    <ComposerEmojiButton onEmoji={insertEmoji} />
+                    {/* The newline key is the one thing people get wrong in a chat box; say it
+                        while it matters (there is text) and stay out of the way otherwise. */}
+                    <div className="ml-auto flex min-w-0 items-center gap-3">
+                        {hasText && (
+                            <span className="hidden truncate text-micro text-muted-foreground animate-fade-in sm:block">
+                                {t('chat.composer.newlineHint')}
+                            </span>
                         )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-4">
-                        <ComposerActions
-                            canSend={hasText || attachments.length > 0}
-                            onEmoji={insertEmoji}
-                            onSend={submit}
-                        />
+                        <ComposerSendButton canSend={hasText || attachments.length > 0} onSend={submit} />
                     </div>
                 </div>
             </div>

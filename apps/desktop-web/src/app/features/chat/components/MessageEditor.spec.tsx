@@ -87,7 +87,7 @@ describe('MessageEditor', () => {
         expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
     });
 
-    it('has the same four format buttons as the composer', async () => {
+    it('has the same seven toolbar buttons as the composer', async () => {
         await open('hello');
 
         const labels = screen
@@ -96,7 +96,15 @@ describe('MessageEditor', () => {
             .values()
             .map(button => button.getAttribute('aria-label'))
             .toArray();
-        expect(labels).toEqual(['Bold (⌘B)', 'Italic (⌘I)', 'Strikethrough (⌘⇧X)', 'Code (⌘⇧C)']);
+        expect(labels).toEqual([
+            'Bold (⌘B)',
+            'Italic (⌘I)',
+            'Strikethrough (⌘⇧X)',
+            'Code (⌘⇧C)',
+            'Link',
+            'Quote',
+            'Code block (⌘⇧⌥C)',
+        ]);
     });
 
     it('puts Cancel then Save at the end of the bottom row, with no attach button', async () => {

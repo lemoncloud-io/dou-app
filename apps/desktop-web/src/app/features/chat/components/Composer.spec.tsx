@@ -210,3 +210,93 @@ describe('Composer compact', () => {
         expect((room.firstElementChild as HTMLElement).className).toContain('px-6');
     });
 });
+
+// Slack's arrangement: formats above the text, the message's own actions along the bottom.
+describe('Composer layout', () => {
+    beforeEach(() => useComposerDraftStore.setState({ drafts: {} }));
+    afterEach(cleanup);
+
+    const mount = async () => {
+        const { container } = render(
+            <Composer onSend={() => undefined} channelId="L1" onAddFiles={vi.fn()} onRemoveAttachment={vi.fn()} />,
+            { wrapper }
+        );
+        await settle();
+        return container;
+    };
+
+    const follows = (first: Element, second: Element) =>
+        (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
+    it('offers inline and block formats in the row above the text', async () => {
+        await mount();
+        const toolbar = screen.getByRole('toolbar', { name: 'Formatting' });
+
+        expect(Array.from(toolbar.querySelectorAll('button')).map(button => button.getAttribute('aria-label'))).toEqual(
+            ['Bold (⌘B)', 'Italic (⌘I)', 'Strikethrough (⌘⇧X)', 'Code (⌘⇧C)', 'Link', 'Quote', 'Code block (⌘⇧⌥C)']
+        );
+    });
+
+    it('puts attach and emoji at the bottom left and send last, all below the text', async () => {
+        const container = await mount();
+        const toolbar = screen.getByRole('toolbar', { name: 'Formatting' });
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+        const attach = screen.getByRole('button', { name: 'Attach files' });
+        const emoji = screen.getByRole('button', { name: 'Emoji' });
+        const send = screen.getByRole('button', { name: 'Send' });
+
+        expect(follows(toolbar, input)).toBe(true);
+        expect(follows(input, attach)).toBe(true);
+        expect(follows(attach, emoji)).toBe(true);
+        expect(follows(emoji, send)).toBe(true);
+        const buttons = Array.from(container.querySelectorAll('button'));
+        expect(buttons[buttons.length - 1]).toBe(send);
+    });
+
+    it.each([
+        ['Quote', 'blockquote'],
+        ['Code block (⌘⇧⌥C)', 'code'],
+    ])('turns the line into a block with %s, and back', async (label, tag) => {
+        const container = await mount();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+        const button = screen.getByRole('button', { name: label });
+
+        await act(async () => fireEvent.click(button));
+        await settle();
+        expect(input.querySelector(tag)).not.toBeNull();
+        expect(button.getAttribute('aria-pressed')).toBe('true');
+
+        await act(async () => fireEvent.click(button));
+        await settle();
+        expect(input.querySelector(tag)).toBeNull();
+    });
+
+    it('inserts a link at the caret, adding the scheme a bare address leaves out', async () => {
+        const container = await mount();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+
+        await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Link' })));
+        const field = await screen.findByRole('textbox', { name: 'Link address' });
+        await act(async () => fireEvent.change(field, { target: { value: 'example.com/a' } }));
+        await act(async () => fireEvent.submit(field));
+        await settle();
+
+        expect(input.textContent?.trim()).toBe('https://example.com/a');
+        expect(input.querySelector('a')?.getAttribute('href')).toBe('https://example.com/a');
+        expect(screen.queryByRole('textbox', { name: 'Link address' })).toBeNull();
+    });
+
+    it('does not insert an address with spaces in it', async () => {
+        const container = await mount();
+        const input = container.querySelector('[data-composer-input]') as HTMLElement;
+
+        await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Link' })));
+        const field = await screen.findByRole('textbox', { name: 'Link address' });
+        await act(async () => fireEvent.change(field, { target: { value: 'not a link' } }));
+        await act(async () => fireEvent.submit(field));
+        await settle();
+
+        expect(input.textContent).toBe('');
+        expect(screen.getByRole('textbox', { name: 'Link address' })).toBeTruthy();
+    });
+});

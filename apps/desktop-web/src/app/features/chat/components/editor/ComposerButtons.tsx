@@ -9,12 +9,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 import { EmojiPicker } from '../EmojiPicker';
 import { Hint } from '../../../../shared';
 
-interface ComposerActionsProps {
-    canSend: boolean;
-    onEmoji: (emoji: string) => void;
-    onSend: () => void;
-}
-
 /**
  * The smile button and its picker. Controlled so a pick can close it: leaving it open after a
  * choice covers the message you were writing and makes the click read as if it did not register.
@@ -32,14 +26,14 @@ export const ComposerEmojiButton = ({ onEmoji }: { onEmoji: (emoji: string) => v
                     <button
                         type="button"
                         aria-label={t('chat.composer.emoji')}
-                        className="focus-ring tactile flex h-[38px] w-[30px] shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
+                        className="focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-label transition-colors ease-tactile hover:text-foreground disabled:opacity-50"
                     >
-                        <Smile className="h-[22px] w-[22px]" strokeWidth={1.75} />
+                        <Smile className="h-5 w-5" strokeWidth={1.75} />
                     </button>
                 </Hint>
             </PopoverTrigger>
             <PopoverContent
-                align="end"
+                align="start"
                 side="top"
                 className="w-auto p-2"
                 onCloseAutoFocus={event => {
@@ -60,30 +54,25 @@ export const ComposerEmojiButton = ({ onEmoji }: { onEmoji: (emoji: string) => v
     );
 };
 
-/** Emoji picker + send button, right of the input (Figma: bare smile · 38px send square). */
-export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsProps) => {
+/** The send square at the end of the composer's bottom row (Figma: 38px, lime once there is something to send). */
+export const ComposerSendButton = ({ canSend, onSend }: { canSend: boolean; onSend: () => void }) => {
     const { t } = useTranslation();
     return (
-        <>
-            <ComposerEmojiButton onEmoji={onEmoji} />
-            <Hint label={t('chat.composer.send')}>
-                <button
-                    type="button"
-                    onClick={onSend}
-                    disabled={!canSend}
-                    aria-label={t('chat.composer.send')}
-                    className={cn(
-                        'focus-ring tactile flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg transition-colors ease-tactile',
-                        // The same lime as every other primary action. Send used the darker
-                        // GR2, which put two limes side by side for one role.
-                        canSend
-                            ? 'bg-primary text-primary-foreground hover:opacity-90'
-                            : 'bg-muted text-muted-foreground'
-                    )}
-                >
-                    <Send className="h-5 w-5 fill-current" aria-hidden />
-                </button>
-            </Hint>
-        </>
+        <Hint label={t('chat.composer.send')}>
+            <button
+                type="button"
+                onClick={onSend}
+                disabled={!canSend}
+                aria-label={t('chat.composer.send')}
+                className={cn(
+                    'focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ease-tactile',
+                    // The same lime as every other primary action. Send used the darker
+                    // GR2, which put two limes side by side for one role.
+                    canSend ? 'bg-primary text-primary-foreground hover:opacity-90' : 'bg-muted text-muted-foreground'
+                )}
+            >
+                <Send className="h-4 w-4 fill-current" aria-hidden />
+            </button>
+        </Hint>
     );
 };
