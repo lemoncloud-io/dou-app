@@ -1,3 +1,5 @@
+import { StrictMode } from 'react';
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,7 +11,14 @@ const state = vi.hoisted(() => ({
     signOut: vi.fn(),
 }));
 
-vi.mock('../utils/signInNotice', () => ({ takeSignInNotice: () => state.notice }));
+// Taken once, as the real one is: storage is emptied by the read.
+vi.mock('../utils/signInNotice', () => ({
+    takeSignInNotice: () => {
+        const notice = state.notice;
+        state.notice = null;
+        return notice;
+    },
+}));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: state.toast }));
 vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => state.signOut }));
 vi.mock('../../../shared', () => ({
@@ -28,11 +37,13 @@ vi.mock('./NewAccountName', () => ({
 }));
 
 import i18n from '../../../../i18n';
+import { useSignInNoticeStore } from '../stores/useSignInNoticeStore';
 import { SignInNotice } from './SignInNotice';
 
 describe('SignInNotice', () => {
     beforeEach(() => {
         state.notice = null;
+        useSignInNoticeStore.setState({ notice: null });
         state.name = 'Tak';
         state.verified = true;
         state.toast.mockReset();
@@ -73,6 +84,17 @@ describe('SignInNotice', () => {
         expect(screen.getByRole('dialog').textContent).toContain(i18n.t('auth.social.newAccountBody'));
         fireEvent.click(screen.getByRole('button', { name: 'name step' }));
         expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('keeps the notice when the effect runs twice, as it does in development', () => {
+        state.notice = { provider: 'google', isNew: true };
+        render(
+            <StrictMode>
+                <SignInNotice />
+            </StrictMode>
+        );
+
+        expect(screen.getByRole('dialog').textContent).toContain(i18n.t('auth.social.newAccountBody'));
     });
 
     it('is not dismissed by Escape, so "not my account" stays in reach', () => {

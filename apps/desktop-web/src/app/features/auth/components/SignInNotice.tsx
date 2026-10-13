@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -7,7 +7,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isPlaceholderName, useRelayAccount } from '../../../shared';
 import { useSignOutGuest } from '../hooks/useSignOutGuest';
-import { takeSignInNotice, type SignInNoticeRecord as Notice } from '../utils/signInNotice';
+import { useSignInNoticeStore } from '../stores/useSignInNoticeStore';
 import { NewAccountName } from './NewAccountName';
 
 /**
@@ -21,22 +21,23 @@ export const SignInNotice = () => {
     const { account, isRelayVerified } = useRelayAccount();
     // Leaving an account made seconds ago: nothing in it to confirm, the same sign-out as a guest's.
     const signOut = useSignOutGuest();
-    const [notice, setNotice] = useState<Notice | null>(null);
+    const notice = useSignInNoticeStore(s => s.notice);
+    const pick = useSignInNoticeStore(s => s.pick);
+    const clear = useSignInNoticeStore(s => s.clear);
 
-    useEffect(() => {
-        setNotice(takeSignInNotice());
-    }, []);
+    // The store took what was in storage when the app loaded; this picks up one left since.
+    useEffect(() => pick(), [pick]);
 
     const name = account?.name && !isPlaceholderName(account.name) ? account.name : null;
     // Said once the relay connection is verified as the signed-in account, so the name is its own.
     useEffect(() => {
         if (!notice || notice.isNew || !isRelayVerified) return;
         toast({ description: name ? t('auth.social.signedInAs', { name }) : t('auth.social.signedIn') });
-        setNotice(null);
-    }, [notice, name, isRelayVerified, t]);
+        clear();
+    }, [notice, name, isRelayVerified, t, clear]);
 
     if (!notice?.isNew) return null;
-    const close = () => setNotice(null);
+    const close = clear;
     const notMine = () => void signOut();
 
     return (

@@ -101,6 +101,10 @@ reloads when it replaces a session) and the signed-in shell takes it once:
   DoU account, so someone who signed up on mobile with a phone number has just made a second one. It
   asks for a display name (skippable) and offers to log out of it.
 
+The notice is taken out of storage when the app loads, so the first render of the signed-in app
+already knows a new account is waiting. The first-run tips hold back until the stop is answered;
+opened together, the tips sat over "not my account".
+
 The server does not say whether the sign-in made the account. The app reads it off the account's
 `createdAt`: an account created at or after the moment the sign-in started, less a minute of slack for
 a server clock that runs behind, was made by it. A Google that already owned a DoU account was made
