@@ -6,6 +6,10 @@ import i18next from 'i18next';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+import type * as DndCore from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import type * as ChaticShared from '@chatic/shared';
+
 import type * as SharedModule from '../../../shared';
 
 const toast = vi.hoisted(() => vi.fn());
@@ -16,6 +20,26 @@ vi.mock('../../../shared', async () => ({
     useRemoveCloud: () => ({ removeInvitedCloud: vi.fn(), deleteOwnedCloud, isDeleting: false }),
     useRenameCloud: () => ({ renameCloud: vi.fn(), isRenaming: false }),
 }));
+
+// The stored order rides the shared `ui.railOrder` hook; stub the config store out of the render.
+const cloudOrder = vi.hoisted(() => ({ ids: [] as string[], set: vi.fn() }));
+vi.mock('@chatic/shared', async () => ({
+    ...(await vi.importActual<typeof ChaticShared>('@chatic/shared')),
+    useCloudOrder: () => ({ storedIds: cloudOrder.ids, set: cloudOrder.set }),
+}));
+// jsdom lays nothing out, so a pointer drag cannot be played. The list's own drag-end handler is
+// what decides the new order, and it is taken from the context it was given to.
+const dnd = vi.hoisted(() => ({ end: undefined as ((event: DragEndEvent) => void) | undefined }));
+vi.mock('@dnd-kit/core', async () => {
+    const actual = await vi.importActual<typeof DndCore>('@dnd-kit/core');
+    return {
+        ...actual,
+        DndContext: (props: ComponentProps<typeof DndCore.DndContext>) => {
+            dnd.end = props.onDragEnd;
+            return <actual.DndContext {...props} />;
+        },
+    };
+});
 
 import '../../../../i18n';
 import type { RailCloud } from '../../../shared';
@@ -45,7 +69,10 @@ const renderRail = (props: Partial<ComponentProps<typeof CloudRail>> = {}) => {
     return { onSelectCloud };
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    cloudOrder.ids = [];
+});
 
 describe('CloudRail', () => {
     it('names the state of a cloud that cannot be opened, not only its name', () => {
@@ -242,5 +269,82 @@ describe('CloudRail rename', () => {
         openMenu('Home');
         // Home has no menu at all: it can be neither renamed nor removed.
         expect(screen.queryByRole('menuitem')).toBeNull();
+    });
+});
+
+describe('CloudRail order', () => {
+    const tileNames = () => screen.getAllByRole('button').map(button => button.getAttribute('aria-label'));
+    const drop = (active: string, over: string | null) =>
+        act(() => dnd.end?.({ active: { id: active }, over: over ? { id: over } : null } as DragEndEvent));
+    const archive = () =>
+        i18next.t('cloud.statusLabel', { name: 'Archive', status: i18next.t('cloud.status.expired') });
+
+    it('draws the clouds in the stored order, with Home first whatever was stored', () => {
+        cloudOrder.ids = ['guest', 'default', 'open'];
+        renderRail();
+        expect(tileNames()).toEqual(['Home', 'Friends', 'Studio', archive()]);
+    });
+
+    it('skips a stored cloud that is gone and puts a cloud it has not seen after the stored ones', () => {
+        cloudOrder.ids = ['gone', 'guest'];
+        renderRail();
+        expect(tileNames()).toEqual(['Home', 'Friends', 'Studio', archive()]);
+    });
+
+    it('stores the new order when a tile is dropped on another', () => {
+        renderRail();
+        drop('guest', 'open');
+        expect(cloudOrder.set).toHaveBeenCalledWith(['guest', 'open', 'lapsed']);
+    });
+
+    it('stores nothing when the tile is dropped where it was, or outside the list', () => {
+        renderRail();
+        drop('guest', 'guest');
+        drop('guest', null);
+        expect(cloudOrder.set).not.toHaveBeenCalled();
+    });
+
+    it('never offers Home as a place to drop on', () => {
+        renderRail();
+        drop('guest', 'default');
+        expect(cloudOrder.set).not.toHaveBeenCalled();
+    });
+
+    // The number is part of the cloud's name on screen; it must not follow the tile around.
+    it('keeps the number of an untitled cloud when it is moved', () => {
+        const untitled: RailCloud[] = [
+            clouds[0],
+            { id: 'u1', status: 'active', kind: 'owned' },
+            { id: 'u2', status: 'active', kind: 'owned' },
+        ];
+        cloudOrder.ids = ['u2', 'u1'];
+        renderRail({ clouds: untitled });
+        expect(tileNames()).toEqual([
+            'Home',
+            i18next.t('cloud.untitledNumbered', { number: 2 }),
+            i18next.t('cloud.untitledNumbered', { number: 1 }),
+        ]);
+    });
+
+    it('swallows the click that ends a drag, and only that one', () => {
+        vi.useFakeTimers();
+        try {
+            const { onSelectCloud } = renderRail();
+            drop('guest', 'open');
+            fireEvent.click(screen.getByRole('button', { name: 'Studio' }));
+            expect(onSelectCloud).not.toHaveBeenCalled();
+
+            act(() => vi.runAllTimers());
+            fireEvent.click(screen.getByRole('button', { name: 'Studio' }));
+            expect(onSelectCloud).toHaveBeenCalledWith('open');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('shows the tiles as not draggable while a switch is in flight', () => {
+        renderRail({ isSwitching: true });
+        const row = screen.getByRole('button', { name: 'Studio' }).closest('div[class*="cursor-"]');
+        expect(row?.className).toMatch(/cursor-default/);
     });
 });
