@@ -1,18 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
+import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { DefaultAvatar, ImageAvatar, InfoField, ProfileAvatar, StatusBadge, Text } from '@chatic/web-ui-kit';
+import {
+    DefaultAvatar,
+    Divider,
+    ImageAvatar,
+    InfoField,
+    ListRow,
+    ProfileAvatar,
+    StatusBadge,
+    Text,
+} from '@chatic/web-ui-kit';
 
+import { useHomeChannels } from '../../../hooks';
+import { ROUTES } from '../../../routes/paths';
+import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { PageHeader } from '../../../ui';
 import { HOME_PLACE_ID, resolvePlaceDisplayName } from '../../../utils/resolvePlaceDisplayName';
+import { channelKindOf, resolveChannelTitle } from '../../channels/lib';
+import { PlaceConfirmDialog } from '../components/PlaceConfirmDialog';
+import { PlaceDeleteDialog, type PlaceDeleteRoom } from '../components/PlaceDeleteDialog';
+import { PlaceNoticeDialog } from '../components/PlaceNoticeDialog';
 import { usePlaceOwnerProfile } from '../hooks/usePlaceOwnerProfile';
+import { placeActionFailure } from '../lib';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 const OWNER_AVATAR_SIZE = 36;
+
+const LEAVE_FAILURE_KEY = {
+    denied: 'placeLeave.denied',
+    network: 'placeSettings.networkError',
+    other: 'placeLeave.failed',
+} as const;
+
+const DELETE_FAILURE_KEY = {
+    denied: 'placeDelete.denied',
+    network: 'placeSettings.networkError',
+    other: 'placeDelete.failed',
+} as const;
 
 /**
  * Place information — read-only. Shows the place avatar, its name and its introduction text; a cloud
@@ -29,13 +61,22 @@ const OWNER_AVATAR_SIZE = 36;
  *
  * The introduction row is the one fact that does NOT follow that relay carve-out: product asked for
  * it on every place, DoU Home included, so it is gated on the value alone. See ADR-0074.
+ *
+ * Below a block divider sits the one thing a person can do to a place from here: its owner deletes
+ * it, anyone else leaves it. Neither exists on the relay's own place, a system place, nor for a
+ * guest. Leaving ends on a notice and then DoU Home — the place and its rooms are gone from this
+ * cloud for the user, so the app does not pick another of the cloud's places for them.
  */
 export const PlaceDetailPage = () => {
     const { t, i18n } = useTranslation();
     const { placeId } = useParams<{ placeId: string }>();
     const { place: placeRepo } = runtime.data.useRuntimeRepositories();
 
-    const [place, setPlace] = useState<MySiteView | null>(null);
+    const [livePlace, setPlace] = useState<MySiteView | null>(null);
+    // A successful leave drops the place's row, which would turn this screen into "not found" under
+    // the leave notice. The row as it was is held for as long as the notice is up.
+    const [leftPlace, setLeftPlace] = useState<MySiteView | null>(null);
+    const place = livePlace ?? leftPlace;
 
     useEffect(() => {
         if (!placeId) {
@@ -46,6 +87,84 @@ export const PlaceDetailPage = () => {
     }, [placeRepo, placeId]);
 
     const owner = usePlaceOwnerProfile(placeId, place?.ownerId);
+
+    const navigate = useNavigateWithTransition();
+    const { toast } = useToast();
+    const { isGuest } = runtime.session.useRuntimeProfile();
+    const { userId: uid } = runtime.session.useSessionIdentity();
+    const { logoutCloudSession } = useLogoutCloudSession();
+
+    const [dialog, setDialog] = useState<'leave' | 'left' | 'delete' | null>(null);
+    const [isPending, setIsPending] = useState(false);
+
+    // The rooms the owner is about to take away with the place: its group rooms as this device holds
+    // them, named the way the room list names them.
+    const { channels } = useHomeChannels(placeId ?? null);
+    const deleteRooms = useMemo<PlaceDeleteRoom[]>(
+        () =>
+            channels
+                .filter(channel => channelKindOf(channel.stereo) === 'group')
+                .map(channel => ({
+                    id: channel.id,
+                    name: resolveChannelTitle({
+                        channel,
+                        uid: uid ?? undefined,
+                        selfLabel: t('channelList.selfChannel'),
+                        unnamedLabel: t('channelList.unnamedChannel'),
+                        dmUnnamedLabel: t('chat.dm.unnamedPeer'),
+                    }),
+                    memberCount: channel.memberNo ?? channel.memberIds?.length ?? 0,
+                })),
+        [channels, uid, t]
+    );
+
+    const handleLeave = async () => {
+        if (!placeId) return;
+        const leaving = place;
+        setIsPending(true);
+        try {
+            await placeRepo.leavePlace(placeId);
+            setLeftPlace(leaving);
+            setDialog('left');
+        } catch (error) {
+            const failure = placeActionFailure(error);
+            logger.error('PLACE', 'Failed to leave the place', { error, data: { placeId, failure } });
+            setDialog(null);
+            toast({ title: t(LEAVE_FAILURE_KEY[failure]), variant: 'destructive' });
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    // After a leave the user is taken to DoU Home: out of the cloud session, onto the relay.
+    const goToDouHome = async () => {
+        setDialog(null);
+        try {
+            await logoutCloudSession();
+        } catch (error) {
+            logger.error('CLOUD', 'returning to DoU Home after leaving a place failed', { error });
+        }
+        navigate(ROUTES.root, { replace: true });
+    };
+
+    const handleDelete = async () => {
+        if (!placeId) return;
+        setIsPending(true);
+        try {
+            await placeRepo.deletePlace(placeId);
+            setDialog(null);
+            toast({ title: t('placeDelete.done') });
+            // Home moves the session off the deleted place (to the cloud's first place, or none).
+            navigate(ROUTES.root, { replace: true });
+        } catch (error) {
+            const failure = placeActionFailure(error);
+            logger.error('PLACE', 'Failed to delete the place', { error, data: { placeId, failure } });
+            setDialog(null);
+            toast({ title: t(DELETE_FAILURE_KEY[failure]), variant: 'destructive' });
+        } finally {
+            setIsPending(false);
+        }
+    };
 
     const title = t('placeDetail.title');
 
@@ -61,6 +180,7 @@ export const PlaceDetailPage = () => {
     }
 
     const isHomePlace = place.id === HOME_PLACE_ID;
+    const exitAction = isHomePlace || isGuest ? null : place.isOwner ? 'delete' : 'leave';
     // The place in the URL decides this, NOT the active session. `resolvePlaceDisplayName` ORs its
     // `isDefaultCloud` flag with the id check, so passing the session's `selectedCloudId === 'default'`
     // would brand ANY place row viewed while the relay is active as "두유 홈" — including a cloud
@@ -127,8 +247,47 @@ export const PlaceDetailPage = () => {
                             </div>
                         </InfoField>
                     )}
+
+                    {exitAction && (
+                        <>
+                            <Divider variant="block" />
+                            <ListRow
+                                destructive
+                                title={
+                                    <span className="text-[15px] tracking-[-0.075px]">
+                                        {t(exitAction === 'delete' ? 'placeDetail.delete' : 'placeDetail.leave')}
+                                    </span>
+                                }
+                                onClick={() => setDialog(exitAction)}
+                            />
+                        </>
+                    )}
                 </div>
             </div>
+
+            <PlaceConfirmDialog
+                open={dialog === 'leave'}
+                onOpenChange={open => setDialog(open ? 'leave' : null)}
+                title={t('placeLeave.dialog.title')}
+                description={t('placeLeave.dialog.description')}
+                confirmLabel={t('placeLeave.dialog.confirm')}
+                onConfirm={() => void handleLeave()}
+                isPending={isPending}
+                closeOnConfirm={false}
+            />
+            <PlaceNoticeDialog
+                open={dialog === 'left'}
+                title={t('placeLeave.doneTitle')}
+                confirmLabel={t('common.confirm')}
+                onConfirm={() => void goToDouHome()}
+            />
+            <PlaceDeleteDialog
+                open={dialog === 'delete'}
+                onOpenChange={open => setDialog(open ? 'delete' : null)}
+                rooms={deleteRooms}
+                onConfirm={() => void handleDelete()}
+                isPending={isPending}
+            />
         </div>
     );
 };

@@ -10,9 +10,9 @@ Nothing in this folder authenticates a socket or renews a credential. That is
 ## Layout
 
 ```text
-session/                              53 source files, 23 tests
+session/                              56 source files, 27 tests
 ├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
-├── auth/      9 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
+├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
 ├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
 ├── hooks/    28 files · 11 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers
 └── index.ts                       the `session` facade group
@@ -233,6 +233,12 @@ Without it, tokens belonging to the account that just signed out survive the red
 [`authActions.ts`](../../src/session/auth/authActions.ts) is an adapter, not a naming layer: three
 apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the
 repository takes an object. Keeping that translation in one place is its entire reason to exist.
+
+[`clearSiteSelection.ts`](../../src/session/auth/clearSiteSelection.ts) empties the active cloud's place
+selection and does nothing else — no `auth.switch`, no switch token, the socket session stays put. It is
+on the barrel for one case: the user has just left the last place of a cloud, so there is no place to
+switch to, and keeping the old id would leave the app on a place they are no longer in (apps/web's
+`useSwitchPlace` calls it). Moving between places stays `useSiteSwitch`'s job.
 
 ### The React surface
 

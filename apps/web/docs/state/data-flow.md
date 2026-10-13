@@ -136,7 +136,9 @@ Direct socket `send` / `emit` is not a path the app has. Every write goes throug
 | Send a message                                    | `runtime.data.sendChatInCloud(cid, { channelId, content })`                                          |
 | Mark read                                         | `repos.join.readChat({ channelId, chatNo })`                                                         |
 | Create / edit / invite / leave / delete a channel | `repos.channel.createChannel` / `updateChannel` / `inviteChannel` / `leaveChannel` / `deleteChannel` |
-| Create / edit a place                             | `repos.place.createPlace` / `updatePlace`                                                            |
+| Create / edit / delete a place                    | `repos.place.createPlace` / `updatePlace` / `deletePlace`                                            |
+| Leave a place / remove a member                   | `repos.place.leavePlace` / `removeMember`                                                            |
+| Ask whether a place was deleted                   | `repos.place.isPlaceDeleted` (`place.get`: 404 or `deletedAt`)                                       |
 | Edit a profile                                    | `repos.user.updateProfile(...)`, or for a place profile `useSetMyPlaceProfile` (not the repository)  |
 
 ## 5. Refresh timing

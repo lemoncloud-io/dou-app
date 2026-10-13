@@ -10,6 +10,7 @@ import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit'
 import { PageHeader } from '../../../ui';
 import { ChannelSortSheet } from '../components/ChannelSortSheet';
 import { ROUTES } from '../../../routes/paths';
+import { HOME_PLACE_ID } from '../../../utils/resolvePlaceDisplayName';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
@@ -20,12 +21,17 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
  * writes, so it is owner-only and disabled for non-owners (server `isOwner` is the authority —
  * ADR-0031); the place-information row only reads, so it stays open to everyone (ADR-0047). The
  * notification toggle is still a placeholder (no backend support).
+ *
+ * The "Members" row exists only for a member of a real place — not on the relay's own place, a system
+ * place nobody joins, and not for a guest — and opens the member screen for everyone in the place.
+ * Leaving and deleting the place live on the place information screen.
  */
 export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { placeId } = useParams<{ placeId: string }>();
     const { place: placeRepo } = runtime.data.useRuntimeRepositories();
+    const { isGuest } = runtime.session.useRuntimeProfile();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
     const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
@@ -39,6 +45,7 @@ export const PlaceSettingsHubPage = () => {
     }, [placeRepo, placeId]);
 
     const isOwner = !!place?.isOwner;
+    const isMemberOfRealPlace = !!placeId && placeId !== HOME_PLACE_ID && !isGuest;
     const chevron = <IconChevronRight className="size-5 text-placeholder" />;
 
     const go = (to: string) => () => navigate(to);
@@ -69,6 +76,13 @@ export const PlaceSettingsHubPage = () => {
                         trailing={chevron}
                         onClick={placeId ? go(ROUTES.place.settingsDetail(placeId)) : undefined}
                     />
+                    {isMemberOfRealPlace && (
+                        <ListRow
+                            title={t('placeSettings.members')}
+                            trailing={chevron}
+                            onClick={placeId ? go(ROUTES.place.settingsMembers(placeId)) : undefined}
+                        />
+                    )}
                 </MenuCard>
 
                 <MenuCard title={t('placeSettings.sectionNotifications')}>

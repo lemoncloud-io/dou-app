@@ -17,13 +17,14 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 `observeList` · `observeItem` · `refreshList(query)` · `fetchList(query)` · `syncChannels(since)` ·
 `createChannel` · `startDm` · `updateChannel` · `inviteChannel` · `leaveChannel` · `deleteChannel` ·
-`getSelfChannel` · `cache*`
+`getSelfChannel` · `evictLeftChannels` · `dropMemberFromChannels` · `cache*`
 
 - `startDm({ peerId })` — opens or returns the one room for a pair, and caches it when the answer names a place. The answer for a room it has just created names none (later reads do), so that row arrives with the next `syncChannels` instead of failing the call.
 - `syncChannels(since)` — interprets the result of `channel.sync({ since })`. `since: 0` is a full sync, `since > 0` is a delta. The response's `list` is the snapshot of changed channels, `ids` is every channel id I currently belong to, and `syncedAt` is the value to store as the next `since`. The repository writes `list` to local and **stale-removes** any channel missing from `ids`. A changed channel with no place (`$.sid`) is dropped, except the Self Channel: it belongs to the account rather than a place, and the relay sends it with an empty `$`. The local store keeps such a row under `ACCOUNT_CHANNEL_SID` (`@account`) until a read names its place.
 - `refreshList(query)` — the secondary initial-load path, based on `channel.mine`. In a sync-centred structure the canonical source is `syncChannels`.
 - `fetchList(query)` — the counterpart to `refreshList`, except it **returns the result without writing to local.** Use it when the server list is needed without touching the cache.
 - `leaveChannel` / `deleteChannel` — optimistic local remove, restored on failure. A self-leave empties that channel's chat cache too, **after the server responds** → [leaving and rejoining](./README.md#leaving-and-rejoining).
+- `evictLeftChannels(channelIds, requestContext)` / `dropMemberFromChannels(channelIds, userId, requestContext)` — the channel side of a place leave, for channels the **server has already** taken someone out of (`place.leave` names them). The first gives each channel what a confirmed self-leave gives it — row removed, leave guard set, messages purged — through the same code `leaveChannel` uses; the second takes `userId` out of each cached roster, the cache side of a kick, and skips a channel with no cached row. Both work in the `requestContext` the place leave was asked in, not the live one. Neither sends anything: the Place domain calls them after `place.leave` answers.
 - For a short window right after leaving (`LEFT_CHANNEL_GUARD_MS`, 10 seconds), a `refreshList`/`syncChannels` response is not written back to the cache even if that channel is in it. It guards against an in-flight response issued just before the leave resurrecting a channel that was just removed. **Being time-bounded is the point** — held forever, a rejoined channel could never return to the list for the rest of the session.
 - **It does not fetch chat messages.** Channel sync refreshes the channel list only. The actual messages are fetched separately by the chat screen through `ChatRepository.refreshList` (= `chat.feed`).
 - The server ships a `lastChat$` on each channel, but **the mapper does not read it.** The last message and its timestamp belong to the chat cache (ADR-0057, `domain/mappers.ts`). It is not used as a preview seed either.
@@ -68,10 +69,17 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Place
 
-`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `updatePlace` · `deletePlace` · `cache*`
+`observeList` · `observeItem` · `refreshList(query?)` · `createPlace` · `updatePlace` · `deletePlace` · `leavePlace` ·
+`removeMember` · `isPlaceDeleted` · `cache*`
 
-- Based on `PlaceGateway` (`place.create/update/delete`) plus `UserGateway.mySite` for listing.
+- Based on `PlaceGateway` (`place.create/update/delete/leave`) plus `UserGateway.mySite` for listing.
 - `deletePlace(id)` — asks the server first and removes the local row only after it agrees. It is not optimistic like `deleteChannel`: the app moves the session out of a place whose row has gone, and a refusal that restored the row would not move it back.
+- `leavePlace(id)` / `removeMember(id, userId)` — both are `place.leave`; the second names the member the place owner is removing. Neither is optimistic, for the same reason as the delete, and a refusal (`403` for an owner leaving, or a non-owner removing) throws with the cache untouched. After the answer:
+    - `leavePlace` clears the channels the answer's `leftChannelIds` names through the Channel domain's `evictLeftChannels`, then drops the place row — even the last one, since an empty list snapshot leaves the cache alone and nothing else would remove it. The channels are the server's list, never "the cached channels of this place": the server's record of what it took me out of is the one that counts.
+    - `removeMember` takes the member out of those channels' cached rosters (`dropMemberFromChannels`) and leaves the place row alone.
+    - `failedChannelIds` are channels the server already counted the person out of. They are logged and the call still succeeds.
+    - The clean-up runs in the scope the request was made in, so a cloud switch while it ran cannot aim it at another cloud. Which place the session moves to afterwards is the app's call, not this repository's.
+- **A deleted place is a stamped row, not a missing one.** The server's delete is soft: it sets `deletedAt` and goes on listing the place, to its owner and its members alike, and it tells nobody. `refreshList` therefore leaves any row with `deletedAt` set out of what it writes and prunes its cached row (`isDeletedPlace`), and an answer whose every row is deleted still prunes — it is a real answer, not the empty one a switch can produce. `isPlaceDeleted(id)` asks `place.get` about one place: 404 or a stamped row is deleted; a row without the stamp — a place I left or was removed from — is not; any other failure rejects.
 - A Place is the workspace unit a user belongs to or created. Rather than a periodic delta sync, it re-reads the current cloud's place list with `refreshList` on a scope (cid) switch.
 - Local-first: remote results are written to `PlaceLocalDataSource` and then read through `observe*`.
 

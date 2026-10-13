@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
  * Two readings of the same fact, because what the user can DO about it differs:
  *  - `invited`: a guest in someone else's place cannot create a room, so the copy explains that
  *    rooms arrive by invitation and offers the one action that IS theirs — leaving the place, via
- *    the place-info hub.
+ *    the place information screen.
  *  - `owner`: the create (＋) entry is right above, so a plain nudge to make the first room is
  *    enough.
  *
@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 export interface ChannelEmptyStateProps {
     /** Which reading to render — see the component doc. */
     variant: 'invited' | 'owner';
-    /** Invited variant only: opens this place's settings hub (where leaving lives). */
+    /** Invited variant only: opens this place's information screen (where leaving lives). */
     onOpenPlaceInfo?: () => void;
 }
 

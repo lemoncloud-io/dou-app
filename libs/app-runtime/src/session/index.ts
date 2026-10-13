@@ -54,6 +54,9 @@ export type { InviteLoginEntry } from './auth/cloudTokens';
 export { createCredentialsByProvider, registerSessionLogoutCallback } from './auth/relaySession';
 // Invite login/lookup — ordinary auth actions; the module they live in is what stays off the barrel.
 export { fetchInviteInfoWithCode, registerUserWithInviteCode } from './auth/authActions';
+// Empties the place selection without a switch — for a cloud whose last place the user just left,
+// where there is nothing to switch to. Not a hook: the caller already decides when, in an effect.
+export { clearSiteSelection } from './auth/clearSiteSelection';
 
 // --- React surface --------------------------------------------------------------------------------
 export { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';

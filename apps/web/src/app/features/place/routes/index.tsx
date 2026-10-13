@@ -4,6 +4,7 @@ import {
     PlaceChannelManagePage,
     PlaceDetailPage,
     PlaceEditPage,
+    PlaceMembersPage,
     PlaceProfilePage,
     PlaceSettingsHubPage,
 } from '../pages';
@@ -20,6 +21,7 @@ export const PlaceRoutes = () => {
             <Route path=":placeId/settings/edit" element={<PlaceEditPage />} />
             <Route path=":placeId/settings/profile" element={<PlaceProfilePage />} />
             <Route path=":placeId/settings/channels" element={<PlaceChannelManagePage />} />
+            <Route path=":placeId/settings/members" element={<PlaceMembersPage />} />
         </Routes>
     );
 };

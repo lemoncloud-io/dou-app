@@ -72,6 +72,7 @@ describe('ROUTES — 파라미터 빌더', () => {
         expect(ROUTES.place.settingsEdit('p42')).toBe('/place/p42/settings/edit');
         expect(ROUTES.place.settingsProfile('p42')).toBe('/place/p42/settings/profile');
         expect(ROUTES.place.settingsChannels('p42')).toBe('/place/p42/settings/channels');
+        expect(ROUTES.place.settingsMembers('p42')).toBe('/place/p42/settings/members');
     });
 
     it('주어진 인수를 그대로 보간한다', () => {
