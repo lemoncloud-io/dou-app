@@ -115,16 +115,24 @@ carries the rest of this story. Inside:
 | `stackPolicy.ts`      | The entry rule table — how an arrival is placed on the stack                              | no                 |
 | `featureGraph.ts`     | Which feature graph a path belongs to, and how much of one is on the stack                | no                 |
 | `stackDepth.ts`       | How deep the app is, and `canGoBackInApp()` — the only answer to "can back go anywhere"   | no                 |
-| `stackTracker.ts`     | The reconstructed stack — read by the debug overlay AND by the graph rule                 | no                 |
+| `stackTracker.ts`     | The reconstructed stack — read by the debug overlay AND by the graph and eviction rules   | no                 |
 | `stackObserver.ts`    | One router subscription feeding the tracker, `utils/routeTrail`, and transition listeners | no                 |
 | `useStackNavigate.ts` | Executes the rule table                                                                   | **yes**            |
 | `useStackBack.ts`     | Consumes a back press and reports which branch it took                                    | **yes**            |
 
-Most rules read only the top of the stack. One does not: `channels` and `place` are each a GRAPH of
+Most rules read only the top of the stack. Two do not. The first: `channels` and `place` are each a GRAPH of
 screens about one instance, and arriving at channel B while standing in channel A's settings rewinds
 the whole of A's graph before pushing B, so back leaves for wherever A was entered from instead of
 descending through a channel the reader has left. That rule is the reason `stackTracker`'s
 reconstruction is load-bearing rather than diagnostic, and ADR-0110 records what that costs.
+
+The other rule that looks below the top is an **eviction** — the app itself sending the reader off a
+screen they cannot stay on, today only a room they are no longer a member of. The room is dead
+either way; what matters is the screen it leaves for. When that destination is the entry directly
+underneath — a push tap pushes a room above the home the reader was on — the rule rewinds, because
+replacing the room with home would leave home above home and the first back press would do nothing
+visible. Anywhere else, or when the entry underneath is unknown (the first entry, a hole in the
+reconstruction, a destination with a query the pathname-only tracker cannot match), it replaces.
 
 The last column is why this is six files and not one: exactly two may reach for the router, and
 that line is checkable by grep only while they are separate files.

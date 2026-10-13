@@ -170,6 +170,11 @@ Rule 2 is the narrow one on purpose. It once read "anywhere but home", which mea
 from `/mypage` replaced mypage and back skipped it — and when mypage was the only entry, back had
 nowhere to go at all. Every screen that is not a room is one the reader chose.
 
+Rule 3 means a tap from home leaves `[home, room]`. When the room turns out to be one the reader has
+since left, the room closes itself, and it does so as an eviction that rewinds onto that home rather
+than overwriting the room with a second copy of it — see
+[dm-and-self-chat.md](../feature/channels/dm-and-self-chat.md).
+
 ### The thread leg
 
 A push names a channel, so a tap lands on the room. But a thread reply is an ordinary chat that

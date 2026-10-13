@@ -2,9 +2,9 @@
  * How deep the app sits in its own history, and whether there is anything behind it.
  *
  * The one place allowed to answer "can we go back?". Split out from the tracker because the two
- * have different readers: the tracker reconstructs the whole stack for the debug overlay, while
- * everything that decides something — leaving the login screen, consuming a native back press —
- * only needs this single boolean.
+ * have different readers: the tracker reconstructs the whole stack for the debug overlay and for
+ * the two stack-policy rules that look below the top, while most decisions — leaving the login
+ * screen, consuming a native back press — only need this single boolean.
  */
 
 /**

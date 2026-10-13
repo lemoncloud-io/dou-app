@@ -71,6 +71,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
 jest.mock('../../../hooks/useMenuNavigate', () => ({ useMenuNavigate: () => jest.fn() }));
+const mockEnterStack = jest.fn();
+jest.mock('../../../navigation', () => ({ useStackNavigate: () => mockEnterStack }));
 const mockFollowFooter = jest.fn();
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
@@ -232,6 +234,7 @@ beforeEach(() => {
     mockMessages = [];
     mockSelectedCloudId = 'cloud-a';
     mockChannelId = 'ch1';
+    mockEnterStack.mockReset();
     // The composer's draft store is the real one: each case starts with no draft anywhere.
     useComposerDraftStore.setState({ texts: {}, held: {} });
     mockSendMessage.mockReset().mockResolvedValue({ chatNo: 3 });
@@ -324,6 +327,45 @@ describe('ChannelRoomPage — staying in my own room during a switch', () => {
         render(<ChannelRoomPage />);
 
         expect(toast).toHaveBeenCalledWith({ title: 'chat.notAMember' });
+    });
+});
+
+describe('ChannelRoomPage — leaving a room I am not in', () => {
+    const otherPeoplesSelfChat = {
+        id: 'ch1',
+        cid: 'cloud-b',
+        stereo: 'self',
+        ownerId: 'someone',
+        memberIds: ['someone'],
+    };
+
+    // Not a plain replace: a push tap pushed the room above home, and replacing it with home left
+    // home above home. The stack policy decides between rewinding onto home and replacing.
+    it('leaves through the stack policy as an eviction to home', () => {
+        mockChannel = otherPeoplesSelfChat as Partial<DomainChannel>;
+
+        render(<ChannelRoomPage />);
+
+        expect(mockEnterStack).toHaveBeenCalledWith('eviction', '/');
+    });
+
+    // The exit may be a rewind, which lands asynchronously; a second one before it lands would
+    // rewind past home.
+    it('leaves once, however often the screen re-renders before it unmounts', () => {
+        mockChannel = otherPeoplesSelfChat as Partial<DomainChannel>;
+        const { rerender } = render(<ChannelRoomPage />);
+
+        mockChannel = { ...otherPeoplesSelfChat } as Partial<DomainChannel>;
+        rerender(<ChannelRoomPage />);
+
+        expect(mockEnterStack).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays in a room I am in', () => {
+        render(<ChannelRoomPage />);
+
+        expect(mockEnterStack).not.toHaveBeenCalled();
     });
 });
 
