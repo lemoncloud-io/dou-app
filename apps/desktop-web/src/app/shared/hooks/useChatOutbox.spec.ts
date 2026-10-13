@@ -90,6 +90,26 @@ describe('toSendPayload', () => {
         expect(toSendPayload(chat({ parentId: 'ch-1:7' })).parentId).toBe('ch-1:7');
         expect(toSendPayload(chat({})).parentId).toBeUndefined();
     });
+
+    // A failed row is the only copy of what was sent. Rebuilt without its mention, the resend
+    // reads the same and calls no one.
+    it('puts back the members the message called', () => {
+        expect(toSendPayload(chat({ mention$: { userIds: ['u-ada', 'u-bo'] } })).mention).toEqual({
+            userIds: ['u-ada', 'u-bo'],
+        });
+    });
+
+    // A row written by a live `chat.sync` carries the model's `1`; the server takes only `true`.
+    it.each([true, 1] as const)('sends everyone as true when the row holds %j', all => {
+        expect(toSendPayload(chat({ mention$: { all } })).mention).toEqual({ all: true });
+    });
+
+    it.each([
+        ['no record', {}],
+        ['an empty record', { mention$: {} }],
+    ])('sends no mention key for a row with %s', (_name, over) => {
+        expect(toSendPayload(chat(over))).not.toHaveProperty('mention');
+    });
 });
 
 const query = (over: Partial<Parameters<typeof matchLandedRow>[1]> = {}) => ({
