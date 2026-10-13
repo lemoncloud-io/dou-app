@@ -10,7 +10,7 @@ import type {
     UserTokenView,
 } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '@chatic/http';
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView, VerifyOAuthCodeBody } from '@chatic/http';
 import type { DomainUser } from '../domain';
 import type {
     IAuthSocketDataSource,
@@ -99,6 +99,7 @@ export interface IAuthRepository extends DisposableRepository {
     login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
     verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView>;
     exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView>;
+    verifyOAuthCode(body: VerifyOAuthCodeBody): Promise<UserTokenView>;
     delegateCloud(target: string): Promise<CloudDelegationTokenView>;
     exchangeToken(input: { baseURL: string; body: CloudExchangeTokenBody }): Promise<UserTokenView>;
 }
@@ -180,6 +181,10 @@ export class AuthRepository extends BaseRepository implements IAuthRepository {
 
     public exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView> {
         return this.requireHttp().exchangeCode(input);
+    }
+
+    public verifyOAuthCode(body: VerifyOAuthCodeBody): Promise<UserTokenView> {
+        return this.requireHttp().verifyOAuthCode(body);
     }
 
     public delegateCloud(target: string): Promise<CloudDelegationTokenView> {

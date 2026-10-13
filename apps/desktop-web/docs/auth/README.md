@@ -11,6 +11,12 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
+The exchange is signed with that session. It goes to the relay's `verify-oauth-code`, which records the
+Guest Session's user as the new session's link — the same record the mobile sign-in leaves — so the
+account can still enter the clouds the guest was invited to. The endpoint refuses a call with no
+session, which is why the device is registered before the browser opens (below), and why nothing
+between the start and the exchange may clear the session.
+
 The Profile page offers the button only when the relay user's `userRole` is `guest`, and it judges
 that from the relay session, which is the account's. Inside a cloud the active session is that
 cloud's, whose user has a uid and a name of its own, so reading it there drew a signed-in account as
@@ -255,11 +261,12 @@ always arrives by text. The number and the code stay in the request body and are
 
 ## Not on in production
 
-`feature.auth.phoneLogin` is off in production for the first of the reasons below — the clouds a
-person was invited into do not follow the account yet.
+`feature.auth.phoneLogin` is off in production: a phone sign-in has not yet been shown to keep
+the clouds a person was invited into as a guest.
 
-`feature.auth.socialLogin` is off in production. Turning it on waits for three things: invited cloud
-memberships following the account (the backend restores only the clouds a person owns), a real
-sign-in confirming that the account is the same user as on mobile (the nonce round trip is confirmed
-on the dev channel; the same user is not), and a decision on the scheme-claim risk above — accepted,
-or closed at the relay.
+`feature.auth.socialLogin` is off in production. Turning it on waits for three things: a real sign-in
+on the dev channel showing that a guest invited to a cloud can still enter it after signing in with
+Google (the exchange above is what is meant to keep that link; it has not been tried on a device yet),
+a real sign-in confirming that the account is the same user as on mobile (the nonce round trip is
+confirmed on the dev channel; the same user is not), and a decision on the scheme-claim risk above —
+accepted, or closed at the relay.

@@ -61,7 +61,9 @@ const signedInAccountId = (): string | null => {
  * will-navigate), in a plain browser by direct navigation (admin pattern).
  * `complete` exchanges the relay code for credentials then hydrates the relay
  * session — replacing whatever session (e.g. a Guest Session) was on the device.
- * Mirrors apps/web useOAuthLogin — runtime.session.createCredentialsByProvider commits the session by itself.
+ * runtime.session.createCredentialsByProvider commits the session by itself. Unlike admin-v2, the
+ * exchange is signed with that Guest Session so the backend links it to the account — what lets the
+ * account into the clouds the guest was invited to.
  *
  * `start` registers the device first when there is no session — the backend's sign-in contract expects a
  * device session first — and only then records and opens the browser.
@@ -260,7 +262,9 @@ export const useSocialLogin = () => {
             const wasAuthenticated = runtime.session.getIdentityContext().isAuthenticated;
             try {
                 await runtime.boot.startWebTransportInit();
-                const account = await runtime.session.createCredentialsByProvider(provider, code);
+                const account = await runtime.session.createCredentialsByProvider(provider, code, {
+                    linkCurrentSession: true,
+                });
                 // Said by the signed-in shell once the app is up as this account: who signed in, and
                 // whether the Google had no DoU account yet and got a new one.
                 saveSignInNotice({ provider, isNew: isAccountMadeSince(account, startedAt) });
