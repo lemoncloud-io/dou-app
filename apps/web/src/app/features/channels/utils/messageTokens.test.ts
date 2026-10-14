@@ -196,6 +196,55 @@ describe('fenced code blocks', () => {
     });
 });
 
+// A fence closes at the next backtick run at least as long as the one that opened it, as on desktop.
+// The desktop composer wraps code holding ``` in four backticks; closing at the next three cut such a
+// block short and spilled the rest of it out as text.
+describe('fence run length', () => {
+    it('pairs a four-backtick fence with its own closing run, keeping the ``` inside as code', () => {
+        expect(tokenizeMessage('````\nuse ```js\n````')).toEqual([
+            { type: 'codeBlock', value: 'use ```js', lang: undefined },
+        ]);
+    });
+
+    it('keeps shorter backtick runs inside a longer fence as code', () => {
+        expect(tokenizeMessage('before\n````\na ``` b `` c\n````\nafter')).toEqual([
+            { type: 'text', value: 'before' },
+            { type: 'codeBlock', value: 'a ``` b `` c', lang: undefined },
+            { type: 'text', value: 'after' },
+        ]);
+    });
+
+    it('lets a longer closing run close the block and consumes all of it', () => {
+        expect(tokenizeMessage('```code`````')).toEqual([{ type: 'codeBlock', value: 'code', lang: undefined }]);
+    });
+
+    it('still reads the language tag after a longer opening run', () => {
+        expect(tokenizeMessage('````md\n```js\nx\n```\n````')).toEqual([
+            { type: 'codeBlock', value: '```js\nx\n```', lang: 'md' },
+        ]);
+    });
+
+    it('leaves an unterminated longer fence as plain text, every backtick of it', () => {
+        expect(tokenizeMessage('````\nuse ```js')).toEqual([{ type: 'text', value: '````\nuse ```js' }]);
+    });
+
+    it('closes an unterminated longer fence at the cut without stopping at a shorter run inside it', () => {
+        expect(tokenizeMessage('````\nuse ```js', { truncated: true })).toEqual([
+            { type: 'codeBlock', value: 'use ```js', lang: undefined },
+        ]);
+    });
+
+    it('keeps a URL after an inner ``` inside the block, for the bubble and the unfurl alike', () => {
+        const text = '````\nsee ```\nhttps://inside.example.com/x\n````';
+        expect(urls(text)).toEqual([]);
+        expect(extractFirstUrl(text)).toBeUndefined();
+    });
+
+    it('previews a four-backtick block by its first line', () => {
+        expect(toPlainPreview('````\nuse ```js\n````')).toBe('use ```js');
+    });
+});
+
 // The ordering guarantee: code is resolved first, so URLs inside it never become links.
 describe('code wins over URLs', () => {
     it('does not link a URL inside a fenced block', () => {
@@ -267,6 +316,16 @@ describe('adversarial input', () => {
     it('trims a long alternating bracket/punctuation run in linear time', () => {
         const started = Date.now();
         toPlainPreview(`https://a${').'.repeat(20_000)}`);
+        expect(Date.now() - started).toBeLessThan(budgetMs);
+    });
+
+    // Every opening run that finds no closing one scans the rest of the message. Such runs can only
+    // get shorter as the message goes on — a later run as long would have closed the earlier one — so
+    // a message of strictly shrinking runs is the worst case: about √(2n) scans of the remainder.
+    it('rejects a long series of ever-shorter unclosed fences within budget', () => {
+        const runs = Array.from({ length: 344 }, (_, index) => '`'.repeat(346 - index)).join('a');
+        const started = Date.now();
+        toPlainPreview(runs);
         expect(Date.now() - started).toBeLessThan(budgetMs);
     });
 

@@ -123,7 +123,33 @@ const trimFenceEdges = (value: string): string => value.replace(/\n$/, '');
 
 type Segment = { type: 'text'; value: string } | Extract<MessageToken, { type: 'codeBlock' }>;
 
-/** Pass 1 — carve out fenced blocks, leaving everything else as raw text to look at later. */
+/**
+ * Finds the run of backticks that closes a fence opened by `fenceLength` of them: the first run at
+ * or after `from` that is at least as long. Returns where that run starts and ends, or `undefined`
+ * when the fence is never closed.
+ */
+const findClosingRun = (
+    text: string,
+    from: number,
+    fenceLength: number
+): { start: number; end: number } | undefined => {
+    for (let start = text.indexOf('`', from); start !== -1; ) {
+        let end = start;
+        while (text[end] === '`') end += 1;
+        if (end - start >= fenceLength) return { start, end };
+        start = text.indexOf('`', end);
+    }
+    return undefined;
+};
+
+/**
+ * Pass 1 — carve out fenced blocks, leaving everything else as raw text to look at later.
+ *
+ * A fence opens with a run of three or more backticks and closes at the next run at least as long,
+ * which it consumes whole — the desktop reader's rule. Matching the run length is what lets a block
+ * hold ```` ``` ```` itself: the desktop composer lengthens the fence around such code to four, and
+ * closing at the next three cut that block short and spilled the rest of it out as text.
+ */
 const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
     const segments: Segment[] = [];
     let buffer = '';
@@ -141,8 +167,9 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
             continue;
         }
 
-        const bodyStart = index + FENCE.length;
-        const close = text.indexOf(FENCE, bodyStart);
+        let bodyStart = index;
+        while (text[bodyStart] === '`') bodyStart += 1;
+        const close = findClosingRun(text, bodyStart, bodyStart - index);
 
         // The newline that ends the line the fence sits on belongs to the fence, not to the text
         // around it. The bubble renders with `whitespace-pre-wrap` and the block is already its own
@@ -152,11 +179,11 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
             flush();
         };
 
-        if (close === -1) {
+        if (!close) {
             // Unterminated. When the text was cut, the closing fence is beyond the cut, so honour
-            // the block; otherwise the user simply typed three backticks — leave them as text.
+            // the block; otherwise the user simply typed backticks — leave the whole run as text.
             if (!closeDanglingFence) {
-                buffer += FENCE;
+                buffer += text.slice(index, bodyStart);
                 index = bodyStart;
                 continue;
             }
@@ -166,10 +193,10 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
             return segments;
         }
 
-        const { lang, value } = splitFenceBody(text.slice(bodyStart, close));
+        const { lang, value } = splitFenceBody(text.slice(bodyStart, close.start));
         flushBeforeFence();
         segments.push({ type: 'codeBlock', value: trimFenceEdges(value), lang });
-        index = close + FENCE.length;
+        index = close.end;
         if (text[index] === '\n') index += 1;
     }
 
