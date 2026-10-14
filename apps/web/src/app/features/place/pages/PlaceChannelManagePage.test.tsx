@@ -17,6 +17,7 @@ let unreadByChannel: Record<string, number>;
 let pinnedIds: string[];
 let selectedCloudId = 'cloud-1';
 let sentInvitesValue: any[] = [];
+let lastChatsValue = new Map<string, any>();
 
 const navigate = jest.fn();
 
@@ -108,7 +109,7 @@ jest.mock('../../../hooks', () => ({
     useJoinSyncRegistration: jest.fn(),
     useMyJoins: () => new Map(),
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),
-    useLastChats: () => new Map(),
+    useLastChats: () => lastChatsValue,
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
 }));
 
@@ -122,8 +123,9 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
-    ManageChannelItem: ({ title, selectable, checked, onToggle, pinned, onTogglePin, selectLabel }: any) => (
+    ManageChannelItem: ({ title, subtitle, selectable, checked, onToggle, pinned, onTogglePin, selectLabel }: any) => (
         <div>
+            {subtitle && <p data-testid={`subtitle:${selectLabel}`}>{subtitle}</p>}
             {selectable ? (
                 <button
                     type="button"
@@ -161,6 +163,7 @@ beforeEach(() => {
     pinnedIds = [];
     selectedCloudId = 'cloud-1';
     sentInvitesValue = [];
+    lastChatsValue = new Map();
 });
 
 describe('PlaceChannelManagePage', () => {
@@ -212,6 +215,36 @@ describe('PlaceChannelManagePage', () => {
 
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'channelManage.deleteDone:1' }));
         expect(toast).toHaveBeenCalledWith({ title: 'channelManage.deleteFailed:1', variant: 'destructive' });
+    });
+
+    // The room's text flattened as the home list flattens it, not the composer's raw markup.
+    it('previews the last message with its markup flattened', () => {
+        lastChatsValue = new Map([
+            ['ch-1', { content: '배포는 `yarn deploy` 로, [가이드](https://example.com/a) 참고' }],
+        ]);
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('배포는 yarn deploy 로, 가이드 참고');
+    });
+
+    // The home list's line: a soft delete keeps its body, and the row must not print it.
+    it('previews a deleted last message as the deleted-message phrase, not its kept body', () => {
+        lastChatsValue = new Map([['ch-1', { content: '지워진 원문', hidden: true }]]);
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('chat.room.deletedMessage');
+    });
+
+    it('previews an attachment-only last message by what it carries', () => {
+        lastChatsValue = new Map([['ch-1', { content: '', uploadIds: ['u1', 'u2'] }]]);
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('chat.attach.previewCount:2');
+    });
+
+    it('shows no preview line for a room with no last message', () => {
+        render(<PlaceChannelManagePage />);
+        expect(screen.queryByTestId('subtitle:ch-1')).not.toBeInTheDocument();
     });
 
     // The label splits into delete/leave with the selection (removalActionFor), so accept either.

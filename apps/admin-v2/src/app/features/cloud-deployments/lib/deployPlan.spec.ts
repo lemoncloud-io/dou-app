@@ -30,6 +30,7 @@ const input = (over: Partial<DeployPlanInput> = {}): DeployPlanInput => ({
     services: new Set<CloudService>(['backend', 'sockets', 'socials']),
     branches: {},
     force: true,
+    slack: true,
     ...over,
 });
 
@@ -83,13 +84,30 @@ describe('planDeploys', () => {
             force: true,
         });
     });
+
+    it('carries the slack flag into each call and its params', () => {
+        expect(planDeploys(input({ selected: new Set(['p2']) }))[0]).toMatchObject({
+            slack: true,
+            params: { force: 1 },
+        });
+        expect(planDeploys(input({ selected: new Set(['p2']), slack: false }))[0]).toMatchObject({
+            slack: false,
+            params: { force: 1, slack: 0 },
+        });
+    });
 });
 
 describe('buildDeployParams', () => {
     it('sends force only when it is on, and never async or dryRun', () => {
-        expect(buildDeployParams({ force: true })).toEqual({ force: 1 });
-        expect(buildDeployParams({ force: false })).toEqual({});
-        expect(buildDeployParams({ force: true, branch: 'main' })).toEqual({ force: 1, branch: 'main' });
+        expect(buildDeployParams({ force: true, slack: true })).toEqual({ force: 1 });
+        expect(buildDeployParams({ force: false, slack: true })).toEqual({});
+        expect(buildDeployParams({ force: true, branch: 'main', slack: true })).toEqual({ force: 1, branch: 'main' });
+    });
+
+    it('sends slack=0 only when the notices are off', () => {
+        expect(buildDeployParams({ force: true, slack: true })).toEqual({ force: 1 });
+        expect(buildDeployParams({ force: true, slack: false })).toEqual({ force: 1, slack: 0 });
+        expect(buildDeployParams({ force: false, branch: 'main', slack: false })).toEqual({ branch: 'main', slack: 0 });
     });
 });
 

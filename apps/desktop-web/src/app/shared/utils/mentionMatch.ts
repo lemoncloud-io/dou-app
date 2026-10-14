@@ -26,6 +26,20 @@ const GROUP_MENTION_PATTERN = new RegExp(
 );
 
 /**
+ * A name standing anywhere after an `@`, case-insensitively. Names can contain
+ * spaces (unlike the composer's token regex), so this errs toward notifying
+ * rather than staying silent.
+ */
+const mentionsNameInText = (text: string, names: Array<string | null | undefined>): boolean => {
+    if (!text.includes('@')) return false;
+    const lower = text.toLowerCase();
+    return names.some(raw => {
+        const name = raw?.trim().toLowerCase();
+        return !!name && lower.includes(`@${name}`);
+    });
+};
+
+/**
  * Best-effort "does this message mention me" check, used by the
  * notify='mention' channel mode. Plain case-insensitive substring match on
  * `@<name>` (names can contain spaces, unlike the composer's token regex), so
@@ -34,19 +48,58 @@ const GROUP_MENTION_PATTERN = new RegExp(
  */
 export const isMentioned = (content: string, names: Array<string | null | undefined>): boolean => {
     if (!content.includes('@')) return false;
-    if (GROUP_MENTION_PATTERN.test(content)) return true;
-    const lower = content.toLowerCase();
-    return names.some(raw => {
-        const name = raw?.trim().toLowerCase();
-        return !!name && lower.includes(`@${name}`);
-    });
+    if (mentionsNameInText(content, names)) return true;
+    return GROUP_MENTION_PATTERN.test(content);
 };
 
 /**
- * Whether a message calls the viewer. The sender's composer records who it picked (`mention$`), and
- * that record is the answer whenever the message has one — it is what the server goes by, and a
- * name in the text may be someone else's. A message with no record (an older client, a webhook) is
- * read by its text, as before. `viewerIds` are the viewer's account id and their member id in the
+ * How a message calls the viewer, when it does: a direct naming or a call to
+ * everyone. The single decision point the mention-only filter and the banner
+ * title share, so the two cannot disagree about the same message.
+ *
+ * A mention record wins whenever the message has one — a name in the text may
+ * be someone else's. A record naming me reads as direct even beside an `all`
+ * flag; a record naming only others reads as nothing, whatever the text says.
+ * A message with no record (an older client, a webhook) is read by its text,
+ * my name over a group word.
+ */
+export type MentionKind = 'direct' | 'everyone';
+
+export const mentionKind = (
+    chat: Pick<DomainChat, 'mention$'>,
+    viewerIds: ReadonlyArray<string | null | undefined>,
+    text: string,
+    names: Array<string | null | undefined>
+): MentionKind | null => {
+    if (chat.mention$) {
+        if (isNamedByRecord(chat, viewerIds)) return 'direct';
+        // Not named, so the record calls me only through its everyone flag — read by the
+        // library, which owns the wire's two spellings of that flag.
+        return isMentioningViewer(chat, viewerIds) ? 'everyone' : null;
+    }
+    if (mentionsNameInText(text, names)) return 'direct';
+    if (GROUP_MENTION_PATTERN.test(text)) return 'everyone';
+    return null;
+};
+
+/**
+ * Whether the message's mention record names the viewer directly — by id, not
+ * by an everyone flag and never by the text. The quiet-hours breakthrough's
+ * only condition: a breakthrough on a text guess would wake the user for
+ * someone else of the same name.
+ */
+export const isNamedByRecord = (
+    chat: Pick<DomainChat, 'mention$'>,
+    viewerIds: ReadonlyArray<string | null | undefined>
+): boolean => {
+    const ids = chat.mention$?.userIds ?? [];
+    return viewerIds.some(id => !!id && ids.includes(id));
+};
+
+/**
+ * Whether a message calls the viewer. One answer with `mentionKind` — the
+ * sender's composer record whenever the message has one, else the text.
+ * `viewerIds` are the viewer's account id and their member id in the
  * channel's cloud; the record holds member ids.
  */
 export const mentionsMe = (
@@ -54,4 +107,4 @@ export const mentionsMe = (
     viewerIds: ReadonlyArray<string | null | undefined>,
     text: string,
     names: Array<string | null | undefined>
-): boolean => (chat.mention$ ? isMentioningViewer(chat, viewerIds) : isMentioned(text, names));
+): boolean => mentionKind(chat, viewerIds, text, names) !== null;

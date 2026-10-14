@@ -30,6 +30,8 @@ export interface ProductSummary {
     id: string;
     status?: string;
     progress?: GoodsProgress;
+    deployedAt?: number;
+    deployingAt?: number;
 }
 
 /** Where a group's owner was read from: the linked DoU cloud, or the goods products. */
@@ -78,6 +80,13 @@ export interface CloudGrouping {
  */
 export const findForeignProducts = (service: CloudService, list: GoodsProduct[]): GoodsProduct[] =>
     list.filter(product => product.code !== SERVICE_CODES[service]);
+
+/**
+ * A deploy was accepted after the last result came back, so its own result is still out. Equal times
+ * are not awaiting: that result answers that request.
+ */
+export const isAwaitingResult = ({ deployedAt, deployingAt }: ProductSummary): boolean =>
+    !!deployingAt && (!deployedAt || deployingAt > deployedAt);
 
 /** A product a row can hold: it names both itself and its cloud. */
 type PlacedProduct = GoodsProduct & { id: string; projectId: string };
@@ -188,7 +197,13 @@ export const buildCloudGroups = (
             const product = entry[service];
             if (!product) return;
             present.push(product);
-            products[service] = { id: product.id, status: product.status, progress: product.progress$ };
+            products[service] = {
+                id: product.id,
+                status: product.status,
+                progress: product.progress$,
+                deployedAt: product.deployedAt,
+                deployingAt: product.deployingAt,
+            };
         });
 
         const workspaceId = firstValue(present.map(product => product.workspaceId));

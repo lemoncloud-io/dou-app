@@ -56,10 +56,10 @@ read it that way, and the composer only ever writes `> `.
 - One message reads the same on desktop, on the web and in the mobile app.
 - The dialect's ambiguity is now on every client: text that merely looks like a mark is one
   (`2 * 3 * 4` shows `3` in italics), and so is a line that starts with `> `.
-- Some differences between the readers predate this and remain: the web closes a fence at the next
-  three backticks, where the desktop matches the fence's own length (a code sample that holds a
-  fence breaks on the web); the two cut a bare address at different characters; and the web still
-  draws a mention inside a mark, where the desktop shows the mark's words as plain text.
+- Some differences between the readers predate this and remain: the two cut a bare address at
+  different characters, and the web draws a mention inside a mark, where the desktop shows the
+  mark's words as plain text. (Fence closing, the other one found while reviewing this, was aligned
+  with the desktop in a separate change that landed first.)
 - An address inside a mark is not linked or unfurled, matching desktop.
 - The readers keep separate copies of the patterns, desktop in `RichText.tsx` and `linkMatch.ts`,
   web in `messageTokens.ts`. A change to the dialect has to be made in both.

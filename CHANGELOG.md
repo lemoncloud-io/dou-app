@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-10-14] - No version updates
+
+### Bug Fixes
+
+- (web/channels) close a fence at a backtick run as long as its opening, as desktop does
+
+## [2026-10-14] - root@0.102.0, @chatic/desktop-web@0.31.0
+
+### Features
+
+- (desktop-web) break quiet hours for record-named mentions
+- (desktop-web) count mentions-only mentions in dock and dots
+- (desktop-web) title mention banners by kind
+
+### Documentation
+
+- (adr) record mention banner titles and dock counting
+
+### Refactor
+
+- (desktop-web) read the everyone flag through isMentioningViewer
+- (desktop-web) hoist banner viewer, share snooze predicate
+- (desktop-web) share mention predicates, single kind evaluation
+
+### Other
+
+- test: (desktop-web) cover the snooze label states and cross-cloud quiet hours
+- test: (desktop-web) cover numeric everyone record, off-mode silence, locale titles
+
+## [2026-10-14] - No version updates
+
+### Bug Fixes
+
+- (data) end the readiness watch when its first report already released the cloud
+
+## [2026-10-14] - No version updates
+
+### Features
+
+- (data,app-runtime,web,perf) time how state writes reach the server as state_outbox (ADR-0200)
+
 ## [2026-10-14] - root@0.101.1, @chatic/desktop-web@0.30.1
 
 ### Other

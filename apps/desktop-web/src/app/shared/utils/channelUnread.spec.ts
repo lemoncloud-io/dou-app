@@ -1,7 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 import { describe, expect, it } from 'vitest';
 
-import { computeChannelUnread } from './channelUnread';
+import { channelReadNo, computeChannelUnread } from './channelUnread';
 
 const MY_UID = 'U-me';
 
@@ -159,5 +159,19 @@ describe('computeChannelUnread', () => {
 
     it('shows no badge when neither a boundary nor a server count exists', () => {
         expect(computeChannelUnread(channel({ chatNo: 12, metaNo: 0 }), MY_UID)).toBe(0);
+    });
+});
+
+describe('channelReadNo', () => {
+    it('reads this device cursor when it is further', () => {
+        expect(channelReadNo(channel({ $join: { chatNo: 3 } }), 7)).toBe(7);
+    });
+
+    it('reads the channel record when it is further', () => {
+        expect(channelReadNo(channel({ $join: { chatNo: 9 } }), 4)).toBe(9);
+    });
+
+    it('reads zero when neither has read anything', () => {
+        expect(channelReadNo(channel({}), 0)).toBe(0);
     });
 });

@@ -83,8 +83,11 @@ from the activity time itself:
 
 ## What the row prints
 
-`ChannelList` turns the last chat into one line, in this order: a deleted message prints
-`chat.room.deletedMessage`; a message with text prints the text (its markup flattened: code, marks and quote markers dropped), whatever it
+`ChannelList` turns the last chat into one line with `lastChatPreview`
+(`features/channels/utils/lastChatPreview.ts`), the same line a search result's room row and the
+place's channel-management row print. In this order: a deleted message prints
+`chat.room.deletedMessage`; a message with text prints the text (its markup flattened: code, marks
+and quote markers dropped), whatever it
 has attached; and a message with attachments and no text prints what it carries.
 
 That last case reads `chatAttachmentSummary` from `libs/data` — the kind and number of the chat's

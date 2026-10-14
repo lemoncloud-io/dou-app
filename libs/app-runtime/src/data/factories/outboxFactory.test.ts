@@ -3,7 +3,17 @@ import type { DataRepositories } from '@chatic/data';
 
 import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
 import { slotKeyOf } from '../../socket/utils/slotKey';
-import { createOutboxTransport, createRuntimeOutbox, isOutboxRefusal, OUTBOX_RETRY_DELAYS_MS } from './outboxFactory';
+import {
+    createOutboxTransport,
+    createRuntimeOutbox,
+    isOutboxRefusal,
+    OUTBOX_RETRY_DELAYS_MS,
+    runtimeOutboxObserver,
+    setStateOutboxObserver,
+} from './outboxFactory';
+
+const mockWarn = jest.fn();
+jest.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => mockWarn(...args) } }));
 
 const mockSubscribeSlotVerified = jest.fn();
 jest.mock('../../socket/runtime', () => ({
@@ -15,7 +25,24 @@ jest.mock('../../session/store', () => ({ getUidInCloud: (cid: string) => mockGe
 
 jest.mock('../../session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
 
+const setVisibility = (state: 'hidden' | 'visible') => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+    document.dispatchEvent(new Event('visibilitychange'));
+};
+
+const DELIVERY = {
+    op: 'join.read',
+    cid: 'cloud-a',
+    outcome: 'accepted',
+    deliveryMs: 120.4,
+    waitSocketMs: 80.6,
+    attempts: 2,
+} as const;
+
 beforeEach(() => {
+    setStateOutboxObserver(undefined);
+    setVisibility('visible');
+    mockWarn.mockReset();
     resetBackgroundClouds();
     mockSubscribeSlotVerified.mockReset();
     mockGetUidInCloud.mockReset();
@@ -121,5 +148,102 @@ describe('createRuntimeOutbox', () => {
         expect(graphOf).toHaveBeenCalledWith('cloud-a');
         expect(sendRead).toHaveBeenCalledWith({ channelId: 'ch-1', chatNo: 9 });
         expect(cacheWrite).toHaveBeenCalledWith({ id: 'ch-1@u-a', chatNo: 9 });
+    });
+});
+
+describe('runtimeOutboxObserver', () => {
+    it('follows no wait while nobody observes', () => {
+        expect(runtimeOutboxObserver.begin()).toBeUndefined();
+    });
+
+    it('hands over a settled write with its socket kind and whole milliseconds', () => {
+        const observer = jest.fn();
+        setStateOutboxObserver(observer);
+
+        runtimeOutboxObserver.begin()?.(DELIVERY);
+        runtimeOutboxObserver.begin()?.({ ...DELIVERY, cid: '', outcome: 'refused' });
+        runtimeOutboxObserver.begin()?.({ ...DELIVERY, cid: RELAY_CLOUD_ID, outcome: 'account_changed' });
+
+        expect(observer.mock.calls.map(([sample]) => sample)).toEqual([
+            { op: 'join.read', kind: 'cloud', outcome: 'accepted', deliveryMs: 120, waitSocketMs: 81, attempts: 2 },
+            { op: 'join.read', kind: 'relay', outcome: 'refused', deliveryMs: 120, waitSocketMs: 81, attempts: 2 },
+            {
+                op: 'join.read',
+                kind: 'relay',
+                outcome: 'account_changed',
+                deliveryMs: 120,
+                waitSocketMs: 81,
+                attempts: 2,
+            },
+        ]);
+    });
+
+    it('drops a wait whose observer was replaced or removed before it settled', () => {
+        const first = jest.fn();
+        const second = jest.fn();
+        setStateOutboxObserver(first);
+        const replaced = runtimeOutboxObserver.begin();
+        const removed = runtimeOutboxObserver.begin();
+        setStateOutboxObserver(second);
+
+        replaced?.(DELIVERY);
+        setStateOutboxObserver(undefined);
+        removed?.(DELIVERY);
+
+        expect(first).not.toHaveBeenCalled();
+        expect(second).not.toHaveBeenCalled();
+    });
+
+    it('follows no wait that begins on a hidden page', () => {
+        setStateOutboxObserver(jest.fn());
+        setVisibility('hidden');
+
+        expect(runtimeOutboxObserver.begin()).toBeUndefined();
+    });
+
+    it('drops a wait the page was hidden during', () => {
+        const observer = jest.fn();
+        setStateOutboxObserver(observer);
+        const settle = runtimeOutboxObserver.begin();
+
+        setVisibility('hidden');
+        setVisibility('visible');
+        settle?.(DELIVERY);
+
+        expect(observer).not.toHaveBeenCalled();
+    });
+
+    it('logs an observer that throws instead of passing it on', () => {
+        setStateOutboxObserver(() => {
+            throw new Error('observer broke');
+        });
+
+        expect(() => runtimeOutboxObserver.begin()?.(DELIVERY)).not.toThrow();
+        expect(mockWarn).toHaveBeenCalledWith('PERF', expect.stringContaining('observer threw'), expect.anything());
+    });
+
+    it('is the observer the runtime outbox reports through', async () => {
+        const observer = jest.fn();
+        setStateOutboxObserver(observer);
+        const graph = {
+            join: { sendRead: jest.fn().mockResolvedValue({ id: 'ch-1@u-a' }), cacheWrite: jest.fn() },
+        } as unknown as DataRepositories;
+        mockGetUidInCloud.mockReturnValue('u-a');
+        mockSubscribeSlotVerified.mockImplementation((_key, listener: (verified: boolean) => void) => {
+            listener(true);
+            return () => undefined;
+        });
+
+        await createRuntimeOutbox(() => graph).set({
+            op: 'join.read',
+            cid: 'cloud-a',
+            uid: 'u-a',
+            key: 'ch-1',
+            value: 9,
+        }).delivered;
+
+        expect(observer).toHaveBeenCalledWith(
+            expect.objectContaining({ op: 'join.read', kind: 'cloud', outcome: 'accepted', attempts: 1 })
+        );
     });
 });

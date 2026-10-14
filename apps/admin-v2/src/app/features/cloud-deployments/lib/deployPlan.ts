@@ -21,6 +21,8 @@ export interface DeployCall {
     /** Absent means the goods service picks its own default branch. */
     branch?: string;
     force: boolean;
+    /** Off asks the goods service to skip its accepted and success notices; failure reports still go out. */
+    slack: boolean;
     params: Record<string, string | number>;
 }
 
@@ -33,6 +35,7 @@ export interface DeployPlanInput {
     services: ReadonlySet<CloudService>;
     branches: Partial<Record<CloudService, string>>;
     force: boolean;
+    slack: boolean;
 }
 
 export const matchesCloudStage = (group: CloudGroup, filter: CloudStageFilter): boolean =>
@@ -48,7 +51,8 @@ export const DEFAULT_BRANCH = 'develop';
 export const normalizeBranch = (branch: string | undefined): string | undefined => branch?.trim() || undefined;
 
 /**
- * Query params for one auto-deploy call: `force` and `branch`, each only when set.
+ * Query params for one auto-deploy call: `force` and `branch` each only when set, and `slack=0` only
+ * when the notices are turned off — the goods service sends them when `slack` is absent.
  *
  * `async` is never sent. The goods service reads a present-but-empty `async` as "run synchronously",
  * and a synchronous deploy outlives the gateway's 29-second limit. `dryRun` is not sent either.
@@ -56,12 +60,15 @@ export const normalizeBranch = (branch: string | undefined): string | undefined 
 export const buildDeployParams = ({
     force,
     branch,
+    slack,
 }: {
     force: boolean;
     branch?: string;
+    slack: boolean;
 }): Record<string, string | number> => ({
     ...(force ? { force: 1 } : {}),
     ...(branch ? { branch } : {}),
+    ...(slack ? {} : { slack: 0 }),
 });
 
 /**
@@ -78,6 +85,7 @@ export const planDeploys = ({
     services,
     branches,
     force,
+    slack,
 }: DeployPlanInput): DeployCall[] =>
     groups
         .filter(group => selected.has(group.projectId) && matchesCloudStage(group, stageFilter))
@@ -95,7 +103,8 @@ export const planDeploys = ({
                         ownerId: group.ownerId,
                         branch,
                         force,
-                        params: buildDeployParams({ force, branch }),
+                        slack,
+                        params: buildDeployParams({ force, branch, slack }),
                     },
                 ];
             })

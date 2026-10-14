@@ -69,7 +69,7 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { canModifyMessage } from '@chatic/data';
-import { messagePlainText } from '../utils/messagePlainText';
+import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
@@ -857,12 +857,7 @@ export const ChannelRoomPage = () => {
     };
 
     // A one-line quote of the message being deleted, cut short so the dialog stays a dialog.
-    const deleteConfirmPreview = (() => {
-        const body = messagePlainText(editing.deleteTarget?.content ?? '').trim();
-        if (!body) return '';
-        const oneLine = body.replace(/\s+/g, ' ');
-        return oneLine.length > 60 ? `${oneLine.slice(0, 60)}…` : oneLine;
-    })();
+    const deleteConfirmPreview = deleteConfirmQuote(editing.deleteTarget?.content);
 
     // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
     // pointer and mouse handlers — see the wrapper below for why both are needed.

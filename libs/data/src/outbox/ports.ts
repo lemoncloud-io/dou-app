@@ -96,3 +96,43 @@ export interface StateSpec<V> {
     /** Puts `value` back locally after a refusal. Skipped when a newer value is already waiting. */
     restore?(repositories: DataRepositories, write: StateWrite<V>, value: V): Promise<void>;
 }
+
+/** How one key's wait for the server ended. */
+export type OutboxSettleOutcome = 'accepted' | 'refused' | 'account_changed';
+
+/**
+ * One key's wait for the server, from the set that made it wait to the answer that ended it. Values
+ * set while it waited fold into the same wait, so a cursor moved three times on the way is one delivery.
+ */
+export interface OutboxDelivery {
+    op: OutboxOp;
+    cid: string;
+    /** How the last value ended: the server took it, refused it, or another account signed in first. */
+    outcome: OutboxSettleOutcome;
+    /** From the set that made the key wait to the answer that ended the wait. */
+    deliveryMs: number;
+    /** The part of `deliveryMs` the write's cloud was not ready to carry it. */
+    waitSocketMs: number;
+    /**
+     * The requests it took: the one that ended the wait, plus each that failed and had to be sent
+     * again. A request answered while a newer value waited did its job and is not counted, so a value
+     * replaced in flight does not read as a retry. For an account change, only the failed ones before it —
+     * 0 when nothing went out.
+     */
+    attempts: number;
+}
+
+/**
+ * Follows each key's wait for the server — for a measurement, never for behaviour: the outbox does
+ * the same with or without one. Supplied by the host, as the transport is, so `libs/data` reads no
+ * clock of its own.
+ */
+export interface OutboxObserver {
+    /** The clock both durations are read from. */
+    now(): number;
+    /**
+     * A key started waiting. Returns what to call when the wait ends, or nothing to leave it
+     * unobserved — a wait nobody follows reads no clock.
+     */
+    begin(): ((delivery: OutboxDelivery) => void) | undefined;
+}

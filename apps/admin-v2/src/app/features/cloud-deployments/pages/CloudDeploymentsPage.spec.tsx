@@ -4,8 +4,9 @@
  * Drives the assembled screen against fake goods calls. The lib specs cover the rules; what only
  * shows up here is the wiring — that a confirmed pick becomes those calls on that goods service, that
  * a failed call is logged and shown, that a cloud's owner and status come from its DoU record when
- * there is one, and that both the Stop button and leaving the screen keep the next call from going
- * out.
+ * there is one, that each product shows its last result time, that the slack switch reaches the
+ * dialog and the calls, and that both the Stop button and leaving the screen keep the next call from
+ * going out.
  *
  * The screen sits behind an admin OAuth gate, so this stands in for clicking through it.
  */
@@ -15,6 +16,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { logger } from '@chatic/bridges';
+import { formatDate } from '@chatic/shared';
 
 import { SERVICE_CODES, type CloudService } from '../lib/cloudGroups';
 
@@ -59,8 +61,8 @@ const { CloudDeploymentsPage } = await import('./CloudDeploymentsPage');
 
 const SERVICES: CloudService[] = ['backend', 'sockets', 'socials'];
 
-/** Two prod clouds, p1 and p2, with all three services each. */
-const serveClouds = () => {
+/** Two prod clouds, p1 and p2, with all three services each. `over` adjusts a product by its id. */
+const serveClouds = (over: (productId: string) => Partial<GoodsApi.GoodsProduct> = () => ({})) => {
     fetchServiceProducts.mockImplementation(async (_base, service) => ({
         list: ['p1', 'p2'].map(projectId => ({
             id: `${service}-${projectId}`,
@@ -71,6 +73,7 @@ const serveClouds = () => {
             owner$: { name: 'Alice' },
             workspaceId: `w-${projectId}`,
             status: 'ready',
+            ...over(`${service}-${projectId}`),
         })),
         truncated: false,
     }));
@@ -129,6 +132,40 @@ describe('CloudDeploymentsPage', () => {
             ['https://api.example.com/cgs-d1', 'sockets-p1', { force: 1 }],
             ['https://api.example.com/cgs-d1', 'socials-p1', { force: 1 }],
         ]);
+    });
+
+    it("shows each product's last result time, its accepted time on hover, and marks a deploy awaiting its result", async () => {
+        const DONE = 1760400000000;
+        const times: Record<string, Partial<GoodsApi.GoodsProduct>> = {
+            'backend-p1': { deployingAt: DONE - 60_000, deployedAt: DONE },
+            'sockets-p1': { deployingAt: DONE + 60_000, deployedAt: DONE },
+        };
+        serveClouds(productId => times[productId] ?? {});
+        renderPage();
+
+        const [done, awaiting] = await screen.findAllByText(`last result ${formatDate(DONE)}`);
+        expect(done.getAttribute('title')).toBe(`Last deploy accepted ${formatDate(DONE - 60_000)}`);
+        expect(awaiting.getAttribute('title')).toBe(`Last deploy accepted ${formatDate(DONE + 60_000)}`);
+        expect(screen.getAllByText('awaiting result').map(chip => chip.parentElement)).toEqual([awaiting]);
+        const blank = screen.getAllByText('last result -');
+        expect(blank).toHaveLength(4);
+        expect(blank.map(line => line.getAttribute('title'))).toEqual(Array(4).fill(null));
+    });
+
+    it('names the slack state in the dialog, and sends slack=0 when the switch is off', async () => {
+        renderPage();
+        fireEvent.click(await screen.findByRole('checkbox', { name: 'Select p1' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Deploy 3 products' }));
+        expect(await screen.findByText('slack: on — an accepted and a result notice per product')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        fireEvent.click(screen.getByRole('switch', { name: 'slack' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Deploy 3 products' }));
+        expect(await screen.findByText('slack: off — failure reports only')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Deploy' }));
+
+        expect(await screen.findByText('3 succeeded · 0 failed · 0 not started')).toBeTruthy();
+        expect(postAutoDeploy.mock.calls.map(([, call]) => call.params)).toEqual(Array(3).fill({ force: 1, slack: 0 }));
     });
 
     it('logs a failed call, shows it as a failed line, and carries on with the rest', async () => {

@@ -2,7 +2,7 @@
  * Splits message text into the runs the bubble draws: plain text, links, code, inline marks and
  * quotes.
  *
- * The markup is the desktop composer's dialect, and only that: triple-backtick fences, `> ` quote
+ * The markup is the desktop composer's dialect, and only that: backtick fences, `> ` quote
  * lines, inline backticks, labelled links (`[words](https://…)`), `**bold**`, `*italic*` and
  * `~~strike~~`. Quotes and marks are matched by the desktop reader's rules, so they read the same on
  * both. It is not markdown — headings and lists stay plain text, and nothing can be escaped. Marks do
@@ -151,7 +151,33 @@ const trimFenceEdges = (value: string): string => value.replace(/\n$/, '');
 
 type Segment = { type: 'text'; value: string } | Extract<MessageToken, { type: 'codeBlock' }>;
 
-/** Pass 1 — carve out fenced blocks, leaving everything else as raw text to look at later. */
+/**
+ * Finds the run of backticks that closes a fence opened by `fenceLength` of them: the first run at
+ * or after `from` that is at least as long. Returns where that run starts and ends, or `undefined`
+ * when the fence is never closed.
+ */
+const findClosingRun = (
+    text: string,
+    from: number,
+    fenceLength: number
+): { start: number; end: number } | undefined => {
+    for (let start = text.indexOf('`', from); start !== -1; ) {
+        let end = start;
+        while (text[end] === '`') end += 1;
+        if (end - start >= fenceLength) return { start, end };
+        start = text.indexOf('`', end);
+    }
+    return undefined;
+};
+
+/**
+ * Pass 1 — carve out fenced blocks, leaving everything else as raw text to look at later.
+ *
+ * A fence opens with a run of three or more backticks and closes at the next run at least as long,
+ * which it consumes whole — the desktop reader's rule. Matching the run length is what lets a block
+ * hold ```` ``` ```` itself: the desktop composer lengthens the fence around such code to four, and
+ * closing at the next three cut that block short and spilled the rest of it out as text.
+ */
 const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
     const segments: Segment[] = [];
     let buffer = '';
@@ -169,8 +195,9 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
             continue;
         }
 
-        const bodyStart = index + FENCE.length;
-        const close = text.indexOf(FENCE, bodyStart);
+        let bodyStart = index;
+        while (text[bodyStart] === '`') bodyStart += 1;
+        const close = findClosingRun(text, bodyStart, bodyStart - index);
 
         // The newline that ends the line the fence sits on belongs to the fence, not to the text
         // around it. The bubble renders with `whitespace-pre-wrap` and the block is already its own
@@ -180,11 +207,11 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
             flush();
         };
 
-        if (close === -1) {
+        if (!close) {
             // Unterminated. When the text was cut, the closing fence is beyond the cut, so honour
-            // the block; otherwise the user simply typed three backticks — leave them as text.
+            // the block; otherwise the user simply typed backticks — leave the whole run as text.
             if (!closeDanglingFence) {
-                buffer += FENCE;
+                buffer += text.slice(index, bodyStart);
                 index = bodyStart;
                 continue;
             }
@@ -194,10 +221,10 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
             return segments;
         }
 
-        const { lang, value } = splitFenceBody(text.slice(bodyStart, close));
+        const { lang, value } = splitFenceBody(text.slice(bodyStart, close.start));
         flushBeforeFence();
         segments.push({ type: 'codeBlock', value: trimFenceEdges(value), lang });
-        index = close + FENCE.length;
+        index = close.end;
         if (text[index] === '\n') index += 1;
     }
 
@@ -328,6 +355,34 @@ export const extractFirstUrl = (text: string, closeDanglingFence = false): strin
 /** Pasted code often starts with a blank line, and a row previewing "" reads as an empty channel. */
 const firstNonEmptyLine = (value: string): string => value.split('\n').find(line => line.trim() !== '') ?? '';
 
+const plainOf = (token: InlineToken): string => (token.type === 'url' ? (token.label ?? token.value) : token.value);
+
+/** A fence or a quote: drawn as its own box, so it took the line breaks around it with it. */
+const isBlock = (token: MessageToken | undefined): boolean => token?.type === 'codeBlock' || token?.type === 'quote';
+
+/**
+ * Markup dropped, words kept: a labelled link reads as its words, code loses its backticks, a mark
+ * loses its markers and a quote its `>`.
+ *
+ * A block takes the line breaks around it with it, so where one meets text with no whitespace left
+ * between them a line break goes back in — otherwise `참고\n```…` would read `참고nx build`, and a
+ * quote would run into the line before it.
+ */
+const flatten = (text: string, codeBlock: (value: string) => string): string => {
+    const tokens = tokenizeMessage(text);
+    return tokens.reduce((plain, token, index) => {
+        const piece =
+            token.type === 'codeBlock'
+                ? codeBlock(token.value)
+                : token.type === 'quote'
+                  ? token.children.map(plainOf).join('')
+                  : plainOf(token);
+        const meetsBlock = isBlock(token) || isBlock(tokens[index - 1]);
+        const needsBreak = meetsBlock && !!plain && !!piece && !/\s$/.test(plain) && !/^\s/.test(piece);
+        return plain + (needsBreak ? '\n' : '') + piece;
+    }, '');
+};
+
 /**
  * Message text flattened for a one-line preview (the home list).
  *
@@ -336,18 +391,12 @@ const firstNonEmptyLine = (value: string): string => value.split('\n').find(line
  * collapses to its first line — no badge, no monospace, nothing that would complicate the row or
  * tangle with the blur-preview setting. A labelled link reads as its words.
  */
-export const toPlainPreview = (text: string): string => {
-    const plainOf = (token: InlineToken): string => (token.type === 'url' ? (token.label ?? token.value) : token.value);
-    const tokens = tokenizeMessage(text);
-    return tokens
-        .map((token, index) => {
-            if (token.type === 'codeBlock') return firstNonEmptyLine(token.value);
-            if (token.type !== 'quote') return plainOf(token);
-            // The line break beside a quote was dropped with its block, so put it back as text.
-            const body = token.children.map(plainOf).join('');
-            const before = index > 0 && tokens[index - 1]?.type !== 'codeBlock' ? '\n' : '';
-            const after = index < tokens.length - 1 && tokens[index + 1]?.type !== 'codeBlock' ? '\n' : '';
-            return before + body + after;
-        })
-        .join('');
-};
+export const toPlainPreview = (text: string): string => flatten(text, firstNonEmptyLine);
+
+/**
+ * Message text flattened like `toPlainPreview`, but with every line of a fenced block kept.
+ *
+ * For a surface that searches inside what it shows — a search result highlights the query in it,
+ * and a match on the third line of a code block has to survive the flattening to be found there.
+ */
+export const toPlainText = (text: string): string => flatten(text, value => value);

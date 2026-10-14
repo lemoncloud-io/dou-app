@@ -25,12 +25,20 @@ export const NotificationSnoozeButton = () => {
     const { t } = useTranslation();
     const snoozeUntil = useNotificationPrefsStore(s => s.snoozeUntil);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
+    const breakthrough = useNotificationPrefsStore(s => s.mentionBreaksQuietHours);
     const setSnooze = useNotificationPrefsStore(s => s.setSnooze);
 
     const active = isDndActive({ snoozeUntil, quietHours });
     const snoozeFor = (minutes: number) => setSnooze(Date.now() + minutes * MINUTE);
-    // Three exclusive states, read top-down: off → snoozed (with time) → quiet hours.
-    const labelKey = !active ? 'snooze.title' : snoozeUntil ? 'snooze.activeUntil' : 'snooze.activeQuiet';
+    // Four exclusive states, read top-down: off → snoozed (with time) → quiet hours
+    // with the breakthrough on → quiet hours.
+    const labelKey = !active
+        ? 'snooze.title'
+        : snoozeUntil
+          ? 'snooze.activeUntil'
+          : breakthrough
+            ? 'snooze.activeQuietMention'
+            : 'snooze.activeQuiet';
 
     return (
         <DropdownMenu>

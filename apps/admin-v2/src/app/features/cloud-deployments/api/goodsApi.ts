@@ -37,6 +37,10 @@ export interface GoodsProduct {
     workspaceId?: string;
     status?: string;
     progress$?: GoodsProgress;
+    /** Epoch ms of the last deploy result the goods service got back, success or failure. */
+    deployedAt?: number;
+    /** Epoch ms of the last auto-deploy the goods service accepted. */
+    deployingAt?: number;
 }
 
 export type ProductListResult = PagedList<GoodsProduct>;

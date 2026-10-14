@@ -40,6 +40,10 @@ export type { ClearLocalCachesResult } from './clearLocalCaches';
 // to the app layer (ADR-0070 Decision 5); this key stays because the runtime is what invalidates it.
 export { cloudsKeys } from './hooks/queryKeys';
 
+// How each state write reached the server, for the web's `state_outbox` perf samples.
+export { setStateOutboxObserver } from './factories/outboxFactory';
+export type { StateOutboxSample } from './factories/outboxFactory';
+
 // The offline outbox MACHINE only; activation is the app's opt-in. apps/web never constructs one —
 // it keeps its manual resend button, so this export cannot change mobile behaviour by existing.
 export { createChatOutbox } from './outbox';

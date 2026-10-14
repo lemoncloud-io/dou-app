@@ -1,6 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 import { describe, expect, it } from 'vitest';
 
+import type { MentionItem } from '../stores/useMentionsStore';
 import type { ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import { cloudDmPlaces } from './cloudDmPlaces';
 import { placeUnreadCounts } from './placeUnreadCounts';
@@ -132,5 +133,84 @@ describe('placeUnreadCounts', () => {
     // Before my places load a 1:1 has no place to dot, but it is still unread.
     it('counts a 1:1 in the total while my places are unknown', () => {
         expect(counts([dm('dm-1', 'peer', 'place-a', unread3)], [])).toEqual({ byPlace: {}, total: 3 });
+    });
+});
+
+describe('placeUnreadCounts mentions-only channels', () => {
+    // One message past the boundary, from someone else.
+    const unread1 = { chatNo: 1, metaNo: 0, $join: { chatNo: 0, metaNo: 0 }, lastChat$: { ownerId: 'other' } };
+    const mentionMode = { $join: { chatNo: 0, metaNo: 0, notify: 'mention' } };
+
+    const mention = (id: string, channelId: string, placeId: string, chatNo: number): MentionItem => ({
+        id,
+        channelId,
+        placeId,
+        chatNo,
+        content: '@me hi',
+        ownerName: 'Ada',
+        createdAt: chatNo,
+    });
+
+    const countsWith = (
+        channels: DomainChannel[],
+        mentions: MentionItem[],
+        readCursors: Record<string, number> = {}
+    ) =>
+        placeUnreadCounts(channels, {
+            myUid: ME,
+            dmPlaces: cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }),
+            readCursors,
+            notifyPrefs: NO_PREFS,
+            mentions: Object.fromEntries(mentions.map(entry => [entry.id, entry])),
+        });
+
+    it('adds one unread mention of a mentions-only channel to its place and the total', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+
+        expect(countsWith(channels, [mention('g:1', 'g', 'place-a', 1)])).toEqual({
+            byPlace: { 'place-a': 1 },
+            total: 1,
+        });
+    });
+
+    it('caps the addition at the channel unread', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+        const mentions = [
+            mention('g:1', 'g', 'place-a', 1),
+            mention('g:2', 'g', 'place-a', 2),
+            mention('g:3', 'g', 'place-a', 3),
+        ];
+
+        // Channel unread here is 1 (head 1), so three inbox entries still add one.
+        expect(countsWith(channels, mentions)).toEqual({ byPlace: { 'place-a': 1 }, total: 1 });
+    });
+
+    it('adds nothing when the channel unread is back to zero', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+
+        expect(countsWith(channels, [mention('g:1', 'g', 'place-a', 1)], { g: 1 })).toEqual({
+            byPlace: {},
+            total: 0,
+        });
+    });
+
+    it('adds nothing for an off channel even with an unread mention', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, $join: { chatNo: 0, metaNo: 0, notify: 'none' } })];
+
+        expect(countsWith(channels, [mention('g:1', 'g', 'place-a', 1)])).toEqual({ byPlace: {}, total: 0 });
+    });
+
+    it('leaves out another place’s channel of the same id', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+
+        expect(countsWith(channels, [mention('g:1', 'g', 'place-b', 1)])).toEqual({ byPlace: {}, total: 0 });
+    });
+
+    it('drops the addition once the channel is read', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+        const mentions = [mention('g:1', 'g', 'place-a', 1)];
+
+        expect(countsWith(channels, mentions)).toEqual({ byPlace: { 'place-a': 1 }, total: 1 });
+        expect(countsWith(channels, mentions, { g: 5 })).toEqual({ byPlace: {}, total: 0 });
     });
 });

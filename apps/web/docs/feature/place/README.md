@@ -57,6 +57,11 @@ placeholder and holds no state) and **Chats** (sort, manage). Channel sort is a 
 from the hub, not a page. Leaving and deleting are not here: they sit at the foot of the information
 screen, as the design draws them.
 
+A channel-management row previews the room's last message with the home list's own line
+(`lastChatPreview`): a deleted message as `chat.room.deletedMessage`, composer markup and a Block Kit
+body as text rather than backticks or JSON, and a photo-only message as "Photo" rather than a blank
+line.
+
 The members row exists only for a member of a real place: not on the relay's own place
 (`HOME_PLACE_ID`), which is a system place nobody joins, and not for a guest.
 
@@ -292,7 +297,7 @@ Traps:
   the owner row only render with a real owner session; the unit tests are the coverage for those
   four combinations.
 - **This group imports from other features.** `PlaceEditPage` takes `useUpdatePlace` from
-  `features/home`; the channel-management screen takes `ConfirmDialog`, and the member and
+  `features/home`; the channel-management screen takes `ConfirmDialog` and `lastChatPreview`, and the member and
   information screens the profile hook, the room-title chain and the display-name chain, from
   `features/channels`. That contradicts the app rule that two features sharing something promote it
   to `app/hooks/` — treat it as debt, not as precedent.

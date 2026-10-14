@@ -1,4 +1,4 @@
-import { extractFirstUrl, toPlainPreview, tokenizeMessage } from './messageTokens';
+import { extractFirstUrl, toPlainPreview, toPlainText, tokenizeMessage } from './messageTokens';
 
 const urls = (text: string, truncated = false) =>
     tokenizeMessage(text, { truncated }).flatMap(token => (token.type === 'url' ? [token.value] : []));
@@ -194,6 +194,55 @@ describe('fenced code blocks', () => {
     });
 });
 
+// A fence closes at the next backtick run at least as long as the one that opened it, as on desktop.
+// The desktop composer wraps code holding ``` in four backticks; closing at the next three cut such a
+// block short and spilled the rest of it out as text.
+describe('fence run length', () => {
+    it('pairs a four-backtick fence with its own closing run, keeping the ``` inside as code', () => {
+        expect(tokenizeMessage('````\nuse ```js\n````')).toEqual([
+            { type: 'codeBlock', value: 'use ```js', lang: undefined },
+        ]);
+    });
+
+    it('keeps shorter backtick runs inside a longer fence as code', () => {
+        expect(tokenizeMessage('before\n````\na ``` b `` c\n````\nafter')).toEqual([
+            { type: 'text', value: 'before' },
+            { type: 'codeBlock', value: 'a ``` b `` c', lang: undefined },
+            { type: 'text', value: 'after' },
+        ]);
+    });
+
+    it('lets a longer closing run close the block and consumes all of it', () => {
+        expect(tokenizeMessage('```code`````')).toEqual([{ type: 'codeBlock', value: 'code', lang: undefined }]);
+    });
+
+    it('still reads the language tag after a longer opening run', () => {
+        expect(tokenizeMessage('````md\n```js\nx\n```\n````')).toEqual([
+            { type: 'codeBlock', value: '```js\nx\n```', lang: 'md' },
+        ]);
+    });
+
+    it('leaves an unterminated longer fence as plain text, every backtick of it', () => {
+        expect(tokenizeMessage('````\nuse ```js')).toEqual([{ type: 'text', value: '````\nuse ```js' }]);
+    });
+
+    it('closes an unterminated longer fence at the cut without stopping at a shorter run inside it', () => {
+        expect(tokenizeMessage('````\nuse ```js', { truncated: true })).toEqual([
+            { type: 'codeBlock', value: 'use ```js', lang: undefined },
+        ]);
+    });
+
+    it('keeps a URL after an inner ``` inside the block, for the bubble and the unfurl alike', () => {
+        const text = '````\nsee ```\nhttps://inside.example.com/x\n````';
+        expect(urls(text)).toEqual([]);
+        expect(extractFirstUrl(text)).toBeUndefined();
+    });
+
+    it('previews a four-backtick block by its first line', () => {
+        expect(toPlainPreview('````\nuse ```js\n````')).toBe('use ```js');
+    });
+});
+
 // The ordering guarantee: code is resolved first, so URLs inside it never become links.
 describe('code wins over URLs', () => {
     it('does not link a URL inside a fenced block', () => {
@@ -238,6 +287,10 @@ describe('toPlainPreview', () => {
         expect(toPlainPreview('```ts\nconst x = 1;\nconst y = 2;\n```')).toBe('const x = 1;');
     });
 
+    it('does not glue the text before a fenced block onto its first line', () => {
+        expect(toPlainPreview('참고\n```sh\nnx build web\nnx deploy web\n```')).toBe('참고\nnx build web');
+    });
+
     it('leaves ordinary text untouched', () => {
         expect(toPlainPreview('안녕하세요 https://example.com/a')).toBe('안녕하세요 https://example.com/a');
     });
@@ -248,6 +301,33 @@ describe('toPlainPreview', () => {
 
     it('returns an empty string for empty input', () => {
         expect(toPlainPreview('')).toBe('');
+    });
+});
+
+describe('toPlainText', () => {
+    // The search row highlights inside this, so a match on a fence's later lines must survive.
+    it('keeps every line of a fenced block', () => {
+        expect(toPlainText('```ts\nconst x = 1;\nconst y = 2;\n```')).toBe('const x = 1;\nconst y = 2;');
+    });
+
+    // The fence swallows the line breaks around it; without one put back, words run into the code.
+    it('keeps a fenced block on its own line beside text', () => {
+        expect(toPlainText('앞\n```\nb\n```\n뒤')).toBe('앞\nb\n뒤');
+        expect(toPlainText('```\nb\n```\n```\nd\n```')).toBe('b\nd');
+    });
+
+    it('adds no break where an inline fence already has spaces around it', () => {
+        expect(toPlainText('a ```b``` c')).toBe('a b c');
+    });
+
+    it('drops markup the same way toPlainPreview does', () => {
+        expect(toPlainText('배포는 `yarn deploy` 로, [가이드](https://example.com/a) 참고')).toBe(
+            '배포는 yarn deploy 로, 가이드 참고'
+        );
+    });
+
+    it('returns an empty string for empty input', () => {
+        expect(toPlainText('')).toBe('');
     });
 });
 
@@ -265,6 +345,16 @@ describe('adversarial input', () => {
     it('trims a long alternating bracket/punctuation run in linear time', () => {
         const started = Date.now();
         toPlainPreview(`https://a${').'.repeat(20_000)}`);
+        expect(Date.now() - started).toBeLessThan(budgetMs);
+    });
+
+    // Every opening run that finds no closing one scans the rest of the message. Such runs can only
+    // get shorter as the message goes on — a later run as long would have closed the earlier one — so
+    // a message of strictly shrinking runs is the worst case: about √(2n) scans of the remainder.
+    it('rejects a long series of ever-shorter unclosed fences within budget', () => {
+        const runs = Array.from({ length: 344 }, (_, index) => '`'.repeat(346 - index)).join('a');
+        const started = Date.now();
+        toPlainPreview(runs);
         expect(Date.now() - started).toBeLessThan(budgetMs);
     });
 
@@ -449,6 +539,11 @@ describe('quotes', () => {
         expect(tokenizeMessage('> https://example.com/q', { truncated: true })).toEqual([
             { type: 'quote', children: [{ type: 'text', value: 'https://example.com/q' }] },
         ]);
+    });
+
+    // The search surface keeps every line of a block; marks and quote markers go there too.
+    it('flattens marks, a quote and a fence together for search', () => {
+        expect(toPlainText('**a**\n> q\n```\nx\ny\n```')).toBe('a\nq\nx\ny');
     });
 
     it('previews a quote without its markers, keeping its line breaks', () => {

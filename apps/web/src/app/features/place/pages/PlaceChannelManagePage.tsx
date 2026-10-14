@@ -29,6 +29,7 @@ import { toCloudId } from '../../../hooks/useCloudScope';
 import { ROUTES } from '../../../routes/paths';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
+import { lastChatPreview } from '../../channels/utils/lastChatPreview';
 
 /**
  * Chat-room management (Figma 3408-28373) — reached from the place settings hub. Rooms are
@@ -447,7 +448,9 @@ const ManageChannelRow = ({
                     <span className="truncate">{name}</span>
                 </>
             }
-            subtitle={lastChat?.content || undefined}
+            // The home list's line — a tombstone as the deleted-message phrase, text flattened, an
+            // attachment-only message as what it carries.
+            subtitle={lastChatPreview(lastChat, t) || undefined}
             time={time}
             unread={unread}
             selectable={selectable}

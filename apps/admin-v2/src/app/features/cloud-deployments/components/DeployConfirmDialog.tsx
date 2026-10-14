@@ -33,6 +33,7 @@ interface DeployConfirmDialogProps {
     services: ReadonlySet<CloudService>;
     branches: Partial<Record<CloudService, string>>;
     force: boolean;
+    slack: boolean;
     onConfirm: () => void;
 }
 
@@ -45,6 +46,7 @@ export const DeployConfirmDialog = ({
     services,
     branches,
     force,
+    slack,
     onConfirm,
 }: DeployConfirmDialogProps): JSX.Element => (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -69,6 +71,12 @@ export const DeployConfirmDialog = ({
                                 </li>
                             ))}
                             <li>force: {force ? 'on — products still marked busy are deployed again' : 'off'}</li>
+                            <li>
+                                slack:{' '}
+                                {slack
+                                    ? 'on — an accepted and a result notice per product'
+                                    : 'off — failure reports only'}
+                            </li>
                         </ul>
                         <p className="text-xs">
                             Calls go out one at a time, {DEPLOY_INTERVAL_MS / 1000} seconds apart. Stop prevents the

@@ -174,6 +174,12 @@ What the sheet then holds is the page's call, through `utils/messageActions.ts`:
 Copy, so a text message opens even before it lands; an image-only message has no text to copy or
 edit, so it opens only once persisted, when a reaction, a thread and delete apply.
 
+Copy puts on the clipboard what was sent, markup included (a Block Kit body as its text), and the
+expanded view draws it with `MessageText` like a text bubble — both read `messagePlainText`. The delete
+confirmation only prints, so it quotes the message the way the home list previews it: markers
+dropped, a link as its words, one line cut at 60 characters (`deleteConfirmQuote`). The thread
+screen shares all three.
+
 **Tombstones.** `message.hidden` is a message another client soft-deleted. The row keeps its place
 — a message vanishing mid-read leaves no account of what happened — and renders the shared
 `chat.room.deletedMessage` string in muted italic. The body, the unfurl, the chips and the action
@@ -326,11 +332,9 @@ The passes run in this order, and each only sees what the one before left as tex
 The dialect's ambiguity is the desktop's too: text that only looks like a mark is one —
 `2 * 3 * 4` reads `3` in italics.
 
-Where the two readers still differ, from before this file read marks: the desktop closes a fence only
-at a run of backticks as long as the one that opened it, so its composer can wrap code holding three
-backticks in four, while this file closes at the next three and breaks such a sample; the two cut a
-bare address at different characters; and this file draws a mention inside a mark, where the desktop
-shows the mark's words as plain text.
+Where the two readers still differ: they cut a bare address at different characters, and this file
+draws a mention inside a mark, where the desktop shows the mark's words as plain text. Fences follow
+the desktop's rule — see below.
 
 A `url` token may carry a `label`: `[words](https://…)` — what the desktop composer's link dialog
 sends — is drawn as the words linking to the address, the home preview shows the words, and the link
@@ -354,6 +358,13 @@ code with the language tag and an icon-and-label copy button.
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched
 URL, so `…see https://example.com/a.` links to `/a`.
+
+**A fence closes at a run of backticks at least as long as the one that opened it**, and that
+closing run is consumed whole — the desktop reader's rule. It is what lets a code sample hold a
+fence: the desktop composer wraps code containing ` ``` ` in four backticks, and closing at
+the next three cut such a block short and spilled the rest of it out as text. An opening run that
+is never closed stays text, every backtick of it — unless the bubble cut the message, in which case
+the block runs to the cut and a shorter run inside it does not end it.
 
 `useUrlMetadata` fetches the unfurl's metadata through the bridge and caches the answer — including
 a null answer — in a module-level FIFO map of 500, so scrolling never re-asks and a page with no og

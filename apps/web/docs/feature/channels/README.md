@@ -18,10 +18,18 @@ grep -rn "channels/" --include='*.ts' --include='*.tsx' apps/web/src/app/feature
   | grep "from '" | grep -v "^apps/web/src/app/features/channels"
 ```
 
-Today that is `ConfirmDialog` (four callers), `resolveChannelTitle` / `resolveChannelAvatar` and
-`useDmPeers` (the home list and place channel management, which must name a room exactly as the room
-does), and `messagePlainText` / `toPlainPreview`. The title and avatar resolvers are shared **on
-purpose** — see [dm-and-self-chat.md](./dm-and-self-chat.md). The rest is the ordinary pressure of a
+Today that is:
+
+- `ConfirmDialog` (four callers);
+- `resolveChannelTitle` / `resolveChannelAvatar` and `useDmPeers` — the home list and place channel
+  management, which must name a room exactly as the room does;
+- `lastChatPreview` (`utils/lastChatPreview.ts`) — the line a room row prints for its last message, on
+  home, search and place channel management;
+- `messageSearchText` (`utils/messagePlainText.ts`) — a search result that highlights inside it;
+- `toPlainPreview` itself, which home uses for a draft line.
+
+The title and avatar resolvers are shared **on purpose** — see
+[dm-and-self-chat.md](./dm-and-self-chat.md). The rest is the ordinary pressure of a
 shared component sitting in a feature folder.
 
 This feature does **not** own:

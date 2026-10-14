@@ -7,7 +7,8 @@ has to be deployed again. This screen lists them, groups them by cloud, says who
 from the relay's own record, and asks the goods service to deploy the picked ones, one call at a
 time. Before it existed, the same work needed a goods service
 running on an operator's own machine and a pair of local scripts. Feature code:
-`apps/admin-v2/src/app/features/cloud-deployments/`. The decision record is ADR-0165.
+`apps/admin-v2/src/app/features/cloud-deployments/`. The decision records are ADR-0165 and ADR-0203
+(the `slack` switch).
 
 ## Design principles
 
@@ -63,7 +64,7 @@ running on an operator's own machine and a pair of local scripts. Feature code:
 - **Everything that goes out is shown before it goes.** admin-v2 is not deployed; every operator
   runs it locally against whatever their `.env` names, which in practice is production. The header
   badge and the confirmation dialog both name the goods service being called (red for production),
-  and the dialog states the cloud and product counts, each service's branch and `force`.
+  and the dialog states the cloud and product counts, each service's branch, `force` and `slack`.
 - **The rules are pure functions in `lib/`** — grouping (`cloudGroups`), the call list
   (`deployPlan`), the paced run (`runDeploys`) and the target (`goodsTarget`). The run's lifetime —
   one at a time, stopped by Stop or by leaving the screen — is `hooks/use-deploy-run.ts`, and the
@@ -80,9 +81,10 @@ running on an operator's own machine and a pair of local scripts. Feature code:
 its columns in the order an operator reads them — owner (name and id, from DoU when the cloud has a
 DoU record), cloud (DoU name and id, with the AWS account and goods project id beneath; the goods
 project id alone for a cloud DoU does not know), DoU status, cloud stage, and each service's product
-id, `status` and `progress$`; sorting by owner name, owner id or DoU cloud id; a cloud stage filter
-(All, dev, prod); picking clouds, with a box for every cloud shown; picking services, each with an
-optional branch; `force`, on by default; a confirmation dialog; the paced run
+id, `status`, `progress$` and the time of its last deploy result (the last accepted request on
+hover); sorting by owner name, owner id or DoU cloud id; a cloud stage filter (All, dev, prod);
+picking clouds, with a box for every cloud shown; picking services, each with an optional branch;
+`force` and `slack`, both on by default; a confirmation dialog; the paced run
 with a progress count and Stop; one result line per call and a closing tally (succeeded, failed, not
 started); a goods stage picker with a production badge; Refresh.
 
@@ -105,8 +107,9 @@ service to one; deploying admin-v2 itself; polling.
 | `limit`  | `500`       |                                                                         |
 | `page`   | from `0`    | Stops on a short page, at `total`, or at the cap                        |
 
-`POST <goods>/products/{id}/auto-deploy`, with `force=1` only when `force` is on and `branch=<value>`
-only when that service's branch is filled in, and an empty JSON body `{}`. The goods service reads
+`POST <goods>/products/{id}/auto-deploy`, with `force=1` only when `force` is on, `slack=0` only
+when `slack` is off, `branch=<value>` only when that service's branch is filled in, and an empty
+JSON body `{}`. The goods service reads
 no body; the empty one is there for the signature. The signer signs a POST that has no body as if
 its body were `{}` while the request goes out empty, so without it the gateway rejects the signature
 — and because that 403 carries no CORS headers, the browser shows only a network error. Every signed
@@ -124,6 +127,22 @@ the same gap — so the admin login in front of this screen is the only gate on 
 - **A success is a queued deploy, not a finished one.** A 2xx reply is the product, now `busy`. How
   the deploy went shows later on the product's `status` and `progress$`, and only after Refresh —
   admin's query client never goes stale, so nothing refetches by itself.
+- **The time under each product is its last result, not its last success.** The goods service stamps
+  it when a deploy's result comes back, failed or not, so the line reads "last result" and whether it
+  worked is the `status` and `progress$` beside it. The time the last auto-deploy was accepted is on
+  hover. While that is newer than the result, an amber "awaiting result" mark sits beside the time,
+  like the `partial` mark on a cloud: the result of that request has not come back. A result that
+  never comes back — the deploy worker failed outright or ran out of time — leaves the mark there,
+  which is the state an operator needs to see. It can also clear early: under `force` the earlier
+  request's result can land after the later one was accepted, and a deploy started outside this
+  screen can move the result time without an accepted time. Against a goods service that predates
+  these fields, every line reads "-".
+- **`slack` off quiets the run, not its failures.** With it off the goods service skips the accepted
+  notice for each product and the result notice of a successful deploy; a failed deploy still
+  reports, as do the goods service's other failure reports. The goods service treats a missing
+  `slack` as on, so every other caller of auto-deploy is unchanged, and one that predates the flag
+  ignores it and sends both notices. The switch is not locked during a run: the call list, and each
+  call's flag with it, is fixed at confirmation.
 - **A `busy` product is refused without `force`**, and the refusal is shown as the goods service
   worded it. With `force` on, a deploy can overlap one still in progress: no lock exists to stop it.
 - **A deploy whose queueing failed still answers 2xx** and leaves the product `busy`. Such a product
@@ -178,12 +197,15 @@ products that fit no row, and spotting another service's product; linking a proj
 by workspace, the goods-owner fallback, and DoU-owned clouds sorting first without the two id
 systems merging; each table sort in both directions, names in reading order and ids as numbers; the
 call list's stage-filter-and-pick intersection, service choice, branch trimming and the params with
-`force` on and off; the run's order, its pause (none before the first call, none after a stop),
+`force` and `slack` on and off; when a product counts as awaiting its result; the run's order, its
+pause (none before the first call, none after a stop),
 carrying on after a failure, starting nothing after a stop, the tally, and the pause a stop cuts
 short. The `api/` specs cover the exact goods list and deploy requests, rejecting a mixed list on
 its first page, and the relay's cloud list call. The page spec drives the assembled screen: a
 confirmed pick becomes those calls on that goods service, a failed call is logged and shown while
-the rest go on, a cloud's DoU owner and status show and a cloud DoU lacks is marked, a failed relay
+the rest go on, each product's last result time and accepted time show with a deploy still awaiting
+its result marked, the dialog names the `slack` state and turning it off sends `slack=0`, a cloud's
+DoU owner and status show and a cloud DoU lacks is marked, a failed relay
 load reads "unknown" rather than "not in DoU" and a failed refresh keeps the last details, a header
 press re-sorts and a second one flips it, the goods stage is locked during a run, both Stop and
 leaving the screen keep the next call from going out, and one failed list blocks the table and names
@@ -195,3 +217,9 @@ working. Then deploy one service of one `dev` cloud with the goods stage on Prod
 line reads `status: busy`, and Refresh shows that product's `progress$` moving. And check that the
 clouds DoU knows show their subscriber rather than a service identity, and that the rest read "not in
 DoU".
+
+**Manually, once the goods service carries the deploy times and the `slack` flag:** the list shows a
+last result time for products deployed since. Deploy one service of one `dev` cloud with `slack` on
+and see both notices arrive; then turn it off, deploy the same one again, and see neither. Refresh
+shows "awaiting result" on it; once the result is back, the next Refresh moves the time and clears
+the mark.

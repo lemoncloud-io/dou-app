@@ -5,7 +5,7 @@ import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { channelsByPlace, cloudDmPlaces, placeUnreadCounts } from '../utils';
-import { useKnownChannelsStore, useNotificationPrefsStore, useReadCursorStore } from '../stores';
+import { useKnownChannelsStore, useMentionsStore, useNotificationPrefsStore, useReadCursorStore } from '../stores';
 import { usePlaces } from './usePlaces';
 import { chatFrameChannelIdOf } from './useRefreshOnPush';
 import { isChannelReadLive } from './liveReadRegistry';
@@ -46,6 +46,8 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     // Subscribed, so muting or unmuting a channel moves the dots without waiting for a refetch.
     const channelNotify = useNotificationPrefsStore(s => s.channelNotify);
     const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
+    // Subscribed, so a captured mention moves the dock the moment it lands.
+    const mentionItems = useMentionsStore(s => s.items);
     const { placeIds } = usePlaces();
 
     // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
@@ -136,7 +138,8 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
                 dmPlaces,
                 readCursors,
                 notifyPrefs: { channelNotify, mutedChannels },
+                mentions: mentionItems,
             }),
-        [channels, myUid, dmPlaces, readCursors, channelNotify, mutedChannels]
+        [channels, myUid, dmPlaces, readCursors, channelNotify, mutedChannels, mentionItems]
     );
 };

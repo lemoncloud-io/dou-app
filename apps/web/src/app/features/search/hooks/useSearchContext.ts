@@ -15,7 +15,8 @@ import {
     type ChannelAvatarGlyph,
 } from '../../channels/lib';
 import { pickDmPeerId } from '../../channels/utils/dmPeer';
-import { messagePlainText } from '../../channels/utils/messagePlainText';
+import { lastChatPreview } from '../../channels/utils/lastChatPreview';
+import { messageSearchText } from '../../channels/utils/messagePlainText';
 import type { CloudSearchResult, GlobalSearchResults } from './useGlobalSearch';
 import { useSenderProfiles, type SenderProfileRef } from './useSenderProfiles';
 
@@ -263,9 +264,10 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     glyph,
                     memberNo: showsMemberCount(kind) ? channel.memberNo : undefined,
                     unread: unreadOf(channel, context.joinsByRef[ref]),
-                    // Undefined, not '': the row and its test read the absence of a preview
-                    // as "nothing to show", and `messagePlainText` answers '' for no input.
-                    lastMessage: lastChat ? messagePlainText(lastChat.content) : undefined,
+                    // The home list's line — a tombstone as the deleted-message phrase, text
+                    // flattened, an attachment-only message as what it carries. Undefined, not '':
+                    // the row reads the absence of a preview as "nothing to show".
+                    lastMessage: lastChatPreview(lastChat, t) || undefined,
                     lastMessageAt: lastChat?.createdAtMs,
                     placeName: placeName(channel.cid, channel.sid),
                 };
@@ -295,9 +297,10 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         channelId: chat.channelId,
                         chatNo: chat.chatNo,
                         // The row shows this and `SearchPage` highlights the query inside it, so a
-                        // Block Kit body has to arrive flattened — a match inside a block's text is
-                        // still a match the reader should be able to see.
-                        content: messagePlainText(chat.content),
+                        // Block Kit body or composer markup has to arrive flattened — a match inside
+                        // a block's text or a code block's later lines is still a match the reader
+                        // should be able to see.
+                        content: messageSearchText(chat.content),
                         createdAt: chat.createdAtMs,
                         // The owning room, named by the same chain as a channel row — a message
                         // found in a 1:1 must not caption itself with the generated channel name.

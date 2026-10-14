@@ -218,6 +218,12 @@ export const ko: EnTranslation = {
     'chat.attach.previewMixed': '첨부',
     'chat.attach.previewMixedCount': '첨부 {{count}}개',
     'chat.push.fallbackBody': '새 메시지',
+    'notification.mentionTitle': '멘션 · {{target}}',
+    'notification.everyoneTitle': '@{{word}} · {{target}}',
+    'settings.quietHoursMention': '방해 금지 시간에도 나를 지목한 멘션은 알림',
+    'settings.quietHoursMentionHint':
+        '방해 금지 시간에도 멘션 기록이 나를 지목한 글은 배너가 떠요. macOS 집중 모드가 켜져 있으면 알림이 뜨지 않아요.',
+    'snooze.activeQuietMention': '방해 금지 시간 — 나를 지목한 멘션만 알림',
     'chat.attach.countLabel': '파일 {{max}}개 중 {{count}}개 첨부됨',
     'chat.attach.rejected.limit_one': '메시지 하나에 파일은 최대 {{max}}개라 {{count}}개는 추가하지 않았어요.',
     'chat.attach.rejected.limit_other': '메시지 하나에 파일은 최대 {{max}}개라 {{count}}개는 추가하지 않았어요.',

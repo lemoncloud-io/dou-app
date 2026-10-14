@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildCloudGroups,
     findForeignProducts,
+    isAwaitingResult,
     SERVICE_CODES,
     sortCloudGroups,
     type CloudGroup,
@@ -51,7 +52,14 @@ describe('buildCloudGroups', () => {
             lists(
                 [product('backend', 'p1'), product('backend', 'p2')],
                 [product('sockets', 'p2'), product('sockets', 'p1')],
-                [product('socials', 'p1', { progress$: { state: 'done', status: 'ready' } }), product('socials', 'p2')]
+                [
+                    product('socials', 'p1', {
+                        progress$: { state: 'done', status: 'ready' },
+                        deployedAt: 2000,
+                        deployingAt: 1000,
+                    }),
+                    product('socials', 'p2'),
+                ]
             )
         );
 
@@ -68,7 +76,13 @@ describe('buildCloudGroups', () => {
             products: {
                 backend: { id: 'backend-p1', status: 'ready', progress: undefined },
                 sockets: { id: 'sockets-p1', status: 'ready', progress: undefined },
-                socials: { id: 'socials-p1', status: 'ready', progress: { state: 'done', status: 'ready' } },
+                socials: {
+                    id: 'socials-p1',
+                    status: 'ready',
+                    progress: { state: 'done', status: 'ready' },
+                    deployedAt: 2000,
+                    deployingAt: 1000,
+                },
             },
             partial: false,
         });
@@ -220,5 +234,16 @@ describe('findForeignProducts', () => {
 
     it('finds nothing when every product is the requested service', () => {
         expect(findForeignProducts('socials', [product('socials', 'p1'), product('socials', 'p2')])).toEqual([]);
+    });
+});
+
+describe('isAwaitingResult', () => {
+    it('awaits only while the last accepted deploy is newer than the last result', () => {
+        expect(isAwaitingResult({ id: 'p' })).toBe(false);
+        expect(isAwaitingResult({ id: 'p', deployedAt: 2000 })).toBe(false);
+        expect(isAwaitingResult({ id: 'p', deployingAt: 1000 })).toBe(true);
+        expect(isAwaitingResult({ id: 'p', deployingAt: 3000, deployedAt: 2000 })).toBe(true);
+        expect(isAwaitingResult({ id: 'p', deployingAt: 1000, deployedAt: 2000 })).toBe(false);
+        expect(isAwaitingResult({ id: 'p', deployingAt: 2000, deployedAt: 2000 })).toBe(false);
     });
 });

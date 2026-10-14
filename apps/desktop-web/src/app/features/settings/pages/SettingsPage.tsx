@@ -15,6 +15,7 @@ import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i
 import { ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
+import { QuietHoursMentionSection } from './QuietHoursMentionSection';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 
@@ -283,6 +284,7 @@ export const SettingsPage = () => {
                                       })}
                             </p>
                         )}
+                        <QuietHoursMentionSection />
                     </div>
                 </section>
 

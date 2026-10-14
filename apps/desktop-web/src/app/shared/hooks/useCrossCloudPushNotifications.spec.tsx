@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook, waitFor } from '@testing-library/react';
 
@@ -96,6 +96,29 @@ describe('useCrossCloudPushNotifications', () => {
     it('presents a push for a webhook message even when its owner id is mine', async () => {
         pushHandler?.(push({ ownerId: CLOUD_UID, stereo: 'webhook' }));
         await waitFor(() => expect(shown()).toBe(1));
+    });
+
+    // A push carries no mention record, so the quiet-hours breakthrough cannot tell that it names
+    // me: another cloud stays silent in quiet hours with the toggle on, even when the text has my name.
+    describe('in quiet hours', () => {
+        beforeEach(() => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date(2026, 9, 14, 23, 0));
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('stays silent with the mention breakthrough on', async () => {
+            useNotificationPrefsStore.setState({
+                quietHours: { start: '22:00', end: '07:00' },
+                mentionBreaksQuietHours: true,
+            });
+            pushHandler?.(push({ content: 'hello @Me' }));
+            await new Promise(resolve => setTimeout(resolve, 20));
+            expect(shown()).toBe(0);
+        });
     });
 
     describe('for a channel set to mentions only', () => {

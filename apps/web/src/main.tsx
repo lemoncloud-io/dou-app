@@ -24,7 +24,12 @@ import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
-import { configureWebPerfTraces, observeBridgeRequests, observeSocketRequests } from './app/runtime/perf';
+import {
+    configureWebPerfTraces,
+    observeBridgeRequests,
+    observeSocketRequests,
+    observeStateOutbox,
+} from './app/runtime/perf';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
@@ -146,6 +151,14 @@ observeBridgeRequests({ client: webClient, runId: readInjectedRunId(), isHeld: w
 // request type, so the server's answer time can be read apart from what the screens add to it.
 observeSocketRequests({
     manager: runtime.connection.getSocketManager(),
+    runId: readInjectedRunId(),
+    isHeld: webPerfTraces.isHeld,
+});
+
+// Times how each state write (read cursor, notification setting, room name) reaches the server after
+// the screen has already shown it — the local-first writes' only remaining wait. Its own runs again.
+observeStateOutbox({
+    setObserver: runtime.data.setStateOutboxObserver,
     runId: readInjectedRunId(),
     isHeld: webPerfTraces.isHeld,
 });

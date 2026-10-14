@@ -49,6 +49,15 @@ const furthest = (a: ReadCursor | undefined, b: ReadCursor | undefined): ReadCur
 };
 
 /**
+ * What I have read in a channel, as the channel row's `@` reads it: this
+ * device's cursor or the one on the channel record, whichever is further. The
+ * row (`ChannelList`) and the place totals (`placeUnreadCounts`) share this so
+ * a mention counted toward the dock is one the row also marks unread.
+ */
+export const channelReadNo = (channel: DomainChannel, localReadNo: number): number =>
+    Math.max(localReadNo, channel.$join?.chatNo ?? 0);
+
+/**
  * Unread count for a channel, computed client-side. Preference order, most-trusted first:
  *
  * 1. my own message is the latest → 0 (implicitly read up to it);

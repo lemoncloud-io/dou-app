@@ -107,6 +107,30 @@ describe('useGlobalSearch', () => {
         expect(result.current.hasResults).toBe(true);
     });
 
+    // A soft delete keeps the body on the cached row and both cache sources match on it, so a
+    // deleted message would otherwise still be found by its words.
+    it('drops deleted messages from the results before capping them', async () => {
+        search.mockResolvedValue({
+            channels: [],
+            sites: [],
+            chats: [
+                ...Array.from({ length: 5 }, (_, i) => ({ id: `gone-${i}`, content: `lemon ${i}`, hidden: true })),
+                { id: 'gone-wire', content: 'lemon wire', hidden: 1 },
+                ...Array.from({ length: 35 }, (_, i) => ({ id: `chat-${i}`, content: `lemon ${i}` })),
+            ],
+        });
+
+        const { result } = renderHook(() => useGlobalSearch('lemon'));
+        act(() => jest.advanceTimersByTime(300));
+
+        await waitFor(() => expect(result.current.isSearching).toBe(false));
+
+        const ids = result.current.results.messages.map(chat => chat.id);
+        expect(ids).toHaveLength(30);
+        expect(ids.some(id => id.startsWith('gone-'))).toBe(false);
+        expect(ids[0]).toBe('chat-0');
+    });
+
     it('matches cloud names case-insensitively from the catalog + invited caches, without calling the cache search source for them', async () => {
         (useCloudSessionCatalog as jest.Mock).mockReturnValue({
             clouds: [{ id: 'c1', cid: 'c1', name: 'Lemon Cloud' }],
