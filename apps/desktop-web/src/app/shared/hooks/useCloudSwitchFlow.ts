@@ -7,6 +7,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
+import { useOwnedCloudIds } from './useCloudCatalog';
+import { RELAY_ORIGIN_CID } from './usePushInvitedCloudRecovery';
 import { useSelectedChannelStore } from '../stores';
 import { classifyWireError, extractErrorMessage } from '../utils';
 
@@ -40,24 +42,45 @@ export const useCloudSwitchFlow = () => {
     const { switchCloud: switchCloudSession, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
     const { selectedCloudId } = runtime.session.useSessionSelection();
+    const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
+    const ownedCloudIds = useOwnedCloudIds();
     const { t } = useTranslation();
     const { toast } = useToast();
 
     // Try again runs the switch as it is when clicked, not as it was when it failed: by
     // then the reader may be on that cloud already, or another switch may be running.
     const latestRef = useRef<(cloudId: string) => Promise<void>>(async () => undefined);
+    // `isSwitching` turns on only once the session switch starts, so the invited-cloud recovery
+    // awaited ahead of it (a relay round trip for a missing cloud) would let a second click start
+    // a second switch. This covers the whole flow.
+    const busyRef = useRef(false);
     const switchCloud = useCallback(
         async (cloudId: string): Promise<void> => {
-            if (isSwitching || cloudId === selectedCloudId) return;
+            if (isSwitching || busyRef.current || cloudId === selectedCloudId) return;
 
             // Channel ids are cloud-scoped: drop the stale selection up front so no hook still
             // keyed on it fires a cross-cloud request (channel.list-user → 403) at the new socket.
             useSelectedChannelStore.getState().clearChannel();
 
+            busyRef.current = true;
             try {
                 if (cloudId === 'default') {
                     await logoutCloudSession();
                     return;
+                }
+                // Push/reinstall safety net: an invited cloud wiped from the cache
+                // has no endpoints to switch with, so re-derive and re-cache them
+                // first (no-op when already cached). Best-effort — a revoked grant
+                // just leaves the rail as it was, and the switch below still runs
+                // to report its own failure. Owned clouds are the catalog's record;
+                // an invited row for one would mislabel it. Relay-origin pushes
+                // carry '#' instead of a cloud id and never reach this recovery.
+                if (cloudId && cloudId !== RELAY_ORIGIN_CID && !ownedCloudIds.has(cloudId)) {
+                    try {
+                        await runtime.data.recoverInvitedCloudIfMissing(cloudRepository, cloudId);
+                    } catch {
+                        // Best-effort (see above).
+                    }
                 }
                 await switchCloudSession(cloudId);
             } catch (e) {
@@ -90,9 +113,11 @@ export const useCloudSwitchFlow = () => {
                           ) as unknown as ToastActionElement)
                         : undefined,
                 });
+            } finally {
+                busyRef.current = false;
             }
         },
-        [switchCloudSession, logoutCloudSession, selectedCloudId, isSwitching, t, toast]
+        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedCloudIds, isSwitching, t, toast]
     );
 
     latestRef.current = switchCloud;

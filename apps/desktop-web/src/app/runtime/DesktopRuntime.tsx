@@ -16,6 +16,7 @@ import {
     useDeviceTokenRegistration,
     useMentionCapture,
     useMyThreadsCapture,
+    usePushInvitedCloudRecovery,
     usePlaceUnreadCounts,
     useRefreshOnPush,
     useChatOutbox,
@@ -49,6 +50,9 @@ const DesktopNotifications = () => {
     useCrossCloudPushNotifications();
     // Cross-cloud push: mark the source cloud's rail tile until it's visited.
     useCrossCloudPushBadge();
+    // Cross-cloud push: a reinstall-wiped invited cloud is named only by the
+    // push's cid — re-derive and re-cache its endpoints (presentation aside).
+    usePushInvitedCloudRecovery();
     // Capture @me messages across all channels into the device-local Activity inbox.
     useMentionCapture();
     // Feed replies in background channels into the device-local Threads list.
