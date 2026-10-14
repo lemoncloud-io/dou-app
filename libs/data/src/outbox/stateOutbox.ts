@@ -190,7 +190,7 @@ export const createStateOutbox = ({
         clouds.set(cid, cloud);
         // `watchReady` reports the current value synchronously, which drains right away when the
         // socket is already up.
-        cloud.unwatch = transport.watchReady(cid, ready => {
+        const unwatch = transport.watchReady(cid, ready => {
             const becameReady = ready && !cloud.ready;
             cloud.ready = ready;
             if (!becameReady) return;
@@ -201,6 +201,11 @@ export const createStateOutbox = ({
                 drain(state);
             }
         });
+        // That first report can settle every key — a write from an account no longer signed in
+        // drops without a request — and release the cloud before `watchReady` returns. The release
+        // then ran the placeholder, so nothing else would ever end this subscription.
+        if (clouds.get(cid) === cloud) cloud.unwatch = unwatch;
+        else unwatch();
     };
 
     return {

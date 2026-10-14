@@ -425,6 +425,18 @@ describe('createStateOutbox', () => {
             expect(outbox.pending()).toEqual([]);
         });
 
+        it('stops watching when that write drops on the ready socket’s first report', async () => {
+            const spec = cursorSpec();
+            const { outbox, write, setReady, setUid, unwatch, listeners } = setup(spec);
+            setUid(CID, 'someone-else');
+            setReady(CID, true);
+
+            await expect(outbox.set(write(10)).delivered).rejects.toBeInstanceOf(OutboxAccountChangedError);
+
+            expect(unwatch).toHaveBeenCalledWith(CID);
+            expect(listeners.has(CID)).toBe(false);
+        });
+
         it('keeps a write made before the uid was known', async () => {
             const spec = cursorSpec();
             const { outbox, write, setReady } = setup(spec);
