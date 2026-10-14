@@ -673,6 +673,7 @@ export const ko: EnTranslation = {
     'settings.quietHoursHint': '매일 정해진 시간대에 알림을 꺼 둬요.',
     'settings.quietHoursStart': '시작',
     'settings.quietHoursEnd': '종료',
+    'settings.quietHoursTimeLegend': '방해 금지 시간대',
     'settings.quietHoursWindow': '{{start}}–{{end}} 방해 금지 시간 · {{hours}}시간 {{minutes}}분',
     'settings.quietHoursEmpty': '시작과 종료가 같아서 꺼지는 알림이 없어요.',
     'settings.autosave': '변경 사항은 자동으로 저장돼요',

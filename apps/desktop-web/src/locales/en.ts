@@ -671,6 +671,7 @@ export const en = {
     'settings.quietHoursHint': 'Silence notifications during a daily time window.',
     'settings.quietHoursStart': 'From',
     'settings.quietHoursEnd': 'To',
+    'settings.quietHoursTimeLegend': 'Quiet hours window',
     'settings.quietHoursWindow': 'Quiet hours {{start}}–{{end}} · {{hours}}h {{minutes}}m',
     'settings.quietHoursEmpty': 'Start and end are the same, so nothing is silenced.',
     'settings.autosave': 'Changes save automatically',

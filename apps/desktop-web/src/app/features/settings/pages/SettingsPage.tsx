@@ -11,6 +11,7 @@ import {
     SettingsNavRow,
     SettingsRowGroup,
     SettingsSwitchRow,
+    formatHourMinute,
     radioGroupOptions,
     useNotificationPrefsStore,
     VersionInfo,
@@ -207,7 +208,8 @@ export const SettingsPage = () => {
                         onCheckedChange={toggleQuiet}
                     >
                         {quietHours && (
-                            <div className="flex items-center gap-3 pt-2">
+                            <fieldset className="flex items-center gap-3 pt-2">
+                                <legend className="sr-only">{t('settings.quietHoursTimeLegend')}</legend>
                                 <label className="flex flex-col gap-1.5 text-caption text-muted-foreground">
                                     {t('settings.quietHoursStart')}
                                     <input
@@ -229,7 +231,7 @@ export const SettingsPage = () => {
                                         className="focus-ring rounded-lg border border-control-border bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
-                            </div>
+                            </fieldset>
                         )}
                         {/* The computed window, so an overnight range reads as intended and
                             an empty one (start = end) is caught instead of silently doing nothing.
@@ -247,8 +249,8 @@ export const SettingsPage = () => {
                                 {quietWindow == null
                                     ? t('settings.quietHoursEmpty')
                                     : t('settings.quietHoursWindow', {
-                                          start: quietHours.start,
-                                          end: quietHours.end,
+                                          start: formatHourMinute(quietHours.start),
+                                          end: formatHourMinute(quietHours.end),
                                           hours: Math.floor(quietWindow / 60),
                                           minutes: quietWindow % 60,
                                       })}

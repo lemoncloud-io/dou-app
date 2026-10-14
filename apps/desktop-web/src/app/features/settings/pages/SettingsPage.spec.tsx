@@ -79,4 +79,21 @@ describe('SettingsPage notifications', () => {
             expect(screen.getByLabelText(label).getAttribute('aria-describedby')).toBe(windowId);
         }
     });
+
+    // The two time inputs are one group with one name, not two stray fields.
+    it('groups the quiet-hours times under one name', () => {
+        useNotificationPrefsStore.setState({ quietHours: { start: '22:00', end: '07:00' } });
+        renderPage();
+
+        const group = screen.getByRole('group', { name: 'Quiet hours window' });
+        expect(group.querySelectorAll('input[type="time"]')).toHaveLength(2);
+    });
+
+    // The window prints the locale clock, the same clock the snooze label uses.
+    it('prints the quiet window on the locale clock', () => {
+        useNotificationPrefsStore.setState({ quietHours: { start: '22:00', end: '07:00' } });
+        renderPage();
+
+        expect(screen.getByText(/10:00 PM.*7:00 AM/)).toBeTruthy();
+    });
 });

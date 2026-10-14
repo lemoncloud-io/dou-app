@@ -18,6 +18,22 @@ const valid = (ms: number | undefined): Date | null => {
 export const formatClockTime = (ms: number | undefined): string =>
     valid(ms)?.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' }) ?? '';
 
+/**
+ * A "HH:MM" 24h input on the locale clock ("22:00" → "10:00 PM" / "오후 10:00"):
+ * the quiet-hours window prints the same clock the snooze label uses, instead
+ * of raw 24h strings beside it. A malformed input comes back untouched.
+ */
+export const formatHourMinute = (hhmm: string): string => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+    if (!match) return hhmm;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (hours > 23 || minutes > 59) return hhmm;
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
+};
+
 /** "Jun 15" / "6월 15일", with the year only when it is not this year. */
 export const formatShortDate = (ms: number | undefined): string => {
     const date = valid(ms);
