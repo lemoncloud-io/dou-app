@@ -114,6 +114,16 @@ describe('ProfilePage account card inside a cloud', () => {
         expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
     });
 
+    // The id is copied out of here: the body-wide `user-select: none` must not
+    // cover the read-only value.
+    it('leaves the account id selectable', async () => {
+        session.relayUser = { uid: 'account-uid', email: 'kim@example.com' };
+        render(<ProfilePage />, { wrapper });
+        await screen.findByRole('button', { name: 'Set up' });
+
+        expect(screen.getByText('account-uid').closest('.select-text')).not.toBeNull();
+    });
+
     // The cloud's user can carry another name than the account does.
     it('names the account by its own name, and "This place" by the name the cloud knows', async () => {
         session.relayUser = { uid: 'account-uid', email: 'kim@example.com', name: 'Account Kim' };

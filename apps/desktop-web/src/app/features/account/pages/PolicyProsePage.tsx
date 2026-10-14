@@ -30,7 +30,7 @@ export const PolicyProsePage = ({
             <p className="mb-6 text-right text-caption text-muted-foreground">
                 {t('policy.effectiveDate')}: {currentVersion?.effectiveDate}
             </p>
-            <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-8 select-text">
                 {currentVersion?.sections.map((section, index) => (
                     <section key={index}>
                         <h2 className="mb-3 text-heading text-foreground">{section.title}</h2>

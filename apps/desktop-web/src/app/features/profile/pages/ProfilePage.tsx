@@ -37,7 +37,7 @@ const ProfileField = ({ label, value, onCopy, copied, copyLabel, copiedLabel }: 
     <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
         <div className="flex min-w-0 flex-col gap-1">
             <span className="text-overline uppercase text-muted-foreground">{label}</span>
-            <span className="truncate text-callout text-foreground">{value}</span>
+            <span className="truncate text-callout text-foreground select-text">{value}</span>
         </div>
         {onCopy && (
             // Kit button for the standard focus ring and a real target size. The old
