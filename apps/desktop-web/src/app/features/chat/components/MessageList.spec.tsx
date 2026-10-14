@@ -486,10 +486,15 @@ describe('MessageList', () => {
         const editorBody = () =>
             screen.getByRole('textbox', { name: 'Edit message' }) as HTMLElement & { __lexicalEditor?: LexicalEditor };
         // The editor loads its document in a microtask; typing before that would land in an empty box.
-        // It also arrives as a lazy chunk, so wait for the textbox rather than a single flush.
+        // It also arrives as a lazy chunk, so wait for the textbox rather than a single flush. Only the
+        // first open in the file suspends: it waits for the chunk, and never less than the 300 ms React
+        // holds a Suspense fallback on screen. A cold chunk on a busy CI runner has taken over a second,
+        // past waitFor's default timeout. Later opens find the lazy component resolved.
         const openEditor = async () => {
             clickRowMenuItem('Edit message');
-            await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Edit message' })).not.toBeNull());
+            await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Edit message' })).not.toBeNull(), {
+                timeout: 5000,
+            });
             await act(async () => {
                 await Promise.resolve();
             });
