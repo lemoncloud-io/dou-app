@@ -231,7 +231,9 @@ describe('PlaceRail account menu', () => {
     // Enter on the trigger, not a click: Radix opens a dropdown from pointerdown,
     // and jsdom has no PointerEvent — the MessageList spec documents the same path.
     const openAccountMenu = async () => {
-        fireEvent.keyDown(screen.getByRole('button', { name: 'Me' }), { key: 'Enter' });
+        fireEvent.keyDown(screen.getByRole('button', { name: i18next.t('rail.menu.accountMenu', { name: 'Me' }) }), {
+            key: 'Enter',
+        });
         await screen.findByRole('menu');
     };
     const joinItem = () => screen.queryByRole('menuitem', { name: i18next.t('rail.menu.join') });
@@ -249,6 +251,63 @@ describe('PlaceRail account menu', () => {
         renderRail();
         await openAccountMenu();
         expect(joinItem()).toBeNull();
+    });
+
+    // The menu acts as someone, somewhere: its header names the account and its kind.
+    it('heads the menu with the account name and kind', async () => {
+        profile.isGuest = true;
+        renderRail();
+        await openAccountMenu();
+
+        expect(screen.getByText('Me')).toBeTruthy();
+        expect(screen.getByText(i18next.t('profile.guestName'))).toBeTruthy();
+    });
+
+    it('groups profile with account, ahead of settings and log out', async () => {
+        renderRail();
+        await openAccountMenu();
+
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+        expect(items).toContain(i18next.t('rail.menu.account'));
+        const order = [i18next.t('rail.menu.profile'), i18next.t('rail.menu.account')];
+        expect(items.indexOf(order[0])).toBeLessThan(items.indexOf(order[1]));
+        expect(items.indexOf(order[1])).toBeLessThan(items.indexOf(i18next.t('rail.menu.settings')));
+        expect(items.indexOf(i18next.t('rail.menu.settings'))).toBeLessThan(
+            items.indexOf(i18next.t('rail.menu.logout'))
+        );
+    });
+
+    it('opens the Account hub from its menu item', async () => {
+        renderRail();
+        await openAccountMenu();
+
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.account') }));
+
+        expect(navProbe.path).toBe('/account');
+    });
+
+    // A guest logout is a delete: the confirm offers the way to keep the
+    // account first, and names the destructive choice for what it is.
+    it('offers connecting an account before deleting a guest on logout', async () => {
+        profile.isGuest = true;
+        navProbe.path = '/';
+        renderRail();
+        await openAccountMenu();
+
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.logout') }));
+        fireEvent.click(await screen.findByRole('button', { name: i18next.t('rail.menu.logoutGuest.connect') }));
+
+        expect(navProbe.path).toBe('/account');
+    });
+
+    it('names the guest logout confirm for the delete that it is', async () => {
+        profile.isGuest = true;
+        renderRail();
+        await openAccountMenu();
+
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.logout') }));
+
+        expect(await screen.findByRole('button', { name: i18next.t('rail.menu.logoutGuest.confirm') })).toBeTruthy();
     });
 });
 

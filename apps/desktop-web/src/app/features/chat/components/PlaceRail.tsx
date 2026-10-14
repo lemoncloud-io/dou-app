@@ -14,6 +14,7 @@ import { ConfirmDialog, useSendInviteStore } from '../../channels';
 import { useJoinDialogStore } from '../../auth';
 import { isAtPlaceLimit, isManagedPlace, PLACE_MAX, placeFailure, type PlaceFailure } from '../utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     ContextMenu,
     ContextMenuContent,
@@ -24,9 +25,19 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogTitle,
+} from '@chatic/ui-kit/components/ui/alert-dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -422,7 +433,7 @@ export const PlaceRail = ({
 
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    aria-label={selfName || t('rail.menu.profile')}
+                    aria-label={selfName ? t('rail.menu.accountMenu', { name: selfName }) : t('rail.menu.profile')}
                     className="group relative transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
                 >
                     {/* Figma "1-person Profile": the navy disc and green presence dot are
@@ -437,11 +448,21 @@ export const PlaceRail = ({
                     <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-presence-online" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
+                    {/* Who acts here: the account name and its kind. */}
+                    <DropdownMenuLabel className="flex flex-col gap-0.5">
+                        <span className="truncate text-callout font-medium text-foreground">{selfName}</span>
+                        <span className="text-caption text-muted-foreground">
+                            {isGuest ? t('profile.guestName') : t('account.title')}
+                        </span>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/account')}>{t('rail.menu.account')}</DropdownMenuItem>
                     {/* Guests only: the exchange refuses a signed-in account after the code
                         is typed, so a signed-in account is never shown a code field. */}
                     {isGuest && <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     {/* A tool, not an account action: its own group, away from Log out. */}
                     {(import.meta.env.DEV || debugEnabled) && (
                         <>
@@ -457,14 +478,32 @@ export const PlaceRail = ({
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-            <ConfirmDialog
-                open={confirmingLogout}
-                onOpenChange={setConfirmingLogout}
-                title={t('rail.menu.logoutGuest.title')}
-                description={t('rail.menu.logoutGuest.description')}
-                confirmLabel={t('rail.menu.logout')}
-                onConfirm={runLogout}
-            />
+            {/* A guest logout is a delete: the safe way out (connect the account)
+                comes first, and the destructive choice is named for what it is. */}
+            <AlertDialog open={confirmingLogout} onOpenChange={setConfirmingLogout}>
+                <AlertDialogContent className="sm:max-w-sm">
+                    <AlertDialogTitle>{t('rail.menu.logoutGuest.title')}</AlertDialogTitle>
+                    <AlertDialogDescription>{t('rail.menu.logoutGuest.description')}</AlertDialogDescription>
+                    <AlertDialogFooter className="gap-2 pt-2 sm:space-x-0">
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setConfirmingLogout(false);
+                                navigate('/account');
+                            }}
+                        >
+                            {t('rail.menu.logoutGuest.connect')}
+                        </Button>
+                        <AlertDialogAction
+                            onClick={runLogout}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {t('rail.menu.logoutGuest.confirm')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <ConfirmDialog
                 open={confirmingDelete}
                 // The confirm button closes the dialog as part of its click. While a delete runs

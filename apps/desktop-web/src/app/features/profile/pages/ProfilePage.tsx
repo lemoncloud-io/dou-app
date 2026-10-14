@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
@@ -61,6 +62,7 @@ const SectionTitle = ({ children }: { children: string }) => (
  */
 export const ProfilePage = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile.
     // `userId` is my uid in the session I am connected to — inside a cloud that is the cloud's own
     // uid, which is what the place profiles are keyed by.
@@ -195,7 +197,19 @@ export const ProfilePage = () => {
             )}
 
             <section className="flex flex-col gap-4">
-                <SectionTitle>{t('profile.account')}</SectionTitle>
+                <div className="flex items-center justify-between gap-2">
+                    <SectionTitle>{t('profile.account')}</SectionTitle>
+                    {/* The card below is read-only: name, photo and sign-in live
+                        on the one account surface, linked here instead. */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 text-primary-ink"
+                        onClick={() => navigate('/account')}
+                    >
+                        {t('profile.manageAccount')}
+                    </Button>
+                </div>
                 <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
                     <ProfileField label={t('profile.name')} value={name} />
                     <ProfileField label={t('profile.email')} value={email} />
