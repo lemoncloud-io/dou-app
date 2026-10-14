@@ -1,4 +1,3 @@
-import { isMentioningViewer } from '@chatic/data';
 import type { DomainChat } from '@chatic/data';
 
 /**
@@ -43,10 +42,50 @@ export const isMentioned = (content: string, names: Array<string | null | undefi
 };
 
 /**
- * Whether a message calls the viewer. The sender's composer records who it picked (`mention$`), and
- * that record is the answer whenever the message has one — it is what the server goes by, and a
- * name in the text may be someone else's. A message with no record (an older client, a webhook) is
- * read by its text, as before. `viewerIds` are the viewer's account id and their member id in the
+ * How a message calls the viewer, when it does: a direct naming or a call to
+ * everyone. The single decision point the mention-only filter and the banner
+ * title share, so the two cannot disagree about the same message.
+ *
+ * A mention record wins whenever the message has one — a name in the text may
+ * be someone else's. A record naming me reads as direct even beside an `all`
+ * flag; a record naming only others reads as nothing, whatever the text says.
+ * A message with no record (an older client, a webhook) is read by its text,
+ * my name over a group word.
+ */
+export type MentionKind = 'direct' | 'everyone';
+
+const mentionsNameInText = (text: string, names: Array<string | null | undefined>): boolean => {
+    if (!text.includes('@')) return false;
+    const lower = text.toLowerCase();
+    return names.some(raw => {
+        const name = raw?.trim().toLowerCase();
+        return !!name && lower.includes(`@${name}`);
+    });
+};
+
+export const mentionKind = (
+    chat: Pick<DomainChat, 'mention$'>,
+    viewerIds: ReadonlyArray<string | null | undefined>,
+    text: string,
+    names: Array<string | null | undefined>
+): MentionKind | null => {
+    if (chat.mention$) {
+        const ids = chat.mention$.userIds ?? [];
+        if (viewerIds.some(id => !!id && ids.includes(id))) return 'direct';
+        // `all` reads as `true`, but a live `chat.sync` delivers the model's `1`.
+        const all: unknown = chat.mention$.all;
+        if (all === true || all === 1) return 'everyone';
+        return null;
+    }
+    if (mentionsNameInText(text, names)) return 'direct';
+    if (GROUP_MENTION_PATTERN.test(text)) return 'everyone';
+    return null;
+};
+
+/**
+ * Whether a message calls the viewer. One answer with `mentionKind` — the
+ * sender's composer record whenever the message has one, else the text.
+ * `viewerIds` are the viewer's account id and their member id in the
  * channel's cloud; the record holds member ids.
  */
 export const mentionsMe = (
@@ -54,4 +93,4 @@ export const mentionsMe = (
     viewerIds: ReadonlyArray<string | null | undefined>,
     text: string,
     names: Array<string | null | undefined>
-): boolean => (chat.mention$ ? isMentioningViewer(chat, viewerIds) : isMentioned(text, names));
+): boolean => mentionKind(chat, viewerIds, text, names) !== null;

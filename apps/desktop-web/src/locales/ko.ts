@@ -218,6 +218,8 @@ export const ko: EnTranslation = {
     'chat.attach.previewMixed': '첨부',
     'chat.attach.previewMixedCount': '첨부 {{count}}개',
     'chat.push.fallbackBody': '새 메시지',
+    'notification.mentionTitle': '멘션 · {{target}}',
+    'notification.everyoneTitle': '@{{word}} · {{target}}',
     'chat.attach.countLabel': '파일 {{max}}개 중 {{count}}개 첨부됨',
     'chat.attach.rejected.limit_one': '메시지 하나에 파일은 최대 {{max}}개라 {{count}}개는 추가하지 않았어요.',
     'chat.attach.rejected.limit_other': '메시지 하나에 파일은 최대 {{max}}개라 {{count}}개는 추가하지 않았어요.',

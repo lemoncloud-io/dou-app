@@ -43,6 +43,7 @@ vi.mock('../utils', async () => ({
 
 import { useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 import { useDesktopNotifications } from './useDesktopNotifications';
+import i18n from '../../../i18n';
 
 const feed = (chat: Record<string, unknown>, joinUserId: string | null = CLOUD_UID) => ({
     placeId: 'place-1',
@@ -116,6 +117,78 @@ describe('useDesktopNotifications', () => {
             const { channel, ...rest } = mentionOnly({ content: 'hello' });
             feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
             expect(request).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('banner title', () => {
+        const titleOfFirstBanner = (): string => {
+            const call = request.mock.calls[0]?.[0] as { data?: { title?: string } } | undefined;
+            return call?.data?.title ?? '';
+        };
+
+        it('titles a message whose record names me as a mention of the channel', () => {
+            feedHandler?.(
+                feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } })
+            );
+            expect(titleOfFirstBanner()).toBe(i18n.t('notification.mentionTitle', { target: '#general' }));
+        });
+
+        it('titles a message whose record calls everyone', () => {
+            feedHandler?.(feed({ content: 'standup', mention$: { all: true }, owner$: { name: 'Raine' } }));
+            expect(titleOfFirstBanner()).toBe(
+                i18n.t('notification.everyoneTitle', {
+                    word: i18n.t('chat.mention.everyoneWord'),
+                    target: '#general',
+                })
+            );
+        });
+
+        it('prefers the direct title when the record names me beside everyone', () => {
+            feedHandler?.(
+                feed({
+                    content: 'hi',
+                    mention$: { userIds: [CLOUD_UID], all: true },
+                    owner$: { name: 'Raine' }
+                })
+            );
+            expect(titleOfFirstBanner()).toBe(i18n.t('notification.mentionTitle', { target: '#general' }));
+        });
+
+        it('keeps the plain title when the record names someone else though the text has my name', () => {
+            feedHandler?.(
+                feed({ content: 'hello @Me', mention$: { userIds: ['u-other'] }, owner$: { name: 'Raine' } })
+            );
+            expect(titleOfFirstBanner()).toBe('#general');
+        });
+
+        it('titles a mention in a nameless group channel with the sender', () => {
+            const { channel, ...rest } = feed({
+                content: 'hello',
+                mention$: { userIds: [CLOUD_UID] },
+                owner$: { name: 'Raine' }
+            });
+            feedHandler?.({ ...rest, channel: { ...channel, name: undefined } });
+            expect(titleOfFirstBanner()).toBe(i18n.t('notification.mentionTitle', { target: 'Raine' }));
+        });
+
+        it('keeps the sender title for a 1:1 whatever the record says', () => {
+            const { channel, ...rest } = feed({
+                content: 'hello',
+                mention$: { userIds: [CLOUD_UID] },
+                owner$: { name: 'Raine' }
+            });
+            feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
+            expect(titleOfFirstBanner()).toBe('Raine');
+        });
+
+        it('reads "@all · #channel" in English', () => {
+            expect(
+                i18n.t('notification.everyoneTitle', {
+                    lng: 'en',
+                    word: i18n.t('chat.mention.everyoneWord', { lng: 'en' }),
+                    target: '#general'
+                })
+            ).toBe('@all · #general');
         });
     });
 });

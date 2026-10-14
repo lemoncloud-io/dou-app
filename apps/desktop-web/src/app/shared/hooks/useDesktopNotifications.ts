@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 
+import i18next from 'i18next';
+
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
@@ -11,10 +13,12 @@ import {
     isDndActive,
     isNotifiableChat,
     isOwnChat,
+    mentionKind,
     mentionsMe,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
+    type MentionKind,
 } from '../utils';
 import {
     channelNotifyMode,
@@ -25,9 +29,29 @@ import {
 } from '../stores';
 
 // DMs have no channel name — title with the sender instead. Named channels read as
-// `#name`, matching the cross-cloud push banner.
-const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat): string =>
-    channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+// `#name`, matching the cross-cloud push banner. A group-channel mention reads with
+// its kind first (`Mention · #name`, `@all · #name`); DMs and non-mentions keep the
+// old title. Translated at notify time via i18next, not a render-captured `t` —
+// the feed callback outlives the render that registered it.
+const notificationTitle = (
+    channel: DomainChannel,
+    latest: ChannelLastChat,
+    kind: MentionKind | null
+): string => {
+    const fallback = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+    if (!isNotifyDm(channel) && kind === 'direct') {
+        const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+        return i18next.t('notification.mentionTitle', { target });
+    }
+    if (!isNotifyDm(channel) && kind === 'everyone') {
+        const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+        return i18next.t('notification.everyoneTitle', {
+            word: i18next.t('chat.mention.everyoneWord'),
+            target,
+        });
+    }
+    return fallback;
+};
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
 const isViewing = (channelId: string): boolean =>
@@ -105,11 +129,14 @@ export const useDesktopNotifications = (): void => {
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
         const sender = chat.owner$?.name;
         const body = messagePreview(chat);
+        const kind = isNotifyDm(channel)
+            ? null
+            : mentionKind(chat, [viewer.uid, viewer.cloudUid], message, resolveMyMentionNames());
         void webClient
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, chat),
+                    title: notificationTitle(channel, chat, kind),
                     body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).

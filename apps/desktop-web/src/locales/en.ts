@@ -208,6 +208,8 @@ export const en = {
     'chat.attach.previewMixed': 'Attachment',
     'chat.attach.previewMixedCount': '{{count}} attachments',
     'chat.push.fallbackBody': 'New message',
+    'notification.mentionTitle': 'Mention · {{target}}',
+    'notification.everyoneTitle': '@{{word}} · {{target}}',
     'chat.attach.countLabel': '{{count}} of {{max}} files attached',
     'chat.attach.rejected.limit_one': 'Up to {{max}} files per message, so {{count}} was not added.',
     'chat.attach.rejected.limit_other': 'Up to {{max}} files per message, so {{count}} were not added.',

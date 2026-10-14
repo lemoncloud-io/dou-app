@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMentioned, mentionsMe } from './mentionMatch';
+import { isMentioned, mentionKind, mentionsMe } from './mentionMatch';
 
 describe('isMentioned', () => {
     it.each(['@channel', '@here', '@everyone', '@all', '@전체'])('reads %s as calling everyone', word => {
@@ -59,5 +59,49 @@ describe('mentionsMe', () => {
         ['neither', 'hi @Bo', false],
     ])('reads the text of a message with no record: %s', (_name, text, expected) => {
         expect(mentionsMe({}, ME, text, ['Me'])).toBe(expected);
+    });
+});
+
+// One decision point for "was I called, and how": the banner title and the
+// mention-only filter must agree, so they share this answer.
+describe('mentionKind', () => {
+    const ME = ['acct-1', 'cloud-user-9'];
+
+    it('reads a record that names me as a direct mention, whatever the text says', () => {
+        expect(mentionKind({ mention$: { userIds: ['cloud-user-9'] } }, ME, '@Nickname hi', ['Me'])).toBe('direct');
+    });
+
+    it('reads a record that calls everyone', () => {
+        expect(mentionKind({ mention$: { all: true } }, ME, 'standup', ['Me'])).toBe('everyone');
+    });
+
+    it('prefers a direct naming over everyone in the same record', () => {
+        expect(mentionKind({ mention$: { userIds: ['cloud-user-9'], all: true } }, ME, 'hi', ['Me'])).toBe(
+            'direct'
+        );
+    });
+
+    it('returns null for a record that names someone else, though the text has my name', () => {
+        expect(mentionKind({ mention$: { userIds: ['u-other'] } }, ME, 'hi @Me', ['Me'])).toBeNull();
+    });
+
+    it('does not let a typed group word override a record that calls someone else', () => {
+        expect(mentionKind({ mention$: { userIds: ['u-other'] } }, ME, '@channel hi', ['Me'])).toBeNull();
+    });
+
+    it('reads my name in the text of a message with no record', () => {
+        expect(mentionKind({}, ME, 'hi @Me', ['Me'])).toBe('direct');
+    });
+
+    it('reads a group word in the text of a message with no record', () => {
+        expect(mentionKind({}, ME, '@here hi', ['Me'])).toBe('everyone');
+    });
+
+    it('prefers my name over a group word in the same text', () => {
+        expect(mentionKind({}, ME, 'hi @Me @channel', ['Me'])).toBe('direct');
+    });
+
+    it('returns null when the text calls nobody', () => {
+        expect(mentionKind({}, ME, 'hi @Bo', ['Me'])).toBeNull();
     });
 });
