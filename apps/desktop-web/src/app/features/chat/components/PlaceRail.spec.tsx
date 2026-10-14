@@ -16,11 +16,12 @@ import type * as SharedModule from '../../../shared';
 import type * as ConfirmDialogModule from '../../channels/components/ConfirmDialog';
 import type * as SendInviteStoreModule from '../../channels/stores/useSendInviteStore';
 
+const profile = vi.hoisted(() => ({ photo: undefined as string | undefined, isGuest: false }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
-            useRuntimeProfile: () => ({ photo: undefined, isGuest: false }),
+            useRuntimeProfile: () => profile,
             useSessionLogout: () => vi.fn(),
         },
     },
@@ -117,6 +118,7 @@ const createTile = () => screen.queryByRole('button', { name: i18next.t('place.c
 
 beforeEach(() => {
     vi.clearAllMocks();
+    profile.isGuest = false;
     placeOrder.byCloud = {};
     dnd.end = undefined;
 });
@@ -222,6 +224,31 @@ describe('PlaceRail place menu', () => {
         fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('place.settings.open') }));
 
         expect(navProbe.path).toBe('/places/place-1/settings');
+    });
+});
+
+describe('PlaceRail account menu', () => {
+    // Enter on the trigger, not a click: Radix opens a dropdown from pointerdown,
+    // and jsdom has no PointerEvent — the MessageList spec documents the same path.
+    const openAccountMenu = async () => {
+        fireEvent.keyDown(screen.getByRole('button', { name: 'Me' }), { key: 'Enter' });
+        await screen.findByRole('menu');
+    };
+    const joinItem = () => screen.queryByRole('menuitem', { name: i18next.t('rail.menu.join') });
+
+    // A signed-in account that picks "join with invite" only hears "log out first" after
+    // typing a code — the item is for guests, so it is shown to guests only.
+    it('shows the join item to a guest', async () => {
+        profile.isGuest = true;
+        renderRail();
+        await openAccountMenu();
+        expect(joinItem()).not.toBeNull();
+    });
+
+    it('hides the join item from a signed-in account', async () => {
+        renderRail();
+        await openAccountMenu();
+        expect(joinItem()).toBeNull();
     });
 });
 

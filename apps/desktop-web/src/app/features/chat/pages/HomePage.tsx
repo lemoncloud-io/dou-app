@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { JoinWithInviteDialog, selectNewAccountPending, useJoinDialogStore, useSignInNoticeStore } from '../../auth';
+import { selectNewAccountPending, useJoinDialogStore, useSignInNoticeStore } from '../../auth';
 import {
     ChannelSettingsPanel,
     CreateChannelDialog,
@@ -639,9 +639,13 @@ export const HomePage = () => {
             isLoading || channels.length > 0
                 ? ({ mode: 'pick' } as const)
                 : isDefaultMode
-                  ? ({ mode: 'join', onAction: openJoinDialog } as const)
+                  ? isGuest
+                      ? ({ mode: 'join', onAction: openJoinDialog } as const)
+                      : // A signed-in account has no invite-code path: the exchange refuses
+                        // non-guests after the code is typed, so offer no code field at all.
+                        ({ mode: 'pick' } as const)
                   : ({ mode: 'create', onAction: openCreateChannel } as const),
-        [isLoading, channels.length, isDefaultMode, openJoinDialog, openCreateChannel]
+        [isLoading, channels.length, isDefaultMode, isGuest, openJoinDialog, openCreateChannel]
     );
 
     const jumpFromSearch = useCallback(
@@ -887,7 +891,7 @@ export const HomePage = () => {
             <EditPlaceDialog places={places} />
             {/* Mounted only while open: its candidate pool fans out one roster read per channel. */}
             {isNewDmOpen && <NewDmDialog open onOpenChange={setIsNewDmOpen} />}
-            <JoinWithInviteDialog />
+            {/* JoinWithInviteDialog lives at the router now (route-independent), not here. */}
             <SendInviteDialog />
             <InviteWaitingDialog />
             <PlaceInviteLinkDialog />
