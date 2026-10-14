@@ -66,6 +66,7 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `first_screen`    | — a sample (see below)                    | —                                        | none yet                       |
 | `socket_request`  | — a sample (see below)                    | —                                        | none yet                       |
 | `chat_send_media` | — a sample (see below)                    | —                                        | none yet                       |
+| `state_outbox`    | — a sample (see below)                    | —                                        | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -139,6 +140,10 @@ console. The trace's own duration means nothing. The other samples:
 - `chat_send_media` — an attachment send (images, videos, documents), timed in
   `libs/app-runtime`. A sample because the native backend forgets a trace open for two minutes, and
   a large video's send can take longer.
+- `state_outbox` — one state write's trip to the server (a read cursor, a notification setting, a
+  room's name), read from `delivery_ms`, with `wait_socket_ms` and `attempts` beside it. The state
+  outbox in `@chatic/data` hands it over through `libs/app-runtime`; the web samples and records it.
+  A sample because the wait can outlast the two minutes a native trace is kept open.
 
 ### Traces several modules contribute to: the active trace
 

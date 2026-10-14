@@ -18,7 +18,8 @@ export type PerfTraceName =
     | 'socket_verify'
     | 'first_screen'
     | 'socket_request'
-    | 'chat_send_media';
+    | 'chat_send_media'
+    | 'state_outbox';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {

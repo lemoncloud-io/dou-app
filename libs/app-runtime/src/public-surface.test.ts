@@ -94,6 +94,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'recoverInvitedCloudIfMissing',
         'runInCloud',
         'sendChatInCloud',
+        'setStateOutboxObserver',
         'syncInvitedCloudName',
         'useGlobalCacheSearch',
         'useImageSendProgress',

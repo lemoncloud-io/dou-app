@@ -1,6 +1,6 @@
 # outbox — state writes that reach the server when the socket can carry them
 
-> Status: Live (`join.read`, `join.notify`, `join.nick`) · Last updated: 2026-10-13 · Overview in the [lib README](../../README.md) · Canonical code: [outbox/](../../src/outbox/) · The runtime half in [libs/app-runtime data](../../../app-runtime/docs/data/README.md#the-state-outbox-transport)
+> Status: Live (`join.read`, `join.notify`, `join.nick`) · Last updated: 2026-10-14 · Overview in the [lib README](../../README.md) · Canonical code: [outbox/](../../src/outbox/) · The runtime half in [libs/app-runtime data](../../../app-runtime/docs/data/README.md#the-state-outbox-transport)
 
 A **state write** sets one piece of state to a value: my read cursor in a room, my notification
 setting for it, the name I gave it. Sending the same value twice is harmless and only the latest value
@@ -30,11 +30,11 @@ runtime's chat outbox, `createChatOutbox`).
 
 ## What lives where
 
-| File             | Holds                                                                                                                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ports.ts`       | `StateWrite` (the queued data), `WriteReceipt` (what a repository returns), `OutboxPort` (what repositories depend on), `OutboxTransport` (what the host supplies), `StateSpec` (how one state behaves) |
-| `stateOutbox.ts` | The machine, and `createImmediateTransport` for hosts with no socket runtime                                                                                                                            |
-| `joinStates.ts`  | The three join states and `STATE_SPECS`                                                                                                                                                                 |
+| File             | Holds                                                                                                                                                                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ports.ts`       | `StateWrite` (the queued data), `WriteReceipt` (what a repository returns), `OutboxPort` (what repositories depend on), `OutboxTransport` (what the host supplies), `StateSpec` (how one state behaves), `OutboxObserver` / `OutboxDelivery` (what a measurement is told) |
+| `stateOutbox.ts` | The machine, and `createImmediateTransport` for hosts with no socket runtime                                                                                                                                                                                              |
+| `joinStates.ts`  | The three join states and `STATE_SPECS`                                                                                                                                                                                                                                   |
 
 The split follows the lib's scope. **What** is sent and how values combine is this lib's: the specs
 call repository methods and know each state's rules. **When** — whether a cloud's socket is up, the
@@ -50,6 +50,7 @@ not own; it arrives through `OutboxTransport`, which `libs/app-runtime` implemen
 - **Late answers do not win.** A request's answer is recorded (`accept`) only when no newer value of that key is waiting; otherwise on → off → on would flash the first answer. And `accept` records only its own field: the cursor, the notification setting and the name share one join row, and the answer's copy of the others may be older than a change still waiting.
 - **Accounts.** A write carries the uid it was made under. If another uid is signed in to that cloud when it would go out, it is dropped and its receipt rejects with `OutboxAccountChangedError`. An unknown uid on either side — a host that reports none, or a write made before the identity was known — is not checked.
 - **Receipts.** `delivered` resolves when the server accepted this value or a later one, rejects only on a refusal or an account change, and stays pending while the socket is down. The machine marks it handled, so a refusal nobody asked about is not an unhandled rejection.
+- **Observing.** `createStateOutbox` takes an optional `observer`, for a measurement only — the machine does the same without one. A key's wait, from the set that made it wait to the answer that leaves nothing waiting, is one `OutboxDelivery`: `outcome` (`accepted`, `refused`, `account_changed`), `deliveryMs`, `waitSocketMs` (the part the cloud was not ready) and `attempts`. Values set during the wait fold into it, so a cursor moved three times on the way is one delivery. `attempts` is the request that ended the wait plus each that failed and was sent again; a request answered while a newer value waited did its job and is not counted, so a value replaced in flight never reads as a retry. The clock is the observer's (`now`), so this lib reads none of its own, and `begin` may decline a wait — then nothing about it is timed. A delivery report that throws is ignored; `begin` and `now` are expected not to throw. `libs/app-runtime` supplies the observer; the web records it as the `state_outbox` trace.
 - **Scope.** The queue lives in memory for the page. A write still queued when the app is killed survives only as the local value; the server hears of it on the next write to that key.
 
 ## The states
