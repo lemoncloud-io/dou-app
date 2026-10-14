@@ -56,7 +56,6 @@ export const SettingsSwitchRow = ({
     /** Extra content under the label (inputs, errors, sub-switches). */
     children?: ReactNode;
 }) => {
-    const labelId = useId();
     const autoHintId = useId();
     const switchId = useId();
     const hintNodeId = hintId ?? autoHintId;
@@ -64,11 +63,7 @@ export const SettingsSwitchRow = ({
     return (
         <div className="flex items-center justify-between gap-4 px-5 py-4">
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <label
-                    htmlFor={switchId}
-                    id={labelId}
-                    className="w-fit cursor-pointer text-callout font-medium text-foreground"
-                >
+                <label htmlFor={switchId} className="w-fit cursor-pointer text-callout font-medium text-foreground">
                     {label}
                 </label>
                 {hint != null && (

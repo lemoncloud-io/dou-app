@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { PageShell, useCloudSessionCatalog } from '../../../shared';
+import { PageShell, SettingsNavRow, SettingsRowGroup, useCloudSessionCatalog } from '../../../shared';
 
 /**
  * Owned-cloud list (the relay catalog lists owned clouds only, so presence
@@ -44,22 +43,15 @@ export const CloudListPage = () => {
                     <p className="max-w-xs text-caption text-muted-foreground">{t('cloud.list.emptyHint')}</p>
                 </div>
             ) : (
-                <ul className="flex flex-col gap-1">
+                <SettingsRowGroup>
                     {clouds.map(cloud => (
-                        <li key={cloud.id}>
-                            <button
-                                type="button"
-                                onClick={() => cloud.id && navigate(`/account/clouds/${cloud.id}`)}
-                                className="focus-ring tactile flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent"
-                            >
-                                <span className="min-w-0 flex-1 truncate text-callout font-medium text-foreground">
-                                    {cloud.name ?? cloud.id}
-                                </span>
-                                <ChevronRight size={16} aria-hidden className="shrink-0 text-muted-foreground" />
-                            </button>
-                        </li>
+                        <SettingsNavRow
+                            key={cloud.id}
+                            label={cloud.name ?? cloud.id ?? ''}
+                            onClick={() => cloud.id && navigate(`/account/clouds/${cloud.id}`)}
+                        />
                     ))}
-                </ul>
+                </SettingsRowGroup>
             )}
         </PageShell>
     );

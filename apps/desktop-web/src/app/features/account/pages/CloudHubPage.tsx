@@ -16,13 +16,11 @@ import {
     SettingsRowGroup,
     useAccountResetOnLogout,
     useCloudSessionCatalog,
+    CLOUD_NAME_MAX,
     useRemoveCloud,
     useRenameCloud,
 } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
-
-/** The longest cloud name the form accepts, matching the web edit page. */
-const CLOUD_NAME_MAX = 20;
 
 /**
  * One owned cloud: rename inline, read-only facts, cascade release behind a

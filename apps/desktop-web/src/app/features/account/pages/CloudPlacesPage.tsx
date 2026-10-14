@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -5,7 +6,14 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { PageShell, useCloudSessionCatalog, useCloudSwitchFlow, usePlaces } from '../../../shared';
+import {
+    PageShell,
+    SettingsNavRow,
+    SettingsRowGroup,
+    useCloudSessionCatalog,
+    useCloudSwitchFlow,
+    usePlaces,
+} from '../../../shared';
 
 /**
  * One cloud's places. Listing another cloud's places needs its session, and
@@ -24,8 +32,9 @@ export const CloudPlacesPage = () => {
     const isActive = !!cloudId && cloudId === selectedCloudId;
     // The hub names itself dynamically; borrow its name for the back button so
     // back reads as the cloud, falling back to its id while the catalog loads.
+    // Memoized: the cached catalog already updates this page, no extra fetch.
     const { clouds } = useCloudSessionCatalog();
-    const parentName = clouds.find(row => row.id === cloudId)?.name ?? cloudId ?? '';
+    const parentName = useMemo(() => clouds.find(row => row.id === cloudId)?.name ?? cloudId ?? '', [clouds, cloudId]);
 
     return (
         <PageShell
@@ -40,21 +49,15 @@ export const CloudPlacesPage = () => {
                         {t('cloud.places.empty')}
                     </p>
                 ) : (
-                    <ul className="flex flex-col gap-1">
+                    <SettingsRowGroup>
                         {places.map(place => (
-                            <li key={place.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => place.id && navigate(`/places/${place.id}/settings`)}
-                                    className="focus-ring tactile flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent"
-                                >
-                                    <span className="min-w-0 flex-1 truncate text-callout font-medium text-foreground">
-                                        {place.name ?? place.id}
-                                    </span>
-                                </button>
-                            </li>
+                            <SettingsNavRow
+                                key={place.id}
+                                label={place.name ?? place.id ?? ''}
+                                onClick={() => place.id && navigate(`/places/${place.id}/settings`)}
+                            />
                         ))}
-                    </ul>
+                    </SettingsRowGroup>
                 )
             ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-8 text-center">

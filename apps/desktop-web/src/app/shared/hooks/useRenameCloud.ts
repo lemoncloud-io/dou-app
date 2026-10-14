@@ -13,6 +13,10 @@ import type { DomainCloud, DomainListResult } from '@chatic/data';
  * the surfaces that read it directly — a refetch right after the write could still return the old
  * name while the broker list catches up.
  */
+
+/** The product-wide cloud-name cap both rename surfaces enforce (the Figma-cited design limit). */
+export const CLOUD_NAME_MAX = 20;
+
 export const useRenameCloud = () => {
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const queryClient = useQueryClient();

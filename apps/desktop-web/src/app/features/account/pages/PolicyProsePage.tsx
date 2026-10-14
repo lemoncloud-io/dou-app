@@ -15,7 +15,8 @@ export const PolicyProsePage = ({
     contents,
 }: {
     backTo: string;
-    backLabel: string;
+    /** Defaults to the policies hub title — both callers return there. */
+    backLabel?: string;
     titleKey: string;
     contents: Record<SupportedLanguage, PolicyContent>;
 }) => {
@@ -26,7 +27,7 @@ export const PolicyProsePage = ({
     const currentVersion = content.versions.find(v => v.version === content.currentVersion);
 
     return (
-        <PageShell title={t(titleKey)} backTo={backTo} backLabel={backLabel}>
+        <PageShell title={t(titleKey)} backTo={backTo} backLabel={backLabel ?? t('policy.list.title')}>
             <p className="mb-6 text-right text-caption text-muted-foreground">
                 {t('policy.effectiveDate')}: {currentVersion?.effectiveDate}
             </p>

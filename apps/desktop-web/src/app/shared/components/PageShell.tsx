@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ChevronLeft } from 'lucide-react';
 
+import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 interface PageShellProps {
@@ -45,11 +46,7 @@ export const PageShell = ({ title, backTo, backLabel, actions, contentClassName,
             </header>
 
             <main
-                className={
-                    contentClassName
-                        ? `scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8 ${contentClassName}`
-                        : 'scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8'
-                }
+                className={cn('scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8', contentClassName)}
             >
                 {children}
             </main>

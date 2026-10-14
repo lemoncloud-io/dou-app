@@ -26,11 +26,19 @@ export const FormField = ({
     children: ReactNode;
 }) => {
     const child = Children.only(children);
+    // A control's own description survives: the error is appended to it, so a
+    // hint the field already named is not dropped by the failure.
     const wired =
         invalid && isValidElement(child)
             ? cloneElement(child as ReactElement<Record<string, unknown>>, {
                   'aria-invalid': true,
-                  ...(errorId ? { 'aria-describedby': errorId } : {}),
+                  ...(errorId
+                      ? {
+                            'aria-describedby': [(child.props as Record<string, unknown>)['aria-describedby'], errorId]
+                                .filter(Boolean)
+                                .join(' '),
+                        }
+                      : {}),
               })
             : child;
 

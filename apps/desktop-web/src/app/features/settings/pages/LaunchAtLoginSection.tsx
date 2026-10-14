@@ -1,8 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
-
+import { SettingsRowGroup, SettingsSwitchRow } from '../../../shared';
 import { getLoginItemApi, type LaunchAtLoginState } from '../../../shared/utils/electronApi';
 
 /**
@@ -37,9 +36,6 @@ export const LaunchAtLoginSection = () => {
     // A failed write flips the switch back, which on its own reads as a flicker.
     // The notice below names it; the next toggle clears it.
     const [writeFailed, setWriteFailed] = useState(false);
-    const labelId = useId();
-    const hintId = useId();
-    const switchId = useId();
 
     if (!api || !state?.supported) return null;
 
@@ -62,37 +58,20 @@ export const LaunchAtLoginSection = () => {
         <section className="mt-8 flex flex-col gap-4">
             <h2 className="text-overline uppercase text-muted-foreground">{t('settings.startup', 'Startup')}</h2>
 
-            <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <label
-                            htmlFor={switchId}
-                            id={labelId}
-                            className="w-fit cursor-pointer text-callout font-medium text-foreground"
-                        >
-                            {label}
-                        </label>
-                        <span id={hintId} className="text-caption text-muted-foreground">
-                            {t(
-                                'settings.launchAtLoginHint',
-                                'Start DoU automatically when you sign in to this computer.'
-                            )}
-                        </span>
-                    </div>
-                    <Switch
-                        id={switchId}
-                        className="hit-target shrink-0"
-                        checked={state.enabled}
-                        onCheckedChange={toggle}
-                        aria-describedby={hintId}
-                    />
-                </div>
-                {writeFailed && (
-                    <p role="alert" className="text-caption text-destructive">
-                        {t('settings.launchAtLoginFailed', 'Could not change this setting.')}
-                    </p>
-                )}
-            </div>
+            <SettingsRowGroup>
+                <SettingsSwitchRow
+                    label={label}
+                    hint={t('settings.launchAtLoginHint', 'Start DoU automatically when you sign in to this computer.')}
+                    checked={state.enabled}
+                    onCheckedChange={toggle}
+                >
+                    {writeFailed && (
+                        <p role="alert" className="text-caption text-destructive">
+                            {t('settings.launchAtLoginFailed', 'Could not change this setting.')}
+                        </p>
+                    )}
+                </SettingsSwitchRow>
+            </SettingsRowGroup>
         </section>
     );
 };
