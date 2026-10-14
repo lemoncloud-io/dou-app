@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { formatClockTime, formatListTime, formatShortDate } from './formatDate';
+import { formatClockTime, formatHourMinute, formatListTime, formatShortDate } from './formatDate';
 
 describe('formatListTime', () => {
     beforeEach(() => {
@@ -21,5 +21,17 @@ describe('formatListTime', () => {
 
     it('gives nothing for a missing time', () => {
         expect(formatListTime(undefined)).toBe('');
+    });
+});
+
+describe('formatHourMinute', () => {
+    it('prints a 24h input on the locale clock, like the snooze label', () => {
+        expect(formatHourMinute('22:00')).toBe(formatClockTime(new Date(2026, 9, 13, 22, 0).getTime()));
+        expect(formatHourMinute('07:00')).toBe(formatClockTime(new Date(2026, 9, 13, 7, 0).getTime()));
+    });
+
+    it('hands a malformed input back untouched', () => {
+        expect(formatHourMinute('bad')).toBe('bad');
+        expect(formatHourMinute('25:00')).toBe('25:00');
     });
 });

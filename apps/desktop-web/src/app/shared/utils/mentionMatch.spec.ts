@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMentioned, isNamedByRecord, mentionKind, mentionsMe } from './mentionMatch';
+import { isMentionBoundary, isMentioned, isNamedByRecord, mentionKind, mentionsMe } from './mentionMatch';
+
+describe('isMentionBoundary', () => {
+    it('holds at the start and after whitespace or punctuation', () => {
+        expect(isMentionBoundary('@Ada hi', 0)).toBe(true);
+        expect(isMentionBoundary('hi @Ada', 3)).toBe(true);
+        expect(isMentionBoundary('(@Ada)', 1)).toBe(true);
+        expect(isMentionBoundary('.@Ada', 1)).toBe(true);
+    });
+
+    it('breaks inside a word', () => {
+        expect(isMentionBoundary('lemon@x.io', 5)).toBe(false);
+        expect(isMentionBoundary('pw a@123', 4)).toBe(false);
+        expect(isMentionBoundary('a-@Ada', 2)).toBe(false);
+        expect(isMentionBoundary('a_@Ada', 2)).toBe(false);
+    });
+});
 
 describe('isMentioned', () => {
     it.each(['@channel', '@here', '@everyone', '@all', '@전체'])('reads %s as calling everyone', word => {

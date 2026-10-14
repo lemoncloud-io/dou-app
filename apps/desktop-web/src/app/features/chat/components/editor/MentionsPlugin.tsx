@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -22,58 +23,11 @@ import {
     KEY_ENTER_COMMAND,
     KEY_SPACE_COMMAND,
     type LexicalEditor,
-    type RangeSelection,
-    type TextNode,
 } from 'lexical';
 
-import { MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { MentionAutocomplete, type Mentionable } from '../MentionAutocomplete';
 import { $createMentionNode, $isMentionNode } from './MentionNode';
-
-// Word-start "@" + token chars up to the caret (same class RichText renders).
-const MENTION_MATCH = new RegExp(`(^|[\\s([{])(@(${MENTION_TOKEN_SOURCE}*))$`, 'u');
-
-interface MentionAtCaret {
-    /** The text typed after "@". */
-    query: string;
-    /** Text node + offset where the "@" starts (for replacement). */
-    startKey: string;
-    startOffset: number;
-}
-
-// Single source of truth for "is the caret inside an @-mention, and where does it
-// start". Walks back across adjacent simple-text nodes (a mention chip — type
-// 'mention', not simple — stops the walk) so detection and replacement always agree,
-// and maps the match back to a precise (node, offset) point so replacement never
-// relies on character counting (codepoint/grapheme-safe). Returns null when the caret
-// is not in an "@query".
-const findMentionAtCaret = (selection: RangeSelection): MentionAtCaret | null => {
-    if (!selection.isCollapsed() || selection.anchor.type !== 'text') return null;
-    const anchorNode = selection.anchor.getNode();
-    if (!$isTextNode(anchorNode) || !anchorNode.isSimpleText()) return null;
-    const caretOffset = selection.anchor.offset;
-
-    const nodes: TextNode[] = [anchorNode];
-    let prev = anchorNode.getPreviousSibling();
-    while ($isTextNode(prev) && prev.isSimpleText()) {
-        nodes.unshift(prev);
-        prev = prev.getPreviousSibling();
-    }
-    const lengthOf = (node: TextNode) => (node === anchorNode ? caretOffset : node.getTextContent().length);
-    const text = nodes.map(node => node.getTextContent().slice(0, lengthOf(node))).join('');
-
-    const match = MENTION_MATCH.exec(text);
-    if (!match) return null;
-
-    // match.index + lead char → absolute offset of "@"; map it back onto a node.
-    let offset = match.index + match[1].length;
-    for (const node of nodes) {
-        const len = lengthOf(node);
-        if (offset <= len) return { query: match[3], startKey: node.getKey(), startOffset: offset };
-        offset -= len;
-    }
-    return null;
-};
+import { findMentionAtCaret } from './mentionAtCaret';
 
 interface CaretRect {
     left: number;
@@ -127,8 +81,12 @@ const useMentionTypeahead = (editor: LexicalEditor, mentionables: Mentionable[])
 
     const close = useCallback(() => setQuery(null), []);
 
-    // Reset the highlight whenever the list is rebuilt.
-    useEffect(() => setActiveIndex(0), [query]);
+    // Reset the highlight whenever the list is rebuilt. A bare @ opens with the
+    // everyone row first (phone parity) but highlights the first person — Enter
+    // calling the whole channel is the costlier mistake.
+    useEffect(() => {
+        setActiveIndex(query === '' && mentionables.length > 1 && mentionables[0]?.everyone ? 1 : 0);
+    }, [query, mentionables]);
 
     const select = useCallback(
         (index: number) => {
@@ -232,9 +190,27 @@ const useMentionKeyboardSelect = (editor: LexicalEditor, args: MentionKeyboardAr
                 select(indexRef.current);
             }
         };
+        // Shift+Tab walks focus out of the composer with the list still open; a
+        // list nobody sees must not keep swallowing keys. Mousedown picks keep
+        // focus in the editor (preventDefault), so a blur truly leaving both the
+        // editor and the menu means the reader moved on.
+        const onFocusOut = (e: FocusEvent) => {
+            if (!openRef.current) return;
+            const next = e.relatedTarget as Node | null;
+            if (next && (menuRef.current?.contains(next) || editor.getRootElement()?.contains(next))) return;
+            close();
+        };
         return editor.registerRootListener((root, prevRoot) => {
-            prevRoot?.parentElement?.removeEventListener('keydown', onKeyDown, true);
-            root?.parentElement?.addEventListener('keydown', onKeyDown, true);
+            const prevParent = prevRoot?.parentElement;
+            if (prevParent) {
+                prevParent.removeEventListener('keydown', onKeyDown, true);
+                prevParent.removeEventListener('focusout', onFocusOut);
+            }
+            const parent = root?.parentElement;
+            if (parent) {
+                parent.addEventListener('keydown', onKeyDown, true);
+                parent.addEventListener('focusout', onFocusOut);
+            }
         });
     }, [editor, openRef, itemsRef, indexRef, setActiveIndex, select, close]);
 
@@ -300,6 +276,37 @@ interface MentionsPluginProps {
     mentionables: Mentionable[];
 }
 
+// The list's box: w-64 wide, never taller than max-h-64.
+const MENU_WIDTH = 256;
+const MENU_MAX_HEIGHT = 256;
+const VIEWPORT_EDGE = 8;
+
+export interface MenuAnchor {
+    left: number;
+    /** True when the caret sits too near the top to fit the list above it. */
+    below: boolean;
+}
+
+/**
+ * Keep the caret-anchored list inside the viewport: clamp the left edge, and
+ * flip below the caret when nothing fits above. Pure, so the edges are unit-tested.
+ */
+export const clampMenuAnchor = (
+    caret: { left: number; top: number },
+    viewportWidth: number,
+    viewportHeight: number
+): MenuAnchor => {
+    const left = Math.min(
+        Math.max(VIEWPORT_EDGE, caret.left),
+        Math.max(VIEWPORT_EDGE, viewportWidth - MENU_WIDTH - VIEWPORT_EDGE)
+    );
+    const aboveFits = caret.top >= MENU_MAX_HEIGHT + VIEWPORT_EDGE;
+    const belowFits = caret.top + MENU_MAX_HEIGHT + VIEWPORT_EDGE <= viewportHeight;
+    // Above by default; below when nothing fits above and something fits below.
+    // A viewport that fits neither keeps above — the status quo, with the caret visible.
+    return { left, below: !aboveFits && belowFits };
+};
+
 /**
  * Self-contained "@"-typeahead. We do NOT use @lexical/react's
  * LexicalTypeaheadMenuPlugin: it suspends both its query update and its Enter handling
@@ -310,18 +317,49 @@ interface MentionsPluginProps {
 export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
     const [editor] = useLexicalComposerContext();
     const menuRef = useRef<HTMLDivElement>(null);
+    const listId = useId();
     const { items, activeIndex, caretRect, open, select, close, openRef, itemsRef, indexRef, setActiveIndex } =
         useMentionTypeahead(editor, mentionables);
 
     useMentionKeyboardSelect(editor, { openRef, itemsRef, indexRef, setActiveIndex, select, close, menuRef });
     useMentionSpaceDedupe(editor);
 
+    // While the list is open the editor is a combobox naming it; restored after,
+    // so a closed box never misleads a screen reader about what typing does.
+    useEffect(() => {
+        const root = editor.getRootElement();
+        if (!root || !open) return;
+        root.setAttribute('role', 'combobox');
+        root.setAttribute('aria-expanded', 'true');
+        root.setAttribute('aria-autocomplete', 'list');
+        root.setAttribute('aria-controls', listId);
+        root.setAttribute('aria-activedescendant', `${listId}-option-${activeIndex}`);
+        // Lexical's own role is "textbox": restore it, don't leave the box role-less.
+        return () => {
+            root.setAttribute('role', 'textbox');
+            root.removeAttribute('aria-expanded');
+            root.removeAttribute('aria-autocomplete');
+            root.removeAttribute('aria-controls');
+            root.removeAttribute('aria-activedescendant');
+        };
+    }, [editor, open, listId, activeIndex]);
+
     if (!open || !caretRect) return null;
-    // Anchor a fixed wrapper at the caret; MentionAutocomplete's `bottom-full` floats
-    // the list just above it, so the menu follows the caret.
+    const anchor =
+        typeof window === 'undefined'
+            ? { left: caretRect.left, below: false }
+            : clampMenuAnchor(caretRect, window.innerWidth, window.innerHeight);
+    // Anchor a fixed wrapper at the caret; the list floats above it, or below
+    // when the caret sits near the top, so the menu follows the caret.
     return createPortal(
-        <div ref={menuRef} className="fixed z-popover" style={{ left: caretRect.left, top: caretRect.top }}>
-            <MentionAutocomplete items={items} activeIndex={activeIndex} onSelect={select} />
+        <div ref={menuRef} className="fixed z-popover" style={{ left: anchor.left, top: caretRect.top }}>
+            <MentionAutocomplete
+                items={items}
+                activeIndex={activeIndex}
+                onSelect={select}
+                listId={listId}
+                below={anchor.below}
+            />
         </div>,
         document.body
     );

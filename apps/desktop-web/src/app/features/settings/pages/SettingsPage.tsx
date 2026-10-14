@@ -11,6 +11,8 @@ import {
     SettingsNavRow,
     SettingsRowGroup,
     SettingsSwitchRow,
+    formatHourMinute,
+    parseHourMinute,
     radioGroupOptions,
     useNotificationPrefsStore,
     VersionInfo,
@@ -25,19 +27,13 @@ import { QuietHoursMentionSection } from './QuietHoursMentionSection';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 
-/** "HH:MM" → minutes past midnight, or null when the input is incomplete. */
-const toMinutes = (value: string): number | null => {
-    const match = /^(\d{2}):(\d{2})$/.exec(value);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
-};
-
 /**
  * Length of a quiet window that may cross midnight (22:00–07:00 is 9h), or null
  * when it is empty or unreadable — start equal to end silences nothing.
  */
 const quietWindowMinutes = (start: string, end: string): number | null => {
-    const s = toMinutes(start);
-    const e = toMinutes(end);
+    const s = parseHourMinute(start);
+    const e = parseHourMinute(end);
     if (s == null || e == null || s === e) return null;
     return (e - s + 24 * 60) % (24 * 60);
 };
@@ -207,7 +203,8 @@ export const SettingsPage = () => {
                         onCheckedChange={toggleQuiet}
                     >
                         {quietHours && (
-                            <div className="flex items-center gap-3 pt-2">
+                            <fieldset className="flex items-center gap-3 pt-2">
+                                <legend className="sr-only">{t('settings.quietHoursTimeLegend')}</legend>
                                 <label className="flex flex-col gap-1.5 text-caption text-muted-foreground">
                                     {t('settings.quietHoursStart')}
                                     <input
@@ -229,7 +226,7 @@ export const SettingsPage = () => {
                                         className="focus-ring rounded-lg border border-control-border bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
-                            </div>
+                            </fieldset>
                         )}
                         {/* The computed window, so an overnight range reads as intended and
                             an empty one (start = end) is caught instead of silently doing nothing.
@@ -247,8 +244,8 @@ export const SettingsPage = () => {
                                 {quietWindow == null
                                     ? t('settings.quietHoursEmpty')
                                     : t('settings.quietHoursWindow', {
-                                          start: quietHours.start,
-                                          end: quietHours.end,
+                                          start: formatHourMinute(quietHours.start),
+                                          end: formatHourMinute(quietHours.end),
                                           hours: Math.floor(quietWindow / 60),
                                           minutes: quietWindow % 60,
                                       })}

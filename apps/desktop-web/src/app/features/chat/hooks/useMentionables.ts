@@ -33,12 +33,18 @@ export const useMentionables = (
     return useMemo(() => {
         const people = members
             .map(member => {
+                const global = displayName(member);
                 const display = resolveDisplay(
                     member.id ? placeProfiles[member.id] : undefined,
-                    displayName(member),
+                    global,
                     member.thumbnail
                 );
-                return { id: member.id ?? '', name: display.name, thumbnail: display.thumbnail };
+                return {
+                    id: member.id ?? '',
+                    name: display.name,
+                    thumbnail: display.thumbnail,
+                    subName: display.name !== global ? global : undefined,
+                };
             })
             .filter(m => m.id && m.name)
             .sort(

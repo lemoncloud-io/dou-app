@@ -228,6 +228,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
         <ResizablePanel
             storageKey={'chatic.threadPanel.width'}
             resizeLabel={t('chat.thread.resize')}
+            label={t('chat.thread.title')}
             onClose={closeThread}
             className="bg-background"
         >

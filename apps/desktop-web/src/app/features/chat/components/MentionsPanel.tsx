@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
@@ -23,28 +23,46 @@ import {
 
 const formatMentionAt = formatListTime;
 
+/** channelId → name, so 200 rows never scan the channel list each. */
+export const indexChannelNames = (channels: { id?: string; name?: string }[]): Map<string, string> => {
+    const names = new Map<string, string>();
+    for (const channel of channels) {
+        if (channel.id && channel.name) names.set(channel.id, channel.name);
+    }
+    return names;
+};
+
 interface MentionRowProps {
     item: MentionItem;
     /** Resolved channel name (current place only); chip is hidden when absent. */
     channelName?: string;
-    removeLabel: string;
+    /** Who and where the removal drops, already composed ("Ada · #general"). */
+    removeTarget: string;
     /** The row last opened from this pane: the message the reader went to. */
     isCurrent?: boolean;
-    onOpen: () => void;
-    onRemove: () => void;
+    onOpen: (id: string) => void;
+    onRemove: (id: string) => void;
+    openRef: (element: HTMLButtonElement | null) => void;
 }
 
-const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemove }: MentionRowProps) => (
-    <div
+// Memo: the pane re-renders on every unread change, and 200 rows re-render
+// with it. Props are primitives plus store-stable callbacks (see below), so an
+// untouched row skips the render.
+const MentionRow = memo(
+    ({ item, channelName, removeTarget, isCurrent, onOpen, onRemove, openRef }: MentionRowProps) => {
+        const { t } = useTranslation();
+        return (
+    <li
         className={cn(
             'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
             isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
         )}
     >
         <button
+            ref={openRef}
             type="button"
             aria-current={isCurrent || undefined}
-            onClick={onOpen}
+            onClick={() => onOpen(item.id)}
             className="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-md p-2.5 text-left"
         >
             {/* Unread marker — a dot in the left gutter until the mention is opened. */}
@@ -62,7 +80,9 @@ const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemov
             </Avatar>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex items-center gap-1.5 pr-7 text-caption text-muted-foreground">
-                    <span className="truncate font-medium text-foreground">{item.ownerName}</span>
+                    <span className={cn('truncate text-foreground', !item.readAt ? 'font-semibold' : 'font-medium')}>
+                        {item.ownerName}
+                    </span>
                     {channelName && (
                         <>
                             <Hash size={10} aria-hidden className="shrink-0" />
@@ -85,11 +105,11 @@ const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemov
                 hoverReveal('mention')
             )}
         />
-        <Hint label={removeLabel}>
+        <Hint label={t('activity.remove')}>
             <button
                 type="button"
-                onClick={onRemove}
-                aria-label={removeLabel}
+                onClick={() => onRemove(item.id)}
+                aria-label={t('activity.removeLabel', { target: removeTarget })}
                 className={cn(
                     'focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
                     hoverReveal('mention')
@@ -98,7 +118,9 @@ const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemov
                 <X size={13} />
             </button>
         </Hint>
-    </div>
+    </li>
+        );
+    }
 );
 
 interface MentionsPanelProps {
@@ -122,14 +144,11 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const { t } = useTranslation();
     const close = useMentionsPanelStore(s => s.close);
     const openedId = useMentionsPanelStore(s => s.openedId);
-    const markOpened = useMentionsPanelStore(s => s.markOpened);
     const items = useMentionsStore(s => s.items);
-    const markRead = useMentionsStore(s => s.markRead);
-    const markAllRead = useMentionsStore(s => s.markAllRead);
-    const remove = useMentionsStore(s => s.remove);
 
-    const channelName = (channelId: string): string | undefined => channels.find(c => c.id === channelId)?.name;
-    const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
+    const channelNames = useMemo(() => indexChannelNames(channels), [channels]);
+    const channelName = (channelId: string): string | undefined => channelNames.get(channelId);
+    const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('activity.otherPlace');
 
     // Group newest-first items by place; the active place sorts to the top, the
     // rest keep recency order. Items captured before placeId existed fall under
@@ -150,15 +169,61 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
 
     const hasUnread = unreadMentionCount(items) > 0;
 
+    // Stable row callbacks: the host's onSelect is a fresh closure every render
+    // (HomePage keeps a ref for the same reason), so rows read it through one
+    // here. Unchanged rows keep every prop and skip the render.
+    const onSelectRef = useRef(onSelect);
+    onSelectRef.current = onSelect;
+    const openItem = useCallback((id: string) => {
+        const item = useMentionsStore.getState().items[id];
+        if (!item) return;
+        useMentionsPanelStore.getState().markOpened(id);
+        useMentionsStore.getState().markRead(id);
+        onSelectRef.current(item.channelId, item.chatNo, item.placeId, item.parentId);
+    }, []);
+    // Removing a row strands focus on <body>; hand it to the row that takes its
+    // place, or the one above when it was last. The visual order is recorded
+    // each render because recency order is not the display order.
+    const orderRef = useRef<string[]>([]);
+    orderRef.current = groups.flatMap(group => group.items.map(item => item.id));
+    const focusTarget = useRef<string | null>(null);
+    const rowRefs = useRef(new Map<string, (element: HTMLButtonElement | null) => void>());
+    const openRef = useCallback((id: string) => {
+        let ref = rowRefs.current.get(id);
+        if (!ref) {
+            ref = element => {
+                if (element && focusTarget.current === id) {
+                    focusTarget.current = null;
+                    element.focus();
+                }
+            };
+            rowRefs.current.set(id, ref);
+        }
+        return ref;
+    }, []);
+    const removeItem = useCallback((id: string) => {
+        const order = orderRef.current;
+        const at = order.indexOf(id);
+        focusTarget.current = order[at + 1] ?? order[at - 1] ?? null;
+        rowRefs.current.delete(id);
+        useMentionsStore.getState().remove(id);
+    }, []);
+    const markAllRead = useMentionsStore(s => s.markAllRead);
+    const removeTarget = (item: MentionItem): string => {
+        const channel = channelName(item.channelId);
+        return channel ? `${item.ownerName} · #${channel}` : item.ownerName;
+    };
+
     return (
         <ResizablePanel
             storageKey={'chatic.mentionsPanel.width'}
             resizeLabel={t('activity.resize')}
+            label={t('activity.title')}
             onClose={close}
             className="bg-background"
         >
             <header className={`${PANE_HEADER} px-4`}>
-                <span className={PANEL_TITLE}>{t('activity.title')}</span>
+                <h2 className={PANEL_TITLE}>{t('activity.title')}</h2>
                 <div className="flex shrink-0 items-center gap-1">
                     {hasUnread && (
                         <button
@@ -188,34 +253,36 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                     </div>
                     <p className="text-heading text-foreground">{t('activity.empty')}</p>
                     <p className="max-w-xs text-caption text-muted-foreground">{t('activity.emptyHint')}</p>
+                    <p className="max-w-xs text-caption text-muted-foreground">{t('activity.deviceLocal')}</p>
                 </div>
             ) : (
                 <div className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-                    <p className="px-2 text-caption text-muted-foreground">{t('saved.deviceLocal')}</p>
-                    {groups.map(group => (
-                        <div key={group.key || 'none'} className="flex flex-col gap-1">
-                            <p className="sticky top-0 z-raised flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
-                                <span className="truncate">{placeName(group.key)}</span>
-                                <span className="shrink-0 tabular-nums">{group.items.length}</span>
-                            </p>
-                            {group.items.map(item => (
-                                <MentionRow
-                                    key={item.id}
-                                    item={item}
-                                    channelName={channelName(item.channelId)}
-                                    removeLabel={t('saved.remove')}
-                                    isCurrent={item.id === openedId}
-                                    onOpen={() => {
-                                        markOpened(item.id);
-                                        markRead(item.id);
-                                        onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
-                                        close();
-                                    }}
-                                    onRemove={() => remove(item.id)}
-                                />
-                            ))}
-                        </div>
-                    ))}
+                    <p className="px-2 text-caption text-muted-foreground">{t('activity.deviceLocal')}</p>
+                    {groups.map(group => {
+                        const unread = group.items.filter(item => !item.readAt).length;
+                        return (
+                            <div key={group.key || 'none'} className="flex flex-col gap-1">
+                                <h3 className="sticky top-0 z-raised flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
+                                    <span className="truncate">{placeName(group.key)}</span>
+                                    {unread > 0 && <span className="shrink-0 tabular-nums">{unread}</span>}
+                                </h3>
+                                <ul className="flex flex-col gap-1">
+                                    {group.items.map(item => (
+                                        <MentionRow
+                                            key={item.id}
+                                            item={item}
+                                            channelName={channelName(item.channelId)}
+                                            removeTarget={removeTarget(item)}
+                                            isCurrent={item.id === openedId}
+                                            onOpen={openItem}
+                                            onRemove={removeItem}
+                                            openRef={openRef(item.id)}
+                                        />
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </ResizablePanel>

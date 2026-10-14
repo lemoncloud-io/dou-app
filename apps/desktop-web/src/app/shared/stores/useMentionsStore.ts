@@ -28,11 +28,31 @@ export interface MentionItem {
 /** Bound storage: keep only the newest N mentions. */
 const MAX_ITEMS = 200;
 
+/**
+ * What the inbox keeps of a message: the two-line preview, not the body. Full
+ * text at 200 rows persisted and rewritten on every mark — the row only ever
+ * shows a clamped preview.
+ */
+export const MENTION_PREVIEW_CHARS = 240;
+
+/** Trim to the preview the row renders — a whole tail the reader never sees is not stored. */
+export const truncateMentionPreview = (content: string): string =>
+    content.length > MENTION_PREVIEW_CHARS ? content.slice(0, MENTION_PREVIEW_CHARS) : content;
+
 interface MentionsState {
     items: Record<string, MentionItem>;
     add: (item: Omit<MentionItem, 'readAt'>) => void;
     markRead: (id: string) => void;
     markAllRead: () => void;
+    /**
+     * Stamp every unread item of a channel at or below `chatNo` read — the
+     * inbox follows the same read-cursor boundary as the row and the dock, so
+     * reading in the channel (or on another device, via the synced cursor)
+     * clears the inbox without opening each item. The place disambiguates
+     * same-id channels of other places; items captured before placeId existed
+     * match any place.
+     */
+    markChannelRead: (channelId: string, chatNo: number, placeId?: string) => void;
     remove: (id: string) => void;
 }
 
@@ -106,6 +126,29 @@ export const useMentionsStore = create<MentionsState>()(
                         next[id] = item.readAt ? item : { ...item, readAt: now };
                     }
                     return { items: next };
+                }),
+            markChannelRead: (channelId, chatNo, placeId) =>
+                set(state => {
+                    if (!channelId || !chatNo) return state;
+                    let touched = false;
+                    const now = Date.now();
+                    const next: Record<string, MentionItem> = {};
+                    for (const [id, item] of Object.entries(state.items)) {
+                        const samePlace =
+                            placeId == null || item.placeId == null || item.placeId === placeId;
+                        if (
+                            !item.readAt &&
+                            item.channelId === channelId &&
+                            samePlace &&
+                            (item.chatNo ?? 0) <= chatNo
+                        ) {
+                            next[id] = { ...item, readAt: now };
+                            touched = true;
+                        } else {
+                            next[id] = item;
+                        }
+                    }
+                    return touched ? { items: next } : state;
                 }),
             remove: id =>
                 set(state => {

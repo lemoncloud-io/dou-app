@@ -45,9 +45,12 @@ still read by its text.
 
 - **Only a pick counts.** A name typed by hand, and a chip restored from a draft or from a message
   opened for editing, carry no id. A chip whose text has changed since the pick (a name of several
-  words cut short by Backspace) stops counting.
+  words cut short by Backspace) stops counting. A full name left unpicked warns under the box:
+  sending it would mention nobody.
 - **"Everyone" is a group channel's first row.** A 1:1 and my notes-to-self have none, and neither
-  does the box that edits a sent message: an edit does not change who was mentioned.
+  does the box that edits a sent message: an edit does not change who was mentioned. On a bare
+  `@` the row stays first but the highlight starts on the first person, so Enter names someone
+  instead of calling the whole channel.
 - **A resend keeps the mention.** The failed row holds the record, and both Retry and the reconnect
   sweep rebuild the payload from it (`toSendPayload`).
 
