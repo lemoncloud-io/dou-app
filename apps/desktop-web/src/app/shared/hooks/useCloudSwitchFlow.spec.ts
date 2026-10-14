@@ -33,6 +33,7 @@ vi.mock('@chatic/app-runtime', () => ({
 }));
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: catalog.ownedClouds }),
+    useOwnedCloudIds: () => new Set(catalog.ownedClouds.map((c: { id: string }) => c.id)),
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: session.toast }) }));

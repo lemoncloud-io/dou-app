@@ -28,6 +28,7 @@ vi.mock('@chatic/app-runtime', () => ({
 
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: ownedClouds }),
+    useOwnedCloudIds: () => new Set(ownedClouds.map((c: { id: string }) => c.id)),
 }));
 
 import { webClient } from '@chatic/bridges';

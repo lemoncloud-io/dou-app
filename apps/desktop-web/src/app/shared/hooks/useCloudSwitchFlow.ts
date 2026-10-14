@@ -7,7 +7,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
-import { useCloudSessionCatalog } from './useCloudCatalog';
+import { useOwnedCloudIds } from './useCloudCatalog';
+import { RELAY_ORIGIN_CID } from './usePushInvitedCloudRecovery';
 import { useSelectedChannelStore } from '../stores';
 import { classifyWireError, extractErrorMessage } from '../utils';
 
@@ -42,14 +43,7 @@ export const useCloudSwitchFlow = () => {
     const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
-    const { clouds: ownedClouds } = useCloudSessionCatalog();
-    // Membership string, not the array: the catalog hands out a new identity per
-    // read, and the switch below must survive those, re-closing only when the
-    // membership itself changes.
-    const ownedKey = ownedClouds
-        .map(c => c.id)
-        .sort()
-        .join('\n');
+    const ownedCloudIds = useOwnedCloudIds();
     const { t } = useTranslation();
     const { toast } = useToast();
 
@@ -76,7 +70,7 @@ export const useCloudSwitchFlow = () => {
                 // to report its own failure. Owned clouds are the catalog's record;
                 // an invited row for one would mislabel it. Relay-origin pushes
                 // carry '#' instead of a cloud id and never reach this recovery.
-                if (cloudId !== '#' && !new Set(ownedKey ? ownedKey.split('\n') : []).has(cloudId)) {
+                if (cloudId !== RELAY_ORIGIN_CID && !ownedCloudIds.has(cloudId)) {
                     try {
                         await runtime.data.recoverInvitedCloudIfMissing(cloudRepository, cloudId);
                     } catch {
@@ -116,7 +110,7 @@ export const useCloudSwitchFlow = () => {
                 });
             }
         },
-        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedKey, isSwitching, t, toast]
+        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedCloudIds, isSwitching, t, toast]
     );
 
     latestRef.current = switchCloud;

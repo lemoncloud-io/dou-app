@@ -3,10 +3,10 @@ import { useEffect } from 'react';
 import { isNative, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
-import { useCloudSessionCatalog } from './useCloudCatalog';
+import { useOwnedCloudIds } from './useCloudCatalog';
 
 /** Relay-origin pushes carry this instead of a cloud id — never a recovery target. */
-const RELAY_ORIGIN_CID = '#';
+export const RELAY_ORIGIN_CID = '#';
 
 /**
  * In-flight recoveries, keyed by cloud. A chatty channel bursts pushes for one
@@ -31,18 +31,10 @@ const inflight = new Set<string>();
  */
 export const usePushInvitedCloudRecovery = (): void => {
     const { cloud } = runtime.data.useRuntimeRepositories();
-    const { clouds: ownedClouds } = useCloudSessionCatalog();
-    // Membership string, not the array: the catalog hands out a new identity per
-    // read, and the subscription below must survive those, re-arming only when
-    // the membership itself changes.
-    const ownedKey = ownedClouds
-        .map(c => c.id)
-        .sort()
-        .join('\n');
+    const owned = useOwnedCloudIds();
 
     useEffect(() => {
         if (!isNative()) return;
-        const owned = new Set(ownedKey ? ownedKey.split('\n') : []);
         return webClient.onEvent('OnReceiveNotification', message => {
             const data = (message?.data as { notification?: { data?: Record<string, string> } })?.notification?.data;
             const cid = data?.cid;
@@ -55,5 +47,5 @@ export const usePushInvitedCloudRecovery = (): void => {
                     inflight.delete(cid);
                 });
         });
-    }, [cloud, ownedKey]);
+    }, [cloud, owned]);
 };

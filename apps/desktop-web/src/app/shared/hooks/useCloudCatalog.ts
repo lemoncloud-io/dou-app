@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 
@@ -65,4 +65,19 @@ export const useCloudSessionCatalog = () => {
         isPendingClouds: isPending,
         refetchClouds: refetch,
     };
+};
+
+/**
+ * Owned-cloud ids as a set with a stable identity: the catalog hands out a new
+ * array per read, so consumers that subscribe or close over the membership
+ * (push recovery, cloud switch) key the memo on the sorted ids and re-arm only
+ * when the membership itself changes.
+ */
+export const useOwnedCloudIds = (): Set<string> => {
+    const { clouds } = useCloudSessionCatalog();
+    const key = clouds
+        .map(c => c.id)
+        .sort()
+        .join('\n');
+    return useMemo(() => new Set(key ? key.split('\n') : []), [key]);
 };
