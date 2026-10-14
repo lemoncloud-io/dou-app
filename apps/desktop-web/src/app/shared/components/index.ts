@@ -10,6 +10,7 @@ export * from './AppToaster';
 export * from './VersionInfo';
 export * from './UpdateBanner';
 export * from './AppErrorBoundary';
+export * from './FormField';
 export * from './PageShell';
 export * from './SettingsRow';
 export * from './paneHeader';

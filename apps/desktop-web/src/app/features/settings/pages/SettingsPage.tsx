@@ -214,6 +214,7 @@ export const SettingsPage = () => {
                                         type="time"
                                         value={quietHours.start}
                                         onChange={e => setQuietHours({ start: e.target.value, end: quietHours.end })}
+                                        aria-describedby="quiet-hours-window"
                                         className="focus-ring rounded-lg border border-control-border bg-background px-3 py-2 text-callout text-foreground"
                                     />
                                 </label>
@@ -231,11 +232,13 @@ export const SettingsPage = () => {
                             </div>
                         )}
                         {/* The computed window, so an overnight range reads as intended and
-                            an empty one (start = end) is caught instead of silently doing nothing. */}
+                            an empty one (start = end) is caught instead of silently doing nothing.
+                            A steady live region, not a toggled alert: both inputs point at it,
+                            and it explains the empty window instead of blocking the save. */}
                         {quietHours && (
                             <p
                                 id="quiet-hours-window"
-                                role={quietWindow == null ? 'alert' : undefined}
+                                aria-live="polite"
                                 className={cn(
                                     'text-caption',
                                     quietWindow == null ? 'text-destructive' : 'text-muted-foreground'

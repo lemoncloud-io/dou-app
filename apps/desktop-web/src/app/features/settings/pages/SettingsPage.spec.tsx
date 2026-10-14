@@ -63,4 +63,20 @@ describe('SettingsPage notifications', () => {
         const snooze = screen.getByText('snooze stub');
         expect(snooze.closest('section')?.textContent).toContain('Notifications');
     });
+
+    // Start = end silences nothing: the empty window is explained in a live
+    // region both time inputs point at, instead of an alert that toggles.
+    it('announces the empty quiet window off both time inputs', () => {
+        useNotificationPrefsStore.setState({ quietHours: { start: '22:00', end: '22:00' } });
+        renderPage();
+
+        const note = screen.getByText('Start and end are the same, so nothing is silenced.');
+        expect(note.getAttribute('aria-live')).toBe('polite');
+        expect(note.getAttribute('role')).toBeNull();
+        const windowId = note.getAttribute('id');
+        expect(windowId).toBeTruthy();
+        for (const label of ['From', 'To']) {
+            expect(screen.getByLabelText(label).getAttribute('aria-describedby')).toBe(windowId);
+        }
+    });
 });

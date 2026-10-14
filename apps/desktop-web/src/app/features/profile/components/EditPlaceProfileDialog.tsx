@@ -13,11 +13,12 @@ import {
     DialogFooter,
 } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     avatarStyle,
+    FormError,
+    FormField,
     isPlaceholderName,
     useAccountName,
     useCurrentPlace,
@@ -78,11 +79,14 @@ export const EditPlaceProfileDialog = () => {
     }, [isOpen, load, myUid, globalName, globalPhoto]);
 
     // A save disables the field and the buttons, so whichever held focus went dead and focus fell
-    // to the page. After a failure, hand it to the field the person is about to correct — once
-    // the form is enabled again, since a disabled input cannot take focus.
+    // to the page — and the autofocused field is disabled while the opening read loads, so its
+    // autofocus lands nowhere either. Whenever the form comes back, hand focus to the field the
+    // person is about to correct. A disabled input cannot take focus, so only on the idle edge.
+    const wasBusy = useRef(busy);
     useEffect(() => {
-        if (isError && !busy) nickRef.current?.focus();
-    }, [isError, busy]);
+        if (wasBusy.current && !busy) nickRef.current?.focus();
+        wasBusy.current = busy;
+    }, [busy]);
 
     const handleOpenChange = (next: boolean) => {
         if (next) return;
@@ -172,8 +176,12 @@ export const EditPlaceProfileDialog = () => {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="place-nick">{t('profile.place.nick')}</Label>
+                    <FormField
+                        label={t('profile.place.nick')}
+                        htmlFor="place-nick"
+                        errorId="place-nick-error"
+                        invalid={isError}
+                    >
                         <Input
                             id="place-nick"
                             ref={nickRef}
@@ -183,13 +191,9 @@ export const EditPlaceProfileDialog = () => {
                             placeholder={accountName || t('profile.place.nick')}
                             disabled={busy}
                         />
-                    </div>
+                    </FormField>
 
-                    {isError && (
-                        <p role="alert" className="text-callout text-destructive">
-                            {t('profile.place.failed')}
-                        </p>
-                    )}
+                    {isError && <FormError id="place-nick-error">{t('profile.place.failed')}</FormError>}
 
                     {/* Reverting to the account identity changes how you appear to everyone
                         in this place, so it does not sit in the Cancel/Save row where it

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,9 +16,18 @@ vi.mock('@chatic/app-runtime', () => ({
 
 const load = vi.fn();
 const setMyProfile = vi.fn();
-/** Mirrors the real hook's saving flag, which is what disables the form during a save. */
+/** Mirrors the real hook's flags: loading while the opening read is in flight, saving around a save. */
 const useFakeMyProfile = () => {
     const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const loadWhile = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            return await load();
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
     const save = async (body: unknown) => {
         setIsSaving(true);
         try {
@@ -27,7 +36,7 @@ const useFakeMyProfile = () => {
             setIsSaving(false);
         }
     };
-    return { isLoading: false, isSaving, load, save };
+    return { isLoading, isSaving, load: loadWhile, save };
 };
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
@@ -57,6 +66,11 @@ describe('EditPlaceProfileDialog focus after a failed save', () => {
 
     it('puts focus back on the nickname field when Save fails', async () => {
         render(<EditPlaceProfileDialog />);
+        // The opening read disables the form until it settles.
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy());
+        await waitFor(() =>
+            expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false)
+        );
         const save = screen.getByRole('button', { name: 'Save' });
         save.focus();
         fireEvent.click(save);
@@ -69,11 +83,32 @@ describe('EditPlaceProfileDialog focus after a failed save', () => {
 
     it('puts focus back on the nickname field when switching to the account profile fails', async () => {
         render(<EditPlaceProfileDialog />);
+        await waitFor(() =>
+            expect((screen.getByRole('button', { name: 'Use account profile' }) as HTMLButtonElement).disabled).toBe(
+                false
+            )
+        );
         const useAccount = screen.getByRole('button', { name: 'Use account profile' });
         useAccount.focus();
         fireEvent.click(useAccount);
 
         await screen.findByRole('alert');
         await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Nickname')));
+    });
+
+    // The autofocused field is disabled while the opening read loads, so the
+    // autofocus lands nowhere and focus is left on the page behind the dialog.
+    it('focuses the nickname field once the opening load finishes', async () => {
+        let settle: (profile: null) => void = () => undefined;
+        load.mockReturnValue(new Promise<null>(resolve => (settle = resolve)));
+        render(<EditPlaceProfileDialog />);
+
+        const nick = screen.getByLabelText('Nickname') as HTMLInputElement;
+        expect(nick.disabled).toBe(true);
+
+        await act(async () => settle(null));
+
+        await waitFor(() => expect(document.activeElement).toBe(nick));
+        expect(nick.disabled).toBe(false);
     });
 });

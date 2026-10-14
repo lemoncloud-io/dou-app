@@ -75,6 +75,21 @@ describe('ReportIssueDialog', () => {
         expect(body.value).toBe('It crashes');
     });
 
+    // The failure is announced off the fields it blocks: both point at it.
+    it('ties the send failure to both fields', async () => {
+        reportIssue.mockRejectedValue(new Error('network down'));
+        const { title, body, submit } = setup();
+        fireEvent.change(title, { target: { value: 'Broken' } });
+        fireEvent.change(body, { target: { value: 'It crashes' } });
+        fireEvent.click(submit);
+
+        const error = await screen.findByRole('alert');
+        expect(title.getAttribute('aria-invalid')).toBe('true');
+        expect(body.getAttribute('aria-invalid')).toBe('true');
+        expect(title.getAttribute('aria-describedby')).toBe(error.getAttribute('id'));
+        expect(body.getAttribute('aria-describedby')).toBe(error.getAttribute('id'));
+    });
+
     it('disables the form while sending', async () => {
         let finish: () => void = () => undefined;
         reportIssue.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));

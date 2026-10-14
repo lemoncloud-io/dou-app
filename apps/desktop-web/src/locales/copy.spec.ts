@@ -4,10 +4,9 @@ import { en } from './en';
 import { ko } from './ko';
 
 /**
- * The cloud-vocabulary guards of the account-area backlog: one noun
- * (클라우드), one destroy verb (삭제), one name cap (20, the web edit page
- * and the Figma-cited design limit). Literal on purpose — these exact lines
- * shipped wrong once, and a paraphrase is what let them.
+ * The account-area copy guards: one noun, one destroy verb, one name cap (20,
+ * the web edit page and the Figma-cited design limit). Literal on purpose —
+ * these exact lines shipped wrong once, and a paraphrase is what let them.
  */
 describe('account-area copy', () => {
     it('names the cloud, not the workspace, in the guest body', () => {
