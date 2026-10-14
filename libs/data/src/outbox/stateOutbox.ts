@@ -1,6 +1,17 @@
 import type { DataRepositories } from '../repositories';
 import { OutboxRefusalError } from './ports';
-import type { OutboxOp, OutboxPort, OutboxTransport, OutboxValues, StateSpec, StateWrite, WriteReceipt } from './ports';
+import type {
+    OutboxDelivery,
+    OutboxObserver,
+    OutboxOp,
+    OutboxPort,
+    OutboxSettleOutcome,
+    OutboxTransport,
+    OutboxValues,
+    StateSpec,
+    StateWrite,
+    WriteReceipt,
+} from './ports';
 
 /**
  * The state outbox: every state write goes two ways — the repository writes it locally first, then
@@ -24,12 +35,26 @@ import type { OutboxOp, OutboxPort, OutboxTransport, OutboxValues, StateSpec, St
  *
  * **Late answers do not win.** The server's answer to a request is recorded only when no newer value
  * is waiting for the key; otherwise a quick on → off → on would show the first answer for a moment.
+ *
+ * **What an observer sees.** A key's wait — from the set that made it wait to the answer that leaves
+ * nothing waiting — is one delivery, however many values folded into it on the way.
  */
 
 interface Waiter {
     seq: number;
     resolve: () => void;
     reject: (error: unknown) => void;
+}
+
+/** One key's wait as the observer follows it. */
+interface Watch {
+    report: (delivery: OutboxDelivery) => void;
+    startedAt: number;
+    /** When the cloud stopped being ready, while it still is not; null while it is ready. */
+    downSince: number | null;
+    waitSocketMs: number;
+    /** Requests that failed and had to be sent again. */
+    failures: number;
 }
 
 interface KeyState {
@@ -49,6 +74,8 @@ interface KeyState {
     failures: number;
     timer: unknown;
     waiters: Waiter[];
+    /** Set while an observer follows this key's current wait. */
+    watch: Watch | null;
 }
 
 interface CloudState {
@@ -71,9 +98,12 @@ const idOf = (write: StateWrite): string => `${write.cid}|${write.uid}|${write.o
 export const createStateOutbox = ({
     specs,
     transport,
+    observer,
 }: {
     specs: StateSpecs;
     transport: OutboxTransport;
+    /** Told how long each key's wait for the server took; the outbox behaves the same without one. */
+    observer?: OutboxObserver;
 }): OutboxPort & { pending(cid?: string): readonly StateWrite[]; flush(): Promise<void> } => {
     const keys = new Map<string, KeyState>();
     const clouds = new Map<string, CloudState>();
@@ -92,6 +122,50 @@ export const createStateOutbox = ({
         if (state.timer === undefined) return;
         transport.clearTimer(state.timer);
         state.timer = undefined;
+    };
+
+    const beginWatch = (cid: string): Watch | null => {
+        const report = observer?.begin();
+        if (!observer || !report) return null;
+        const startedAt = observer.now();
+        // A cloud not watched yet counts as down until its first report, which comes synchronously.
+        const downSince = clouds.get(cid)?.ready ? null : startedAt;
+        return { report, startedAt, downSince, waitSocketMs: 0, failures: 0 };
+    };
+
+    const noteReadiness = (cid: string, ready: boolean): void => {
+        if (!observer) return;
+        for (const state of keys.values()) {
+            const watch = state.watch;
+            if (!watch || state.write.cid !== cid) continue;
+            if (ready && watch.downSince !== null) {
+                watch.waitSocketMs += observer.now() - watch.downSince;
+                watch.downSince = null;
+            } else if (!ready && watch.downSince === null) {
+                watch.downSince = observer.now();
+            }
+        }
+    };
+
+    /** Ends the key's wait for the observer. `answered`: a request's answer ended it, not a check here. */
+    const endWatch = (state: KeyState, outcome: OutboxSettleOutcome, answered: boolean): void => {
+        const watch = state.watch;
+        if (!observer || !watch) return;
+        state.watch = null;
+        const at = observer.now();
+        const down = watch.downSince === null ? 0 : at - watch.downSince;
+        try {
+            watch.report({
+                op: state.write.op,
+                cid: state.write.cid,
+                outcome,
+                deliveryMs: at - watch.startedAt,
+                waitSocketMs: watch.waitSocketMs + down,
+                attempts: watch.failures + (answered ? 1 : 0),
+            });
+        } catch {
+            // A measurement must not change what the outbox does next.
+        }
     };
 
     const settleWaiters = (state: KeyState, seq: number, error?: unknown): void => {
@@ -132,6 +206,7 @@ export const createStateOutbox = ({
         if (uid && currentUid !== null && currentUid !== uid) {
             state.settledSeq = state.seq;
             settleWaiters(state, state.seq, new OutboxAccountChangedError());
+            endWatch(state, 'account_changed', false);
             releaseCloudIfIdle(cid);
             return;
         }
@@ -151,6 +226,8 @@ export const createStateOutbox = ({
                     state.settledSeq = Math.max(state.settledSeq, seq);
                     state.accepted = { value: write.value };
                     settleWaiters(state, seq);
+                    // An answer to a value a newer one replaced ends nothing: the key is still waiting.
+                    if (!isPending(state)) endWatch(state, 'accepted', true);
                     afterSettle(state);
                 },
                 (error: unknown) => {
@@ -160,6 +237,7 @@ export const createStateOutbox = ({
                     if (error instanceof OutboxRefusalError || transport.isRefusal(error)) {
                         state.settledSeq = Math.max(state.settledSeq, seq);
                         settleWaiters(state, seq, error);
+                        if (!isPending(state)) endWatch(state, 'refused', true);
                         const restore = spec.restore;
                         const restoreTo = state.accepted ?? state.baseline;
                         // Nothing to put back over a newer value: it is its own write and goes out next.
@@ -172,6 +250,7 @@ export const createStateOutbox = ({
                         return;
                     }
                     state.failures += 1;
+                    if (state.watch) state.watch.failures += 1;
                     const delay = transport.retryDelaysMs[state.failures - 1];
                     // Out of retries, or the socket is already known to be down: the next ready
                     // transition is the retry.
@@ -193,6 +272,7 @@ export const createStateOutbox = ({
         cloud.unwatch = transport.watchReady(cid, ready => {
             const becameReady = ready && !cloud.ready;
             cloud.ready = ready;
+            noteReadiness(cid, ready);
             if (!becameReady) return;
             for (const state of keys.values()) {
                 if (state.write.cid !== cid) continue;
@@ -214,6 +294,7 @@ export const createStateOutbox = ({
             }
 
             sequence += 1;
+            const startsWaiting = !state || !isPending(state);
             if (!state) {
                 state = {
                     write,
@@ -225,6 +306,7 @@ export const createStateOutbox = ({
                     failures: 0,
                     timer: undefined,
                     waiters: [],
+                    watch: null,
                 };
                 keys.set(id, state);
             } else {
@@ -237,6 +319,8 @@ export const createStateOutbox = ({
             }
 
             const current = state;
+            // Before the cloud is watched: its first report may send this value at once.
+            if (startsWaiting) current.watch = beginWatch(write.cid);
             const delivered = new Promise<void>((resolve, reject) => {
                 current.waiters.push({ seq: current.seq, resolve, reject });
             });

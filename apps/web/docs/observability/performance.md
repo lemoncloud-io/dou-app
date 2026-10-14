@@ -35,6 +35,7 @@ holding a trace until it expires.
 | `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                       | `thread` · `kind` (`text`) · `outcome`             |
 | `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc    | `kind` · `count` · `size` · `thread` · `outcome`   |
 | `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)             | `type` · `kind` · `outcome`                        |
+| `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                 | `op` · `outcome` · `kind`                          |
 | `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
@@ -253,7 +254,8 @@ background, rather than when its timer resumes. Its attributes are at the same c
 src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
   from `apps/web`;
   `npx jest src/socket/sync/roomFeed src/socket/sync/hooks/useSyncTarget src/socket/auth/socketVerifyTrace src/socket/SocketManager src/data/mediaSendTrace src/data/hooks/useSendImages`
-  from `libs/app-runtime`; `npx jest src/repositories/ChatRepository` from `libs/data`;
+  from `libs/app-runtime`, plus `src/data/factories/outboxFactory` there for `state_outbox`;
+  `npx jest src/repositories/ChatRepository src/outbox/stateOutbox` from `libs/data`;
   `npx jest src/activeTraces src/pageHides` from `libs/perf`; and `npx jest src/app/services/perf` from
   `apps/mobile` (`first_screen`).
 - On a device build with Firebase debug logging on (see the lib README), open a room from the list,
@@ -350,3 +352,66 @@ screens add: `chat_room_sync`'s feed phase includes the cache write, `chat_send`
 - **Firebase only.** The log fallback samples the first tenth of runs, and this trace the second, so
   on an app build without the perf handlers it records nothing. That is accepted: those builds are
   on their way out, and the bridge trace already covers them.
+
+## `state_outbox`
+
+How a state write reaches the server after the screen has already shown it: my read cursor, a room's
+notification setting, my name for a room. These writes are local first (the state outbox in
+`@chatic/data`), so the screen never waits on them, and what is left to measure is how long, and how
+often, they take to land. `socket_request` cannot answer that: it times one request, and a write that
+waited for a reconnect or was retried is several requests and a wait between them.
+
+- **Where it is taken.** The outbox machine reports each key's wait to the runtime's observer
+  (`libs/app-runtime` `outboxFactory.ts`), which hands it to the one `main.tsx` sets
+  (`observeStateOutbox`).
+- **One sample per wait, not per value.** A wait runs from the `set` that made the key wait to the
+  answer that leaves nothing waiting for it. Values set meanwhile fold into it — a cursor moved three
+  times while the first `chat.read` was out is one sample, timed from the first move.
+- **Attributes:** `op` (`join.read`, `join.notify`, `join.nick`), `outcome` (`accepted`; `refused`, a
+  4xx the server will never take; `account_changed`, another account signed in to that cloud before
+  the write went out), `kind` (`relay` / `cloud`).
+- **Metrics:** `delivery_ms` — the whole wait; `wait_socket_ms` — the part of it the cloud's socket
+  was not verified; `attempts` — the request that ended the wait plus each that failed and was sent
+  again (for `account_changed`, only the failed requests before it — 0 when nothing went out). A request answered while a newer value
+  waited is not counted, so a value replaced in flight never reads as a retry.
+- **Sampled in its own runs, three in ten.** Run-hash buckets 20–49 (`isStateOutboxSampledRun`), apart
+  from `bridge_request` (0–9) and `socket_request` (10–19), so no run stacks two of these capped
+  traces. Wider than theirs because a state write is rare: a tenth of runs gave `socket_request` about
+  ten `chat.read` samples in a week, too few to compare a p90, and widening the bucket costs no run
+  more of its budget, since the caps are per run.
+- **Six a minute, four of an op**, three while traces are held for the report. Every run can already
+  reach thirty a minute at the caps of `chat_send`, `chat_send_media` and `socket_verify`, and a run
+  sampled for either request trace adds ten. This trace's runs carry neither, so their worst minute is
+  thirty-six — below the forty those runs already allow, so the highest worst minute of any run does not grow. The per-op cap
+  keeps a rare `join.notify` or `join.nick` from losing its minute to a burst of reads.
+- **Hidden time is never in a sample.** The runtime hands over no wait that began on a hidden page or
+  that the page was hidden during, and the web records none from a hidden page. A write left waiting
+  in the background and sent on return is the OS's time, not a wait anyone sat through. A write still
+  waiting when the app is killed is never reported either, so the far tail is under-counted.
+- **Firebase only**, like `socket_request`: on an app build without the perf handlers it records
+  nothing.
+
+### Reading it
+
+Read the metrics (`delivery_ms`, `attempts`), not the trace's duration, which is
+the zero length of a sample. Break down by `op` first: a read cursor and a setting are written at very
+different rates.
+
+- **`delivery_ms` p50** is the ordinary case: a ready socket and one request, so it sits near
+  `socket_request`'s round trip for the same type (`chat.read`, `join.update`). A p50 well above it
+  means most writes are waiting for something, and `wait_socket_ms` says whether it is the socket.
+- **`delivery_ms` p90** is the tail the outbox exists for: writes that waited for a reconnect or went
+  through a retry. Before the outbox those were the writes rolled back and lost; now they land late.
+  A high p90 with a low p50 is the outbox doing its job; a p90 that grows release over release is a
+  socket that stays down longer.
+- **`wait_socket_ms`** close to `delivery_ms` means the time went to a socket that was not verified —
+  a reconnect, a cloud with no slot yet — and the request itself was quick. Near zero with a high
+  `delivery_ms` means the server, or the retries, took the time.
+- **`attempts > 1`** is a write that did not land on its first request: a timeout, a 5xx, or a socket
+  that closed under it (499, 503), then a retry on the 2 s / 5 s / 15 s schedule or on the next
+  reconnect. Its share of samples is the share of writes that, before the outbox, would have been
+  rolled back. `socket_request` showed about a third of foreground requests failing 499/503 on iOS
+  in the week to 2026-10-13, before the outbox; that is the number to compare against.
+- **`outcome` other than `accepted`** should be rare. A steady share of `refused` is a write the
+  server will never take — a room I left, a value it rejects — and worth reading in the logs.
+  `account_changed` is a write overtaken by a sign-in to another account.

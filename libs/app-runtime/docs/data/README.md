@@ -25,7 +25,7 @@ data/                              24 source files, 17 tests
 ├── mediaSendTrace.ts             beginMediaSendTiming · createMediaSendTracer — the chat_send_media sample
 ├── index.ts                      the `data` facade group
 ├── factories/                    socketFactory · localFactory · httpFactory ·
-│                                 outboxFactory — the state outbox's transport, one outbox for every graph
+│                                 outboxFactory — the state outbox's transport, one outbox for every graph · setStateOutboxObserver
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
                                   useInvitedCloudNameSync · useRegisterDeviceTokenMutation · useSendImages ·
                                   imageSendProgress (useImageSendProgress) · queryKeys
@@ -222,6 +222,15 @@ which is this package's, so `factories/outboxFactory.ts` supplies it as the outb
 Which sockets exist bounds when a write can go: the relay always, the committed cloud, and up to five
 background clouds. A write to a cloud with no slot (past the cap, or no usable tokens) waits until
 that cloud's socket opens; its local half is already on screen.
+
+The outbox is also built with this package's observer (`runtimeOutboxObserver`), which hands each
+settled wait to whoever `setStateOutboxObserver` named — one process-wide slot, shared by every outbox
+`createRuntimeOutbox` builds — the web's `state_outbox` trace — as a
+`StateOutboxSample`: the cloud id becomes `kind` (relay / cloud), the durations whole milliseconds on
+the page's monotonic clock. With no observer set, no wait is timed. A wait that began on a hidden page,
+or that the page was hidden during, is not handed over: it would time the OS suspending the page, not
+a wait anyone sat through. A wait settling after its observer was removed or replaced is dropped, so
+stopping stops at once. An observer that throws is logged, never passed on to the outbox.
 
 ### Invited clouds
 

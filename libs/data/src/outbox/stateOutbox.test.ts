@@ -1,5 +1,5 @@
 import type { DataRepositories } from '../repositories';
-import type { OutboxTransport, StateSpec, StateWrite } from './ports';
+import type { OutboxDelivery, OutboxObserver, OutboxTransport, StateSpec, StateWrite } from './ports';
 import { OutboxRefusalError } from './ports';
 import { createStateOutbox, OutboxAccountChangedError, type StateSpecs } from './stateOutbox';
 
@@ -80,11 +80,12 @@ const cursorSpec = () =>
 /** A setting-like spec: the last value wins and the same value is already there. */
 const settingSpec = () => mockSpec<string>({ isCovered: (accepted, next) => accepted === next });
 
-const setup = <V>(spec: ReturnType<typeof mockSpec<V>>) => {
+const setup = <V>(spec: ReturnType<typeof mockSpec<V>>, observer?: OutboxObserver) => {
     const fake = fakeTransport();
     const outbox = createStateOutbox({
         specs: { 'join.read': spec } as unknown as StateSpecs,
         transport: fake.transport,
+        observer,
     });
     const write = (value: V, over: Partial<StateWrite<V>> = {}): StateWrite<V> => ({
         op: 'join.read',
@@ -95,6 +96,34 @@ const setup = <V>(spec: ReturnType<typeof mockSpec<V>>) => {
         ...over,
     });
     return { ...fake, outbox, write };
+};
+
+/** An observer on a clock the test moves, keeping every delivery it is told about. */
+const fakeObserver = () => {
+    let time = 0;
+    const deliveries: OutboxDelivery[] = [];
+    const observer: OutboxObserver = {
+        now: jest.fn(() => time),
+        begin: jest.fn(() => (delivery: OutboxDelivery) => deliveries.push(delivery)),
+    };
+    return {
+        observer,
+        deliveries,
+        at: (ms: number) => {
+            time = ms;
+        },
+    };
+};
+
+/** A promise the test settles, for a request whose answer has to wait for the clock to move. */
+const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
 };
 
 const sentValues = <V>(spec: { deliver: jest.Mock<Promise<unknown>, [DataRepositories, StateWrite<V>]> }) =>
@@ -445,6 +474,229 @@ describe('createStateOutbox', () => {
             await outbox.set(write(10)).delivered;
 
             expect(spec.deliver).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('observer', () => {
+        it('reports a write accepted after retries once, with every request it took', async () => {
+            const spec = cursorSpec();
+            spec.deliver
+                .mockRejectedValueOnce(new Error('408 REQUEST TIMEOUT'))
+                .mockRejectedValueOnce(new Error('503 SERVICE UNAVAILABLE'));
+            const watch = fakeObserver();
+            const { outbox, write, setReady, fireTimers } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            void outbox.set(write(10));
+            await outbox.flush();
+            watch.at(10);
+            fireTimers();
+            await outbox.flush();
+            watch.at(30);
+            fireTimers();
+            await outbox.flush();
+
+            expect(watch.deliveries).toEqual([
+                { op: 'join.read', cid: CID, outcome: 'accepted', deliveryMs: 30, waitSocketMs: 0, attempts: 3 },
+            ]);
+        });
+
+        it('splits out the time the cloud was not ready, before the send and under it', async () => {
+            const spec = cursorSpec();
+            const first = deferred<unknown>();
+            spec.deliver.mockReturnValueOnce(first.promise);
+            const watch = fakeObserver();
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+
+            const { delivered } = outbox.set(write(10));
+            watch.at(40);
+            setReady(CID, true);
+            watch.at(45);
+            setReady(CID, false);
+            first.reject(new Error('499 CLIENT CLOSED REQUEST'));
+            await outbox.flush();
+            watch.at(70);
+            setReady(CID, true);
+            watch.at(75);
+            await delivered;
+
+            expect(watch.deliveries).toEqual([
+                { op: 'join.read', cid: CID, outcome: 'accepted', deliveryMs: 75, waitSocketMs: 65, attempts: 2 },
+            ]);
+        });
+
+        it('reports a refused write as refused', async () => {
+            const spec = settingSpec();
+            spec.deliver.mockRejectedValue(new Error('403 FORBIDDEN'));
+            const watch = fakeObserver();
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            await expect(outbox.set(write('none', { previous: 'all' })).delivered).rejects.toThrow('403');
+
+            expect(watch.deliveries).toEqual([
+                { op: 'join.read', cid: CID, outcome: 'refused', deliveryMs: 0, waitSocketMs: 0, attempts: 1 },
+            ]);
+        });
+
+        it('reports a write another account overtook, with no request sent', async () => {
+            const spec = cursorSpec();
+            const watch = fakeObserver();
+            const { outbox, write, setReady, setUid } = setup(spec, watch.observer);
+
+            const { delivered } = outbox.set(write(10));
+            setUid(CID, 'someone-else');
+            watch.at(20);
+            setReady(CID, true);
+            await expect(delivered).rejects.toBeInstanceOf(OutboxAccountChangedError);
+
+            expect(watch.deliveries).toEqual([
+                {
+                    op: 'join.read',
+                    cid: CID,
+                    outcome: 'account_changed',
+                    deliveryMs: 20,
+                    waitSocketMs: 20,
+                    attempts: 0,
+                },
+            ]);
+        });
+
+        it('counts a value replaced in flight once, from the first set to the last answer', async () => {
+            const spec = cursorSpec();
+            const first = deferred<unknown>();
+            spec.deliver.mockReturnValueOnce(first.promise);
+            const watch = fakeObserver();
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            void outbox.set(write(10));
+            watch.at(5);
+            const { delivered } = outbox.set(write(12));
+            watch.at(15);
+            first.resolve({});
+            await outbox.flush();
+            await delivered;
+
+            expect(sentValues(spec)).toEqual([10, 12]);
+            expect(watch.observer.begin).toHaveBeenCalledTimes(1);
+            expect(watch.deliveries).toEqual([
+                { op: 'join.read', cid: CID, outcome: 'accepted', deliveryMs: 15, waitSocketMs: 0, attempts: 1 },
+            ]);
+        });
+
+        it('counts the failed requests of a write another account overtook on its retry', async () => {
+            const spec = cursorSpec();
+            spec.deliver.mockRejectedValueOnce(new Error('499 CLIENT CLOSED REQUEST'));
+            const watch = fakeObserver();
+            const { outbox, write, setReady, setUid } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            const { delivered } = outbox.set(write(10));
+            setReady(CID, false);
+            await outbox.flush();
+            setUid(CID, 'someone-else');
+            setReady(CID, true);
+            await expect(delivered).rejects.toBeInstanceOf(OutboxAccountChangedError);
+
+            expect(watch.deliveries.map(({ outcome, attempts }) => ({ outcome, attempts }))).toEqual([
+                { outcome: 'account_changed', attempts: 1 },
+            ]);
+        });
+
+        it('reports one accepted delivery when a value is refused while a newer one waits', async () => {
+            const spec = settingSpec();
+            const first = deferred<unknown>();
+            spec.deliver.mockReturnValueOnce(first.promise);
+            const watch = fakeObserver();
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            const refused = outbox.set(write('too-long'));
+            const { delivered } = outbox.set(write('ok'));
+            watch.at(30);
+            first.reject(new Error('403 FORBIDDEN'));
+            await expect(refused.delivered).rejects.toThrow('403');
+            await delivered;
+
+            expect(sentValues(spec)).toEqual(['too-long', 'ok']);
+            expect(watch.deliveries).toEqual([
+                { op: 'join.read', cid: CID, outcome: 'accepted', deliveryMs: 30, waitSocketMs: 0, attempts: 1 },
+            ]);
+        });
+
+        it('times a wait on a cloud it stopped watching from before its first readiness report', async () => {
+            const spec = cursorSpec();
+            const watch = fakeObserver();
+            const { outbox, write, setReady, unwatch } = setup(spec, watch.observer);
+            setReady(CID, true);
+            await outbox.set(write(10)).delivered;
+            expect(unwatch).toHaveBeenCalledWith(CID);
+
+            setReady(CID, false);
+            watch.at(100);
+            const { delivered } = outbox.set(write(12));
+            watch.at(130);
+            setReady(CID, true);
+            await delivered;
+
+            expect(watch.deliveries[1]).toEqual(
+                expect.objectContaining({ outcome: 'accepted', deliveryMs: 30, waitSocketMs: 30, attempts: 1 })
+            );
+        });
+
+        it('starts a new delivery for a value set after the last one settled', async () => {
+            const spec = settingSpec();
+            const watch = fakeObserver();
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            await outbox.set(write('all')).delivered;
+            await outbox.set(write('none')).delivered;
+
+            expect(watch.deliveries.map(delivery => delivery.outcome)).toEqual(['accepted', 'accepted']);
+        });
+
+        it('reports nothing for a value the server already holds', async () => {
+            const spec = cursorSpec();
+            const watch = fakeObserver();
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+            setReady(CID, true);
+            await outbox.set(write(10)).delivered;
+
+            await outbox.set(write(8)).delivered;
+
+            expect(watch.deliveries).toHaveLength(1);
+        });
+
+        it('reads no clock for a wait the observer declines to follow', async () => {
+            const spec = cursorSpec();
+            const watch = fakeObserver();
+            jest.mocked(watch.observer.begin).mockReturnValue(undefined);
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+
+            const { delivered } = outbox.set(write(10));
+            setReady(CID, true);
+            await delivered;
+
+            expect(watch.observer.now).not.toHaveBeenCalled();
+            expect(watch.deliveries).toEqual([]);
+        });
+
+        it('carries on unchanged when the observer throws', async () => {
+            const spec = cursorSpec();
+            const watch = fakeObserver();
+            jest.mocked(watch.observer.begin).mockReturnValue(() => {
+                throw new Error('observer broke');
+            });
+            const { outbox, write, setReady } = setup(spec, watch.observer);
+            setReady(CID, true);
+
+            await outbox.set(write(10)).delivered;
+            await outbox.set(write(12)).delivered;
+
+            expect(sentValues(spec)).toEqual([10, 12]);
+            expect(outbox.pending()).toEqual([]);
         });
     });
 });
