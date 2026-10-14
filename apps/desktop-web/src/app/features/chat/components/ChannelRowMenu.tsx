@@ -108,7 +108,7 @@ export const ChannelRowMenu = ({
                 <ContextMenuSub>
                     <ContextMenuSubTrigger>
                         <Bell size={14} aria-hidden />
-                        {t('sidebar.notifications')}
+                        {`${t('sidebar.notifications')} · ${t(`channels.settings.notify.${notifyMode}`)}`}
                     </ContextMenuSubTrigger>
                     <ContextMenuSubContent>
                         <ContextMenuRadioGroup

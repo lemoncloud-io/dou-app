@@ -574,7 +574,8 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         const items = screen.getAllByRole('menuitem').map(item => item.textContent);
         expect(items).toContain('Add to favorites');
-        expect(items).toContain('Notifications');
+        // The trigger names the current level, so the state reads without opening.
+        expect(items).toContain('Notifications · All messages');
         expect(items).toContain('Channel settings');
         expect(items).toContain('Add members');
         expect(items).toContain('Leave channel');
@@ -595,7 +596,7 @@ describe('ChannelList row context menu (slice 05)', () => {
             const cls = screen.getByRole('menuitem', { name }).className;
             return { gap: /\bgap-2\b/.test(cls), iconSize: /\[&[>_]svg\]:size-4/.test(cls) };
         };
-        expect(iconLayout('Notifications')).toEqual(iconLayout('Channel settings'));
+        expect(iconLayout('Notifications · All messages')).toEqual(iconLayout('Channel settings'));
     });
 
     it('toggles the favorite pin from the menu', () => {
@@ -705,7 +706,7 @@ describe('ChannelList row context menu (slice 05)', () => {
         renderList([general]);
 
         openRowMenu(/general/);
-        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Notifications' }), { key: 'ArrowRight' }); // open the submenu (keyboard path — deterministic in jsdom)
+        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Notifications · All messages' }), { key: 'ArrowRight' }); // open the submenu (keyboard path — deterministic in jsdom)
         fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mentions only' }));
 
         await waitFor(() => expect(useNotificationPrefsStore.getState().channelNotify['C1']).toBe('mention'));
@@ -805,7 +806,7 @@ describe('ChannelList notify level and mention marks', () => {
     it('marks a channel that is off as off', () => {
         renderRows([{ id: 'C1', name: 'general', $join: { notify: 'none' } } as DomainChannel]);
 
-        expect(row(/general/).getByText('Notifications off')).toBeTruthy();
+        expect(row(/general/).getByText('Off')).toBeTruthy();
         expect(row(/general/).queryByText('Mentions only')).toBeNull();
     });
 
@@ -814,14 +815,14 @@ describe('ChannelList notify level and mention marks', () => {
         renderRows([{ id: 'C1', name: 'general', $join: { notify: 'mention' } } as DomainChannel]);
 
         expect(row(/general/).getByText('Mentions only')).toBeTruthy();
-        expect(row(/general/).queryByText('Notifications off')).toBeNull();
+        expect(row(/general/).queryByText('Off')).toBeNull();
     });
 
     it('marks neither on a channel that tells me everything', () => {
         renderRows([{ id: 'C1', name: 'general', $join: { notify: 'all' } } as DomainChannel]);
 
         expect(row(/general/).queryByText('Mentions only')).toBeNull();
-        expect(row(/general/).queryByText('Notifications off')).toBeNull();
+        expect(row(/general/).queryByText('Off')).toBeNull();
     });
 
     const unread = {

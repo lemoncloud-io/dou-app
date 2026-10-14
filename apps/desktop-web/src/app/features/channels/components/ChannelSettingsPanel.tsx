@@ -219,13 +219,18 @@ export const ChannelSettingsPanel = ({
                                 type="button"
                                 {...notifyProps(mode)}
                                 className={cn(
-                                    'focus-ring tactile flex-1 rounded-md px-2 py-1.5 text-caption font-medium transition-colors ease-tactile',
+                                    'focus-ring tactile flex-1 rounded-md px-2 py-1.5 transition-colors ease-tactile',
                                     notifyMode === mode
                                         ? 'bg-elevated text-foreground shadow-raised'
                                         : 'text-muted-foreground hover:text-foreground'
                                 )}
                             >
-                                {t(`channels.settings.notify.${mode}`)}
+                                <span className="block text-caption font-medium">
+                                    {t(`channels.settings.notify.${mode}`)}
+                                </span>
+                                <span className="block text-nano text-muted-foreground">
+                                    {t(`channels.settings.notify.${mode}Hint`)}
+                                </span>
                             </button>
                         ))}
                     </div>
