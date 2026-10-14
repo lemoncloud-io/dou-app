@@ -30,8 +30,8 @@ export const NotificationSnoozeButton = () => {
 
     const active = isDndActive({ snoozeUntil, quietHours });
     const snoozeFor = (minutes: number) => setSnooze(Date.now() + minutes * MINUTE);
-    // Three exclusive states, read top-down: off → snoozed (with time) → quiet hours.
-    // Quiet hours name the breakthrough when it is on: a direct mention still banners.
+    // Four exclusive states, read top-down: off → snoozed (with time) → quiet hours
+    // with the breakthrough on → quiet hours.
     const labelKey = !active
         ? 'snooze.title'
         : snoozeUntil

@@ -13,6 +13,7 @@ import {
     isNamedByRecord,
     isNotifiableChat,
     isOwnChat,
+    isSnoozed,
     isWithinQuietHours,
     mentionKind,
     resolveMyMentionNames,
@@ -96,19 +97,20 @@ export const useDesktopNotifications = (): void => {
         if (!isNotifiableChat(chat)) return;
         // Respect the user's notification preferences (global off / channel mode).
         const prefs = useNotificationPrefsStore.getState();
+        // "Mine" is either id — the same rule the message list and the mentions inbox use (see below).
+        const isDm = isNotifyDm(channel);
+        const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
+        const viewerIds = [viewer.uid, viewer.cloudUid];
         // Snooze silences every banner, breakthrough or not. Quiet hours break
         // only for a message whose record names me directly — never for an
         // everyone call, a text guess, or a 1:1. Everything after this point
         // (global switch, channel level, viewing, cursor, own message) still applies.
         const now = Date.now();
-        if (prefs.snoozeUntil != null && prefs.snoozeUntil > now) return;
-        if (isWithinQuietHours(prefs.quietHours, new Date(now))) {
-            const viewerIds = [myUidRef.current, channel.$join?.userId ?? null];
-            if (!prefs.mentionBreaksQuietHours || isNotifyDm(channel) || !isNamedByRecord(chat, viewerIds)) {
-                return;
-            }
+        if (isSnoozed(prefs.snoozeUntil, now)) return;
+        if (prefs.quietHours && isWithinQuietHours(prefs.quietHours, new Date(now))) {
+            if (!prefs.mentionBreaksQuietHours || isDm || !isNamedByRecord(chat, viewerIds)) return;
         }
-        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isNotifyDm(channel));
+        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isDm);
         if (!prefs.desktopEnabled || notifyMode === 'none') return;
         // Don't notify for a channel you're actively viewing (you can see it).
         if (isViewing(channel.id)) return;
@@ -119,7 +121,6 @@ export const useDesktopNotifications = (): void => {
         // Don't notify my own message. Optimistic copies carry my account id as the owner, but a
         // persisted message outside the relay is owned by my per-channel cloud user id, so "mine"
         // is either id — the same rule the message list and the mentions inbox use.
-        const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
         if (isOwnChat(chat, viewer)) return;
 
         // Mentions-only channels: drop anything that doesn't mention me — by the message's
@@ -131,7 +132,7 @@ export const useDesktopNotifications = (): void => {
         // is this same answer as a boolean).
         const message = messagePlainText(chat.content);
         const names = resolveMyMentionNames();
-        const kind = mentionKind(chat, [viewer.uid, viewer.cloudUid], message, names);
+        const kind = mentionKind(chat, viewerIds, message, names);
         if (notifyMode === 'mention' && kind === null) return;
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
@@ -142,7 +143,7 @@ export const useDesktopNotifications = (): void => {
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, chat, isNotifyDm(channel) ? null : kind),
+                    title: notificationTitle(channel, chat, isDm ? null : kind),
                     body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).
