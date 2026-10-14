@@ -15,6 +15,22 @@ describe('MessageBubble', () => {
         expect(bubble.className).toContain('bg-bubble-mine');
     });
 
+    // Code drawn inside picks its tint from this: a dark tint disappears into my navy bubble.
+    it('marks its variant for the content inside to read', () => {
+        render(
+            <>
+                <MessageBubble variant="mine">보낸 메시지</MessageBubble>
+                <MessageBubble>받은 메시지</MessageBubble>
+            </>
+        );
+        const mine = screen.getByText('보낸 메시지').parentElement as HTMLElement;
+        const other = screen.getByText('받은 메시지').parentElement as HTMLElement;
+
+        expect(mine).toHaveAttribute('data-variant', 'mine');
+        expect(other).toHaveAttribute('data-variant', 'other');
+        expect(mine.className).toContain('group/bubble');
+    });
+
     it('shows the expand affordance and fires onExpand', () => {
         const onExpand = jest.fn();
         render(

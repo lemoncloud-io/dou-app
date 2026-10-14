@@ -343,6 +343,14 @@ A quote is drawn as a block with a rule on its left, in the bubble's own text co
 than an accent, so the same style reads on the light bubble, the dark one and a thread root on the
 page, in both themes. The home preview drops the markers and keeps the words.
 
+Code takes its tint from the bubble it sits in. My bubble is navy in both themes, and a fixed dark tint
+— right for the other person's light bubble — disappeared into it, taking the block's edge and every
+inline code chip with it. `MessageBubble` marks its variant (`data-variant` on a `group/bubble`), and
+the kit's `CodeBlock` and `InlineCode` switch to a light tint inside mine; outside a bubble (the expand
+dialog, a thread root on the page) they keep the dark one. A fenced block also carries a thin border,
+so its edge stays visible where the tint is close to the ground, and a header row ruled off from the
+code with the language tag and an icon-and-label copy button.
+
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched
 URL, so `…see https://example.com/a.` links to `/a`.

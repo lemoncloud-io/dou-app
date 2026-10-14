@@ -31,6 +31,22 @@ describe('CodeBlock', () => {
         expect(screen.getByRole('button', { name: '복사됨' })).toBeInTheDocument();
     });
 
+    it('draws a copy icon, and a check once copied', () => {
+        const { container, rerender } = render(<CodeBlock code="x" onCopy={jest.fn()} copyLabel="복사" />);
+        expect(container.querySelector('svg.lucide-copy')).not.toBeNull();
+        expect(screen.getByRole('button', { name: '복사' })).toHaveTextContent('복사');
+
+        rerender(<CodeBlock code="x" onCopy={jest.fn()} copyLabel="복사" copiedLabel="복사됨" copied />);
+        expect(container.querySelector('svg.lucide-check')).not.toBeNull();
+        expect(container.querySelector('svg.lucide-copy')).toBeNull();
+    });
+
+    // On my navy bubble a dark tint is invisible; the block switches to a light one there.
+    it('takes a light tint inside my bubble', () => {
+        const { container } = render(<CodeBlock code="x" />);
+        expect(container.firstElementChild?.className).toContain('group-data-[variant=mine]/bubble:bg-white/10');
+    });
+
     it('forwards buttonProps to the copy button', () => {
         const onPointerDown = jest.fn();
         render(<CodeBlock code="x" onCopy={jest.fn()} buttonProps={{ onPointerDown }} />);
@@ -63,5 +79,10 @@ describe('InlineCode', () => {
 
         expect(node.tagName).toBe('CODE');
         expect(node.className).toContain('font-mono');
+    });
+
+    it('takes a light tint inside my bubble', () => {
+        render(<InlineCode>npm i</InlineCode>);
+        expect(screen.getByText('npm i').className).toContain('group-data-[variant=mine]/bubble:bg-white/15');
     });
 });
