@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-10-14] - No version updates
+
+### Bug Fixes
+
+- (data,web,desktop-web) undo a refused first name, and send settings another device changed
+- (data,app-runtime,web,desktop-web) show state writes at once and queue them for the socket
+
+### Other
+
+- test: (app-runtime) read an outbox refusal by the errorCode the socket layer recovers
+
 ## [2026-10-13] - root@0.100.0, @chatic/desktop-web@0.29.0
 
 ### Features
