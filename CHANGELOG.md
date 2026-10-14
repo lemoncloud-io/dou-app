@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-10-14] - root@0.104.0, @chatic/desktop-web@0.32.0
+
+### Features
+
+- (desktop-web) recover invited cloud before cloud switch
+- (desktop-web) recover invited cloud on push arrival
+
+### Bug Fixes
+
+- (desktop-web) block a second cloud switch during recovery
+- (desktop-web) guard empty cloud id and cover sentinel retry
+
+### Documentation
+
+- (desktop-web) document invited-cloud recovery on the cloud rail
+
+### Refactor
+
+- (desktop-web) share owned-cloud set and relay sentinel
+
 ## [2026-10-14] - No version updates
 
 ### Features
