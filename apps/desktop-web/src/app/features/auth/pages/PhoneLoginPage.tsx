@@ -103,7 +103,10 @@ export const PhoneLoginPage = () => {
                 className="flex flex-col gap-3"
                 onSubmit={e => {
                     e.preventDefault();
-                    if (login.canRequestCode) login.requestCode();
+                    // Always through validation: a bad number with Enter used to do
+                    // nothing visible, because submit was gated on canRequestCode
+                    // and the invalidNumber message never showed.
+                    void login.requestCode();
                 }}
             >
                 <div className="flex gap-2">
