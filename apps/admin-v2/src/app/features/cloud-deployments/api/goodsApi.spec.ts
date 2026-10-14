@@ -126,6 +126,7 @@ describe('postAutoDeploy', () => {
             projectId: 'c1',
             service: 'backend',
             force: true,
+            slack: true,
             branch: 'main',
             params: { force: 1, branch: 'main' },
         });
@@ -144,7 +145,14 @@ describe('postAutoDeploy', () => {
         replies.push({ error: { response: { status: 400, data: { message: '400 INVALID STATE - busy' } } } });
 
         await expect(
-            postAutoDeploy(BASE, { productId: 'p1', projectId: 'c1', service: 'backend', force: false, params: {} })
+            postAutoDeploy(BASE, {
+                productId: 'p1',
+                projectId: 'c1',
+                service: 'backend',
+                force: false,
+                slack: true,
+                params: {},
+            })
         ).rejects.toThrow('400 INVALID STATE - busy');
     });
 });

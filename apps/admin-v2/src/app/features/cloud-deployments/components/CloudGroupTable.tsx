@@ -11,10 +11,12 @@
  * DoU status is the subscription's state in the relay — whether the subscriber still has the cloud —
  * which says nothing about how its last deploy went; the service columns say that.
  */
+import { formatDate } from '@chatic/shared';
 import { Checkbox } from '@chatic/ui-kit/components/ui/checkbox';
 
 import {
     CLOUD_SERVICES,
+    isAwaitingResult,
     type CloudGroup,
     type GroupSort,
     type GroupSortKey,
@@ -167,6 +169,20 @@ const ProductCell = ({ product }: { product?: ProductSummary }): JSX.Element => 
                 )}
             </div>
             {failed && <div className="truncate text-[10px] text-red-400">{progress?.error}</div>}
+            <div
+                className="whitespace-nowrap text-[10px] text-muted-foreground"
+                title={product.deployingAt ? `Last deploy accepted ${formatDate(product.deployingAt)}` : undefined}
+            >
+                last result {formatDate(product.deployedAt)}
+                {isAwaitingResult(product) && (
+                    <span
+                        className="ml-1.5 rounded border border-amber-500/40 px-1 text-amber-400"
+                        title="A deploy was accepted after this result, and its own result has not come back yet. It stays if that result never returns."
+                    >
+                        awaiting result
+                    </span>
+                )}
+            </div>
         </td>
     );
 };
