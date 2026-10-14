@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-14] - No version updates
+
+### Features
+
+- (data,app-runtime,web,perf) time how state writes reach the server as state_outbox (ADR-0200)
+
 ## [2026-10-14] - root@0.101.1, @chatic/desktop-web@0.30.1
 
 ### Other
