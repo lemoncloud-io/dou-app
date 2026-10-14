@@ -14,7 +14,6 @@ import {
     isNotifiableChat,
     isOwnChat,
     mentionKind,
-    mentionsMe,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
@@ -38,19 +37,16 @@ const notificationTitle = (
     latest: ChannelLastChat,
     kind: MentionKind | null
 ): string => {
-    const fallback = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
-    if (!isNotifyDm(channel) && kind === 'direct') {
-        const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
-        return i18next.t('notification.mentionTitle', { target });
-    }
-    if (!isNotifyDm(channel) && kind === 'everyone') {
-        const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+    const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+    if (isNotifyDm(channel)) return target;
+    if (kind === 'direct') return i18next.t('notification.mentionTitle', { target });
+    if (kind === 'everyone') {
         return i18next.t('notification.everyoneTitle', {
             word: i18next.t('chat.mention.everyoneWord'),
             target,
         });
     }
-    return fallback;
+    return target;
 };
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
@@ -120,23 +116,22 @@ export const useDesktopNotifications = (): void => {
         // place's nick, plus @channel/@here).
         // Flattened first: a mention lives in the block text, not in the JSON that
         // carries it, and the raw payload would also match on field names.
+        // One evaluation serves both the filter and the title below (`mentionsMe`
+        // is this same answer as a boolean).
         const message = messagePlainText(chat.content);
-        if (notifyMode === 'mention') {
-            if (!mentionsMe(chat, [viewer.uid, viewer.cloudUid], message, resolveMyMentionNames())) return;
-        }
+        const names = resolveMyMentionNames();
+        const kind = mentionKind(chat, [viewer.uid, viewer.cloudUid], message, names);
+        if (notifyMode === 'mention' && kind === null) return;
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
         const sender = chat.owner$?.name;
         const body = messagePreview(chat);
-        const kind = isNotifyDm(channel)
-            ? null
-            : mentionKind(chat, [viewer.uid, viewer.cloudUid], message, resolveMyMentionNames());
         void webClient
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, chat, kind),
+                    title: notificationTitle(channel, chat, isNotifyDm(channel) ? null : kind),
                     body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).

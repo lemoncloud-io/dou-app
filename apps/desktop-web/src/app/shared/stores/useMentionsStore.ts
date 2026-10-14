@@ -47,18 +47,17 @@ export const unreadMentionCount = (items: Record<string, MentionItem>): number =
  * The channel is named with its place: channel ids are numbered per place, and this inbox holds
  * every place's mentions, so the id alone would also match another place's channel.
  */
+const isUnreadMentionIn = (item: MentionItem, channel: { id: string; placeId?: string }, readNo: number): boolean =>
+    item.channelId === channel.id &&
+    item.placeId === channel.placeId &&
+    !item.readAt &&
+    (item.chatNo ?? 0) > readNo;
+
 export const hasUnreadMentionIn = (
     items: Record<string, MentionItem>,
     channel: { id: string; placeId?: string },
     readNo: number
-): boolean =>
-    Object.values(items).some(
-        item =>
-            item.channelId === channel.id &&
-            item.placeId === channel.placeId &&
-            !item.readAt &&
-            (item.chatNo ?? 0) > readNo
-    );
+): boolean => Object.values(items).some(item => isUnreadMentionIn(item, channel, readNo));
 
 /**
  * How many unread mentions a channel holds — the same condition as
@@ -69,17 +68,7 @@ export const countUnreadMentionsIn = (
     items: Record<string, MentionItem>,
     channel: { id: string; placeId?: string },
     readNo: number
-): number =>
-    Object.values(items).reduce(
-        (count, item) =>
-            item.channelId === channel.id &&
-            item.placeId === channel.placeId &&
-            !item.readAt &&
-            (item.chatNo ?? 0) > readNo
-                ? count + 1
-                : count,
-        0
-    );
+): number => Object.values(items).reduce((count, item) => (isUnreadMentionIn(item, channel, readNo) ? count + 1 : count), 0);
 
 /**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so

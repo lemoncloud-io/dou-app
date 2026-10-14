@@ -25,6 +25,20 @@ const GROUP_MENTION_PATTERN = new RegExp(
 );
 
 /**
+ * A name standing anywhere after an `@`, case-insensitively. Names can contain
+ * spaces (unlike the composer's token regex), so this errs toward notifying
+ * rather than staying silent.
+ */
+const mentionsNameInText = (text: string, names: Array<string | null | undefined>): boolean => {
+    if (!text.includes('@')) return false;
+    const lower = text.toLowerCase();
+    return names.some(raw => {
+        const name = raw?.trim().toLowerCase();
+        return !!name && lower.includes(`@${name}`);
+    });
+};
+
+/**
  * Best-effort "does this message mention me" check, used by the
  * notify='mention' channel mode. Plain case-insensitive substring match on
  * `@<name>` (names can contain spaces, unlike the composer's token regex), so
@@ -33,12 +47,8 @@ const GROUP_MENTION_PATTERN = new RegExp(
  */
 export const isMentioned = (content: string, names: Array<string | null | undefined>): boolean => {
     if (!content.includes('@')) return false;
-    if (GROUP_MENTION_PATTERN.test(content)) return true;
-    const lower = content.toLowerCase();
-    return names.some(raw => {
-        const name = raw?.trim().toLowerCase();
-        return !!name && lower.includes(`@${name}`);
-    });
+    if (mentionsNameInText(content, names)) return true;
+    return GROUP_MENTION_PATTERN.test(content);
 };
 
 /**
@@ -53,15 +63,6 @@ export const isMentioned = (content: string, names: Array<string | null | undefi
  * my name over a group word.
  */
 export type MentionKind = 'direct' | 'everyone';
-
-const mentionsNameInText = (text: string, names: Array<string | null | undefined>): boolean => {
-    if (!text.includes('@')) return false;
-    const lower = text.toLowerCase();
-    return names.some(raw => {
-        const name = raw?.trim().toLowerCase();
-        return !!name && lower.includes(`@${name}`);
-    });
-};
 
 export const mentionKind = (
     chat: Pick<DomainChat, 'mention$'>,

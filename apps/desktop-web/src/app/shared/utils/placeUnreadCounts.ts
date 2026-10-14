@@ -42,8 +42,20 @@ export const placeUnreadCounts = (
 ): { byPlace: Record<string, number>; total: number } => {
     // One pass over the inbox per call, keyed `place|channel`: per-channel
     // filtering then reads the bucket instead of re-scanning all 200 entries.
+    // Built only when a mentions-only channel is actually in the list.
     const mentionChatNos = new Map<string, number[]>();
-    if (mentions) {
+    if (
+        mentions &&
+        channels.some(
+            channel =>
+                channelNotifyMode(
+                    notifyPrefs,
+                    channel.id ?? '',
+                    channel.$join?.notify,
+                    isNotifyDm(channel)
+                ) === 'mention'
+        )
+    ) {
         for (const item of Object.values(mentions)) {
             if (item.readAt || item.placeId === undefined) continue;
             const key = `${item.placeId}|${item.channelId}`;
