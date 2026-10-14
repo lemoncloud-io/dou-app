@@ -95,6 +95,26 @@ describe('useCloudSwitchFlow invited-cloud recovery', () => {
         expect(data.recover).not.toHaveBeenCalled();
         expect(session.switchCloud).toHaveBeenCalledWith('#');
     });
+
+    it('ignores a second switch while the recovery is still in flight', async () => {
+        let finishRecovery: () => void = () => undefined;
+        data.recover.mockImplementationOnce(() => new Promise<void>(resolve => (finishRecovery = resolve)));
+        const { result } = renderHook(() => useCloudSwitchFlow());
+
+        let first: Promise<void> = Promise.resolve();
+        act(() => {
+            first = result.current.switchCloud('B');
+        });
+        await act(() => result.current.switchCloud('C'));
+        await act(async () => {
+            finishRecovery();
+            await first;
+        });
+
+        expect(data.recover).toHaveBeenCalledTimes(1);
+        expect(session.switchCloud).toHaveBeenCalledTimes(1);
+        expect(session.switchCloud).toHaveBeenCalledWith('B');
+    });
 });
 
 describe('useCloudSwitchFlow retry', () => {

@@ -50,14 +50,19 @@ export const useCloudSwitchFlow = () => {
     // Try again runs the switch as it is when clicked, not as it was when it failed: by
     // then the reader may be on that cloud already, or another switch may be running.
     const latestRef = useRef<(cloudId: string) => Promise<void>>(async () => undefined);
+    // `isSwitching` turns on only once the session switch starts, so the invited-cloud recovery
+    // awaited ahead of it (a relay round trip for a missing cloud) would let a second click start
+    // a second switch. This covers the whole flow.
+    const busyRef = useRef(false);
     const switchCloud = useCallback(
         async (cloudId: string): Promise<void> => {
-            if (isSwitching || cloudId === selectedCloudId) return;
+            if (isSwitching || busyRef.current || cloudId === selectedCloudId) return;
 
             // Channel ids are cloud-scoped: drop the stale selection up front so no hook still
             // keyed on it fires a cross-cloud request (channel.list-user → 403) at the new socket.
             useSelectedChannelStore.getState().clearChannel();
 
+            busyRef.current = true;
             try {
                 if (cloudId === 'default') {
                     await logoutCloudSession();
@@ -108,6 +113,8 @@ export const useCloudSwitchFlow = () => {
                           ) as unknown as ToastActionElement)
                         : undefined,
                 });
+            } finally {
+                busyRef.current = false;
             }
         },
         [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedCloudIds, isSwitching, t, toast]
