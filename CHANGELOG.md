@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-14] - No version updates
+
+### Features
+
+- (web,desktop-web) draw bold, italic, strike and quotes on the web as on desktop (ADR-0201)
+
+### Bug Fixes
+
+- (web-ui-kit) let code blocks and inline code take their tint from the bubble
+
 ## [2026-10-14] - root@0.103.0, @chatic/web@0.72.0
 
 ### Features
