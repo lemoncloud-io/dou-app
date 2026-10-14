@@ -86,7 +86,8 @@ from the activity time itself:
 `ChannelList` turns the last chat into one line with `lastChatPreview`
 (`features/channels/utils/lastChatPreview.ts`), the same line a search result's room row and the
 place's channel-management row print. In this order: a deleted message prints
-`chat.room.deletedMessage`; a message with text prints the text (code markup flattened), whatever it
+`chat.room.deletedMessage`; a message with text prints the text (its markup flattened: code, marks
+and quote markers dropped), whatever it
 has attached; and a message with attachments and no text prints what it carries.
 
 That last case reads `chatAttachmentSummary` from `libs/data` — the kind and number of the chat's
@@ -125,7 +126,7 @@ and a draft's line carries none.
 A room whose composer holds a draft (ADR-0183,
 [chat-room.md](../channels/chat-room.md#the-composers-draft)) prints the draft instead of the last
 chat, behind a pencil glyph (`IconEdit`, named `channelList.draft` for screen readers) through the kit's
-`ListRow.subtitleIcon`. No colour of its own: the row keeps red for the unread badge. The typed text prints on one line, code markup flattened as above; with no
+`ListRow.subtitleIcon`. No colour of its own: the row keeps red for the unread badge. The typed text prints on one line, markup flattened as above; with no
 text but a waiting file, the file's name, or `chat.attach.previewFileCount` for several. A blank draft
 prints nothing of its own. Only the room's own draft counts — a thread's stays with the thread. The
 time and the unread badge still come from the last chat, and so does the order. The row subscribes to

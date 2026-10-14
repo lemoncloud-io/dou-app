@@ -18,6 +18,10 @@ export interface MessageBubbleProps {
  * Chat message balloon — the Figma bubble. Two variants share one component: the
  * tail corner (sharp) mirrors by side. Purely presentational; the row layout,
  * avatar, and metadata are composed around it by MessageRow.
+ *
+ * The root is a named group (`group/bubble`) carrying `data-variant`, so content drawn inside can
+ * pick a tint for the ground it sits on without being told: `mine` is navy in both themes, which a
+ * fixed dark tint (right for the light bubble) disappears into. CodeBlock and InlineCode read it.
  */
 export const MessageBubble = ({
     variant = 'other',
@@ -29,8 +33,9 @@ export const MessageBubble = ({
     const mine = variant === 'mine';
     return (
         <div
+            data-variant={variant}
             className={cn(
-                'w-fit min-w-0 max-w-full px-[14px] py-2 text-[16px] leading-[1.28] tracking-[-0.08px]',
+                'group/bubble w-fit min-w-0 max-w-full px-[14px] py-2 text-[16px] leading-[1.28] tracking-[-0.08px]',
                 mine
                     ? 'rounded-b-[18px] rounded-tl-[18px] bg-bubble-mine text-bubble-mine-foreground'
                     : 'rounded-b-[18px] rounded-tr-[18px] bg-bubble-other text-bubble-other-foreground',

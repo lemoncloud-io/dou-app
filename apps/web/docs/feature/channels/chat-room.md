@@ -302,17 +302,58 @@ Known limits: `fields` render in one column (the contract has no `short` flag), 
 as plain text — no markdown, no URL tokenizing — because the sender is outside the trust boundary
 and linkifying their text widens it.
 
-## Message text is not markdown
+## Message text is the desktop's dialect
 
-[`messageTokens.ts`](../../../src/app/features/channels/utils/messageTokens.ts) splits a body into
-four token kinds: `text`, `url`, `code` (inline backticks) and `codeBlock` (triple-backtick fences).
+Message text is a small markdown-like dialect, the one the desktop composer writes: `**bold**`,
+`*italic*`, `~~strike~~`, `` `code` ``, triple-backtick fences, `> ` quote lines and labelled links.
+[`messageTokens.ts`](../../../src/app/features/channels/utils/messageTokens.ts) reads exactly that set,
+with the desktop reader's rules for quotes and marks, so a formatted message reads the same on both.
+Headings and lists stay literal, and there is no escape syntax: a backslash is a backslash.
+
+The formatting lives in `content` itself, not in a field beside it. A field of ranges would need a
+server change, offsets that drift on Korean and emoji and on every edit, and `content` would still
+have to carry the plain text for search, previews and pushes. Reading the dialect costs only this
+file, and messages already sent read the same way as new ones.
+
+The passes run in this order, and each only sees what the one before left as text:
+
+1. **Fences** become `codeBlock`; their contents stay literal.
+2. **Quotes** — consecutive lines that start with `> `, or are a lone `>`, become one `quote` token.
+   The space is required, so `>_<` and `>.<` stay text; the composer always writes `> `. The line
+   break beside a quote is dropped, since the quote is its own block — which also means a blank line
+   left just above a quote does not show, as on desktop.
+3. **Inline code** in backticks becomes `code`.
+4. **Links and marks** in one leftmost-first pass: a labelled link, then `bold`, `italic`, `strike`,
+   then a bare `url`. A mark stays on one line and needs its closing marker, so a lone `*` or a mark
+   cut off by truncation stays text. Marks do not nest — the words inside one are plain text, so an
+   address inside `**…**` is not linked and is not unfurled, as on desktop. A mention inside one is
+   still drawn, because the mention highlight works on the words.
+
+The dialect's ambiguity is the desktop's too: text that only looks like a mark is one —
+`2 * 3 * 4` reads `3` in italics.
+
+Where the two readers still differ: they cut a bare address at different characters, and this file
+draws a mention inside a mark, where the desktop shows the mark's words as plain text. Fences follow
+the desktop's rule — see below.
+
 A `url` token may carry a `label`: `[words](https://…)` — what the desktop composer's link dialog
 sends — is drawn as the words linking to the address, the home preview shows the words, and the link
 card unfurls the address. The words hold no brackets or line breaks and the address must be http(s),
-start with a host and hold no spaces or parentheses, so
-`[x] done (see notes)` and `[x](javascript:…)` stay literal. Bold, italics, headings, lists and quotes
-stay literal. Widening that set is a product decision, not a refactor. An `@name` is text too; the one thing drawn on top of it is the highlight of
-a mention of me (see [A message row](#a-message-row)), which only marks words inside `text` tokens.
+start with a host and hold no spaces or parentheses, so `[x] done (see notes)` and
+`[x](javascript:…)` stay literal. An `@name` is text too; the one thing drawn on top of it is the
+mention highlight (see [A message row](#a-message-row)), which only marks words inside text and marks.
+
+A quote is drawn as a block with a rule on its left, in the bubble's own text colour faded rather
+than an accent, so the same style reads on the light bubble, the dark one and a thread root on the
+page, in both themes. The home preview drops the markers and keeps the words.
+
+Code takes its tint from the bubble it sits in. My bubble is navy in both themes, and a fixed dark tint
+— right for the other person's light bubble — disappeared into it, taking the block's edge and every
+inline code chip with it. `MessageBubble` marks its variant (`data-variant` on a `group/bubble`), and
+the kit's `CodeBlock` and `InlineCode` switch to a light tint inside mine; outside a bubble (the expand
+dialog, a thread root on the page) they keep the dark one. A fenced block also carries a thin border,
+so its edge stays visible where the tint is close to the ground, and a header row ruled off from the
+code with the language tag and an icon-and-label copy button.
 
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched

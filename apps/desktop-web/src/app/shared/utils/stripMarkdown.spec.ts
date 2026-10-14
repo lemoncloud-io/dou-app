@@ -14,4 +14,8 @@ describe('stripMarkdown', () => {
     it('keeps a labelled link inside code literal, as the reader does', () => {
         expect(stripMarkdown('`[a](https://x.example)`')).toBe('[a](https://x.example)');
     });
+
+    it('drops a quote marker but keeps an emoticon that starts with >', () => {
+        expect(stripMarkdown('> 인용\n>_< 헐\n>')).toBe('인용\n>_< 헐\n');
+    });
 });

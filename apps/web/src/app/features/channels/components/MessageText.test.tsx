@@ -71,6 +71,28 @@ describe('MessageText', () => {
 
         expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.com/very/long/pa');
     });
+    it('draws bold, italic and strikethrough without their markers', () => {
+        const { container } = render(<MessageText text="**굵게** *기울임* ~~취소~~" />);
+
+        expect(container.querySelector('strong')).toHaveTextContent('굵게');
+        expect(container.querySelector('em')).toHaveTextContent('기울임');
+        expect(container.querySelector('s')).toHaveTextContent('취소');
+        expect(container).toHaveTextContent(/^굵게 기울임 취소$/);
+    });
+
+    it('draws > lines as one quote block, with its own links still tappable', () => {
+        const onUrlClick = jest.fn();
+        const { container } = render(
+            <MessageText text={'앞\n> 첫째 https://example.com/q\n> 둘째\n뒤'} onUrlClick={onUrlClick} />
+        );
+
+        const quotes = container.querySelectorAll('span.block');
+        expect(quotes).toHaveLength(1);
+        expect(quotes[0]?.textContent).toBe('첫째 https://example.com/q\n둘째');
+        fireEvent.click(screen.getByRole('link'));
+        expect(onUrlClick).toHaveBeenCalledWith('https://example.com/q');
+    });
+
     describe('mentions', () => {
         const marks = (fields: Partial<MentionMarks> = {}): MentionMarks => ({
             words: ['@레인', '@Minsu', '@channel'],
@@ -140,6 +162,18 @@ describe('MessageText', () => {
             const { container } = render(<MessageText text="`@레인` https://x.test/@레인 @레인" mentions={marks()} />);
 
             expect(Array.from(container.querySelectorAll('span')).map(span => span.textContent)).toEqual(['@레인']);
+        });
+
+        it('still draws a mention inside bold', () => {
+            const onMentionClick = jest.fn();
+            const { container } = render(
+                <MessageText text="**@Minsu 확인**" mentions={marks()} onMentionClick={onMentionClick} />
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: '@Minsu' }));
+
+            expect(container.querySelector('strong button')).toHaveTextContent('@Minsu');
+            expect(onMentionClick).toHaveBeenCalledWith({ id: 'u2', name: 'Minsu' });
         });
 
         it('marks nothing without words to mark', () => {

@@ -154,10 +154,11 @@ const renderQuoteRuns = (
         quote = [];
     };
     for (const line of text.split('\n')) {
-        const quoted = line.match(/^>\s?(.*)$/);
+        // `>` needs a space after it (or nothing), as the editor's own import does, so `>_<` stays text.
+        const quoted = line.match(/^>(?:\s(.*))?$/);
         if (quoted) {
             flushPlain();
-            quote.push(quoted[1]);
+            quote.push(quoted[1] ?? '');
         } else {
             flushQuote();
             plain.push(line);

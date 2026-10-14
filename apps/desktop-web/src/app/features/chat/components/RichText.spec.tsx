@@ -63,3 +63,19 @@ describe('RichText labelled links', () => {
         expect(container.textContent).toBe('[x](javascript:alert(1))');
     });
 });
+
+describe('RichText quotes', () => {
+    it('draws "> " lines as one quote block without their markers', () => {
+        const container = renderText('a\n> one\n> two\nb');
+        const quotes = container.querySelectorAll('span.block');
+        expect(quotes).toHaveLength(1);
+        expect(quotes[0]?.textContent).toBe('one\ntwo');
+    });
+
+    // The editor only reads `> ` as a quote, so the reader must not either: `>_<` is a face.
+    it('leaves an emoticon that starts with > as text', () => {
+        const container = renderText('좋아요\n>_< 고마워');
+        expect(container.querySelector('span.block')).toBeNull();
+        expect(container.textContent).toBe('좋아요\n>_< 고마워');
+    });
+});

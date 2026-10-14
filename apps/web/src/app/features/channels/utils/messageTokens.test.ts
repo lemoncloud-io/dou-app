@@ -1,9 +1,7 @@
 import { extractFirstUrl, toPlainPreview, toPlainText, tokenizeMessage } from './messageTokens';
 
 const urls = (text: string, truncated = false) =>
-    tokenizeMessage(text, { truncated })
-        .filter(token => token.type === 'url')
-        .map(token => token.value);
+    tokenizeMessage(text, { truncated }).flatMap(token => (token.type === 'url' ? [token.value] : []));
 
 describe('tokenizeMessage', () => {
     it('returns nothing for empty text', () => {
@@ -420,5 +418,148 @@ describe('labelled links', () => {
     it('unfurls the address and previews the label', () => {
         expect(extractFirstUrl('[the docs](https://example.com/a)')).toBe('https://example.com/a');
         expect(toPlainPreview('see [the docs](https://example.com/a)')).toBe('see the docs');
+    });
+});
+
+// The desktop composer's dialect, read the way the desktop reader reads it.
+describe('inline marks', () => {
+    it('reads bold, italic and strikethrough', () => {
+        expect(tokenizeMessage('**굵게** *기울임* ~~취소~~')).toEqual([
+            { type: 'bold', value: '굵게' },
+            { type: 'text', value: ' ' },
+            { type: 'italic', value: '기울임' },
+            { type: 'text', value: ' ' },
+            { type: 'strike', value: '취소' },
+        ]);
+    });
+
+    it('reads **x** as bold, not as italic around stars', () => {
+        expect(tokenizeMessage('**x**')).toEqual([{ type: 'bold', value: 'x' }]);
+    });
+
+    it('leaves a mark with no closing marker as text', () => {
+        expect(tokenizeMessage('2 * 3 = 6')).toEqual([{ type: 'text', value: '2 * 3 = 6' }]);
+        expect(tokenizeMessage('**약속 ~~취소')).toEqual([{ type: 'text', value: '**약속 ~~취소' }]);
+    });
+
+    it('does not carry a mark across a line break', () => {
+        expect(tokenizeMessage('*a\nb*')).toEqual([{ type: 'text', value: '*a\nb*' }]);
+    });
+
+    it('keeps marks inside code literal', () => {
+        expect(tokenizeMessage('`**x**`')).toEqual([{ type: 'code', value: '**x**' }]);
+        expect(tokenizeMessage('```\n**x**\n```')).toEqual([{ type: 'codeBlock', value: '**x**', lang: undefined }]);
+    });
+
+    // Marks do not nest, as on desktop: what sits inside one is its plain words.
+    it('does not link an address inside a mark', () => {
+        expect(tokenizeMessage('**https://example.com/a**')).toEqual([
+            { type: 'bold', value: 'https://example.com/a' },
+        ]);
+        expect(extractFirstUrl('**https://example.com/a**')).toBeUndefined();
+    });
+
+    it('keeps a mark-like run inside an address part of the address', () => {
+        expect(urls('https://example.com/a*b*')).toEqual(['https://example.com/a*b*']);
+    });
+
+    it('still reads a mark right after a trimmed address', () => {
+        expect(tokenizeMessage('https://example.com/a. **끝**')).toEqual([
+            { type: 'url', value: 'https://example.com/a' },
+            { type: 'text', value: '. ' },
+            { type: 'bold', value: '끝' },
+        ]);
+    });
+
+    it('leaves a mark cut off by truncation as text', () => {
+        expect(tokenizeMessage('앞 **잘린', { truncated: true })).toEqual([{ type: 'text', value: '앞 **잘린' }]);
+    });
+
+    it('previews marked words without their markers', () => {
+        expect(toPlainPreview('**굵게** *기울임* ~~취소~~')).toBe('굵게 기울임 취소');
+    });
+});
+
+describe('quotes', () => {
+    it('groups consecutive > lines into one quote, without their markers', () => {
+        expect(tokenizeMessage('앞\n> 첫째\n> 둘째\n뒤')).toEqual([
+            { type: 'text', value: '앞' },
+            { type: 'quote', children: [{ type: 'text', value: '첫째\n둘째' }] },
+            { type: 'text', value: '뒤' },
+        ]);
+    });
+
+    it('reads marks, code and links inside a quote', () => {
+        expect(tokenizeMessage('> **a** `b` https://example.com/c')).toEqual([
+            {
+                type: 'quote',
+                children: [
+                    { type: 'bold', value: 'a' },
+                    { type: 'text', value: ' ' },
+                    { type: 'code', value: 'b' },
+                    { type: 'text', value: ' ' },
+                    { type: 'url', value: 'https://example.com/c' },
+                ],
+            },
+        ]);
+    });
+
+    it('keeps the blank line the sender left before a quote in the text run', () => {
+        expect(tokenizeMessage('앞\n\n> 인용')).toEqual([
+            { type: 'text', value: '앞\n' },
+            { type: 'quote', children: [{ type: 'text', value: '인용' }] },
+        ]);
+    });
+
+    // `>_<` and `>.<` are faces, and the desktop composer always writes `> `.
+    it('leaves a line where > is not followed by a space as text', () => {
+        expect(tokenizeMessage('좋아요\n>_< 고마워')).toEqual([{ type: 'text', value: '좋아요\n>_< 고마워' }]);
+        expect(toPlainPreview('>.< 헐')).toBe('>.< 헐');
+    });
+
+    it('reads a bare > line as an empty quote line', () => {
+        expect(tokenizeMessage('> a\n>\n> b')).toEqual([
+            { type: 'quote', children: [{ type: 'text', value: 'a\n\nb' }] },
+        ]);
+    });
+
+    it('does not read > in the middle of a line as a quote', () => {
+        expect(tokenizeMessage('a > b')).toEqual([{ type: 'text', value: 'a > b' }]);
+    });
+
+    it('leaves > inside a fence as code', () => {
+        expect(tokenizeMessage('```\n> x\n```')).toEqual([{ type: 'codeBlock', value: '> x', lang: undefined }]);
+    });
+
+    it('unfurls an address inside a quote', () => {
+        expect(extractFirstUrl('> https://example.com/q')).toBe('https://example.com/q');
+    });
+
+    it('leaves a quoted address cut by truncation as text', () => {
+        expect(tokenizeMessage('> https://example.com/q', { truncated: true })).toEqual([
+            { type: 'quote', children: [{ type: 'text', value: 'https://example.com/q' }] },
+        ]);
+    });
+
+    // The search surface keeps every line of a block; marks and quote markers go there too.
+    it('flattens marks, a quote and a fence together for search', () => {
+        expect(toPlainText('**a**\n> q\n```\nx\ny\n```')).toBe('a\nq\nx\ny');
+    });
+
+    it('previews a quote without its markers, keeping its line breaks', () => {
+        expect(toPlainPreview('앞\n> 인용\n뒤')).toBe('앞\n인용\n뒤');
+    });
+});
+
+describe('adversarial input — marks', () => {
+    const budgetMs = 300;
+
+    it('scans long runs of mark characters in linear time', () => {
+        const started = Date.now();
+        toPlainPreview('*'.repeat(60_000));
+        toPlainPreview(`**${'a*'.repeat(30_000)}`);
+        toPlainPreview('~'.repeat(60_000));
+        toPlainPreview('> \n'.repeat(20_000));
+        expect(Date.now() - started).toBeLessThan(budgetMs);
     });
 });

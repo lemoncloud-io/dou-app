@@ -18,4 +18,5 @@ export const stripMarkdown = (content: string): string =>
         .replace(/\*\*([^*\n]+)\*\*/g, '$1')
         .replace(/\*([^*\n]+)\*/g, '$1')
         .replace(/~~([^~\n]+)~~/g, '$1')
-        .replace(/^>\s?/gm, '');
+        // A quote marker is `>` with a space or nothing after it, as RichText reads it — `>_<` is not one.
+        .replace(/^>(?:[^\S\n]|$)/gm, '');
