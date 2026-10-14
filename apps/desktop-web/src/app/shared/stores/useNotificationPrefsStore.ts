@@ -25,11 +25,17 @@ interface NotificationPrefsState {
     snoozeUntil: number | null;
     /** Recurring quiet window; null = off. Mutes banners + toasts while inside it. */
     quietHours: QuietHours | null;
+    /**
+     * Let a mention that names me break quiet hours (not snooze). Off unless
+     * turned on: existing quiet-hours users get no new banners on update.
+     */
+    mentionBreaksQuietHours: boolean;
     setDesktopEnabled: (enabled: boolean) => void;
     toggleMute: (channelId: string) => void;
     setChannelNotify: (channelId: string, mode: ChannelNotifyMode) => void;
     setSnooze: (untilMs: number | null) => void;
     setQuietHours: (quietHours: QuietHours | null) => void;
+    setMentionBreaksQuietHours: (enabled: boolean) => void;
 }
 
 const GROUP_NOTIFY_MODES: readonly ChannelNotifyMode[] = ['all', 'mention', 'none'];
@@ -93,9 +99,11 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
             channelNotify: {},
             snoozeUntil: null,
             quietHours: null,
+            mentionBreaksQuietHours: false,
             setDesktopEnabled: enabled => set({ desktopEnabled: enabled }),
             setSnooze: untilMs => set({ snoozeUntil: untilMs }),
             setQuietHours: quietHours => set({ quietHours }),
+            setMentionBreaksQuietHours: enabled => set({ mentionBreaksQuietHours: enabled }),
             toggleMute: channelId =>
                 set(state => {
                     const next = { ...state.mutedChannels };

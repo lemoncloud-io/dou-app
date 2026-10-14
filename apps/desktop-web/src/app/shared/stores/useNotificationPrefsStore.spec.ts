@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { channelNotifyMode, notifyModesFor } from './useNotificationPrefsStore';
+import {
+    channelNotifyMode,
+    notifyModesFor,
+    useNotificationPrefsStore,
+} from './useNotificationPrefsStore';
 
 // The join.notify fallback is the seam the settings panel, the row menu and
 // both notifiers share — a regression here flips server-side 'mention'
@@ -53,5 +57,39 @@ describe('notifyModesFor', () => {
 
     it('does not offer mentions only in a 1:1', () => {
         expect(notifyModesFor(true)).toEqual(['all', 'none']);
+    });
+});
+
+describe('mentionBreaksQuietHours', () => {
+    it('is off by default, so an update adds no new banners', () => {
+        expect(useNotificationPrefsStore.getState().mentionBreaksQuietHours).toBe(false);
+    });
+
+    it('is stored by its setter', () => {
+        useNotificationPrefsStore.getState().setMentionBreaksQuietHours(true);
+        expect(useNotificationPrefsStore.getState().mentionBreaksQuietHours).toBe(true);
+        useNotificationPrefsStore.getState().setMentionBreaksQuietHours(false);
+        expect(useNotificationPrefsStore.getState().mentionBreaksQuietHours).toBe(false);
+    });
+
+    // A state saved before the toggle existed carries no such key; the
+    // persist merge must leave the default (off) in place.
+    it('reads a stored state from before the toggle as off', async () => {
+        localStorage.setItem(
+            'chatic-notification-prefs',
+            JSON.stringify({
+                state: { desktopEnabled: true, mutedChannels: {}, channelNotify: {}, snoozeUntil: null, quietHours: null },
+                version: 0,
+            })
+        );
+        vi.resetModules();
+        try {
+            const fresh = await import('./useNotificationPrefsStore');
+            await fresh.useNotificationPrefsStore.persist.rehydrate();
+            expect(fresh.useNotificationPrefsStore.getState().mentionBreaksQuietHours).toBe(false);
+        } finally {
+            localStorage.removeItem('chatic-notification-prefs');
+            vi.resetModules();
+        }
     });
 });

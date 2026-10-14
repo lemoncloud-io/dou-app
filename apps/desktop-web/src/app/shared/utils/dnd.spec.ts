@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isDndActive, isWithinQuietHours, nextSnoozeUntilTomorrow } from './dnd';
+import { isDndActive, isSnoozed, isWithinQuietHours, nextSnoozeUntilTomorrow } from './dnd';
 
 const at = (h: number, m = 0): Date => new Date(2026, 5, 18, h, m, 0, 0);
 
@@ -46,6 +46,20 @@ describe('isDndActive', () => {
 
     it('is active inside quiet hours even without a snooze', () => {
         expect(isDndActive({ snoozeUntil: null, quietHours: { start: '11:00', end: '13:00' } }, now)).toBe(true);
+    });
+});
+
+describe('isSnoozed', () => {
+    const now = at(12).getTime();
+
+    it('holds while the snooze is in the future', () => {
+        expect(isSnoozed(now + 60_000, now)).toBe(true);
+    });
+
+    it('releases an expired or absent snooze', () => {
+        expect(isSnoozed(now - 1, now)).toBe(false);
+        expect(isSnoozed(null, now)).toBe(false);
+        expect(isSnoozed(undefined, now)).toBe(false);
     });
 });
 

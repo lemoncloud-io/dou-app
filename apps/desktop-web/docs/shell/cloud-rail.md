@@ -76,8 +76,11 @@ Reordering has no keyboard path yet.
 The active cloud's dot comes from the live socket. Another cloud's dot is a pending cross-cloud push
 (`useCrossCloudPushBadge`), the only signal the client has for it, and it carries no count.
 
-A muted channel — any notify mode but "all" — does not light the active cloud's dot, its place's
-dot, the window title or the OS badge (`placeUnreadCounts`). All four mean "something here wants
+A muted channel — notify mode "off" — does not light the active cloud's dot, its place's
+dot, the window title or the OS badge (`placeUnreadCounts`). A "mentions only" channel lights
+those four with its unread mentions, capped at its unread messages; the rule lives in
+[`../chat/notifications.md`](../chat/notifications.md), which also lists what the device-local
+mentions inbox cannot know. All four mean "something here wants
 you", and a channel told to stay quiet does not; its own sidebar row still shows its unread. They
 used to count it, so one muted channel kept its place and its cloud dotted with nothing to act on.
 The mode is the one the row's bell-off glyph reads (`channelNotifyMode`), so the dots follow a mute

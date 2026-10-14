@@ -29,10 +29,11 @@ export const isWithinQuietHours = (q: QuietHours | null | undefined, now: Date):
 export const isDndActive = (
     state: { snoozeUntil: number | null; quietHours: QuietHours | null },
     now: number = Date.now()
-): boolean => {
-    if (state.snoozeUntil != null && state.snoozeUntil > now) return true;
-    return isWithinQuietHours(state.quietHours, new Date(now));
-};
+): boolean => isSnoozed(state.snoozeUntil, now) || isWithinQuietHours(state.quietHours, new Date(now));
+
+/** A snooze set and still in the future — the one half of `isDndActive` the banner splits off. */
+export const isSnoozed = (snoozeUntil: number | null | undefined, now: number = Date.now()): boolean =>
+    snoozeUntil != null && snoozeUntil > now;
 
 /** Epoch ms for the next local `hour:00` — today if still ahead, else tomorrow. */
 export const nextSnoozeUntilTomorrow = (now: number, hour = 8): number => {

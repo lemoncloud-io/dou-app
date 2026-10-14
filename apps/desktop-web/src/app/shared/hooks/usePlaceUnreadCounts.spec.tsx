@@ -57,6 +57,7 @@ vi.mock('./liveReadRegistry', () => ({
 import { webClient } from '@chatic/bridges';
 
 import { useNotificationPrefsStore } from '../stores';
+import { useMentionsStore } from '../stores';
 import { usePlaceUnreadCounts } from './usePlaceUnreadCounts';
 
 type PushHandler = (message: unknown) => void;
@@ -209,5 +210,78 @@ describe('usePlaceUnreadCounts notify mode', () => {
 
         expect(result.current).toEqual({ byPlace: {}, total: 0 });
         expect(channelMocks.fetchList).not.toHaveBeenCalled();
+    });
+});
+
+describe('usePlaceUnreadCounts mentions', () => {
+    const mentionChannel = {
+        id: 'g',
+        cid: 'cloud-1',
+        sid: 'place-a',
+        stereo: 'private',
+        memberIds: ['me'],
+        chatNo: 1,
+        metaNo: 0,
+        $join: { chatNo: 0, metaNo: 0, notify: 'mention' },
+        lastChat$: { ownerId: 'other' },
+    };
+
+    const captureMention = () =>
+        useMentionsStore.getState().add({
+            id: 'g:1',
+            channelId: 'g',
+            placeId: 'place-a',
+            chatNo: 1,
+            content: '@me hi',
+            ownerName: 'Ada',
+            createdAt: 1,
+        });
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.clearAllMocks();
+        liveIds.clear();
+        managerMocks.onMessageHandler = null;
+        useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+        useMentionsStore.setState({ items: {} });
+    });
+
+    afterEach(() => {
+        channelMocks.fetchList.mockResolvedValue({ list: [] });
+        useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+        useMentionsStore.setState({ items: {} });
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    it('adds a mentions-only mention to the total the moment it lands, without re-pulling', async () => {
+        channelMocks.fetchList.mockResolvedValue({ list: [mentionChannel] } as never);
+        const { result } = renderHook(() => usePlaceUnreadCounts());
+        await act(async () => undefined);
+        await act(async () => undefined);
+        expect(result.current).toEqual({ byPlace: {}, total: 0 });
+        channelMocks.fetchList.mockClear();
+
+        act(() => captureMention());
+
+        expect(result.current).toEqual({ byPlace: { 'place-a': 1 }, total: 1 });
+        expect(channelMocks.fetchList).not.toHaveBeenCalled();
+    });
+
+    // The channel list is a debounced fetch: a mention captured first counts once the
+    // list arrives with its unread, not before.
+    it('counts the mention once the channel list arrives after it', async () => {
+        channelMocks.fetchList.mockResolvedValue({ list: [] });
+        const { result } = renderHook(() => usePlaceUnreadCounts());
+        await act(async () => undefined);
+
+        act(() => captureMention());
+        expect(result.current).toEqual({ byPlace: {}, total: 0 });
+
+        channelMocks.fetchList.mockResolvedValue({ list: [mentionChannel] } as never);
+        emitPush();
+        await advanceDebounce();
+
+        expect(result.current).toEqual({ byPlace: { 'place-a': 1 }, total: 1 });
     });
 });

@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 
+import i18next from 'i18next';
+
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
@@ -8,13 +10,16 @@ import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
 import {
     buildOpenDeeplink,
-    isDndActive,
+    isNamedByRecord,
     isNotifiableChat,
     isOwnChat,
-    mentionsMe,
+    isSnoozed,
+    isWithinQuietHours,
+    mentionKind,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
+    type MentionKind,
 } from '../utils';
 import {
     channelNotifyMode,
@@ -25,9 +30,26 @@ import {
 } from '../stores';
 
 // DMs have no channel name — title with the sender instead. Named channels read as
-// `#name`, matching the cross-cloud push banner.
-const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat): string =>
-    channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+// `#name`, matching the cross-cloud push banner. A group-channel mention reads with
+// its kind first (`Mention · #name`, `@all · #name`); DMs and non-mentions keep the
+// old title. Translated at notify time via i18next, not a render-captured `t` —
+// the feed callback outlives the render that registered it.
+const notificationTitle = (
+    channel: DomainChannel,
+    latest: ChannelLastChat,
+    kind: MentionKind | null
+): string => {
+    const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+    if (isNotifyDm(channel)) return target;
+    if (kind === 'direct') return i18next.t('notification.mentionTitle', { target });
+    if (kind === 'everyone') {
+        return i18next.t('notification.everyoneTitle', {
+            word: i18next.t('chat.mention.everyoneWord'),
+            target,
+        });
+    }
+    return target;
+};
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
 const isViewing = (channelId: string): boolean =>
@@ -75,9 +97,20 @@ export const useDesktopNotifications = (): void => {
         if (!isNotifiableChat(chat)) return;
         // Respect the user's notification preferences (global off / channel mode).
         const prefs = useNotificationPrefsStore.getState();
-        // Global do-not-disturb (snooze / quiet hours) silences every banner.
-        if (isDndActive(prefs)) return;
-        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isNotifyDm(channel));
+        // "Mine" is either id — the same rule the message list and the mentions inbox use (see below).
+        const isDm = isNotifyDm(channel);
+        const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
+        const viewerIds = [viewer.uid, viewer.cloudUid];
+        // Snooze silences every banner, breakthrough or not. Quiet hours break
+        // only for a message whose record names me directly — never for an
+        // everyone call, a text guess, or a 1:1. Everything after this point
+        // (global switch, channel level, viewing, cursor, own message) still applies.
+        const now = Date.now();
+        if (isSnoozed(prefs.snoozeUntil, now)) return;
+        if (prefs.quietHours && isWithinQuietHours(prefs.quietHours, new Date(now))) {
+            if (!prefs.mentionBreaksQuietHours || isDm || !isNamedByRecord(chat, viewerIds)) return;
+        }
+        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isDm);
         if (!prefs.desktopEnabled || notifyMode === 'none') return;
         // Don't notify for a channel you're actively viewing (you can see it).
         if (isViewing(channel.id)) return;
@@ -88,7 +121,6 @@ export const useDesktopNotifications = (): void => {
         // Don't notify my own message. Optimistic copies carry my account id as the owner, but a
         // persisted message outside the relay is owned by my per-channel cloud user id, so "mine"
         // is either id — the same rule the message list and the mentions inbox use.
-        const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
         if (isOwnChat(chat, viewer)) return;
 
         // Mentions-only channels: drop anything that doesn't mention me — by the message's
@@ -96,10 +128,12 @@ export const useDesktopNotifications = (): void => {
         // place's nick, plus @channel/@here).
         // Flattened first: a mention lives in the block text, not in the JSON that
         // carries it, and the raw payload would also match on field names.
+        // One evaluation serves both the filter and the title below (`mentionsMe`
+        // is this same answer as a boolean).
         const message = messagePlainText(chat.content);
-        if (notifyMode === 'mention') {
-            if (!mentionsMe(chat, [viewer.uid, viewer.cloudUid], message, resolveMyMentionNames())) return;
-        }
+        const names = resolveMyMentionNames();
+        const kind = mentionKind(chat, viewerIds, message, names);
+        if (notifyMode === 'mention' && kind === null) return;
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
@@ -109,7 +143,7 @@ export const useDesktopNotifications = (): void => {
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, chat),
+                    title: notificationTitle(channel, chat, kind),
                     body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).

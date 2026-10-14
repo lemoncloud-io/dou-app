@@ -23,6 +23,7 @@ import {
     useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
+    channelReadNo,
     hasUnreadMentionIn,
     isNotifyDm,
     useComposerDraftStore,
@@ -153,7 +154,7 @@ const ChannelRow = memo(function ChannelRow({
     // "What I have read" is this device's cursor or the one on the channel record, whichever
     // is further.
     const localReadNo = useReadCursorStore(s => s.cursors[id] ?? 0);
-    const readNo = Math.max(localReadNo, channel.$join?.chatNo ?? 0);
+    const readNo = channelReadNo(channel, localReadNo);
     const calledMe = useMentionsStore(
         s => indicator !== 'none' && hasUnreadMentionIn(s.items, { id, placeId: channel.sid }, readNo)
     );
