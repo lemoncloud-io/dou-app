@@ -38,6 +38,7 @@ import {
     LinkGuardPlugin,
     MentionsPlugin,
     SubmitPlugin,
+    useUnpickedMention,
 } from './editor';
 
 export interface ComposerProps {
@@ -144,6 +145,7 @@ const ComposerInner = ({
 
     // Focusing during keydown hands the same keystroke to the editor, so the first letter
     // lands in the message instead of being lost.
+    const unpicked = useUnpickedMention(editor, mentionables);
     useEffect(() => {
         if (!capturesTyping) return;
         const onKeyDown = (event: KeyboardEvent) => {
@@ -237,6 +239,12 @@ const ComposerInner = ({
                             ErrorBoundary={LexicalErrorBoundary}
                         />
                     </div>
+                    {/* Typed @name without picking sends plain text no one hears — say so while it matters. */}
+                    {unpicked && (
+                        <p role="status" className="px-5 pb-1 text-caption text-muted-foreground">
+                            {t('chat.mention.unpickedHint', { name: unpicked.name })}
+                        </p>
+                    )}
                     {onRemoveAttachment && (
                         <ComposerAttachments
                             attachments={attachments}
