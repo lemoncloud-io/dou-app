@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-10-14] - root@0.104.1, @chatic/desktop-web@0.32.1
+
+### Bug Fixes
+
+- (desktop-web) keep phone Send enabled so empty submits validate
+- (desktop-web) review nits, menu fallback, field error pairs
+- (desktop-web) phone submit always runs number validation
+- (desktop-web) shared form errors, dialog seeding, quiet-hours live region
+- (desktop-web) settings rows, notification entry, cloud vocabulary
+- (ui-kit) 36px target floor, control-token edges, selectable prose
+- (desktop-web) one account surface, grouped menu, safe guest logout
+- (desktop-web) one PageShell for me-pages with named back targets
+- (desktop-web) mount join dialog at router, guest-only invite entry
+
+### Refactor
+
+- (desktop-web) reuse rows, single cloud-name cap, slimmer shell
+
 ## [2026-10-14] - root@0.104.0, @chatic/desktop-web@0.32.0
 
 ### Features
