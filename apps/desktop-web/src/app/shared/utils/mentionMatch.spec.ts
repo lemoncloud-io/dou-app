@@ -75,6 +75,11 @@ describe('mentionKind', () => {
         expect(mentionKind({ mention$: { all: true } }, ME, 'standup', ['Me'])).toBe('everyone');
     });
 
+    // A read gives `true`, a live `chat.sync` the model's `1`.
+    it.each([true, 1] as const)('reads a numeric everyone record (%j)', all => {
+        expect(mentionKind({ mention$: { all } }, ME, 'standup', ['Me'])).toBe('everyone');
+    });
+
     it('prefers a direct naming over everyone in the same record', () => {
         expect(mentionKind({ mention$: { userIds: ['cloud-user-9'], all: true } }, ME, 'hi', ['Me'])).toBe(
             'direct'

@@ -190,5 +190,34 @@ describe('useDesktopNotifications', () => {
                 })
             ).toBe('@all · #general');
         });
+
+        it('stays silent for a mention in a channel turned off', () => {
+            useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'none' } });
+            feedHandler?.(
+                feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } })
+            );
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        // The banner copy is translated at notify time, so both locales render through this path.
+        it.each([
+            ['ko', '멘션 · #general', '@전체 · #general'],
+            ['en', 'Mention · #general', '@all · #general'],
+        ] as const)('renders the mention titles through the banner in %s', async (lng, direct, everyone) => {
+            const prev = i18n.language;
+            await i18n.changeLanguage(lng);
+            try {
+                feedHandler?.(
+                    feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } })
+                );
+                expect(titleOfFirstBanner()).toBe(direct);
+                vi.clearAllMocks();
+                request.mockResolvedValue(undefined);
+                feedHandler?.(feed({ content: 'standup', mention$: { all: true }, owner$: { name: 'Raine' } }));
+                expect(titleOfFirstBanner()).toBe(everyone);
+            } finally {
+                await i18n.changeLanguage(prev);
+            }
+        });
     });
 });
