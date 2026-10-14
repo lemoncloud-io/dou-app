@@ -37,6 +37,10 @@ const INLINE = new RegExp(
 // text (WCAG 1.4.1), and the colour it used to carry was the brand accent, shared with every button.
 const LINK_CLASS = 'text-link underline underline-offset-2 hover:no-underline';
 
+// Group words by name (without the @), so the pill gate and the self check
+// share one lookup instead of scanning the list twice per mention.
+const GROUP_WORDS = new Set(GROUP_MENTIONS.map(group => group.slice(1)));
+
 const renderInline = (
     text: string,
     keyBase: string,
@@ -82,21 +86,22 @@ const renderInline = (
         } else {
             // A trailing sentence dot belongs to the sentence, not the name: look the
             // name up without it, but render what was written.
-            const word = mention.slice(1).replace(/\.+$/, '');
+            const full = mention.slice(1);
+            const word = full.replace(/\.+$/, '');
             const lower = word.toLowerCase();
+            const isGroup = GROUP_WORDS.has(lower);
             // My own name (or @channel/@here) reads louder — Slack-style callout.
-            const isSelf =
-                !!selfNames?.length &&
-                (GROUP_MENTIONS.some(group => group.slice(1) === lower) || selfNames.includes(lower));
+            const isSelf = !!selfNames?.length && (isGroup || selfNames.includes(lower));
             const className = isSelf ? MSG_MENTION_SELF_CLASS : MSG_MENTION_CLASS;
             // A mention that names a known member opens their profile, the same card
             // an avatar opens. It used to be inert text, so checking who was
-            // mentioned meant finding one of their messages first.
-            const person = resolveMention?.(word) ?? resolveMention?.(mention.slice(1));
+            // mentioned meant finding one of their messages first. The full token is
+            // only retried when stripping changed it.
+            const person = resolveMention?.(word) ?? (word !== full ? resolveMention?.(full) : undefined);
             // A pill claims someone was called: a known member, a group word, my own
             // name, or a message whose record says so. Anything else is plain text —
             // the token pattern used to highlight any word, member or not.
-            if (!person && !isSelf && !GROUP_MENTIONS.some(group => group.slice(1) === lower) && !hasMentionRecord) {
+            if (!person && !isSelf && !isGroup && !hasMentionRecord) {
                 nodes.push(mention);
             } else {
                 // A self pill reads its cue too — colour alone cannot carry "this

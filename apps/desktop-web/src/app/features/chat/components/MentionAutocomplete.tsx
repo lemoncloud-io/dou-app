@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Users } from 'lucide-react';
@@ -44,8 +44,11 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [activeIndex]);
     // Same display name twice is two people: only a second line tells them apart.
-    const nameCounts = new Map<string, number>();
-    for (const item of items) nameCounts.set(item.name, (nameCounts.get(item.name) ?? 0) + 1);
+    const nameCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const item of items) counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
+        return counts;
+    }, [items]);
     return (
         <>
             <div

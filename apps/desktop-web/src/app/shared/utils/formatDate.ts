@@ -24,14 +24,24 @@ export const formatClockTime = (ms: number | undefined): string =>
  * of raw 24h strings beside it. A malformed input comes back untouched.
  */
 export const formatHourMinute = (hhmm: string): string => {
+    const minutes = parseHourMinute(hhmm);
+    if (minutes == null) return hhmm;
+    const date = new Date();
+    date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+    return date.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
+};
+
+/**
+ * "HH:MM" 24h input → minutes past midnight, or null when malformed. One parser
+ * for the quiet-hours inputs, the DND check and the clock print above.
+ */
+export const parseHourMinute = (hhmm: string): number | null => {
     const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
-    if (!match) return hhmm;
+    if (!match) return null;
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
-    if (hours > 23 || minutes > 59) return hhmm;
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
+    if (hours > 23 || minutes > 59) return null;
+    return hours * 60 + minutes;
 };
 
 /** "Jun 15" / "6월 15일", with the year only when it is not this year. */

@@ -333,6 +333,7 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
         root.setAttribute('aria-expanded', 'true');
         root.setAttribute('aria-autocomplete', 'list');
         root.setAttribute('aria-controls', listId);
+        root.setAttribute('aria-activedescendant', `${listId}-option-${activeIndex}`);
         // Lexical's own role is "textbox": restore it, don't leave the box role-less.
         return () => {
             root.setAttribute('role', 'textbox');
@@ -341,11 +342,6 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
             root.removeAttribute('aria-controls');
             root.removeAttribute('aria-activedescendant');
         };
-    }, [editor, open, listId]);
-    useEffect(() => {
-        const root = editor.getRootElement();
-        if (!root || !open) return;
-        root.setAttribute('aria-activedescendant', `${listId}-option-${activeIndex}`);
     }, [editor, open, listId, activeIndex]);
 
     if (!open || !caretRect) return null;

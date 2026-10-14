@@ -10,7 +10,7 @@ import {
     type LexicalNode,
 } from 'lexical';
 
-import { MENTION_TOKEN_SOURCE } from '../../../../shared';
+import { MENTION_TOKEN_SOURCE, isMentionBoundary } from '../../../../shared';
 import type { Mentionable } from '../MentionAutocomplete';
 import { $isMentionNode } from './MentionNode';
 import { findMentionAtCaret } from './mentionAtCaret';
@@ -55,6 +55,8 @@ export const useUnpickedMention = (editor: LexicalEditor, mentionables: Mentiona
                         TYPED_MENTION.lastIndex = 0;
                         let token: RegExpExecArray | null;
                         while ((token = TYPED_MENTION.exec(text)) !== null) {
+                            // Inside a word it names nothing — the reader stays plain too.
+                            if (!isMentionBoundary(text, token.index)) continue;
                             const lower = token[1].toLowerCase();
                             const hit = roster.find(m =>
                                 m.everyone

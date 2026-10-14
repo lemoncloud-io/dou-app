@@ -31,8 +31,10 @@ const GROUP_MENTION_PATTERN = new RegExp(
  * `GROUP_MENTION_PATTERN` holds for group words — `lemon@lemoncloud.io` and a
  * password `lemoncloud@123` are never mentions, whatever follows the `@`.
  */
+const BOUNDARY_BEFORE = /[\p{L}\p{N}_-]/u;
+
 export const isMentionBoundary = (text: string, index: number): boolean =>
-    index <= 0 || !/[\p{L}\p{N}_-]/u.test(text[index - 1] ?? '');
+    index <= 0 || !BOUNDARY_BEFORE.test(text[index - 1] ?? '');
 
 /**
  * A name standing anywhere after an `@`, case-insensitively. Names can contain

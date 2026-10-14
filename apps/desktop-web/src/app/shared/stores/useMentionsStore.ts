@@ -131,6 +131,7 @@ export const useMentionsStore = create<MentionsState>()(
                 set(state => {
                     if (!channelId || !chatNo) return state;
                     let touched = false;
+                    const now = Date.now();
                     const next: Record<string, MentionItem> = {};
                     for (const [id, item] of Object.entries(state.items)) {
                         const samePlace =
@@ -141,7 +142,7 @@ export const useMentionsStore = create<MentionsState>()(
                             samePlace &&
                             (item.chatNo ?? 0) <= chatNo
                         ) {
-                            next[id] = { ...item, readAt: Date.now() };
+                            next[id] = { ...item, readAt: now };
                             touched = true;
                         } else {
                             next[id] = item;

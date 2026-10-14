@@ -69,6 +69,8 @@ export const NotificationSnoozeButton = () => {
         if (snoozeUntil != null && !isSnoozed(snoozeUntil)) setSnooze(null);
     }, [snoozeUntil, boundary, setSnooze]);
 
+    const label = t(labelKey, snoozed && snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined);
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -80,15 +82,11 @@ export const NotificationSnoozeButton = () => {
                             <Bell size={18} aria-hidden />
                         )}
                     </span>
-                    <span className="truncate">
-                        {t(labelKey, snoozed && snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
-                    </span>
+                    <span className="truncate">{label}</span>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56 shadow-overlay">
-                <DropdownMenuLabel className="text-muted-foreground">
-                    {t(labelKey, snoozed && snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
-                </DropdownMenuLabel>
+                <DropdownMenuLabel className="text-muted-foreground">{label}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => snoozeFor(30)} className="cursor-pointer py-2">
                     {t('snooze.30m')}

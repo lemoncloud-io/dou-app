@@ -1,14 +1,5 @@
 import type { QuietHours } from '../stores';
-
-/** Parse "HH:MM" (24h) into minutes since midnight; null when malformed. */
-const toMinutes = (hhmm: string): number | null => {
-    const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
-    if (!match) return null;
-    const hours = Number(match[1]);
-    const minutes = Number(match[2]);
-    if (hours > 23 || minutes > 59) return null;
-    return hours * 60 + minutes;
-};
+import { parseHourMinute } from './formatDate';
 
 /**
  * Is `now` inside the quiet-hours window? Handles a window that crosses
@@ -17,8 +8,8 @@ const toMinutes = (hhmm: string): number | null => {
  */
 export const isWithinQuietHours = (q: QuietHours | null | undefined, now: Date): boolean => {
     if (!q) return false;
-    const start = toMinutes(q.start);
-    const end = toMinutes(q.end);
+    const start = parseHourMinute(q.start);
+    const end = parseHourMinute(q.end);
     if (start === null || end === null || start === end) return false;
     const current = now.getHours() * 60 + now.getMinutes();
     // Same-day window vs. midnight-crossing window.
@@ -55,8 +46,8 @@ export const nextDndBoundary = (
 ): number | null => {
     const targets: number[] = [];
     if (state.snoozeUntil != null && state.snoozeUntil > now) targets.push(state.snoozeUntil);
-    const start = state.quietHours ? toMinutes(state.quietHours.start) : null;
-    const end = state.quietHours ? toMinutes(state.quietHours.end) : null;
+    const start = state.quietHours ? parseHourMinute(state.quietHours.start) : null;
+    const end = state.quietHours ? parseHourMinute(state.quietHours.end) : null;
     if (start !== null && end !== null && start !== end) {
         const midnight = new Date(now);
         midnight.setHours(0, 0, 0, 0);

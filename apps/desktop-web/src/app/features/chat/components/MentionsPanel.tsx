@@ -36,18 +36,22 @@ interface MentionRowProps {
     item: MentionItem;
     /** Resolved channel name (current place only); chip is hidden when absent. */
     channelName?: string;
-    removeLabel: string;
+    /** Who and where the removal drops, already composed ("Ada · #general"). */
+    removeTarget: string;
     /** The row last opened from this pane: the message the reader went to. */
     isCurrent?: boolean;
     onOpen: (id: string) => void;
     onRemove: (id: string) => void;
-    openRef?: (element: HTMLButtonElement | null) => void;
+    openRef: (element: HTMLButtonElement | null) => void;
 }
 
 // Memo: the pane re-renders on every unread change, and 200 rows re-render
 // with it. Props are primitives plus store-stable callbacks (see below), so an
 // untouched row skips the render.
-const MentionRow = memo(({ item, channelName, removeLabel, isCurrent, onOpen, onRemove, openRef }: MentionRowProps) => (
+const MentionRow = memo(
+    ({ item, channelName, removeTarget, isCurrent, onOpen, onRemove, openRef }: MentionRowProps) => {
+        const { t } = useTranslation();
+        return (
     <li
         className={cn(
             'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
@@ -101,11 +105,11 @@ const MentionRow = memo(({ item, channelName, removeLabel, isCurrent, onOpen, on
                 hoverReveal('mention')
             )}
         />
-        <Hint label={removeLabel}>
+        <Hint label={t('activity.remove')}>
             <button
                 type="button"
                 onClick={() => onRemove(item.id)}
-                aria-label={removeLabel}
+                aria-label={t('activity.removeLabel', { target: removeTarget })}
                 className={cn(
                     'focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
                     hoverReveal('mention')
@@ -115,7 +119,9 @@ const MentionRow = memo(({ item, channelName, removeLabel, isCurrent, onOpen, on
             </button>
         </Hint>
     </li>
-));
+        );
+    }
+);
 
 interface MentionsPanelProps {
     /** Loaded channels (active place) — names the mention rows' channel chips. */
@@ -203,10 +209,9 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
         useMentionsStore.getState().remove(id);
     }, []);
     const markAllRead = useMentionsStore(s => s.markAllRead);
-    const removeLabel = (item: MentionItem): string => {
+    const removeTarget = (item: MentionItem): string => {
         const channel = channelName(item.channelId);
-        const target = channel ? `${item.ownerName} · #${channel}` : item.ownerName;
-        return t('activity.removeLabel', { target });
+        return channel ? `${item.ownerName} · #${channel}` : item.ownerName;
     };
 
     return (
@@ -267,7 +272,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                                             key={item.id}
                                             item={item}
                                             channelName={channelName(item.channelId)}
-                                            removeLabel={removeLabel(item)}
+                                            removeTarget={removeTarget(item)}
                                             isCurrent={item.id === openedId}
                                             onOpen={openItem}
                                             onRemove={removeItem}

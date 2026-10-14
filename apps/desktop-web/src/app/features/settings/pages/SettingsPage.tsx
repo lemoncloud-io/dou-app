@@ -12,6 +12,7 @@ import {
     SettingsRowGroup,
     SettingsSwitchRow,
     formatHourMinute,
+    parseHourMinute,
     radioGroupOptions,
     useNotificationPrefsStore,
     VersionInfo,
@@ -26,19 +27,13 @@ import { QuietHoursMentionSection } from './QuietHoursMentionSection';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 
-/** "HH:MM" → minutes past midnight, or null when the input is incomplete. */
-const toMinutes = (value: string): number | null => {
-    const match = /^(\d{2}):(\d{2})$/.exec(value);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
-};
-
 /**
  * Length of a quiet window that may cross midnight (22:00–07:00 is 9h), or null
  * when it is empty or unreadable — start equal to end silences nothing.
  */
 const quietWindowMinutes = (start: string, end: string): number | null => {
-    const s = toMinutes(start);
-    const e = toMinutes(end);
+    const s = parseHourMinute(start);
+    const e = parseHourMinute(end);
     if (s == null || e == null || s === e) return null;
     return (e - s + 24 * 60) % (24 * 60);
 };
