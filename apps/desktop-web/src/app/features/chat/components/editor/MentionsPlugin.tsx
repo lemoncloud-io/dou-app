@@ -333,8 +333,9 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
         root.setAttribute('aria-expanded', 'true');
         root.setAttribute('aria-autocomplete', 'list');
         root.setAttribute('aria-controls', listId);
+        // Lexical's own role is "textbox": restore it, don't leave the box role-less.
         return () => {
-            root.removeAttribute('role');
+            root.setAttribute('role', 'textbox');
             root.removeAttribute('aria-expanded');
             root.removeAttribute('aria-autocomplete');
             root.removeAttribute('aria-controls');

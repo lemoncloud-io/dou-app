@@ -21,7 +21,10 @@ Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 
 type LexicalRoot = HTMLElement & { __lexicalEditor?: LexicalEditor };
 
-const body = (): LexicalRoot => screen.getByRole('textbox', { name: 'Edit message' });
+const body = (): LexicalRoot =>
+    // A textbox, unless the @-list is open — then the same box is a combobox naming it.
+    (screen.queryByRole('textbox', { name: 'Edit message' }) ??
+        screen.getByRole('combobox', { name: 'Edit message' })) as LexicalRoot;
 const editorOf = (): LexicalEditor => {
     const editor = body().__lexicalEditor;
     if (!editor) throw new Error('editor not mounted');
