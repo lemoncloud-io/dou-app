@@ -205,6 +205,7 @@ export const MyThreadsPanel = ({ cloudId, placeId, channels, onSelect }: MyThrea
         <ResizablePanel
             storageKey={'chatic.myThreadsPanel.width'}
             resizeLabel={t('myThreads.resize')}
+            label={t('myThreads.title')}
             onClose={close}
             className="bg-background"
         >

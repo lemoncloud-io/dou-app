@@ -28,6 +28,8 @@ interface ResizablePanelProps {
     storageKey: string;
     /** Accessible name of the drag handle ("Resize thread panel"). */
     resizeLabel: string;
+    /** Accessible name of the panel landmark itself ("Mentions"). */
+    label?: string;
     /** Surface tone (`bg-background` / `bg-elevated`) — the shell supplies the rest. */
     className?: string;
     /**
@@ -51,7 +53,7 @@ interface ResizablePanelProps {
  * The covered chat used to stay live under it, in the tab order and clickable, with
  * about 218px of it left showing at 1024px.
  */
-export const ResizablePanel = ({ storageKey, resizeLabel, className, onClose, children }: ResizablePanelProps) => {
+export const ResizablePanel = ({ storageKey, resizeLabel, label, className, onClose, children }: ResizablePanelProps) => {
     const resize = usePanelWidth({ storageKey, defaultWidth: PANEL_WIDTH });
     useEscapeClose(onClose);
     const { overlays, setClose } = useContext(PanelShellContext);
@@ -96,6 +98,7 @@ export const ResizablePanel = ({ storageKey, resizeLabel, className, onClose, ch
             ref={resize.panelRef}
             tabIndex={-1}
             data-trailing-panel
+            aria-label={label}
             style={{ width: resize.width }}
             className={cn(
                 'absolute inset-y-0 right-0 z-drawer outline-none flex max-w-[85vw] shrink-0 flex-col overflow-hidden border-l border-hairline shadow-raised xl:relative xl:z-auto xl:max-w-none xl:shadow-none',

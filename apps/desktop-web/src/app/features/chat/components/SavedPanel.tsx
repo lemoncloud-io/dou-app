@@ -142,6 +142,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
         <ResizablePanel
             storageKey={'chatic.savedPanel.width'}
             resizeLabel={t('saved.resize')}
+            label={t('saved.title')}
             onClose={close}
             className="bg-background"
         >

@@ -57,6 +57,7 @@ export const DebugPanel = () => {
         <ResizablePanel
             storageKey={'chatic.debugPanel.width'}
             resizeLabel="Resize debug panel"
+            label="Debug panel"
             className="bg-background text-foreground"
             onClose={close}
         >
