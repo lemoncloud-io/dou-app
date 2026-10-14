@@ -1,7 +1,9 @@
 # ADR-0055: Mobile Web — Code Block Rendering, Home Sort Fix, and Post-Login Return
 
 > Status: Decisions 1·4 Accepted (implemented) · **Decisions 2·3 Reverted (2026-08-14) → Re-landed (2026-08-18)** ·
-> Decided: 2026-08-14
+> Decided: 2026-08-14 · Decision 1's "still unsupported" list is partly reversed by
+> [ADR-0201](./0201-the-web-reader-draws-the-whole-message-dialect-kept-inline-in-content.md): bold,
+> italic, strikethrough and quotes are drawn now
 >
 > Where the implementation landed is described in two documents — Decision 1 in
 > chat-link-preview.md (lived in the root docs tree, which has since been removed), Decision 4 in

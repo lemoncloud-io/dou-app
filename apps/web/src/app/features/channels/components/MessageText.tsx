@@ -3,7 +3,7 @@ import { Fragment, type ReactNode } from 'react';
 import { CodeBlock, InlineCode } from '@chatic/web-ui-kit';
 
 import { type MentionMarks, type MentionPerson, splitMentionRuns } from '../utils/mentionHighlight';
-import { tokenizeMessage } from '../utils/messageTokens';
+import { type InlineToken, tokenizeMessage } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
 export interface MessageTextProps {
@@ -96,7 +96,14 @@ const PlainText = ({ value, mentions, onMentionClick, onPage }: PlainTextProps) 
 };
 
 /**
- * Message body — plain text, tappable URLs, and code.
+ * A quote's rule and text take the bubble's own colour, faded, rather than an accent: the same class
+ * then reads on the light bubble, the dark one and the page, in both themes. `block` because the body
+ * sits in a `<span>`, where a `<blockquote>` is not allowed.
+ */
+const QUOTE_CLASS = 'my-0.5 block border-l-2 border-current pl-2 opacity-75';
+
+/**
+ * Message body — plain text, tappable URLs, code, bold/italic/strike and quotes.
  *
  * `href` is kept on links so screen readers announce a link and the OS context menu offers "copy
  * link", but navigation goes through `onUrlClick` rather than the anchor's default: inside the
@@ -113,13 +120,17 @@ export const MessageText = ({
     mentions,
     onMentionClick,
     onPage,
-}: MessageTextProps) => (
-    <>
-        {tokenizeMessage(text, { truncated }).map((token, index) => {
-            if (token.type === 'url') {
+}: MessageTextProps) => {
+    const plain = (value: string) => (
+        <PlainText value={value} mentions={mentions} onMentionClick={onMentionClick} onPage={onPage} />
+    );
+
+    const renderInline = (token: InlineToken, key: number) => {
+        switch (token.type) {
+            case 'url':
                 return (
                     <a
-                        key={index}
+                        key={key}
                         href={token.value}
                         target="_blank"
                         rel="noreferrer noopener"
@@ -132,26 +143,45 @@ export const MessageText = ({
                         {token.label ?? token.value}
                     </a>
                 );
-            }
-            if (token.type === 'code') return <InlineCode key={index}>{token.value}</InlineCode>;
-            if (token.type === 'codeBlock') {
-                // No renderCodeBlock: the block is read-only (no copy button) — what the expand
-                // dialog wants, where the message already has its own copy affordance.
-                return renderCodeBlock ? (
-                    <Fragment key={index}>{renderCodeBlock(token.value, token.lang, index)}</Fragment>
-                ) : (
-                    <CodeBlock key={index} code={token.value} lang={token.lang} />
+            case 'code':
+                return <InlineCode key={key}>{token.value}</InlineCode>;
+            // A mention inside a mark is still a mention, so marked words go through PlainText too.
+            case 'bold':
+                return (
+                    <strong key={key} className="font-semibold">
+                        {plain(token.value)}
+                    </strong>
                 );
-            }
-            return (
-                <PlainText
-                    key={index}
-                    value={token.value}
-                    mentions={mentions}
-                    onMentionClick={onMentionClick}
-                    onPage={onPage}
-                />
-            );
-        })}
-    </>
-);
+            case 'italic':
+                return <em key={key}>{plain(token.value)}</em>;
+            case 'strike':
+                return <s key={key}>{plain(token.value)}</s>;
+            default:
+                return <Fragment key={key}>{plain(token.value)}</Fragment>;
+        }
+    };
+
+    return (
+        <>
+            {tokenizeMessage(text, { truncated }).map((token, index) => {
+                if (token.type === 'codeBlock') {
+                    // No renderCodeBlock: the block is read-only (no copy button) — what the expand
+                    // dialog wants, where the message already has its own copy affordance.
+                    return renderCodeBlock ? (
+                        <Fragment key={index}>{renderCodeBlock(token.value, token.lang, index)}</Fragment>
+                    ) : (
+                        <CodeBlock key={index} code={token.value} lang={token.lang} />
+                    );
+                }
+                if (token.type === 'quote') {
+                    return (
+                        <span key={index} className={QUOTE_CLASS}>
+                            {token.children.map(renderInline)}
+                        </span>
+                    );
+                }
+                return renderInline(token, index);
+            })}
+        </>
+    );
+};

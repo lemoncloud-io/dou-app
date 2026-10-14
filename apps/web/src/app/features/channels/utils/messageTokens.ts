@@ -1,21 +1,30 @@
 /**
- * Splits message text into plain runs, URL runs, and code runs.
+ * Splits message text into the runs the bubble draws: plain text, links, code, inline marks and
+ * quotes.
  *
- * NOT markdown. The only markup understood here is inline backticks, triple-backtick fences and
- * labelled links (`[words](https://…)`, which the desktop composer's link dialog sends) — bold,
- * italics, headings, lists and quotes are all still plain text. Widening that list is a product
- * decision, not something to slip in while touching this file.
+ * The markup is the desktop composer's dialect, and only that: triple-backtick fences, `> ` quote
+ * lines, inline backticks, labelled links (`[words](https://…)`), `**bold**`, `*italic*` and
+ * `~~strike~~`. Quotes and marks are matched by the desktop reader's rules, so they read the same on
+ * both. It is not markdown — headings and lists stay plain text, and nothing can be escaped. Marks do
+ * not nest: the words inside one are plain text, as on desktop.
  *
  * Code is resolved BEFORE URLs, so a `https://…` inside a code span stays literal: it is not
  * linked, and `extractFirstUrl` does not offer it to the unfurl card. That ordering is the point,
  * not a side effect — a URL in a code example must not summon a preview card.
  */
 
-export type MessageToken =
+/** A run inside one line of flowing text — what a quote is made of, too. */
+export type InlineToken =
     | { type: 'text'; value: string }
     | { type: 'url'; value: string; label?: string }
     | { type: 'code'; value: string }
-    | { type: 'codeBlock'; value: string; lang?: string };
+    | { type: 'bold' | 'italic' | 'strike'; value: string };
+
+export type MessageToken =
+    | InlineToken
+    | { type: 'codeBlock'; value: string; lang?: string }
+    /** Consecutive `> ` lines, without their markers. Fences are carved out first, so none sit inside. */
+    | { type: 'quote'; children: InlineToken[] };
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
 
@@ -40,6 +49,25 @@ const FENCE = '```';
 const LANG_PATTERN = /^[A-Za-z0-9_+#-]*$/;
 /** Inline code: shortest backtick pair that stays on one line. */
 const INLINE_CODE_PATTERN = /`([^`\n]+)`/g;
+/**
+ * A quote line: `>` followed by a space (or nothing), the same as the desktop reader. The space is
+ * required so `>_<` and `>.<`, common in Korean chat, stay text; the composer always writes `> `.
+ */
+const QUOTE_LINE_PATTERN = /^>(?:\s(.*))?$/;
+
+/**
+ * One pass over a non-code run, leftmost match first: labelled links, then bold, italic and
+ * strikethrough, then bare URLs. A labelled link is listed first so its address is not read as a bare
+ * one, and bold before italic so `**x**` is bold. Each mark stays on one line and needs its closing
+ * marker, so a lone `*` or a mark cut off by truncation stays text. Sharing one pass with bare URLs
+ * is what keeps a mark inside an address (`…/a*b*`) part of the address, as on desktop.
+ *
+ * Capture groups: 1–2 labelled link, 3 bold, 4 italic, 5 strike, 6 bare URL.
+ */
+const INLINE_PATTERN = new RegExp(
+    `${LABELLED_LINK_PATTERN.source}|(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(${URL_PATTERN.source})`,
+    'g'
+);
 
 /**
  * Drops characters that the greedy match swallowed but that aren't part of the address:
@@ -177,60 +205,60 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
     return segments;
 };
 
-/** Pass 3b — bare URLs, over one run of non-code, non-link text. */
-const tokenizeUrls = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
-    const tokens: MessageToken[] = [];
-    let last = 0;
-    let match: RegExpExecArray | null;
-
-    URL_PATTERN.lastIndex = 0;
-    while ((match = URL_PATTERN.exec(text)) !== null) {
-        const url = trimTrailingNoise(match[0]);
-        const reachesEnd = match.index + match[0].length === text.length;
-
-        // Skipped matches stay inside the surrounding text run: `last` is left untouched, and the
-        // regex has already advanced past them so they aren't reconsidered.
-        if (!isLinkable(url) || (dropTrailingUrl && reachesEnd)) continue;
-
-        if (match.index > last) tokens.push({ type: 'text', value: text.slice(last, match.index) });
-        tokens.push({ type: 'url', value: url });
-        last = match.index + url.length;
-    }
-
-    if (last < text.length) tokens.push({ type: 'text', value: text.slice(last) });
-    return tokens;
-};
-
 /**
- * Pass 3a — labelled links, ahead of bare URLs so the address inside one is not read again. The
- * pattern needs the closing `)`, so a link cut off by truncation is never matched as one.
+ * Pass 4 — links and marks over one run of non-code text. A bare URL is trimmed of trailing noise,
+ * and one that reaches the cut of a truncated message is left as text: it may be a fragment.
  */
-const tokenizeLinks = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
-    const tokens: MessageToken[] = [];
+const tokenizeMarks = (text: string, dropTrailingUrl: boolean): InlineToken[] => {
+    const tokens: InlineToken[] = [];
     let last = 0;
     let match: RegExpExecArray | null;
 
-    LABELLED_LINK_PATTERN.lastIndex = 0;
-    while ((match = LABELLED_LINK_PATTERN.exec(text)) !== null) {
-        const [whole, label, url] = match as unknown as [string, string, string];
-        if (!isLinkable(url)) continue;
-        if (match.index > last) tokens.push(...tokenizeUrls(text.slice(last, match.index), false));
-        tokens.push({ type: 'url', value: url, label });
+    const pushText = (end: number) => {
+        if (end > last) tokens.push({ type: 'text', value: text.slice(last, end) });
+    };
+
+    INLINE_PATTERN.lastIndex = 0;
+    while ((match = INLINE_PATTERN.exec(text)) !== null) {
+        const [whole, label, labelUrl, bold, italic, strike, bareUrl] = match;
+
+        if (bareUrl !== undefined) {
+            const url = trimTrailingNoise(bareUrl);
+            const reachesEnd = match.index + whole.length === text.length;
+            // A skipped match stays inside the surrounding text run: `last` is left untouched, and
+            // the regex has already advanced past it so it isn't reconsidered.
+            if (!isLinkable(url) || (dropTrailingUrl && reachesEnd)) continue;
+            pushText(match.index);
+            tokens.push({ type: 'url', value: url });
+            last = match.index + url.length;
+            continue;
+        }
+
+        pushText(match.index);
+        if (label !== undefined && labelUrl !== undefined) {
+            tokens.push({ type: 'url', value: labelUrl, label });
+        } else if (bold !== undefined) {
+            tokens.push({ type: 'bold', value: bold.slice(2, -2) });
+        } else if (italic !== undefined) {
+            tokens.push({ type: 'italic', value: italic.slice(1, -1) });
+        } else if (strike !== undefined) {
+            tokens.push({ type: 'strike', value: strike.slice(2, -2) });
+        }
         last = match.index + whole.length;
     }
 
-    if (last < text.length) tokens.push(...tokenizeUrls(text.slice(last), dropTrailingUrl));
+    pushText(text.length);
     return tokens;
 };
 
-/** Pass 2 — inline backticks, then hand the leftovers to the link passes. */
-const tokenizeInline = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
-    const tokens: MessageToken[] = [];
+/** Pass 3 — inline backticks, then hand the leftovers to the links-and-marks pass. */
+const tokenizeInline = (text: string, dropTrailingUrl: boolean): InlineToken[] => {
+    const tokens: InlineToken[] = [];
     let last = 0;
     let match: RegExpExecArray | null;
 
     const pushText = (value: string, isFinal: boolean) => {
-        if (value) tokens.push(...tokenizeLinks(value, dropTrailingUrl && isFinal));
+        if (value) tokens.push(...tokenizeMarks(value, dropTrailingUrl && isFinal));
     };
 
     INLINE_CODE_PATTERN.lastIndex = 0;
@@ -244,6 +272,29 @@ const tokenizeInline = (text: string, dropTrailingUrl: boolean): MessageToken[] 
     return tokens;
 };
 
+/**
+ * Pass 2 — group consecutive `> ` lines into quotes; every other line flows on as text.
+ *
+ * The line break between a quote and its neighbours is dropped, because the quote is its own block
+ * and already ends the line.
+ */
+const tokenizeQuotes = (text: string, dropTrailingUrl: boolean): MessageToken[] => {
+    const groups: { quote: boolean; lines: string[] }[] = [];
+    for (const line of text.split('\n')) {
+        const quoted = QUOTE_LINE_PATTERN.exec(line);
+        const value = quoted ? (quoted[1] ?? '') : line;
+        const current = groups[groups.length - 1];
+        if (current && current.quote === !!quoted) current.lines.push(value);
+        else groups.push({ quote: !!quoted, lines: [value] });
+    }
+
+    return groups.flatMap((group, index): MessageToken[] => {
+        // Only the run at the very end can hold a URL cut by truncation.
+        const inline = tokenizeInline(group.lines.join('\n'), dropTrailingUrl && index === groups.length - 1);
+        return group.quote ? [{ type: 'quote', children: inline }] : inline;
+    });
+};
+
 export const tokenizeMessage = (text: string, options?: TokenizeOptions): MessageToken[] => {
     if (!text) return [];
 
@@ -254,7 +305,7 @@ export const tokenizeMessage = (text: string, options?: TokenizeOptions): Messag
         if (segment.type === 'codeBlock') return [segment];
         // Only a URL at the very end of the whole message can be a truncation fragment.
         const isFinal = index === segments.length - 1;
-        return tokenizeInline(segment.value, dropTrailingUrl && isFinal);
+        return tokenizeQuotes(segment.value, dropTrailingUrl && isFinal);
     });
 };
 
@@ -266,8 +317,13 @@ export const tokenizeMessage = (text: string, options?: TokenizeOptions): Messag
  * cache key always equals the href rendered in the bubble — and skips code, so a URL in a code
  * example never summons a card.
  */
-export const extractFirstUrl = (text: string, closeDanglingFence = false): string | undefined =>
-    tokenizeMessage(text, { closeDanglingFence }).find(token => token.type === 'url')?.value;
+export const extractFirstUrl = (text: string, closeDanglingFence = false): string | undefined => {
+    for (const token of tokenizeMessage(text, { closeDanglingFence })) {
+        const url = (token.type === 'quote' ? token.children : [token]).find(child => child.type === 'url');
+        if (url?.type === 'url') return url.value;
+    }
+    return undefined;
+};
 
 /** Pasted code often starts with a blank line, and a row previewing "" reads as an empty channel. */
 const firstNonEmptyLine = (value: string): string => value.split('\n').find(line => line.trim() !== '') ?? '';
@@ -276,15 +332,22 @@ const firstNonEmptyLine = (value: string): string => value.split('\n').find(line
  * Message text flattened for a one-line preview (the home list).
  *
  * The home row has nowhere to render a code block, so markup characters would just read as noise
- * there. Backticks are stripped and a fenced block collapses to its first line — no badge, no
- * monospace, nothing that would complicate the row or tangle with the blur-preview setting. A
- * labelled link reads as its words.
+ * there. Backticks and mark markers are stripped, a quote loses its `>` and a fenced block
+ * collapses to its first line — no badge, no monospace, nothing that would complicate the row or
+ * tangle with the blur-preview setting. A labelled link reads as its words.
  */
-export const toPlainPreview = (text: string): string =>
-    tokenizeMessage(text)
-        .map(token => {
+export const toPlainPreview = (text: string): string => {
+    const plainOf = (token: InlineToken): string => (token.type === 'url' ? (token.label ?? token.value) : token.value);
+    const tokens = tokenizeMessage(text);
+    return tokens
+        .map((token, index) => {
             if (token.type === 'codeBlock') return firstNonEmptyLine(token.value);
-            if (token.type === 'url') return token.label ?? token.value;
-            return token.value;
+            if (token.type !== 'quote') return plainOf(token);
+            // The line break beside a quote was dropped with its block, so put it back as text.
+            const body = token.children.map(plainOf).join('');
+            const before = index > 0 && tokens[index - 1]?.type !== 'codeBlock' ? '\n' : '';
+            const after = index < tokens.length - 1 && tokens[index + 1]?.type !== 'codeBlock' ? '\n' : '';
+            return before + body + after;
         })
         .join('');
+};
