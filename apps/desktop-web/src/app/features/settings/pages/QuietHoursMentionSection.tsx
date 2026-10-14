@@ -15,7 +15,6 @@ export const QuietHoursMentionSection = () => {
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
     const breakthrough = useNotificationPrefsStore(s => s.mentionBreaksQuietHours);
     const setBreakthrough = useNotificationPrefsStore(s => s.setMentionBreaksQuietHours);
-    const labelId = useId();
     const hintId = useId();
     const switchId = useId();
 
@@ -26,11 +25,7 @@ export const QuietHoursMentionSection = () => {
     return (
         <div className="flex items-center justify-between gap-4 pt-2">
             <div className="flex min-w-0 flex-col gap-0.5">
-                <label
-                    htmlFor={switchId}
-                    id={labelId}
-                    className="w-fit cursor-pointer text-callout font-medium text-foreground"
-                >
+                <label htmlFor={switchId} className="w-fit cursor-pointer text-callout font-medium text-foreground">
                     {label}
                 </label>
                 <span id={hintId} className="text-caption text-muted-foreground">

@@ -450,7 +450,9 @@ export const PlaceRail = ({
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
                     {/* Who acts here: the account name and its kind. */}
                     <DropdownMenuLabel className="flex flex-col gap-0.5">
-                        <span className="truncate text-callout font-medium text-foreground">{selfName}</span>
+                        <span className="truncate text-callout font-medium text-foreground">
+                            {selfName || t('rail.menu.profile')}
+                        </span>
                         <span className="text-caption text-muted-foreground">
                             {isGuest ? t('profile.guestName') : t('account.title')}
                         </span>

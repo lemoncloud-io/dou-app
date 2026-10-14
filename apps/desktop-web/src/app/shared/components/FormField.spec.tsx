@@ -47,4 +47,24 @@ describe('FormField', () => {
         expect(field.getAttribute('aria-describedby')).toBeNull();
         expect(screen.queryByRole('alert')).toBeNull();
     });
+
+    // Callers hardcode one error id per dialog; two fields never share one.
+    it('keeps two fields on their own error nodes', () => {
+        render(
+            <>
+                <FormField label="Title" htmlFor="title" errorId="title-error" invalid>
+                    <Input id="title" value="" onChange={() => undefined} />
+                </FormField>
+                <FormError id="title-error">Title it.</FormError>
+                <FormField label="Body" htmlFor="body" errorId="body-error" invalid>
+                    <Input id="body" value="" onChange={() => undefined} />
+                </FormField>
+                <FormError id="body-error">Describe it.</FormError>
+            </>
+        );
+
+        expect(screen.getByLabelText('Title').getAttribute('aria-describedby')).toBe('title-error');
+        expect(screen.getByLabelText('Body').getAttribute('aria-describedby')).toBe('body-error');
+        expect(screen.getAllByRole('alert')).toHaveLength(2);
+    });
 });
