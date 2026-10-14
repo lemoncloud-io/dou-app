@@ -6,6 +6,7 @@ import {
     LINK_URL_SOURCE,
     MENTION_TOKEN_SOURCE,
     UserProfilePopover,
+    isMentionBoundary,
 } from '../../../shared';
 
 // The message styles live in `@chatic/block-kit`: the block renderer needs them
@@ -40,7 +41,8 @@ const renderInline = (
     text: string,
     keyBase: string,
     selfNames?: string[],
-    resolveMention?: MentionResolver
+    resolveMention?: MentionResolver,
+    hasMentionRecord?: boolean
 ): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let last = 0;
@@ -72,29 +74,44 @@ const renderInline = (
                     {url}
                 </a>
             );
+        } else if (!isMentionBoundary(text, match.index)) {
+            // Inside a word — an address (`lemon@lemoncloud.io`) or a password
+            // (`lemoncloud@123`), never a mention. Left as the text it is.
+            nodes.push(mention);
         } else {
+            // A trailing sentence dot belongs to the sentence, not the name: look the
+            // name up without it, but render what was written.
+            const word = mention.slice(1).replace(/\.+$/, '');
+            const lower = word.toLowerCase();
             // My own name (or @channel/@here) reads louder — Slack-style callout.
             const isSelf =
                 !!selfNames?.length &&
-                (GROUP_MENTIONS.includes(mention.toLowerCase()) || selfNames.includes(mention.slice(1).toLowerCase()));
+                (GROUP_MENTIONS.some(group => group.slice(1) === lower) || selfNames.includes(lower));
             const className = isSelf ? MSG_MENTION_SELF_CLASS : MSG_MENTION_CLASS;
             // A mention that names a known member opens their profile, the same card
             // an avatar opens. It used to be inert text, so checking who was
             // mentioned meant finding one of their messages first.
-            const person = resolveMention?.(mention.slice(1));
-            nodes.push(
-                person ? (
-                    <UserProfilePopover key={key} userId={person.userId} fallbackName={person.name}>
-                        <button type="button" className={`focus-ring rounded-sm ${className}`}>
+            const person = resolveMention?.(word) ?? resolveMention?.(mention.slice(1));
+            // A pill claims someone was called: a known member, a group word, my own
+            // name, or a message whose record says so. Anything else is plain text —
+            // the token pattern used to highlight any word, member or not.
+            if (!person && !isSelf && !GROUP_MENTIONS.some(group => group.slice(1) === lower) && !hasMentionRecord) {
+                nodes.push(mention);
+            } else {
+                nodes.push(
+                    person ? (
+                        <UserProfilePopover key={key} userId={person.userId} fallbackName={person.name}>
+                            <button type="button" className={`focus-ring rounded-sm ${className}`}>
+                                {mention}
+                            </button>
+                        </UserProfilePopover>
+                    ) : (
+                        <span key={key} className={className}>
                             {mention}
-                        </button>
-                    </UserProfilePopover>
-                ) : (
-                    <span key={key} className={className}>
-                        {mention}
-                    </span>
-                )
-            );
+                        </span>
+                    )
+                );
+            }
         }
         last = match.index + token.length;
     }
@@ -108,7 +125,8 @@ const renderCodeRuns = (
     text: string,
     keyBase: string,
     selfNames?: string[],
-    resolveMention?: MentionResolver
+    resolveMention?: MentionResolver,
+    hasMentionRecord?: boolean
 ): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
@@ -117,7 +135,7 @@ const renderCodeRuns = (
             </code>
         ) : (
             <Fragment key={`${keyBase}-${idx}`}>
-                {renderInline(part, `${keyBase}-${idx}`, selfNames, resolveMention)}
+                {renderInline(part, `${keyBase}-${idx}`, selfNames, resolveMention, hasMentionRecord)}
             </Fragment>
         )
     );
@@ -128,7 +146,8 @@ const renderQuoteRuns = (
     text: string,
     keyBase: string,
     selfNames?: string[],
-    resolveMention?: MentionResolver
+    resolveMention?: MentionResolver,
+    hasMentionRecord?: boolean
 ): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let plain: string[] = [];
@@ -138,7 +157,7 @@ const renderQuoteRuns = (
         if (!plain.length) return;
         nodes.push(
             <Fragment key={`${keyBase}-p${block++}`}>
-                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`, selfNames, resolveMention)}
+                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`, selfNames, resolveMention, hasMentionRecord)}
             </Fragment>
         );
         plain = [];
@@ -148,7 +167,7 @@ const renderQuoteRuns = (
         nodes.push(
             // block-level span: legal inside the host <p>, unlike <blockquote>.
             <span key={`${keyBase}-q${block++}`} className={MSG_QUOTE_CLASS}>
-                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames, resolveMention)}
+                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames, resolveMention, hasMentionRecord)}
             </span>
         );
         quote = [];
@@ -175,6 +194,8 @@ interface RichTextProps {
     selfNames?: string[];
     /** Makes a mention of a known member open that member's profile. */
     resolveMention?: MentionResolver;
+    /** The message carries a mention record — its @-tokens name a recorded pick, even an unknown one. */
+    hasMentionRecord?: boolean;
 }
 
 /**
@@ -185,7 +206,7 @@ interface RichTextProps {
  * @mentions). Block elements render as display:block <span>s because the host
  * wraps messages in a <p>.
  */
-export const RichText = ({ content, selfNames, resolveMention }: RichTextProps): ReactNode => {
+export const RichText = ({ content, selfNames, resolveMention, hasMentionRecord }: RichTextProps): ReactNode => {
     if (!content) return null;
     return splitFences(content).map((segment, idx, segments) => {
         if (segment.type === 'code') {
@@ -198,6 +219,10 @@ export const RichText = ({ content, selfNames, resolveMention }: RichTextProps):
         // A block already ends its line, so the newline that follows its closing fence is the
         // same line break; rendering it too left an empty line under every block.
         const text = segments[idx - 1]?.type === 'code' ? segment.value.replace(/^\r?\n/, '') : segment.value;
-        return <Fragment key={idx}>{renderQuoteRuns(text, String(idx), selfNames, resolveMention)}</Fragment>;
+        return (
+            <Fragment key={idx}>
+                {renderQuoteRuns(text, String(idx), selfNames, resolveMention, hasMentionRecord)}
+            </Fragment>
+        );
     });
 };

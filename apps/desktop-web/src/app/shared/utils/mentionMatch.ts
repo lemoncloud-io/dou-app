@@ -26,6 +26,15 @@ const GROUP_MENTION_PATTERN = new RegExp(
 );
 
 /**
+ * Whether an `@` at `index` starts a word of its own: the start of the text,
+ * or preceded by anything but a letter, digit, `_` or `-`. The same left edge
+ * `GROUP_MENTION_PATTERN` holds for group words — `lemon@lemoncloud.io` and a
+ * password `lemoncloud@123` are never mentions, whatever follows the `@`.
+ */
+export const isMentionBoundary = (text: string, index: number): boolean =>
+    index <= 0 || !/[\p{L}\p{N}_-]/u.test(text[index - 1] ?? '');
+
+/**
  * A name standing anywhere after an `@`, case-insensitively. Names can contain
  * spaces (unlike the composer's token regex), so this errs toward notifying
  * rather than staying silent.

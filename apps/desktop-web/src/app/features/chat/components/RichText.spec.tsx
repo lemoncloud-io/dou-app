@@ -5,7 +5,10 @@ import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS } from '@chatic/block-kit';
 
 import { RichText } from './RichText';
 
-const renderText = (content: string) => render(<p>{RichText({ content })}</p>).container;
+const renderText = (
+    content: string,
+    props?: { selfNames?: string[]; resolveMention?: (name: string) => { userId: string; name: string } | undefined; hasMentionRecord?: boolean }
+) => render(<p>{RichText({ content, ...props })}</p>).container;
 
 const textsOf = (container: HTMLElement, className: string) =>
     Array.from(container.getElementsByClassName(className.split(' ')[0] as string)).map(node => node.textContent);
@@ -77,5 +80,67 @@ describe('RichText quotes', () => {
         const container = renderText('좋아요\n>_< 고마워');
         expect(container.querySelector('span.block')).toBeNull();
         expect(container.textContent).toBe('좋아요\n>_< 고마워');
+    });
+});
+
+describe('RichText mentions', () => {
+    // Both pill classes open with `rounded`, so tell them apart by their fill.
+    const ordinary = (container: HTMLElement) => textsOf(container, 'bg-primary/10');
+    const self = (container: HTMLElement) => textsOf(container, 'bg-warning/30');
+    const pills = (container: HTMLElement) => [...ordinary(container), ...self(container)];
+
+    it('leaves an address inside a word as plain text', () => {
+        const container = renderText('mail me at lemon@lemoncloud.io please');
+        expect(pills(container)).toEqual([]);
+        expect(container.textContent).toBe('mail me at lemon@lemoncloud.io please');
+    });
+
+    it('leaves a word-internal @token as plain text', () => {
+        const container = renderText('pw lemoncloud@123 here');
+        expect(pills(container)).toEqual([]);
+        expect(container.textContent).toBe('pw lemoncloud@123 here');
+    });
+
+    it('leaves an unknown @word at a boundary as plain text', () => {
+        const container = renderText('hi @stranger, welcome');
+        expect(pills(container)).toEqual([]);
+        expect(container.textContent).toBe('hi @stranger, welcome');
+    });
+
+    it('opens the profile of a known member named at a boundary', () => {
+        const seen: string[] = [];
+        const container = renderText('hi @Aiden, welcome', {
+            resolveMention: name => {
+                seen.push(name);
+                return { userId: 'u-aiden', name: 'Aiden' };
+            },
+        });
+        expect(container.querySelector('button')?.textContent).toBe('@Aiden');
+        expect(seen).toEqual(['Aiden']);
+    });
+
+    it('still recognises a known member before sentence-final punctuation', () => {
+        const container = renderText('thanks @Aiden.', {
+            resolveMention: name => (name === 'Aiden' ? { userId: 'u-aiden', name: 'Aiden' } : undefined),
+        });
+        expect(container.querySelector('button')?.textContent).toBe('@Aiden.');
+    });
+
+    it('draws a group word as an ordinary mention', () => {
+        const container = renderText('@channel hi');
+        expect(ordinary(container)).toEqual(['@channel']);
+        expect(self(container)).toEqual([]);
+    });
+
+    it('draws my name as a mention of me', () => {
+        const container = renderText('@Me hi', { selfNames: ['me'] });
+        expect(self(container)).toEqual(['@Me']);
+        expect(ordinary(container)).toEqual([]);
+    });
+
+    it('draws a recorded mention as ordinary when the record names someone else', () => {
+        const container = renderText('@Me hi', { selfNames: [], hasMentionRecord: true });
+        expect(ordinary(container)).toEqual(['@Me']);
+        expect(self(container)).toEqual([]);
     });
 });

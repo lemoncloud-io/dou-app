@@ -607,6 +607,7 @@ export const MessageRow = memo(
                                                         content={raw}
                                                         selfNames={selfNamesOf?.(message)}
                                                         resolveMention={resolveMention}
+                                                        hasMentionRecord={!!message.mention$}
                                                     />
                                                 )}
                                             />
@@ -625,6 +626,7 @@ export const MessageRow = memo(
                                                 content={content}
                                                 selfNames={selfNamesOf?.(message)}
                                                 resolveMention={resolveMention}
+                                                hasMentionRecord={!!message.mention$}
                                             />
                                             {wasEdited && (
                                                 <Hint label={t('chat.editedTitle')}>
