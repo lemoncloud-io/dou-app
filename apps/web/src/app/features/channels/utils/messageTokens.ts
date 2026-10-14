@@ -273,6 +273,27 @@ export const extractFirstUrl = (text: string, closeDanglingFence = false): strin
 const firstNonEmptyLine = (value: string): string => value.split('\n').find(line => line.trim() !== '') ?? '';
 
 /**
+ * Markup dropped, words kept: a labelled link reads as its words, code loses its backticks.
+ *
+ * A fence takes the line breaks around it with it, so where a block meets text with no whitespace
+ * left between them a line break goes back in — otherwise `참고\n```…` would read `참고nx build`.
+ */
+const flatten = (text: string, codeBlock: (value: string) => string): string => {
+    const tokens = tokenizeMessage(text);
+    return tokens.reduce((plain, token, index) => {
+        const piece =
+            token.type === 'codeBlock'
+                ? codeBlock(token.value)
+                : token.type === 'url'
+                  ? (token.label ?? token.value)
+                  : token.value;
+        const meetsBlock = token.type === 'codeBlock' || tokens[index - 1]?.type === 'codeBlock';
+        const needsBreak = meetsBlock && !!plain && !!piece && !/\s$/.test(plain) && !/^\s/.test(piece);
+        return plain + (needsBreak ? '\n' : '') + piece;
+    }, '');
+};
+
+/**
  * Message text flattened for a one-line preview (the home list).
  *
  * The home row has nowhere to render a code block, so markup characters would just read as noise
@@ -280,11 +301,12 @@ const firstNonEmptyLine = (value: string): string => value.split('\n').find(line
  * monospace, nothing that would complicate the row or tangle with the blur-preview setting. A
  * labelled link reads as its words.
  */
-export const toPlainPreview = (text: string): string =>
-    tokenizeMessage(text)
-        .map(token => {
-            if (token.type === 'codeBlock') return firstNonEmptyLine(token.value);
-            if (token.type === 'url') return token.label ?? token.value;
-            return token.value;
-        })
-        .join('');
+export const toPlainPreview = (text: string): string => flatten(text, firstNonEmptyLine);
+
+/**
+ * Message text flattened like `toPlainPreview`, but with every line of a fenced block kept.
+ *
+ * For a surface that searches inside what it shows — a search result highlights the query in it,
+ * and a match on the third line of a code block has to survive the flattening to be found there.
+ */
+export const toPlainText = (text: string): string => flatten(text, value => value);

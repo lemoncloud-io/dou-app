@@ -42,7 +42,7 @@ import { channelKindOf, profilePlaceOf } from '../lib';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
-import { messagePlainText } from '../utils/messagePlainText';
+import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { buildThread } from '../utils/buildThread';
@@ -422,12 +422,7 @@ export const ThreadPage = () => {
         if (target) editing.requestDelete(target);
     };
 
-    const deleteConfirmPreview = (() => {
-        const body = messagePlainText(editing.deleteTarget?.content ?? '').trim();
-        if (!body) return '';
-        const oneLine = body.replace(/\s+/g, ' ');
-        return oneLine.length > 60 ? `${oneLine.slice(0, 60)}\u2026` : oneLine;
-    })();
+    const deleteConfirmPreview = deleteConfirmQuote(editing.deleteTarget?.content);
 
     // Chip-row add button — same one-step open as the room: set the target, show the picker.
     const handleAddReaction = (message: ClientChatView) => {
