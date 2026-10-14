@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
@@ -37,6 +37,9 @@ export const LaunchAtLoginSection = () => {
     // A failed write flips the switch back, which on its own reads as a flicker.
     // The notice below names it; the next toggle clears it.
     const [writeFailed, setWriteFailed] = useState(false);
+    const labelId = useId();
+    const hintId = useId();
+    const switchId = useId();
 
     if (!api || !state?.supported) return null;
 
@@ -62,8 +65,14 @@ export const LaunchAtLoginSection = () => {
             <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-callout font-medium text-foreground">{label}</span>
-                        <span className="text-caption text-muted-foreground">
+                        <label
+                            htmlFor={switchId}
+                            id={labelId}
+                            className="w-fit cursor-pointer text-callout font-medium text-foreground"
+                        >
+                            {label}
+                        </label>
+                        <span id={hintId} className="text-caption text-muted-foreground">
                             {t(
                                 'settings.launchAtLoginHint',
                                 'Start DoU automatically when you sign in to this computer.'
@@ -71,10 +80,11 @@ export const LaunchAtLoginSection = () => {
                         </span>
                     </div>
                     <Switch
-                        className="hit-target"
+                        id={switchId}
+                        className="hit-target shrink-0"
                         checked={state.enabled}
                         onCheckedChange={toggle}
-                        aria-label={label}
+                        aria-describedby={hintId}
                     />
                 </div>
                 {writeFailed && (

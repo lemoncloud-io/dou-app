@@ -10,7 +10,8 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 import { classifyWireError, extractErrorMessage, useRenameCloud, type WireErrorKind } from '../../../shared';
 
 const CLOUD_NAME_MIN = 2;
-const CLOUD_NAME_MAX = 30;
+/** The product-wide cap: the web edit page holds 20 (the Figma-cited design limit). */
+const CLOUD_NAME_MAX = 20;
 
 // Anything not listed reads as the generic line. `notFound` and `conflict` have cloud wording of
 // their own: the shared ones talk about channels.

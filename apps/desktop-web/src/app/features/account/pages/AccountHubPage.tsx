@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { isPlaceholderName, PageShell, useRelayAccount } from '../../../shared';
+import { isPlaceholderName, PageShell, SettingsNavRow, SettingsRowGroup, useRelayAccount } from '../../../shared';
 import { isPhoneLoginEnabled, isSocialLoginEnabled } from '../../auth';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
@@ -72,39 +72,24 @@ export const AccountHubPage = () => {
 
                 <AccountSignInCard account={account} onJoin={openJoinDialog} />
 
-                {!isGuest && (
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-callout font-medium text-foreground">{t('cloud.list.title')}</span>
-                            <span className="text-caption text-muted-foreground">{t('cloud.list.openHint')}</span>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/account/clouds')}>
-                            {t('account.open')}
-                        </Button>
-                    </div>
-                )}
-
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-callout font-medium text-foreground">
-                            {t('settings.notificationsTitle')}
-                        </span>
-                        <span className="text-caption text-muted-foreground">{t('settings.notificationsHint')}</span>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
-                        {t('account.open')}
-                    </Button>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-callout font-medium text-foreground">{t('policy.list.title')}</span>
-                        <span className="text-caption text-muted-foreground">{t('policy.list.openHint')}</span>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/account/policies')}>
-                        {t('account.open')}
-                    </Button>
-                </div>
+                {/* One list, not equal-weight cards: each entry is a whole-row
+                    hit target. The notifications entry is gone — it linked into
+                    Settings and back with no new information, and Settings is
+                    reached from the account menu instead. */}
+                <SettingsRowGroup>
+                    {!isGuest && (
+                        <SettingsNavRow
+                            label={t('cloud.list.title')}
+                            hint={t('cloud.list.openHint')}
+                            onClick={() => navigate('/account/clouds')}
+                        />
+                    )}
+                    <SettingsNavRow
+                        label={t('policy.list.title')}
+                        hint={t('policy.list.openHint')}
+                        onClick={() => navigate('/account/policies')}
+                    />
+                </SettingsRowGroup>
             </section>
 
             {profile && !isGuest && (

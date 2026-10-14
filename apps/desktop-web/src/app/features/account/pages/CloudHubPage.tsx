@@ -11,6 +11,9 @@ import { runtime } from '@chatic/app-runtime';
 
 import {
     PageShell,
+    SettingsActionRow,
+    SettingsNavRow,
+    SettingsRowGroup,
     useAccountResetOnLogout,
     useCloudSessionCatalog,
     useRemoveCloud,
@@ -55,8 +58,17 @@ export const CloudHubPage = () => {
         // The shell stays up while the catalog resolves: a bare spinner names
         // nowhere, and back must work before the cloud it returns from is known.
         return (
-            <PageShell title={cloudId ?? ''} backTo="/account/clouds" backLabel={t('cloud.list.title')}>
-                <div role="status" aria-label={t('chat.loading')} className="m-auto w-fit py-8">
+            <PageShell
+                title={cloudId ?? ''}
+                backTo="/account/clouds"
+                backLabel={t('cloud.list.title')}
+                contentClassName="flex flex-col"
+            >
+                <div
+                    role="status"
+                    aria-label={t('chat.loading')}
+                    className="flex flex-1 items-center justify-center py-8"
+                >
                     <span className="block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
                 </div>
             </PageShell>
@@ -95,7 +107,12 @@ export const CloudHubPage = () => {
     };
 
     return (
-        <PageShell title={cloud.name ?? cloud.id} backTo="/account/clouds" backLabel={t('cloud.list.title')}>
+        <PageShell
+            title={cloud.name ?? cloud.id}
+            backTo="/account/clouds"
+            backLabel={t('cloud.list.title')}
+            contentClassName="flex flex-col"
+        >
             <section className="flex flex-col gap-4">
                 <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.profile')}</h2>
                 <form
@@ -120,34 +137,34 @@ export const CloudHubPage = () => {
 
             <section className="mt-8 flex flex-col gap-4">
                 <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.places')}</h2>
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-callout font-medium text-foreground">{t('cloud.hub.placesOpen')}</span>
-                        <span className="text-caption text-muted-foreground">{t('cloud.hub.placesHint')}</span>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/account/clouds/${cloudId}/places`)}>
-                        {t('account.open')}
-                    </Button>
-                </div>
+                <SettingsRowGroup>
+                    <SettingsNavRow
+                        label={t('cloud.hub.placesOpen')}
+                        hint={t('cloud.hub.placesHint')}
+                        onClick={() => navigate(`/account/clouds/${cloudId}/places`)}
+                    />
+                </SettingsRowGroup>
             </section>
 
             <section className="mt-8 flex flex-col gap-4">
                 <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.danger')}</h2>
-                <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-callout font-medium text-foreground">{t('cloud.hub.release')}</span>
-                        <span className="text-caption text-muted-foreground">{t('cloud.hub.releaseHint')}</span>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 text-destructive focus:text-destructive"
-                        onClick={() => setConfirmingRelease(true)}
-                    >
-                        {t('cloud.hub.releaseAction')}
-                    </Button>
-                </div>
+                <SettingsRowGroup>
+                    <SettingsActionRow
+                        label={t('cloud.hub.release')}
+                        hint={t('cloud.hub.releaseHint')}
+                        action={
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 text-destructive focus:text-destructive"
+                                onClick={() => setConfirmingRelease(true)}
+                            >
+                                {t('cloud.hub.releaseAction')}
+                            </Button>
+                        }
+                    />
+                </SettingsRowGroup>
             </section>
 
             <ConfirmDialog

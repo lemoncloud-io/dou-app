@@ -134,7 +134,7 @@ describe('AccountHubPage', () => {
         tokenUser.value = { name: 'Ada' };
         renderAt();
 
-        fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[0]);
+        fireEvent.click(screen.getByRole('button', { name: /My clouds/ }));
 
         expect(screen.getByTestId('away')).toBeTruthy();
     });
@@ -148,6 +148,15 @@ describe('AccountHubPage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
 
         expect(screen.getByTestId('settings')).toBeTruthy();
+    });
+
+    // The hub linked into Settings and back again with no new information: the
+    // card is gone, and Settings is reached from the account menu instead.
+    it('shows no notifications card back into Settings', () => {
+        tokenUser.value = { name: 'Ada' };
+        renderAt();
+
+        expect(screen.queryByText('Notifications')).toBeNull();
     });
 
     it('saves a new name through the relay gateway', async () => {

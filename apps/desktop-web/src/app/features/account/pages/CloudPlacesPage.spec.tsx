@@ -87,4 +87,11 @@ describe('CloudPlacesPage', () => {
 
         expect(screen.getByRole('button', { name: 'Acme' })).toBeTruthy();
     });
+
+    // The empty state used to hug the top of the body.
+    it('centres its empty state instead of hugging the top', () => {
+        renderAt();
+
+        expect(screen.getByRole('main').className).toContain('flex-col');
+    });
 });

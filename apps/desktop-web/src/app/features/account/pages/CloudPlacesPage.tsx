@@ -28,10 +28,17 @@ export const CloudPlacesPage = () => {
     const parentName = clouds.find(row => row.id === cloudId)?.name ?? cloudId ?? '';
 
     return (
-        <PageShell title={t('cloud.places.title')} backTo={`/account/clouds/${cloudId}`} backLabel={parentName}>
+        <PageShell
+            title={t('cloud.places.title')}
+            backTo={`/account/clouds/${cloudId}`}
+            backLabel={parentName}
+            contentClassName="flex flex-col"
+        >
             {isActive ? (
                 places.length === 0 ? (
-                    <p className="py-8 text-center text-caption text-muted-foreground">{t('cloud.places.empty')}</p>
+                    <p className="m-auto px-6 py-8 text-center text-caption text-muted-foreground">
+                        {t('cloud.places.empty')}
+                    </p>
                 ) : (
                     <ul className="flex flex-col gap-1">
                         {places.map(place => (

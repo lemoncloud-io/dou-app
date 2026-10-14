@@ -17,9 +17,18 @@ export const CloudListPage = () => {
     const { clouds, isCloudsError, isFetchingClouds, isPendingClouds, refetchClouds } = useCloudSessionCatalog();
 
     return (
-        <PageShell title={t('cloud.list.title')} backTo="/account" backLabel={t('account.title')}>
+        <PageShell
+            title={t('cloud.list.title')}
+            backTo="/account"
+            backLabel={t('account.title')}
+            contentClassName="flex flex-col"
+        >
             {isPendingClouds || (isFetchingClouds && clouds.length === 0) ? (
-                <div role="status" aria-label={t('chat.loading')} className="mx-auto w-fit py-8">
+                <div
+                    role="status"
+                    aria-label={t('chat.loading')}
+                    className="flex flex-1 items-center justify-center py-8"
+                >
                     <span className="block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
                 </div>
             ) : isCloudsError ? (
