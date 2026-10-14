@@ -88,6 +88,13 @@ describe('useCloudSwitchFlow invited-cloud recovery', () => {
 
         expect(session.switchCloud).toHaveBeenCalledWith('B');
     });
+
+    it('skips recovery for the relay-origin sentinel', async () => {
+        await switchTo('#');
+
+        expect(data.recover).not.toHaveBeenCalled();
+        expect(session.switchCloud).toHaveBeenCalledWith('#');
+    });
 });
 
 describe('useCloudSwitchFlow retry', () => {

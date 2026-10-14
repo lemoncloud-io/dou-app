@@ -137,5 +137,10 @@ describe('usePushInvitedCloudRecovery', () => {
             })()
         ).resolves.toBeUndefined();
         expect(recoverInvitedCloudIfMissing).toHaveBeenCalledTimes(1);
+
+        // The in-flight entry evicts in `finally`, so the next push retries.
+        emitPushData({ cid: 'cloud-9' });
+        await flush();
+        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledTimes(2);
     });
 });

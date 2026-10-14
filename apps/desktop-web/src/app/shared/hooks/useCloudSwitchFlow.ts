@@ -70,7 +70,7 @@ export const useCloudSwitchFlow = () => {
                 // to report its own failure. Owned clouds are the catalog's record;
                 // an invited row for one would mislabel it. Relay-origin pushes
                 // carry '#' instead of a cloud id and never reach this recovery.
-                if (cloudId !== RELAY_ORIGIN_CID && !ownedCloudIds.has(cloudId)) {
+                if (cloudId && cloudId !== RELAY_ORIGIN_CID && !ownedCloudIds.has(cloudId)) {
                     try {
                         await runtime.data.recoverInvitedCloudIfMissing(cloudRepository, cloudId);
                     } catch {
