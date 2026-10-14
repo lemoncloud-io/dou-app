@@ -1,4 +1,4 @@
-import { messagePlainText } from './messagePlainText';
+import { deleteConfirmQuote, messagePlainText, messagePreview, messageSearchText } from './messagePlainText';
 import { toPlainPreview } from './messageTokens';
 
 describe('messagePlainText', () => {
@@ -44,5 +44,60 @@ describe('messagePlainText', () => {
         });
 
         expect(toPlainPreview(messagePlainText(content))).toBe('로그: kubectl logs');
+    });
+});
+
+// Copy and the detail dialog read `messagePlainText` and keep the markup; these are for the
+// surfaces that only print text.
+describe('messagePreview', () => {
+    it('drops composer markup and cuts a code block to its first line', () => {
+        expect(messagePreview('[가이드](https://example.com/a) 참고\n```sh\nnx build web\nnx deploy web\n```')).toBe(
+            '가이드 참고\nnx build web'
+        );
+    });
+
+    it('flattens a Block Kit body first', () => {
+        const content = JSON.stringify({
+            blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '로그: `kubectl logs`' } }],
+        });
+
+        expect(messagePreview(content)).toBe('로그: kubectl logs');
+    });
+
+    it('is empty for a missing body', () => {
+        expect(messagePreview(undefined)).toBe('');
+    });
+});
+
+describe('messageSearchText', () => {
+    it('drops composer markup but keeps every line of a code block', () => {
+        expect(messageSearchText('`yarn deploy` 후\n```sh\nnx build web\nnx deploy web\n```')).toBe(
+            'yarn deploy 후\nnx build web\nnx deploy web'
+        );
+    });
+
+    it('is empty for a missing body', () => {
+        expect(messageSearchText(undefined)).toBe('');
+    });
+});
+
+describe('deleteConfirmQuote', () => {
+    it('quotes the message on one line with its markup dropped', () => {
+        expect(deleteConfirmQuote('  [가이드](https://example.com/a)\n`yarn deploy`  ')).toBe('가이드 yarn deploy');
+    });
+
+    it('cuts a long message at 60 characters with an ellipsis', () => {
+        const quote = deleteConfirmQuote('가'.repeat(80));
+        expect(quote).toBe(`${'가'.repeat(60)}…`);
+    });
+
+    it('does not cut a message of exactly 60 characters', () => {
+        expect(deleteConfirmQuote('가'.repeat(60))).toBe('가'.repeat(60));
+    });
+
+    // The dialog falls back to its generic description on '', so whitespace must not count as text.
+    it('is empty for a message with no text to quote', () => {
+        expect(deleteConfirmQuote('  \n ')).toBe('');
+        expect(deleteConfirmQuote(undefined)).toBe('');
     });
 });

@@ -174,6 +174,12 @@ What the sheet then holds is the page's call, through `utils/messageActions.ts`:
 Copy, so a text message opens even before it lands; an image-only message has no text to copy or
 edit, so it opens only once persisted, when a reaction, a thread and delete apply.
 
+Copy puts on the clipboard what was sent, markup included (a Block Kit body as its text), and the
+expanded view draws it with `MessageText` like a text bubble — both read `messagePlainText`. The delete
+confirmation only prints, so it quotes the message the way the home list previews it: markers
+dropped, a link as its words, one line cut at 60 characters (`deleteConfirmQuote`). The thread
+screen shares all three.
+
 **Tombstones.** `message.hidden` is a message another client soft-deleted. The row keeps its place
 — a message vanishing mid-read leaves no account of what happened — and renders the shared
 `chat.room.deletedMessage` string in muted italic. The body, the unfurl, the chips and the action

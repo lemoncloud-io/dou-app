@@ -109,8 +109,26 @@ Rows are stamped with **date over time**, not the home list's clock alone: searc
 through history, and `14:32` cannot tell this year's message from last year's.
 
 Location crumbs are joined with `›` and an unresolved crumb is simply dropped — **never replaced by
-a raw id**. A message body is flattened with `messagePlainText` before it is shown and highlighted,
-so a match inside a Block Kit body is still a match the reader can see.
+a raw id**. A row prints text and cannot draw markup, so a message body arrives flattened the way
+the home list flattens it: a Block Kit payload as its text, the markup the reader understands
+dropped (backticks and fences, and whatever else
+[Message text](../channels/chat-room.md#message-text-is-not-markdown) lists) and a labelled link
+read as its words. The two kinds of row flatten differently, on purpose:
+
+- **A room row's preview** is `messagePreview` — the home list's text for that room, a fenced block
+  cut to its first line. The home list's tombstone and attachment-only lines ("Photo") are not
+  mirrored here.
+- **A message row** is `messageSearchText`, which keeps every line of a fenced block, because the
+  row highlights the query inside it. A match on a code block's third line has to survive the
+  flattening to be highlighted; the row is one line and truncates either way, and `HighlightText`
+  trims the lead so the match stays in view.
+
+The scan itself matches the raw stored body, not the flattened one. A query that only hits markup —
+the address behind a labelled link, a backtick — still finds the message, and its row then shows the
+body without a highlight rather than printing the markup back. Words split by a marker
+(`` `yarn` deploy `` for `yarn deploy`) do not match; matching against the flattened body would be a
+change to the cache scan, not to this screen. Desktop search differs here: it matches a labelled link by
+its words, so a query on the address alone finds the message on web and not on desktop.
 
 A message result opens the room with `?chatNo=`, which the room converts into a jump request and
 then strips from the URL so a reload does not re-jump. The scroll, the highlight and the older-page

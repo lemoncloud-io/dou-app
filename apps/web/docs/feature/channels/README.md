@@ -20,7 +20,9 @@ grep -rn "channels/" --include='*.ts' --include='*.tsx' apps/web/src/app/feature
 
 Today that is `ConfirmDialog` (four callers), `resolveChannelTitle` / `resolveChannelAvatar` and
 `useDmPeers` (the home list and place channel management, which must name a room exactly as the room
-does), and `messagePlainText` / `toPlainPreview`. The title and avatar resolvers are shared **on
+does), and the message-text flatteners in `utils/messagePlainText.ts` — `messagePreview` for a
+one-line row (home, search, place channel management) and `messageSearchText` for a search result
+that highlights inside it — plus `toPlainPreview` itself, which home uses for a draft line. The title and avatar resolvers are shared **on
 purpose** — see [dm-and-self-chat.md](./dm-and-self-chat.md). The rest is the ordinary pressure of a
 shared component sitting in a feature folder.
 

@@ -61,7 +61,7 @@ import {
     resolveChannelTitle,
     showsMemberCount,
 } from '../../channels/lib';
-import { messagePlainText } from '../../channels/utils/messagePlainText';
+import { messagePreview } from '../../channels/utils/messagePlainText';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { notifyLevelOf } from '../../channels/utils/notifyLevel';
 import { sortChannels } from '../../../utils/sortChannels';
@@ -190,7 +190,7 @@ const ChannelItem = ({
     // An attachment-only message carries no text, so its row would read as a blank line. It
     // previews as what it carries instead — "Photo", "3 videos", "2 attachments" — using the same
     // nouns as the push for that message.
-    const textPreview = toPlainPreview(messagePlainText(lastChat?.content));
+    const textPreview = messagePreview(lastChat?.content);
     const attachments = chatAttachmentSummary(lastChat);
     const preview = lastChat?.hidden
         ? t('chat.room.deletedMessage')

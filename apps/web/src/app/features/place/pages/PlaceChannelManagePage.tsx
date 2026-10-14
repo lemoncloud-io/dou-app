@@ -29,6 +29,7 @@ import { toCloudId } from '../../../hooks/useCloudScope';
 import { ROUTES } from '../../../routes/paths';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
+import { messagePreview } from '../../channels/utils/messagePlainText';
 
 /**
  * Chat-room management (Figma 3408-28373) — reached from the place settings hub. Rooms are
@@ -447,7 +448,9 @@ const ManageChannelRow = ({
                     <span className="truncate">{name}</span>
                 </>
             }
-            subtitle={lastChat?.content || undefined}
+            // The room's text flattened as the home list flattens it — markup dropped, a Block Kit body as
+            // its text. The home list's tombstone and attachment-only lines are not mirrored here.
+            subtitle={messagePreview(lastChat?.content) || undefined}
             time={time}
             unread={unread}
             selectable={selectable}

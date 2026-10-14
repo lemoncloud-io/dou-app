@@ -304,6 +304,50 @@ describe('useSearchContext', () => {
         await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('배포 실패'));
     });
 
+    // Composer markup is not something the row can draw, so it arrives flattened — but a search
+    // row keeps a code block whole, because the query may match a line past the first one.
+    it('flattens composer markup in a message row, keeping every line of a code block', async () => {
+        const input = results({
+            messages: [
+                {
+                    id: 'chat-4',
+                    cid: 'cloud-b',
+                    channelId: 'ch-missing',
+                    chatNo: 8,
+                    content:
+                        '[가이드](https://example.com/a) 참고, `yarn deploy` 후\n```sh\nnx build web\nnx deploy web\n```',
+                },
+            ] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(resolveContext).toHaveBeenCalled());
+        expect(result.current.chats[0].content).toBe('가이드 참고, yarn deploy 후\nnx build web\nnx deploy web');
+    });
+
+    // The channel row is a preview like the home list's: the same line, code cut to its first line.
+    it('flattens composer markup in the channel row preview like the home list', async () => {
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            lastChatsByRef: {
+                'cloud-a:ch-1': {
+                    id: 'chat-9',
+                    content: '[가이드](https://example.com/a) 참고\n```sh\nnx build web\nnx deploy web\n```',
+                    createdAtMs: 1700,
+                },
+            },
+        });
+
+        const input = results({
+            channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('가이드 참고\nnx build web'));
+    });
+
     it('keeps rows and logs when resolving the context fails', async () => {
         resolveContext.mockRejectedValue(new Error('bridge timeout'));
         const input = results({

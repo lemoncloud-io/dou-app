@@ -1,4 +1,4 @@
-import { extractFirstUrl, toPlainPreview, tokenizeMessage } from './messageTokens';
+import { extractFirstUrl, toPlainPreview, toPlainText, tokenizeMessage } from './messageTokens';
 
 const urls = (text: string, truncated = false) =>
     tokenizeMessage(text, { truncated })
@@ -289,6 +289,10 @@ describe('toPlainPreview', () => {
         expect(toPlainPreview('```ts\nconst x = 1;\nconst y = 2;\n```')).toBe('const x = 1;');
     });
 
+    it('does not glue the text before a fenced block onto its first line', () => {
+        expect(toPlainPreview('참고\n```sh\nnx build web\nnx deploy web\n```')).toBe('참고\nnx build web');
+    });
+
     it('leaves ordinary text untouched', () => {
         expect(toPlainPreview('안녕하세요 https://example.com/a')).toBe('안녕하세요 https://example.com/a');
     });
@@ -299,6 +303,33 @@ describe('toPlainPreview', () => {
 
     it('returns an empty string for empty input', () => {
         expect(toPlainPreview('')).toBe('');
+    });
+});
+
+describe('toPlainText', () => {
+    // The search row highlights inside this, so a match on a fence's later lines must survive.
+    it('keeps every line of a fenced block', () => {
+        expect(toPlainText('```ts\nconst x = 1;\nconst y = 2;\n```')).toBe('const x = 1;\nconst y = 2;');
+    });
+
+    // The fence swallows the line breaks around it; without one put back, words run into the code.
+    it('keeps a fenced block on its own line beside text', () => {
+        expect(toPlainText('앞\n```\nb\n```\n뒤')).toBe('앞\nb\n뒤');
+        expect(toPlainText('```\nb\n```\n```\nd\n```')).toBe('b\nd');
+    });
+
+    it('adds no break where an inline fence already has spaces around it', () => {
+        expect(toPlainText('a ```b``` c')).toBe('a b c');
+    });
+
+    it('drops markup the same way toPlainPreview does', () => {
+        expect(toPlainText('배포는 `yarn deploy` 로, [가이드](https://example.com/a) 참고')).toBe(
+            '배포는 yarn deploy 로, 가이드 참고'
+        );
+    });
+
+    it('returns an empty string for empty input', () => {
+        expect(toPlainText('')).toBe('');
     });
 });
 
