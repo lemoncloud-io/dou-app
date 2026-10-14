@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-10-14] - root@0.102.0, @chatic/desktop-web@0.31.0
+
+### Features
+
+- (desktop-web) break quiet hours for record-named mentions
+- (desktop-web) count mentions-only mentions in dock and dots
+- (desktop-web) title mention banners by kind
+
+### Documentation
+
+- (adr) record mention banner titles and dock counting
+
+### Refactor
+
+- (desktop-web) read the everyone flag through isMentioningViewer
+- (desktop-web) hoist banner viewer, share snooze predicate
+- (desktop-web) share mention predicates, single kind evaluation
+
+### Other
+
+- test: (desktop-web) cover the snooze label states and cross-cloud quiet hours
+- test: (desktop-web) cover numeric everyone record, off-mode silence, locale titles
+
 ## [2026-10-14] - No version updates
 
 ### Bug Fixes
