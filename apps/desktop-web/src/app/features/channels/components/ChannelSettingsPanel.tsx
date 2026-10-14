@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Search, X } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
@@ -13,12 +12,12 @@ import {
     isDmChannel,
     isSelfChannel,
     ResizablePanel,
+    SegmentedControl,
     useChannelNotifyChange,
     useCopyToClipboard,
     useSelectedChannelStore,
     PANE_HEADER,
     PANEL_TITLE,
-    radioGroupOptions,
 } from '../../../shared';
 import type { ChannelMember } from '../hooks';
 import { useChannelActions } from '../hooks';
@@ -108,7 +107,6 @@ export const ChannelSettingsPanel = ({
 
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
 
-    const notifyProps = radioGroupOptions(notifyModes, notifyMode, onNotifyChange);
     // A service posts into a group channel by its id, and the desktop app has no address bar to
     // read one from. A 1:1 or my notes-to-self is not somewhere a service posts to.
     const showId = !isDmChannel(channel) && !isSelfChannel(channel);
@@ -208,32 +206,14 @@ export const ChannelSettingsPanel = ({
 
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">
                     <h3 className="text-overline text-muted-foreground">{t('channels.settings.notifications')}</h3>
-                    <div
-                        role="radiogroup"
-                        aria-label={t('channels.settings.notifications')}
-                        className="flex rounded-lg border border-hairline bg-well p-0.5"
-                    >
-                        {notifyModes.map(mode => (
-                            <button
-                                key={mode}
-                                type="button"
-                                {...notifyProps(mode)}
-                                className={cn(
-                                    'focus-ring tactile flex-1 rounded-md px-2 py-1.5 transition-colors ease-tactile',
-                                    notifyMode === mode
-                                        ? 'bg-elevated text-foreground shadow-raised'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                )}
-                            >
-                                <span className="block text-caption font-medium">
-                                    {t(`channels.settings.notify.${mode}`)}
-                                </span>
-                                <span className="block text-nano text-muted-foreground">
-                                    {t(`channels.settings.notify.${mode}Hint`)}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
+                    <SegmentedControl
+                        options={notifyModes}
+                        value={notifyMode}
+                        onSelect={onNotifyChange}
+                        getLabel={mode => t(`channels.settings.notify.${mode}`)}
+                        getHint={mode => t(`channels.settings.notify.${mode}Hint`)}
+                        ariaLabel={t('channels.settings.notifications')}
+                    />
                 </section>
 
                 {showId && (

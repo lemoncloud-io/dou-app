@@ -38,7 +38,7 @@ const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemov
     <div
         className={cn(
             'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
-            isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
+            isCurrent ? 'border-primary-ink/40 bg-selected' : 'border-hairline bg-elevated'
         )}
     >
         <button
@@ -49,7 +49,7 @@ const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemov
         >
             {/* Unread marker — a dot in the left gutter until the mention is opened. */}
             <span aria-hidden className="mt-3 w-1.5 shrink-0">
-                {!item.readAt && <span className="block h-1.5 w-1.5 rounded-full bg-primary" />}
+                {!item.readAt && <span className="block h-1.5 w-1.5 rounded-full bg-status-dot" />}
             </span>
             <Avatar className="mt-0.5 h-9 w-9 shrink-0">
                 {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}

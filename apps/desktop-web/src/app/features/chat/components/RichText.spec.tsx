@@ -7,7 +7,12 @@ import { RichText } from './RichText';
 
 const renderText = (
     content: string,
-    props?: { selfNames?: string[]; resolveMention?: (name: string) => { userId: string; name: string } | undefined; hasMentionRecord?: boolean }
+    props?: {
+        selfNames?: string[];
+        resolveMention?: (name: string) => { userId: string; name: string } | undefined;
+        hasMentionRecord?: boolean;
+        selfSuffix?: string;
+    }
 ) => render(<p>{RichText({ content, ...props })}</p>).container;
 
 const textsOf = (container: HTMLElement, className: string) =>
@@ -136,6 +141,13 @@ describe('RichText mentions', () => {
         const container = renderText('@Me hi', { selfNames: ['me'] });
         expect(self(container)).toEqual(['@Me']);
         expect(ordinary(container)).toEqual([]);
+    });
+
+    it('marks a self pill with weight and a screen-reader cue', () => {
+        const container = renderText('@Me hi', { selfNames: ['me'], selfSuffix: 'me' });
+        const pill = container.getElementsByClassName('bg-warning/30')[0];
+        expect(pill?.className).toContain('font-semibold');
+        expect(container.querySelector('.sr-only')?.textContent).toBe('me');
     });
 
     it('draws a recorded mention as ordinary when the record names someone else', () => {

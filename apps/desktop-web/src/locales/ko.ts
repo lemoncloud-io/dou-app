@@ -135,6 +135,7 @@ export const ko: EnTranslation = {
     'chat.mention.resultCount_one': '멘션 후보 {{count}}개',
     'chat.mention.resultCount_other': '멘션 후보 {{count}}개',
     'chat.mention.unpickedHint': '"@{{name}}"은 목록에서 골라야 멘션이 돼요.',
+    'chat.mention.self': '나',
     'chat.composer.emoji': '이모지',
     'chat.composer.placeholderChannel': '#{{name}}에 메시지 보내기',
     'chat.composer.placeholderDm': '{{name}}에게 메시지 보내기',

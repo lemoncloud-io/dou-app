@@ -57,56 +57,68 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
                     below ? 'top-full mt-2' : 'bottom-full mb-2'
                 )}
             >
-                {items.map((item, i) => (
-                    <button
-                        key={item.id}
-                        ref={i === activeIndex ? activeRef : undefined}
-                        type="button"
-                        role="option"
-                        id={`${listId}-option-${i}`}
-                        aria-selected={i === activeIndex}
-                        // mousedown (not click) so the editor keeps focus through the pick.
-                        onMouseDown={e => {
-                            e.preventDefault();
-                            onSelect(i);
-                        }}
-                        className={cn(
-                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-callout transition-colors ease-tactile',
-                            i === activeIndex ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60'
-                        )}
-                    >
-                        {item.everyone ? (
-                            <>
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                    <Users className="h-3 w-3" aria-hidden />
-                                </span>
-                                <span className="flex min-w-0 flex-col">
-                                    <span className="truncate">{t('chat.mention.everyone')}</span>
-                                    <span className="truncate text-caption text-muted-foreground">
-                                        {`@${item.name} · ${t('chat.mention.everyoneHint')}`}
+                {items.map((item, i) => {
+                    const selected = i === activeIndex;
+                    // Secondary lines follow the row: muted text on the selected
+                    // fill would fall under AA, so they take the fill's own ink.
+                    const secondary = cn(
+                        'truncate text-caption',
+                        selected ? 'text-selected-foreground' : 'text-muted-foreground'
+                    );
+                    return (
+                        <button
+                            key={item.id}
+                            ref={selected ? activeRef : undefined}
+                            type="button"
+                            role="option"
+                            id={`${listId}-option-${i}`}
+                            aria-selected={selected}
+                            // mousedown (not click) so the editor keeps focus through the pick.
+                            onMouseDown={e => {
+                                e.preventDefault();
+                                onSelect(i);
+                            }}
+                            className={cn(
+                                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-callout transition-colors ease-tactile',
+                                selected
+                                    ? 'bg-selected text-selected-foreground'
+                                    : 'text-muted-foreground hover:bg-accent/60'
+                            )}
+                        >
+                            {item.everyone ? (
+                                <>
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                        <Users className="h-3 w-3" aria-hidden />
                                     </span>
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <Avatar className="h-5 w-5">
-                                    {item.thumbnail && <AvatarImage src={item.thumbnail} alt={item.name} />}
-                                    <AvatarFallback className="text-nano font-semibold" style={avatarStyle(item.id)}>
-                                        {item.name.charAt(0).toUpperCase() || '?'}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <span className="flex min-w-0 flex-col">
-                                    <span className="truncate">{item.name}</span>
-                                    {item.subName && (nameCounts.get(item.name) ?? 0) > 1 && (
-                                        <span className="truncate text-caption text-muted-foreground">
-                                            {item.subName}
+                                    <span className="flex min-w-0 flex-col">
+                                        <span className="truncate">{t('chat.mention.everyone')}</span>
+                                        <span className={secondary}>
+                                            {`@${item.name} · ${t('chat.mention.everyoneHint')}`}
                                         </span>
-                                    )}
-                                </span>
-                            </>
-                        )}
-                    </button>
-                ))}
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <Avatar className="h-5 w-5">
+                                        {item.thumbnail && <AvatarImage src={item.thumbnail} alt={item.name} />}
+                                        <AvatarFallback
+                                            className="text-nano font-semibold"
+                                            style={avatarStyle(item.id)}
+                                        >
+                                            {item.name.charAt(0).toUpperCase() || '?'}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="flex min-w-0 flex-col">
+                                        <span className="truncate">{item.name}</span>
+                                        {item.subName && (nameCounts.get(item.name) ?? 0) > 1 && (
+                                            <span className={secondary}>{item.subName}</span>
+                                        )}
+                                    </span>
+                                </>
+                            )}
+                        </button>
+                    );
+                })}
             </div>
             <span aria-live="polite" className="sr-only">
                 {t('chat.mention.resultCount', { count: items.length })}

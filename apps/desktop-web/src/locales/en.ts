@@ -124,6 +124,7 @@ export const en = {
     'chat.mention.resultCount_one': '{{count}} mention suggestion',
     'chat.mention.resultCount_other': '{{count}} mention suggestions',
     'chat.mention.unpickedHint': '"@{{name}}" only mentions them when picked from the list',
+    'chat.mention.self': 'me',
     'chat.composer.emoji': 'Emoji',
     'chat.composer.placeholderChannel': 'Message #{{name}}',
     'chat.composer.placeholderDm': 'Message {{name}}',

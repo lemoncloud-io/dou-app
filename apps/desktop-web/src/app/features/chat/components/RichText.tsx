@@ -42,7 +42,8 @@ const renderInline = (
     keyBase: string,
     selfNames?: string[],
     resolveMention?: MentionResolver,
-    hasMentionRecord?: boolean
+    hasMentionRecord?: boolean,
+    selfSuffix?: string
 ): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let last = 0;
@@ -98,16 +99,22 @@ const renderInline = (
             if (!person && !isSelf && !GROUP_MENTIONS.some(group => group.slice(1) === lower) && !hasMentionRecord) {
                 nodes.push(mention);
             } else {
+                // A self pill reads its cue too — colour alone cannot carry "this
+                // is you" (the class also adds weight; see messageClasses).
+                const cue =
+                    isSelf && selfSuffix ? <span className="sr-only">{selfSuffix}</span> : null;
                 nodes.push(
                     person ? (
                         <UserProfilePopover key={key} userId={person.userId} fallbackName={person.name}>
                             <button type="button" className={`focus-ring rounded-sm ${className}`}>
                                 {mention}
+                                {cue}
                             </button>
                         </UserProfilePopover>
                     ) : (
                         <span key={key} className={className}>
                             {mention}
+                            {cue}
                         </span>
                     )
                 );
@@ -126,7 +133,8 @@ const renderCodeRuns = (
     keyBase: string,
     selfNames?: string[],
     resolveMention?: MentionResolver,
-    hasMentionRecord?: boolean
+    hasMentionRecord?: boolean,
+    selfSuffix?: string
 ): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
@@ -135,7 +143,7 @@ const renderCodeRuns = (
             </code>
         ) : (
             <Fragment key={`${keyBase}-${idx}`}>
-                {renderInline(part, `${keyBase}-${idx}`, selfNames, resolveMention, hasMentionRecord)}
+                {renderInline(part, `${keyBase}-${idx}`, selfNames, resolveMention, hasMentionRecord, selfSuffix)}
             </Fragment>
         )
     );
@@ -147,7 +155,8 @@ const renderQuoteRuns = (
     keyBase: string,
     selfNames?: string[],
     resolveMention?: MentionResolver,
-    hasMentionRecord?: boolean
+    hasMentionRecord?: boolean,
+    selfSuffix?: string
 ): ReactNode[] => {
     const nodes: ReactNode[] = [];
     let plain: string[] = [];
@@ -157,7 +166,14 @@ const renderQuoteRuns = (
         if (!plain.length) return;
         nodes.push(
             <Fragment key={`${keyBase}-p${block++}`}>
-                {renderCodeRuns(plain.join('\n'), `${keyBase}-p${block}`, selfNames, resolveMention, hasMentionRecord)}
+                {renderCodeRuns(
+                    plain.join('\n'),
+                    `${keyBase}-p${block}`,
+                    selfNames,
+                    resolveMention,
+                    hasMentionRecord,
+                    selfSuffix
+                )}
             </Fragment>
         );
         plain = [];
@@ -167,7 +183,14 @@ const renderQuoteRuns = (
         nodes.push(
             // block-level span: legal inside the host <p>, unlike <blockquote>.
             <span key={`${keyBase}-q${block++}`} className={MSG_QUOTE_CLASS}>
-                {renderCodeRuns(quote.join('\n'), `${keyBase}-q${block}`, selfNames, resolveMention, hasMentionRecord)}
+                {renderCodeRuns(
+                    quote.join('\n'),
+                    `${keyBase}-q${block}`,
+                    selfNames,
+                    resolveMention,
+                    hasMentionRecord,
+                    selfSuffix
+                )}
             </span>
         );
         quote = [];
@@ -196,6 +219,8 @@ interface RichTextProps {
     resolveMention?: MentionResolver;
     /** The message carries a mention record — its @-tokens name a recorded pick, even an unknown one. */
     hasMentionRecord?: boolean;
+    /** Screen-reader cue read inside a self pill ("me"), alongside the weight cue. */
+    selfSuffix?: string;
 }
 
 /**
@@ -206,7 +231,13 @@ interface RichTextProps {
  * @mentions). Block elements render as display:block <span>s because the host
  * wraps messages in a <p>.
  */
-export const RichText = ({ content, selfNames, resolveMention, hasMentionRecord }: RichTextProps): ReactNode => {
+export const RichText = ({
+    content,
+    selfNames,
+    resolveMention,
+    hasMentionRecord,
+    selfSuffix,
+}: RichTextProps): ReactNode => {
     if (!content) return null;
     return splitFences(content).map((segment, idx, segments) => {
         if (segment.type === 'code') {
@@ -221,7 +252,7 @@ export const RichText = ({ content, selfNames, resolveMention, hasMentionRecord 
         const text = segments[idx - 1]?.type === 'code' ? segment.value.replace(/^\r?\n/, '') : segment.value;
         return (
             <Fragment key={idx}>
-                {renderQuoteRuns(text, String(idx), selfNames, resolveMention, hasMentionRecord)}
+                {renderQuoteRuns(text, String(idx), selfNames, resolveMention, hasMentionRecord, selfSuffix)}
             </Fragment>
         );
     });
