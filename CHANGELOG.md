@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-14] - No version updates
+
+### Bug Fixes
+
+- (web/channels) close a fence at a backtick run as long as its opening, as desktop does
+
 ## [2026-10-14] - root@0.102.0, @chatic/desktop-web@0.31.0
 
 ### Features
