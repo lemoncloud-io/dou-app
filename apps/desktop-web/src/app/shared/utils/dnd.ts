@@ -42,3 +42,31 @@ export const nextSnoozeUntilTomorrow = (now: number, hour = 8): number => {
     if (target.getTime() <= now) target.setDate(target.getDate() + 1);
     return target.getTime();
 };
+
+/**
+ * When the mute state next changes: a live snooze's end, or the next
+ * quiet-hours edge (today's and tomorrow's starts and ends). Null when nothing
+ * mutes. The sidebar label waits on this so an expiry or a window edge shows
+ * without another store write.
+ */
+export const nextDndBoundary = (
+    state: { snoozeUntil: number | null; quietHours: QuietHours | null },
+    now: number = Date.now()
+): number | null => {
+    const targets: number[] = [];
+    if (state.snoozeUntil != null && state.snoozeUntil > now) targets.push(state.snoozeUntil);
+    const start = state.quietHours ? toMinutes(state.quietHours.start) : null;
+    const end = state.quietHours ? toMinutes(state.quietHours.end) : null;
+    if (start !== null && end !== null && start !== end) {
+        const midnight = new Date(now);
+        midnight.setHours(0, 0, 0, 0);
+        const day = 24 * 60 * 60 * 1000;
+        for (const dayOffset of [0, day]) {
+            for (const minutes of [start, end]) {
+                const edge = midnight.getTime() + dayOffset + minutes * 60_000;
+                if (edge > now) targets.push(edge);
+            }
+        }
+    }
+    return targets.length > 0 ? Math.min(...targets) : null;
+};

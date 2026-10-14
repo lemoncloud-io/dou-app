@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isDndActive, isSnoozed, isWithinQuietHours, nextSnoozeUntilTomorrow } from './dnd';
+import { isDndActive, isSnoozed, isWithinQuietHours, nextDndBoundary, nextSnoozeUntilTomorrow } from './dnd';
 
 const at = (h: number, m = 0): Date => new Date(2026, 5, 18, h, m, 0, 0);
 
@@ -74,5 +74,34 @@ describe('nextSnoozeUntilTomorrow', () => {
         const result = new Date(nextSnoozeUntilTomorrow(now, 8));
         expect(result.getDate()).toBe(19);
         expect(result.getHours()).toBe(8);
+    });
+});
+
+describe('nextDndBoundary', () => {
+    it('returns null when nothing mutes', () => {
+        expect(nextDndBoundary({ snoozeUntil: null, quietHours: null }, at(12).getTime())).toBeNull();
+    });
+
+    it('names a live snooze over later quiet edges', () => {
+        const now = at(12).getTime();
+        expect(
+            nextDndBoundary({ snoozeUntil: now + 30 * 60_000, quietHours: { start: '22:00', end: '07:00' } }, now)
+        ).toBe(now + 30 * 60_000);
+    });
+
+    it('names the next quiet edge when the snooze already passed', () => {
+        const now = at(21).getTime();
+        expect(
+            nextDndBoundary({ snoozeUntil: now - 1, quietHours: { start: '22:00', end: '07:00' } }, now)
+        ).toBe(at(22).getTime());
+    });
+
+    it('rolls a same-day window edge to tomorrow once passed', () => {
+        const now = at(18).getTime();
+        const edge = new Date(
+            nextDndBoundary({ snoozeUntil: null, quietHours: { start: '09:00', end: '17:00' } }, now) ?? 0
+        );
+        expect(edge.getDate()).toBe(19);
+        expect(edge.getHours()).toBe(9);
     });
 });

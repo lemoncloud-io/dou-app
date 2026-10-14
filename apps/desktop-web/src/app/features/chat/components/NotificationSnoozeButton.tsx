@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { Bell, BellOff } from 'lucide-react';
 
@@ -11,7 +13,14 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import { formatClockTime, isDndActive, nextSnoozeUntilTomorrow, useNotificationPrefsStore } from '../../../shared';
+import {
+    formatClockTime,
+    isDndActive,
+    isSnoozed,
+    nextDndBoundary,
+    nextSnoozeUntilTomorrow,
+    useNotificationPrefsStore,
+} from '../../../shared';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 const MINUTE = 60_000;
@@ -23,22 +32,42 @@ const MINUTE = 60_000;
  */
 export const NotificationSnoozeButton = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const snoozeUntil = useNotificationPrefsStore(s => s.snoozeUntil);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
     const breakthrough = useNotificationPrefsStore(s => s.mentionBreaksQuietHours);
     const setSnooze = useNotificationPrefsStore(s => s.setSnooze);
 
     const active = isDndActive({ snoozeUntil, quietHours });
+    // Set is not live: an expired value reads as a snooze until something else
+    // writes. The truth is whether it is still in the future.
+    const snoozed = snoozeUntil != null && isSnoozed(snoozeUntil);
     const snoozeFor = (minutes: number) => setSnooze(Date.now() + minutes * MINUTE);
     // Four exclusive states, read top-down: off → snoozed (with time) → quiet hours
     // with the breakthrough on → quiet hours.
     const labelKey = !active
         ? 'snooze.title'
-        : snoozeUntil
+        : snoozed
           ? 'snooze.activeUntil'
           : breakthrough
             ? 'snooze.activeQuietMention'
             : 'snooze.activeQuiet';
+
+    // Wake on the next boundary — a snooze end or a quiet-hours edge — so the
+    // label turns over without another store write. One shot: each render names
+    // the next one.
+    const boundary = nextDndBoundary({ snoozeUntil, quietHours });
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        if (boundary == null) return;
+        const timer = setTimeout(() => setTick(tick => tick + 1), Math.max(boundary - Date.now(), 0));
+        return () => clearTimeout(timer);
+    }, [boundary]);
+    // An expired value left in the store reads as a snooze to anything checking
+    // for set-ness; clear it once it passes.
+    useEffect(() => {
+        if (snoozeUntil != null && !isSnoozed(snoozeUntil)) setSnooze(null);
+    }, [snoozeUntil, boundary, setSnooze]);
 
     return (
         <DropdownMenu>
@@ -52,13 +81,13 @@ export const NotificationSnoozeButton = () => {
                         )}
                     </span>
                     <span className="truncate">
-                        {t(labelKey, snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
+                        {t(labelKey, snoozed && snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
                     </span>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56 shadow-overlay">
                 <DropdownMenuLabel className="text-muted-foreground">
-                    {t(labelKey, snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
+                    {t(labelKey, snoozed && snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined)}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => snoozeFor(30)} className="cursor-pointer py-2">
@@ -76,7 +105,7 @@ export const NotificationSnoozeButton = () => {
                 >
                     {t('snooze.tomorrow')}
                 </DropdownMenuItem>
-                {snoozeUntil != null && (
+                {snoozed && (
                     <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => setSnooze(null)} className="cursor-pointer py-2">
@@ -84,6 +113,10 @@ export const NotificationSnoozeButton = () => {
                         </DropdownMenuItem>
                     </>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer py-2">
+                    {t('snooze.settings')}
+                </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );
