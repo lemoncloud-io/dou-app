@@ -29,6 +29,7 @@ export * from './usePlaceUnreadCounts';
 export * from './useCloudCatalog';
 export * from './useClouds';
 export * from './useInvitedCloudRecovery';
+export * from './usePushInvitedCloudRecovery';
 export * from './useRemoveCloud';
 export * from './useRenameCloud';
 export * from './useUser';
