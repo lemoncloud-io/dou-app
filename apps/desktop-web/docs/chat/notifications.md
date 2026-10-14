@@ -25,3 +25,26 @@ text would pin "mention" on a message for someone else with my name.
 The record wins whenever the message has one; the text is only read for a
 message with none (an older client, a webhook). The words for "everyone" come
 from the existing `chat.mention.everyoneWord` key (`all` / `전체`).
+
+## Dock, place dots and window title
+
+All three read one answer (`placeUnreadCounts`): the total is the OS badge and
+the window title's count, the per-place numbers light the rail and place dots.
+
+- An "all messages" channel adds its unread, as before.
+- A "mentions only" channel adds `min(unread mentions, channel unread)`. The
+  quiet chatter around the mentions stays out, and a mention read on another
+  device — whose channel unread is back to 0 — leaves no number behind.
+- An "off" channel adds nothing, mention or not.
+- A 1:1 never reads as "mentions only" (the server sends every message of it),
+  so a mention stored there is already inside its unread.
+
+"What I have read" is the same boundary the channel row's `@` uses
+(`channelReadNo`: this device's cursor or the channel record's, whichever is
+further), so a mention counted here is one the row also marks unread.
+
+Limits, all from the mentions inbox living on this device: a mention that
+arrived while the app was closed is never captured and lights nothing here; a
+mention crowded out by a newer message (the feed hands each channel's latest
+only) is missed the same way; and past the inbox's 200-entry cap an unread
+mention can fall out and shrink a channel's share.

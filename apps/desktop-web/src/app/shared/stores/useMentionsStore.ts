@@ -61,6 +61,27 @@ export const hasUnreadMentionIn = (
     );
 
 /**
+ * How many unread mentions a channel holds — the same condition as
+ * `hasUnreadMentionIn`, as a count. Drives the dock and place totals for
+ * mentions-only channels (`placeUnreadCounts` caps it at the channel's unread).
+ */
+export const countUnreadMentionsIn = (
+    items: Record<string, MentionItem>,
+    channel: { id: string; placeId?: string },
+    readNo: number
+): number =>
+    Object.values(items).reduce(
+        (count, item) =>
+            item.channelId === channel.id &&
+            item.placeId === channel.placeId &&
+            !item.readAt &&
+            (item.chatNo ?? 0) > readNo
+                ? count + 1
+                : count,
+        0
+    );
+
+/**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so
  * this is a local snapshot like Saved items — persisted to localStorage, does
  * not follow the account across devices.
