@@ -62,12 +62,6 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
             >
                 {items.map((item, i) => {
                     const selected = i === activeIndex;
-                    // Secondary lines follow the row: muted text on the selected
-                    // fill would fall under AA, so they take the fill's own ink.
-                    const secondary = cn(
-                        'truncate text-caption',
-                        selected ? 'text-selected-foreground' : 'text-muted-foreground'
-                    );
                     return (
                         <button
                             key={item.id}
@@ -83,9 +77,7 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
                             }}
                             className={cn(
                                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-callout transition-colors ease-tactile',
-                                selected
-                                    ? 'bg-selected text-selected-foreground'
-                                    : 'text-muted-foreground hover:bg-accent/60'
+                                selected ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60'
                             )}
                         >
                             {item.everyone ? (
@@ -95,7 +87,7 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
                                     </span>
                                     <span className="flex min-w-0 flex-col">
                                         <span className="truncate">{t('chat.mention.everyone')}</span>
-                                        <span className={secondary}>
+                                        <span className="truncate text-caption text-muted-foreground">
                                             {`@${item.name} · ${t('chat.mention.everyoneHint')}`}
                                         </span>
                                     </span>
@@ -114,7 +106,9 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
                                     <span className="flex min-w-0 flex-col">
                                         <span className="truncate">{item.name}</span>
                                         {item.subName && (nameCounts.get(item.name) ?? 0) > 1 && (
-                                            <span className={secondary}>{item.subName}</span>
+                                            <span className="truncate text-caption text-muted-foreground">
+                                                {item.subName}
+                                            </span>
                                         )}
                                     </span>
                                 </>

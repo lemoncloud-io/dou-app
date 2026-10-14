@@ -126,10 +126,6 @@ module.exports = {
                     DEFAULT: 'hsl(var(--badge-unread))',
                     foreground: 'hsl(var(--badge-unread-foreground))',
                 },
-                selected: {
-                    DEFAULT: 'hsl(var(--selected))',
-                    foreground: 'hsl(var(--selected-foreground))',
-                },
                 'status-dot': 'hsl(var(--status-dot))',
                 'badge-member': 'hsl(var(--badge-member))',
                 favorite: 'hsl(var(--favorite))',

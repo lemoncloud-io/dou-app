@@ -48,12 +48,11 @@ describe('SegmentedControl', () => {
         expect(screen.getByRole('radiogroup').className).toContain('min-h-9');
     });
 
-    // The picked option is the brand lime with ink text — hue, weight and ink
-    // change together, never shade alone.
-    it('fills the picked option lime', () => {
+    // The picked option is the elevated fill with foreground text.
+    it('fills the picked option elevated', () => {
         renderControl();
         const picked = screen.getByRole('radio', { name: 'Mentions' });
-        expect(picked.className).toContain('bg-primary');
+        expect(picked.className).toContain('bg-elevated');
         expect(picked.textContent).toBeTruthy();
     });
 });

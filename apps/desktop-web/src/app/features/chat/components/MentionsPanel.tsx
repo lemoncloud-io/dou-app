@@ -55,7 +55,7 @@ const MentionRow = memo(
     <li
         className={cn(
             'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
-            isCurrent ? 'border-primary-ink/40 bg-selected' : 'border-hairline bg-elevated'
+            isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
         )}
     >
         <button

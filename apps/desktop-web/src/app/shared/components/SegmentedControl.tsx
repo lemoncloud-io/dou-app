@@ -15,8 +15,9 @@ interface SegmentedControlProps<T extends string> {
 
 /**
  * A 36px segmented radio row on `radioGroupOptions`: one tab stop, arrows move
- * and check, Home/End jump. The picked option fills brand lime with ink text —
- * hue, weight and ink change together, so the state never rides on shade alone.
+ * and check, Home/End jump. The picked option is the elevated fill with
+ * foreground text — hue, weight and ink change together with the unpicked
+ * muted rows, so the state never rides on shade alone.
  */
 export const SegmentedControl = <T extends string>({
     options,
@@ -42,26 +43,19 @@ export const SegmentedControl = <T extends string>({
                         {...optionProps(option)}
                         className={cn(
                             'focus-ring tactile flex-1 rounded-md px-2 py-1.5 transition-colors ease-tactile',
-                            selected ? 'bg-primary shadow-raised' : 'hover:text-foreground'
+                            selected ? 'bg-elevated text-foreground shadow-raised' : 'hover:text-foreground'
                         )}
                     >
                         <span
                             className={cn(
                                 'block text-caption',
-                                selected ? 'font-semibold text-primary-foreground' : 'font-medium text-muted-foreground'
+                                selected ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'
                             )}
                         >
                             {getLabel(option)}
                         </span>
                         {getHint && (
-                            <span
-                                className={cn(
-                                    'block text-nano',
-                                    selected ? 'text-primary-foreground' : 'text-muted-foreground'
-                                )}
-                            >
-                                {getHint(option)}
-                            </span>
+                            <span className="block text-nano text-muted-foreground">{getHint(option)}</span>
                         )}
                     </button>
                 );

@@ -162,11 +162,6 @@
         /* Unread dots: the brand signal — the ink olive here, where the fill
            lime is 1.44:1 on white. 5.11:1 on the sidebar, 5.11:1 on elevated. */
         --status-dot: var(--primary-ink);
-        /* Selection fill: the active typeahead row, the picked notify level, the
-           current inbox row. Deep olive: 3.56:1 on white, 3.26:1 on the well,
-           and the ink text reads 4.92:1 on it. */
-        --selected: 76 50% 38%;
-        --selected-foreground: 0 0% 10%;
         --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
         --tab-active: 0 0% 10%;
         --tab-inactive: 218 5% 46%;
@@ -282,10 +277,6 @@
         --badge-member: 76 87% 49%;
         /* Unread dots: the fill lime already reads on dark (7.9:1 on the sidebar). */
         --status-dot: var(--primary);
-        /* Selection fill, brighter than light's for the dark grounds: 5.35:1 on the
-           main pane, 4.83:1 on elevated, 6.70:1 on the well; ink text 6.27:1 on it. */
-        --selected: 76 55% 42%;
-        --selected-foreground: 0 0% 10%;
         --favorite: 35 100% 50%; /* #FF9500 */
         --tab-active: 60 7% 92%;
         --tab-inactive: 60 0% 55%;
