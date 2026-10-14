@@ -152,7 +152,10 @@ export const PhoneLoginPage = () => {
                     </p>
                 )}
                 {!login.codeSent && (
-                    <Button type="submit" size="lg" disabled={!login.canRequestCode}>
+                    // Always enabled (outside a send): a bad or empty number with
+                    // Enter must run validation and show its message, not sit
+                    // behind a disabled button whose submit never fires.
+                    <Button type="submit" size="lg" disabled={login.busy !== 'idle'}>
                         {isSending ? t('auth.phone.sending') : t('auth.phone.sendCode')}
                     </Button>
                 )}
