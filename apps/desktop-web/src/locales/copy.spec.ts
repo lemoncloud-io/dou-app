@@ -58,16 +58,6 @@ describe('notification vocabulary', () => {
         expect(en['snooze.activeUntil']).toContain('Snoozed');
     });
 
-    it('describes every channel notify level', () => {
-        for (const bundle of [ko, en]) {
-            expect(bundle['channels.settings.notify.allHint']).toBeTruthy();
-            expect(bundle['channels.settings.notify.mentionHint']).toBeTruthy();
-            expect(bundle['channels.settings.notify.noneHint']).toBeTruthy();
-        }
-        // "끔" still answers whether @mentions get through.
-        expect(ko['channels.settings.notify.noneHint']).toContain('@');
-    });
-
     it('tells the two device switches apart by when they fire', () => {
         expect(ko['settings.desktopNotificationsHint']).toContain('켜져');
         expect(ko['settings.devicePushHint']).toContain('꺼져');

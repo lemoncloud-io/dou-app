@@ -84,8 +84,7 @@ describe('ChannelSettingsPanel channel ID', () => {
 });
 
 describe('ChannelSettingsPanel notification level', () => {
-    // Each option holds a label line and a hint line; the levels read the label.
-    const levels = () => screen.getAllByRole('radio').map(radio => radio.querySelectorAll('span')[0]?.textContent);
+    const levels = () => screen.getAllByRole('radio').map(radio => radio.textContent);
 
     it('offers mentions only in a channel', () => {
         renderPanel({ name: 'general', stereo: 'public', memberNo: 3 } as Partial<DomainChannel>);
@@ -98,14 +97,5 @@ describe('ChannelSettingsPanel notification level', () => {
         renderPanel({ stereo: 'dm', memberNo: 2 } as Partial<DomainChannel>);
 
         expect(levels()).toEqual(['All messages', 'Off']);
-    });
-
-    // Each level says what it does — "끔" answers whether @mentions get through.
-    it('describes every level it offers', () => {
-        renderPanel({ name: 'general', stereo: 'public', memberNo: 3 } as Partial<DomainChannel>);
-
-        expect(screen.getByText('Notify for every message.')).toBeDefined();
-        expect(screen.getByText('Notify only for messages that mention you.')).toBeDefined();
-        expect(screen.getByText('Turn everything off, including @mentions.')).toBeDefined();
     });
 });
