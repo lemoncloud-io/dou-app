@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
@@ -61,6 +61,9 @@ const MessageEditorInner = ({
     // Read once with the content: chips are restored for whoever was on the roster at that moment.
     const rosterRef = useRef(mentionables);
     const [isDirty, setDirty] = useState(false);
+    // An edit saves the text only — who a message called is fixed when it is first sent — so the
+    // row that calls the whole channel is not offered here: picking it would call no one.
+    const pickable = useMemo(() => mentionables.filter(person => !person.everyone), [mentionables]);
 
     useEffect(() => {
         const unregister = editor.registerUpdateListener(({ editorState }) => {
@@ -153,7 +156,7 @@ const MessageEditorInner = ({
             <CodeFenceShortcutPlugin />
             <CodeFencePastePlugin />
             <LinkGuardPlugin />
-            <MentionsPlugin mentionables={mentionables} />
+            <MentionsPlugin mentionables={pickable} />
             <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={save} />
             <FormatShortcutsPlugin />

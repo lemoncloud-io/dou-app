@@ -48,11 +48,11 @@ vi.mock('../hooks', () => ({
 vi.mock('./DesktopLayout', () => ({ useShellSidebar: () => ({ isDrawer: false, open: vi.fn() }) }));
 vi.mock('./MessageList', () => ({ MessageList: () => null }));
 vi.mock('./ChannelHeaderMenu', () => ({ ChannelHeaderMenu: () => null }));
-let composerOnSend: ((content: string, files: File[]) => void) | undefined;
+let composerOnSend: ((content: string, files: File[], mention?: { userIds?: string[] }) => void) | undefined;
 /** Every `autoFocus` the composer was rendered with — the real one focuses itself on `true`. */
 const composerAutoFocus: (boolean | undefined)[] = [];
 vi.mock('./Composer', () => ({
-    Composer: ({ onSend, autoFocus }: { onSend: (content: string, files: File[]) => void; autoFocus?: boolean }) => {
+    Composer: ({ onSend, autoFocus }: { onSend: typeof composerOnSend & {}; autoFocus?: boolean }) => {
         composerOnSend = onSend;
         composerAutoFocus.push(autoFocus);
         return null;
@@ -89,6 +89,14 @@ describe('ChatPane', () => {
         expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: 'C1' });
         expect(composerSend).toHaveBeenCalledWith('caption', files);
         expect(clearTray).toHaveBeenCalled();
+    });
+
+    it("passes the composer's picked mention on to the send", async () => {
+        render(<ChatPane channel={room('C1')} members={[]} />, { wrapper });
+        await waitFor(() => expect(composerOnSend).toBeDefined());
+        composerOnSend?.('@Ada hi', [], { userIds: ['u-ada'] });
+
+        expect(composerSend).toHaveBeenCalledWith('@Ada hi', [], { userIds: ['u-ada'] });
     });
 
     it('binds no room for pictures while no channel is open', () => {

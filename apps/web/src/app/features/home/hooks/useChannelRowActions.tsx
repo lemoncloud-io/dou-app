@@ -53,10 +53,15 @@ export const useChannelRowActions = (): ChannelRowActions => {
                 channelId: channel.id,
                 userId: join?.userId ?? userId,
                 notify: muted ? 'none' : 'all',
-            } as never).catch(error => {
-                logger.error('CHAT', 'Failed to update room notification', { error, data: { channelId: channel.id } });
-                toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' });
-            });
+            } as never)
+                .then(receipt => receipt.delivered)
+                .catch(error => {
+                    logger.error('CHAT', 'Failed to update room notification', {
+                        error,
+                        data: { channelId: channel.id },
+                    });
+                    toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' });
+                });
         },
         [t, toast, updateJoin, userId]
     );

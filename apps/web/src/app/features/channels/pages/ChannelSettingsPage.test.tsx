@@ -6,7 +6,7 @@ import { ChannelSettingsPage } from './ChannelSettingsPage';
 
 const leaveChannel = jest.fn().mockResolvedValue({});
 const deleteChannel = jest.fn().mockResolvedValue({});
-const updateJoin = jest.fn().mockResolvedValue({});
+const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 const navigate = jest.fn();
 const toast = jest.fn();
 
@@ -573,7 +573,25 @@ describe('ChannelSettingsPage', () => {
             expect(updateJoin).not.toHaveBeenCalled();
         });
 
-        it('reverts the shown level and toasts when the write fails', async () => {
+        // A state write: the level shows at once and waits in the outbox; only a server refusal comes
+        // back, through the receipt, after the sheet has closed.
+        it('keeps the picked level while it waits, and says why if the server later refuses it', async () => {
+            updateJoin.mockImplementationOnce(async () => ({ delivered: Promise.reject(new Error('403 FORBIDDEN')) }));
+            channelValue = OWNER_CHANNEL;
+            render(<ChannelSettingsPage />);
+
+            openSheet();
+            await pick('none');
+
+            expect(notifyRow()).toHaveTextContent('chat.settings.notifyMode.none');
+            await waitFor(() =>
+                expect(toast).toHaveBeenCalledWith(
+                    expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
+                )
+            );
+        });
+
+        it('reverts the shown level and toasts when the local write fails', async () => {
             updateJoin.mockRejectedValueOnce(new Error('boom'));
             channelValue = OWNER_CHANNEL;
             render(<ChannelSettingsPage />);

@@ -13,7 +13,7 @@ const rows: DomainChannel[] = [
 
 const deleteChannel = vi.fn(async () => ({}));
 const leaveChannel = vi.fn(async () => ({}));
-const readChat = vi.fn(async () => ({}));
+const readInCloud = vi.fn(async (..._args: unknown[]) => undefined);
 
 // Stable across renders: `useChannels` re-subscribes when the repositories
 // object changes identity, and a fresh object per render loops forever.
@@ -27,7 +27,6 @@ const repositories = {
         leaveChannel: (...args: unknown[]) => leaveChannel(...args),
     },
     join: {
-        readChat: (...args: unknown[]) => readChat(...args),
         observeList: (_q: unknown, cb: (r: { list: never[] }) => void) => {
             cb({ list: [] });
             return () => undefined;
@@ -45,6 +44,10 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => repositories,
+            // The channel cloud's join repository; `readInCloud(cid, input)` stands for its outbox receipt.
+            getCloudRepositories: (cid: string) => ({
+                join: { readChat: (input: unknown) => Promise.resolve({ delivered: readInCloud(cid, input) }) },
+            }),
         },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
@@ -128,13 +131,29 @@ describe('PlaceChannelsPage', () => {
             await Promise.resolve();
         });
         expect(useReadCursorStore.getState().cursors).toEqual({ C1: 7, C2: 3 });
-        expect(readChat).toHaveBeenCalledWith({ channelId: 'C1', chatNo: 7 });
-        expect(readChat).toHaveBeenCalledWith({ channelId: 'C2', chatNo: 3 });
+        expect(readInCloud).toHaveBeenCalledWith('default', { channelId: 'C1', chatNo: 7 });
+        expect(readInCloud).toHaveBeenCalledWith('default', { channelId: 'C2', chatNo: 3 });
         expect(toast).not.toHaveBeenCalled();
     });
 
-    it('announces a failed bulk mark-read once, not once per row', async () => {
-        readChat.mockRejectedValue(new Error('offline'));
+    it('says nothing about reads still queued for the socket', async () => {
+        readInCloud.mockImplementation(() => new Promise(() => undefined));
+        renderAt();
+        toggleRow('general');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Mark selected read' }));
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(useReadCursorStore.getState().cursors).toEqual({ C1: 7 });
+        expect(toast).not.toHaveBeenCalled();
+        readInCloud.mockReset();
+        readInCloud.mockImplementation(async () => undefined);
+    });
+
+    it('announces a refused bulk mark-read once, not once per row', async () => {
+        readInCloud.mockRejectedValue(new Error('403 FORBIDDEN'));
         renderAt();
         toggleRow('general');
         toggleRow('random');
@@ -145,8 +164,8 @@ describe('PlaceChannelsPage', () => {
         expect(toast).toHaveBeenCalledWith(
             expect.objectContaining({ title: 'Could not mark as read.', variant: 'destructive' })
         );
-        readChat.mockReset();
-        readChat.mockImplementation(async () => ({}));
+        readInCloud.mockReset();
+        readInCloud.mockImplementation(async () => undefined);
     });
 
     it('deletes an owned channel only after confirming', async () => {

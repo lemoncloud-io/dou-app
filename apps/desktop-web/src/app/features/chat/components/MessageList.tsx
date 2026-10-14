@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, MessageSquare } from 'lucide-react';
 
+import { isMentioningViewer } from '@chatic/data';
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -126,6 +127,8 @@ const isWindowActive = (): boolean =>
 
 /** Past this the exact count is not asserted — the badge says "N+" instead. */
 const NEW_BADGE_CAP = 99;
+// One array for every message that calls nobody "me", so a memo'd row sees the same prop.
+const NO_SELF_NAMES: string[] = [];
 
 export const MessageList = ({
     messages,
@@ -369,16 +372,27 @@ export const MessageList = ({
         return name => byName.get(name.toLowerCase());
     }, [names, placeProfiles]);
 
-    // Lowercased "me" names for self-mention highlighting (profile name +
-    // place nick under either of my ids — mirrors the notification filter).
+    // Lowercased "me" names for self-mention highlighting: profile name, place nick under
+    // either of my ids, and the name the roster has for either id — the one a sender's @ list
+    // showed me under, which a mention chip carries. The roster name is wider than what the
+    // notifiers read from text (`resolveMyMentionNames`): a highlight costs nothing when wrong.
     const selfNames = useMemo(() => {
-        const names = [
+        const mine = [
             viewer.name,
-            viewer.cloudUid ? placeProfiles[viewer.cloudUid]?.nick : undefined,
-            viewer.uid ? placeProfiles[viewer.uid]?.nick : undefined,
+            ...[viewer.cloudUid, viewer.uid].flatMap(id => (id ? [placeProfiles[id]?.nick, names?.get(id)] : [])),
         ];
-        return names.filter((n): n is string => !!n?.trim()).map(n => n.trim().toLowerCase());
-    }, [viewer, placeProfiles]);
+        return mine.filter((n): n is string => !!n?.trim()).map(n => n.trim().toLowerCase());
+    }, [viewer, placeProfiles, names]);
+
+    // Which names count as "me" in one message. A message with a mention record that does not
+    // name me highlights nothing as mine: the `@Me` in it is someone else of the same name, and a
+    // typed `@channel` did not call anyone — the record-first order of `mentionsMe`. Stable
+    // identity: rows are memo'd.
+    const selfNamesOf = useCallback(
+        (message: DomainChat): string[] =>
+            message.mention$ && !isMentioningViewer(message, [viewer.uid, viewer.cloudUid]) ? NO_SELF_NAMES : selfNames,
+        [selfNames, viewer.uid, viewer.cloudUid]
+    );
 
     // Highest PERSISTED chatNo: exclude optimistic/pending rows (sentinel
     // Number.MAX_SAFE_INTEGER) so a seenUpTo advance never jumps to MAX and
@@ -853,7 +867,7 @@ export const MessageList = ({
                             onDiscard={onDiscard}
                             threadMeta={threadMetaView}
                             onOpenThread={onOpenThread}
-                            selfNames={selfNames}
+                            selfNamesOf={selfNamesOf}
                             resolveMention={resolveMention}
                             mentionables={mentionables}
                             highlightChatNo={highlight}

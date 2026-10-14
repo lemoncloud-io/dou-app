@@ -17,7 +17,13 @@ import {
     resolvePushCloudIdFrom,
     type PushChannelData,
 } from '../utils';
-import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useSelectedChannelStore } from '../stores';
+import {
+    channelNotifyMode,
+    isNotifyDm,
+    useNotificationPrefsStore,
+    usePendingOpenStore,
+    useSelectedChannelStore,
+} from '../stores';
 
 /**
  * Deeplink for the OS banner click. When the source cloud resolves, encode the open target so
@@ -92,10 +98,18 @@ const presentPush = async (
             uid: data.uid,
         });
         const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
-        const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify);
+        const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify, isNotifyDm(cachedChannel));
         if (mode === 'none') return;
-        const text = messagePlainText(String(data.content ?? body ?? ''));
-        if (mode === 'mention' && !isMentioned(text, resolveMyMentionNames())) return;
+        // A channel the server has as mentions-only: in a group channel it sends this member a
+        // push only when the message's mention record names them (a 1:1 it does not filter, and
+        // it sends everything when it cannot read the member's setting), so the push arriving is
+        // the answer, and the text (which may call me by another name) is not asked again. When
+        // the mode is only this device's own setting the server may be sending everything, and
+        // the text is all there is to go by.
+        if (mode === 'mention' && joinNotify !== 'mention') {
+            const text = messagePlainText(String(data.content ?? body ?? ''));
+            if (!isMentioned(text, resolveMyMentionNames())) return;
+        }
     }
 
     const activeServer = runtime.session.getGlobalSessionContext().activeServer;

@@ -10,6 +10,8 @@ const CLOUD_UID = 'cloud-user-9';
 let pushHandler: ((message: unknown) => void) | null = null;
 const request = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
+// The channel cache the push is looked up in; a test fills it to give the channel a server notify mode.
+let cacheRecords: unknown[] = [];
 
 vi.mock('@chatic/bridges', () => ({
     webClient: {
@@ -36,7 +38,7 @@ vi.mock('@chatic/app-runtime', () => ({
 
 vi.mock('../utils', async () => ({
     ...(await vi.importActual<typeof UtilsModule>('../utils')),
-    readCacheRecords: async () => [],
+    readCacheRecords: async () => cacheRecords,
     resolveMyMentionNames: () => ['Me'],
 }));
 
@@ -59,6 +61,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     request.mockResolvedValue(undefined);
     pushHandler = null;
+    cacheRecords = [];
     useNotificationPrefsStore.setState({
         desktopEnabled: true,
         mutedChannels: {},
@@ -93,5 +96,44 @@ describe('useCrossCloudPushNotifications', () => {
     it('presents a push for a webhook message even when its owner id is mine', async () => {
         pushHandler?.(push({ ownerId: CLOUD_UID, stereo: 'webhook' }));
         await waitFor(() => expect(shown()).toBe(1));
+    });
+
+    describe('for a channel set to mentions only', () => {
+        // The server sends a mentions-only member a push only when the message's record names
+        // them, so the push arriving is the answer. Checking the text again dropped it whenever
+        // the sender's list showed me under another name.
+        it('presents a push the server already filtered, though the text does not have my name', async () => {
+            cacheRecords = [
+                {
+                    type: 'channel',
+                    cid: 'cloud-9',
+                    data: { id: 'ch-1', $join: { userId: CLOUD_UID, notify: 'mention' } },
+                },
+            ];
+            pushHandler?.(push({ content: '@Nickname hello' }));
+            await waitFor(() => expect(shown()).toBe(1));
+        });
+
+        // A 1:1 has no such level, so a mode this device still holds for one filters nothing.
+        it('presents every push of a 1:1 that this device left on mentions only', async () => {
+            cacheRecords = [
+                { type: 'channel', cid: 'cloud-9', data: { id: 'ch-1', stereo: 'dm', $join: { userId: CLOUD_UID } } },
+            ];
+            useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'mention' } });
+            pushHandler?.(push({ content: 'hello there' }));
+            await waitFor(() => expect(shown()).toBe(1));
+        });
+
+        // No cached channel: the mode is this device's own setting, and the server may be sending
+        // everything. The text is all there is to go by.
+        it("still reads the text when the mode is only this device's", async () => {
+            useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'mention' } });
+            pushHandler?.(push({ content: 'hello there' }));
+            await new Promise(resolve => setTimeout(resolve, 20));
+            expect(shown()).toBe(0);
+
+            pushHandler?.(push({ content: 'hello @Me' }));
+            await waitFor(() => expect(shown()).toBe(1));
+        });
     });
 });

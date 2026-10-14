@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, X } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChannel } from '@chatic/data';
+import type { ChatMentionBody, DomainChannel } from '@chatic/data';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
@@ -87,7 +87,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
-    const mentionables = useMentionables(members, viewer);
+    const mentionables = useMentionables(members, viewer, channel);
     const tray = useImageAttachments(`${channelId}::thread::${rootId}`);
     const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
 
@@ -168,10 +168,11 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
         if (listedReplyNo !== undefined) markThreadSeen(cid, channelId, rootNo);
     }, [cid, channelId, rootNo, listedReplyNo, markThreadSeen]);
 
-    const handleReply = (content: string, files: File[]) => {
+    const handleReply = (content: string, files: File[], mention?: ChatMentionBody) => {
         // Unreachable when !root (Composer isn't rendered then); type guard only.
         if (!root?.id) return;
-        composer.send(content, files);
+        if (mention) composer.send(content, files, mention);
+        else composer.send(content, files);
         tray.clear();
         recordThread(
             {

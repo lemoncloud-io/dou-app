@@ -15,14 +15,14 @@ export const MY_THREADS_MAX = 100;
 export interface MyThread {
     cid: string;
     channelId: string;
-    /** Place of the channel — drives the cross-place jump and the "other place" label. */
+    /** The channel's `sid` — scopes a group channel's thread to its place, and is handed on when a row is opened. */
     placeId?: string;
     /** The root's chatNo, as a string — the same form a persisted reply's `parentId` carries. */
     rootNo: string;
     rootPreview: string;
     /** Who wrote the root. Absent on entries recorded before it was kept. */
     rootOwnerName?: string;
-    /** The channel as it was when last recorded — names a row whose channel is not loaded (another place's). */
+    /** The channel as it was when last recorded — decides the scope, and names a row whose channel is not loaded. */
     channelKind?: ChannelKind;
     /** A named channel's name, without `#`. A DM's name is its person, resolved live, so none is kept. */
     channelName?: string;
@@ -115,7 +115,7 @@ export const recordThreadReply = (
         // An entry with no author yet — kept before authors were, or read without one — learns it from
         // the next root read that has it.
         rootOwnerName: base.rootOwnerName || options.root?.ownerName,
-        // The Self Channel's stand-in sid names no place: nothing to label, nowhere to switch to.
+        // The Self Channel's stand-in sid names no place: nowhere to switch to.
         placeId: reply.placeId === ACCOUNT_CHANNEL_SID ? undefined : (reply.placeId ?? held?.placeId),
         channelKind: reply.channelKind ?? held?.channelKind,
         channelName: reply.channelName ?? held?.channelName,
@@ -137,19 +137,30 @@ export const markThreadSeen = (threads: MyThreads, key: string): MyThreads => {
     return { ...threads, [key]: { ...thread, seenReplyNo: thread.lastReplyNo } };
 };
 
-/** Marks every thread of a cloud looked at. Returns `threads` itself when none was unread. */
-export const markCloudSeen = (threads: MyThreads, cid: string): MyThreads => {
+/**
+ * Whether a thread belongs to a cloud and, when a place is given, to that place. Only a group channel
+ * lives in a place. A 1:1 and the Self Channel belong to the cloud — their `sid` is where someone was
+ * standing, not a scope key — so their threads are in every place of it, the relay's 1:1s included.
+ */
+export const isThreadIn = (thread: MyThread, cid: string, placeId?: string): boolean => {
+    if (thread.cid !== cid) return false;
+    if (!placeId || !thread.placeId) return true;
+    return thread.channelKind === 'dm' || thread.channelKind === 'self' || thread.placeId === placeId;
+};
+
+/** Marks every thread of a cloud — of one place, when given — looked at. Returns `threads` itself when none was unread. */
+export const markCloudSeen = (threads: MyThreads, cid: string, placeId?: string): MyThreads => {
     let next: MyThreads | null = null;
     for (const [key, thread] of Object.entries(threads)) {
-        if (thread.cid !== cid || !isThreadUnread(thread)) continue;
+        if (!isThreadIn(thread, cid, placeId) || !isThreadUnread(thread)) continue;
         next ??= { ...threads };
         next[key] = { ...thread, seenReplyNo: thread.lastReplyNo };
     }
     return next ?? threads;
 };
 
-/** One cloud's threads, most recently active first. */
-export const threadsForCloud = (threads: MyThreads, cid: string): MyThread[] =>
+/** One cloud's threads — one place's, when given — most recently active first. */
+export const threadsForCloud = (threads: MyThreads, cid: string, placeId?: string): MyThread[] =>
     Object.values(threads)
-        .filter(thread => thread.cid === cid)
+        .filter(thread => isThreadIn(thread, cid, placeId))
         .sort((a, b) => b.lastActivityAt - a.lastActivityAt);

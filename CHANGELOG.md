@@ -1,5 +1,41 @@
 # Changelog
 
+## [2026-10-14] - root@0.101.0, @chatic/desktop-web@0.30.0
+
+### Features
+
+- (desktop-web) tell mentions-only from off in the channel list
+- (desktop-web) follow the notify level set on another device
+- (desktop-web) judge a received mention by the message's record
+- (desktop-web) offer an everyone row in the @ list of a channel
+- (desktop-web) send who was picked from the @ list with the message
+
+### Bug Fixes
+
+- (desktop-web) draw the mentioned-me mark as a filled pill
+- (desktop-web) keep the mention when a failed message is sent again
+
+### Documentation
+
+- (adr) record how the desktop sends and reads the mention record
+
+## [2026-10-14] - No version updates
+
+### Bug Fixes
+
+- (data,web,desktop-web) undo a refused first name, and send settings another device changed
+- (data,app-runtime,web,desktop-web) show state writes at once and queue them for the socket
+
+### Other
+
+- test: (app-runtime) read an outbox refusal by the errorCode the socket layer recovers
+
+## [2026-10-13] - root@0.100.0, @chatic/desktop-web@0.29.0
+
+### Features
+
+- (desktop-web) scope the Threads pane to the active place (ADR-0198)
+
 ## [2026-10-13] - root@0.99.0, @chatic/web@0.71.0
 
 ### Features

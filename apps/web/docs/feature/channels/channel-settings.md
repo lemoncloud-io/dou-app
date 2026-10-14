@@ -74,13 +74,17 @@ Reading it: `notifyLevelOf(notify, isDm)` in `utils/notifyLevel.ts` maps the sto
 `none` is Off, `mention` is Mentions only outside a 1:1, and everything else, an unknown value
 included, is All messages (showing a room as silent when it still notifies would hide messages).
 The input is `useChannelJoins().myJoin` — never `channel.$join`, which lags. The screen keeps a
-local optimistic mirror for instant feedback, reverting it and toasting on failure; the
-repository's own optimistic write lands on the same join cache, so the mirror and the stream
-reconcile from one source. The mirror re-syncs on the **derived level**, not the raw value, so a
+local optimistic mirror for instant feedback. `updateJoin` is a state write: it lands on the join
+cache at once and goes to the server through the outbox when the socket can carry it, so a socket
+that is down or failing changes nothing on screen. Only two things undo the pick: a local write that
+fails (the mirror is reverted with a toast), and a refusal from the server (`delivered` rejects with
+a toast, and the outbox puts the last accepted level back in the join cache, which the mirror
+follows). Either way the mirror and the stream reconcile from one source. The mirror re-syncs on the **derived level**, not the raw value, so a
 channel that arrives after the join row still corrects a 1:1's `mention`.
 
 There is no local preference store for this, deliberately: `apps/web` has no client-side notifier,
-so the server value is the only truth there is.
+so the join row is the only truth there is. Its value can be ahead of the server while a pick waits
+in the outbox.
 
 The home list is unchanged by the levels: its swipe action still toggles between Off and All
 messages, and its bell-off glyph marks Off only — a room on Mentions only is not drawn as muted.

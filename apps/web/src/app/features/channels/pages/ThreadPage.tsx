@@ -174,7 +174,7 @@ export const ThreadPage = () => {
         if (!Number.isInteger(parsed) || parsed <= 0) return false;
         return !isInJoinWindow({ chatNo: parsed }, myJoin?.joinedNo);
     }, [rootNo, myJoin?.joinedNo]);
-    const { sendMessage, readMessage } = useChatMutations();
+    const { sendMessage } = useChatMutations();
     const editing = useMessageEditing(`${stableChannelId}/${rootNo ?? ''}`);
     const { toggleReaction, failedId } = useReactions();
     const remember = useRecentEmojiStore(s => s.remember);
@@ -342,8 +342,20 @@ export const ThreadPage = () => {
             ...(mention ? { mention } : {}),
         })
             .then(newChat => {
-                // Replies consume channel chatNos; advance the read cursor like a room send.
-                if (newChat?.chatNo) void readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo });
+                // Replies consume channel chatNos; advance the read cursor like a room send, in the
+                // cloud the reply went to. The outbox owns delivering it, so a failure is only logged.
+                if (newChat?.chatNo) {
+                    runtime.data
+                        .getCloudRepositories(cid)
+                        .join.readChat({ channelId: stableChannelId, chatNo: newChat.chatNo })
+                        .then(receipt => receipt.delivered)
+                        .catch(readError => {
+                            logger.error('CHAT', 'Failed to read sent thread reply', {
+                                error: readError,
+                                data: { channelId: stableChannelId, cid },
+                            });
+                        });
+                }
             })
             .catch(error => {
                 logger.error('CHAT', 'Failed to send thread reply', {

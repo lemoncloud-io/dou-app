@@ -94,4 +94,28 @@ describe('useDesktopNotifications', () => {
         feedHandler?.(feed({}, null));
         expect(request).toHaveBeenCalledTimes(1);
     });
+
+    describe('in a channel set to mentions only', () => {
+        const mentionOnly = (chat: Record<string, unknown>) => {
+            const { channel, ...rest } = feed(chat);
+            return { ...rest, channel: { ...channel, $join: { userId: CLOUD_UID, notify: 'mention' } } };
+        };
+
+        it('banners a message whose record names me though the text does not', () => {
+            feedHandler?.(mentionOnly({ content: '@Nickname hello', mention$: { userIds: [CLOUD_UID] } }));
+            expect(request).toHaveBeenCalledTimes(1);
+        });
+
+        it('stays silent for my name in the text when the record names someone else', () => {
+            feedHandler?.(mentionOnly({ content: 'hello @Me', mention$: { userIds: ['u-other'] } }));
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        // A 1:1 has no such level: the server sends every message of it, so this banners them all.
+        it('banners every message of a 1:1 that was left on mentions only', () => {
+            const { channel, ...rest } = mentionOnly({ content: 'hello' });
+            feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
+            expect(request).toHaveBeenCalledTimes(1);
+        });
+    });
 });

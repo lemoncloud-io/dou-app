@@ -11,7 +11,7 @@ is [docs/sync/](../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              22 source files, 15 tests
+data/                              24 source files, 17 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -24,7 +24,8 @@ data/                              22 source files, 15 tests
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
 ├── mediaSendTrace.ts             beginMediaSendTiming · createMediaSendTracer — the chat_send_media sample
 ├── index.ts                      the `data` facade group
-├── factories/                    socketFactory · localFactory · httpFactory
+├── factories/                    socketFactory · localFactory · httpFactory ·
+│                                 outboxFactory — the state outbox's transport, one outbox for every graph
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
                                   useInvitedCloudNameSync · useRegisterDeviceTokenMutation · useSendImages ·
                                   imageSendProgress (useImageSendProgress) · queryKeys
@@ -200,6 +201,28 @@ no idempotency key. What shapes the rest:
 - **`hasLanded` is asymmetric.** `true` is strong; `false` only means "could not find it", so the entry is resent.
 - **A failed send retires the entry** and leaves the row marked failed, where the user can retry it deliberately.
 
+### The state outbox transport
+
+State writes — a read cursor, a room's notification setting, my name for a room — go local first and
+through the state outbox in `@chatic/data` ([libs/data outbox](../../../data/docs/outbox/README.md)).
+That lib decides what is sent and how values combine; when it goes out is the connection's lifecycle,
+which is this package's, so `factories/outboxFactory.ts` supplies it as the outbox's transport and
+`DataManager` builds **one outbox for every graph** — the app graph and each cloud's — passed in through
+`createRepositories`' options. A value set in either graph is the same queued value.
+
+| Transport need                      | What supplies it                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| whether a cloud can carry a request | that cloud's own slot, `subscribeSlotVerified(slotKeyOf(cid))` — never the active slot's |
+| where a write goes                  | `getScopedRepositories(cid)`: the graph whose socket is that cloud's slot                |
+| keeping the socket during a send    | `backgroundClouds.hold(cid)` — it keeps a bound slot, it does not open one               |
+| whose write it is                   | `getUidInCloud(cid)`; a write another account made is dropped                            |
+| what a refusal is                   | a 4xx other than 408, 429 or 499 (`isOutboxRefusal`)                                     |
+| retry timing                        | 2 s, 5 s, 15 s while the slot looks ready, then the next ready transition                |
+
+Which sockets exist bounds when a write can go: the relay always, the committed cloud, and up to five
+background clouds. A write to a cloud with no slot (past the cap, or no usable tokens) waits until
+that cloud's socket opens; its local half is already on screen.
+
 ### Invited clouds
 
 An invited cloud is the one domain with no server list API: if the row leaves the cache there is
@@ -263,7 +286,8 @@ belongs to [`libs/data`](../../../data/README.md).
 - **Do not put a routing branch in a factory, an adapter or an app.** `resolveCacheBackend` is the one decision point, and a second one drifts from it invisibly.
 - **Do not call `configureDataRuntime` after first repository access.** It is silently ignored (with a warning), which reads as "my policy does nothing".
 - **Do not send a chat through `useRuntimeRepositories().chat.sendChat`.** It follows the selection, and a switch in flight splits the write across two clouds. Use `sendChatInCloud` with the cloud of the row on screen.
-- **Do not give the outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm.
+- **Do not give the chat outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm. The state outbox may have one because its writes are idempotent and collapsed to one per key ([libs/data outbox](../../../data/docs/outbox/README.md#the-machine)).
+- **Do not build a second state outbox.** Every graph has to share the one `DataManager` builds, or a value set in the app graph and the same key set in a cloud's graph would be two queued values racing each other.
 
 ## Notes for implementers and tests
 

@@ -6,7 +6,8 @@ import { JoinNickDialog } from './JoinNickDialog';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
+const mockToast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
@@ -15,7 +16,7 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-const updateJoin = jest.fn().mockResolvedValue({});
+const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 // Stable channel reference so the prefill effect (`useEffect([open, channel])`) runs once.
 const mockChannel = { $join: { nick: '내 메모', userId: 'me-join' } };
 jest.mock('../hooks', () => ({
@@ -27,7 +28,24 @@ jest.mock('../hooks', () => ({
 jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '플레이스닉' } }) }));
 
 describe('JoinNickDialog', () => {
-    beforeEach(() => updateJoin.mockClear());
+    beforeEach(() => {
+        updateJoin.mockClear();
+        mockToast.mockClear();
+    });
+
+    it('closes at once and says so later if the server refuses the name', async () => {
+        updateJoin.mockImplementationOnce(async () => ({ delivered: Promise.reject(new Error('403 FORBIDDEN')) }));
+        const onOpenChange = jest.fn();
+        render(<JoinNickDialog open onOpenChange={onOpenChange} channelId="c1" />);
+
+        fireEvent.change(screen.getByRole('textbox'), { target: { value: '새이름' } });
+        fireEvent.click(screen.getByText('selfChat.name.done'));
+
+        await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+        await waitFor(() =>
+            expect(mockToast).toHaveBeenCalledWith({ title: 'selfChat.name.error', variant: 'destructive' })
+        );
+    });
 
     it('현재 nick을 프리필하고 라벨/헬퍼/완료 버튼을 노출한다', () => {
         render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);

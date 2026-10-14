@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
@@ -16,11 +16,15 @@ import {
     type TextNode,
 } from 'lexical';
 
+import '../../../../../i18n';
+
 import { COMPOSER_NODES, COMPOSER_THEME } from './editorConfig';
 import { $createMentionNode } from './MentionNode';
+import type { Mentionable } from '../MentionAutocomplete';
 import { MentionsPlugin } from './MentionsPlugin';
+import { $collectMention } from './wireMarkdown';
 
-const mountEditor = (): LexicalEditor => {
+const mountEditor = (mentionables: Mentionable[] = []): LexicalEditor => {
     let captured: LexicalEditor | undefined;
     const Capture = () => {
         [captured] = useLexicalComposerContext();
@@ -38,7 +42,7 @@ const mountEditor = (): LexicalEditor => {
             }}
         >
             <RichTextPlugin contentEditable={<ContentEditable />} ErrorBoundary={LexicalErrorBoundary} />
-            <MentionsPlugin mentionables={[]} />
+            <MentionsPlugin mentionables={mentionables} />
             <Capture />
         </LexicalComposer>
     );
@@ -108,5 +112,120 @@ describe('MentionsPlugin space after a picked mention', () => {
         );
 
         expect(pressSpace(editor).prevented).toBe(false);
+    });
+});
+
+describe('MentionsPlugin pick', () => {
+    // jsdom lays nothing out: it has no Range rect (the list is anchored at the caret's) and no
+    // scrollIntoView (the list keeps its active row in view).
+    const rangeRect = Range.prototype.getBoundingClientRect;
+    const scrollIntoView = Element.prototype.scrollIntoView;
+    beforeAll(() => {
+        Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
+        Element.prototype.scrollIntoView = () => undefined;
+    });
+    afterAll(() => {
+        Range.prototype.getBoundingClientRect = rangeRect;
+        Element.prototype.scrollIntoView = scrollIntoView;
+    });
+    afterEach(cleanup);
+
+    // The list shows a name, and names repeat and change; the id is what the server is told.
+    it("puts the picked member's id on the chip", async () => {
+        const editor = mountEditor([
+            { id: 'u-ada', name: 'Ada' },
+            { id: 'u-bo', name: 'Bo' },
+        ]);
+        await act(async () =>
+            editor.update(
+                () => {
+                    const text = $createTextNode('hi @Ad');
+                    $getRoot().clear().append($createParagraphNode().append(text));
+                    text.select(6, 6);
+                },
+                { discrete: true }
+            )
+        );
+        const option = await screen.findByRole('option', { name: /Ada/ });
+
+        await act(async () => {
+            option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            option.click();
+        });
+
+        expect(editor.read(() => $getRoot().getTextContent())).toBe('hi @Ada ');
+        expect(editor.read(() => $collectMention())).toEqual({ userIds: ['u-ada'] });
+    });
+
+    const EVERYONE: Mentionable = { id: '@everyone', name: 'all', everyone: true, keywords: ['Everyone'] };
+
+    const typeAt = (editor: LexicalEditor, typed: string) =>
+        act(async () =>
+            editor.update(
+                () => {
+                    const text = $createTextNode(typed);
+                    $getRoot().clear().append($createParagraphNode().append(text));
+                    text.select(typed.length, typed.length);
+                },
+                { discrete: true }
+            )
+        );
+
+    const pickOption = (option: HTMLElement) =>
+        act(async () => {
+            option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        });
+
+    it('writes the everyone word and calls everyone when that row is picked', async () => {
+        const editor = mountEditor([EVERYONE, { id: 'u-ada', name: 'Ada' }]);
+        await typeAt(editor, '@');
+        const [first] = await screen.findAllByRole('option');
+
+        await pickOption(first);
+
+        expect(editor.read(() => $getRoot().getTextContent())).toBe('@all ');
+        expect(editor.read(() => $collectMention())).toEqual({ all: true });
+    });
+
+    it('opens with the everyone row first', async () => {
+        const editor = mountEditor([EVERYONE, { id: 'u-alice', name: 'Alice' }]);
+        await typeAt(editor, '@');
+
+        const options = await screen.findAllByRole('option');
+
+        expect(options.map(option => option.textContent)).toEqual([expect.stringContaining('Everyone'), 'AAlice']);
+    });
+
+    // Enter picks the first row. "@al" is someone typing Alice; with the everyone row first, that
+    // Enter wrote "@all" and called the whole channel instead.
+    it('lists a member the typed letters match before the everyone row', async () => {
+        const editor = mountEditor([EVERYONE, { id: 'u-alice', name: 'Alice' }, { id: 'u-bo', name: 'Bo' }]);
+        await typeAt(editor, '@al');
+
+        const options = await screen.findAllByRole('option');
+
+        expect(options.map(option => option.textContent)).toEqual(['AAlice', expect.stringContaining('Everyone')]);
+    });
+
+    // "on" is inside "Everyone" and "l" is inside "all": letters from the middle of the row's own
+    // words are someone's name being typed, not a search for this row.
+    it.each(['@on', '@ll'])('does not offer the everyone row for %s', async typed => {
+        const editor = mountEditor([EVERYONE, { id: 'u-bo', name: 'Bolla Jon' }]);
+        await typeAt(editor, typed);
+
+        const options = await screen.findAllByRole('option');
+
+        expect(options.map(option => option.textContent)).toEqual(['BBolla Jon']);
+    });
+
+    // The row is titled "Everyone" while the word it writes is "all"; either finds it.
+    it.each(['@Every', '@al'])('finds the everyone row by %s', async typed => {
+        const editor = mountEditor([EVERYONE, { id: 'u-bo', name: 'Bo' }]);
+        await typeAt(editor, typed);
+
+        const options = await screen.findAllByRole('option');
+
+        expect(options).toHaveLength(1);
+        expect(options[0].textContent).toContain('Everyone');
     });
 });

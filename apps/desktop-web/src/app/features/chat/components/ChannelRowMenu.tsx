@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Bell, CheckCheck, LogOut, MailPlus, Pencil, SlidersHorizontal, Star, Trash2, UserPlus } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import {
     ContextMenu,
     ContextMenuContent,
@@ -21,8 +21,6 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSendInviteStore } from '../../channels';
 import { isDmBucket } from '../utils';
 import { lastChatNoOf, useChannelNotifyChange, useReadCursorStore, type ChannelNotifyMode } from '../../../shared';
-
-const NOTIFY_MODES: ChannelNotifyMode[] = ['all', 'mention', 'none'];
 
 type RowDialogKind = Exclude<ChannelDialogKind, 'kick' | null>;
 
@@ -67,20 +65,22 @@ export const ChannelRowMenu = ({
     // from any cloud — no cloud gate. DMs alone are out: a 1:1 invite is the
     // room the recipient is already in.
     const canInvite = !isDm;
-    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     // Same writer as the settings panel (local pref + announced server sync).
-    const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
+    const { notifyMode, notifyModes, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
-    // Same write as the read-receipt flush: optimistic local cursor first, the
-    // server read-chat best-effort behind it. A failure is announced instead of
-    // swallowed: the badge clears locally either way, so silence reads as done
-    // while the next roster sync resurrects the unread with no explanation.
+    // Same write as the read-receipt flush: optimistic local cursor first, then the channel's
+    // own cloud's repository, whose outbox resends until the server has it. Only a read
+    // the server refused for good (the room left or gone) rejects, so only that is announced.
     const markRowRead = () => {
         if (lastChatNo <= 0) return;
         useReadCursorStore.getState().markRead(id, lastChatNo);
-        void joinRepository.readChat({ channelId: id, chatNo: lastChatNo }).catch(() => {
-            toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
-        });
+        runtime.data
+            .getCloudRepositories(channel.cid || RELAY_CLOUD_ID)
+            .join.readChat({ channelId: id, chatNo: lastChatNo })
+            .then(receipt => receipt.delivered)
+            .catch(() => {
+                toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
+            });
     };
 
     return (
@@ -115,7 +115,7 @@ export const ChannelRowMenu = ({
                             value={notifyMode}
                             onValueChange={value => onNotifyChange(value as ChannelNotifyMode)}
                         >
-                            {NOTIFY_MODES.map(mode => (
+                            {notifyModes.map(mode => (
                                 <ContextMenuRadioItem key={mode} value={mode}>
                                     {t(`channels.settings.notify.${mode}`)}
                                 </ContextMenuRadioItem>

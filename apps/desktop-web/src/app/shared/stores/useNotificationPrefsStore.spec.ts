@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { channelNotifyMode } from './useNotificationPrefsStore';
+import { channelNotifyMode, notifyModesFor } from './useNotificationPrefsStore';
 
 // The join.notify fallback is the seam the settings panel, the row menu and
 // both notifiers share — a regression here flips server-side 'mention'
@@ -26,5 +26,32 @@ describe('channelNotifyMode', () => {
     it('mute map applies only when neither local pref nor join.notify exists', () => {
         expect(channelNotifyMode(state({}, ['C1']), 'C1')).toBe('none');
         expect(channelNotifyMode(state({}, ['C1']), 'C1', 'mention')).toBe('mention');
+    });
+
+    // The server sends a 1:1 set to mentions only everything (it filters group channels alone), so
+    // showing it as mentions only would name a level that does not exist there.
+    describe('in a 1:1', () => {
+        it('reads a server value of mentions only as all', () => {
+            expect(channelNotifyMode(state({}), 'C1', 'mention', true)).toBe('all');
+        });
+
+        it('reads a local pref of mentions only as all', () => {
+            expect(channelNotifyMode(state({ C1: 'mention' }), 'C1', undefined, true)).toBe('all');
+        });
+
+        it('still reads off as off', () => {
+            expect(channelNotifyMode(state({}), 'C1', 'none', true)).toBe('none');
+            expect(channelNotifyMode(state({ C1: 'none' }), 'C1', 'mention', true)).toBe('none');
+        });
+    });
+});
+
+describe('notifyModesFor', () => {
+    it('offers all three levels in a group channel', () => {
+        expect(notifyModesFor(false)).toEqual(['all', 'mention', 'none']);
+    });
+
+    it('does not offer mentions only in a 1:1', () => {
+        expect(notifyModesFor(true)).toEqual(['all', 'none']);
     });
 });

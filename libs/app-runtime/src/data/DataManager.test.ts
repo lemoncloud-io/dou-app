@@ -49,7 +49,7 @@ type AssemblyArgs = {
     socketDataSources: { client?: unknown };
     localDataSources: unknown;
     context: DataContextProvider;
-    options: unknown;
+    options: { outbox?: unknown } & Record<string, unknown>;
     httpDataSources: unknown;
 };
 
@@ -105,7 +105,17 @@ describe('DataManager.getScopedRepositories', () => {
         expect(scoped.localDataSources).toBe(mockLocalDataSources);
         expect(app.localDataSources).toBe(mockLocalDataSources);
         expect(scoped.httpDataSources).toBe(mockHttpDataSources);
-        expect(scoped.options).toBe(options);
+        // One options object for every graph, so every graph hands its state writes to the same outbox.
+        expect(scoped.options).toBe(app.options);
+        expect(scoped.options).toEqual({ user: {}, outbox: expect.objectContaining({ set: expect.any(Function) }) });
+    });
+
+    it('keeps an outbox the host injected instead of building its own', () => {
+        const outbox = { set: jest.fn() };
+        const manager = new DataManager({ outbox } as never);
+
+        expect(assemblyOf(manager.getRepositories()).options.outbox).toBe(outbox);
+        expect(assemblyOf(manager.getScopedRepositories('cloud-b')).options.outbox).toBe(outbox);
     });
 
     it("runs under that cloud and this account's uid there, read at call time", () => {

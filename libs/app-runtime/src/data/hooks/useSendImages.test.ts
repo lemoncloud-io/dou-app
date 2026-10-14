@@ -1012,14 +1012,20 @@ describe('useSendImages — preparations across messages', () => {
         const room = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
         const thread = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1', parentId: 'root-1' }));
 
+        // The thread's queue starts once the room's first preparation holds the turn. Started together,
+        // which queue reaches the turn first is down to timer order, and the thread's could take it.
+        let roomSending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            roomSending = room.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately);
+        });
+        await waitFor(() => expect(holds.has('a.jpg')).toBe(true));
         let sending: Promise<unknown> = Promise.resolve();
         act(() => {
             sending = Promise.all([
-                room.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately),
+                roomSending,
                 thread.result.current.sendImages([photo('c.jpg'), photo('d.jpg')], separately),
             ]);
         });
-        await waitFor(() => expect(holds.has('a.jpg')).toBe(true));
         // The thread's queue is on its way and waiting on its preparation, not on the room's queue.
         await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(2));
         expect(prepareChatAttachment).toHaveBeenCalledTimes(1);

@@ -13,8 +13,8 @@ import {
 } from 'lexical';
 
 import { COMPOSER_NODES } from './editorConfig';
-import { $isMentionNode } from './MentionNode';
-import { $exportWireMarkdown, $importWireMarkdown } from './wireMarkdown';
+import { $createMentionNode, $isMentionNode } from './MentionNode';
+import { $collectMention, $exportWireMarkdown, $importWireMarkdown } from './wireMarkdown';
 
 const makeEditor = (): LexicalEditor =>
     createEditor({
@@ -212,5 +212,195 @@ describe('wire markdown labelled links', () => {
             { discrete: true }
         );
         expect(editor.getEditorState().read($exportWireMarkdown)).toBe('[see (1)](https://a.example)');
+    });
+});
+
+// The server never reads the body to decide who was mentioned: only a pick from the list counts,
+// and a pick is a chip that still carries the member's id when the message is sent.
+describe('collected mention', () => {
+    const pick = (name: string, userId: string) => $createMentionNode(`@${name}`, { userId });
+
+    const collect = (fill: () => void) => {
+        const editor = makeEditor();
+        editor.update(fill, { discrete: true });
+        return editor.read(() => $collectMention());
+    };
+
+    it('carries the id of a picked member', () => {
+        expect(
+            collect(() => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append(pick('Ada', 'u-ada'), $createTextNode(' hi')));
+            })
+        ).toEqual({ userIds: ['u-ada'] });
+    });
+
+    it('names a member picked twice once', () => {
+        expect(
+            collect(() => {
+                $getRoot()
+                    .clear()
+                    .append(
+                        $createParagraphNode().append(
+                            pick('Ada', 'u-ada'),
+                            $createTextNode(' and '),
+                            pick('Bo', 'u-bo'),
+                            $createTextNode(' and '),
+                            pick('Ada', 'u-ada')
+                        )
+                    );
+            })
+        ).toEqual({ userIds: ['u-ada', 'u-bo'] });
+    });
+
+    it('says everyone was called when the everyone row was picked', () => {
+        expect(
+            collect(() => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append($createMentionNode('@all', { everyone: true })));
+            })
+        ).toEqual({ all: true });
+    });
+
+    it('names both the members and everyone when both were picked', () => {
+        expect(
+            collect(() => {
+                $getRoot()
+                    .clear()
+                    .append(
+                        $createParagraphNode().append(
+                            pick('Ada', 'u-ada'),
+                            $createTextNode(' '),
+                            $createMentionNode('@all', { everyone: true })
+                        )
+                    );
+            })
+        ).toEqual({ userIds: ['u-ada'], all: true });
+    });
+
+    // `@all` typed by hand is drawn as a chip when a message is opened, and calls no one.
+    it('is nothing for an everyone word that was not picked', () => {
+        expect(collect(() => $importWireMarkdown('@all heads up', []))).toBeUndefined();
+    });
+
+    it('keeps the everyone pick through a serialised editor state', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append($createMentionNode('@all', { everyone: true })));
+            },
+            { discrete: true }
+        );
+        const restored = makeEditor();
+        restored.setEditorState(restored.parseEditorState(JSON.stringify(editor.getEditorState().toJSON())));
+        expect(restored.read(() => $collectMention())).toEqual({ all: true });
+    });
+
+    it('is nothing for a name typed by hand', () => {
+        expect(collect(() => $importWireMarkdown('hi @Ada'))).toBeUndefined();
+    });
+
+    // A chip restored from text (an opened message, a draft) shows the name but holds no pick.
+    it('is nothing for a chip restored from text', () => {
+        expect(collect(() => $importWireMarkdown('hi @Ada', ['Ada']))).toBeUndefined();
+    });
+
+    it('is nothing once the picked chip is removed', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append(pick('Ada', 'u-ada'), $createTextNode(' hi')));
+            },
+            { discrete: true }
+        );
+        editor.update(
+            () =>
+                $getRoot()
+                    .getAllTextNodes()
+                    .filter($isMentionNode)
+                    .forEach(node => node.remove()),
+            { discrete: true }
+        );
+        expect(editor.read(() => $collectMention())).toBeUndefined();
+    });
+
+    // Backspace on a segmented chip takes one word, not the whole name: Lexical's `$removeSegment`
+    // rewrites the same node's text ("@Ada Lovelace" becomes "@Ada"), so the chip and its id live
+    // on. jsdom has no `Selection.modify` to press the key with, so this makes the same write.
+    it('is nothing once the picked name has been cut short', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                const chip = pick('Ada Lovelace', 'u-ada');
+                $getRoot().clear().append($createParagraphNode().append(chip));
+                chip.setTextContent('@Ada');
+            },
+            { discrete: true }
+        );
+        expect(editor.read(() => $getRoot().getAllTextNodes().filter($isMentionNode).length)).toBe(1);
+        expect(editor.read(() => $collectMention())).toBeUndefined();
+    });
+
+    // Lexical clones a node on every write to it; a clone that dropped the id would send a
+    // message that reads as a mention and calls no one.
+    it('keeps the id through a later change to the chip', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append(pick('Ada', 'u-ada')));
+            },
+            { discrete: true }
+        );
+        editor.update(
+            () =>
+                $getRoot()
+                    .getAllTextNodes()
+                    .filter($isMentionNode)
+                    .forEach(node => node.toggleFormat('bold')),
+            { discrete: true }
+        );
+        expect(editor.read(() => $collectMention())).toEqual({ userIds: ['u-ada'] });
+    });
+
+    it('keeps the id through a serialised editor state', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append(pick('Ada', 'u-ada')));
+            },
+            { discrete: true }
+        );
+        const restored = makeEditor();
+        restored.setEditorState(restored.parseEditorState(JSON.stringify(editor.getEditorState().toJSON())));
+        expect(restored.read(() => $collectMention())).toEqual({ userIds: ['u-ada'] });
+    });
+
+    // A state serialised before chips carried an id has no such field.
+    it('reads a chip serialised without an id as a chip that picks no one', () => {
+        const editor = makeEditor();
+        editor.update(
+            () => {
+                $getRoot()
+                    .clear()
+                    .append($createParagraphNode().append($createMentionNode('@Ada')));
+            },
+            { discrete: true }
+        );
+        const serialised = JSON.stringify(editor.getEditorState().toJSON());
+        expect(serialised).not.toContain('userId');
+        const restored = makeEditor();
+        restored.setEditorState(restored.parseEditorState(serialised));
+        expect(restored.read(() => $getRoot().getAllTextNodes().filter($isMentionNode).length)).toBe(1);
+        expect(restored.read(() => $collectMention())).toBeUndefined();
     });
 });
