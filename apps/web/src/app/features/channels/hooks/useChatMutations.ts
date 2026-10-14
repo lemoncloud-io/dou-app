@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { ChatMentionBody, DomainChat, DomainJoin } from '@chatic/data';
+import type { ChatMentionBody, DomainChat } from '@chatic/data';
 import { toMentionBody } from '@chatic/data';
 
 import { beginChatSendTrace } from '../../../runtime/perf';
@@ -18,11 +18,6 @@ interface SendMessageInput {
     contentType?: DomainChat['contentType'];
     /** Who the text calls out, as picked in the composer. Absent when nobody was picked. */
     mention?: ChatMentionBody;
-}
-
-interface ReadMessageInput {
-    channelId: string;
-    chatNo: number;
 }
 
 /**
@@ -56,7 +51,8 @@ const withoutId = (ids: ReadonlySet<string>, id: string): ReadonlySet<string> =>
 
 /**
  * Chat writes for the room: send (optimistic insert + socket dispatch via the engine), resend a
- * failed row, advance the read cursor, edit a message, and two different removals.
+ * failed row, edit a message, and two different removals. Reading goes through the room cloud's
+ * join repository instead (`useReadMarker`), whose writes are queued in the outbox.
  *
  * A send and the unsent-row removal name their cloud, and nothing else here does. A send spans an
  * optimistic cache write and a socket request, and the app graph resolves each of those from the
@@ -72,7 +68,7 @@ const withoutId = (ids: ReadonlySet<string>, id: string): ReadonlySet<string> =>
  * to reach for the cache delete is exactly the mistake the two names are here to prevent.
  */
 export const useChatMutations = () => {
-    const { chat: chatRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
+    const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [isSending, setIsSending] = useState(false);
     // Keyed by message id rather than a single boolean: both operations name a message, and two
     // rows can be in flight at once (a slow delete while another message is being saved).
@@ -100,11 +96,6 @@ export const useChatMutations = () => {
             )
             .finally(() => setIsSending(false));
     }, []);
-
-    const readMessage = useCallback(
-        (payload: ReadMessageInput): Promise<DomainJoin> => joinRepository.readChat(payload),
-        [joinRepository]
-    );
 
     /** Removes an unsent (pending/failed) row from MY cache in `cid` only. Not a server delete. */
     const deleteMessage = useCallback((cid: string, messageId: string): Promise<void> => {
@@ -169,7 +160,6 @@ export const useChatMutations = () => {
         isPending: { send: isSending, edit: editingIds, deleteServer: deletingIds },
         sendMessage,
         retryMessage,
-        readMessage,
         deleteMessage,
         editMessage,
         deleteServerMessage,

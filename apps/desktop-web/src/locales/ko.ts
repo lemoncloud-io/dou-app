@@ -292,6 +292,7 @@ export const ko: EnTranslation = {
     'snooze.activeQuiet': '방해 금지 시간이라 알림 꺼짐',
     'myThreads.title': '스레드',
     'myThreads.empty': '참여한 스레드가 아직 없어요',
+    'myThreads.emptyInPlace': '이 플레이스에는 참여한 스레드가 아직 없어요',
     'myThreads.emptyHint': '스레드에 답글을 달거나 내 메시지에 답글이 달리면 여기 모여요.',
     'myThreads.deviceLocal': '이 기기에서 본 스레드만 보여요.',
     'myThreads.newReply': '새 답글',

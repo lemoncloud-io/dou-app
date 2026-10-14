@@ -26,7 +26,7 @@ makes no difference.
 ## Design principles
 
 1. **Reads always come from a local stream.** The UI subscribes to `observe*` only. Rendering a remote response directly is a contract violation.
-2. **Remote is a side-effect command.** Writes and refreshes are explicit method calls. There is no automatic dispatcher and no event bus.
+2. **Remote is a side-effect command.** Writes and refreshes are explicit method calls, and there is no event bus. The one exception to "the call reaches the server" is a **state write** — a read cursor, a notification setting, a room name: its repository writes it locally, then hands it to the state outbox, which sends it when the cloud's socket can carry it ([docs/outbox/](./docs/outbox/README.md)). The outbox decides only what goes out and how values combine; when it goes out comes from the runtime through a port.
 3. **The UI never calls the network directly.** Every data call goes through a repository (ADR-0036).
 4. **Remote is the axis; what sits under it is the transport.** `remote/` is the opposite side of local, and inside it the split is `socket-` and `http-`.
 5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride` — which decides the storage partition the answer is written to, not only which observers hear about it (ADR-0112).
@@ -37,7 +37,8 @@ makes no difference.
 
 **In** — domain models and mappers, local data sources and the stream engine, the `CacheStorage` port,
 socket and HTTP gateway types (`Pick<>`) and their data sources, 13 repository facades, the
-`DataContext` contract, and the image send sequence (`uploads/`) with its ports and answer guard.
+`DataContext` contract, the image send sequence (`uploads/`) with its ports and answer guard, and the state
+outbox (`outbox/`) with its port, its machine and the state definitions.
 
 **Out** — the socket transport runtime (`@lemoncloud/chatic-sockets-lib`), storage engine
 implementations (`@chatic/db`'s `IndexedDBAdapter`, `NativeDBAdapter`, `ChatQueryExecutor`), the HTTP
@@ -105,7 +106,7 @@ sequenceDiagram
 
 ```text
 libs/data/src/
-├── index.ts          public barrel (9 lines of export *)
+├── index.ts          public barrel (10 lines of export *)
 ├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — and mention.ts — the mention a send carries and whether a message calls its reader)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
@@ -116,6 +117,7 @@ libs/data/src/
 │   ├── socket-data-sources/  12 sources + factory
 │   └── http-data-sources/    5 sources + factory
 ├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards
+├── outbox/           the state outbox: ports, the machine, the join states
 └── uploads/          sendImageMessage + its ports, the upload answers' guard
 ```
 
@@ -252,6 +254,7 @@ consumer side.
 | [docs/remote/http.md](./docs/remote/http.md)                   | The HTTP axis. 5 gateway Picks, why it holds no cache, the admin console surface, the report lane                 |
 | [docs/repositories/](./docs/repositories/README.md)            | The data facade. Three contracts, context and scope, wiring, cache clear rules, leaving and rejoining             |
 | [docs/repositories/domains.md](./docs/repositories/domains.md) | The 13-domain method catalogue (a document you look things up in)                                                 |
+| [docs/outbox/](./docs/outbox/README.md)                        | State writes: local first, then the outbox. The machine, the join states, adding a state, the runtime port        |
 | [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the answer guard, pending image rows         |
 
 ## How to verify

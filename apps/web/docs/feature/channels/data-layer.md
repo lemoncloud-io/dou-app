@@ -82,8 +82,10 @@ is the only member there is, so the section rendered empty forever. `ChannelMemb
 ### A network read waits for its socket to verify
 
 Anything that talks to the server is gated on verification and takes it as an effect dependency,
-so it retries itself on the `false → true` edge after a reconnect or a site switch. Which socket
-depends on where the call goes:
+so it retries itself on the `false → true` edge after a reconnect or a site switch. State writes (the
+read mark, a notification setting, a room name) are the exception: the repository queues them in the
+outbox, which does its own waiting (§ Reads advance in two stages). Which socket depends on where the
+call goes:
 
 - A sync target registered for a named cloud (`registerJoin`, `registerProfile`) runs on that
   cloud's own slot, so it waits for that slot — `runtime.connection.useCloudVerified(cid)`, which
@@ -210,11 +212,23 @@ read it — derive them from `messages` and the material is already gone.
 
 ### Reads advance in two stages
 
-`useReadMarker` sends `channel.chatNo` on entry, before messages load, then corrects upward to the
-newest committed message and re-sends on foreground return. A just-sent message is read by
+`useReadMarker` marks `channel.chatNo` on entry, before messages load, then corrects upward to the
+newest committed message and marks again on foreground return. A just-sent message is read by
 definition, so the send path calls `markSent(chatNo)`. Only what the server accepted is recorded to
 `readMarkRegistry` — an optimistic value would make a failed read look like a cache that fell
 behind.
+
+**Neither stage waits for the socket.** Each mark is `join.readChat` on the room's own cloud's graph
+(`runtime.data.getCloudRepositories(cid)`): the repository moves the cursor the unread badge is
+computed from at once and hands the `chat.read` to the state outbox, which sends it when that cloud's
+socket can carry it and resends on a reconnect
+([libs/data outbox](../../../../../libs/data/docs/outbox/README.md)). Gating the mark on
+`isVerified` used to hold the badge on a room entered while the socket reconnected — iOS samples
+showed close to a third of foreground socket requests rejected with 499/503 — and a read that failed
+was rolled back, putting the count back until the next reconnect or new message; a failure that left
+the socket up was not sent again at all. The hook's own guard
+is scoped to the room: the route keeps the page mounted from one room to the next, and a guard carried
+across skipped the next room's read whenever its head was below the last room's.
 
 `useJoinPositions.getReadCount(chatNo)` counts active members whose cursor (`max(readNo, chatNo)`
 from `useChannelJoins`) has reached that row. A member whose join row has not synced counts as
@@ -229,8 +243,8 @@ independent buttons only reflect their own in-flight state.
 | Hook                  | Actions                                                                                | Repository                   |
 | --------------------- | -------------------------------------------------------------------------------------- | ---------------------------- |
 | `useChannelMutations` | `createChannel` · `updateChannel` · `deleteChannel` · `leaveChannel` · `inviteChannel` | channel (+ join, for a kick) |
-| `useChatMutations`    | `sendMessage` · `retryMessage` · `readMessage` · `deleteMessage`                       | chat, join                   |
-| `useJoinMutations`    | `updateJoin` (my nick / notify)                                                        | join                         |
+| `useChatMutations`    | `sendMessage` · `retryMessage` · `deleteMessage`                                       | chat                         |
+| `useJoinMutations`    | `updateJoin` (my nick / notify) → `WriteReceipt` once local; refusals from `delivered` | join                         |
 | `useUserMutations`    | `requestInvite` · `requestInviteBatch`                                                 | user                         |
 
 Image messages have their own write hook, `useSendImages` (`sendImages` · `retry` · `canRetry` ·

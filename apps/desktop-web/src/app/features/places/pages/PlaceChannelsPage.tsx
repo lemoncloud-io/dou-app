@@ -8,6 +8,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import {
     lastChatNoOf,
@@ -41,7 +42,6 @@ export const PlaceChannelsPage = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScopeKey(selectedCloudId, placeId));
     const { deleteChannel, leaveChannel } = useDesktopChannelMutations();
-    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [confirmTarget, setConfirmTarget] = useState<RemoveTarget | null>(null);
     const [isRemoving, setIsRemoving] = useState(false);
@@ -64,14 +64,19 @@ export const PlaceChannelsPage = () => {
             const id = channel.id ?? '';
             const chatNo = lastChatNoOf(channel);
             if (!id || chatNo <= 0) continue;
-            // Same write as the row menu's mark-as-read: optimistic local
-            // cursor first, the server read-chat behind it.
+            // Same write as the row menu's mark-as-read: optimistic local cursor first,
+            // then the outbox, through the channel's own cloud.
             useReadCursorStore.getState().markRead(id, chatNo);
-            writes.push(joinRepository.readChat({ channelId: id, chatNo }));
+            writes.push(
+                runtime.data
+                    .getCloudRepositories(channel.cid || RELAY_CLOUD_ID)
+                    .join.readChat({ channelId: id, chatNo })
+                    .then(receipt => receipt.delivered)
+            );
         }
-        // One toast for the whole batch, not one per failed row. Announced rather than
-        // swallowed: the badges clear locally either way, so silence reads as done while
-        // the next roster sync resurrects the unread with no explanation.
+        // One toast for the whole batch, not one per failed row. The outbox resends a read
+        // until the server has it, so a rejection is only a read refused for good (the room
+        // left or gone); a read still waiting on the socket stays pending and says nothing.
         void Promise.allSettled(writes).then(results => {
             if (results.some(result => result.status === 'rejected')) {
                 toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });

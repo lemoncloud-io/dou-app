@@ -65,8 +65,9 @@ shell-only effect that copied a join change into the stored value.
   is read on the desktop by the record.
 - The level follows another device only as far as the join cache does. Whether a change made while the
   desktop was closed reaches the join cache at the next start was not checked on a device.
-- A server write of the level that fails now puts the previous level back when the join had one (the
-  cache rolls back and the mirror follows); the failure is still announced.
+- A write of the level the server refuses now puts the previous level back when the join had one (the
+  outbox of [ADR-0193](./0193-state-writes-go-local-first-and-through-an-outbox.md) restores the join
+  and the mirror follows); the refusal is still announced.
 - The banner and the inbox read the record off the channel's latest message as the feed delivers it.
   Whether that feed always carries `mention$` was not checked on a device; where it does not, those two
   fall back to the text, as before this change. The self highlight reads the full message and is not

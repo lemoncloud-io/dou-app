@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ChevronRight, Hash, MessagesSquare, X } from 'lucide-react';
 
-import type { DomainChannel, DomainPlace } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
 import {
@@ -27,8 +27,6 @@ import {
 interface MyThreadRowProps {
     thread: MyThread;
     channel: { kind: ChannelKind; label?: string };
-    /** Place name when the thread lives outside the current place. */
-    placeName?: string;
     newReplyLabel: string;
     removeLabel: string;
     /** The row last opened from this pane: the thread the reader went to. */
@@ -40,7 +38,6 @@ interface MyThreadRowProps {
 const MyThreadRow = ({
     thread,
     channel,
-    placeName,
     newReplyLabel,
     removeLabel,
     isCurrent,
@@ -79,7 +76,6 @@ const MyThreadRow = ({
                                 <span className="truncate">{channel.label}</span>
                             </span>
                         )}
-                        {placeName && <span className="truncate">· {placeName}</span>}
                         <span className="ml-auto shrink-0 tabular-nums">{formatListTime(thread.lastActivityAt)}</span>
                     </span>
                     <span className="line-clamp-2 whitespace-pre-wrap break-words pr-5 text-callout text-foreground">
@@ -125,11 +121,10 @@ const MyThreadRow = ({
 interface MyThreadsPanelProps {
     /** The active cloud — the list shows its threads only. */
     cloudId: string;
+    /** The active place — the list shows its channels' threads, and every 1:1's. Absent: the whole cloud's. */
+    placeId?: string;
     /** Loaded channels (active place) — names the rows' channel chips. */
     channels: DomainChannel[];
-    /** Places in the active cloud — names a row outside the current place. */
-    places: DomainPlace[];
-    currentPlaceId?: string;
     /** Opens a thread: selects its place + channel, then the thread panel (4th arg = root chatNo). */
     onSelect: (
         channelId: string,
@@ -147,7 +142,7 @@ interface MyThreadsPanelProps {
  * would drop out of the pane while another channel loads. The thread's header leads back, to the same
  * scroll offset and that row.
  */
-export const MyThreadsPanel = ({ cloudId, channels, places, currentPlaceId, onSelect }: MyThreadsPanelProps) => {
+export const MyThreadsPanel = ({ cloudId, placeId, channels, onSelect }: MyThreadsPanelProps) => {
     const { t } = useTranslation();
     const close = useMyThreadsPanelStore(s => s.close);
     const openedKey = useMyThreadsPanelStore(s => s.openedKey);
@@ -157,7 +152,7 @@ export const MyThreadsPanel = ({ cloudId, channels, places, currentPlaceId, onSe
     const threads = useMyThreadsStore(s => s.threads);
     const markAllSeen = useMyThreadsStore(s => s.markAllSeen);
     const remove = useMyThreadsStore(s => s.remove);
-    const list = useMemo(() => threadsForCloud(threads, cloudId), [threads, cloudId]);
+    const list = useMemo(() => threadsForCloud(threads, cloudId, placeId), [threads, cloudId, placeId]);
     const hasUnread = list.some(isThreadUnread);
     const labelOf = useChannelLabels(channels);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -194,20 +189,16 @@ export const MyThreadsPanel = ({ cloudId, channels, places, currentPlaceId, onSe
     };
     const markAllRead = () => {
         closeRef.current?.focus();
-        markAllSeen(cloudId);
+        markAllSeen(cloudId, placeId);
     };
 
-    // A loaded channel names itself the way every other surface does; one that is not loaded — another
-    // place's — is named from what was kept when the thread was recorded.
+    // A loaded channel names itself the way every other surface does; one that is not loaded — a 1:1
+    // listed in another place — is named from what was kept when the thread was recorded.
     const channelOf = (thread: MyThread): { kind: ChannelKind; label?: string } => {
         const loaded = channels.find(c => c.id === thread.channelId);
         if (loaded) return { kind: channelKind(loaded), label: labelOf(loaded) };
         const kind = thread.channelKind ?? 'channel';
         return { kind, label: kind === 'self' ? t('dm.you') : thread.channelName };
-    };
-    const placeName = (thread: MyThread): string | undefined => {
-        if (!thread.placeId || thread.placeId === currentPlaceId) return undefined;
-        return places.find(p => p.id === thread.placeId)?.name ?? t('saved.otherPlace');
     };
 
     return (
@@ -252,7 +243,6 @@ export const MyThreadsPanel = ({ cloudId, channels, places, currentPlaceId, onSe
                                 key={key}
                                 thread={thread}
                                 channel={channelOf(thread)}
-                                placeName={placeName(thread)}
                                 newReplyLabel={t('myThreads.newReply')}
                                 removeLabel={t('myThreads.remove')}
                                 isCurrent={key === openedKey}
@@ -278,7 +268,10 @@ export const MyThreadsPanel = ({ cloudId, channels, places, currentPlaceId, onSe
                         <p className="max-w-xs text-callout text-muted-foreground">{t('myThreads.scanning')}</p>
                     ) : (
                         <>
-                            <p className="text-heading text-foreground">{t('myThreads.empty')}</p>
+                            {/* Scoped to a place, "none yet" is only this place's answer — another may hold some. */}
+                            <p className="text-heading text-foreground">
+                                {t(placeId ? 'myThreads.emptyInPlace' : 'myThreads.empty')}
+                            </p>
                             <p className="max-w-xs text-caption text-muted-foreground">{t('myThreads.emptyHint')}</p>
                         </>
                     )}

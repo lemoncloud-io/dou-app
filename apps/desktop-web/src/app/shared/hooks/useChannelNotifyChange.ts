@@ -16,12 +16,13 @@ import { useDesktopChannelMutations } from './useChannelMutations';
 /**
  * One writer for the per-channel notify mode, shared by the settings panel and the
  * row menu (they carried separate copies of the same lines), with the levels the
- * channel offers — a 1:1 has no "mentions only". The local pref applies instantly.
- * A server sync that fails is announced instead of swallowed: other devices follow
- * the server record, so silence here reads as success while they drift. The join
- * cache is mirrored into the local pref (`useDesktopNotifications`), so the failed
- * write's rollback puts back the level the join had, if it had one; otherwise the
- * local pref stands until the next change.
+ * channel offers — a 1:1 has no "mentions only". The local pref applies instantly;
+ * the server half goes through the join repository's outbox, which resends it until
+ * it lands. Only a refusal comes back as a rejection, and it is announced instead of
+ * swallowed: other devices follow the server record, so silence here would read as
+ * success. The join cache is mirrored into the local pref (`useDesktopNotifications`),
+ * so when the outbox restores my join after a refusal the level the join had comes
+ * back, if it had one; otherwise the local pref stands until the next change.
  */
 export const useChannelNotifyChange = (channel: DomainChannel | undefined, myUid: string | null) => {
     const { t } = useTranslation();

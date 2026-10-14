@@ -93,7 +93,7 @@ jest.mock('../hooks', () => ({
         profileMap: new Map([['owner', { nick: 'owner nick', thumbnail: 'https://x/owner.png' }]]),
     }),
     useChannelTitle: () => 'room',
-    useChatMutations: () => ({ sendMessage: jest.fn(), readMessage: jest.fn() }),
+    useChatMutations: () => ({ sendMessage: jest.fn() }),
     useChats: () => ({
         rawChats: mockChats,
         isLoading: false,

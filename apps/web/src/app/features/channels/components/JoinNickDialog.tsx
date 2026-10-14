@@ -91,7 +91,9 @@ export const JoinNickDialog = ({
             // ChannelUpdateJoinInput types only channelId/joinId/notify; the engine
             // resolves the join row from channelId + userId at write time, so pass
             // userId + nick via a cast (mirrors the settings notify toggle).
-            await updateJoin({ channelId, userId: joinUserId, nick: name.trim() } as never);
+            const { delivered } = await updateJoin({ channelId, userId: joinUserId, nick: name.trim() } as never);
+            // Done locally now and sent when the socket can carry it; only a refusal comes back later.
+            delivered.catch(() => toast({ title: t(`${copy}.error`), variant: 'destructive' }));
             toast({ title: t(`${copy}.success`) });
             onOpenChange(false);
         } catch (error) {

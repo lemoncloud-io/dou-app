@@ -21,7 +21,7 @@ const menu = vi.hoisted(() => ({
     markRead: vi.fn(),
     // What this device has read, by channel id.
     cursors: {} as Record<string, number>,
-    readChat: vi.fn(() => Promise.resolve()),
+    readInCloud: vi.fn((..._args: unknown[]) => Promise.resolve()),
     serverSync: vi.fn(() => Promise.resolve()),
     leaveChannel: vi.fn(() => Promise.resolve()),
     deleteChannel: vi.fn(() => Promise.resolve()),
@@ -36,7 +36,11 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
         },
         data: {
-            useRuntimeRepositories: () => ({ join: { readChat: menu.readChat, updateJoin: menu.serverSync } }),
+            useRuntimeRepositories: () => ({ join: { updateJoin: menu.serverSync } }),
+            // The channel cloud's join repository; `menu.readInCloud(cid, input)` stands for its outbox receipt.
+            getCloudRepositories: (cid: string) => ({
+                join: { readChat: (input: unknown) => Promise.resolve({ delivered: menu.readInCloud(cid, input) }) },
+            }),
         },
     },
 }));
@@ -615,13 +619,23 @@ describe('ChannelList row context menu (slice 05)', () => {
         fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }));
 
         expect(menu.markRead).toHaveBeenCalledWith('C2', 7);
-        expect(menu.readChat).toHaveBeenCalledWith({ channelId: 'C2', chatNo: 7 });
+        expect(menu.readInCloud).toHaveBeenCalledWith('default', { channelId: 'C2', chatNo: 7 });
     });
 
-    // The badge clears locally either way, so a silent failure reads as done until the
-    // next roster sync resurrects the unread. The toast is what explains it.
-    it('announces a mark-as-read whose server sync fails', async () => {
-        menu.readChat.mockRejectedValueOnce(new Error('offline'));
+    it("queues the read in the channel's own cloud", () => {
+        const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7, cid: 'cloud-9' } as DomainChannel;
+        renderList([general, unread]);
+
+        openRowMenu(/busy/);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }));
+
+        expect(menu.readInCloud).toHaveBeenCalledWith('cloud-9', { channelId: 'C2', chatNo: 7 });
+    });
+
+    // The queue resends a read until it lands, so a rejection is a read the server refused for
+    // good. The badge has already cleared locally; the toast is what explains it.
+    it('announces a mark-as-read the server refused', async () => {
+        menu.readInCloud.mockRejectedValueOnce(new Error('403 FORBIDDEN'));
         const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7 } as DomainChannel;
         renderList([general, unread]);
 

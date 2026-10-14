@@ -31,7 +31,8 @@ export interface ChannelJoins {
  *
  * Read cursor: the API join model stores the last-read number in `chatNo`, with my own row also
  * carrying an explicit `readNo` from readChat's optimistic patch, so a member's position is
- * `max(readNo, chatNo)` taken straight off the latest observed row (no high-water mark).
+ * `max(readNo, chatNo)` taken straight off the latest observed row. The row itself never goes
+ * backwards: the join cache keeps the stored cursor when a write carries an older one.
  *
  * Cache observation only — no sync registration. That belongs to the screen (see
  * {@link useJoinPositions}, which registers every member's cursor while the room is open).

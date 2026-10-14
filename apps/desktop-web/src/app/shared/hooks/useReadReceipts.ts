@@ -24,7 +24,9 @@ const isWindowActive = (): boolean =>
 
 /**
  * Read-receipt driver. When a channel is open AND the window is focused/visible,
- * reports the highest loaded chatNo to the server via join.readChat (debounced).
+ * reports the highest loaded chatNo through the channel's own cloud's `join.readChat`
+ * (debounced). The repository moves the join cursor at once and hands the server half to the
+ * outbox, which resends it until it lands, so this hook no longer retries anything itself.
  *
  * - Only fires when the max chatNo increases past what we last sent (per channel).
  * - Resets the "last sent" baseline on channel switch.
@@ -33,8 +35,7 @@ const isWindowActive = (): boolean =>
  * Mount this in the ChatPane with the current channel + its loaded messages.
  * No UI; returns nothing.
  */
-export const useReadReceipts = (channelId: string | null, messages: DomainChat[]): void => {
-    const { join: joinRepository } = runtime.data.useRuntimeRepositories();
+export const useReadReceipts = (channelId: string | null, messages: DomainChat[], cid: string): void => {
     const lastSentRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Keep the latest messages in a ref so the listener/flush effect does not have
@@ -51,7 +52,8 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
 
     // Listener + debounce live only as long as the channel/repo — not per message.
     useEffect(() => {
-        if (!channelId) return;
+        // No cloud until the channel row is here; the read waits for it rather than guess one.
+        if (!channelId || !cid) return;
 
         // This pane advances the channel's cursor live (see the tail effect below),
         // so badge hooks can skip re-pulling it while the reader is on it.
@@ -72,10 +74,12 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
             // Optimistically record our read position so the unread badge clears
             // immediately, without waiting for the server join:update round-trip.
             useReadCursorStore.getState().markRead(channelId, chatNo);
-            void joinRepository.readChat({ channelId, chatNo }).catch(() => {
-                // Roll back so a later attempt retries this chatNo.
-                if (lastSentRef.current === chatNo) lastSentRef.current = 0;
-            });
+            // Only a read the server refused for good rejects; asking again would be refused too.
+            runtime.data
+                .getCloudRepositories(cid)
+                .join.readChat({ channelId, chatNo })
+                .then(receipt => receipt.delivered)
+                .catch(() => undefined);
         };
 
         const schedule = () => {
@@ -99,7 +103,7 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
             document.removeEventListener('visibilitychange', onActivity);
             window.removeEventListener('focus', onActivity);
         };
-    }, [channelId, joinRepository]);
+    }, [channelId, cid]);
 
     // On each tail update: mark read locally the instant a message arrives (while
     // focused) so the badge never flashes during the debounce, then (re)arm the

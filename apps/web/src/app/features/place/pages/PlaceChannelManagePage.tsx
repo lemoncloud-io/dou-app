@@ -13,7 +13,7 @@ import { PageHeader } from '../../../ui';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
-import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
+import { useChannelMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
 import {
     useActiveCloudData,
     useChannelSort,
@@ -25,6 +25,7 @@ import {
 import { channelKindOf, removalActionFor, resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
 import { useNavigateWithTransition } from '@chatic/shared';
+import { toCloudId } from '../../../hooks/useCloudScope';
 import { ROUTES } from '../../../routes/paths';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
@@ -105,7 +106,6 @@ export const PlaceChannelManagePage = () => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isRemoving, setIsRemoving] = useState(false);
-    const [isMarkingRead, setIsMarkingRead] = useState(false);
 
     // Drop selections for rooms that left the list (removed here, or elsewhere via sync) so the
     // count and the confirm dialog can never refer to a room that is no longer shown.
@@ -122,7 +122,6 @@ export const PlaceChannelManagePage = () => {
     }, [selectableKey]);
 
     const { deleteChannel, leaveChannel } = useChannelMutations();
-    const { readMessage } = useChatMutations();
 
     const toggleSelected = (channelId: string, checked: boolean) =>
         setSelectedIds(prev => {
@@ -142,10 +141,15 @@ export const PlaceChannelManagePage = () => {
 
     /**
      * Mark rooms read by advancing the join read cursor to each channel head — the same `chatNo`
-     * the room view sends on entry (useReadMarker). With no selection this reads every room,
+     * the room view marks on entry (useReadMarker). With no selection this reads every room,
      * matching the button's "모두 읽음" state.
+     *
+     * Each read goes through its room's cloud's repository and the outbox: the local cursor, and with it every
+     * count on screen, moves at once, and the server half is resent until it lands. So the press is
+     * done the moment it is made and nothing waits on the socket; only a read the server refused for
+     * good (the room left or gone) is reported, whenever that answer comes.
      */
-    const handleMarkRead = async () => {
+    const handleMarkRead = () => {
         const targets = (
             selectedIds.size > 0 ? sortedChannels.filter(channel => selectedIds.has(channel.id)) : sortedChannels
         ).filter(channel => (unreadByChannel[channel.id] ?? 0) > 0 && (channel.chatNo ?? 0) > 0);
@@ -155,19 +159,20 @@ export const PlaceChannelManagePage = () => {
             return;
         }
 
-        setIsMarkingRead(true);
-        const results = await Promise.allSettled(
-            targets.map(channel => readMessage({ channelId: channel.id, chatNo: channel.chatNo as number }))
+        const reads = targets.map(channel =>
+            runtime.data
+                .getCloudRepositories(toCloudId(channel.cid || selectedCloudId))
+                .join.readChat({ channelId: channel.id, chatNo: channel.chatNo as number })
+                .then(receipt => receipt.delivered)
         );
-        setIsMarkingRead(false);
+        toast({ title: t('channelManage.readDone') });
 
-        const failed = results.filter(result => result.status === 'rejected').length;
-        if (failed === 0) {
-            toast({ title: t('channelManage.readDone') });
-            return;
-        }
-        logger.error('CHAT', 'Failed to mark rooms read', { data: { failed, total: targets.length } });
-        toast({ title: t('channelManage.readFailed', { count: failed }), variant: 'destructive' });
+        void Promise.allSettled(reads).then(results => {
+            const failed = results.filter(result => result.status === 'rejected').length;
+            if (failed === 0) return;
+            logger.error('CHAT', 'Failed to mark rooms read', { data: { failed, total: targets.length } });
+            toast({ title: t('channelManage.readFailed', { count: failed }), variant: 'destructive' });
+        });
     };
 
     /**
@@ -322,14 +327,7 @@ export const PlaceChannelManagePage = () => {
 
             {/* Bottom actions — mark read (all, or just the selection) and remove the selection. */}
             <div className="flex shrink-0 gap-2 px-4 pb-safe-bottom pt-3">
-                <Button
-                    variant="outline"
-                    tone="gray"
-                    size="md"
-                    fullWidth
-                    loading={isMarkingRead}
-                    onClick={handleMarkRead}
-                >
+                <Button variant="outline" tone="gray" size="md" fullWidth onClick={handleMarkRead}>
                     {hasSelection
                         ? t('channelManage.readSelected', { count: selectedCount })
                         : t('channelManage.readAll')}

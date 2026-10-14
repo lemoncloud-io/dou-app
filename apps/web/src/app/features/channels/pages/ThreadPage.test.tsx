@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { DomainChat } from '../types';
 
@@ -17,6 +17,7 @@ let mockHasMore = false;
 let mockCanLoadMore = true;
 const mockLoadMore = jest.fn();
 const mockSendMessage = jest.fn();
+const mockReadInCloud = jest.fn();
 let mockRootNo = '7';
 
 jest.mock('react-router-dom', () => ({
@@ -41,6 +42,14 @@ jest.mock('@chatic/app-runtime', () => ({
             useUidInCloud: (cid: string) => (cid === 'default' || cid === 'cloud-a' ? 'me' : null),
             // Only a cloud-wide room reads this (`profilePlaceOf`); these channels are read in a place.
             useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
+        },
+        data: {
+            // The room cloud's join repository; `mockReadInCloud(cid, input)` stands for its outbox receipt.
+            getCloudRepositories: (cid: string) => ({
+                join: {
+                    readChat: (input: unknown) => Promise.resolve({ delivered: mockReadInCloud(cid, input) }),
+                },
+            }),
         },
     },
 }));
@@ -164,7 +173,7 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => ({ members: mockMembers }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => '개발 모임방',
-    useChatMutations: () => ({ sendMessage: mockSendMessage, readMessage: jest.fn() }),
+    useChatMutations: () => ({ sendMessage: mockSendMessage }),
     useChats: (params: unknown) => {
         mockChatParams = params;
         return {
@@ -226,6 +235,7 @@ beforeEach(() => {
     mockCanLoadMore = true;
     mockLoadMore.mockReset();
     mockSendMessage.mockReset().mockResolvedValue({});
+    mockReadInCloud.mockReset().mockResolvedValue(undefined);
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {
@@ -537,6 +547,17 @@ describe('ThreadPage — photos from the attach panel', () => {
 
         expect(mockSendPicked).not.toHaveBeenCalled();
         expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("marks a sent reply read in the root's cloud", async () => {
+        mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
+        mockChats = [chat({ cid: 'cloud-b' })];
+        mockSendMessage.mockResolvedValue({ chatNo: 12 });
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByTestId('send'));
+
+        await waitFor(() => expect(mockReadInCloud).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', chatNo: 12 }));
     });
 
     it('closes the attach panel when the field takes focus, for the keyboard', () => {

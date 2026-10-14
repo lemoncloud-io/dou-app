@@ -83,7 +83,7 @@ export const useReadCounts = (channel: DomainChannel | undefined, viewer: Messag
         return joinRepository.observeList({ channelId }, result => setJoins(result?.list ?? []));
     }, [joinRepository, channelId]);
 
-    // My own read position, optimistically ahead of my join row: readChat is debounced and
+    // My own read position, optimistically ahead of my join row: the read is debounced and
     // the server round-trip lands later still, so without this floor my newest message reads
     // as unread by me for a beat — and in a 1:1 that is the whole unread count.
     const localCursor = useReadCursorStore(s => (channelId ? (s.cursors[channelId] ?? 0) : 0));

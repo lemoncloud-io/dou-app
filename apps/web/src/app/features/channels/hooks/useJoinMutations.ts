@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import type { DomainJoin } from '@chatic/data';
+import type { WriteReceipt } from '@chatic/data';
 import type { ChannelUpdateJoinInput } from '@lemoncloud/chatic-sockets-api';
 
 type PendingKey = 'update';
@@ -15,6 +15,10 @@ const INITIAL_PENDING: PendingState = { update: false };
  * wraps `join.update` — an invited member sets their own per-channel nick (the
  * personal room name shown only to them) or notification flag. Kept separate
  * from useChannelMutations because it talks to a different repository.
+ *
+ * Both are state writes: the repository writes them locally and hands them to the outbox, so the
+ * returned promise settles once the local write is done, and `receipt.delivered` once the server
+ * has them. A screen reports a refusal from `delivered`; nothing waits on it to update.
  */
 export const useJoinMutations = () => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
@@ -34,8 +38,11 @@ export const useJoinMutations = () => {
     }, []);
 
     const updateJoin = useCallback(
-        (payload: ChannelUpdateJoinInput): Promise<DomainJoin> =>
-            run('update', () => joinRepository.updateJoin(payload)),
+        (payload: ChannelUpdateJoinInput): Promise<WriteReceipt> =>
+            run('update', () => joinRepository.updateJoin(payload)).then(receipt => {
+                receipt.delivered.catch((error: unknown) => logger.error('CHAT', 'join update refused', { error }));
+                return receipt;
+            }),
         [joinRepository, run]
     );
 

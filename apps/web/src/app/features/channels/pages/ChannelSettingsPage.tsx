@@ -164,11 +164,14 @@ export const ChannelSettingsPage = () => {
         try {
             // ChannelUpdateJoinInput types only channelId/notify; the engine resolves
             // the join row from channelId + userId at write time, so pass userId via a cast.
-            await updateJoin({
+            const { delivered } = await updateJoin({
                 channelId,
                 userId: myJoin?.userId ?? userId,
                 notify: next,
             } as never);
+            // The outbox sends it when the socket can carry it. A refusal puts the server's setting
+            // back in the join cache, and the effect above follows it; this only says why.
+            delivered.catch(() => toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' }));
         } catch (error) {
             setNotifyLevel(previous);
             logger.error('CHAT', 'Failed to update room notification', { error, data: { channelId } });

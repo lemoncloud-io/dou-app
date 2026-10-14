@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import {
+    isThreadIn,
     markCloudSeen,
     markThreadSeen,
     myThreadKey,
@@ -18,16 +19,20 @@ interface MyThreadsState {
     backfilled: Record<string, true>;
     record: (reply: ThreadReply, options?: { root?: ThreadRoot; seen?: boolean }) => void;
     markSeen: (cid: string, channelId: string, rootNo: string) => void;
-    markAllSeen: (cid: string) => void;
+    /** Marks a cloud's threads looked at — one place's, when given. */
+    markAllSeen: (cid: string, placeId?: string) => void;
     /** Drops a thread from the list. A later reply in it, from anyone, can list it again. */
     remove: (cid: string, channelId: string, rootNo: string) => void;
     /** Adds a cloud's cached threads as read — history, not news — leaving listed ones alone. */
     backfill: (cid: string, found: Array<{ reply: ThreadReply; root: ThreadRoot }>) => void;
 }
 
-/** Whether any of a cloud's threads has a reply newer than the last look — drives the sidebar dot. */
-export const hasUnreadThread = (threads: MyThreads, cid: string): boolean =>
-    Object.values(threads).some(thread => thread.cid === cid && isThreadUnread(thread));
+/**
+ * Whether any of a cloud's threads — one place's, when given — has a reply newer than the last look.
+ * Drives the sidebar dot.
+ */
+export const hasUnreadThread = (threads: MyThreads, cid: string, placeId?: string): boolean =>
+    Object.values(threads).some(thread => isThreadIn(thread, cid, placeId) && isThreadUnread(thread));
 
 /**
  * Device-local list of the threads the user takes part in. No server thread list exists, so this is a
@@ -49,9 +54,9 @@ export const useMyThreadsStore = create<MyThreadsState>()(
                     const threads = markThreadSeen(state.threads, myThreadKey(cid, channelId, rootNo));
                     return threads === state.threads ? state : { threads };
                 }),
-            markAllSeen: cid =>
+            markAllSeen: (cid, placeId) =>
                 set(state => {
-                    const threads = markCloudSeen(state.threads, cid);
+                    const threads = markCloudSeen(state.threads, cid, placeId);
                     return threads === state.threads ? state : { threads };
                 }),
             remove: (cid, channelId, rootNo) =>

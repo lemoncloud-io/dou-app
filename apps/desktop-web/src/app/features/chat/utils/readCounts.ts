@@ -11,8 +11,9 @@ export interface ReadCount {
  *
  * The API join model stores the last-read number in `chatNo`; our own row also carries an
  * explicit `readNo` from readChat's optimistic patch, so a member's position is
- * `max(readNo, chatNo)` — taken from the latest observed row, with no high-water mark of
- * our own (mirrors apps/web `useJoinPositions`).
+ * `max(readNo, chatNo)` — taken from the latest observed row (mirrors apps/web
+ * `useJoinPositions`). The row itself never goes backwards: the join cache keeps the stored
+ * cursor when a write carries an older one.
  */
 export const readCursorsOf = (joins: DomainJoin[]): Map<string, number> => {
     const cursors = new Map<string, number>();

@@ -132,8 +132,9 @@ holds an older page and then lets it land. A handler that throws answers an `:er
 its message, which is how the relay refuses: `throw new SocketRefusal('403 FORBIDDEN - not a member of channel')`.
 `dropSockets()` closes the relay socket from the server's side, and `connections` counts how often
 the page has opened it; every frame records which opening it went out on (`connection`), so a
-scenario can tell a read on the new socket from one on the old. `gateHttp(route, gate)` holds one
-route's answer until `gate` settles — the cold-start tap holds the guest login until the tap has
+scenario can tell a read on the new socket from one on the old. `handlerOf(type)` returns a socket
+handler as it stands, so a scenario can wrap one (hold the sign-in on a reconnect) rather than
+restate it. `gateHttp(route, gate)` holds one route's answer until `gate` settles — the cold-start tap holds the guest login until the tap has
 reached the page.
 
 Fixtures beyond a first launch are opt-in, so a scenario says which world it starts in:
@@ -170,6 +171,8 @@ written there.
 | `app-resume.spec.ts`            | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up. The wake kick for a half-open socket is not reached.                                                                           |
 | `chat-paging.spec.ts`           | A room opens on its newest messages; each scroll to the top asks for 50 more below the oldest one shown (`chat.feed`, `cursorNo`), until the room's first, with every message once and the row being read kept in place. An older page refused is asked for again after 2s, then 4s, with the room intact; one held is asked for once however often the reader scrolls. |
 | `cloud-switch.spec.ts`          | Into an owned cloud and between its two places, home shows only the selected place's room and none of the relay's, the shell's cache keeps each side in its own partition, and DoU Home brings the relay back; a refused cloud entry and a refused place switch are rolled back, and a cloud read landing after the refused entry leaves the relay rooms.               |
+| `room-mute.spec.ts`             | A room muted from the home list while the socket is signing in again shows muted at once, sends nothing until the socket is back, and then sends `join.update` on the new socket; the row stays muted throughout.                                                                                                                                                       |
+| `room-read.spec.ts`             | A room the guest opens loses its unread count on the list at once: when the relay fails the `chat.read`, the count stays gone and the read is sent again until the relay has it; when the room is entered while the socket is signing in again, the count goes before the relay could have heard, and the read follows on the new socket.                               |
 | `subscription-purchase.spec.ts` | A completed store purchase is checked with the relay, finished only after that, confirmed with "You are subscribed." and the membership reads active; a cancel says nothing and can be retried; a store error and a pending purchase (the page's own 60s wait) say "Payment failed", and nothing is checked or finished.                                                |
 
 ## Limits

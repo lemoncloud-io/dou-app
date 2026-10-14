@@ -14,10 +14,11 @@ Top to bottom:
   owner, and "Add members".
 - **Notifications**: all messages, mentions only, or off. A 1:1 (`stereo: 'dm'`) offers no
   "mentions only", and one stored that way reads as all: the server sends every message of a 1:1.
-  The choice is kept on this device first and synced to the server; a sync that fails is announced.
+  The choice is kept on this device first and handed to the join outbox, which resends it until it
+  lands; a write the server refuses is announced.
   The level in the join cache is mirrored into this device's copy (`useDesktopNotifications`), which
-  is how a change made on another device arrives, and how a failed write's rollback puts back the
-  level the join had. In the channel list a mentions-only channel wears an `@` glyph and one that is
+  is how a change made on another device arrives, and how a refused write puts back the level the
+  join had (the outbox restores the join). In the channel list a mentions-only channel wears an `@` glyph and one that is
   off a crossed bell.
 - **Channel ID**, group channels only (below).
 - **Leaving and deleting**: Leave for everyone, Delete for the owner. Either one closes the panel and
