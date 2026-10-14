@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-14] - root@0.103.0, @chatic/web@0.72.0
+
+### Features
+
+- (web) flatten message text on search, delete-confirm and place manage rows, not raw markup
+
 ## [2026-10-14] - No version updates
 
 ### Bug Fixes
