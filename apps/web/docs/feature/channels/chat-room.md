@@ -312,6 +312,13 @@ Code resolves **before** URLs, so `https://…` inside a code span is neither li
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched
 URL, so `…see https://example.com/a.` links to `/a`.
 
+**A fence closes at a run of backticks at least as long as the one that opened it**, and that
+closing run is consumed whole — the desktop reader's rule. It is what lets a code sample hold a
+fence: the desktop composer wraps code containing ` ``` ` in four backticks, and closing at
+the next three cut such a block short and spilled the rest of it out as text. An opening run that
+is never closed stays text, every backtick of it — unless the bubble cut the message, in which case
+the block runs to the cut and a shorter run inside it does not end it.
+
 `useUrlMetadata` fetches the unfurl's metadata through the bridge and caches the answer — including
 a null answer — in a module-level FIFO map of 500, so scrolling never re-asks and a page with no og
 tags is not retried.
