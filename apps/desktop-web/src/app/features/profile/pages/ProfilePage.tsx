@@ -1,8 +1,5 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-
-import { ChevronLeft } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
@@ -10,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
+    PageShell,
     Skeleton,
     avatarStyle,
     isPlaceholderName,
@@ -63,7 +61,6 @@ const SectionTitle = ({ children }: { children: string }) => (
  */
 export const ProfilePage = () => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile.
     // `userId` is my uid in the session I am connected to — inside a cloud that is the cloud's own
     // uid, which is what the place profiles are keyed by.
@@ -143,113 +140,102 @@ export const ProfilePage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background">
-            <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => navigate('/')}>
-                    <ChevronLeft className="h-4 w-4" />
-                    {t('profile.back')}
-                </Button>
-                <h1 className="text-heading text-foreground">{t('profile.title')}</h1>
-            </header>
-
-            <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 space-y-8 overflow-y-auto p-8">
-                {placeId && (
-                    <section className="flex flex-col gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
-                            {placeName && <PlaceChip name={placeName} />}
-                        </div>
-                        {placeStateKnown ? (
-                            <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
-                                <Avatar className="h-16 w-16 rounded-xl">
-                                    {displayPhoto && (
-                                        <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
-                                    )}
-                                    <AvatarFallback
-                                        className="rounded-xl text-title"
-                                        style={avatarStyle(userId || displayName)}
-                                    >
-                                        {initial}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                    <span className="truncate text-title tracking-tight text-foreground">
-                                        {displayName}
-                                    </span>
-                                    <span className="text-caption text-muted-foreground">
-                                        {hasPlaceProfile
-                                            ? t('profile.thisPlaceHint', { place: placeLabel })
-                                            : t('profile.usingAccountHere')}
-                                    </span>
-                                </div>
-                                <Button
-                                    variant={hasPlaceProfile ? 'outline' : 'default'}
-                                    size="sm"
-                                    onClick={openEditPlaceProfile}
-                                >
-                                    {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
-                                </Button>
-                            </div>
-                        ) : (
-                            <div
-                                role="status"
-                                aria-label={t('chat.loading')}
-                                className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
-                            >
-                                <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
-                                <div className="flex flex-1 flex-col gap-2">
-                                    <Skeleton className="h-5 w-32" />
-                                    <Skeleton className="h-3 w-48" />
-                                </div>
-                            </div>
-                        )}
-                    </section>
-                )}
-
-                <section className="flex flex-col gap-4">
-                    <SectionTitle>{t('profile.account')}</SectionTitle>
-                    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
-                        <ProfileField label={t('profile.name')} value={name} />
-                        <ProfileField label={t('profile.email')} value={email} />
-                        <ProfileField
-                            label={t('profile.id')}
-                            value={uid}
-                            onCopy={accountUid ? handleCopyUid : undefined}
-                            copied={copied}
-                            copyLabel={t('profile.copy')}
-                            copiedLabel={t('profile.copied')}
-                        />
+        <PageShell title={t('profile.title')} backTo="/" backLabel={t('cloud.home')} contentClassName="space-y-8">
+            {placeId && (
+                <section className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <SectionTitle>{t('profile.thisPlace')}</SectionTitle>
+                        {placeName && <PlaceChip name={placeName} />}
                     </div>
-                    {showSocialLogin && (
-                        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                            <div className="flex min-w-0 flex-col gap-0.5">
-                                <span className="text-callout font-medium text-foreground">
-                                    {t('profile.signInGoogle')}
+                    {placeStateKnown ? (
+                        <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5">
+                            <Avatar className="h-16 w-16 rounded-xl">
+                                {displayPhoto && (
+                                    <AvatarImage src={displayPhoto} alt={displayName} className="rounded-xl" />
+                                )}
+                                <AvatarFallback
+                                    className="rounded-xl text-title"
+                                    style={avatarStyle(userId || displayName)}
+                                >
+                                    {initial}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <span className="truncate text-title tracking-tight text-foreground">
+                                    {displayName}
                                 </span>
-                                <span className="break-keep text-caption text-muted-foreground">
-                                    {t('profile.signInGoogleHint')}
-                                </span>
-                                <span id={phoneNoteId} className="break-keep text-caption text-muted-foreground">
-                                    {t(phoneSignupNoteKey())}
+                                <span className="text-caption text-muted-foreground">
+                                    {hasPlaceProfile
+                                        ? t('profile.thisPlaceHint', { place: placeLabel })
+                                        : t('profile.usingAccountHere')}
                                 </span>
                             </div>
                             <Button
-                                variant="outline"
+                                variant={hasPlaceProfile ? 'outline' : 'default'}
                                 size="sm"
-                                className="shrink-0 gap-2"
-                                onClick={() => void startSocialLogin('google')}
-                                disabled={isStarting}
-                                aria-describedby={phoneNoteId}
+                                onClick={openEditPlaceProfile}
                             >
-                                <GoogleIcon />
-                                {t('auth.social.google')}
+                                {hasPlaceProfile ? t('profile.editPlace') : t('profile.setUpPlace')}
                             </Button>
+                        </div>
+                    ) : (
+                        <div
+                            role="status"
+                            aria-label={t('chat.loading')}
+                            className="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
+                        >
+                            <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
+                            <div className="flex flex-1 flex-col gap-2">
+                                <Skeleton className="h-5 w-32" />
+                                <Skeleton className="h-3 w-48" />
+                            </div>
                         </div>
                     )}
                 </section>
-            </div>
+            )}
 
+            <section className="flex flex-col gap-4">
+                <SectionTitle>{t('profile.account')}</SectionTitle>
+                <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+                    <ProfileField label={t('profile.name')} value={name} />
+                    <ProfileField label={t('profile.email')} value={email} />
+                    <ProfileField
+                        label={t('profile.id')}
+                        value={uid}
+                        onCopy={accountUid ? handleCopyUid : undefined}
+                        copied={copied}
+                        copyLabel={t('profile.copy')}
+                        copiedLabel={t('profile.copied')}
+                    />
+                </div>
+                {showSocialLogin && (
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="text-callout font-medium text-foreground">
+                                {t('profile.signInGoogle')}
+                            </span>
+                            <span className="break-keep text-caption text-muted-foreground">
+                                {t('profile.signInGoogleHint')}
+                            </span>
+                            <span id={phoneNoteId} className="break-keep text-caption text-muted-foreground">
+                                {t(phoneSignupNoteKey())}
+                            </span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 gap-2"
+                            onClick={() => void startSocialLogin('google')}
+                            disabled={isStarting}
+                            aria-describedby={phoneNoteId}
+                        >
+                            <GoogleIcon />
+                            {t('auth.social.google')}
+                        </Button>
+                    </div>
+                )}
+            </section>
             {placeId && <EditPlaceProfileDialog />}
-        </div>
+        </PageShell>
     );
 };

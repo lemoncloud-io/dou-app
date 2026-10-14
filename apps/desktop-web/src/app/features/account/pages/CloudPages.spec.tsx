@@ -110,6 +110,7 @@ describe('CloudHubPage', () => {
         cleanup();
         vi.clearAllMocks();
         catalog.clouds = [...clouds];
+        catalog.isPendingClouds = false;
         navProbe.path = '';
     });
 
@@ -117,6 +118,17 @@ describe('CloudHubPage', () => {
         renderAt('/account/clouds/ghost');
 
         expect(navProbe.path).toBe('/account/clouds');
+    });
+
+    // The loading branch used to drop the header: a bare spinner names nowhere.
+    it('keeps its header while the catalog loads', () => {
+        catalog.clouds = [];
+        catalog.isPendingClouds = true;
+        renderAt('/account/clouds/c2');
+
+        expect(screen.getByRole('heading', { name: 'c2' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'My clouds' })).toBeTruthy();
+        expect(screen.getByRole('status')).toBeTruthy();
     });
 
     it('renames through the shared rename hook', async () => {

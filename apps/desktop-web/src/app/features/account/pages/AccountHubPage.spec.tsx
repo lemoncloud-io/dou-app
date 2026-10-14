@@ -68,6 +68,7 @@ const renderAt = () =>
         <MemoryRouter initialEntries={['/account']}>
             <Routes>
                 <Route path="/account" element={<AccountHubPage />} />
+                <Route path="/settings" element={<div data-testid="settings" />} />
                 <Route path="*" element={<div data-testid="away" />} />
             </Routes>
         </MemoryRouter>
@@ -136,6 +137,17 @@ describe('AccountHubPage', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[0]);
 
         expect(screen.getByTestId('away')).toBeTruthy();
+    });
+
+    // Settings → Account → back used to land in chat: the hub names its parent
+    // and returns to it.
+    it('goes back to Settings, naming it, instead of landing in chat', () => {
+        tokenUser.value = { name: 'Ada' };
+        renderAt();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+
+        expect(screen.getByTestId('settings')).toBeTruthy();
     });
 
     it('saves a new name through the relay gateway', async () => {
