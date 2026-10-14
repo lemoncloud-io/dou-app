@@ -45,7 +45,7 @@ const ActionRow = ({ icon, label, onClick, hasDot, dotLabel }: ActionRowProps) =
             {hasDot && (
                 <span
                     aria-hidden
-                    className="absolute right-0 top-0 h-2 w-2 rounded-full bg-status-dot ring-2 ring-sidebar"
+                    className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-sidebar"
                 />
             )}
         </span>

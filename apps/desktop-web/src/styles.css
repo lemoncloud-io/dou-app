@@ -159,9 +159,6 @@
         --badge-unread: 349 85% 45%;
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
-        /* Unread dots: the brand signal — the ink olive here, where the fill
-           lime is 1.44:1 on white. 5.11:1 on the sidebar, 5.11:1 on elevated. */
-        --status-dot: var(--primary-ink);
         --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
         --tab-active: 0 0% 10%;
         --tab-inactive: 218 5% 46%;
@@ -275,8 +272,6 @@
         --badge-unread: 349 85% 45%; /* same darkened pink as light — see above */
         --badge-unread-foreground: 0 0% 100%;
         --badge-member: 76 87% 49%;
-        /* Unread dots: the fill lime already reads on dark (7.9:1 on the sidebar). */
-        --status-dot: var(--primary);
         --favorite: 35 100% 50%; /* #FF9500 */
         --tab-active: 60 7% 92%;
         --tab-inactive: 60 0% 55%;

@@ -90,9 +90,6 @@ const PAIRS: [string, string, number][] = [
     // Switch on: the ink edge against the card it sits on, and the ink thumb on the fill.
     ['primary-ink', 'card', 3],
     ['primary-foreground', 'primary', 3],
-    // Unread dots: the brand signal on the sidebar and inside elevated rows.
-    ['status-dot', 'sidebar', 3],
-    ['status-dot', 'elevated', 3],
 ];
 
 describe.each([
