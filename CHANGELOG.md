@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-10-14] - root@0.104.2, @chatic/desktop-web@0.32.2
+
+### Bug Fixes
+
+- (desktop-web) unread dots back to lime, drop status-dot token
+- (desktop-web) restore original selection fills, drop olive token
+- (desktop-web) lime fill for the picked segmented option
+- (desktop-web) restore textbox role after the mention list closes
+- (desktop-web) group quiet-hours times and print the locale clock
+- (desktop-web) named panel landmarks, inbox list semantics and focus
+- (desktop-web) readable selection, status dots and self-pill cue
+- (desktop-web) honest snooze label with boundary tick and settings link
+- (desktop-web) safer mention typeahead defaults, hints and semantics
+- (desktop-web) inbox follows the channel read cursor, stays open for catch-up
+- (desktop-web) unify notification wording and describe notify levels
+- (desktop-web) pill mentions only at a word boundary for known targets
+
+### Documentation
+
+- (desktop-web) unpicked-mention hint and bare-at default in composer doc
+
+### Refactor
+
+- (desktop-web) share mention, time and label helpers
+
+### Other
+
+- revert: (desktop-web) restore the original channel notify picker
+
 ## [2026-10-14] - root@0.104.1, @chatic/desktop-web@0.32.1
 
 ### Bug Fixes
