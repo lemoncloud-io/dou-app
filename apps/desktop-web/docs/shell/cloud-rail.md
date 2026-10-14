@@ -88,6 +88,39 @@ set on this device at once. A mention in a muted channel is still captured into 
 whatever the mode; one that arrived while the app was closed lights none of the four.
 The pending push on another cloud is not filtered this way: it is marked on any push that arrives.
 
+## An invited cloud this device lost
+
+An invited cloud has no server-side list. Its only record is the local cache row (`cloudType:
+'invited'`) the invite flow writes, so a reinstall, a cleared cache, or a profile that never ran
+that flow has no tile for it, and nothing can refill the list. What can be repaired is a cloud the
+app is told about by name: `runtime.data.recoverInvitedCloudIfMissing` asks the relay for a fresh
+delegation token for that cloud (`delegate-cloud`), which carries its endpoints, and writes the row
+back. It does nothing when the row is already there, and a revoked grant just leaves the rail as it
+was. The row comes back without a name, so the tile reads as the cloud's id until the cloud is
+entered and its name is fetched over its own socket.
+
+Three places name a cloud, and each one recovers it:
+
+- **A push.** `usePushInvitedCloudRecovery` reads the source cloud from the push (`data.cid`, which
+  the shell flattens to the top level) on every push that arrives, not only the ones that show a
+  notification. The notification is skipped for a muted channel, an own message, a silent push or
+  Do Not Disturb, and the lost cloud needs its endpoints back all the same. A burst of pushes for
+  one cloud makes one relay call, not one per push. It runs only in the desktop shell and only
+  while signed in.
+- **A switch.** `useCloudSwitchFlow` recovers the target before it switches, so a push tap, a rail
+  click or an account page into a lost cloud opens it instead of failing for want of endpoints. A
+  failed recovery does not stop the switch, which then reports its own failure (see below). Until
+  the switch itself starts, `isSwitching` is still false, so the flow holds its own guard for the
+  whole run and a second click while the recovery is out is ignored.
+- **The active cloud.** `useInvitedCloudRecovery` writes the row for the cloud the session is
+  inside, once its socket verifies, and fetches the name that the other two leave out.
+
+Owned clouds are skipped by all three: the relay catalog is their record, and an invited row for
+one would mislabel it. That check reads the catalog as currently loaded, so while the first read is
+still out, or after it failed, an owned cloud can be written as invited. The rail still shows it as
+owned once the catalog arrives, because a catalog entry wins over a cached one. Pushes that came
+through the relay rather than a cloud carry `#` instead of a cloud id and are never recovered.
+
 ## A failed switch
 
 `useCloudSwitchFlow` (`shared/hooks/useCloudSwitchFlow.ts`) switches with `switchCloud`, which rolls
