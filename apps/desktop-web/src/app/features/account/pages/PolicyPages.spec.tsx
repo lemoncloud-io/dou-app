@@ -52,4 +52,12 @@ describe('Policy pages', () => {
 
         expect(screen.getAllByRole('heading').length).toBeGreaterThan(2);
     });
+
+    // Terms and privacy are read, copied and quoted: the body-wide
+    // `user-select: none` must not cover the prose.
+    it('leaves the terms prose selectable', () => {
+        renderAt('/account/policies/terms');
+
+        expect(document.querySelector('main .select-text')).not.toBeNull();
+    });
 });

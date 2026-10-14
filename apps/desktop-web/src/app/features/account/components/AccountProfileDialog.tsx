@@ -13,11 +13,10 @@ import {
     DialogFooter,
 } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useRelayAccount, type RelayAccount } from '../../../shared';
+import { useRelayAccount, type RelayAccount, FormError, FormField } from '../../../shared';
 
 /** The longest account name the form accepts, matching the web edit page. */
 export const ACCOUNT_NAME_MAX = 30;
@@ -45,14 +44,18 @@ export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountPro
     const [failure, setFailure] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
-    // Reseed every opening: the account may have changed elsewhere since.
+    // Seed on the opening edge only: the relay user object is rebuilt on every
+    // session notify, and reseeding off it wipes a half-typed name and photo.
+    const wasOpen = useRef(false);
     useEffect(() => {
-        if (!open) return;
-        setName(initial.name ?? '');
-        setPhoto(initial.photo);
-        setFailure(null);
-        setSubmitting(false);
-        setEncoding(false);
+        if (open && !wasOpen.current) {
+            setName(initial.name ?? '');
+            setPhoto(initial.photo);
+            setFailure(null);
+            setSubmitting(false);
+            setEncoding(false);
+        }
+        wasOpen.current = open;
     }, [open, initial]);
 
     const trimmed = name.trim();
@@ -139,8 +142,12 @@ export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountPro
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="account-profile-name">{t('account.profile.nameLabel')}</Label>
+                    <FormField
+                        label={t('account.profile.nameLabel')}
+                        htmlFor="account-profile-name"
+                        errorId="account-profile-name-error"
+                        invalid={failure != null}
+                    >
                         <Input
                             id="account-profile-name"
                             autoFocus
@@ -149,13 +156,9 @@ export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountPro
                             onChange={e => setName(e.target.value)}
                             disabled={submitting}
                         />
-                    </div>
+                    </FormField>
 
-                    {failure && (
-                        <p role="alert" className="-mt-1 text-callout text-destructive">
-                            {failure}
-                        </p>
-                    )}
+                    {failure && <FormError id="account-profile-name-error">{failure}</FormError>}
 
                     <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                         <Button

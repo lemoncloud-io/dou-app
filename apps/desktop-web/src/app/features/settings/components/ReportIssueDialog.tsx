@@ -6,9 +6,10 @@ import { logger } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { FormError, FormField } from '../../../shared';
 
 import { getAppVersionInfo } from '../../../shared/utils/getAppVersion';
 
@@ -79,8 +80,12 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
             <DialogContent closeLabel={t('common.close')} aria-describedby={undefined} className="sm:max-w-md">
                 <DialogTitle>{t('settings.report.title')}</DialogTitle>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="report-title">{t('settings.report.titleLabel')}</Label>
+                    <FormField
+                        label={t('settings.report.titleLabel')}
+                        htmlFor="report-title"
+                        errorId="report-error"
+                        invalid={errorMsg != null}
+                    >
                         <Input
                             id="report-title"
                             autoFocus
@@ -90,9 +95,13 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
                             placeholder={t('settings.report.titlePlaceholder')}
                             disabled={isSending}
                         />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="report-body">{t('settings.report.bodyLabel')}</Label>
+                    </FormField>
+                    <FormField
+                        label={t('settings.report.bodyLabel')}
+                        htmlFor="report-body"
+                        errorId="report-error"
+                        invalid={errorMsg != null}
+                    >
                         <Textarea
                             id="report-body"
                             rows={6}
@@ -102,13 +111,9 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
                             placeholder={t('settings.report.bodyPlaceholder')}
                             disabled={isSending}
                         />
-                    </div>
+                    </FormField>
 
-                    {errorMsg && (
-                        <p className="text-callout text-destructive break-words" role="alert">
-                            {errorMsg}
-                        </p>
-                    )}
+                    {errorMsg && <FormError id="report-error">{errorMsg}</FormError>}
 
                     <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                         <Button

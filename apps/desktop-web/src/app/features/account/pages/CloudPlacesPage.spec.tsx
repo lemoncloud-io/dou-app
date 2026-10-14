@@ -28,6 +28,11 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
+const catalog = vi.hoisted(() => ({ clouds: [{ id: 'c9', name: 'Acme' }] }));
+vi.mock('../../../shared/hooks/useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => catalog,
+}));
+
 import '../../../../i18n';
 
 import { CloudPlacesPage } from './CloudPlacesPage';
@@ -75,5 +80,18 @@ describe('CloudPlacesPage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Switch cloud' }));
 
         expect(switchCloud).toHaveBeenCalledWith('c9');
+    });
+
+    it('names its back button after the cloud hub', () => {
+        renderAt();
+
+        expect(screen.getByRole('button', { name: 'Acme' })).toBeTruthy();
+    });
+
+    // The empty state used to hug the top of the body.
+    it('centres its empty state instead of hugging the top', () => {
+        renderAt();
+
+        expect(screen.getByRole('main').className).toContain('flex-col');
     });
 });

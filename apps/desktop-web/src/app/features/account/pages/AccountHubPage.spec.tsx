@@ -68,6 +68,7 @@ const renderAt = () =>
         <MemoryRouter initialEntries={['/account']}>
             <Routes>
                 <Route path="/account" element={<AccountHubPage />} />
+                <Route path="/settings" element={<div data-testid="settings" />} />
                 <Route path="*" element={<div data-testid="away" />} />
             </Routes>
         </MemoryRouter>
@@ -133,9 +134,29 @@ describe('AccountHubPage', () => {
         tokenUser.value = { name: 'Ada' };
         renderAt();
 
-        fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[0]);
+        fireEvent.click(screen.getByRole('button', { name: /My clouds/ }));
 
         expect(screen.getByTestId('away')).toBeTruthy();
+    });
+
+    // Settings → Account → back used to land in chat: the hub names its parent
+    // and returns to it.
+    it('goes back to Settings, naming it, instead of landing in chat', () => {
+        tokenUser.value = { name: 'Ada' };
+        renderAt();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+
+        expect(screen.getByTestId('settings')).toBeTruthy();
+    });
+
+    // The hub linked into Settings and back again with no new information: the
+    // card is gone, and Settings is reached from the account menu instead.
+    it('shows no notifications card back into Settings', () => {
+        tokenUser.value = { name: 'Ada' };
+        renderAt();
+
+        expect(screen.queryByText('Notifications')).toBeNull();
     });
 
     it('saves a new name through the relay gateway', async () => {

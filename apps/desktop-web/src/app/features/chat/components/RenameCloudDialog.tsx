@@ -7,10 +7,15 @@ import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { classifyWireError, extractErrorMessage, useRenameCloud, type WireErrorKind } from '../../../shared';
+import {
+    CLOUD_NAME_MAX,
+    classifyWireError,
+    extractErrorMessage,
+    useRenameCloud,
+    type WireErrorKind,
+} from '../../../shared';
 
 const CLOUD_NAME_MIN = 2;
-const CLOUD_NAME_MAX = 30;
 
 // Anything not listed reads as the generic line. `notFound` and `conflict` have cloud wording of
 // their own: the shared ones talk about channels.

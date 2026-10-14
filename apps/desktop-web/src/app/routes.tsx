@@ -68,6 +68,9 @@ const NotificationOpenListener = () => {
 // settings/profile/debug pages each become their own chunk, so the initial load
 // ships only what the current branch needs. (Named exports → default mapping.)
 const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutsDialog })));
+// Route-independent like ShortcutsDialog: the Account hub opens it off the home route,
+// where it used to be dead until the return to chat.
+const JoinWithInviteDialog = lazy(() => import('./features/auth').then(m => ({ default: m.JoinWithInviteDialog })));
 const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
 const PlaceSettingsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceSettingsPage })));
@@ -101,6 +104,7 @@ export const AppRouter = () => {
                 // Its own boundary: the chat chunk loading must not blank the page.
                 <Suspense fallback={null}>
                     <ShortcutsDialog />
+                    <JoinWithInviteDialog />
                 </Suspense>
             )}
             {/* A signed-out person is on their way to Welcome, not to the chat

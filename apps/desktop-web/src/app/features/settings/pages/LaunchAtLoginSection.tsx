@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
-
+import { SettingsRowGroup, SettingsSwitchRow } from '../../../shared';
 import { getLoginItemApi, type LaunchAtLoginState } from '../../../shared/utils/electronApi';
 
 /**
@@ -59,30 +58,20 @@ export const LaunchAtLoginSection = () => {
         <section className="mt-8 flex flex-col gap-4">
             <h2 className="text-overline uppercase text-muted-foreground">{t('settings.startup', 'Startup')}</h2>
 
-            <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-callout font-medium text-foreground">{label}</span>
-                        <span className="text-caption text-muted-foreground">
-                            {t(
-                                'settings.launchAtLoginHint',
-                                'Start DoU automatically when you sign in to this computer.'
-                            )}
-                        </span>
-                    </div>
-                    <Switch
-                        className="hit-target"
-                        checked={state.enabled}
-                        onCheckedChange={toggle}
-                        aria-label={label}
-                    />
-                </div>
-                {writeFailed && (
-                    <p role="alert" className="text-caption text-destructive">
-                        {t('settings.launchAtLoginFailed', 'Could not change this setting.')}
-                    </p>
-                )}
-            </div>
+            <SettingsRowGroup>
+                <SettingsSwitchRow
+                    label={label}
+                    hint={t('settings.launchAtLoginHint', 'Start DoU automatically when you sign in to this computer.')}
+                    checked={state.enabled}
+                    onCheckedChange={toggle}
+                >
+                    {writeFailed && (
+                        <p role="alert" className="text-caption text-destructive">
+                            {t('settings.launchAtLoginFailed', 'Could not change this setting.')}
+                        </p>
+                    )}
+                </SettingsSwitchRow>
+            </SettingsRowGroup>
         </section>
     );
 };

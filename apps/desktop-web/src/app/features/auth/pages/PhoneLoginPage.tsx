@@ -103,7 +103,10 @@ export const PhoneLoginPage = () => {
                 className="flex flex-col gap-3"
                 onSubmit={e => {
                     e.preventDefault();
-                    if (login.canRequestCode) login.requestCode();
+                    // Always through validation: a bad number with Enter used to do
+                    // nothing visible, because submit was gated on canRequestCode
+                    // and the invalidNumber message never showed.
+                    void login.requestCode();
                 }}
             >
                 <div className="flex gap-2">
@@ -149,7 +152,10 @@ export const PhoneLoginPage = () => {
                     </p>
                 )}
                 {!login.codeSent && (
-                    <Button type="submit" size="lg" disabled={!login.canRequestCode}>
+                    // Always enabled (outside a send): a bad or empty number with
+                    // Enter must run validation and show its message, not sit
+                    // behind a disabled button whose submit never fires.
+                    <Button type="submit" size="lg" disabled={login.busy !== 'idle'}>
                         {isSending ? t('auth.phone.sending') : t('auth.phone.sendCode')}
                     </Button>
                 )}

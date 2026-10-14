@@ -44,6 +44,15 @@ describe('RenameCloudDialog', () => {
         expect(renameCloud).not.toHaveBeenCalled();
     });
 
+    // One product-wide cap: the web edit page holds 20 (the Figma-cited design
+    // limit), and the hint promises it.
+    it('clamps the name at the 20-character product cap', () => {
+        const { input } = setup();
+
+        expect(input.maxLength).toBe(20);
+        expect(screen.getByText('Use 2 to 20 characters.')).toBeTruthy();
+    });
+
     it('closes without a request when the name is unchanged', async () => {
         const { onOpenChange, submit } = setup();
         fireEvent.click(submit);

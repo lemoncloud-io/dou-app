@@ -38,6 +38,9 @@ vi.mock('./features/chat', () => ({
     HomePage: () => <p>home page</p>,
     ShortcutsDialog: () => null,
 }));
+vi.mock('./features/account', () => ({
+    AccountHubPage: () => <p>account page</p>,
+}));
 vi.mock('./features/auth/components/OAuthDeeplinkListener', () => ({ OAuthDeeplinkListener: () => null }));
 vi.mock('./features/auth/components/SignInNotice', () => ({ SignInNotice: () => <p>sign-in notice</p> }));
 vi.mock('./features/auth/pages/WelcomePage', () => ({ WelcomePage: () => <p>welcome page</p> }));
@@ -47,6 +50,7 @@ vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => (
 
 import '../i18n';
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { useJoinDialogStore } from './features/auth/stores/useJoinDialogStore';
 import { useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
 import { AppRouter } from './routes';
 
@@ -133,6 +137,60 @@ describe('AppRouter signed-out invite attempt', () => {
     });
 });
 
+// A guest taps "join with invite" on the Account hub and nothing happens there: the
+// dialog lives on the home route only, so it pops up later on return to chat. It is
+// mounted beside ShortcutsDialog instead, and the home mount goes away with it.
+describe('AppRouter join dialog', () => {
+    beforeAll(async () => {
+        await Promise.all([import('./features/auth'), import('./features/chat')]);
+    });
+    beforeEach(() => {
+        window.history.pushState({}, '', '/account');
+        session.set(true);
+    });
+    afterEach(() => {
+        session.set(false);
+        useJoinDialogStore.getState().close();
+    });
+
+    it('opens the join dialog on /account when the store is open', async () => {
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        await screen.findByText('account page', {}, WAIT);
+
+        act(() => useJoinDialogStore.getState().open());
+
+        expect(await screen.findByRole('dialog', {}, WAIT)).toBeTruthy();
+    });
+
+    it('shows exactly one join dialog on /', async () => {
+        window.history.pushState({}, '', '/');
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        await screen.findByText('home page', {}, WAIT);
+
+        act(() => useJoinDialogStore.getState().open());
+
+        await screen.findByRole('dialog', {}, WAIT);
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    });
+
+    it('takes the dialog down with the sign-out', async () => {
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        await screen.findByText('account page', {}, WAIT);
+
+        act(() => useJoinDialogStore.getState().open());
+        await screen.findByRole('dialog', {}, WAIT);
+
+        await act(async () => session.set(false));
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+});
 // Starting Google from Welcome registers the device first, which flips the router to its signed-in
 // branch while the browser is still open; Welcome has to stay for the attempt.
 describe('AppRouter signed-out Google attempt', () => {

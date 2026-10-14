@@ -6,14 +6,14 @@ import { useChannels, useClouds, usePlaces, useSelectedChannelStore } from '../.
 
 const Row = ({ label, value }: { label: string; value: string | number | boolean | null | undefined }) => (
     <div className="flex flex-col gap-0.5 py-1.5">
-        <span className="text-nano uppercase tracking-wide text-muted-foreground">{label}</span>
-        <span className="break-all font-mono text-micro text-foreground">{String(value ?? '—')}</span>
+        <span className="text-tiny uppercase tracking-wide text-muted-foreground">{label}</span>
+        <span className="break-all font-mono text-caption text-foreground">{String(value ?? '—')}</span>
     </div>
 );
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
-        <p className="mb-1 text-tiny font-bold uppercase tracking-widest text-primary">{title}</p>
+        <p className="mb-1 text-tiny font-bold uppercase tracking-widest text-primary-ink">{title}</p>
         <div className="divide-y divide-border">{children}</div>
     </div>
 );

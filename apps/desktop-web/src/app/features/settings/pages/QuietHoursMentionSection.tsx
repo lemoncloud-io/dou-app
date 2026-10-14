@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
@@ -14,22 +15,29 @@ export const QuietHoursMentionSection = () => {
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
     const breakthrough = useNotificationPrefsStore(s => s.mentionBreaksQuietHours);
     const setBreakthrough = useNotificationPrefsStore(s => s.setMentionBreaksQuietHours);
+    const hintId = useId();
+    const switchId = useId();
 
     if (!quietHours) return null;
 
     const label = t('settings.quietHoursMention');
 
     return (
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 pt-2">
             <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-callout font-medium text-foreground">{label}</span>
-                <span className="text-caption text-muted-foreground">{t('settings.quietHoursMentionHint')}</span>
+                <label htmlFor={switchId} className="w-fit cursor-pointer text-callout font-medium text-foreground">
+                    {label}
+                </label>
+                <span id={hintId} className="text-caption text-muted-foreground">
+                    {t('settings.quietHoursMentionHint')}
+                </span>
             </div>
             <Switch
-                className="hit-target"
+                id={switchId}
+                className="hit-target shrink-0"
                 checked={breakthrough}
                 onCheckedChange={setBreakthrough}
-                aria-label={label}
+                aria-describedby={hintId}
             />
         </div>
     );

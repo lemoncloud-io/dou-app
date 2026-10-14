@@ -107,6 +107,28 @@ describe('PhoneLoginPage', () => {
         expect(state.login.requestCode).toHaveBeenCalled();
     });
 
+    // A bad number with Enter used to do nothing visible: submit was gated on
+    // canRequestCode, so validation never ran and no message ever showed.
+    it('runs validation on submit even when sending is not allowed', () => {
+        state.login = { ...baseLogin(), canRequestCode: false, requestCode: vi.fn() };
+        renderPage();
+
+        fireEvent.submit(document.querySelector('form') as HTMLFormElement);
+
+        expect(state.login.requestCode).toHaveBeenCalledTimes(1);
+    });
+
+    // The send stays enabled so an empty submit still validates: a disabled
+    // submit button blocks the form's implicit Enter submission entirely.
+    it('keeps Send enabled on an empty number', () => {
+        state.login = { ...baseLogin(), phone: '', canRequestCode: false };
+        renderPage();
+
+        expect(
+            (screen.getByRole('button', { name: i18n.t('auth.phone.sendCode') }) as HTMLButtonElement).disabled
+        ).toBe(false);
+    });
+
     it('stays open for a guest session', () => {
         state.isAuthenticated = true;
         state.user = { userRole: 'guest' };

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 import type * as SharedModule from '../../../shared';
 
@@ -114,6 +114,16 @@ describe('ProfilePage account card inside a cloud', () => {
         expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
     });
 
+    // The id is copied out of here: the body-wide `user-select: none` must not
+    // cover the read-only value.
+    it('leaves the account id selectable', async () => {
+        session.relayUser = { uid: 'account-uid', email: 'kim@example.com' };
+        render(<ProfilePage />, { wrapper });
+        await screen.findByRole('button', { name: 'Set up' });
+
+        expect(screen.getByText('account-uid').closest('.select-text')).not.toBeNull();
+    });
+
     // The cloud's user can carry another name than the account does.
     it('names the account by its own name, and "This place" by the name the cloud knows', async () => {
         session.relayUser = { uid: 'account-uid', email: 'kim@example.com', name: 'Account Kim' };
@@ -142,6 +152,37 @@ describe('ProfilePage account card inside a cloud', () => {
         await screen.findByRole('button', { name: 'Set up' });
 
         expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+    });
+});
+
+// The Account card is read-only: name, photo and sign-in methods live on the
+// one account surface, and the card links to it instead of duplicating it.
+describe('ProfilePage account link', () => {
+    beforeEach(() => {
+        session.profile = { userName: 'Kim', photo: null, isGuest: false };
+        session.relayUser = { uid: 'account-uid', email: 'kim@example.com' };
+        useSiteProfilesStore.setState({ profiles: {} });
+        placeRead.load.mockResolvedValue(null);
+    });
+    afterEach(() => {
+        cleanup();
+        session.relayUser = null;
+    });
+
+    it('opens the Account hub from the account card', async () => {
+        render(
+            <MemoryRouter initialEntries={['/profile']}>
+                <Routes>
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/account" element={<div data-testid="account-hub" />} />
+                </Routes>
+            </MemoryRouter>
+        );
+        await screen.findByRole('button', { name: 'Set up' });
+
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('profile.manageAccount') }));
+
+        expect(screen.getByTestId('account-hub')).toBeTruthy();
     });
 });
 

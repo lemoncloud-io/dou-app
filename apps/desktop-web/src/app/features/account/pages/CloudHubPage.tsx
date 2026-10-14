@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -10,11 +9,18 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { useAccountResetOnLogout, useCloudSessionCatalog, useRemoveCloud, useRenameCloud } from '../../../shared';
+import {
+    PageShell,
+    SettingsActionRow,
+    SettingsNavRow,
+    SettingsRowGroup,
+    useAccountResetOnLogout,
+    useCloudSessionCatalog,
+    CLOUD_NAME_MAX,
+    useRemoveCloud,
+    useRenameCloud,
+} from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
-
-/** The longest cloud name the form accepts, matching the web edit page. */
-const CLOUD_NAME_MAX = 20;
 
 /**
  * One owned cloud: rename inline, read-only facts, cascade release behind a
@@ -47,12 +53,23 @@ export const CloudHubPage = () => {
     }, [resolved, cloudId, cloud, navigate]);
 
     if (!cloud) {
+        // The shell stays up while the catalog resolves: a bare spinner names
+        // nowhere, and back must work before the cloud it returns from is known.
         return (
-            <div className="flex h-full flex-col bg-background">
-                <div role="status" aria-label={t('chat.loading')} className="m-auto">
+            <PageShell
+                title={cloudId ?? ''}
+                backTo="/account/clouds"
+                backLabel={t('cloud.list.title')}
+                contentClassName="flex flex-col"
+            >
+                <div
+                    role="status"
+                    aria-label={t('chat.loading')}
+                    className="flex flex-1 items-center justify-center py-8"
+                >
                     <span className="block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
                 </div>
-            </div>
+            </PageShell>
         );
     }
 
@@ -88,81 +105,65 @@ export const CloudHubPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background">
-            <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1 text-muted-foreground"
-                    onClick={() => navigate('/account/clouds')}
+        <PageShell
+            title={cloud.name ?? cloud.id}
+            backTo="/account/clouds"
+            backLabel={t('cloud.list.title')}
+            contentClassName="flex flex-col"
+        >
+            <section className="flex flex-col gap-4">
+                <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.profile')}</h2>
+                <form
+                    onSubmit={handleRename}
+                    className="flex items-end gap-2 rounded-xl border border-border bg-card p-5"
                 >
-                    <ChevronLeft className="h-4 w-4" />
-                    {t('settings.back')}
-                </Button>
-                <h1 className="truncate text-heading text-foreground">{cloud.name ?? cloud.id}</h1>
-            </header>
-
-            <div className="scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8">
-                <section className="flex flex-col gap-4">
-                    <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.profile')}</h2>
-                    <form
-                        onSubmit={handleRename}
-                        className="flex items-end gap-2 rounded-xl border border-border bg-card p-5"
-                    >
-                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                            <Label htmlFor="cloud-hub-name">{t('cloud.hub.nameLabel')}</Label>
-                            <Input
-                                id="cloud-hub-name"
-                                value={name}
-                                maxLength={CLOUD_NAME_MAX}
-                                onChange={e => setName(e.target.value)}
-                                disabled={isRenaming}
-                            />
-                        </div>
-                        <Button type="submit" disabled={!canSave}>
-                            {isRenaming ? t('cloud.hub.saving') : t('cloud.hub.save')}
-                        </Button>
-                    </form>
-                </section>
-
-                <section className="mt-8 flex flex-col gap-4">
-                    <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.places')}</h2>
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-callout font-medium text-foreground">
-                                {t('cloud.hub.placesOpen')}
-                            </span>
-                            <span className="text-caption text-muted-foreground">{t('cloud.hub.placesHint')}</span>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/account/clouds/${cloudId}/places`)}
-                        >
-                            {t('account.open')}
-                        </Button>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <Label htmlFor="cloud-hub-name">{t('cloud.hub.nameLabel')}</Label>
+                        <Input
+                            id="cloud-hub-name"
+                            value={name}
+                            maxLength={CLOUD_NAME_MAX}
+                            onChange={e => setName(e.target.value)}
+                            disabled={isRenaming}
+                        />
                     </div>
-                </section>
+                    <Button type="submit" disabled={!canSave}>
+                        {isRenaming ? t('cloud.hub.saving') : t('cloud.hub.save')}
+                    </Button>
+                </form>
+            </section>
 
-                <section className="mt-8 flex flex-col gap-4">
-                    <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.danger')}</h2>
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-callout font-medium text-foreground">{t('cloud.hub.release')}</span>
-                            <span className="text-caption text-muted-foreground">{t('cloud.hub.releaseHint')}</span>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0 text-destructive focus:text-destructive"
-                            onClick={() => setConfirmingRelease(true)}
-                        >
-                            {t('cloud.hub.releaseAction')}
-                        </Button>
-                    </div>
-                </section>
-            </div>
+            <section className="mt-8 flex flex-col gap-4">
+                <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.places')}</h2>
+                <SettingsRowGroup>
+                    <SettingsNavRow
+                        label={t('cloud.hub.placesOpen')}
+                        hint={t('cloud.hub.placesHint')}
+                        onClick={() => navigate(`/account/clouds/${cloudId}/places`)}
+                    />
+                </SettingsRowGroup>
+            </section>
+
+            <section className="mt-8 flex flex-col gap-4">
+                <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.danger')}</h2>
+                <SettingsRowGroup>
+                    <SettingsActionRow
+                        label={t('cloud.hub.release')}
+                        hint={t('cloud.hub.releaseHint')}
+                        action={
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 text-destructive focus:text-destructive"
+                                onClick={() => setConfirmingRelease(true)}
+                            >
+                                {t('cloud.hub.releaseAction')}
+                            </Button>
+                        }
+                    />
+                </SettingsRowGroup>
+            </section>
 
             <ConfirmDialog
                 open={confirmingRelease}
@@ -174,6 +175,6 @@ export const CloudHubPage = () => {
                 isPending={isDeleting}
                 variant="danger"
             />
-        </div>
+        </PageShell>
     );
 };

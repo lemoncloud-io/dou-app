@@ -95,6 +95,13 @@ describe('CloudListPage', () => {
         expect(screen.getByText('No clouds yet.')).toBeTruthy();
     });
 
+    // Empty, loading and error states used to hug the top of the body.
+    it('centres its states instead of hugging the top', () => {
+        renderAt('/account/clouds');
+
+        expect(screen.getByRole('main').className).toContain('flex-col');
+    });
+
     it('retries a failed catalog read', () => {
         catalog.isCloudsError = true;
         renderAt('/account/clouds');
@@ -110,6 +117,7 @@ describe('CloudHubPage', () => {
         cleanup();
         vi.clearAllMocks();
         catalog.clouds = [...clouds];
+        catalog.isPendingClouds = false;
         navProbe.path = '';
     });
 
@@ -117,6 +125,17 @@ describe('CloudHubPage', () => {
         renderAt('/account/clouds/ghost');
 
         expect(navProbe.path).toBe('/account/clouds');
+    });
+
+    // The loading branch used to drop the header: a bare spinner names nowhere.
+    it('keeps its header while the catalog loads', () => {
+        catalog.clouds = [];
+        catalog.isPendingClouds = true;
+        renderAt('/account/clouds/c2');
+
+        expect(screen.getByRole('heading', { name: 'c2' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'My clouds' })).toBeTruthy();
+        expect(screen.getByRole('status')).toBeTruthy();
     });
 
     it('renames through the shared rename hook', async () => {
@@ -131,25 +150,25 @@ describe('CloudHubPage', () => {
         expect(renameCloud).toHaveBeenCalledWith('c2', 'Studio cloud II');
     });
 
-    it('releases with a confirm and reports an already-gone cloud as gone', async () => {
+    it('deletes with a confirm and reports an already-gone cloud as gone', async () => {
         deleteOwnedCloud.mockResolvedValueOnce('already-gone');
         renderAt('/account/clouds/c2');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Release this cloud' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Release' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Delete this cloud' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
         await act(async () => {
             await Promise.resolve();
         });
         expect(deleteOwnedCloud).toHaveBeenCalledWith('c2');
-        expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Already released.' }));
+        expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Already deleted.' }));
     });
 
-    it('logs out when the released cloud is the active one', async () => {
+    it('logs out when the deleted cloud is the active one', async () => {
         renderAt('/account/clouds/c1');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Release this cloud' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Release' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Delete this cloud' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
         await act(async () => {
             await Promise.resolve();
@@ -161,7 +180,7 @@ describe('CloudHubPage', () => {
     it('opens the cloud places from its entry', () => {
         renderAt('/account/clouds/c2');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+        fireEvent.click(screen.getByRole('button', { name: /Places in this cloud/ }));
 
         expect(navProbe.path).toBe('/account/clouds/c2/places');
     });
