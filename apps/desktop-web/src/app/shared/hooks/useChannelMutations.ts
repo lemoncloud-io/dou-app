@@ -10,7 +10,7 @@ import type {
 } from '@lemoncloud/chatic-sockets-api';
 import type { JoinNotify } from '@lemoncloud/chatic-socials-api';
 
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 /**
@@ -101,13 +101,16 @@ export const useDesktopChannelMutations = () => {
             /** My cloud user id in this channel (channel.$join.userId). */
             userId: string;
             notify: JoinNotify;
-        }): Promise<DomainJoin> => {
+        }): Promise<void> => {
             if (!channelId) return Promise.reject(new Error('channelId is required'));
             if (!userId) return Promise.reject(new Error('userId is required'));
             // ChannelUpdateJoinInput types only channelId/joinId/notify; the engine resolves
             // the join row from channelId + userId at write time, so pass userId via a cast.
             const payload = { channelId, userId, notify } as unknown as ChannelUpdateJoinInput;
-            return run(() => joinRepository.updateJoin(payload));
+            // A state write: written locally and handed to the outbox, so `run` covers only the local
+            // half. The promise returned is the server half — it rejects only on a refusal, and stays
+            // pending while the socket is down.
+            return run(() => joinRepository.updateJoin(payload)).then(receipt => receipt.delivered);
         },
         [joinRepository, run]
     );

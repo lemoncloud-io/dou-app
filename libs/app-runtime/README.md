@@ -167,7 +167,7 @@ libs/app-runtime/src/
 ├── session/          55 files — store (12) · auth (10) · scope (3) · hooks (30)
 ├── socket/           39 files — SocketManager (7) + utils (4) + auth wiring (19) + sync (9)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
-├── data/             21 files — DataManager, 3 factories, cache routing, cloud-addressed sends, outbox, the cache-clear sweep and its cursor watermark, 5 hooks
+├── data/             24 files — DataManager, 4 factories (one is the state outbox's transport), cache routing, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
@@ -344,7 +344,7 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 | [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting           |
 | [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, the room-feed dedupe, `updateLocalSnapshot` |
 | [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows                |
-| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the three factories, the offline outbox, invited-cloud durability                                                        |
+| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                                |
 | [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it         |
 | [docs/http/](./docs/http/README.md)                                        | `HttpManager`. The three routes, the sealed transport, the staleness port, and the two late-bound registries                               |
 | [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                               |

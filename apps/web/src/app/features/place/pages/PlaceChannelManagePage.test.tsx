@@ -6,7 +6,7 @@ import { PlaceChannelManagePage } from './PlaceChannelManagePage';
 
 const deleteChannel = jest.fn().mockResolvedValue({});
 const leaveChannel = jest.fn().mockResolvedValue({});
-const readMessage = jest.fn().mockResolvedValue({});
+const readInCloud = jest.fn().mockResolvedValue(undefined);
 const toggle = jest.fn();
 const toast = jest.fn();
 
@@ -56,6 +56,10 @@ jest.mock('@chatic/app-runtime', () => ({
                     },
                 },
             }),
+            // The room cloud's join repository; `readInCloud(cid, input)` stands for its outbox receipt.
+            getCloudRepositories: (cid: string) => ({
+                join: { readChat: (input: unknown) => Promise.resolve({ delivered: readInCloud(cid, input) }) },
+            }),
         },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
@@ -76,7 +80,6 @@ jest.mock('../../../ui', () => ({
 
 jest.mock('../../channels/hooks', () => ({
     useChannelMutations: () => ({ deleteChannel, leaveChannel }),
-    useChatMutations: () => ({ readMessage }),
     // DM rows are named from one page-level profile subscription (useDmPeers.test.ts covers it);
     // this list has no DM rows, so an empty map is the whole contract here.
     useDmPeers: () => new Map(),
@@ -151,6 +154,7 @@ const channel = (id: string, overrides: Partial<any> = {}) => ({
 
 beforeEach(() => {
     jest.clearAllMocks();
+    readInCloud.mockReset().mockResolvedValue(undefined);
     placeValue = { id: 'place-1', isOwner: true };
     channelsValue = [channel('ch-1'), channel('ch-2'), channel('self', { stereo: 'self' })];
     unreadByChannel = { 'ch-1': 2 };
@@ -230,27 +234,51 @@ describe('PlaceChannelManagePage', () => {
         expect(deleteChannel).not.toHaveBeenCalled();
     });
 
-    it('선택이 없으면 모두 읽음, 선택이 있으면 선택한 개수만 읽는다', async () => {
+    it('reads every unread room with no selection, and only the selection with one', async () => {
         unreadByChannel = { 'ch-1': 2, 'ch-2': 5 };
         render(<PlaceChannelManagePage />);
 
         // No selection → the label is "read all" and every unread room is marked.
         fireEvent.click(screen.getByText('channelManage.readAll'));
-        await waitFor(() => expect(readMessage).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(readInCloud).toHaveBeenCalledTimes(2));
 
-        readMessage.mockClear();
+        readInCloud.mockClear();
         fireEvent.click(screen.getByRole('checkbox', { name: 'ch-2' }));
         fireEvent.click(screen.getByText('channelManage.readSelected:1'));
-        await waitFor(() => expect(readMessage).toHaveBeenCalledWith({ channelId: 'ch-2', chatNo: 10 }));
-        expect(readMessage).toHaveBeenCalledTimes(1);
+        await waitFor(() =>
+            expect(readInCloud).toHaveBeenCalledWith(selectedCloudId, { channelId: 'ch-2', chatNo: 10 })
+        );
+        expect(readInCloud).toHaveBeenCalledTimes(1);
     });
 
-    it('안읽은 방이 없으면 읽음 처리를 호출하지 않는다', async () => {
+    it('does not mark anything when no room is unread', async () => {
         unreadByChannel = {};
         render(<PlaceChannelManagePage />);
         fireEvent.click(screen.getByText('channelManage.readAll'));
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'channelManage.nothingToRead' }));
-        expect(readMessage).not.toHaveBeenCalled();
+        expect(readInCloud).not.toHaveBeenCalled();
+    });
+
+    it('says done at once, without waiting for reads still queued for the socket', () => {
+        unreadByChannel = { 'ch-1': 2 };
+        readInCloud.mockReturnValue(new Promise(() => undefined));
+        render(<PlaceChannelManagePage />);
+
+        fireEvent.click(screen.getByText('channelManage.readAll'));
+
+        expect(toast).toHaveBeenCalledWith({ title: 'channelManage.readDone' });
+    });
+
+    it('reports only the reads the server refused', async () => {
+        unreadByChannel = { 'ch-1': 2, 'ch-2': 5 };
+        readInCloud.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('403 FORBIDDEN'));
+        render(<PlaceChannelManagePage />);
+
+        fireEvent.click(screen.getByText('channelManage.readAll'));
+
+        await waitFor(() =>
+            expect(toast).toHaveBeenCalledWith({ title: 'channelManage.readFailed:1', variant: 'destructive' })
+        );
     });
 
     it('핀 토글은 현재 스코프의 id로 기록하고 토스트를 낸다', () => {

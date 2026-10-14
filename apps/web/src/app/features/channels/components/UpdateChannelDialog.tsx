@@ -114,7 +114,10 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                     ...(isImageDirty && { thumbnail }),
                 } as never);
             } else {
-                await updateJoin({ channelId, nick: trimmed } as never);
+                // A state write: done locally now, sent when the socket can carry it. Only a refusal
+                // comes back later, after the dialog has closed.
+                const { delivered } = await updateJoin({ channelId, nick: trimmed } as never);
+                delivered.catch(() => toast({ title: t('updateChannel.error'), variant: 'destructive' }));
             }
             toast({ title: t('updateChannel.success') });
             onOpenChange(false);

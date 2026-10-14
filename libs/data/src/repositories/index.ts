@@ -16,6 +16,9 @@ import { SyncMetaRepository, type ISyncMetaRepository } from './SyncMetaReposito
 import { UserRepository, type IUserRepository, type UserRepositoryOptions } from './UserRepository';
 import type { DataContext, DataContextProvider } from './types';
 import { createSnapshotDataContextProvider } from './types';
+import type { OutboxPort } from '../outbox/ports';
+import { createImmediateTransport, createStateOutbox } from '../outbox/stateOutbox';
+import { STATE_SPECS } from '../outbox/joinStates';
 
 export * from './types';
 export * from './AuthRepository';
@@ -35,6 +38,13 @@ export * from './UserRepository';
 /** App-injected repository policies. Every field is optional — omitted means current behavior. */
 export interface DataRepositoriesOptions {
     user?: UserRepositoryOptions;
+    /**
+     * The state outbox every graph hands its state writes to (`../outbox`). The app runtime injects
+     * one, shared by every graph, whose transport waits for each cloud's socket. Omitted, a graph
+     * builds its own that sends at once and treats every failure as final — for tests and hosts with
+     * no socket runtime.
+     */
+    outbox?: OutboxPort;
 }
 
 export interface DataRepositories {
@@ -59,8 +69,9 @@ const buildRepositories = (
     socketDataSources: SocketDataSources,
     localDataSources: LocalDataSources,
     context: DataContextProvider,
-    options?: DataRepositoriesOptions,
-    httpDataSources?: HttpDataSources
+    options: DataRepositoriesOptions | undefined,
+    httpDataSources: HttpDataSources | undefined,
+    graph: () => DataRepositories
 ): Omit<DataRepositories, 'withContext' | 'dispose'> => {
     // Built ahead of the literal because the user repository loads place members' profiles through
     // its save path.
@@ -75,6 +86,8 @@ const buildRepositories = (
         localDataSources.chat,
         context
     );
+    const outbox =
+        options?.outbox ?? createStateOutbox({ specs: STATE_SPECS, transport: createImmediateTransport(graph) });
     return {
         // auth/device take no local data source: they are remote-only access surfaces
         // (session-identity commands, viewing signals) with nothing to cache. `invite` (ADR-0052)
@@ -87,7 +100,7 @@ const buildRepositories = (
         cloud: new CloudRepository(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),
-        join: new JoinRepository(socketDataSources.join, localDataSources.join, context),
+        join: new JoinRepository(socketDataSources.join, localDataSources.join, context, outbox),
         profile,
         // Remote-only and HTTP-only like `subscription` — a report has nothing to cache.
         report: new ReportRepository(context, httpDataSources?.report),
@@ -122,9 +135,21 @@ export const createRepositories = ({
      * existing call site stays green (ADR-0070 decision 5, libs/data/docs/repositories/README.md). */
     httpDataSources?: HttpDataSources;
 }): DataRepositories => {
-    const repositories = buildRepositories(socketDataSources, localDataSources, context, options, httpDataSources);
+    // The default outbox delivers through this very graph, which exists only once it is returned.
+    let graph: DataRepositories | null = null;
+    const repositories = buildRepositories(
+        socketDataSources,
+        localDataSources,
+        context,
+        options,
+        httpDataSources,
+        () => {
+            if (!graph) throw new Error('[repositories] graph used before it was built');
+            return graph;
+        }
+    );
 
-    return {
+    graph = {
         ...repositories,
         withContext(contextSnapshot: DataContext): DataRepositories {
             return createRepositories({
@@ -151,5 +176,6 @@ export const createRepositories = ({
             repositories.syncMeta.dispose();
         },
     };
+    return graph;
 };
 export * from './scopeGuards';
