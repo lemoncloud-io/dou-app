@@ -2,7 +2,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
 import { isNotifiableChat, isOwnChat, mentionsMe, messagePlainText, resolveMyMentionNames } from '../utils';
-import { useMentionsStore, useReadCursorStore } from '../stores';
+import { truncateMentionPreview, useMentionsStore, useReadCursorStore } from '../stores';
 
 const chatAuthorId = (chat: ChannelLastChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
 
@@ -52,7 +52,7 @@ export const useMentionCapture = (): void => {
             id: chat.id,
             channelId: channel.id,
             chatNo: chat.chatNo,
-            content,
+            content: truncateMentionPreview(content),
             ownerName: chat.owner$?.name ?? '',
             ownerId: authorId,
             // owner$ carries no avatar; key the fallback color off the author id.
@@ -61,7 +61,8 @@ export const useMentionCapture = (): void => {
             // Thread reply → server-normalised root chatNo string; drives the
             // Activity click into the thread panel. Absent on top-level messages.
             parentId: chat.parentId,
-            createdAt: Date.now(),
+            // Dated by when it was sent, not when this device saw it.
+            createdAt: (chat as { createdAt?: number }).createdAt ?? Date.now(),
         });
     });
 };

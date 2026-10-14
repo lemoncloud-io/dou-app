@@ -110,4 +110,22 @@ describe('useMentionCapture', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID, content: 'standup', mention$: { all: 1 } }));
         expect(captured()).toEqual([]);
     });
+
+    it('dates the item by when it was sent, not when this device saw it', () => {
+        feedHandler?.(feed({ createdAt: 1_700_000_000_000 }));
+        expect(captured()[0]?.createdAt).toBe(1_700_000_000_000);
+    });
+
+    it('falls back to the capture time when the message carries none', () => {
+        const before = Date.now();
+        feedHandler?.(feed({}));
+        const createdAt = captured()[0]?.createdAt ?? 0;
+        expect(createdAt).toBeGreaterThanOrEqual(before);
+        expect(createdAt).toBeLessThanOrEqual(Date.now());
+    });
+
+    it('stores the preview, not the whole body', () => {
+        feedHandler?.(feed({ content: `@Me ${'x'.repeat(500)}` }));
+        expect(captured()[0]?.content.length).toBeLessThanOrEqual(240);
+    });
 });

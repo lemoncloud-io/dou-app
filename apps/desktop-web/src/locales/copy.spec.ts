@@ -43,8 +43,8 @@ describe('locale parity', () => {
     });
 });
 
-// One glossary: 끔 / 멘션만 for a channel, 방해 금지 시간 for the schedule,
-// 일시 중지 for snooze — and the inbox owns activity.* keys, not saved.*.
+// One glossary: "끔" / "멘션만" for a channel, "방해 금지 시간" for the schedule,
+// "일시 중지" for snooze — and the inbox owns `activity.*` keys, not `saved.*`.
 describe('notification vocabulary', () => {
     it('names the channel levels 끔 and 멘션만 on the row', () => {
         expect(ko['sidebar.muted']).toBe('끔');
@@ -64,7 +64,7 @@ describe('notification vocabulary', () => {
             expect(bundle['channels.settings.notify.mentionHint']).toBeTruthy();
             expect(bundle['channels.settings.notify.noneHint']).toBeTruthy();
         }
-        // 끔 still answers whether @mentions get through.
+        // "끔" still answers whether @mentions get through.
         expect(ko['channels.settings.notify.noneHint']).toContain('@');
     });
 

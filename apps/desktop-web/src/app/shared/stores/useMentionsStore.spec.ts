@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { countUnreadMentionsIn, hasUnreadMentionIn, type MentionItem } from './useMentionsStore';
+import {
+    countUnreadMentionsIn,
+    hasUnreadMentionIn,
+    useMentionsStore,
+    type MentionItem,
+} from './useMentionsStore';
 
 const item = (fields: Partial<MentionItem>): MentionItem => ({
     id: 'C1:5',
@@ -61,5 +66,55 @@ describe('countUnreadMentionsIn', () => {
 
     it('leaves out another place’s channel of the same id', () => {
         expect(countUnreadMentionsIn(inbox(item({ placeId: 'place-2' })), C1, 0)).toBe(0);
+    });
+});
+
+describe('markChannelRead', () => {
+    beforeEach(() => {
+        useMentionsStore.setState({ items: {} });
+    });
+
+    const seed = () =>
+        useMentionsStore.setState({
+            items: inbox(
+                item({ id: 'C1:5', chatNo: 5 }),
+                item({ id: 'C1:6', chatNo: 6 }),
+                item({ id: 'C2:5', channelId: 'C2', chatNo: 5 })
+            ),
+        });
+    const readAtOf = (id: string) => useMentionsStore.getState().items[id]?.readAt;
+
+    it('marks mentions at or below the cursor read and leaves newer ones', () => {
+        seed();
+        useMentionsStore.getState().markChannelRead('C1', 5);
+        expect(readAtOf('C1:5')).toBeDefined();
+        expect(readAtOf('C1:6')).toBeUndefined();
+    });
+
+    it('leaves other channels alone', () => {
+        seed();
+        useMentionsStore.getState().markChannelRead('C1', 9);
+        expect(readAtOf('C2:5')).toBeUndefined();
+    });
+
+    it('stamps once — a second advance does not rewrite the mark', () => {
+        seed();
+        useMentionsStore.getState().markChannelRead('C1', 5);
+        const first = readAtOf('C1:5');
+        useMentionsStore.getState().markChannelRead('C1', 6);
+        expect(readAtOf('C1:5')).toBe(first);
+        expect(readAtOf('C1:6')).toBeDefined();
+    });
+
+    it('no-ops on a channel with no inbox items', () => {
+        seed();
+        expect(() => useMentionsStore.getState().markChannelRead('C9', 9)).not.toThrow();
+        expect(Object.keys(useMentionsStore.getState().items)).toHaveLength(3);
+    });
+
+    it('does not stamp the same channel id in another place', () => {
+        useMentionsStore.setState({ items: inbox(item({ id: 'C1:5', placeId: 'place-2' })) });
+        useMentionsStore.getState().markChannelRead('C1', 9, 'place-1');
+        expect(useMentionsStore.getState().items['C1:5']?.readAt).toBeUndefined();
     });
 });

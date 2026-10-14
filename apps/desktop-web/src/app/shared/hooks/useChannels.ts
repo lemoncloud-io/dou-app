@@ -4,7 +4,7 @@ import { ACCOUNT_CHANNEL_SID, isCloudWideChannel, RELAY_CLOUD_ID, type DomainCha
 import { runtime } from '@chatic/app-runtime';
 
 import { cloudDmPlaces, computeChannelUnread, listingPlaces, placeMemberPeers } from '../utils';
-import { useReadCursorStore } from '../stores';
+import { useMentionsStore, useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 import { usePlaces } from './usePlaces';
 
@@ -148,6 +148,19 @@ export const useChannels = (
             })),
         [rawChannels, myUid, readCursors, serverCursors]
     );
+
+    // The mentions inbox follows the same read boundary as the row and the dock: a cursor
+    // advance here, or on another device through the synced join row, marks the inbox items
+    // read without opening each one. Stamping is idempotent, so re-emits are harmless.
+    useEffect(() => {
+        const { markChannelRead } = useMentionsStore.getState();
+        for (const c of rawChannels) {
+            const id = c.id;
+            if (!id) continue;
+            const boundary = Math.max(readCursors[id] ?? 0, serverCursors[id]?.chatNo ?? 0);
+            if (boundary > 0) markChannelRead(id, boundary, c.sid);
+        }
+    }, [rawChannels, readCursors, serverCursors]);
 
     // The channel cache emits an empty list immediately on a cold boot / post-switch
     // reset, *before* list discovery (a sync plan that runs on a verified socket)

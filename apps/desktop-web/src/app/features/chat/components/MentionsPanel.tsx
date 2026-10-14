@@ -62,7 +62,9 @@ const MentionRow = ({ item, channelName, removeLabel, isCurrent, onOpen, onRemov
             </Avatar>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex items-center gap-1.5 pr-7 text-caption text-muted-foreground">
-                    <span className="truncate font-medium text-foreground">{item.ownerName}</span>
+                    <span className={cn('truncate text-foreground', !item.readAt ? 'font-semibold' : 'font-medium')}>
+                        {item.ownerName}
+                    </span>
                     {channelName && (
                         <>
                             <Hash size={10} aria-hidden className="shrink-0" />
@@ -129,7 +131,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     const remove = useMentionsStore(s => s.remove);
 
     const channelName = (channelId: string): string | undefined => channels.find(c => c.id === channelId)?.name;
-    const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
+    const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('activity.otherPlace');
 
     // Group newest-first items by place; the active place sorts to the top, the
     // rest keep recency order. Items captured before placeId existed fall under
@@ -191,25 +193,29 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                 </div>
             ) : (
                 <div className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-                    <p className="px-2 text-caption text-muted-foreground">{t('saved.deviceLocal')}</p>
+                    <p className="px-2 text-caption text-muted-foreground">{t('activity.deviceLocal')}</p>
                     {groups.map(group => (
                         <div key={group.key || 'none'} className="flex flex-col gap-1">
                             <p className="sticky top-0 z-raised flex items-center gap-2 bg-background px-2 py-1 text-overline uppercase text-muted-foreground">
                                 <span className="truncate">{placeName(group.key)}</span>
-                                <span className="shrink-0 tabular-nums">{group.items.length}</span>
+                                {group.items.some(item => !item.readAt) && (
+                                    <span className="shrink-0 tabular-nums">
+                                        {group.items.filter(item => !item.readAt).length}
+                                    </span>
+                                )}
                             </p>
                             {group.items.map(item => (
                                 <MentionRow
                                     key={item.id}
                                     item={item}
                                     channelName={channelName(item.channelId)}
-                                    removeLabel={t('saved.remove')}
+                                    removeLabel={t('activity.remove')}
                                     isCurrent={item.id === openedId}
                                     onOpen={() => {
                                         markOpened(item.id);
                                         markRead(item.id);
+                                        // The pane stays: catching up is open, read, next.
                                         onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
-                                        close();
                                     }}
                                     onRemove={() => remove(item.id)}
                                 />

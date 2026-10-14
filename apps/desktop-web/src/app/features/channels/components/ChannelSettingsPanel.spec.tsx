@@ -100,7 +100,7 @@ describe('ChannelSettingsPanel notification level', () => {
         expect(levels()).toEqual(['All messages', 'Off']);
     });
 
-    // Each level says what it does — 끔 answers whether @mentions get through.
+    // Each level says what it does — "끔" answers whether @mentions get through.
     it('describes every level it offers', () => {
         renderPanel({ name: 'general', stereo: 'public', memberNo: 3 } as Partial<DomainChannel>);
 
