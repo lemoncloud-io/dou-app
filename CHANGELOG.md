@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-14] - root@0.101.1, @chatic/desktop-web@0.30.1
+
+### Other
+
+- test: (app-runtime) let the room's one-each queue take the preparation turn first
+- test: (desktop-web) give the first inline-edit open room for a cold editor chunk
+
 ## [2026-10-14] - root@0.101.0, @chatic/desktop-web@0.30.0
 
 ### Features
