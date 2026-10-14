@@ -15,7 +15,8 @@ import {
     type ChannelAvatarGlyph,
 } from '../../channels/lib';
 import { pickDmPeerId } from '../../channels/utils/dmPeer';
-import { messagePreview, messageSearchText } from '../../channels/utils/messagePlainText';
+import { lastChatPreview } from '../../channels/utils/lastChatPreview';
+import { messageSearchText } from '../../channels/utils/messagePlainText';
 import type { CloudSearchResult, GlobalSearchResults } from './useGlobalSearch';
 import { useSenderProfiles, type SenderProfileRef } from './useSenderProfiles';
 
@@ -263,10 +264,10 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     glyph,
                     memberNo: showsMemberCount(kind) ? channel.memberNo : undefined,
                     unread: unreadOf(channel, context.joinsByRef[ref]),
-                    // Undefined, not '': the row and its test read the absence of a preview
-                    // as "nothing to show", and `messagePreview` answers '' for no input. The text
-                    // is flattened as the home list flattens it.
-                    lastMessage: lastChat ? messagePreview(lastChat.content) : undefined,
+                    // The home list's line — a tombstone as the deleted-message phrase, text
+                    // flattened, an attachment-only message as what it carries. Undefined, not '':
+                    // the row reads the absence of a preview as "nothing to show".
+                    lastMessage: lastChatPreview(lastChat, t) || undefined,
                     lastMessageAt: lastChat?.createdAtMs,
                     placeName: placeName(channel.cid, channel.sid),
                 };

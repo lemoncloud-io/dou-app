@@ -25,9 +25,9 @@ export const messagePlainText = (content?: string): string => {
 
 /**
  * A message body for a surface that prints text but cannot draw it — markers dropped, a labelled
- * link read as its words, a fenced block cut to its first line. The home list, the manage list,
- * a search result's room row and the delete confirmation all read this, so a message's text
- * flattens the same way wherever it appears.
+ * link read as its words, a fenced block cut to its first line. The room rows (home, manage list,
+ * a search result's room row — through `lastChatPreview`) and the delete confirmation all read
+ * this, so a message's text flattens the same way wherever it appears.
  */
 export const messagePreview = (content?: string): string => toPlainPreview(messagePlainText(content));
 

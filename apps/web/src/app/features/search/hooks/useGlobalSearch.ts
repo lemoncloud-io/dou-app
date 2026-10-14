@@ -107,7 +107,11 @@ export const useGlobalSearch = (query: string) => {
                 setCacheResults({
                     places: result.sites.slice(0, MAX_RESULTS_PER_SECTION),
                     channels: result.channels.slice(0, MAX_RESULTS_PER_SECTION),
-                    messages: result.chats.slice(0, MAX_MESSAGE_RESULTS),
+                    // A deleted message is not a result. A soft delete keeps its body on the row —
+                    // server and cache alike — and both cache sources match on that body, so without
+                    // this a deleted message's words would still find it. Dropped before the cap,
+                    // so a deleted row never takes a live result's place.
+                    messages: result.chats.filter(chat => !chat.hidden).slice(0, MAX_MESSAGE_RESULTS),
                 });
             })
             .catch(error => {
