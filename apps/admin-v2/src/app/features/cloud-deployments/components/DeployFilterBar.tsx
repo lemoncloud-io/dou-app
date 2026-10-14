@@ -1,6 +1,6 @@
 /**
  * `components/cloud-deployments/DeployFilterBar.tsx`
- * - The cloud stage filter, the services to deploy with a branch each, and `force`.
+ * - The cloud stage filter, the services to deploy with a branch each, `force`, and `slack`.
  */
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Checkbox } from '@chatic/ui-kit/components/ui/checkbox';
@@ -22,6 +22,8 @@ interface DeployFilterBarProps {
     onBranchChange: (service: CloudService, branch: string) => void;
     force: boolean;
     onForceChange: (force: boolean) => void;
+    slack: boolean;
+    onSlackChange: (slack: boolean) => void;
 }
 
 const STAGE_FILTER_LABEL: Record<CloudStageFilter, string> = { all: 'All', dev: 'dev', prod: 'prod' };
@@ -35,6 +37,8 @@ export const DeployFilterBar = ({
     onBranchChange,
     force,
     onForceChange,
+    slack,
+    onSlackChange,
 }: DeployFilterBarProps): JSX.Element => (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <div className="flex items-center gap-1.5">
@@ -87,6 +91,17 @@ export const DeployFilterBar = ({
                 title="Deploys a product even while it is still marked busy, which can overlap a deploy in progress."
             >
                 force
+            </Label>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+            <Switch id="deploy-slack" checked={slack} onCheckedChange={onSlackChange} />
+            <Label
+                htmlFor="deploy-slack"
+                className="text-xs"
+                title="Sends the goods service's accepted and success notices for each product. Failure reports go out either way."
+            >
+                slack
             </Label>
         </div>
     </div>

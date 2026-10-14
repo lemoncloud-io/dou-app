@@ -67,6 +67,7 @@ export const CloudDeploymentsPage = () => {
     const [services, setServices] = useState<ReadonlySet<CloudService>>(() => new Set(CLOUD_SERVICES));
     const [branches, setBranches] = useState<Partial<Record<CloudService, string>>>({});
     const [force, setForce] = useState(true);
+    const [slack, setSlack] = useState(true);
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
     const [confirming, setConfirming] = useState(false);
     const [sort, setSort] = useState<GroupSort>(DEFAULT_GROUP_SORT);
@@ -87,7 +88,7 @@ export const CloudDeploymentsPage = () => {
     // The calls follow the table, so the sort shown is also the order the run deploys in.
     const groups = useMemo(() => (grouping ? sortCloudGroups(grouping.groups, sort) : []), [grouping, sort]);
     const visible = groups.filter(group => matchesCloudStage(group, stageFilter));
-    const calls = planDeploys({ groups, selected, stageFilter, services, branches, force });
+    const calls = planDeploys({ groups, selected, stageFilter, services, branches, force, slack });
     const cloudCount = countClouds(calls);
     const truncated = lists ? CLOUD_SERVICES.filter(service => lists[service].truncated) : [];
 
@@ -201,6 +202,8 @@ export const CloudDeploymentsPage = () => {
                     onBranchChange={(service, branch) => setBranches(prev => ({ ...prev, [service]: branch }))}
                     force={force}
                     onForceChange={setForce}
+                    slack={slack}
+                    onSlackChange={setSlack}
                 />
 
                 {/* A failed refresh keeps the last list, so what the table shows depends on whether one
@@ -276,6 +279,7 @@ export const CloudDeploymentsPage = () => {
                 services={services}
                 branches={branches}
                 force={force}
+                slack={slack}
                 onConfirm={confirmRun}
             />
         </div>

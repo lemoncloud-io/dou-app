@@ -12,6 +12,7 @@ const call = (productId: string): DeployCall => ({
     projectId: `project-${productId}`,
     service: 'backend',
     force: true,
+    slack: true,
     params: { force: 1 },
 });
 
