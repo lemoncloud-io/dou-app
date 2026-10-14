@@ -143,7 +143,7 @@ export const useDesktopNotifications = (): void => {
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, chat, isDm ? null : kind),
+                    title: notificationTitle(channel, chat, kind),
                     body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).

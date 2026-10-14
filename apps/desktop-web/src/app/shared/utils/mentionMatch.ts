@@ -1,3 +1,4 @@
+import { isMentioningViewer } from '@chatic/data';
 import type { DomainChat } from '@chatic/data';
 
 /**
@@ -72,9 +73,9 @@ export const mentionKind = (
 ): MentionKind | null => {
     if (chat.mention$) {
         if (isNamedByRecord(chat, viewerIds)) return 'direct';
-        const all: unknown = chat.mention$.all;
-        if (all === true || all === 1) return 'everyone';
-        return null;
+        // Not named, so the record calls me only through its everyone flag — read by the
+        // library, which owns the wire's two spellings of that flag.
+        return isMentioningViewer(chat, viewerIds) ? 'everyone' : null;
     }
     if (mentionsNameInText(text, names)) return 'direct';
     if (GROUP_MENTION_PATTERN.test(text)) return 'everyone';
