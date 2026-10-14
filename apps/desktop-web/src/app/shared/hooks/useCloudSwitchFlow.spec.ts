@@ -1,12 +1,21 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import type { ReactElement, ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const session = vi.hoisted(() => ({
     selectedCloudId: 'A',
     switchCloud: vi.fn(),
     toast: vi.fn(),
+}));
+
+const data = vi.hoisted(() => ({
+    recover: vi.fn(() => Promise.resolve()),
+    cloudRepository: { id: 'cloud-repo' },
+}));
+
+const catalog = vi.hoisted(() => ({
+    ownedClouds: [] as Array<{ id: string }>,
 }));
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -16,7 +25,14 @@ vi.mock('@chatic/app-runtime', () => ({
             useLogoutCloudSession: () => ({ logoutCloudSession: vi.fn() }),
             useSessionSelection: () => ({ selectedCloudId: session.selectedCloudId }),
         },
+        data: {
+            recoverInvitedCloudIfMissing: (...args: unknown[]) => data.recover(...(args as [])),
+            useRuntimeRepositories: () => ({ cloud: data.cloudRepository }),
+        },
     },
+}));
+vi.mock('./useCloudCatalog', () => ({
+    useCloudSessionCatalog: () => ({ clouds: catalog.ownedClouds }),
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: session.toast }) }));
@@ -24,6 +40,12 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ to
 import '../../../i18n';
 
 import { switchCauseKey, useCloudSwitchFlow } from './useCloudSwitchFlow';
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    session.selectedCloudId = 'A';
+    catalog.ownedClouds = [];
+});
 
 describe('switchCauseKey', () => {
     // A failed switch said only "Couldn't switch cloud", whatever went wrong.
@@ -34,6 +56,36 @@ describe('switchCauseKey', () => {
         [new Error('400 INVALID - token'), 'cloud.switchCause.other'],
     ])('names the cause of %s', (error, key) => {
         expect(switchCauseKey(error)).toBe(key);
+    });
+});
+
+describe('useCloudSwitchFlow invited-cloud recovery', () => {
+    const switchTo = async (cloudId: string) => {
+        const { result } = renderHook(() => useCloudSwitchFlow());
+        await act(() => result.current.switchCloud(cloudId));
+    };
+
+    it('recovers a missing invited cloud before switching to it', async () => {
+        await switchTo('B');
+
+        expect(data.recover).toHaveBeenCalledWith(data.cloudRepository, 'B');
+        expect(session.switchCloud).toHaveBeenCalledWith('B');
+        expect(data.recover.mock.invocationCallOrder[0]).toBeLessThan(session.switchCloud.mock.invocationCallOrder[0]);
+    });
+
+    it('leaves an owned cloud alone — the relay catalog is its record', async () => {
+        catalog.ownedClouds = [{ id: 'B' }];
+        await switchTo('B');
+
+        expect(data.recover).not.toHaveBeenCalled();
+        expect(session.switchCloud).toHaveBeenCalledWith('B');
+    });
+
+    it('switches best-effort when the recovery rejects', async () => {
+        data.recover.mockRejectedValueOnce(new Error('gone'));
+        await switchTo('B');
+
+        expect(session.switchCloud).toHaveBeenCalledWith('B');
     });
 });
 

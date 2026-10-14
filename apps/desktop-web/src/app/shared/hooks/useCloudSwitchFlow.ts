@@ -7,6 +7,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
+import { useCloudSessionCatalog } from './useCloudCatalog';
 import { useSelectedChannelStore } from '../stores';
 import { classifyWireError, extractErrorMessage } from '../utils';
 
@@ -40,6 +41,15 @@ export const useCloudSwitchFlow = () => {
     const { switchCloud: switchCloudSession, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
     const { selectedCloudId } = runtime.session.useSessionSelection();
+    const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
+    const { clouds: ownedClouds } = useCloudSessionCatalog();
+    // Membership string, not the array: the catalog hands out a new identity per
+    // read, and the switch below must survive those, re-closing only when the
+    // membership itself changes.
+    const ownedKey = ownedClouds
+        .map(c => c.id)
+        .sort()
+        .join('\n');
     const { t } = useTranslation();
     const { toast } = useToast();
 
@@ -58,6 +68,20 @@ export const useCloudSwitchFlow = () => {
                 if (cloudId === 'default') {
                     await logoutCloudSession();
                     return;
+                }
+                // Push/reinstall safety net: an invited cloud wiped from the cache
+                // has no endpoints to switch with, so re-derive and re-cache them
+                // first (no-op when already cached). Best-effort — a revoked grant
+                // just leaves the rail as it was, and the switch below still runs
+                // to report its own failure. Owned clouds are the catalog's record;
+                // an invited row for one would mislabel it. Relay-origin pushes
+                // carry '#' instead of a cloud id and never reach this recovery.
+                if (cloudId !== '#' && !new Set(ownedKey ? ownedKey.split('\n') : []).has(cloudId)) {
+                    try {
+                        await runtime.data.recoverInvitedCloudIfMissing(cloudRepository, cloudId);
+                    } catch {
+                        // Best-effort (see above).
+                    }
                 }
                 await switchCloudSession(cloudId);
             } catch (e) {
@@ -92,7 +116,7 @@ export const useCloudSwitchFlow = () => {
                 });
             }
         },
-        [switchCloudSession, logoutCloudSession, selectedCloudId, isSwitching, t, toast]
+        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedKey, isSwitching, t, toast]
     );
 
     latestRef.current = switchCloud;
