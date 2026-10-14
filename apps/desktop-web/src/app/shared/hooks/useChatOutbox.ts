@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
-
 import { logger } from '@chatic/bridges';
-import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DataRepositories, DomainChat } from '@chatic/data';
+import { RELAY_CLOUD_ID, toMentionBody } from '@chatic/data';
+import type { ChatSendPayload, DataRepositories, DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 /**
@@ -78,12 +76,18 @@ const resolveParentId = (row: DomainChat): string | undefined => {
     return row.parentId.includes(':') ? row.parentId : `${row.channelId}:${row.parentId}`;
 };
 
-export const toSendPayload = (row: SendableChat): ChatSendInput => ({
-    channelId: row.channelId,
-    content: row.content,
-    contentType: row.contentType,
-    parentId: resolveParentId(row),
-});
+export const toSendPayload = (row: SendableChat): ChatSendPayload => {
+    // The failed row is the only copy of what was sent: without this a retried message reads the
+    // same and calls no one.
+    const mention = toMentionBody(row.mention$);
+    return {
+        channelId: row.channelId,
+        content: row.content,
+        contentType: row.contentType,
+        parentId: resolveParentId(row),
+        ...(mention ? { mention } : {}),
+    };
+};
 
 export interface LandingQuery {
     channelId: string;
@@ -194,7 +198,7 @@ export interface CloudOutboxDeps {
     /** The repository graph bound to `cid` — its partition, whichever cloud is selected. */
     repositoriesOf(cid: string): Pick<DataRepositories, 'chat' | 'channel'>;
     /** Sends to `cid` over that cloud's socket slot. */
-    sendInCloud(cid: string, payload: ChatSendInput): Promise<unknown>;
+    sendInCloud(cid: string, payload: ChatSendPayload): Promise<unknown>;
     /** The uid this account has in `cid` — every cloud gives it a different one. */
     uidOf(cid: string): string | null;
 }

@@ -11,6 +11,7 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type EditorState } from 'lexical';
 
+import type { ChatMentionBody } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
 import { useComposerDraftStore } from '../../../shared';
@@ -19,6 +20,7 @@ import { shouldCaptureTyping } from '../utils';
 import type { Mentionable } from './MentionAutocomplete';
 import { AttachButton, ComposerAttachments } from './images';
 import {
+    $collectMention,
     $exportMessage,
     $exportWireMarkdown,
     $hasMessageText,
@@ -39,8 +41,11 @@ import {
 } from './editor';
 
 export interface ComposerProps {
-    /** The text as markdown (may be empty) and the tray's files (may be none) — never both empty. */
-    onSend: (content: string, files: File[]) => void;
+    /**
+     * The text as markdown (may be empty) and the tray's files (may be none) — never both empty.
+     * `mention` is who was picked from the @ list and is still in the text; absent when no one was.
+     */
+    onSend: (content: string, files: File[], mention?: ChatMentionBody) => void;
     /** Channel the draft belongs to — preserves unsent text across switches. */
     channelId: string;
     /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
@@ -109,12 +114,15 @@ const ComposerInner = ({
     );
 
     const submit = useCallback(() => {
-        const markdown = editor.getEditorState().read($exportMessage);
+        // Read together, and before the document is cleared below: the picks live on its chips.
+        const { markdown, mention } = editor.getEditorState().read(() => {
+            const text = $exportMessage();
+            return { markdown: text, mention: text ? $collectMention() : undefined };
+        });
         if (!markdown && attachments.length === 0) return;
-        onSend(
-            markdown,
-            attachments.map(attachment => attachment.file)
-        );
+        const files = attachments.map(attachment => attachment.file);
+        if (mention) onSend(markdown, files, mention);
+        else onSend(markdown, files);
         // Clearing the document fires handleChange, which drops the draft.
         editor.update(
             () => {

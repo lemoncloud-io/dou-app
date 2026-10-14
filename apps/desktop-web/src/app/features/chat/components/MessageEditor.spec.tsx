@@ -79,6 +79,19 @@ describe('MessageEditor', () => {
     afterEach(cleanup);
     beforeEach(() => vi.clearAllMocks());
 
+    // An edit sends the text only: the server keeps who a message called as it was first sent.
+    // A row that says it calls the whole channel would be a promise the save does not keep.
+    it('does not offer the everyone row, which an edit cannot send', async () => {
+        await open('hi', {
+            mentionables: [{ id: '@everyone', name: 'all', everyone: true, keywords: ['Everyone'] }, ADA],
+        });
+        await typeAtEnd(' @');
+
+        const options = await screen.findAllByRole('option');
+
+        expect(options.map(option => option.textContent)).toEqual(['AAda']);
+    });
+
     it('opens with the message formatted and focus in the body', async () => {
         await open('**bold** and plain');
 

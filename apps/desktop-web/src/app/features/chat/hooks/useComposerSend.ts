@@ -5,7 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 import { xhrPut } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import type { DomainChat } from '@chatic/data';
+import type { ChatMentionBody, DomainChat } from '@chatic/data';
 
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { isUnsentImageMessage } from '../utils';
@@ -46,9 +46,16 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
     const failed = useCallback(() => toast({ variant: 'destructive', description: t('toast.messageFailed') }), [t]);
 
     const send = useCallback(
-        (content: string, files: readonly File[]) => {
+        (content: string, files: readonly File[], mention?: ChatMentionBody) => {
             if (content) {
-                void sendMessage(cid, { channelId, content, ...(parentId ? { parentId } : {}) }).catch(failed);
+                void sendMessage(cid, {
+                    channelId,
+                    content,
+                    ...(parentId ? { parentId } : {}),
+                    // Who the composer picked. The server reads this, never the text, to decide
+                    // who a "mentions only" member is told about.
+                    ...(mention ? { mention } : {}),
+                }).catch(failed);
             }
             // A rejection here means the row could not even be written; a failed upload resolves and
             // shows on its row instead.

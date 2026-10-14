@@ -1,7 +1,7 @@
 import { runtime } from '@chatic/app-runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isMentioned, isNotifiableChat, isOwnChat, messagePlainText, resolveMyMentionNames } from '../utils';
+import { isNotifiableChat, isOwnChat, mentionsMe, messagePlainText, resolveMyMentionNames } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';
 
 const chatAuthorId = (chat: ChannelLastChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
@@ -24,8 +24,10 @@ export const useMentionCapture = (): void => {
         // Flattened first: a Block Kit payload hides its text inside JSON, so both the
         // '@' pre-filter and the stored copy have to read what the message says.
         const content = messagePlainText(chat.content);
-        // Cheap pre-filter: only '@'-bearing messages can mention me (or @channel/@here).
-        if (!content || !content.includes('@')) return;
+        if (!content) return;
+        // Cheap pre-filter for a message with no mention record: only '@'-bearing text can
+        // mention me (or @channel/@here). A recorded mention needs no '@' in the text.
+        if (!chat.mention$ && !content.includes('@')) return;
         // The '@' filter above catches most system rows, but a join event for a channel
         // or member whose name contains '@' slips through — and the inbox must only ever
         // hold things people wrote.
@@ -39,7 +41,7 @@ export const useMentionCapture = (): void => {
         const isMe = isOwnChat({ ownerId: authorId, stereo: chat.stereo }, viewer);
         // Precedence: own message → not-a-mention → already-read → capture.
         if (isMe) return;
-        if (!isMentioned(content, resolveMyMentionNames())) return;
+        if (!mentionsMe(chat, [viewer.uid, viewer.cloudUid], content, resolveMyMentionNames())) return;
         // An id is the dedupe key of the inbox; a row without one cannot be stored.
         if (!chat.id) return;
         const chatNo = chat.chatNo ?? 0;

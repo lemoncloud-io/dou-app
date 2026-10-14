@@ -9,14 +9,20 @@ import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from 
 import {
     buildOpenDeeplink,
     isDndActive,
-    isMentioned,
     isNotifiableChat,
     isOwnChat,
+    mentionsMe,
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
 } from '../utils';
-import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
+import {
+    channelNotifyMode,
+    isNotifyDm,
+    useNotificationPrefsStore,
+    useReadCursorStore,
+    useSelectedChannelStore,
+} from '../stores';
 
 // DMs have no channel name — title with the sender instead. Named channels read as
 // `#name`, matching the cross-cloud push banner.
@@ -34,8 +40,9 @@ const isViewing = (channelId: string): boolean =>
  * Desktop-only OS notifications. The shared chat-feed engine (useChannelChatFeeds) streams every
  * registered channel's genuinely-new messages here; when a newer message from someone else
  * arrives while the window is hidden, ask the shell to show an OS notification. Covers channels
- * across every place the user belongs to. No-op outside the Desktop Shell (isNative() false) and
- * swallows NATIVE_NOT_SUPPORTED so plain-browser / older-shell runs degrade gracefully (ADR-0001).
+ * across every place the user belongs to. The banners are a no-op outside the Desktop Shell
+ * (isNative() false) and swallow NATIVE_NOT_SUPPORTED so plain-browser / older-shell runs degrade
+ * gracefully (ADR-0001).
  *
  * The per-channel notify mode is reverse-synced separately (`join.observeList`): another device
  * changing join.notify lands here as a join cache update — mirrored into the local prefs (which
@@ -70,7 +77,7 @@ export const useDesktopNotifications = (): void => {
         const prefs = useNotificationPrefsStore.getState();
         // Global do-not-disturb (snooze / quiet hours) silences every banner.
         if (isDndActive(prefs)) return;
-        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify);
+        const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isNotifyDm(channel));
         if (!prefs.desktopEnabled || notifyMode === 'none') return;
         // Don't notify for a channel you're actively viewing (you can see it).
         if (isViewing(channel.id)) return;
@@ -84,12 +91,15 @@ export const useDesktopNotifications = (): void => {
         const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
         if (isOwnChat(chat, viewer)) return;
 
-        // Mentions-only channels: drop anything that doesn't @-mention me
-        // (global profile name + this place's nick, plus @channel/@here).
+        // Mentions-only channels: drop anything that doesn't mention me — by the message's
+        // mention record when it has one, else by its text (global profile name + this
+        // place's nick, plus @channel/@here).
         // Flattened first: a mention lives in the block text, not in the JSON that
         // carries it, and the raw payload would also match on field names.
         const message = messagePlainText(chat.content);
-        if (notifyMode === 'mention' && !isMentioned(message, resolveMyMentionNames())) return;
+        if (notifyMode === 'mention') {
+            if (!mentionsMe(chat, [viewer.uid, viewer.cloudUid], message, resolveMyMentionNames())) return;
+        }
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
@@ -116,22 +126,27 @@ export const useDesktopNotifications = (): void => {
     // Join the place ids into a stable dependency so the effect re-runs only when the set changes.
     const placeIds = places.map(p => p.id).join(',');
 
-    // Reverse-sync the per-channel notify mode. Native-only (mirrors the old setup gate): another
-    // device changing join.notify lands as a join cache update — mirror it into the local prefs
-    // (which win at notify time). Guarded on change: read receipts remap to join updates
+    // Reverse-sync the per-channel notify mode: another device changing join.notify lands as a
+    // join cache update — mirror it into the local prefs (which win at notify time). Not gated on
+    // the shell like the banners above: the level is the app's own state, and the channel list
+    // reads it in a plain browser too. Guarded on change: read receipts remap to join updates
     // constantly. The shared chat-feed hook already registers each channel's sync target (which
     // streams these join updates into the cache), so this only needs to observe the join cache.
     useEffect(() => {
-        if (!isNative() || !isVerified || places.length === 0) return;
+        if (!isVerified || places.length === 0) return;
         let active = true;
 
         // channelId → join observe teardown.
         const subs = new Map<string, () => void>();
         const byPlace = new Map<string, Set<string>>();
 
-        const mirrorJoinNotify = (list: DomainJoin[]) => {
-            const uid = myUidRef.current;
-            const mine = uid ? list.find(j => j.userId === uid) : undefined;
+        // channelId → my user id in that channel's cloud. Outside the relay my join is under that
+        // id, not my account id; the account id is what there is to go by until it is known.
+        const cloudUids = new Map<string, string>();
+
+        const mirrorJoinNotify = (channelId: string, list: DomainJoin[]) => {
+            const myId = cloudUids.get(channelId) ?? myUidRef.current;
+            const mine = myId ? list.find(j => j.userId === myId) : undefined;
             const notify = mine?.notify;
             if (!mine?.channelId || (notify !== 'all' && notify !== 'mention' && notify !== 'none')) return;
             const prefs = useNotificationPrefsStore.getState();
@@ -141,7 +156,9 @@ export const useDesktopNotifications = (): void => {
         const ensureJoinSub = (channel: DomainChannel) => {
             if (!channel.id || subs.has(channel.id)) return;
             const channelId = channel.id;
-            const unsubJoin = joinRepository.observeList({ channelId }, result => mirrorJoinNotify(result?.list ?? []));
+            const unsubJoin = joinRepository.observeList({ channelId }, result =>
+                mirrorJoinNotify(channelId, result?.list ?? [])
+            );
             subs.set(channelId, unsubJoin);
         };
 
@@ -156,6 +173,10 @@ export const useDesktopNotifications = (): void => {
                         subs.get(id)?.();
                         subs.delete(id);
                     }
+                }
+                for (const channel of list) {
+                    const cloudUid = channel.$join?.userId;
+                    if (channel.id && cloudUid) cloudUids.set(channel.id, cloudUid);
                 }
                 list.forEach(ensureJoinSub);
                 byPlace.set(place.id, nextIds);

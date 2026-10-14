@@ -41,6 +41,26 @@ export const unreadMentionCount = (items: Record<string, MentionItem>): number =
     Object.values(items).reduce((count, item) => (item.readAt ? count : count + 1), 0);
 
 /**
+ * Whether a channel holds a mention I have not got to: one not opened from the inbox, and past
+ * `readNo`, what I have read in the channel. Drives the `@` on the channel's row.
+ *
+ * The channel is named with its place: channel ids are numbered per place, and this inbox holds
+ * every place's mentions, so the id alone would also match another place's channel.
+ */
+export const hasUnreadMentionIn = (
+    items: Record<string, MentionItem>,
+    channel: { id: string; placeId?: string },
+    readNo: number
+): boolean =>
+    Object.values(items).some(
+        item =>
+            item.channelId === channel.id &&
+            item.placeId === channel.placeId &&
+            !item.readAt &&
+            (item.chatNo ?? 0) > readNo
+    );
+
+/**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so
  * this is a local snapshot like Saved items — persisted to localStorage, does
  * not follow the account across devices.

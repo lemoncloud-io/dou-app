@@ -73,6 +73,13 @@ describe('placeUnreadCounts', () => {
         expect(counts([group('g', 'place-a', [ME], mentionOnly)])).toEqual({ byPlace: {}, total: 0 });
     });
 
+    // A 1:1 has no "mentions only": the server sends every message of it, so it counts as all.
+    it('counts a 1:1 that was left on mentions only', () => {
+        const mentionOnly = { ...unread3, $join: { ...unread3.$join, notify: 'mention' } };
+
+        expect(counts([dm('dm-1', 'peer', 'place-a', mentionOnly)], [])).toEqual({ byPlace: {}, total: 3 });
+    });
+
     // A mode set on this device wins over the join row, in both directions.
     it('follows the mode set on this device over the join row', () => {
         const mutedOnServer = { ...unread3, $join: { ...unread3.$join, notify: 'none' } };

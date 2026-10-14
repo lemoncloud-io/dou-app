@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
+import { $createParagraphNode, $createTextNode, $getRoot, type LexicalEditor } from 'lexical';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -10,6 +11,7 @@ import '../../../../i18n';
 import { useComposerDraftStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';
 import { Composer } from './Composer';
+import { $createMentionNode } from './editor/MentionNode';
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
@@ -192,6 +194,41 @@ describe('Composer send', () => {
             expect(onSend).toHaveBeenCalledWith(text, []);
         }
     );
+
+    // Reaches the composer's own editor the way a pick does: the chip is what the list inserts.
+    const insertPick = async (container: HTMLElement, name: string, userId: string) => {
+        // Lexical keeps its editor on the root element it was given; the DOM type does not say so.
+        const root = container.querySelector('[data-composer-input]') as HTMLElement & {
+            __lexicalEditor: LexicalEditor;
+        };
+        await act(async () =>
+            root.__lexicalEditor.update(
+                () => {
+                    $getRoot()
+                        .clear()
+                        .append(
+                            $createParagraphNode().append(
+                                $createMentionNode(`@${name}`, { userId }),
+                                $createTextNode(' hi')
+                            )
+                        );
+                },
+                { discrete: true }
+            )
+        );
+    };
+
+    it('hands up who was picked, read before the box is emptied', async () => {
+        const onSend = vi.fn();
+        const { container } = render(<Composer channelId="ch-1" onSend={onSend} />, { wrapper });
+        await settle();
+        await insertPick(container, 'Ada', 'u-ada');
+        await waitFor(() => expect(sendButton()).toHaveProperty('disabled', false));
+
+        await act(async () => fireEvent.click(sendButton()));
+
+        expect(onSend).toHaveBeenCalledWith('@Ada hi', [], { userIds: ['u-ada'] });
+    });
 
     it('sends nothing when there is neither text nor a picture', async () => {
         const onSend = renderComposer([]);

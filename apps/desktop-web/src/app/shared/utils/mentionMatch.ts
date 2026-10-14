@@ -1,3 +1,6 @@
+import { isMentioningViewer } from '@chatic/data';
+import type { DomainChat } from '@chatic/data';
+
 /**
  * Group tokens that mention everyone in the channel: Slack's three, and the words the phone's
  * everyone pick writes — `@all` in English, `@전체` in Korean.
@@ -38,3 +41,17 @@ export const isMentioned = (content: string, names: Array<string | null | undefi
         return !!name && lower.includes(`@${name}`);
     });
 };
+
+/**
+ * Whether a message calls the viewer. The sender's composer records who it picked (`mention$`), and
+ * that record is the answer whenever the message has one — it is what the server goes by, and a
+ * name in the text may be someone else's. A message with no record (an older client, a webhook) is
+ * read by its text, as before. `viewerIds` are the viewer's account id and their member id in the
+ * channel's cloud; the record holds member ids.
+ */
+export const mentionsMe = (
+    chat: Pick<DomainChat, 'mention$'>,
+    viewerIds: ReadonlyArray<string | null | undefined>,
+    text: string,
+    names: Array<string | null | undefined>
+): boolean => (chat.mention$ ? isMentioningViewer(chat, viewerIds) : isMentioned(text, names));

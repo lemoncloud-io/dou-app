@@ -7,7 +7,7 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainChannel } from '@chatic/data';
+import type { ChatMentionBody, DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -176,7 +176,7 @@ export const ChatPane = ({
     const cachedNames = useAuthorNames(authorIds);
     const memberNames = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
-    const mentionables = useMentionables(members, viewer);
+    const mentionables = useMentionables(members, viewer, channel);
 
     // The image tray belongs to the open channel: switching channels drops it (and its
     // object URLs) the way a thread switch does in ThreadPanel.
@@ -257,9 +257,10 @@ export const ChatPane = ({
         );
     }
 
-    const handleSend = (content: string, files: File[]) => {
+    const handleSend = (content: string, files: File[], mention?: ChatMentionBody) => {
         setSendTick(tick => tick + 1);
-        composer.send(content, files);
+        if (mention) composer.send(content, files, mention);
+        else composer.send(content, files);
         tray.clear();
     };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMentioned } from './mentionMatch';
+import { isMentioned, mentionsMe } from './mentionMatch';
 
 describe('isMentioned', () => {
     it.each(['@channel', '@here', '@everyone', '@all', '@전체'])('reads %s as calling everyone', word => {
@@ -27,5 +27,37 @@ describe('isMentioned', () => {
     it('does not read a message with no @ or no matching name', () => {
         expect(isMentioned('all hands at 3', ['Ada'])).toBe(false);
         expect(isMentioned('ping @Bo', ['Ada'])).toBe(false);
+    });
+});
+
+// The sender's composer records who it picked, and the server tells exactly those members. The
+// record is the answer whenever a message has one; the text is a guess kept for messages that have
+// none (an older client, a webhook).
+describe('mentionsMe', () => {
+    const ME = ['acct-1', 'cloud-user-9'];
+
+    it('goes by the record when it names me, whatever the text calls me', () => {
+        expect(mentionsMe({ mention$: { userIds: ['cloud-user-9'] } }, ME, '@Nickname hi', ['Me'])).toBe(true);
+    });
+
+    it('goes by the record when it does not name me, though the text has my name', () => {
+        expect(mentionsMe({ mention$: { userIds: ['u-other'] } }, ME, 'hi @Me', ['Me'])).toBe(false);
+    });
+
+    // A read gives `true`, a live `chat.sync` the model's `1`.
+    it.each([true, 1] as const)('counts a record that calls everyone (%j)', all => {
+        expect(mentionsMe({ mention$: { all } }, ME, 'standup', ['Me'])).toBe(true);
+    });
+
+    it('does not let a typed group word override a record that calls someone else', () => {
+        expect(mentionsMe({ mention$: { userIds: ['u-other'] } }, ME, '@channel hi', ['Me'])).toBe(false);
+    });
+
+    it.each([
+        ['my name', 'hi @Me', true],
+        ['a group word', '@here hi', true],
+        ['neither', 'hi @Bo', false],
+    ])('reads the text of a message with no record: %s', (_name, text, expected) => {
+        expect(mentionsMe({}, ME, text, ['Me'])).toBe(expected);
     });
 });

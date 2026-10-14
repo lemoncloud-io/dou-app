@@ -102,8 +102,8 @@ interface MessageRowProps {
     threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
     onOpenThread?: (rootId: string) => void;
-    /** Lowercased names that count as "me" — my mentions render highlighted. */
-    selfNames?: string[];
+    /** Lowercased names that count as "me" in a message — my mentions render highlighted. */
+    selfNamesOf?: (message: DomainChat) => string[];
     /** Resolves an @mention to a member, so the mention opens their profile. */
     resolveMention?: MentionResolver;
     /** Roster for the inline editor's @-autocomplete and chips. Absent: no autocomplete, and only group tokens become chips. */
@@ -236,7 +236,7 @@ export const MessageRow = memo(
         reactorName,
         threadMeta,
         onOpenThread,
-        selfNames,
+        selfNamesOf,
         resolveMention,
         mentionables,
         highlightChatNo,
@@ -605,7 +605,7 @@ export const MessageRow = memo(
                                                 renderFallback={raw => (
                                                     <RichText
                                                         content={raw}
-                                                        selfNames={selfNames}
+                                                        selfNames={selfNamesOf?.(message)}
                                                         resolveMention={resolveMention}
                                                     />
                                                 )}
@@ -623,7 +623,7 @@ export const MessageRow = memo(
                                         >
                                             <RichText
                                                 content={content}
-                                                selfNames={selfNames}
+                                                selfNames={selfNamesOf?.(message)}
                                                 resolveMention={resolveMention}
                                             />
                                             {wasEdited && (

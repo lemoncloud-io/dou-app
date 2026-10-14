@@ -104,7 +104,16 @@ const useMentionTypeahead = (editor: LexicalEditor, mentionables: Mentionable[])
     const items = useMemo(() => {
         if (query === null || !mentionables.length) return [];
         const q = query.toLowerCase();
-        return q ? mentionables.filter(m => m.name.toLowerCase().includes(q)) : mentionables;
+        if (!q) return mentionables;
+        const people = mentionables.filter(m => !m.everyone && m.name.toLowerCase().includes(q));
+        // The everyone row is titled one way and writes another word; the start of either finds it.
+        // Only the start, and after the people: Enter picks the first row, and letters that also
+        // sit inside "all" or "Everyone" are far more often a name being typed. Calling the whole
+        // channel by accident is the costlier mistake.
+        const everyone = mentionables.filter(
+            m => m.everyone && [m.name, ...(m.keywords ?? [])].some(word => word.toLowerCase().startsWith(q))
+        );
+        return [...people, ...everyone];
     }, [query, mentionables]);
     const open = items.length > 0;
     const activeClamped = Math.min(activeIndex, items.length - 1);
@@ -132,7 +141,10 @@ const useMentionTypeahead = (editor: LexicalEditor, mentionables: Mentionable[])
                     if (!found) return;
                     // Expand the collapsed caret back over "@query", then replace it.
                     selection.anchor.set(found.startKey, found.startOffset, 'text');
-                    const mentionNode = $createMentionNode(`@${item.name}`);
+                    const mentionNode = $createMentionNode(
+                        `@${item.name}`,
+                        item.everyone ? { everyone: true } : { userId: item.id }
+                    );
                     selection.insertNodes([mentionNode]);
                     const space = $createTextNode(' ');
                     mentionNode.insertAfter(space);

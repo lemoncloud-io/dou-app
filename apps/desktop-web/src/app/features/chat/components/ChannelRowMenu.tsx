@@ -22,8 +22,6 @@ import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSen
 import { isDmBucket } from '../utils';
 import { lastChatNoOf, useChannelNotifyChange, useReadCursorStore, type ChannelNotifyMode } from '../../../shared';
 
-const NOTIFY_MODES: ChannelNotifyMode[] = ['all', 'mention', 'none'];
-
 type RowDialogKind = Exclude<ChannelDialogKind, 'kick' | null>;
 
 interface ChannelRowMenuProps {
@@ -68,7 +66,7 @@ export const ChannelRowMenu = ({
     // room the recipient is already in.
     const canInvite = !isDm;
     // Same writer as the settings panel (local pref + announced server sync).
-    const { notifyMode, onNotifyChange } = useChannelNotifyChange(channel, myUid);
+    const { notifyMode, notifyModes, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     // Same write as the read-receipt flush: optimistic local cursor first, then the channel's
     // own cloud's repository, whose outbox resends until the server has it. Only a read
@@ -117,7 +115,7 @@ export const ChannelRowMenu = ({
                             value={notifyMode}
                             onValueChange={value => onNotifyChange(value as ChannelNotifyMode)}
                         >
-                            {NOTIFY_MODES.map(mode => (
+                            {notifyModes.map(mode => (
                                 <ContextMenuRadioItem key={mode} value={mode}>
                                     {t(`channels.settings.notify.${mode}`)}
                                 </ContextMenuRadioItem>

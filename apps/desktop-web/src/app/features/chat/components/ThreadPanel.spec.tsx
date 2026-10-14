@@ -58,10 +58,10 @@ vi.mock('../hooks', async () => ({
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about
 // what the panel renders above it — and what it does with a reply the composer hands up.
-let composerOnSend: ((content: string, files: File[]) => void) | undefined;
+let composerOnSend: ((content: string, files: File[], mention?: { userIds?: string[] }) => void) | undefined;
 let composerHoldsFocus: boolean | undefined;
 vi.mock('./Composer', () => ({
-    Composer: ({ onSend, holdFocus }: { onSend: (content: string, files: File[]) => void; holdFocus?: boolean }) => {
+    Composer: ({ onSend, holdFocus }: { onSend: typeof composerOnSend & {}; holdFocus?: boolean }) => {
         composerOnSend = onSend;
         composerHoldsFocus = holdFocus;
         return null;
@@ -390,6 +390,16 @@ describe('ThreadPanel', () => {
         expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'cloud-a', channelId: 'C1', parentId: 'C1:1' });
         expect(composerSend).toHaveBeenCalledWith('reply', files);
         expect(clearTray).toHaveBeenCalled();
+    });
+
+    it("passes the reply box's picked mention on to the send", async () => {
+        messages = [chat(1, { content: 'root' })];
+
+        render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
+        await waitFor(() => expect(composerOnSend).toBeDefined());
+        composerOnSend?.('@Ada hi', [], { userIds: ['u-ada'] });
+
+        expect(composerSend).toHaveBeenCalledWith('@Ada hi', [], { userIds: ['u-ada'] });
     });
 
     it('records the thread in my threads list when I reply, as read, under its cloud', async () => {
