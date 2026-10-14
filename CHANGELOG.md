@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-10-14] - root@0.101.0, @chatic/desktop-web@0.30.0
+
+### Features
+
+- (desktop-web) tell mentions-only from off in the channel list
+- (desktop-web) follow the notify level set on another device
+- (desktop-web) judge a received mention by the message's record
+- (desktop-web) offer an everyone row in the @ list of a channel
+- (desktop-web) send who was picked from the @ list with the message
+
+### Bug Fixes
+
+- (desktop-web) draw the mentioned-me mark as a filled pill
+- (desktop-web) keep the mention when a failed message is sent again
+
+### Documentation
+
+- (adr) record how the desktop sends and reads the mention record
+
 ## [2026-10-14] - No version updates
 
 ### Bug Fixes
