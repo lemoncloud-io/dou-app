@@ -2,6 +2,12 @@
 
 ## [2026-10-14] - No version updates
 
+### Bug Fixes
+
+- (data) end the readiness watch when its first report already released the cloud
+
+## [2026-10-14] - No version updates
+
 ### Features
 
 - (data,app-runtime,web,perf) time how state writes reach the server as state_outbox (ADR-0200)
