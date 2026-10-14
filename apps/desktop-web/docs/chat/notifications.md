@@ -48,3 +48,24 @@ arrived while the app was closed is never captured and lights nothing here; a
 mention crowded out by a newer message (the feed hands each channel's latest
 only) is missed the same way; and past the inbox's 200-entry cap an unread
 mention can fall out and shrink a channel's share.
+
+## Quiet-hours breakthrough
+
+Off unless turned on, under the quiet-hours card in Settings (the switch only
+shows while quiet hours are set). When on, a message whose mention record names
+me directly still banners during quiet hours:
+
+| Message during quiet hours | Banner |
+|---|---|
+| Record names me (`mention$.userIds` holds my id) | Yes |
+| Record calls everyone (`mention$.all`) | No |
+| My name in the text, no record | No |
+| 1:1 message | No |
+| Anything while snoozed | No |
+
+Snooze is never broken through — it is pressed by hand, often while sharing the
+screen, and a banner there would put the message body on the shared screen. Past
+the breakthrough the usual checks still run: the global switch, the channel
+level (an "off" channel stays silent), the open channel, the read cursor, and my
+own messages. A banner broken through on macOS still needs Focus off to show;
+the setting says so.

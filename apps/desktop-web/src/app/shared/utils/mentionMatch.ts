@@ -71,9 +71,7 @@ export const mentionKind = (
     names: Array<string | null | undefined>
 ): MentionKind | null => {
     if (chat.mention$) {
-        const ids = chat.mention$.userIds ?? [];
-        if (viewerIds.some(id => !!id && ids.includes(id))) return 'direct';
-        // `all` reads as `true`, but a live `chat.sync` delivers the model's `1`.
+        if (isNamedByRecord(chat, viewerIds)) return 'direct';
         const all: unknown = chat.mention$.all;
         if (all === true || all === 1) return 'everyone';
         return null;
@@ -81,6 +79,20 @@ export const mentionKind = (
     if (mentionsNameInText(text, names)) return 'direct';
     if (GROUP_MENTION_PATTERN.test(text)) return 'everyone';
     return null;
+};
+
+/**
+ * Whether the message's mention record names the viewer directly — by id, not
+ * by an everyone flag and never by the text. The quiet-hours breakthrough's
+ * only condition: a breakthrough on a text guess would wake the user for
+ * someone else of the same name.
+ */
+export const isNamedByRecord = (
+    chat: Pick<DomainChat, 'mention$'>,
+    viewerIds: ReadonlyArray<string | null | undefined>
+): boolean => {
+    const ids = chat.mention$?.userIds ?? [];
+    return viewerIds.some(id => !!id && ids.includes(id));
 };
 
 /**

@@ -63,6 +63,7 @@ beforeEach(() => {
         channelNotify: {},
         snoozeUntil: null,
         quietHours: null,
+        mentionBreaksQuietHours: false,
     });
     renderHook(() => useDesktopNotifications());
 });
@@ -217,6 +218,81 @@ describe('useDesktopNotifications', () => {
                 expect(titleOfFirstBanner()).toBe(everyone);
             } finally {
                 await i18n.changeLanguage(prev);
+            }
+        });
+    });
+
+    describe('quiet-hours breakthrough', () => {
+        const ALL_DAY = { start: '00:00', end: '23:59' };
+        const directFeed = (chat: Record<string, unknown> = {}) =>
+            feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' }, ...chat });
+        const quietWith = (prefs: Record<string, unknown>) =>
+            useNotificationPrefsStore.setState({ quietHours: ALL_DAY, ...prefs });
+
+        it('stays silent in quiet hours when the toggle is off', () => {
+            quietWith({ mentionBreaksQuietHours: false });
+            feedHandler?.(directFeed());
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('banners a record-named direct mention when the toggle is on', () => {
+            quietWith({ mentionBreaksQuietHours: true });
+            feedHandler?.(directFeed());
+            expect(request).toHaveBeenCalledTimes(1);
+        });
+
+        it('stays silent for an everyone call when the toggle is on', () => {
+            quietWith({ mentionBreaksQuietHours: true });
+            feedHandler?.(directFeed({ mention$: { all: true } }));
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('stays silent for my name in the text with no record when the toggle is on', () => {
+            quietWith({ mentionBreaksQuietHours: true });
+            feedHandler?.(feed({ content: 'hello @Me', owner$: { name: 'Raine' } }));
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('stays silent for a 1:1 when the toggle is on', () => {
+            quietWith({ mentionBreaksQuietHours: true });
+            const { channel, ...rest } = directFeed();
+            feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('stays silent while snoozed when the toggle is on', () => {
+            useNotificationPrefsStore.setState({
+                quietHours: ALL_DAY,
+                mentionBreaksQuietHours: true,
+                snoozeUntil: Date.now() + 60_000,
+            });
+            feedHandler?.(directFeed());
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('stays silent for a channel turned off when the toggle is on', () => {
+            quietWith({ mentionBreaksQuietHours: true, channelNotify: { 'ch-1': 'none' } });
+            feedHandler?.(directFeed());
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('stays silent with the global switch off when the toggle is on', () => {
+            quietWith({ mentionBreaksQuietHours: true, desktopEnabled: false });
+            feedHandler?.(directFeed());
+            expect(request).not.toHaveBeenCalled();
+        });
+
+        it('stays silent for the channel on screen when the toggle is on', () => {
+            const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+            try {
+                useSelectedChannelStore.setState({ selectedChannelId: 'ch-1' });
+                quietWith({ mentionBreaksQuietHours: true });
+                feedHandler?.(directFeed());
+                expect(request).not.toHaveBeenCalled();
+            } finally {
+                hasFocus.mockRestore();
+                Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'prerender' });
             }
         });
     });

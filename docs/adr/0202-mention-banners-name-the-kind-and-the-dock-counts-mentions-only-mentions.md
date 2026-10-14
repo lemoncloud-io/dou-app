@@ -4,10 +4,12 @@
 > · Follows [ADR-0199](./0199-the-desktop-sends-and-reads-the-mention-record.md),
 > which gave the desktop the mention record and the mentions inbox but left the banners
 > titled as plain messages and the dock blind to mentions-only channels
-> · Scope: `apps/desktop-web` — `shared/utils/mentionMatch` (`mentionKind`), `useDesktopNotifications`,
+> · Scope: `apps/desktop-web` — `shared/utils/mentionMatch` (`mentionKind`, `isNamedByRecord`), `useDesktopNotifications`,
 > `shared/utils/channelUnread` (`channelReadNo`), `shared/utils/placeUnreadCounts`,
 > `shared/hooks/usePlaceUnreadCounts`, `shared/stores/useMentionsStore` (`countUnreadMentionsIn`),
-> `features/chat/components/ChannelList`, `src/locales`. No change to `libs/*`, `apps/web`,
+> `shared/stores/useNotificationPrefsStore` (`mentionBreaksQuietHours`),
+> `features/chat/components/ChannelList`, `features/chat/components/NotificationSnoozeButton`,
+> `features/settings/pages` (`QuietHoursMentionSection`), `src/locales`. No change to `libs/*`, `apps/web`,
 > `apps/mobile` or the server
 > · The module doc is [desktop-web docs/chat/notifications.md](../../apps/desktop-web/docs/chat/notifications.md);
 > [docs/shell/cloud-rail.md](../../apps/desktop-web/docs/shell/cloud-rail.md) (§ Unread) points at it
@@ -49,6 +51,12 @@ row's `@` and nothing else.
 7. **The copy is translated at notify time** (`i18next.t` in the feed callback, not a
    render-captured `t`): the callback outlives the render that registered it, so a captured
    translator would go stale on a language switch. These are the hook's first translated strings.
+8. **Quiet hours break only for a record-named direct mention, and only when asked.** The
+   breakthrough is a per-device switch under the quiet-hours card, off unless turned on, shown
+   only while quiet hours are set. Its only condition is `isNamedByRecord`: an everyone call, a
+   text guess, and a 1:1 stay silent. Snooze is never broken — it is pressed by hand, often while
+   sharing the screen. Past the breakthrough the usual checks still run (global switch, channel
+   level, open channel, read cursor, own message).
 
 ## Consequences
 
@@ -58,10 +66,11 @@ row's `@` and nothing else.
    that arrived while the app was closed was never captured; a mention crowded out by a newer
    message (the feed hands each channel's latest only) is missed; past the inbox's 200-entry cap an
    unread mention can fall out and shrink a channel's share.
-- The quiet-hours breakthrough (a setting to let a direct mention banner through quiet hours) is
-   **not** decided here. It waits on a device check that the live channel feed actually carries
-   `mention$`; if the feed does not, the breakthrough would never fire and the fix would be
-   server-side. Its decision belongs in the change that ships it.
+- The quiet-hours breakthrough reads the record off the channel's latest message as the feed
+  delivers it. Whether that feed always carries `mention$` was not checked on a device; where it
+  does not, the breakthrough never fires (it reads the record alone, never the text) while the
+  banner title and the dock still fall back to the text. If the feed turns out not to carry the
+  record, the fix is server-side, outside this client.
 
 ## Alternatives considered
 

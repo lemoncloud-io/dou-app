@@ -10,9 +10,10 @@ import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
 import {
     buildOpenDeeplink,
-    isDndActive,
+    isNamedByRecord,
     isNotifiableChat,
     isOwnChat,
+    isWithinQuietHours,
     mentionKind,
     resolveMyMentionNames,
     messagePlainText,
@@ -95,8 +96,18 @@ export const useDesktopNotifications = (): void => {
         if (!isNotifiableChat(chat)) return;
         // Respect the user's notification preferences (global off / channel mode).
         const prefs = useNotificationPrefsStore.getState();
-        // Global do-not-disturb (snooze / quiet hours) silences every banner.
-        if (isDndActive(prefs)) return;
+        // Snooze silences every banner, breakthrough or not. Quiet hours break
+        // only for a message whose record names me directly — never for an
+        // everyone call, a text guess, or a 1:1. Everything after this point
+        // (global switch, channel level, viewing, cursor, own message) still applies.
+        const now = Date.now();
+        if (prefs.snoozeUntil != null && prefs.snoozeUntil > now) return;
+        if (isWithinQuietHours(prefs.quietHours, new Date(now))) {
+            const viewerIds = [myUidRef.current, channel.$join?.userId ?? null];
+            if (!prefs.mentionBreaksQuietHours || isNotifyDm(channel) || !isNamedByRecord(chat, viewerIds)) {
+                return;
+            }
+        }
         const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isNotifyDm(channel));
         if (!prefs.desktopEnabled || notifyMode === 'none') return;
         // Don't notify for a channel you're actively viewing (you can see it).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMentioned, mentionKind, mentionsMe } from './mentionMatch';
+import { isMentioned, isNamedByRecord, mentionKind, mentionsMe } from './mentionMatch';
 
 describe('isMentioned', () => {
     it.each(['@channel', '@here', '@everyone', '@all', '@전체'])('reads %s as calling everyone', word => {
@@ -108,5 +108,27 @@ describe('mentionKind', () => {
 
     it('returns null when the text calls nobody', () => {
         expect(mentionKind({}, ME, 'hi @Bo', ['Me'])).toBeNull();
+    });
+});
+
+// The quiet-hours breakthrough's only condition: a record naming me, never the
+// text and never an everyone flag.
+describe('isNamedByRecord', () => {
+    const ME = ['acct-1', 'cloud-user-9'];
+
+    it.each([['acct-1'], ['cloud-user-9']] as const)('reads a record naming my id %s', id => {
+        expect(isNamedByRecord({ mention$: { userIds: [id] } }, ME)).toBe(true);
+    });
+
+    it('does not read an everyone record', () => {
+        expect(isNamedByRecord({ mention$: { all: true } }, ME)).toBe(false);
+    });
+
+    it('does not read a record naming someone else', () => {
+        expect(isNamedByRecord({ mention$: { userIds: ['u-other'] } }, ME)).toBe(false);
+    });
+
+    it('does not read a message with no record, whatever the text says', () => {
+        expect(isNamedByRecord({}, ME)).toBe(false);
     });
 });

@@ -210,6 +210,10 @@ export const en = {
     'chat.push.fallbackBody': 'New message',
     'notification.mentionTitle': 'Mention · {{target}}',
     'notification.everyoneTitle': '@{{word}} · {{target}}',
+    'settings.quietHoursMention': 'Notify mentions that name me',
+    'settings.quietHoursMentionHint':
+        'During quiet hours, a banner still appears for a message whose mention record names you. Nothing appears while macOS Focus is on.',
+    'snooze.activeQuietMention': 'Quiet hours — only mentions that name me',
     'chat.attach.countLabel': '{{count}} of {{max}} files attached',
     'chat.attach.rejected.limit_one': 'Up to {{max}} files per message, so {{count}} was not added.',
     'chat.attach.rejected.limit_other': 'Up to {{max}} files per message, so {{count}} were not added.',
