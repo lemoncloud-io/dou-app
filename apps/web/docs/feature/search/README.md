@@ -115,13 +115,23 @@ dropped (backticks and fences, and whatever else
 [Message text](../channels/chat-room.md#message-text-is-not-markdown) lists) and a labelled link
 read as its words. The two kinds of row flatten differently, on purpose:
 
-- **A room row's preview** is `messagePreview` — the home list's text for that room, a fenced block
-  cut to its first line. The home list's tombstone and attachment-only lines ("Photo") are not
-  mirrored here.
+- **A room row's preview** is `lastChatPreview` — the home list's own line for that room: a deleted
+  last message as `chat.room.deletedMessage`, text with a fenced block cut to its first line, and an
+  attachment-only message as what it carries ("Photo", "3 videos").
 - **A message row** is `messageSearchText`, which keeps every line of a fenced block, because the
   row highlights the query inside it. A match on a code block's third line has to survive the
   flattening to be highlighted; the row is one line and truncates either way, and `HighlightText`
   trims the lead so the match stays in view.
+
+**A deleted message is not a result.** The server's delete is soft — it sets `hidden` and keeps the
+body — and the cache writes the row back the same way, so a deleted row still holds its words and both
+cache scans (IndexedDB and the native SQLite `LIKE`) match on them. `useGlobalSearch` drops `hidden`
+rows before the 30-message cap, so a deleted row never takes a live result's place. Printing them as
+"Deleted message" instead was rejected: the row would tell the reader that a message they can no
+longer read contained what they typed. The flag is read for truthiness, since the server sends it as
+0/1. A message deleted while this device was offline is the one gap: `chat.sync` does not replay the
+delete and `chat.feed` merely omits the row, so the cached copy can stay unflagged — and searchable.
+That is the sync layer's gap, and closing it belongs there, not in this filter.
 
 The scan itself matches the raw stored body, not the flattened one. A query that only hits markup —
 the address behind a labelled link, a backtick — still finds the message, and its row then shows the

@@ -4,14 +4,7 @@ import { AtSign } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
-import {
-    chatAttachmentSummary,
-    type ChatAttachmentKind,
-    type DomainChannel,
-    type DomainChat,
-    type DomainJoin,
-    isMentioningViewer,
-} from '@chatic/data';
+import { type DomainChannel, type DomainChat, type DomainJoin, isMentioningViewer } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -61,7 +54,7 @@ import {
     resolveChannelTitle,
     showsMemberCount,
 } from '../../channels/lib';
-import { messagePreview } from '../../channels/utils/messagePlainText';
+import { lastChatPreview } from '../../channels/utils/lastChatPreview';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { notifyLevelOf } from '../../channels/utils/notifyLevel';
 import { sortChannels } from '../../../utils/sortChannels';
@@ -84,22 +77,6 @@ const ChannelSkeleton = ({ delayMs = 0 }: { delayMs?: number }) => (
         </div>
     </div>
 );
-
-// Nouns and counters match the push for the same message ("사진 3장" / "사진 3장을 보냈습니다"),
-// so changing one of them means changing the push copy in the mobile locales too. `mixed` has no
-// one-attachment form: a single attachment is a single kind, except a lone audio file, which the
-// count form covers.
-const ATTACHMENT_PREVIEW_KEYS: Record<ChatAttachmentKind, { one?: string; many: string }> = {
-    image: { one: 'chat.attach.preview', many: 'chat.attach.previewCount' },
-    video: { one: 'chat.attach.previewVideo', many: 'chat.attach.previewVideoCount' },
-    file: { one: 'chat.attach.previewFile', many: 'chat.attach.previewFileCount' },
-    mixed: { many: 'chat.attach.previewMixedCount' },
-};
-
-const attachmentPreviewKey = ({ kind, count }: { kind: ChatAttachmentKind; count: number }): string => {
-    const keys = ATTACHMENT_PREVIEW_KEYS[kind];
-    return count === 1 && keys.one ? keys.one : keys.many;
-};
 
 const ChannelItem = ({
     channel,
@@ -177,26 +154,11 @@ const ChannelItem = ({
     });
 
     // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
-    // preview or timestamp shows (the message line is hidden).
-    //
-    // A tombstone still previews — it IS the channel's last message, and the room now renders it
-    // the same way, so the two screens agree (ADR-0047 decision 6). What it must not do is show
-    // the deleted body, hence the shared phrase rather than `content`.
-    //
-    // Code markup is flattened, not rendered: a one-line row has nowhere to put a code block, and
-    // leaving the backticks in would make the list dirtier than before code was supported. No badge
-    // or monospace either — that would complicate the row and tangle with blurLastMessage (ADR-0055).
-    //
-    // An attachment-only message carries no text, so its row would read as a blank line. It
-    // previews as what it carries instead — "Photo", "3 videos", "2 attachments" — using the same
-    // nouns as the push for that message.
-    const textPreview = messagePreview(lastChat?.content);
-    const attachments = chatAttachmentSummary(lastChat);
-    const preview = lastChat?.hidden
-        ? t('chat.room.deletedMessage')
-        : !textPreview && attachments
-          ? t(attachmentPreviewKey(attachments), { count: attachments.count })
-          : textPreview;
+    // preview or timestamp shows (the message line is hidden). The line itself — tombstone, flattened
+    // text or the attachment noun — is shared with the search and manage rows (lastChatPreview).
+    // Code in that line gets no badge or monospace: that would complicate the row and tangle with
+    // blurLastMessage.
+    const preview = lastChatPreview(lastChat, t);
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // An unread last message that calls me leads its line with "@me" — the record decides, as it

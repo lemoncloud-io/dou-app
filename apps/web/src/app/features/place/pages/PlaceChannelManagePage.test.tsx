@@ -227,6 +227,21 @@ describe('PlaceChannelManagePage', () => {
         expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('배포는 yarn deploy 로, 가이드 참고');
     });
 
+    // The home list's line: a soft delete keeps its body, and the row must not print it.
+    it('previews a deleted last message as the deleted-message phrase, not its kept body', () => {
+        lastChatsValue = new Map([['ch-1', { content: '지워진 원문', hidden: true }]]);
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('chat.room.deletedMessage');
+    });
+
+    it('previews an attachment-only last message by what it carries', () => {
+        lastChatsValue = new Map([['ch-1', { content: '', uploadIds: ['u1', 'u2'] }]]);
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('chat.attach.previewCount:2');
+    });
+
     it('shows no preview line for a room with no last message', () => {
         render(<PlaceChannelManagePage />);
         expect(screen.queryByTestId('subtitle:ch-1')).not.toBeInTheDocument();

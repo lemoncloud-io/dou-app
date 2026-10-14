@@ -348,6 +348,40 @@ describe('useSearchContext', () => {
         await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('가이드 참고\nnx build web'));
     });
 
+    // The channel row reads the home list's line: a soft delete keeps its body on the cached row,
+    // and the preview must say "deleted", not print the body.
+    it('previews a deleted last message as the deleted-message phrase, not its kept body', async () => {
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            lastChatsByRef: {
+                'cloud-a:ch-1': { id: 'chat-9', content: '지워진 원문', hidden: true, createdAtMs: 1700 },
+            },
+        });
+
+        const input = results({
+            channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('chat.room.deletedMessage'));
+    });
+
+    it('previews an attachment-only last message by what it carries', async () => {
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            lastChatsByRef: { 'cloud-a:ch-1': { id: 'chat-9', content: '', uploadIds: ['u1'], createdAtMs: 1700 } },
+        });
+
+        const input = results({
+            channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('chat.attach.preview'));
+    });
+
     it('keeps rows and logs when resolving the context fails', async () => {
         resolveContext.mockRejectedValue(new Error('bridge timeout'));
         const input = results({
