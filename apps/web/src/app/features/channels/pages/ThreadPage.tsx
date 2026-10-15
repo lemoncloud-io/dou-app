@@ -11,8 +11,10 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
+import { GapDivider } from '../components/GapDivider';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { chatGapKey, type ChatGap, type ChatGapSide } from '../hooks/useChats';
 import { useComposerDraft } from '../hooks/useComposerDraft';
 import { useMentionComposer } from '../hooks/useMentionComposer';
 import { MentionSuggestions } from '../components/MentionSuggestions';
@@ -60,6 +62,14 @@ const LIST_COMPOSER_GAP = 16;
 
 /** How close to the bottom the reader has to scroll for the newest-reply follow to come back. */
 const FOLLOW_RESUME_PX = 80;
+
+/**
+ * Pages the thread's gap dividers may ask for by themselves per visit, before they wait for a tap — and
+ * again after each tap. In the room a filled page draws its rows next to the divider and pushes it out
+ * of view, which is what stops it; here almost every row a page brings is not a reply and draws
+ * nothing, so a divider in a short thread would stay on screen and walk a gap of any width.
+ */
+const THREAD_GAP_AUTO_PAGES = 4;
 
 /**
  * The list's bottom padding for a composer `height` px tall, written straight onto the list, with the
@@ -160,8 +170,20 @@ export const ThreadPage = () => {
         () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
         [stableChannelId, myJoin?.joinedNo]
     );
-    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore, canLoadMore, loadUntil, fetchThrough, isFetched } =
-        useChats(chatParams);
+    const {
+        rawChats,
+        isLoading,
+        hasMore,
+        isLoadingMore,
+        loadMore,
+        canLoadMore,
+        loadUntil,
+        fetchThrough,
+        isFetched,
+        gaps,
+        gapStatus,
+        fillGap,
+    } = useChats(chatParams);
 
     /**
      * Is the root this URL names from before my current membership?
@@ -236,11 +258,15 @@ export const ThreadPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     // The newest-reply follow (below) stays off once a jump is asked for: rows still landing — the
     // composer measuring itself, a reply arriving — would otherwise pull the list back down past the
-    // reply that was jumped to. It comes back when the reader returns to the bottom, writes a reply,
+    // reply that was jumped to. A gap divider filling while the reader is up in the list holds it the
+    // same way (`fillThreadGap`). It comes back when the reader returns to the bottom, writes a reply,
     // or the jump gives up, and a move to another thread on this same mounted page starts clean.
     const followHeldRef = useRef(false);
+    // What the gap dividers may still ask for by themselves (`THREAD_GAP_AUTO_PAGES`).
+    const [autoGapPagesLeft, setAutoGapPagesLeft] = useState(THREAD_GAP_AUTO_PAGES);
     useEffect(() => {
         followHeldRef.current = false;
+        setAutoGapPagesLeft(THREAD_GAP_AUTO_PAGES);
     }, [rootNo]);
     useEffect(() => {
         const raw = searchParams.get('chatNo');
@@ -384,11 +410,38 @@ export const ThreadPage = () => {
     const root = rootSource ? toClientView(rootSource) : undefined;
     const replies = useMemo(() => thread.replies.map(toClientView), [thread.replies, toClientView]);
 
-    // Keep the newest reply in view — a thread is a linear column, newest at the bottom.
+    // Every reply is newer than its root, so a stretch of the channel nobody fetched that lies above
+    // the root can hold replies this list does not show. Each such gap gets the room's divider, above
+    // the first reply on its newer side — or after the last reply, when the gap runs past all of them.
+    // A reply still waiting for its number is the newest, so a gap that runs past every numbered reply
+    // stands above it. A gap holding a root no page has answered for yet is the root's own page's job.
+    const rootFetched = Number.isInteger(rootNumber) && rootNumber > 0 && isFetched(rootNumber);
+    const { gapsAboveReplyId, trailingGaps } = useMemo(() => {
+        const above = new Map<string, ChatGap[]>();
+        const trailing: ChatGap[] = [];
+        let index = 0;
+        for (const gap of gaps) {
+            if (!Number.isInteger(rootNumber) || gap.newerNo <= rootNumber) continue;
+            if (gap.olderNo < rootNumber && !rootFetched) continue;
+            while (index < replies.length && (replies[index].chatNo ?? 0) > 0) {
+                if ((replies[index].chatNo ?? 0) >= gap.newerNo) break;
+                index += 1;
+            }
+            const reply = replies[index];
+            if (reply?.id) above.set(reply.id, [...(above.get(reply.id) ?? []), gap]);
+            else trailing.push(gap);
+        }
+        return { gapsAboveReplyId: above, trailingGaps: trailing };
+    }, [gaps, replies, rootNumber, rootFetched]);
+    const hasTrailingGap = trailingGaps.length > 0;
+
+    // Keep the newest reply in view — a thread is a linear column, newest at the bottom. A divider
+    // appearing after the last reply counts as the bottom too: it is what the reader is waiting on.
+    // Its appearing, not each page it fills — a page moves its edge, not its height.
     useEffect(() => {
         if (followHeldRef.current) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-    }, [replies.length, composerHeight]);
+    }, [replies.length, composerHeight, hasTrailingGap]);
 
     // A jump that found nothing leaves no reply to stay on, so the thread opens as it always does.
     const resumeFollow = useCallback(() => {
@@ -402,6 +455,36 @@ export const ThreadPage = () => {
             followHeldRef.current = false;
         }
     }, []);
+
+    // A divider fills itself while it is on screen, within the visit's budget; a tap asks and renews
+    // it. When the reader is up in the list, reading at it, the replies it brings must not pull them
+    // down to the newest one — the follow is held as it is for a jump, and comes back the same way, at
+    // the bottom.
+    const fillThreadGap = useCallback(
+        (gap: ChatGap, side: ChatGapSide, byTap: boolean) => {
+            setAutoGapPagesLeft(left => (byTap ? THREAD_GAP_AUTO_PAGES : Math.max(0, left - 1)));
+            const list = listRef.current;
+            if (list && list.scrollHeight - list.scrollTop - list.clientHeight > FOLLOW_RESUME_PX) {
+                followHeldRef.current = true;
+            }
+            void fillGap(gap, side);
+        },
+        [fillGap]
+    );
+    const renderGap = (gap: ChatGap) => {
+        const key = chatGapKey(gap);
+        // Keyed by how much is still unanswered, as in the room: a page of deleted messages moves
+        // neither edge, and the divider has to mount anew to ask for the next one.
+        return (
+            <GapDivider
+                key={`gap-${key}-${gap.missing}`}
+                status={gapStatus.get(key)}
+                canFill={canLoadMore}
+                autoFill={autoGapPagesLeft > 0}
+                onFill={(side, byTap) => fillThreadGap(gap, side, byTap)}
+            />
+        );
+    };
 
     // Declared after the follow above so that, in the commit where the reply appears, its scroll
     // runs last. Same budget and toasts as the room; `threadRootNo` keeps it to this thread's target.
@@ -743,7 +826,13 @@ export const ThreadPage = () => {
                                 {t('chat.thread.replyCount', { count: replies.length })}
                             </p>
                         )}
-                        <div className="flex flex-col gap-3 pt-4">{replies.map(renderRow)}</div>
+                        <div className="flex flex-col gap-3 pt-4">
+                            {replies.flatMap(reply => [
+                                ...(gapsAboveReplyId.get(reply.id ?? '') ?? []).map(renderGap),
+                                renderRow(reply),
+                            ])}
+                            {trailingGaps.map(renderGap)}
+                        </div>
                     </div>
                 )}
             </div>

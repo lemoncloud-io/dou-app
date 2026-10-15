@@ -41,7 +41,7 @@ describe('GapDivider', () => {
 
         onScreen(100);
 
-        expect(onFill).toHaveBeenCalledWith('newer');
+        expect(onFill).toHaveBeenCalledWith('newer', false);
     });
 
     it('fills from the older side when it comes into view in the lower half (the reader is above it)', () => {
@@ -50,7 +50,7 @@ describe('GapDivider', () => {
 
         onScreen(700);
 
-        expect(onFill).toHaveBeenCalledWith('older');
+        expect(onFill).toHaveBeenCalledWith('older', false);
     });
 
     it('asks once per divider, however often it is seen', () => {
@@ -71,7 +71,7 @@ describe('GapDivider', () => {
 
         rerender(<GapDivider canFill onFill={onFill} />);
 
-        expect(onFill).toHaveBeenCalledWith('newer');
+        expect(onFill).toHaveBeenCalledWith('newer', false);
     });
 
     it('does not refire after a failure by itself, and retries on a tap', () => {
@@ -83,6 +83,17 @@ describe('GapDivider', () => {
         fireEvent.click(screen.getByText('chat.room.gap.retry'));
 
         expect(onFill).toHaveBeenCalledTimes(1);
+    });
+
+    it('with auto-fill off, waits on screen for a tap and says it came from one', () => {
+        const onFill = jest.fn();
+        render(<GapDivider canFill autoFill={false} onFill={onFill} />);
+        onScreen(100);
+        expect(onFill).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByText('chat.room.gap.load'));
+
+        expect(onFill).toHaveBeenCalledWith(expect.stringMatching(/^(newer|older)$/), true);
     });
 
     it('shows that a page is on its way and takes no tap meanwhile', () => {

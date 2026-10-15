@@ -219,7 +219,8 @@ is asked only for numbers it does not hold (ADR-0206).
   block reaching past the newest message is only ever answered up to the head. A failed re-check is not
   resent for 30 seconds; both records are per channel.
 - **A number in a gap.** `fetchThrough(chatNo)` fetches the page that starts at it and runs 50 numbers
-  newer. The thread page uses it for a root in a gap, and `useMessageJump` for a jump target there (a
+  newer. The thread page uses it for a root in a gap (and draws `gaps` between its replies, filled by
+  `fillGap`), and `useMessageJump` for a jump target there (a
   push tap or a reply quote; a search hit is cached by definition): older pages cannot reach either, so
   each asks for its own page once before anything else. `isFetched(chatNo)` says whether a page has
   answered for a number.
