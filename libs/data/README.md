@@ -116,7 +116,7 @@ libs/data/src/
 │   ├── gateways/     socket.ts · http.ts — Pick<> only the capabilities a domain uses
 │   ├── socket-data-sources/  12 sources + factory
 │   └── http-data-sources/    5 sources + factory
-├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards
+├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards + feedCoverage
 ├── outbox/           the state outbox: ports, the machine, the join states
 └── uploads/          sendImageMessage + its ports, the upload answers' guard
 ```

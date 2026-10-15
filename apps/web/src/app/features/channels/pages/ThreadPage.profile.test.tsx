@@ -103,6 +103,8 @@ jest.mock('../hooks', () => ({
         loadMore: jest.fn(),
         canLoadMore: true,
         loadUntil: jest.fn(() => false),
+        fetchThrough: jest.fn(),
+        isFetched: () => true,
     }),
     useMessageJump: () => undefined,
     useDmPeer: () => null,

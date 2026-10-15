@@ -17,6 +17,9 @@ const mockSendMessage = jest.fn();
 const mockRetryMessage = jest.fn();
 const mockDeleteMessage = jest.fn();
 const mockUseJoinPositions = jest.fn();
+// Unfetched stretches between cached rows, as useChats reports them.
+let mockGaps: { olderNo: number; newerNo: number; missing: number }[] = [];
+const mockFillGap = jest.fn();
 // Every cloud gives the account its own uid. The session is committed to cloud-a, whose uid is
 // 'uid-a'; in cloud-b the same account is 'uid-b'.
 const mockUidInCloud: Record<string, string> = { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
@@ -208,6 +211,11 @@ jest.mock('../hooks', () => ({
         hasMore: false,
         loadMore: jest.fn(),
         loadUntil: jest.fn(),
+        canLoadMore: true,
+        gaps: mockGaps,
+        gapStatus: new Map(),
+        fillGap: mockFillGap,
+        revalidateAround: jest.fn(),
     }),
     useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn() }),
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
@@ -245,6 +253,8 @@ const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> 
 beforeEach(() => {
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
+    mockGaps = [];
+    mockFillGap.mockReset();
     mockSelectedCloudId = 'cloud-a';
     mockChannelId = 'ch1';
     mockEnterStack.mockReset();
@@ -769,5 +779,70 @@ describe('ChannelRoomPage — every row a jump can land on', () => {
         const { container } = render(<ChannelRoomPage />);
 
         expect(container.querySelector('[data-chat-no="5"]')).not.toBeNull();
+    });
+});
+
+describe('ChannelRoomPage — a gap in the cached history', () => {
+    const textRow = (chatNo: number): Partial<ClientChatView> => ({
+        id: `ch1:${chatNo}`,
+        channelId: 'ch1',
+        chatNo,
+        content: `message ${chatNo}`,
+        isSystem: false,
+        ownerId: 'peer',
+        ownerName: 'peer',
+        timestamp: new Date(2026, 9, 15, 9, 0, chatNo),
+    });
+
+    // The group is `flex-col-reverse`: the element after a row in the DOM is the one drawn above it.
+    const elementAfter = (container: HTMLElement, chatNo: number) =>
+        container.querySelector(`[data-chat-no="${chatNo}"]`)?.nextElementSibling ?? null;
+
+    it('draws a divider between the two runs, above the newer one', () => {
+        mockMessages = [textRow(5), textRow(40)];
+        mockGaps = [{ olderNo: 5, newerNo: 40, missing: 34 }];
+        const { container } = render(<ChannelRoomPage />);
+
+        expect(container.querySelectorAll('[data-chat-gap]')).toHaveLength(1);
+        expect(elementAfter(container, 40)).toHaveAttribute('data-chat-gap');
+        expect(screen.getByText('chat.room.gap.load')).toBeInTheDocument();
+    });
+
+    it('puts the divider above the first drawn row when the row above the gap is not drawn', () => {
+        // #40 is a reply or a reaction: cached, so it bounds the gap, but the feed never draws it.
+        mockMessages = [textRow(5), textRow(41)];
+        mockGaps = [{ olderNo: 5, newerNo: 40, missing: 34 }];
+        const { container } = render(<ChannelRoomPage />);
+
+        expect(elementAfter(container, 41)).toHaveAttribute('data-chat-gap');
+    });
+
+    it('draws a divider for each of two gaps that land on the same drawn row', () => {
+        // Only undrawn rows (#20, a reply) sit between the two gaps, so both point at #40.
+        mockMessages = [textRow(5), textRow(40)];
+        mockGaps = [
+            { olderNo: 5, newerNo: 20, missing: 14 },
+            { olderNo: 20, newerNo: 40, missing: 19 },
+        ];
+        const { container } = render(<ChannelRoomPage />);
+
+        expect(container.querySelectorAll('[data-chat-gap]')).toHaveLength(2);
+    });
+
+    it('draws nothing where there is no gap', () => {
+        mockMessages = [textRow(5), textRow(40)];
+        const { container } = render(<ChannelRoomPage />);
+
+        expect(container.querySelector('[data-chat-gap]')).toBeNull();
+    });
+
+    it('fills the gap when the divider is tapped', () => {
+        mockMessages = [textRow(5), textRow(40)];
+        mockGaps = [{ olderNo: 5, newerNo: 40, missing: 34 }];
+        render(<ChannelRoomPage />);
+
+        fireEvent.click(screen.getByText('chat.room.gap.load'));
+
+        expect(mockFillGap).toHaveBeenCalledWith(mockGaps[0], expect.stringMatching(/^(newer|older)$/));
     });
 });

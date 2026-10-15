@@ -160,7 +160,8 @@ export const ThreadPage = () => {
         () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
         [stableChannelId, myJoin?.joinedNo]
     );
-    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore, canLoadMore, loadUntil } = useChats(chatParams);
+    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore, canLoadMore, loadUntil, fetchThrough, isFetched } =
+        useChats(chatParams);
 
     /**
      * Is the root this URL names from before my current membership?
@@ -193,12 +194,41 @@ export const ThreadPage = () => {
     // it before anyone is asked to page the server. The root is the thread's oldest row, so a window
     // that reaches it also holds every reply. `loadUntil` is a no-op once the window covers that far,
     // and the effect re-runs as rows arrive because a cold cache answers after the first render.
+    //
+    // A window that already reaches that far and still has no root means the cache never held it: the
+    // root sits in a gap. Older pages cannot reach it — they only ever ask below the oldest cached row
+    // — so the page starting at the root is asked for directly: by itself once per thread, then by
+    // the "load older" button, until a page answers for that number (then the root was deleted).
+    const rootNumber = Number(rootNo);
+    const rootUnfetched =
+        !hasRoot && !rootOutsideJoinWindow && Number.isInteger(rootNumber) && rootNumber > 0 && !isFetched(rootNumber);
+    const [isFetchingRoot, setIsFetchingRoot] = useState(false);
+    const askedRootRef = useRef<number | null>(null);
+    const fetchRootPage = useCallback(() => {
+        setIsFetchingRoot(true);
+        fetchThrough(rootNumber)
+            .catch(() => undefined)
+            .finally(() => setIsFetchingRoot(false));
+    }, [fetchThrough, rootNumber]);
     useEffect(() => {
         if (hasRoot || rootOutsideJoinWindow) return;
-        const parsed = Number(rootNo);
-        if (!Number.isInteger(parsed) || parsed <= 0) return;
-        loadUntil(parsed);
-    }, [hasRoot, rootNo, rootOutsideJoinWindow, loadUntil, rawChats]);
+        if (!Number.isInteger(rootNumber) || rootNumber <= 0) return;
+        if (loadUntil(rootNumber) || isLoading || !rootUnfetched || !canLoadMore) return;
+        // Once by itself: a failure retried on every arriving message would hammer a failing socket.
+        if (askedRootRef.current === rootNumber) return;
+        askedRootRef.current = rootNumber;
+        fetchRootPage();
+    }, [
+        hasRoot,
+        rootNumber,
+        rootOutsideJoinWindow,
+        loadUntil,
+        rawChats,
+        isLoading,
+        rootUnfetched,
+        canLoadMore,
+        fetchRootPage,
+    ]);
 
     // A search hit on a reply opens here with `?chatNo=` — the room's convention, and stripped the
     // same way so a reload does not jump again. The request names this thread, so the room this
@@ -389,6 +419,8 @@ export const ThreadPage = () => {
         joinedNo: myJoin?.joinedNo,
         threadRootNo: rootNo,
         onGiveUp: resumeFollow,
+        isFetched,
+        fetchThrough,
     });
 
     const formatTime = (date: Date) => {
@@ -678,17 +710,20 @@ export const ThreadPage = () => {
                                         ? t('chat.thread.rootOutsideJoinWindow')
                                         : t('chat.thread.unavailable')}
                                 </span>
-                                {hasMore && !rootOutsideJoinWindow && (
+                                {(hasMore || rootUnfetched) && !rootOutsideJoinWindow && (
                                     <button
                                         type="button"
                                         // A press is a person asking: sent at once, past a failed
                                         // page's retry wait. Disabled while the socket cannot carry
-                                        // it, so a press is never silently dropped.
-                                        onClick={() => void loadMore({ immediate: true })}
-                                        disabled={isLoadingMore || !canLoadMore}
+                                        // it, so a press is never silently dropped. A root in a gap is
+                                        // asked for by its own page — the retry of the fetch above.
+                                        onClick={() =>
+                                            rootUnfetched ? fetchRootPage() : void loadMore({ immediate: true })
+                                        }
+                                        disabled={isLoadingMore || isFetchingRoot || !canLoadMore}
                                         className="text-primary underline"
                                     >
-                                        {isLoadingMore ? (
+                                        {isLoadingMore || isFetchingRoot ? (
                                             <Loader2 size={14} className="animate-spin" />
                                         ) : (
                                             t('chat.thread.loadOlder')

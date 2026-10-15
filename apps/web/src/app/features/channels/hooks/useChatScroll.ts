@@ -39,6 +39,11 @@ interface UseChatScrollParams {
      * That decides whether rows arriving may push the oldest rows out of the window (see `useChats`).
      */
     readingHistoryRef?: { current: boolean };
+    /**
+     * Told the chat number of the row the reader is reading, whenever they are away from the bottom —
+     * the room re-checks old cached rows as they come into view with it.
+     */
+    onReadingRow?: (chatNo: number) => void;
 }
 
 // In the reversed list scrollTop 0 is the bottom; anything within this slack still counts as
@@ -86,7 +91,10 @@ export const useChatScroll = ({
     suppressAutoScroll = false,
     channelId,
     readingHistoryRef,
+    onReadingRow,
 }: UseChatScrollParams) => {
+    const onReadingRowRef = useRef(onReadingRow);
+    onReadingRowRef.current = onReadingRow;
     // The channel-scoped slice of the shared scroll-restoration hook (see `useScrollRestoration`):
     // it owns the container ref, the take-on-mount/stash-on-unmount memory, and the pending-claim
     // bookkeeping. `manualConsume` because the bottom pin below is a competing scroll behaviour —
@@ -135,6 +143,8 @@ export const useChatScroll = ({
             const row = hit && hit !== el && el.contains(hit) ? hit.closest('[data-chat-no]') : null;
             if (row && el.contains(row)) {
                 anchorRef.current = { node: row, top: row.getBoundingClientRect().top };
+                const chatNo = Number((row as HTMLElement).dataset.chatNo);
+                if (Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX && chatNo > 0) onReadingRowRef.current?.(chatNo);
                 return;
             }
         }
@@ -196,7 +206,14 @@ export const useChatScroll = ({
             if (messages.length > 0) consumePendingRestore();
             return;
         }
-        if (!lastMessage || lastMessage.id === previousLastId || suppressAutoScrollRef.current) return;
+        if (!lastMessage || suppressAutoScrollRef.current) return;
+        if (lastMessage.id === previousLastId) {
+            // The list changed somewhere other than its newest end: an older page at the top, which
+            // moves nothing, or a gap filled between two runs of history — rows that can land below a
+            // reader who jumped into old history, and push them up in WebKit the way an arrival does.
+            if (previousLastId !== undefined && Math.abs(lastScrollTopRef.current) > BOTTOM_PIN_SLACK_PX) holdView();
+            return;
+        }
         const isFirstPage = previousLastId === undefined;
         // The previous latest message gone is a replacement or a removal — the confirmed row that
         // takes over an optimistic send, a deletion — not an arrival.

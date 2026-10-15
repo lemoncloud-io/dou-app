@@ -214,6 +214,49 @@ Chat is cursor-based, so two responsibilities are kept apart.
 They are not the same value. `cursorNo` is a query discriminator for fetching an older page, not a
 baseline for the latest sync.
 
+### What a feed page proves
+
+`chat.feed` answers a page by counting `limit` chat numbers down from the request cursor — or from
+the channel's head, whichever is lower — looking each one up, and leaving out the soft-deleted ones.
+The cursor it returns is the lowest number it counted, or 0 when the count ran down to the start of
+what this member may see. (That is the server's own feed implementation, read from its source; the
+published type says only "below `cursorNo`" and "0 = end".) So a page proves a whole range, not just
+the rows it carries, and a number in that range that did not come back is a deleted message
+(ADR-0206):
+
+- With a returned cursor, the range is exactly `[cursor, cursor + limit − 1]`. The top comes from the
+  answer, never from the request: a cursor above the head (a block re-check near the newest messages)
+  is counted from the head, and claiming up to the request cursor would mark a message that arrived
+  meanwhile as deleted and hide a later gap above the head.
+- With 0, the range runs from the start of history to the newest row the page carried — or to the
+  request cursor when the caller says it is a numbered row (`cursorIsRow`), which puts the head at or
+  above it. An empty page that ran to the start proves nothing otherwise.
+
+`ChatRepository.refreshList` records each proven range in `FeedCoverage`, in memory for the page's
+life, keyed by scope and channel; `uncoveredFeed(channelId, low, high)` reads it back. A screen needs
+this to tell the two kinds of hole in the cache apart. A deleted message leaves a missing number
+exactly like history nobody has fetched, and every room with deletions has such holes, because a page
+writes only what it carries. It is not persisted — a second store would have to survive every cloud
+switch and app update alongside the cache, and forgetting it on relaunch costs one request per page of
+old history someone looks at again — but it is cleared with the rows it describes:
+`cacheClear()` forgets the scope, `cacheClearByChannelId` and `ChannelRepository`'s leave purge forget
+the channel. Left behind, it would read the holes a clear opened as deletions for the rest of the run.
+
+With `markMissingHidden`, a page also marks a cached row inside its range that it did not carry as
+deleted — the delete that happened while the device was not listening, which live sync never replays.
+This is inference, so it is kept narrow and reversible:
+
+- Only callers re-reading history they already hold set it: a gap fill, a re-check of old rows, a
+  thread root's page. The entry refresh does not.
+- At the start of history it stops at the oldest row the page carried, because below that sit rows
+  from before my join, which the server also leaves out and which are not deleted.
+- The row stays in the cache, marked `hidden` and `hiddenByFeed`. The cache undoes such a mark when a
+  server copy of the row arrives without saying it is hidden (the server leaves `hidden` out of a live
+  row, and a write merges over the stored one), and turns it into an ordinary delete when one says it
+  is. A delete the server announced carries no `hiddenByFeed`, so no later page can undo it. This is
+  why it does not break the rule below that chat **deletion** waits for explicit signals: nothing is
+  removed, and only the inferred mark is ever reversed.
+
 ## Cache clear rules
 
 - `cacheClear()` clears within the current repository scope (it is not a global clear).
@@ -221,7 +264,7 @@ baseline for the latest sync.
 - Logout, cloud switch and test setup each have to decide their clear scope explicitly.
 - **Clearing a domain's rows means clearing the partition's sync cursors after them** (`syncMeta.cacheClear()`). A cursor that outlives its data still claims "synced up to T", so the next sync asks only for the delta after T and the gap never fills. A whole-partition clear of `chat` counts as refillable despite the bullet below, because `join` goes with it and the rows the server will not return were hidden by the join window anyway — what is lost is unsent messages.
 - Two domains hold data the server cannot give back, and a clear meant to be refilled from the server must skip them: `cloud` (the `invitecloud` slot — there is no list API for invited clouds) and `invite` (its `dismissedAt` is written only on this device). The whole-device sweep that follows these rules is `clearLocalCaches` in `libs/app-runtime`.
-- **Deleting chat cannot be undone.** Other domains can be refilled by the server if wrongly cleared, but the message feed is windowed by `join.joinedNo`, and the server will not hand back anything before it. So chat deletion is attached to explicit signals only, never to inference → below.
+- **Deleting chat cannot be undone.** Other domains can be refilled by the server if wrongly cleared, but the message feed is windowed by `join.joinedNo`, and the server will not hand back anything before it. So chat deletion is attached to explicit signals only, never to inference → below. A `hidden` mark inferred from a re-read feed page is not a deletion: the row stays and the mark is reversible ([What a feed page proves](#what-a-feed-page-proves)).
 
 How storage carries that request out is in
 [the three paths for a channel-scoped delete](../local/README.md#three-paths-for-a-channel-scoped-delete).

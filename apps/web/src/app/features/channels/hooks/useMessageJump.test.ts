@@ -402,6 +402,80 @@ describe('useMessageJump', () => {
         });
     });
 
+    describe('a target in a stretch the cache never held', () => {
+        it('asks for its own page once before paging below — older pages cannot reach a gap', () => {
+            const containerRef = setup();
+            const fetchThrough = jest.fn().mockResolvedValue(true);
+            useMessageJumpStore.getState().request('ch-1', 500);
+            const onScreen = [{ id: 'ch-1:900', chatNo: 900 } as ClientChatView];
+            const params = {
+                channelId: 'ch-1',
+                containerRef,
+                messages: onScreen,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+                isFetched: () => false,
+                fetchThrough,
+            };
+
+            const { rerender } = renderHook(p => useMessageJump(p), { initialProps: params });
+            expect(fetchThrough).toHaveBeenCalledWith(500);
+            expect(loadMore).not.toHaveBeenCalled();
+
+            // The page landed without the target: paging below is still tried, and the page not again.
+            rerender({ ...params, messages: [...onScreen] });
+            expect(fetchThrough).toHaveBeenCalledTimes(1);
+            expect(loadMore).toHaveBeenCalled();
+        });
+
+        it('does not take the target for uncached before the cache has answered', () => {
+            const containerRef = setup();
+            const fetchThrough = jest.fn();
+            useMessageJumpStore.getState().request('ch-1', 50);
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages: [],
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                    isFetched: () => false,
+                    fetchThrough,
+                })
+            );
+
+            expect(fetchThrough).not.toHaveBeenCalled();
+        });
+
+        it('pages as before when a page already answered for the number', () => {
+            const containerRef = setup();
+            const fetchThrough = jest.fn();
+            useMessageJumpStore.getState().request('ch-1', 500);
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                    isFetched: () => true,
+                    fetchThrough,
+                })
+            );
+
+            expect(fetchThrough).not.toHaveBeenCalled();
+            expect(loadMore).toHaveBeenCalled();
+        });
+    });
+
     describe('a target that is a thread reply', () => {
         it('is left alone by the room, which never draws a reply', () => {
             const containerRef = setup();

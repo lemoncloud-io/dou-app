@@ -20,6 +20,9 @@ const mockSendMessage = jest.fn();
 const mockReadInCloud = jest.fn();
 let mockRootNo = '7';
 const mockLoadUntil = jest.fn();
+const mockFetchThrough = jest.fn();
+// Whether a page has answered for a chat number this run; by default every number has.
+const mockIsFetched = jest.fn();
 // The thread's query string. Stripping `chatNo` writes back here, as the router would.
 let mockSearch = '';
 const mockSetSearchParams = jest.fn((update: (params: URLSearchParams) => URLSearchParams) => {
@@ -191,6 +194,8 @@ jest.mock('../hooks', () => ({
             loadMore: mockLoadMore,
             canLoadMore: mockCanLoadMore,
             loadUntil: mockLoadUntil,
+            fetchThrough: mockFetchThrough,
+            isFetched: mockIsFetched,
         };
     },
     // The real jump: what is under test is that the thread hands it the right surface and anchors.
@@ -249,6 +254,8 @@ beforeEach(() => {
     mockCanLoadMore = true;
     mockLoadMore.mockReset();
     mockLoadUntil.mockReset().mockReturnValue(false);
+    mockFetchThrough.mockReset().mockResolvedValue(true);
+    mockIsFetched.mockReset().mockReturnValue(true);
     mockSearch = '';
     mockSetSearchParams.mockClear();
     useMessageJumpStore.setState({ target: null });
@@ -870,6 +877,51 @@ describe('ThreadPage — an old root', () => {
         render(<ThreadPage />);
 
         expect(mockLoadUntil).not.toHaveBeenCalled();
+    });
+
+    it("asks for the page starting at a root the cache never held — older pages can't reach a gap", () => {
+        mockIsFetched.mockReturnValue(false);
+        mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        render(<ThreadPage />);
+
+        expect(mockFetchThrough).toHaveBeenCalledWith(7);
+    });
+
+    it('asks for the root by itself only once, however often rows arrive after a failure', async () => {
+        mockIsFetched.mockReturnValue(false);
+        mockFetchThrough.mockRejectedValue(new Error('socket closed'));
+        mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        const { rerender } = render(<ThreadPage />);
+        await act(async () => undefined);
+
+        mockChats = [...mockChats, chat({ id: 'ch1:10', chatNo: 10, content: 'another', parentId: '7' })];
+        rerender(<ThreadPage />);
+        await act(async () => undefined);
+
+        expect(mockFetchThrough).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not ask again for a root a page already answered for (it was deleted)', () => {
+        mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        render(<ThreadPage />);
+
+        expect(mockFetchThrough).not.toHaveBeenCalled();
+        expect(screen.queryByText('chat.thread.loadOlder')).toBeNull();
+    });
+
+    it("retries the root's page from the load-older button, with no older page left", async () => {
+        mockIsFetched.mockReturnValue(false);
+        mockHasMore = false;
+        mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        render(<ThreadPage />);
+        // The page asked once by itself; the button waits for that answer.
+        await act(async () => undefined);
+        mockFetchThrough.mockClear();
+
+        fireEvent.click(screen.getByText('chat.thread.loadOlder'));
+
+        expect(mockFetchThrough).toHaveBeenCalledWith(7);
+        expect(mockLoadMore).not.toHaveBeenCalled();
     });
 
     it('does not reach for a root from before my membership', () => {

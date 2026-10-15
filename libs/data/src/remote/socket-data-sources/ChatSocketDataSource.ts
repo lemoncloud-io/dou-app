@@ -16,6 +16,8 @@ export interface ChatFeedDomainResult {
     cursorNo?: number;
     readNo?: number;
     total?: number;
+    /** The page size the server applied — with `cursorNo`, it places the top of the range it answered. */
+    limit?: number;
 }
 
 export interface IChatSocketDataSource {
@@ -53,6 +55,7 @@ export class ChatSocketDataSource implements IChatSocketDataSource {
             cursorNo: remote?.cursorNo,
             readNo: remote?.readNo,
             total: remote?.total,
+            limit: (remote as { limit?: number } | undefined)?.limit,
         };
     }
 

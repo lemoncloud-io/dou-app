@@ -145,7 +145,9 @@ rows before the 30-message cap, so a deleted row never takes a live result's pla
 longer read contained what they typed. The flag is read for truthiness, since the server sends it as
 0/1. A message deleted while this device was offline is the one gap: `chat.sync` does not replay the
 delete and `chat.feed` merely omits the row, so the cached copy can stay unflagged — and searchable.
-That is the sync layer's gap, and closing it belongs there, not in this filter.
+The room closes it for history someone reads again — a re-check of old rows marks what the server
+left out as deleted (see [channels' data layer](../channels/data-layer.md)) — but history nobody
+reopens stays searchable. Closing that belongs to the sync layer, not to this filter.
 
 **A reaction event is not a result either.** It is a chat row whose `content` is the emoji itself —
 two UTF-16 units, so it passes the minimum query length — and the feed folds it into a chip instead

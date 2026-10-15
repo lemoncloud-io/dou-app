@@ -203,12 +203,20 @@ profile map.
   [data-layer.md](./data-layer.md)) — and because the root is the thread's oldest row, a window that
   reaches it holds every reply too. No widening toward a root from before my membership: the cache
   is windowed by the same cursor, so it cannot be there.
-- **A root that has paged out** — not in the cache either — shows `chat.thread.unavailable` and,
-  while `hasMore`, a "load older" button: the derivation is bounded by the loaded window, so the
-  honest answer is to offer more of it. A press is a person asking, so it is sent at once
-  (`loadMore({ immediate: true })`) rather than held behind a failed page's retry wait, and the
-  button is disabled while the socket cannot carry it (`canLoadMore`), so a press is never silently
-  dropped.
+- **A root in a gap is fetched by its own page.** When the window already reaches that far and the
+  root is still missing, the cache never held it: it sits in a stretch nobody fetched. Older pages
+  cannot reach it — `loadMore` asks only below the oldest cached row, and with row 1 cached it stops
+  altogether — so the page asks for the 50 numbers starting at the root (`fetchThrough`), which also
+  brings the replies right after it. It asks by itself once per thread — a failure retried on every
+  arriving message would hammer a failing socket — and not at all when a page already answered for
+  that number: then the root was deleted. Replies further into the gap than those 50 numbers stay
+  missing until history is fetched through them; the thread page draws no gap divider.
+- **A root that is still not there** shows `chat.thread.unavailable` and a "load older" button while
+  there is something to load — an older page (`hasMore`), or the root's own page while no page has
+  answered for its number. A press is a person asking, so it is sent at once
+  (`loadMore({ immediate: true })`, or the root's page) rather than held behind a failed page's retry
+  wait, and the button is disabled — with a spinner — while either is in flight or the socket cannot
+  carry it (`canLoadMore`), so a press is never silently dropped.
 - **A thread opens on one reply** when a search hit is a reply (`?chatNo=` on the thread route, the
   room's convention). The page turns it into a jump request scoped to its root
   (`threadRootNo` on `useMessageJumpStore`) and runs the room's `useMessageJump` over its own list,

@@ -36,6 +36,42 @@ describe('ChatLocalDataSource', () => {
         expect(otherChannel?.list.map(item => item.id)).toEqual(['m3']);
     });
 
+    describe('a deleted mark inferred from a feed page (hiddenByFeed)', () => {
+        const read = async (dataSource: ChatLocalDataSource) =>
+            (await dataSource.cacheReadList({ channelId: 'ch-1', limit: 50 } as any))?.list[0];
+
+        it('is undone by a server copy that does not say the row is hidden', async () => {
+            const dataSource = new ChatLocalDataSource(contextProvider as any, createPartitionedMemoryStorage('chat'));
+            await dataSource.cacheWriteMany([
+                { id: 'm1', channelId: 'ch-1', chatNo: 1, hidden: true, hiddenByFeed: true } as any,
+            ]);
+
+            await dataSource.cacheWriteMany([{ id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'back' } as any]);
+
+            expect(await read(dataSource)).toMatchObject({ hidden: false, hiddenByFeed: false, content: 'back' });
+        });
+
+        it('becomes a real delete when the server says the row is hidden', async () => {
+            const dataSource = new ChatLocalDataSource(contextProvider as any, createPartitionedMemoryStorage('chat'));
+            await dataSource.cacheWriteMany([
+                { id: 'm1', channelId: 'ch-1', chatNo: 1, hidden: true, hiddenByFeed: true } as any,
+            ]);
+
+            await dataSource.cacheWrite({ id: 'm1', channelId: 'ch-1', chatNo: 1, hidden: true } as any);
+
+            expect(await read(dataSource)).toMatchObject({ hidden: true, hiddenByFeed: false });
+        });
+
+        it('leaves a delete the server announced alone, whatever page brings the row', async () => {
+            const dataSource = new ChatLocalDataSource(contextProvider as any, createPartitionedMemoryStorage('chat'));
+            await dataSource.cacheWriteMany([{ id: 'm1', channelId: 'ch-1', chatNo: 1, hidden: true } as any]);
+
+            await dataSource.cacheWriteMany([{ id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'stale page' } as any]);
+
+            expect(await read(dataSource)).toMatchObject({ hidden: true });
+        });
+    });
+
     it('a channel purge under a captured scope empties that scope only, even when the session has moved on', async () => {
         const chats = createPartitionedMemoryStorage('chat');
         const provider = { getContext: () => ({ cid: 'cloud-b', uid: 'me' }), setContext: () => undefined };

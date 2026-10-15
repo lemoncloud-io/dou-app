@@ -16,6 +16,13 @@ import type {
 } from '../remote/socket-data-sources';
 import type { CheckedUploadCompleteResult, PresignedUploadStartResult } from '../uploads/types';
 import { isPendingUploadSlot } from '../uploads/types';
+import {
+    feedCoverage,
+    feedCoverageKey,
+    feedCoverageScope,
+    forgetChannelCoverage,
+    type FeedRange,
+} from './feedCoverage';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -39,6 +46,23 @@ export interface ChatRefreshOptions {
      * page it was told about.
      */
     onFetched?: () => void;
+    /**
+     * Marks a cached row the page left out as deleted (`hidden`). The server leaves out only
+     * soft-deleted rows, so within the range a page answers for, a row this device still holds but
+     * the server did not send was deleted while the device was not listening — a delete that live
+     * sync never replays. Only for callers that refetch history they already hold (a gap fill, a
+     * re-check of old rows, a thread root's page); the entry refresh leaves it off. The mark is
+     * recorded as inferred (`hiddenByFeed`), and the cache undoes it when a server copy of the row
+     * comes back without saying it is hidden — a delete the server announced is never undone.
+     */
+    markMissingHidden?: boolean;
+    /**
+     * The request cursor is a row the server numbered (a cached chat), so the channel's head is at
+     * or above it. Lets a page that ran down to the start of history answer for everything below the
+     * cursor even when its newest numbers were all deleted; without it the range stops at the newest
+     * row the page carried.
+     */
+    cursorIsRow?: boolean;
 }
 
 /**
@@ -53,6 +77,11 @@ export interface IChatRepository extends DisposableRepository {
     observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
     refreshList(query: ChatFeedInput, options?: ChatRefreshOptions): Promise<ChatRefreshResult>;
+    /**
+     * The parts of `[low, high]` no feed page has answered for in this run (see `FeedCoverage`). A
+     * missing chat number outside them is a deleted message; inside them, history not fetched yet.
+     */
+    uncoveredFeed(channelId: string, low: number, high: number): FeedRange[];
     getChat(payload: ChatGetInput): Promise<DomainChat>;
     sendChat(payload: ChatSendPayload): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
@@ -121,6 +150,56 @@ export interface PendingImageChatInput {
  */
 const PENDING_IMAGE_SCAN_LIMIT = 50;
 
+/** The page size the server applies when a request names none. */
+const SERVER_DEFAULT_FEED_LIMIT = 20;
+
+/**
+ * The chat numbers a feed page answered for. The server counts a page down from the request cursor —
+ * or from the channel's head, whichever is lower — `limit` numbers at a time, looks each one up, and
+ * leaves out the soft-deleted ones. It returns the lowest number it counted as the next cursor, or 0
+ * when the count ran down to the start of what this member may see. So:
+ *
+ * - With a returned cursor, the range is exactly `[cursor, cursor + limit − 1]`. The top is read from
+ *   the answer, never from the request: a request cursor above the head (a block re-check near the
+ *   newest messages) counts only up to the head, and claiming more would mark a message that arrived
+ *   meanwhile as deleted.
+ * - With 0, the range runs from the start of history up to the newest row the page carried — or up to
+ *   the request cursor when the caller knows it is a numbered row (`cursorIsRow`), which puts the head
+ *   at or above it. An empty page then proves nothing.
+ * - `tombstoneLow` is where a row missing from the page may be read as deleted. At the start of
+ *   history it stops at the oldest row the page carried: below that sit rows from before my join,
+ *   which the server also leaves out and which are hidden by the join window, not deleted.
+ */
+const provenRange = ({
+    requestCursor,
+    limit,
+    responseCursor,
+    cursorIsRow,
+    page,
+}: {
+    requestCursor?: number;
+    limit: number;
+    responseCursor?: number;
+    cursorIsRow?: boolean;
+    page: DomainChat[];
+}): { low: number; high: number; tombstoneLow: number } | null => {
+    let newest = 0;
+    let oldest = Infinity;
+    for (const chat of page) {
+        if (!chat.chatNo) continue;
+        newest = Math.max(newest, chat.chatNo);
+        oldest = Math.min(oldest, chat.chatNo);
+    }
+    const asked = requestCursor && requestCursor > 0 ? requestCursor - 1 : Infinity;
+    if (responseCursor && responseCursor > 0) {
+        const high = Math.min(asked, responseCursor + limit - 1);
+        return high < responseCursor ? null : { low: responseCursor, high, tombstoneLow: responseCursor };
+    }
+    const high = cursorIsRow && Number.isFinite(asked) ? asked : newest;
+    if (high < 1) return null;
+    return { low: 1, high, tombstoneLow: Number.isFinite(oldest) ? oldest : high + 1 };
+};
+
 /** Manages local-first chat timelines, pending states, and remote synchronization. */
 export class ChatRepository extends BaseRepository implements IChatRepository {
     constructor(
@@ -176,11 +255,16 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.chatLocalDataSource.cacheDelete(id, this.getRepositoryContext());
     }
 
+    // A clear takes what pages answered for with it (`FeedCoverage.forget`), before the rows go.
     public cacheClear(): Promise<void> {
+        const { cid, uid } = this.getNormalizedContext();
+        const scope = feedCoverageScope(cid, uid);
+        feedCoverage.forget(key => key.startsWith(scope));
         return this.chatLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
     public cacheClearByChannelId(channelId: string): Promise<void> {
+        forgetChannelCoverage(channelId, this.getNormalizedContext());
         return this.chatLocalDataSource.cacheClearByChannelId(channelId, this.getRepositoryContext());
     }
 
@@ -191,7 +275,23 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         const remote = await this.chatSocketDataSource.fetchChat(query, normalizedContext);
         options.onFetched?.();
         const domainList = remote.list || [];
-        await this.chatLocalDataSource.cacheWriteMany(domainList, requestContext);
+        const proven = provenRange({
+            requestCursor: query.cursorNo,
+            limit: remote.limit ?? query.limit ?? SERVER_DEFAULT_FEED_LIMIT,
+            responseCursor: remote.cursorNo,
+            cursorIsRow: options.cursorIsRow,
+            page: domainList,
+        });
+        const missing =
+            options.markMissingHidden && proven
+                ? await this.cachedRowsMissingFrom(query.channelId, proven, domainList, requestContext)
+                : [];
+        await this.chatLocalDataSource.cacheWriteMany([...domainList, ...missing], requestContext);
+        // Recorded after the write, so a reader that sees the range answered for also sees its rows.
+        if (proven) {
+            const { cid, uid } = this.getNormalizedContext(requestContext);
+            feedCoverage.add(feedCoverageKey(cid, uid, query.channelId), proven.low, proven.high);
+        }
 
         return {
             fetchedCount: domainList.length,
@@ -200,6 +300,40 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             readNo: remote.readNo,
             total: remote.total ?? domainList.length,
         };
+    }
+
+    public uncoveredFeed(channelId: string, low: number, high: number): FeedRange[] {
+        const { cid, uid } = this.getNormalizedContext();
+        return feedCoverage.uncovered(feedCoverageKey(cid, uid, channelId), low, high);
+    }
+
+    /**
+     * Cached rows inside `range` that a page answering for it did not carry, returned marked deleted.
+     * Rows still being sent are left alone: they have no chat number the server could answer for.
+     */
+    private async cachedRowsMissingFrom(
+        channelId: string,
+        range: { low: number; high: number; tombstoneLow: number },
+        page: DomainChat[],
+        context: DataContext
+    ): Promise<DomainChat[]> {
+        if (range.tombstoneLow > range.high) return [];
+        const cached = await this.chatLocalDataSource.cacheReadList(
+            { channelId, cursorNo: range.high + 1, limit: range.high - range.tombstoneLow + 1 },
+            context
+        );
+        const sent = new Set(page.map(chat => chat.chatNo));
+        return (cached?.list ?? [])
+            .filter(
+                chat =>
+                    !!chat.chatNo &&
+                    chat.chatNo >= range.tombstoneLow &&
+                    chat.chatNo <= range.high &&
+                    !sent.has(chat.chatNo) &&
+                    !chat.hidden &&
+                    !chat.isPending
+            )
+            .map(chat => ({ ...chat, hidden: true, hiddenByFeed: true }));
     }
 
     public async getChat(payload: ChatGetInput): Promise<DomainChat> {

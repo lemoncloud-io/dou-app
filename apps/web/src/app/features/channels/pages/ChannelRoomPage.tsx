@@ -1,5 +1,5 @@
 import { Loader2, Settings } from 'lucide-react';
-import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -65,6 +65,8 @@ import {
     useRoomSyncTrace,
 } from '../hooks';
 import type { ClientChatView } from '../types';
+import { GapDivider } from '../components/GapDivider';
+import { chatGapKey, type ChatGap } from '../hooks/useChats';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
@@ -412,6 +414,12 @@ export const ChannelRoomPage = () => {
         canLoadMore,
         loadMore,
         loadUntil,
+        gaps,
+        gapStatus,
+        fillGap,
+        revalidateAround,
+        fetchThrough,
+        isFetched,
     } = useChats(memoizedChatParams);
 
     /**
@@ -620,6 +628,8 @@ export const ChannelRoomPage = () => {
         // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,
         readingHistoryRef,
+        // Old cached rows show at once and are re-checked with the server as the reader reaches them.
+        onReadingRow: revalidateAround,
     });
 
     // When entering via a message click from search results (?chatNo=), a request is registered
@@ -658,6 +668,8 @@ export const ChannelRoomPage = () => {
         // The same cursor the feed is windowed by, so a jump cannot aim at a row this screen is
         // never going to render.
         joinedNo: myJoin?.joinedNo,
+        isFetched,
+        fetchThrough,
     });
 
     // Floating date pill: while scrolling, finds and shows the label of the date group crossing
@@ -955,6 +967,45 @@ export const ChannelRoomPage = () => {
         );
     }, [messages]);
 
+    // Each gap's divider sits above the first message the feed draws on its newer side. That is not
+    // always the row the gap was found at: the gap is worked out over every cached row, and the row
+    // right above it can be a reply or a reaction the feed never draws.
+    // Two gaps with only undrawn rows between them land on the same message; both get a divider.
+    const gapsAboveMessageId = useMemo(() => {
+        const byId = new Map<string, ChatGap[]>();
+        let index = 0;
+        for (const gap of gaps) {
+            while (index < messages.length && !((messages[index].chatNo ?? 0) >= gap.newerNo)) index += 1;
+            const message = messages[index];
+            if (message?.id && message.chatNo) byId.set(message.id, [...(byId.get(message.id) ?? []), gap]);
+        }
+        return byId;
+    }, [gaps, messages]);
+
+    // Rows render newest-first inside a `flex-col-reverse` group, so a divider placed right after a
+    // row's element in the DOM shows directly above it. Keyed by the gap and by how much of it is
+    // still unanswered: a page of deleted messages moves neither edge, and the divider has to mount
+    // anew to ask for the next one.
+    const withGapDividers = (rows: ClientChatView[], elements: ReactNode[]): ReactNode[] =>
+        elements.flatMap((element, index) => {
+            const above = rows[index]?.id ? gapsAboveMessageId.get(rows[index].id as string) : undefined;
+            if (!above) return [element];
+            return [
+                element,
+                ...[...above].reverse().map(gap => {
+                    const key = chatGapKey(gap);
+                    return (
+                        <GapDivider
+                            key={`gap-${key}-${gap.missing}`}
+                            status={gapStatus.get(key)}
+                            canFill={canLoadMore}
+                            onFill={side => void fillGap(gap, side)}
+                        />
+                    );
+                }),
+            ];
+        });
+
     // Only the channel itself failing to resolve takes the room down. An older page that does not
     // arrive is retried by useChats while the conversation stays on screen.
     if (isChannelError) {
@@ -1197,171 +1248,183 @@ export const ChannelRoomPage = () => {
                                             data-date-label={formatFloatingDate(dateMessages[0].timestamp)}
                                             className="flex flex-col-reverse gap-3"
                                         >
-                                            {reversedMessages.map((message, index) => {
-                                                if (message.isSystem) {
-                                                    // Wrapped for `data-chat-no` like every other row: a
-                                                    // legacy notice keeps its whole sentence in `content`,
-                                                    // which search matches, and a jump to a row with no
-                                                    // anchor ended in "couldn't find that message" while
-                                                    // the notice sat on screen.
-                                                    //
-                                                    // New model: system messages carry no text — render the
-                                                    // localized clause from `subType` with the subject's name
-                                                    // (profile nick preferred) as a bold prefix.
-                                                    const suffixKey = systemMessageSuffixKey(message.subType);
-                                                    if (suffixKey) {
-                                                        const systemProfile = message.ownerId
-                                                            ? profileMap.get(message.ownerId)
-                                                            : undefined;
-                                                        const systemName = systemProfile?.nick ?? message.ownerName;
+                                            {withGapDividers(
+                                                reversedMessages,
+                                                reversedMessages.map((message, index) => {
+                                                    if (message.isSystem) {
+                                                        // Wrapped for `data-chat-no` like every other row: a
+                                                        // legacy notice keeps its whole sentence in `content`,
+                                                        // which search matches, and a jump to a row with no
+                                                        // anchor ended in "couldn't find that message" while
+                                                        // the notice sat on screen.
+                                                        //
+                                                        // New model: system messages carry no text — render the
+                                                        // localized clause from `subType` with the subject's name
+                                                        // (profile nick preferred) as a bold prefix.
+                                                        const suffixKey = systemMessageSuffixKey(message.subType);
+                                                        if (suffixKey) {
+                                                            const systemProfile = message.ownerId
+                                                                ? profileMap.get(message.ownerId)
+                                                                : undefined;
+                                                            const systemName = systemProfile?.nick ?? message.ownerName;
+                                                            return (
+                                                                // A 1:1 losing its only other participant
+                                                                // is the one notice this room is not
+                                                                // neutral about, so Figma reddens it and
+                                                                // drops the pill. A group leave stays a
+                                                                // plain chip.
+                                                                <div key={message.id} data-chat-no={message.chatNo}>
+                                                                    <SystemNotice
+                                                                        tone={
+                                                                            isDmChat && message.subType === 'leave'
+                                                                                ? 'alert'
+                                                                                : 'default'
+                                                                        }
+                                                                    >
+                                                                        <span className="font-semibold">
+                                                                            {systemName}
+                                                                        </span>
+                                                                        {t(suffixKey)}
+                                                                    </SystemNotice>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        // Legacy fallback: older rows stored the full sentence in content.
+                                                        const systemMatch = (message.content ?? '').match(
+                                                            /^(.+?)(님이.+)$/
+                                                        );
                                                         return (
-                                                            // A 1:1 losing its only other participant
-                                                            // is the one notice this room is not
-                                                            // neutral about, so Figma reddens it and
-                                                            // drops the pill. A group leave stays a
-                                                            // plain chip.
                                                             <div key={message.id} data-chat-no={message.chatNo}>
-                                                                <SystemNotice
-                                                                    tone={
-                                                                        isDmChat && message.subType === 'leave'
-                                                                            ? 'alert'
-                                                                            : 'default'
-                                                                    }
-                                                                >
-                                                                    <span className="font-semibold">{systemName}</span>
-                                                                    {t(suffixKey)}
+                                                                <SystemNotice>
+                                                                    {systemMatch ? (
+                                                                        <>
+                                                                            <span className="font-semibold">
+                                                                                {systemMatch[1]}
+                                                                            </span>
+                                                                            {systemMatch[2]}
+                                                                        </>
+                                                                    ) : (
+                                                                        message.content
+                                                                    )}
                                                                 </SystemNotice>
                                                             </div>
                                                         );
                                                     }
-                                                    // Legacy fallback: older rows stored the full sentence in content.
-                                                    const systemMatch = (message.content ?? '').match(
-                                                        /^(.+?)(님이.+)$/
-                                                    );
+
+                                                    const chronPrevMessage = reversedMessages[index + 1];
+                                                    const chronNextMessage = reversedMessages[index - 1];
+
+                                                    const isSameAsPrev =
+                                                        chronPrevMessage && isSameGroup(message, chronPrevMessage);
+                                                    const isSameAsNext =
+                                                        chronNextMessage && isSameGroup(message, chronNextMessage);
+
+                                                    const showProfileAndName = !isSameAsPrev;
+                                                    const showTimeAndStatus =
+                                                        !isSameAsNext || message.isPending || message.isFailed;
+
+                                                    // Site profile (nick/avatar) takes precedence over the
+                                                    // user-cache name fallback computed in useChats.
+                                                    const ownerProfile = message.ownerId
+                                                        ? profileMap.get(message.ownerId)
+                                                        : undefined;
+                                                    const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
+                                                    const ownerAvatar = ownerProfile?.thumbnail;
+
+                                                    const { readCount, unreadCount } =
+                                                        message.chatNo !== undefined
+                                                            ? getReadCount(message.chatNo)
+                                                            : { readCount: 0, unreadCount: 0 };
+
+                                                    // Thread footer: loaded-reply aggregate keyed by the
+                                                    // root's chatNo string (buildThreadIndex).
+                                                    const threadMeta = message.chatNo
+                                                        ? threadIndex.get(String(message.chatNo))
+                                                        : undefined;
+                                                    // How many replies are new, not merely whether
+                                                    // any are — the footer prints the number. Zero
+                                                    // until the baseline snapshot lands, so a thread
+                                                    // never flashes an unseen count it then retracts.
+                                                    const unseenReplyCount =
+                                                        threadMeta && baselineReadNo !== null
+                                                            ? countUnseenReplies(
+                                                                  threadMeta,
+                                                                  baselineReadNo,
+                                                                  userId ?? null
+                                                              )
+                                                            : 0;
+
                                                     return (
-                                                        <div key={message.id} data-chat-no={message.chatNo}>
-                                                            <SystemNotice>
-                                                                {systemMatch ? (
-                                                                    <>
-                                                                        <span className="font-semibold">
-                                                                            {systemMatch[1]}
-                                                                        </span>
-                                                                        {systemMatch[2]}
-                                                                    </>
-                                                                ) : (
-                                                                    message.content
-                                                                )}
-                                                            </SystemNotice>
-                                                        </div>
+                                                        // The wrapper carries `data-chat-no` for the
+                                                        // search jump (useMessageJump scrolls to it).
+                                                        // Keyed by `tempId` first: a send swaps its
+                                                        // optimistic id for the server's, and a key
+                                                        // that changed with it would remount the row
+                                                        // and play its entrance a second time.
+                                                        <StackInRow
+                                                            key={message.tempId ?? message.id}
+                                                            data-chat-no={message.chatNo}
+                                                            enter={!!message.isPending && message.isOwner}
+                                                        >
+                                                            <ChannelMessageRow
+                                                                message={message}
+                                                                mentionViewer={mentionViewer}
+                                                                showProfileAndName={showProfileAndName}
+                                                                showTimeAndStatus={showTimeAndStatus}
+                                                                ownerDisplayName={ownerDisplayName}
+                                                                ownerAvatar={ownerAvatar}
+                                                                time={formatTime(message.timestamp)}
+                                                                read={{
+                                                                    show: showReadReceipt,
+                                                                    isReady: isJoinReady,
+                                                                    readCount,
+                                                                    unreadCount,
+                                                                    mode: isDmChat ? 'dm' : 'count',
+                                                                }}
+                                                                onLongPress={() => handleOpenMessageActions(message)}
+                                                                onExpand={() =>
+                                                                    setExpandedMessage({
+                                                                        content: messagePlainText(message.content),
+                                                                        ownerName: message.ownerName,
+                                                                    })
+                                                                }
+                                                                onRetry={() => handleRetryMessage(message)}
+                                                                onDelete={() => handleDeleteMessage(message)}
+                                                                reactions={
+                                                                    message.id ? reactions.get(message.id) : undefined
+                                                                }
+                                                                onToggleReaction={(emoji, isMine) =>
+                                                                    message.id &&
+                                                                    toggleReaction(message.id, emoji, isMine)
+                                                                }
+                                                                reactionFailed={
+                                                                    !!message.id && reactionFailedId === message.id
+                                                                }
+                                                                nameOf={nameOfUser}
+                                                                onAddReaction={
+                                                                    message.chatNo
+                                                                        ? () => handleAddReaction(message)
+                                                                        : undefined
+                                                                }
+                                                                onShowReactors={key =>
+                                                                    message.id && handleShowReactors(message.id, key)
+                                                                }
+                                                                avatarOf={avatarOfUser}
+                                                                edit={editing.editStateFor(message)}
+                                                                threadMeta={threadMeta}
+                                                                unseenReplyCount={unseenReplyCount}
+                                                                formatThreadTime={formatTime}
+                                                                onOpenThread={
+                                                                    message.chatNo
+                                                                        ? () => openThread(message)
+                                                                        : undefined
+                                                                }
+                                                                onOpenProfile={openMemberProfile}
+                                                            />
+                                                        </StackInRow>
                                                     );
-                                                }
-
-                                                const chronPrevMessage = reversedMessages[index + 1];
-                                                const chronNextMessage = reversedMessages[index - 1];
-
-                                                const isSameAsPrev =
-                                                    chronPrevMessage && isSameGroup(message, chronPrevMessage);
-                                                const isSameAsNext =
-                                                    chronNextMessage && isSameGroup(message, chronNextMessage);
-
-                                                const showProfileAndName = !isSameAsPrev;
-                                                const showTimeAndStatus =
-                                                    !isSameAsNext || message.isPending || message.isFailed;
-
-                                                // Site profile (nick/avatar) takes precedence over the
-                                                // user-cache name fallback computed in useChats.
-                                                const ownerProfile = message.ownerId
-                                                    ? profileMap.get(message.ownerId)
-                                                    : undefined;
-                                                const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
-                                                const ownerAvatar = ownerProfile?.thumbnail;
-
-                                                const { readCount, unreadCount } =
-                                                    message.chatNo !== undefined
-                                                        ? getReadCount(message.chatNo)
-                                                        : { readCount: 0, unreadCount: 0 };
-
-                                                // Thread footer: loaded-reply aggregate keyed by the
-                                                // root's chatNo string (buildThreadIndex).
-                                                const threadMeta = message.chatNo
-                                                    ? threadIndex.get(String(message.chatNo))
-                                                    : undefined;
-                                                // How many replies are new, not merely whether
-                                                // any are — the footer prints the number. Zero
-                                                // until the baseline snapshot lands, so a thread
-                                                // never flashes an unseen count it then retracts.
-                                                const unseenReplyCount =
-                                                    threadMeta && baselineReadNo !== null
-                                                        ? countUnseenReplies(threadMeta, baselineReadNo, userId ?? null)
-                                                        : 0;
-
-                                                return (
-                                                    // The wrapper carries `data-chat-no` for the
-                                                    // search jump (useMessageJump scrolls to it).
-                                                    // Keyed by `tempId` first: a send swaps its
-                                                    // optimistic id for the server's, and a key
-                                                    // that changed with it would remount the row
-                                                    // and play its entrance a second time.
-                                                    <StackInRow
-                                                        key={message.tempId ?? message.id}
-                                                        data-chat-no={message.chatNo}
-                                                        enter={!!message.isPending && message.isOwner}
-                                                    >
-                                                        <ChannelMessageRow
-                                                            message={message}
-                                                            mentionViewer={mentionViewer}
-                                                            showProfileAndName={showProfileAndName}
-                                                            showTimeAndStatus={showTimeAndStatus}
-                                                            ownerDisplayName={ownerDisplayName}
-                                                            ownerAvatar={ownerAvatar}
-                                                            time={formatTime(message.timestamp)}
-                                                            read={{
-                                                                show: showReadReceipt,
-                                                                isReady: isJoinReady,
-                                                                readCount,
-                                                                unreadCount,
-                                                                mode: isDmChat ? 'dm' : 'count',
-                                                            }}
-                                                            onLongPress={() => handleOpenMessageActions(message)}
-                                                            onExpand={() =>
-                                                                setExpandedMessage({
-                                                                    content: messagePlainText(message.content),
-                                                                    ownerName: message.ownerName,
-                                                                })
-                                                            }
-                                                            onRetry={() => handleRetryMessage(message)}
-                                                            onDelete={() => handleDeleteMessage(message)}
-                                                            reactions={
-                                                                message.id ? reactions.get(message.id) : undefined
-                                                            }
-                                                            onToggleReaction={(emoji, isMine) =>
-                                                                message.id && toggleReaction(message.id, emoji, isMine)
-                                                            }
-                                                            reactionFailed={
-                                                                !!message.id && reactionFailedId === message.id
-                                                            }
-                                                            nameOf={nameOfUser}
-                                                            onAddReaction={
-                                                                message.chatNo
-                                                                    ? () => handleAddReaction(message)
-                                                                    : undefined
-                                                            }
-                                                            onShowReactors={key =>
-                                                                message.id && handleShowReactors(message.id, key)
-                                                            }
-                                                            avatarOf={avatarOfUser}
-                                                            edit={editing.editStateFor(message)}
-                                                            threadMeta={threadMeta}
-                                                            unseenReplyCount={unseenReplyCount}
-                                                            formatThreadTime={formatTime}
-                                                            onOpenThread={
-                                                                message.chatNo ? () => openThread(message) : undefined
-                                                            }
-                                                            onOpenProfile={openMemberProfile}
-                                                        />
-                                                    </StackInRow>
-                                                );
-                                            })}
+                                                })
+                                            )}
                                             <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
                                         </div>
                                     );
