@@ -12,8 +12,18 @@ const toast = jest.fn();
 const waitUntilSlotVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
-/** A deeplink usually lands in a fresh device session, so guest is the default here. */
+/** The RELAY account's role. A deeplink usually lands in a fresh device session, so guest is the default. */
 let mockIsGuest = true;
+/**
+ * The ACTIVE session's role — the cloud's whenever a cloud is open. The flow must not read it; it is
+ * mocked so a test can make it disagree with the relay account.
+ */
+let mockActiveIsGuest = true;
+/** Which server the session is committed to — `cloud` while a cloud is open. */
+let mockActiveKind: 'relay' | 'cloud' = 'relay';
+const logoutCloudSession = jest.fn();
+/** The place the session lands on when it returns to relay. */
+let mockRelaySid: string | null = null;
 const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
@@ -29,8 +39,9 @@ jest.mock('@chatic/app-runtime', () => ({
             useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
         },
         session: {
-            useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
-            useSessionSelection: () => ({ selectedSiteId: mockSid }),
+            useRuntimeProfile: () => ({ isGuest: mockActiveIsGuest }),
+            // Read at call time by the flow; `logoutCloudSession` below moves both, as the real one does.
+            getGlobalSessionContext: () => ({ activeServer: { kind: mockActiveKind, siteId: mockSid } }),
         },
     },
 }));
@@ -44,10 +55,14 @@ jest.mock('@chatic/bridges', () => ({
 // The stack rules have their own suite (navigation/stackPolicy.test.ts); this one asserts which rule
 // an exit asks for.
 jest.mock('../../../../navigation', () => ({ useStackNavigate: () => enterStack }));
+jest.mock('../../../../runtime/useLogoutCloudSession', () => ({
+    useLogoutCloudSession: () => ({ logoutCloudSession }),
+}));
 
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../../hooks', () => ({
     useRelayInviteMutations: () => ({ getInvite, acceptInvite, rejectInvite }),
+    useIsAccountGuest: () => mockIsGuest,
 }));
 // The judgement has its own suite (utils/placeProfile.test.ts). Mocked here so this one drives the
 // verdict directly instead of reconstructing get-mine responses.
@@ -91,6 +106,14 @@ beforeEach(() => {
     // Default: a profile already exists, so the profile step stays out of the other tests' way.
     mockSid = 'site-1';
     mockIsGuest = true;
+    mockActiveIsGuest = true;
+    mockActiveKind = 'relay';
+    // Returning to relay moves the session onto relay's place, which a fresh browser tab does not have.
+    logoutCloudSession.mockImplementation(async () => {
+        mockActiveKind = 'relay';
+        mockSid = mockRelaySid;
+    });
+    mockRelaySid = null;
     isPlaceProfileAbsent.mockResolvedValue(false);
     resolveChannel.mockResolvedValue('ch-new');
 });
@@ -206,6 +229,26 @@ describe('useRelayInviteFlow — 인증 모드 결정', () => {
     });
 
     it('이미 메인 유저(번호만 없는 소셜 계정)면 link다 — login은 서버가 400으로 막는다', async () => {
+        mockIsGuest = false;
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        expect(result.current.verifyMode).toBe('link');
+    });
+
+    it('reads the relay account, so a guest inside a cloud still verifies with login', async () => {
+        // The active token is the cloud's: as that cloud's member the guest reads as a main user.
+        // Sent down `link`, the relay server refused the code ("main user only") with no way forward.
+        mockActiveIsGuest = false;
+        mockIsGuest = true;
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        expect(result.current.verifyMode).toBe('login');
+    });
+
+    it('reads the relay account, so a main user inside a cloud where they are a guest still links', async () => {
+        mockActiveIsGuest = true;
         mockIsGuest = false;
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
@@ -761,5 +804,105 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         await act(async () => {
             release(view({ state: 'accepted' }));
         });
+    });
+});
+
+describe('useRelayInviteFlow — accepting from inside a cloud', () => {
+    beforeEach(() => {
+        mockActiveKind = 'cloud';
+        mockSid = 'cloud-place';
+    });
+
+    it("returns to relay before the profile check, so the cloud place's profile is never read", async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        expect(logoutCloudSession).toHaveBeenCalledTimes(1);
+        // Back on relay with no place selected, the precondition is skipped rather than run against the cloud.
+        expect(isPlaceProfileAbsent).not.toHaveBeenCalled();
+    });
+
+    it("checks the relay place's profile once back on relay", async () => {
+        mockRelaySid = 'relay-place';
+        isPlaceProfileAbsent.mockImplementation(async () => {
+            expect(mockSid).toBe('relay-place');
+            return false;
+        });
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        expect(isPlaceProfileAbsent).toHaveBeenCalledTimes(1);
+        expect(logoutCloudSession.mock.invocationCallOrder[0]).toBeLessThan(
+            isPlaceProfileAbsent.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('stays in the cloud when the re-read finds the invite can no longer be accepted', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        getInvite.mockResolvedValue(view({ state: 'expired' }));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.notice).toBe('expired'));
+        expect(logoutCloudSession).not.toHaveBeenCalled();
+    });
+
+    it('leaves the cloud once, not again when verification resumes the flow', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+        getInvite.mockResolvedValue(view({ needVerify: false }));
+        act(() => result.current.onVerified());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        expect(logoutCloudSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays put when relay is already the active session', async () => {
+        mockActiveKind = 'relay';
+        mockSid = 'site-1';
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        expect(logoutCloudSession).not.toHaveBeenCalled();
+    });
+
+    it('accepts anyway when returning to relay fails, since the accept itself is relay-pinned', async () => {
+        logoutCloudSession.mockRejectedValue(new Error('socket closed'));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
+        expect(loggerWarn).toHaveBeenCalledWith(
+            'INVITE',
+            expect.stringContaining('return to relay'),
+            expect.anything()
+        );
+    });
+
+    it('does not move the session on a confirmed decline', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        expect(rejectInvite).toHaveBeenCalledWith(CODE);
+        expect(logoutCloudSession).not.toHaveBeenCalled();
     });
 });

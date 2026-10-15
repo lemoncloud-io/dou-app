@@ -72,10 +72,10 @@ them "someone else got there first" would be false and would hide the one thing 
 branches to `verifying`, `profiling`, `awaitingChannel`, `closed` or a terminal `notice` — and the
 handlers for verification and the profile call `advance()` again rather than continuing on their own.
 
-That loop is the contract: **`advance()` begins with `invite.get`.** Verification takes
-minutes, and in that window the inviter can cancel, the link can lapse, or the recipient can decline
-from another device. Re-validation is not something a caller remembers to do; it is the first thing
-the only path forward does.
+That loop is the contract: **`advance()` re-reads `invite.get` before it branches anywhere.**
+Verification takes minutes, and in that window the inviter can cancel, the link can lapse, or the
+recipient can decline from another device. Re-validation is not something a caller remembers to do;
+it is the first decision the only path forward makes.
 
 That is also why abandoning a step is safe. Backing out of the profile dialog returns to `review`
 without accepting, and pressing accept again simply runs the chain from the top.
@@ -88,7 +88,7 @@ this flow mounts. Firing early fails with something `resolveNotice` cannot map �
 bound, `503 SOCKET NOT CONNECTED`, `401 UNAUTHORIZED` — and the reader gets a useless `generic`
 dialog on a perfectly good invitation.
 
-So both the entry read and `advance()` first await `waitUntilSlotVerified(RELAY_SLOT, 10s)`.
+So both the entry read and `advance()` await `waitUntilSlotVerified(RELAY_SLOT, 10s)` before the read.
 **Kind-pinned, not `waitUntilVerified`**: the latter tracks the _active_ slot, which is the cloud
 whenever a cloud session is up, and would wave a relay request through mid-handshake. The wait is
 best-effort — a timeout proceeds anyway, so a genuinely broken socket surfaces the server's own
@@ -97,19 +97,47 @@ error instead of being swallowed as a wait.
 The page holds `InviteAcceptLoading` until `isAuthenticated`, for the same reason from the other
 direction.
 
+### Accepting from inside a cloud
+
+A relay invite is accepted on relay. When the reader presses Accept while a cloud is open — a guest
+who earlier accepted a cloud room invite, say — `advance` returns the session to relay
+(`logoutCloudSession`) as soon as the re-read says the invite can still be accepted, the same move a
+relay push tap makes. An invite that has lapsed or been canceled ends at its notice with the reader
+still in the cloud. Leaving keeps the cloud's cached session and its background socket, so the cloud
+stays in the switcher while that session lasts; after a `login` proof promotes the relay identity, a
+re-issue for an invited cloud can be refused (see [README](./README.md#where-the-backend-still-has-gaps)).
+
+Only Accept moves the session; opening the link, reading the invite and declining leave it where it
+is. Once moved it stays moved: backing out of the verification or profile step returns to `review`
+on relay, not to the cloud the reader came from. The active server and the place are read when each
+step runs, not off the last render, because the return has only just moved them.
+
+Every later step depends on it. Inside the cloud, the profile precondition looked up the cloud place's
+profile rather than the relay one, so it could wave through an invitee with no relay name; and the room
+hunt's tier 3 watched the cloud's channel list for a relay room, timed out after 20 s and sent the
+invitee home in the cloud with the room nowhere in sight. A return that fails is logged and the accept
+goes on: `invite.get` and `invite.accept` are relay-pinned and work either way.
+
 ### Verification: `login` or `link`, and why it matters
 
 `verifyMode` is `login` for a guest and `link` for someone who is already a main user but has no
 phone number on the account. Sending `login` to the latter is refused by the server
 (`@mode[login] is for device session`), and sending `link` to a guest cannot open a session.
 
+**The role is the relay account's** (`useIsAccountGuest`, read off the relay token), not the active
+session's (`useRuntimeProfile`). No relay account at all reads as a guest, so an unknown role starts at
+`login`. The proof is `auth.link-account` on the relay slot and the invite is a
+relay one, so the relay identity is the subject. The active token is the cloud's whenever a cloud is
+open, and a guest who had accepted a cloud invite read there as that cloud's member: the flow chose
+`link`, the relay server answered `403 main user only` to the code request, and the verify sheet
+could only say "Failed to send the code".
+
 Two corrections sit on top of that:
 
-- **A server `403` beats the role cache.** When the accept is refused because the server does not
-  see a main user, the flow pins the proof to `login`. `isGuest` leans towards "main user" when the
-  role is unknown and reads the cloud token while a cloud is active, so the server's answer is the
-  truer one. Without this pin the flow re-derives `link` from a stale `isGuest: false` and the send
-  `403`s again with no way out.
+- **A server `403` beats the role read.** When the accept is refused because the server does not
+  see a main user, the flow pins the proof to `login`. A token that has not caught up with the
+  server can still disagree with it, so the server's answer is the truer one. Without this pin the
+  flow re-derives `link` from a stale `isGuest: false` and the send `403`s again with no way out.
 - **`link` refuses to start without `last4`.** A `link` confirm binds the number to the account
   **irreversibly** — the backend has no unlink and answers `type-linked` forever after. The server's
   own invite cross-check only exists on `login` (`link-account.ts` reads the code only in that

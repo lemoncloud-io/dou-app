@@ -8,13 +8,14 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
-import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
+import { useIsAccountGuest, useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
 import { useStackNavigate } from '../../../../navigation';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
 import { getSocketErrorCode } from '../../../../utils/errors';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
 import { ROUTES } from '../../../../routes/paths';
+import { useLogoutCloudSession } from '../../../../runtime/useLogoutCloudSession';
 
 /**
  * The invite as the accept screen reads it. `expiredAt`, the inviter's avatar and the place's
@@ -170,7 +171,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const mutations = useRelayInviteMutations();
     const { resolveChannel } = useResolveInviteChannel();
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();
-    const { selectedSiteId: sid } = runtime.session.useSessionSelection();
+    const { logoutCloudSession } = useLogoutCloudSession();
     const setPendingChannel = usePendingInviteChannel(state => state.setPendingChannel);
 
     const [phase, setPhase] = useState<RelayInvitePhase>('loading');
@@ -178,14 +179,19 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const [notice, setNotice] = useState<RelayInviteNotice | null>(null);
     const [isRejecting, setIsRejecting] = useState(false);
     /**
-     * Set when the SERVER itself refused us as a main user (a 403 on accept). The role cache can
-     * disagree with the server — it falls back to "main user" when the role is simply unknown, and
-     * reads the cloud token while a cloud is active — so once the server has spoken, its verdict
-     * outranks `isGuest`. Same override, and the same reasoning, as ContactInvitePage's 403 net.
+     * Set when the SERVER itself refused us as a main user (a 403 on accept). The role read below can
+     * still disagree with the server — a token that has not caught up with a promotion, say — so once
+     * the server has spoken, its verdict outranks `isGuest`. Same override, and the same reasoning, as
+     * ContactInvitePage's 403 net.
      */
     const [refusedAsMainUser, setRefusedAsMainUser] = useState(false);
 
-    const { isGuest } = runtime.session.useRuntimeProfile();
+    // The RELAY account's role, not the active session's. Verification is `auth.link-account` on the
+    // relay slot, and the invite is a relay one, so the relay identity is the subject. The active
+    // token is the cloud's whenever a cloud is open: a guest who had accepted a cloud invite read as
+    // that cloud's member, was sent down `link`, and the server refused the code ("main user only")
+    // with no way forward.
+    const isGuest = useIsAccountGuest();
     // A guest must OPEN a session (`login`); a main user who merely lacks a phone hangs one on the
     // session they already have (`link`) — sending `login` there is a 400 (ADR-0042 §3).
     const verifyMode: AccountLinkMode = isGuest || refusedAsMainUser ? 'login' : 'link';
@@ -199,22 +205,22 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         resolveChannel,
         setPendingChannel,
         profileRepository,
-        sid,
         enterStack,
         toast,
         t,
         verifyMode,
+        logoutCloudSession,
     });
     latest.current = {
         mutations,
         resolveChannel,
         setPendingChannel,
         profileRepository,
-        sid,
         enterStack,
         toast,
         t,
         verifyMode,
+        logoutCloudSession,
     };
 
     // Generation counter: a step that resolves after the flow moved on (or unmounted) must not write.
@@ -333,6 +339,24 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         if (view.state === 'canceled') return failTerminalState('canceled', 'inviteCanceled', 'advance');
         if (view.state === 'rejected') return failTerminalState('rejected', 'rejected', 'advance');
 
+        // A relay invite is accepted on relay. Pressed inside a cloud, return to relay here — once the
+        // re-read has said the invite can still be accepted, so a lapsed one leaves the reader where
+        // they were — the same move a relay push tap makes. Leaving keeps the cloud's cached session
+        // and background socket, so the cloud stays in the switcher while that session lasts. Without
+        // it every step below read the cloud: the profile precondition checked the cloud place's
+        // profile instead of the relay one, and the room hunt watched the cloud's channel list for a
+        // relay room, timed out after 20 s and sent the invitee home in the cloud. Read at call time:
+        // a value captured at render would still say `cloud` for the resumed run's first moment.
+        if (runtime.session.getGlobalSessionContext().activeServer.kind === 'cloud') {
+            try {
+                await latest.current.logoutCloudSession();
+            } catch (error) {
+                // Best-effort, like the push tap: `invite.accept` is relay-pinned and works either way.
+                logger.warn('INVITE', '[useRelayInviteFlow] could not return to relay before accepting', { error });
+            }
+            if (isStale(run)) return;
+        }
+
         // Verify, then name yourself, then accept (ADR-0089 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
         // main user's site — while still a device user there is no site to write it to.
@@ -370,9 +394,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         // has no sid even for a long-time user. Gating there would throw inside the dialog and leave the
         // invite permanently unacceptable, since the profile is a precondition of the accept. The same
         // flow already defends this way (`useAwaitInviteChannel`: `if (!sid) return null`).
+        // The place is read at call time, not off the last render: the return to relay above has just
+        // moved it, and the re-render that would carry the new one may not have landed yet.
         const needsProfile =
             !profileSavedRef.current &&
-            !!latest.current.sid &&
+            !!runtime.session.getGlobalSessionContext().activeServer.siteId &&
             (await isPlaceProfileAbsent(latest.current.profileRepository));
         if (isStale(run)) return;
         if (needsProfile) return setPhase('profiling');

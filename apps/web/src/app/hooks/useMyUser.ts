@@ -120,7 +120,9 @@ export const useMyUser = (): MyUser | null => {
  * with no name in it.
  *
  * Screens asking "what may I do in the cloud I am connected to" — permissions, the room, home —
- * must keep using `useRuntimeProfile`. This is for account-scoped screens only.
+ * must keep using `useRuntimeProfile`. This is for account-scoped screens, and for acts the relay
+ * account performs whatever cloud is open — the relay invite's phone proof picks `login` or `link`
+ * from it.
  *
  * Reads the token directly rather than through `useMyUser`, deliberately. `useMyUser` carries a
  * `user.profile` refresh, and MY already mounts it for the header — going through it here would put
