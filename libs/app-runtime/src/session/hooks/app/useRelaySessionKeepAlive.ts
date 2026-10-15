@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { Coalescer } from '../../../utils/coalescer';
 import { Throttle } from '../../../utils/throttle';
+import { isLinkKnownDown } from '../../../socket/linkState';
 import { relaySession } from '../../auth/relaySession';
 import { useSessionAuth } from '../session';
 import { useDynamicDeviceId } from './useDynamicDeviceId';
@@ -15,8 +16,6 @@ import { useDynamicDeviceId } from './useDynamicDeviceId';
  * dependencies, not off an edge, and `Throttle` grants its first acquire anyway.
  */
 const RETRY_FLOOR_MS = 5_000;
-
-const isBrowserOnline = (): boolean => (typeof navigator === 'undefined' ? true : navigator.onLine);
 
 /**
  * Keeps the relay session always present: when relay authentication is absent, it performs a
@@ -30,8 +29,8 @@ const isBrowserOnline = (): boolean => (typeof navigator === 'undefined' ? true 
  * still false, the deviceId is the same. So a first launch with no network used to burn its one
  * attempt and then sit sessionless until the app was restarted: coming back online re-established
  * the sockets, but nothing re-asked for the session they needed. The edges below are that missing
- * re-ask, and the offline skip keeps the attempt for a moment when it can succeed (the same reliable
- * negative both credential guards use).
+ * re-ask, and the offline skip keeps the attempt for a moment when it can succeed (the same
+ * `isLinkKnownDown` verdict both credential guards use).
  */
 export const useRelaySessionKeepAlive = (enabled: boolean): void => {
     const { isAuthenticated } = useSessionAuth();
@@ -52,7 +51,7 @@ export const useRelaySessionKeepAlive = (enabled: boolean): void => {
         }
 
         const retry = (): void => {
-            if (!isBrowserOnline() || !retryFloor.tryAcquire()) return;
+            if (isLinkKnownDown() || !retryFloor.tryAcquire()) return;
             setRetryTick(tick => tick + 1);
         };
         const onVisibilityChange = (): void => {
@@ -71,7 +70,7 @@ export const useRelaySessionKeepAlive = (enabled: boolean): void => {
         if (!enabled || isAuthenticated || !deviceId) {
             return;
         }
-        if (!isBrowserOnline()) {
+        if (isLinkKnownDown()) {
             // The login would only fail; the `online` edge above brings us back.
             logger.debug('AUTH', '[keepAlive] relay session absent but offline — waiting for the link');
             return;

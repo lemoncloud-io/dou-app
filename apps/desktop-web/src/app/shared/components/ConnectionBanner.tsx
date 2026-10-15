@@ -21,9 +21,10 @@ export const ConnectionBanner = () => {
             useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
         0;
 
-    // 'offline' is claimed only when the browser itself reports no network. A down socket on a
-    // working network reads as 'reconnecting' — see deriveConnectivity. 'online' covers both a
-    // healthy socket and the pre-connect idle boot, so the banner stays quiet for it.
+    // 'offline' is claimed only when the browser reports no network and no socket is verified to
+    // contradict it. A down socket on a working network reads as 'reconnecting' — see
+    // deriveConnectivity. 'online' covers both a healthy socket and the pre-connect idle boot, so
+    // the banner stays quiet for it.
     const offline = status === 'offline';
     if (isSwitching || status === 'online') return null;
 

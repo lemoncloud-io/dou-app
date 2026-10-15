@@ -8,6 +8,7 @@ import { RELAY_SLOT } from '../../../socket/utils/slotKey';
 import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { canRefreshThroughSocket, getAuthStatus } from '../../../socket/auth/authStatus';
 import { credentialRenewers } from '../../../socket/auth/renewers';
+import { isLinkKnownDown } from '../../../socket/linkState';
 import { Coalescer } from '../../../utils/coalescer';
 import { Throttle } from '../../../utils/throttle';
 
@@ -220,7 +221,9 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
 
     const check = useCallback(async (): Promise<void> => {
         // Offline refreshes always fail; skip rather than burn a request — or a teardown — on a dead link.
-        if (!navigator.onLine) return;
+        // The lenient verdict is only safe while no caller passes `onTeardown`; one that does should
+        // hold off on the raw `navigator.onLine`, as the relay terminal-expiry decision does.
+        if (isLinkKnownDown()) return;
         await probe.run(runProbe);
     }, [probe, runProbe]);
 

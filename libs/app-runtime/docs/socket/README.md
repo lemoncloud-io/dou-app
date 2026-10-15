@@ -477,12 +477,35 @@ it moves **and a reboot is not already happening**, since a reboot re-registers 
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
-do". Its truth table encodes one asymmetry — `navigator.onLine` is a **reliable negative** (`false`
-proves there is no network and outranks every socket state, because a dropped link can sit in
-`connected` until the next frame fails) and an **unreliable positive** (`true` only proves an
-interface is up). So with the browser online, a closed socket reads as **reconnecting, not offline**:
-the fault is ours, and telling the user to check their wifi sends them after the wrong thing. Boot
-(`state === 'idle'`) reads as `online`, because nothing has been attempted yet.
+do". Its truth table encodes one asymmetry — `navigator.onLine` is a **strong negative** and an
+**unreliable positive** (`true` only proves an interface is up). So with the browser online, a closed
+socket reads as **reconnecting, not offline**: the fault is ours, and telling the user to check their
+wifi sends them after the wrong thing. Boot (`state === 'idle'`) reads as `online`, because nothing
+has been attempted yet.
+
+### When is the link down
+
+`offline` comes from [`linkState.ts`](../../src/socket/linkState.ts), and the offline skips in the
+credential guards, the background token preparer and the relay keep-alive read the same answer
+through `isLinkKnownDown()`. The link is down only when **the browser says
+offline AND no slot — relay or cloud — is verified**.
+
+`navigator.onLine === false` is strong evidence, not proof. Chromium can hold it at `false` for the
+life of the process while requests succeed. This was seen on the macOS desktop shell when it started at
+login before Wi-Fi had joined a network. Read on its own, that value showed a permanent "no network"
+banner and silently stopped every credential renewal. A verified socket is positive proof that packets
+are moving, so it overrules the flag.
+
+The cost is the opposite edge. When the link really drops, a socket can sit `connected` until its
+next frame fails, and for that short window the link reads as up: the banner stays quiet and a guard
+may try once. That delay ends as soon as the socket notices. The latched flag never ends on its own.
+A latched flag with **no** verified socket (a first launch with no session yet) still reads as
+offline, because nothing contradicts it. Do not read `navigator.onLine` directly for a skip decision
+in this package; call `isLinkKnownDown()`.
+
+The one exception is the relay terminal-expiry decision, because it is the only one that ends the
+session. It holds off on the raw browser flag. A verified socket overruling that flag costs the other
+skips one failed attempt at most, but here it could log the user out over a dead link.
 
 ### What not to do
 

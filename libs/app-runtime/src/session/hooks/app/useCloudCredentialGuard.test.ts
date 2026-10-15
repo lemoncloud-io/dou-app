@@ -10,6 +10,7 @@ const mockLoggerWarn = jest.fn();
 /** The committed cloud, and the slots the manager has bound — what `guardedClouds` reads. */
 const mockGetCommittedCloudId = jest.fn();
 const mockGetSlotKeys = jest.fn();
+const mockIsSlotVerified = jest.fn();
 
 jest.mock('../../auth/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...args: unknown[]) => mockTimeToExpiry(...args) },
@@ -18,7 +19,10 @@ jest.mock('../../../socket/auth/renewCloudSession', () => ({
     renewCloudSession: (...args: unknown[]) => mockRenew(...args),
 }));
 jest.mock('../../../socket/runtime', () => ({
-    getSocketManager: () => ({ getSlotKeys: (...args: unknown[]) => mockGetSlotKeys(...args) }),
+    getSocketManager: () => ({
+        getSlotKeys: (...args: unknown[]) => mockGetSlotKeys(...args),
+        isSlotVerified: (...args: unknown[]) => mockIsSlotVerified(...args),
+    }),
 }));
 jest.mock('../../store', () => ({
     getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
@@ -110,6 +114,16 @@ describe('useCloudCredentialGuard — 판정', () => {
         await mount();
 
         expect(mockRenew).not.toHaveBeenCalled();
+    });
+
+    it('renews when the browser is stuck offline but a socket slot is still verified', async () => {
+        mockTimeToExpiry.mockReturnValue(0);
+        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+        mockIsSlotVerified.mockImplementation((key: string) => key === RELAY_CLOUD_ID);
+
+        await mount();
+
+        expect(mockRenew).toHaveBeenCalledWith('cloud-1');
     });
 
     it('갱신 실패는 경고만 남기고 teardown하지 않는다 — 클라우드는 재입장으로 복구된다', async () => {
