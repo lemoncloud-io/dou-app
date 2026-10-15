@@ -91,6 +91,10 @@ your subscription, the clouds you own — so it must answer for the same subject
 connected cloud's delegated user** is allowed to do. Use that one on a hub row and a signed-in person
 sees a "sign in" card the moment they enter a cloud.
 
+The hub is not its only caller. Anything the relay account does whatever cloud is open asks the same
+question — the relay invite's phone proof picks `login` or `link` from it, because a guest who has
+joined a cloud reads there as that cloud's member.
+
 `SettingsPage`'s logout row still gates on `useRuntimeProfile().isGuest`. The two can disagree while
 a cloud session is active, so that is the hook to look at first if the logout row goes missing for
 someone who is plainly signed in.
