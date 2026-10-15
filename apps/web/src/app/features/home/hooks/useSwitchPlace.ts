@@ -43,9 +43,28 @@ export const useSwitchPlace = (places: DomainPlace[], isPlacesLoading: boolean):
     );
 
     // Auto-select the first place when none is active (e.g. right after a cloud switch).
+    //
+    // The auto-select fires and forgets, so left uncaught a rejection would reach the logs only as an
+    // anonymous GLOBAL unhandled rejection, once per attempt: the rollback empties the selection
+    // again, which re-runs this effect. It is caught and named here instead, once per target place
+    // until an auto-select lands — the retries say nothing the first entry did not.
+    const failedAutoSelectRef = useRef<string | null>(null);
     useEffect(() => {
         if (selectedSiteId || isSwitching || places.length === 0) return;
-        void switchSite(places[0].id);
+        const target = places[0].id;
+        switchSite(target).then(
+            () => {
+                failedAutoSelectRef.current = null;
+            },
+            error => {
+                if (failedAutoSelectRef.current === target) return;
+                failedAutoSelectRef.current = target;
+                logger.warn('PLACE', '[useSwitchPlace] auto-select failed', {
+                    error,
+                    data: { to: target },
+                });
+            }
+        );
     }, [selectedSiteId, isSwitching, places, switchSite]);
 
     // The selection persists across launches (localStorage inside the native shell), so it can

@@ -22,7 +22,7 @@ meaning _which cursor_, next to a divergence `kind` meaning _which comparison_. 
 all of them and could still read the wrong field.
 
 ```ts
-type ObservationKind = 'badge-divergence' | 'unread-divergence' | …; // ten, closed
+type ObservationKind = 'badge-divergence' | 'unread-divergence' | …; // eleven, closed
 
 interface ObservationData {
     observation: ObservationKind;
@@ -41,20 +41,21 @@ level whose signature differs, and passing these fields at the top level there w
 **Do not invent a tag for the family.** A `DIVERGE` tag would split "everything about badges" across
 two tags. The domain tag stays; `observation` is the split.
 
-## The ten families
+## The eleven families
 
-| Kind                        | Level · tag                    | Produced by                                | Carries                                          |
-| --------------------------- | ------------------------------ | ------------------------------------------ | ------------------------------------------------ |
-| `badge-divergence`          | warn · `NOTIFICATION`          | `apps/web` divergence reporter             | `web`, `native`, `delta`, `breakdown`            |
-| `unread-divergence`         | warn · `CHAT`                  | `apps/web` divergence reporter             | the two cursors, the drawn count, `cursorLanded` |
-| `member-divergence`         | warn · `CHANNEL`               | `apps/web` divergence reporter             | `rosterOnly`, `joinOnly`, `joinCount`            |
-| `cloud-name-divergence`     | warn · `CLOUD`                 | `apps/web` divergence reporter             | `cid` and the two **lengths**, never the names   |
-| `foreign-drop`              | warn · `CACHE`                 | **this package** — the aggregator below    | `source`, `cid`, `socketCid`, `count`            |
-| `sync-streak`               | warn → error → info · `SYNC`   | `apps/web` sync streak reporter            | `path`, `streak` / `afterFailures`               |
-| `socket-unavailable-streak` | warn → error → info · `SOCKET` | `libs/app-runtime` socket failure reporter | `kind`, `type`, `code`, `afterFailures`          |
-| `sync-cursor-retired`       | warn · `SYNC`                  | `libs/data` `SyncMetaLocalDataSource`      | `cursorKind`, `reason`                           |
-| `queue-loss`                | warn · `LOG_BUFFER`            | `apps/web` queue loss observer             | `dropped` (the delta) and `droppedTotal`         |
-| `contacts-shape`            | info / warn · `DEVICE`         | `apps/mobile` device service               | `total`, `named`, `nameless`                     |
+| Kind                        | Level · tag                    | Produced by                                | Carries                                                    |
+| --------------------------- | ------------------------------ | ------------------------------------------ | ---------------------------------------------------------- |
+| `badge-divergence`          | warn · `NOTIFICATION`          | `apps/web` divergence reporter             | `web`, `native`, `delta`, `breakdown`                      |
+| `unread-divergence`         | warn · `CHAT`                  | `apps/web` divergence reporter             | the two cursors, the drawn count, `cursorLanded`           |
+| `member-divergence`         | warn · `CHANNEL`               | `apps/web` divergence reporter             | `rosterOnly`, `joinOnly`, `joinCount`                      |
+| `cloud-name-divergence`     | warn · `CLOUD`                 | `apps/web` divergence reporter             | `cid` and the two **lengths**, never the names             |
+| `foreign-drop`              | warn · `CACHE`                 | **this package** — the aggregator below    | `source`, `cid`, `socketCid`, `count`                      |
+| `sync-streak`               | warn → error → info · `SYNC`   | `apps/web` sync streak reporter            | `path`, `streak` / `afterFailures`                         |
+| `socket-unavailable-streak` | warn → error → info · `SOCKET` | `libs/app-runtime` socket failure reporter | `kind`, `type`, `code`, `afterFailures`                    |
+| `sync-cursor-retired`       | warn · `SYNC`                  | `libs/data` `SyncMetaLocalDataSource`      | `cursorKind`, `reason`                                     |
+| `place-list-empty`          | info · `PLACE`                 | `libs/data` place list reporter            | `cid`, `deletedRows`, `emptyAnswers` / `afterEmptyAnswers` |
+| `queue-loss`                | warn · `LOG_BUFFER`            | `apps/web` queue loss observer             | `dropped` (the delta) and `droppedTotal`                   |
+| `contacts-shape`            | info / warn · `DEVICE`         | `apps/mobile` device service               | `total`, `named`, `nameless`                               |
 
 ```bash
 grep -rn "observation: '" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
