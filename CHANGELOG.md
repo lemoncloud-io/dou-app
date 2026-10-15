@@ -4,6 +4,14 @@
 
 ### Bug Fixes
 
+- (web/channels) show a gap between thread replies, not silently drop the replies inside it
+- (web/channels) re-check only rows cached before this run, not the ones it just fetched
+- (web,data) show a chat gap and fill it from the cache first, not jump across it
+
+## [2026-10-15] - No version updates
+
+### Bug Fixes
+
 - (web/channels) keep a ?chatNo jump through a re-run, not lost on entry
 - (web/search) land a search hit on thread replies and system notices, not "not found"
 
