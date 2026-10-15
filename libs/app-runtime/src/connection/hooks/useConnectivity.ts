@@ -1,23 +1,25 @@
 import { useSyncExternalStore } from 'react';
 
 import { useRuntimeSocketState } from './useRuntimeSocketState';
+import { useVerifiedClouds } from './useVerifiedClouds';
+import { isLinkDown, readBrowserOnline } from '../../socket/linkState';
+import type { LinkSignals } from '../../socket/linkState';
 import type { SocketState } from '../../socket';
 
 /** What the app should TELL THE USER about the connection. `online` means "nothing to warn about". */
 export type ConnectivityStatus = 'online' | 'reconnecting' | 'offline';
 
 /** Inputs of the derivation, split out so the truth table is testable without a socket manager. */
-export interface ConnectivitySignals extends SocketState {
-    /** `navigator.onLine` — see the asymmetry documented on `deriveConnectivity`. */
-    isBrowserOnline: boolean;
-}
+export interface ConnectivitySignals extends SocketState, LinkSignals {}
 
 /**
  * Composes the browser's network signal with the socket transport state.
  *
  * `navigator.onLine` is asymmetric and the derivation encodes that asymmetry:
- * - **reliable negative** — `false` proves there is no network, so it outranks every socket
- *   state (a dropped link can sit in `connected` until the next frame fails).
+ * - **strong negative** — `false` means there is no network, so it outranks the active socket's
+ *   transport state (a dropped link can sit in `connected` until the next frame fails). It is not
+ *   proof, though: Chromium can latch it at `false` while requests succeed, so a verified socket on
+ *   any slot overrules it. `isLinkDown` owns that rule and says why.
  * - **unreliable positive** — `true` only proves a network interface is up, never that the
  *   server is reachable, so it never promotes us to `online` on its own. Only a socket that is
  *   connected AND verified is proof of reachability.
@@ -29,11 +31,12 @@ export interface ConnectivitySignals extends SocketState {
  */
 export const deriveConnectivity = ({
     isBrowserOnline,
+    hasVerifiedSocket,
     state,
     isConnected,
     isVerified,
 }: ConnectivitySignals): ConnectivityStatus => {
-    if (!isBrowserOnline) return 'offline';
+    if (isLinkDown({ isBrowserOnline, hasVerifiedSocket })) return 'offline';
     if (isConnected && isVerified) return 'online';
     // Pre-connect boot: nothing has been attempted yet, so there is nothing to warn about.
     if (state === 'idle') return 'online';
@@ -49,14 +52,11 @@ const subscribeBrowserOnline = (onStoreChange: () => void): (() => void) => {
     };
 };
 
-// Outside a DOM there is no signal to read; default to the unreliable positive rather than
-// asserting an offline we cannot observe.
-const getBrowserOnline = (): boolean => (typeof navigator === 'undefined' ? true : navigator.onLine);
-
 /** Live connection status for the app shell. See `deriveConnectivity` for the semantics. */
 export const useConnectivity = (): ConnectivityStatus => {
-    const isBrowserOnline = useSyncExternalStore(subscribeBrowserOnline, getBrowserOnline, getBrowserOnline);
+    const isBrowserOnline = useSyncExternalStore(subscribeBrowserOnline, readBrowserOnline, readBrowserOnline);
     const socketState = useRuntimeSocketState();
+    const hasVerifiedSocket = useVerifiedClouds().length > 0;
 
-    return deriveConnectivity({ ...socketState, isBrowserOnline });
+    return deriveConnectivity({ ...socketState, isBrowserOnline, hasVerifiedSocket });
 };

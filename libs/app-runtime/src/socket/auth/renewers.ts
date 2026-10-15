@@ -10,6 +10,7 @@ import { cloudStore } from '../../session/store/stores';
 import { getCommittedCloudId } from '../../session/store';
 import type { SlotKey } from '../types';
 import { backgroundClouds } from '../backgroundClouds';
+import { readBrowserOnline } from '../linkState';
 import { getAuthStatus } from './authStatus';
 import { kindOf, RELAY_SLOT } from '../utils/slotKey';
 import { renewCloudSession } from './renewCloudSession';
@@ -105,7 +106,15 @@ export interface RelayExpiryDeps {
     logout?: () => Promise<void>;
 }
 
-const defaultIsOnline = (): boolean => (typeof navigator === 'undefined' ? true : navigator.onLine);
+/**
+ * The raw browser flag, not `isLinkKnownDown`, and the asymmetry is the reason. As wired today every
+ * other offline skip only decides whether to TRY a renewal, so a verified socket overruling a latched
+ * `false` costs at most one failed attempt. This decision ends the session. Right after a real drop a cloud socket
+ * can still read verified, and letting it overrule the flag here could log the user out over a dead
+ * link. A latched `false` instead leaves a wedged session unresolved until the shell restarts, which
+ * loses nothing.
+ */
+const defaultIsOnline = readBrowserOnline;
 const defaultWait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export class RelayCredentialRenewer implements ICredentialRenewer {
@@ -150,10 +159,10 @@ export class RelayCredentialRenewer implements ICredentialRenewer {
      *
      * Two cheap questions separate the cases, and the second is the load-bearing one:
      *
-     *  1. **Is the link down?** `navigator.onLine === false` is the repo's reliable negative
-     *     (`deriveConnectivity`): it proves the failures were not the session's fault. Defer — a
-     *     returning link re-runs the handshake, and a still-wedged session expires again with the
-     *     browser online, which lands back here.
+     *  1. **Is the link down?** `navigator.onLine === false` — taken on its own here, unlike the
+     *     other offline skips (see `defaultIsOnline`) — says the failures were not the session's
+     *     fault. Defer — a returning link re-runs the handshake, and a still-wedged session expires
+     *     again with the browser online, which lands back here.
      *  2. **Did it POSITIVELY recover within {@link EXPIRY_CONFIRMATION_MS} ×
      *     {@link EXPIRY_CONFIRMATION_ROUNDS}?** A wedged signature is, by definition, permanent; a
      *     transient burn is not. Reconnect + the bootstrap gate's immediate first resume, or a

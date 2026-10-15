@@ -3,10 +3,13 @@ import { act, renderHook } from '@testing-library/react';
 import { deriveConnectivity, useConnectivity } from './useConnectivity';
 import type { ConnectivitySignals } from './useConnectivity';
 import { useRuntimeSocketState } from './useRuntimeSocketState';
+import { useVerifiedClouds } from './useVerifiedClouds';
 
 jest.mock('./useRuntimeSocketState', () => ({ useRuntimeSocketState: jest.fn() }));
+jest.mock('./useVerifiedClouds', () => ({ useVerifiedClouds: jest.fn() }));
 
 const mockedSocketState = useRuntimeSocketState as jest.MockedFunction<typeof useRuntimeSocketState>;
+const mockedVerifiedClouds = useVerifiedClouds as jest.MockedFunction<typeof useVerifiedClouds>;
 
 const socket = (over: Partial<ReturnType<typeof useRuntimeSocketState>> = {}) => ({
     state: 'connected' as const,
@@ -17,10 +20,14 @@ const socket = (over: Partial<ReturnType<typeof useRuntimeSocketState>> = {}) =>
 });
 
 // `ConnectivitySignals` extends the full `SocketState`, so `connectionId` is required even though
-// the derivation never reads it. The truth table below is about the four signals it does read, so
-// the id is pinned here instead of repeated on every row.
-const signals = (over: Omit<ConnectivitySignals, 'connectionId'>): ConnectivitySignals => ({
+// the derivation never reads it. The truth table below is about the signals it does read, so the id
+// is pinned here instead of repeated on every row — and so is `hasVerifiedSocket`, which mirrors the
+// active slot unless a row says otherwise.
+const signals = (
+    over: Omit<ConnectivitySignals, 'connectionId' | 'hasVerifiedSocket'> & { hasVerifiedSocket?: boolean }
+): ConnectivitySignals => ({
     connectionId: null,
+    hasVerifiedSocket: over.isConnected && over.isVerified,
     ...over,
 });
 
@@ -30,16 +37,45 @@ const setBrowserOnline = (value: boolean) => {
 };
 
 describe('deriveConnectivity', () => {
-    // navigator.onLine is a RELIABLE NEGATIVE: false proves there is no network, so it wins
-    // over every socket state — including a socket still sitting in 'connected' because no
+    // navigator.onLine is a STRONG NEGATIVE: with no verified socket anywhere, false wins over the
+    // active socket's transport state — including a socket still sitting in 'connected' because no
     // frame has failed yet.
     it.each([
-        ['connected', true, true],
+        ['connected', true, false],
         ['connecting', false, false],
         ['closed', false, false],
         ['idle', false, false],
-    ] as const)('reports offline when the browser is offline (socket %s)', (state, isConnected, isVerified) => {
-        expect(deriveConnectivity(signals({ isBrowserOnline: false, state, isConnected, isVerified }))).toBe('offline');
+    ] as const)(
+        'reports offline when the browser is offline and no slot is verified (socket %s)',
+        (state, isConnected, isVerified) => {
+            expect(deriveConnectivity(signals({ isBrowserOnline: false, state, isConnected, isVerified }))).toBe(
+                'offline'
+            );
+        }
+    );
+
+    // ...but not proof: Chromium can latch it at false while the network works, and a verified
+    // socket is positive evidence that packets are moving.
+    it('reports online when the browser is stuck offline but the active socket is verified', () => {
+        expect(
+            deriveConnectivity(
+                signals({ isBrowserOnline: false, state: 'connected', isConnected: true, isVerified: true })
+            )
+        ).toBe('online');
+    });
+
+    it('reports reconnecting, not offline, when the browser is stuck offline and only another slot is verified', () => {
+        expect(
+            deriveConnectivity(
+                signals({
+                    isBrowserOnline: false,
+                    hasVerifiedSocket: true,
+                    state: 'closed',
+                    isConnected: false,
+                    isVerified: false,
+                })
+            )
+        ).toBe('reconnecting');
     });
 
     // ...and an UNRELIABLE POSITIVE: true only proves an interface is up, never reachability,
@@ -87,15 +123,24 @@ describe('deriveConnectivity', () => {
 describe('useConnectivity', () => {
     beforeEach(() => {
         mockedSocketState.mockReturnValue(socket());
+        mockedVerifiedClouds.mockReturnValue([]);
         Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
     });
 
-    it('flips to offline when the browser fires the offline event', () => {
+    it('flips to offline when the browser fires the offline event and no slot is verified', () => {
         const { result } = renderHook(() => useConnectivity());
         expect(result.current).toBe('online');
 
         act(() => setBrowserOnline(false));
         expect(result.current).toBe('offline');
+    });
+
+    it('stays online while the browser reports offline but a slot is verified', () => {
+        mockedVerifiedClouds.mockReturnValue(['relay']);
+        const { result } = renderHook(() => useConnectivity());
+
+        act(() => setBrowserOnline(false));
+        expect(result.current).toBe('online');
     });
 
     it('leaves offline when the browser comes back, deferring to the socket state', () => {

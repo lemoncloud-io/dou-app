@@ -24,6 +24,10 @@ jest.mock('../backgroundClouds', () => ({ backgroundClouds: { noteExpired: jest.
 jest.mock('./authStatus', () => ({ getAuthStatus: jest.fn() }));
 jest.mock('./renewCloudSession', () => ({ renewCloudSession: jest.fn() }));
 jest.mock('./requestRelaySessionRefresh', () => ({ requestRelaySessionRefresh: jest.fn() }));
+// Every bound slot reads verified, so a case that still holds off proves the decision ignored them.
+jest.mock('../runtime', () => ({
+    getSocketManager: () => ({ getSlotKeys: () => ['relay', 'cloud-1'], isSlotVerified: () => true }),
+}));
 
 /**
  * Terminal relay expiry is the one path that can END a session on its own, and `expired` means two
@@ -72,6 +76,24 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
         expect(logout).not.toHaveBeenCalled();
         expect(wait).not.toHaveBeenCalled();
         expect(readStatus).not.toHaveBeenCalled();
+    });
+
+    it('holds off on the browser flag alone, even while another socket slot still reads verified', async () => {
+        // Right after a real drop a cloud socket can sit verified until its next frame fails; letting
+        // that overrule the flag here would spend the session on a dead link.
+        Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+        const logout = jest.fn().mockResolvedValue(undefined);
+        const wait = jest.fn().mockResolvedValue(undefined);
+        const renewer = new RelayCredentialRenewer({ wait, readStatus: () => 'expired', logout });
+
+        try {
+            await renewer.onTerminalExpiry();
+        } finally {
+            Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+        }
+
+        expect(wait).not.toHaveBeenCalled();
+        expect(logout).not.toHaveBeenCalled();
     });
 
     it('does not log out when the link drops DURING the confirmation window', async () => {

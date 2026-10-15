@@ -257,7 +257,7 @@ it does not act on the first `expired`. That state means two different things at
 that is genuinely stuck, and three consecutive failures on a link that is dropping. The verdict needs
 two answers:
 
-1. **Is the link dead?** `navigator.onLine === false` proves the failures are not the session's fault. Hold. If it is still stuck when the link returns, `expired` arrives again, online this time.
+1. **Is the link dead?** `navigator.onLine === false` means the failures are not the session's fault. Hold. This is the one offline check that does **not** go through `isLinkKnownDown()` ([socket § When is the link down](../socket/README.md#when-is-the-link-down)): a socket that still reads verified right after a real drop must not be enough to end the session, so a latched `false` here only postpones the verdict. If it is still stuck when the link returns, `expired` arrives again, online this time.
 2. **Is it still `expired` after two 30-second rounds?** A stuck signature persists by definition; an exhausted backoff does not. `'handshaking'` is deliberately **not** counted as resolved — the point is to see the slot actually recover, not to see it try.
 
 The window schedules nothing and kicks nothing. It buys time for the recovery paths that already

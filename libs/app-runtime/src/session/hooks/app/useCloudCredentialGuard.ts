@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { credentialRenewers } from '../../../socket/auth/renewers';
+import { isLinkKnownDown } from '../../../socket/linkState';
 import { getSocketManager } from '../../../socket/runtime';
 import { kindOf, slotKeyOf } from '../../../socket/utils/slotKey';
 import { getCommittedCloudId } from '../../store';
@@ -107,7 +108,7 @@ export const useCloudCredentialGuard = (policy: CloudCredentialPolicy = {}): { c
             if (remaining > marginMs) {
                 return clampSleep(remaining - marginMs);
             }
-            if (!navigator.onLine) {
+            if (isLinkKnownDown()) {
                 // The exchange would only fail; the credential is no more expired for having waited.
                 return RETRY_SLEEP_MS;
             }

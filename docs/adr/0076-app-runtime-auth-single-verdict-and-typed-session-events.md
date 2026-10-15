@@ -382,6 +382,11 @@ Two implementations live here: `RelayCredentialRenewer` and `CloudCredentialRene
 > no kick), and repeated reports are folded into one verdict by Decision 4's `Coalescer`. The
 > contract is locked by
 > [`renewers.test.ts`](../../libs/app-runtime/src/socket/auth/renewers.test.ts).
+>
+> **Amended by [ADR-0204](./0204-a-verified-socket-outranks-a-browser-that-says-it-is-offline.md):**
+> for `deriveConnectivity` and the renewal guards, a verified socket on any slot now overrules
+> `navigator.onLine === false`. This hold-off is the exception and still trusts the flag on its own,
+> because it is the one decision that ends the session.
 
 > **Correction (after implementation).** The draft said `credentialFreshness` would be **absorbed**
 > into the renewer. That did not happen — the singleton stays, and both renewers' `timeToExpiry`

@@ -4,6 +4,7 @@ import { issueCloudTokens } from '../../session/auth/cloudTokens';
 import { getSocketSlotContext } from '../../session/store';
 import { BackgroundCloudTokens } from '../../socket/auth/backgroundCloudTokens';
 import { backgroundClouds } from '../../socket/backgroundClouds';
+import { isLinkKnownDown } from '../../socket/linkState';
 import { getSocketManager } from '../../socket/runtime';
 import { currentBackgroundSelection, liveBackgroundReadiness } from '../utils/backgroundSlots';
 import { subscribeSlotSignals } from '../utils/slotSignals';
@@ -14,7 +15,7 @@ const createPreparer = (): BackgroundCloudTokens =>
         issue: cid => issueCloudTokens(cid, { allowCache: false }),
         onIssued: () => backgroundClouds.invalidate(),
         takeExpired: cid => backgroundClouds.takeExpired(cid),
-        isOnline: () => navigator.onLine,
+        isOnline: () => !isLinkKnownDown(),
         now: () => Date.now(),
         setTimer: (run, ms) => setTimeout(run, ms),
         clearTimer: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
