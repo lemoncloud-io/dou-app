@@ -19,13 +19,14 @@ const BACKGROUND_SYNC_POLL_MS = 60_000;
  * into the runtime layer so polling continues outside the home page.
  *
  * Triggers:
- *  1. Rising edge of `isVerified` (false→true) — covers app entry, reconnect, and switch
- *     completion. A site/cloud switch commits a new identity token, which the SDK AuthController
- *     re-authenticates (auth.switch / reconnect re-auth), so the rising edge fires exactly when
- *     the new session is verified — never against the stale pre-switch session.
+ *  1. Rising edge of `isVerified` (false→true) — covers app entry, reconnect, and a switch onto a
+ *     socket that still has to sign in: the edge fires exactly when that session is verified —
+ *     never against the stale pre-switch one. A switch that lands on a socket signed in already
+ *     makes no edge; a site switch is Trigger 4's and a cloud switch Trigger 6's.
  *  2. Periodic timer while verified — skipped during an in-flight switch.
- *  3. App foreground return, 4. active site change, 5. an explicit request (pull-to-refresh) —
- *     each described at its effect below.
+ *  3. App foreground return, 4. active site change, 5. an explicit request (pull-to-refresh),
+ *     6. the socket coming to serve another cloud while already verified — each described at its
+ *     effect below.
  *
  * The periodic tick passes `{ periodic: true }` so a domain can opt out of it while staying on the
  * edges. Only invites use that today: see the block for why polling on behalf of a user with no
@@ -39,7 +40,7 @@ export const useBackgroundSync = (): void => {
     const repos = runtime.data.useRuntimeRepositories();
     const session = runtime.session.useGlobalSession();
     const { selectedSiteId } = runtime.session.useSessionSelection();
-    const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const { isVerified, activeSlot } = runtime.connection.useRuntimeSocketState();
     // Only for the invite block below — issuing an invite requires a phone-verified main user
     // (ADR-0034), so a guest cannot own a card for `invite.list` to return.
     const { isGuest } = runtime.session.useRuntimeProfile();
@@ -214,23 +215,63 @@ export const useBackgroundSync = (): void => {
         }
     }, [repos.channel, activeSiteId, isRelayServer]);
 
-    // prevSiteRef is shared by Trigger 1 and Trigger 4 (declared once, above both) so the rising edge
-    // can advance the site watermark and Trigger 4 does not re-fire the same sync on a cloud switch.
+    // prevSiteRef is shared by Triggers 1, 6 and 4 (declared once, above all three) so the trigger that
+    // handles a cloud switch can advance the site watermark and Trigger 4 does not re-fire the same
+    // sync for the new cloud's site.
     const prevSiteRef = useRef(activeSiteId);
     const prevVerifiedRef = useRef(false);
+    // The cloud the lists were last asked for on a socket that serves it, cleared whenever the socket
+    // serves another. Shared by Trigger 1 and Trigger 6 for the same reason as prevSiteRef: a switch
+    // onto a cold slot fires both.
+    const syncedCloudRef = useRef<string | null>(null);
+    const isServingCid = activeSlot === cid;
 
     // Trigger 1 — rising edge of isVerified (app entry / reconnect / switch completion).
     useEffect(() => {
         const becameVerified = !prevVerifiedRef.current && isVerified;
         prevVerifiedRef.current = isVerified;
         if (becameVerified) {
-            // A cloud switch lands on a new sid AND fires this rising edge; advance the site watermark
-            // here so Trigger 4 sees an unchanged sid and does not duplicate the fetch below.
+            // A cloud switch onto a cold slot lands on a new sid AND fires this rising edge; advance the
+            // site watermark here so Trigger 4 sees an unchanged sid and does not duplicate the fetch.
             prevSiteRef.current = activeSiteId;
+            // Only an edge on the socket that serves this cloud answers for it. An outgoing socket
+            // reconnecting mid-switch is not that, and must leave Trigger 6 its turn.
+            if (isServingCid) syncedCloudRef.current = cid;
             void refreshActiveLists();
             void loadSelfChannel();
         }
-    }, [isVerified, activeSiteId, refreshActiveLists, loadSelfChannel]);
+    }, [isVerified, activeSiteId, isServingCid, cid, refreshActiveLists, loadSelfChannel]);
+
+    // Trigger 6 — the socket comes to serve another cloud while it is already verified. Every joined
+    // cloud keeps a socket session in the background, so a switch into one usually lands on a slot
+    // that is verified already: the active slot moves, `isVerified` reads true before and after, and
+    // Trigger 1 never fires. A cloud switch also empties the selected site, so Trigger 4 has nothing
+    // to go on. Left to the periodic tick, a cloud this device holds no cached places for showed an
+    // empty home for up to a minute, with nothing to auto-select. Fires once the switch has settled
+    // and the active slot is the committed cloud's — not before, or the outgoing socket would answer
+    // and the repositories would drop it as foreign. Once per arrival: the mark is cleared whenever
+    // the socket serves another cloud, so coming back asks again even when the cloud in between never
+    // got far enough to be marked (tapped away mid-switch, or a slot that never signed in). A switch
+    // onto a cold slot reaches here only after its rising edge, which already marked this cloud, so
+    // it is not fetched twice.
+    //
+    // Declared ahead of Trigger 4 on purpose. A switch back to the relay (leaving the cloud session,
+    // which is no switch mutation) restores the relay's selected site one render before the active
+    // slot follows, and Trigger 4 waits for that slot too. Both then become eligible in the same
+    // render; effects run in order, so this claims the fetch and advances prevSiteRef, and Trigger 4
+    // sees no change instead of asking a second time.
+    useEffect(() => {
+        if (!isServingCid) {
+            syncedCloudRef.current = null;
+            return;
+        }
+        if (!isVerified || isSwitching) return;
+        if (syncedCloudRef.current === cid) return;
+        syncedCloudRef.current = cid;
+        prevSiteRef.current = activeSiteId;
+        void refreshActiveLists();
+        void loadSelfChannel();
+    }, [cid, isServingCid, isVerified, isSwitching, activeSiteId, refreshActiveLists, loadSelfChannel]);
 
     // Trigger 2 — periodic poll while verified, skipped during an in-flight switch (the optimistic
     // window can leave the old session briefly verified=true; the rising edge handles completion).
@@ -243,16 +284,19 @@ export const useBackgroundSync = (): void => {
     // Trigger 4 — active site (sid) change. A SITE switch drives SDK `auth.switch` on the SAME socket,
     // which stays `authenticated` throughout (no isVerified false→true), so Trigger 1 never fires for
     // it — without this, a site the user only ever reached via a switch is never fetched and its
-    // channel list stays empty. Fire once the switch settles (verified + not mid-switch) and the sid
-    // actually changed. A CLOUD switch instead reboots the socket and fires Trigger 1, which already
-    // advanced prevSiteRef to the new sid — so this stays quiet and does not double-fetch.
+    // channel list stays empty. Fire once the switch settles (verified + not mid-switch), the socket
+    // serves the committed cloud, and the sid actually changed. A CLOUD switch is Trigger 1's (a cold
+    // slot's rising edge) or Trigger 6's (a slot verified already), and both advance prevSiteRef to
+    // the new sid — so this stays quiet and does not double-fetch. The slot check is what keeps it
+    // so on the way back to the relay: the relay's site returns a render before the slot does, and
+    // firing then would ask once here and once more from Trigger 6.
     useEffect(() => {
-        if (!isVerified || isSwitching || !activeSiteId) return;
+        if (!isVerified || isSwitching || !isServingCid || !activeSiteId) return;
         if (prevSiteRef.current === activeSiteId) return;
         prevSiteRef.current = activeSiteId;
         void refreshActiveLists();
         void loadSelfChannel();
-    }, [activeSiteId, isVerified, isSwitching, refreshActiveLists, loadSelfChannel]);
+    }, [activeSiteId, isVerified, isSwitching, isServingCid, refreshActiveLists, loadSelfChannel]);
 
     // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended and
     // pushes may have been missed, so re-sync on resume. Gated on `isVerified` so we only fire against

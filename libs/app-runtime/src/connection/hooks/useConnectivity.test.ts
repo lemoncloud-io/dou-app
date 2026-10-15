@@ -4,6 +4,7 @@ import { deriveConnectivity, useConnectivity } from './useConnectivity';
 import type { ConnectivitySignals } from './useConnectivity';
 import { useRuntimeSocketState } from './useRuntimeSocketState';
 import { useVerifiedClouds } from './useVerifiedClouds';
+import type { SlotKey } from '../../socket/types';
 
 jest.mock('./useRuntimeSocketState', () => ({ useRuntimeSocketState: jest.fn() }));
 jest.mock('./useVerifiedClouds', () => ({ useVerifiedClouds: jest.fn() }));
@@ -16,17 +17,21 @@ const socket = (over: Partial<ReturnType<typeof useRuntimeSocketState>> = {}) =>
     isConnected: true,
     isVerified: true,
     connectionId: 'conn-1',
+    activeSlot: 'default' as SlotKey,
     ...over,
 });
 
-// `ConnectivitySignals` extends the full `SocketState`, so `connectionId` is required even though
-// the derivation never reads it. The truth table below is about the signals it does read, so the id
-// is pinned here instead of repeated on every row — and so is `hasVerifiedSocket`, which mirrors the
-// active slot unless a row says otherwise.
+// `ConnectivitySignals` extends the full `SocketState`, so `connectionId` and `activeSlot` are
+// required even though the derivation never reads them. The truth table below is about the signals
+// it does read, so both are pinned here instead of repeated on every row — and so is
+// `hasVerifiedSocket`, which mirrors the active slot unless a row says otherwise.
 const signals = (
-    over: Omit<ConnectivitySignals, 'connectionId' | 'hasVerifiedSocket'> & { hasVerifiedSocket?: boolean }
+    over: Omit<ConnectivitySignals, 'connectionId' | 'activeSlot' | 'hasVerifiedSocket'> & {
+        hasVerifiedSocket?: boolean;
+    }
 ): ConnectivitySignals => ({
     connectionId: null,
+    activeSlot: null,
     hasVerifiedSocket: over.isConnected && over.isVerified,
     ...over,
 });

@@ -410,7 +410,7 @@ export class SocketManager implements ISocketManager {
         entry.authenticated = value;
         this.notifySlotVerified(key);
         if (this.getActiveKey() === key) {
-            this.setState(this.computeState(entry));
+            this.setState(this.computeState(key, entry));
         }
     }
 
@@ -604,8 +604,8 @@ export class SocketManager implements ISocketManager {
         return this.getActiveEntry()?.client ?? null;
     }
 
-    private computeState(entry: ClientEntry | null): SocketState {
-        if (!entry) return INITIAL_SOCKET_STATE;
+    private computeState(key: SlotKey | null, entry: ClientEntry | null): SocketState {
+        if (!key || !entry) return INITIAL_SOCKET_STATE;
         const connected = entry.connState === 'connected';
         return {
             state: entry.connState,
@@ -614,6 +614,7 @@ export class SocketManager implements ISocketManager {
             // it once the SDK re-authenticates (onAuthState → setAuthenticated).
             isVerified: entry.authenticated && connected,
             connectionId: null,
+            activeSlot: key,
         };
     }
 
@@ -635,7 +636,7 @@ export class SocketManager implements ISocketManager {
             });
             this.lastActiveKey = activeKey;
         }
-        this.setState(this.computeState(this.getActiveEntry()));
+        this.setState(this.computeState(activeKey, this.getActiveEntry()));
 
         const activeClient = this.getActiveClient();
         if (activeClient === prevActiveClient) return;
@@ -681,7 +682,7 @@ export class SocketManager implements ISocketManager {
                 // Only the active slot drives the observable state; background (relay-while-cloud)
                 // transport changes are tracked on the entry but not surfaced.
                 if (this.getActiveKey() === key) {
-                    this.setState(this.computeState(entry));
+                    this.setState(this.computeState(key, entry));
                 }
             })
         );
@@ -818,7 +819,8 @@ export class SocketManager implements ISocketManager {
             next.state === this.state.state &&
             next.isConnected === this.state.isConnected &&
             next.isVerified === this.state.isVerified &&
-            next.connectionId === this.state.connectionId
+            next.connectionId === this.state.connectionId &&
+            next.activeSlot === this.state.activeSlot
         ) {
             return;
         }

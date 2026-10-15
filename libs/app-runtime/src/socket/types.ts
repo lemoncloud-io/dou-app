@@ -64,6 +64,13 @@ export interface SocketState {
     isVerified: boolean;
     /** Server-assigned connection id, when known. */
     connectionId: string | null;
+    /**
+     * The slot these fields describe — the active one — or null before the first bind and after the
+     * last slot is torn down. On it so a move between two slots that are both verified is still a
+     * change: the other fields read the same before and after, and a subscriber that has to act on
+     * "the socket now serves another cloud" would otherwise never hear of it.
+     */
+    activeSlot: SlotKey | null;
 }
 
 /**

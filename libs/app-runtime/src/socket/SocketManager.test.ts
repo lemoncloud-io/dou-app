@@ -872,6 +872,41 @@ describe('SocketManager dual slots (active facade)', () => {
         expect(manager.getSnapshot().isVerified).toBe(true);
     });
 
+    it('tells state subscribers when the active slot moves between two verified slots', () => {
+        // Every joined cloud keeps a background session, so the usual switch moves the pointer onto a
+        // slot that is verified already. Transport and auth read the same on both sides of the move;
+        // the slot is what changed, and a subscriber that has to re-ask for the new cloud's lists
+        // only hears of it through `activeSlot`.
+        mockedCreate.mockReturnValueOnce(makeClient()).mockReturnValueOnce(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(onRelay(RELAY_CONFIG));
+        manager.ensure(onCloud(CLOUD_CONFIG));
+        manager.setAuthenticated(RELAY, true);
+        manager.setAuthenticated(CLOUD, true);
+        const seen: Array<{ isVerified: boolean; activeSlot: string | null }> = [];
+        manager.subscribe(state => seen.push({ isVerified: state.isVerified, activeSlot: state.activeSlot }));
+
+        manager.setActiveSlot(CLOUD);
+        manager.setActiveSlot(CLOUD); // no move, no news
+
+        expect(seen).toEqual([
+            { isVerified: true, activeSlot: 'default' },
+            { isVerified: true, activeSlot: 'cloud-1' },
+        ]);
+    });
+
+    it('names no active slot before the first bind and after the last teardown', () => {
+        mockedCreate.mockReturnValueOnce(makeClient());
+        const manager = new SocketManager();
+        expect(manager.getSnapshot().activeSlot).toBeNull();
+
+        manager.ensure(onRelay(RELAY_CONFIG));
+        expect(manager.getSnapshot().activeSlot).toBe('default');
+
+        manager.destroy(RELAY);
+        expect(manager.getSnapshot().activeSlot).toBeNull();
+    });
+
     it('destroying the cloud slot falls the active facade back to relay', () => {
         const relay = makeClient();
         const cloud = makeClient();
