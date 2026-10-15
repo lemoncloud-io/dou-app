@@ -148,8 +148,10 @@ error and flips the CTA to a retry that re-runs the **switch**, never the consum
 
 ### Driving a shell
 
-The caller passes `mode` — the accept flow is always `login`, since the session opening a deeplink is
-a device user, and mypage linking is always `link` — plus `onVerified`, `onClose`, and in an accept
+The caller passes `mode` — the relay invite's accept flow picks `login` for a guest and `link` for a
+main user with no phone, from the relay account's role (see
+[relay-invite-accept.md](../invite/relay-invite-accept.md#verification-login-or-link-and-why-it-matters)),
+and mypage linking is always `link` — plus `onVerified`, `onClose`, and in an accept
 flow the `inviteCode` and `inviteLast4`. `context` picks the hero copy and only the full-screen shell
 takes it, because only that shell has a hero.
 
